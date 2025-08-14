@@ -579,6 +579,7 @@ export function TimelineView() {
               <div className="flex items-center" style={{ gap: '21px' }}>
                 <ToggleGroup
                   type="single"
+                  variant="outline"
                   value={timelineMode}
                   onValueChange={(value) => value && setTimelineMode(value as 'days' | 'weeks')}
                 >
