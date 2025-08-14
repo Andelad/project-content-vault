@@ -27,7 +27,6 @@ import { HoverableTimelineScrollbar } from './timeline/HoverableTimelineScrollba
 import { TimelineAddProjectRow, AddHolidayRow } from './timeline/AddProjectRow';
 import { HoverAddProjectBar } from './timeline/HoverAddProjectBar';
 import { PerformanceStatus } from './PerformanceStatus';
-import { RowScrollIndicator } from './timeline/RowScrollIndicator';
 
 // Import new availability component
 import { NewAvailabilityCircles } from './timeline/NewAvailabilityCircles';
@@ -172,23 +171,6 @@ export function TimelineView() {
   const handleToggleCollapse = useCallback(() => {
     setCollapsed(prev => !prev);
   }, []);
-
-  // Project scroll indicators - only show when project is completely out of view
-  const getProjectScrollIndicators = useCallback((project: any) => {
-    const projectStart = new Date(project.startDate);
-    const projectEnd = new Date(project.endDate);
-    
-    // Left indicator: show only when project is completely to the left (ends before viewport starts)
-    const projectCompletelyLeft = projectEnd < viewportStart;
-    
-    // Right indicator: show only when project is completely to the right (starts after viewport ends)
-    const projectCompletelyRight = projectStart > viewportEnd;
-    
-    return {
-      left: projectCompletelyLeft,
-      right: projectCompletelyRight
-    };
-  }, [viewportStart, viewportEnd]);
 
   // Scroll to project functionality - position project start as second visible date with smooth animation
   const scrollToProject = useCallback((project: any) => {
@@ -709,18 +691,10 @@ export function TimelineView() {
                                           handleMouseDown={handleMouseDown}
                                           mode={mode}
                                           isMultiProjectRow={true} // Add flag for multi-project rows
+                                          collapsed={collapsed}
                                         />
                                       );
                                     })}
-                                    
-                                    {/* Scroll Indicator - shows when row has no visible projects but has future projects */}
-                                    <RowScrollIndicator
-                                      rowId={row.id}
-                                      projects={projects}
-                                      viewportStart={viewportStart}
-                                      viewportEnd={viewportEnd}
-                                      onScrollToProject={scrollToProject}
-                                    />
                                     
                                     {/* Hover Add Project Bar - only show if no projects or in empty spaces */}
                                     {rowProjects.length === 0 && (

@@ -51,7 +51,7 @@ export function Sidebar() {
         ) : (
           <div className="flex items-center gap-3">
             <div className="w-5 h-4 bg-primary rounded text-primary-foreground text-xs flex items-center justify-center font-bold">T</div>
-            <h1 className="text-lg font-medium text-[#595956]">Timeline App</h1>
+            <h1 className="text-lg font-medium text-[#595956]">Budgi</h1>
           </div>
         )}
         

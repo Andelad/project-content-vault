@@ -17,6 +17,7 @@ interface TimelineBarProps {
   handleMouseDown: (e: React.MouseEvent, projectId: string, action: string) => void;
   mode?: 'days' | 'weeks';
   isMultiProjectRow?: boolean;
+  collapsed: boolean;
 }
 
 // Helper function to get hover color
@@ -51,7 +52,9 @@ export const TimelineBar = memo(function TimelineBar({
   isDragging, 
   dragState, 
   handleMouseDown,
-  mode
+  mode,
+  isMultiProjectRow,
+  collapsed
 }: TimelineBarProps) {
   const { settings, events, holidays } = useAppDataOnly();
   
@@ -162,12 +165,7 @@ export const TimelineBar = memo(function TimelineBar({
   const { exactDailyHours, dailyHours, dailyMinutes, heightInPixels, workingDaysCount } = projectMetrics;
   
   if (projectDays.length === 0) {
-    return (
-      <div className="relative h-[52px] group">
-        {/* Project Icon Indicator */}
-        <ProjectIconIndicator project={project} mode={mode} />
-      </div>
-    );
+    return null; // Don't render anything for projects with no duration
   }
   
   return (
@@ -247,7 +245,7 @@ export const TimelineBar = memo(function TimelineBar({
                         <Tooltip key={dayOfWeek}>
                           <TooltipTrigger asChild>
                             <div
-                              className={`transition-all shadow-sm hover:shadow-md cursor-move relative ${
+                              className={`shadow-sm hover:shadow-md cursor-move relative ${
                                 isDragging && dragState?.projectId === project.id 
                                   ? 'opacity-90 shadow-lg' 
                                   : ''
@@ -502,7 +500,7 @@ export const TimelineBar = memo(function TimelineBar({
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <div 
-                        className={`w-full transition-all shadow-sm hover:shadow-md group cursor-move relative ${ 
+                        className={`w-full shadow-sm hover:shadow-md group cursor-move relative ${ 
                           isDragging && dragState?.projectId === project.id 
                             ? 'opacity-90 shadow-lg' 
                             : ''
@@ -680,11 +678,11 @@ export const TimelineBar = memo(function TimelineBar({
                 title="Drag to change start date"
               />
               
-              {/* Project Icon Indicator - positioned above the start circle */}
+              {/* Project Icon Indicator - positioned above the start circle, becomes sticky when scrolling off-screen */}
               <div 
                 className="absolute z-40"
                 style={{ 
-                  left: `${positions.circleLeftPx - 12}px`, // Center the indicator on the start circle
+                  left: `${Math.max(positions.circleLeftPx - 12, 8)}px`, // Stick with 8px gap from left edge when scrolling off-screen
                   top: '-32px' // Position above the start circle
                 }}
               >

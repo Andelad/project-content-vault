@@ -55,7 +55,7 @@ export function ProjectIconIndicator({ project, mode = 'days' }: ProjectIconIndi
     <Tooltip>
       <TooltipTrigger asChild>
         <button
-          className="relative w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200 shadow-sm hover:shadow-md"
+          className="relative w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200 shadow-md hover:shadow-lg drop-shadow-sm"
           style={{ backgroundColor: project.color }}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
