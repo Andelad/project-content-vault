@@ -581,13 +581,11 @@ export function TimelineView() {
                   type="single"
                   value={timelineMode}
                   onValueChange={(value) => value && setTimelineMode(value as 'days' | 'weeks')}
-                  variant="outline"
-                  className="bg-white border border-border h-9"
                 >
-                  <ToggleGroupItem value="weeks" aria-label="Weeks mode" className="px-3 py-2 gap-2 flex-none hover:bg-gray-100 data-[state=on]:bg-accent h-9">
+                  <ToggleGroupItem value="weeks" aria-label="Weeks mode">
                     Weeks
                   </ToggleGroupItem>
-                  <ToggleGroupItem value="days" aria-label="Days mode" className="px-3 py-2 gap-2 flex-none hover:bg-gray-100 data-[state=on]:bg-accent h-9">
+                  <ToggleGroupItem value="days" aria-label="Days mode">
                     Days
                   </ToggleGroupItem>
                 </ToggleGroup>
