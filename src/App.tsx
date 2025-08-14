@@ -1,25 +1,152 @@
+import React, { Suspense, lazy } from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
+import { AppProvider, useApp } from '@/contexts/AppContext';
+import { Sidebar } from '@/components/Sidebar';
+import { ProjectDetailModal } from '@/components/ProjectDetailModal';
+import { HolidayModal } from '@/components/HolidayModal';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { DevToolsWrapper } from '@/components/DevTools';
+
+// Lazy load view components for better performance
+const TimelineView = lazy(() => import('@/components/TimelineView').then(module => ({ default: module.TimelineView })));
+const CalendarView = lazy(() => import('@/components/CalendarView').then(module => ({ default: module.CalendarView })));
+const ProjectsView = lazy(() => import('@/components/ProjectsView').then(module => ({ default: module.ProjectsView })));
+const ReportsView = lazy(() => import('@/components/ReportsView').then(module => ({ default: module.ReportsView })));
+const SettingsView = lazy(() => import('@/components/SettingsView').then(module => ({ default: module.SettingsView })));
+const ProfileView = lazy(() => import('@/components/ProfileView').then(module => ({ default: module.ProfileView })));
+
+// Import the EventDetailModal
+import { EventDetailModal } from '@/components/EventDetailModal';
 
 const queryClient = new QueryClient();
+
+function LoadingFallback() {
+  return (
+    <div className="flex-1 flex items-center justify-center bg-background h-full">
+      <div className="text-center">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    </div>
+  );
+}
+
+function AppContent() {
+  const { 
+    currentView, 
+    selectedProjectId, 
+    setSelectedProjectId, 
+    creatingNewProject, 
+    setCreatingNewProject, 
+    creatingNewHoliday, 
+    setCreatingNewHoliday,
+    editingHolidayId,
+    setEditingHolidayId,
+    selectedEventId,
+    setSelectedEventId,
+    creatingNewEvent,
+    setCreatingNewEvent
+  } = useApp();
+
+  const renderView = () => {
+    // Pass key directly instead of spreading to avoid React warnings
+    switch (currentView) {
+      case 'projects':
+        return <ProjectsView key={currentView} />;
+      case 'timeline':
+        return <TimelineView key={currentView} />;
+      case 'calendar':
+        return <CalendarView key={currentView} />;
+      case 'reports':
+        return <ReportsView key={currentView} />;
+      case 'settings':
+        return <SettingsView key={currentView} />;
+      case 'profile':
+        return <ProfileView key={currentView} />;
+      default:
+        return <ProjectsView key={currentView} />;
+    }
+  };
+
+  return (
+    <div className="flex bg-background h-screen w-full">
+      <ErrorBoundary>
+        <Sidebar />
+      </ErrorBoundary>
+      
+      <div className="flex-1 bg-background light-scrollbar overflow-auto">
+        <ErrorBoundary fallback={
+          <div className="flex-1 flex items-center justify-center bg-background h-full">
+            <div className="text-center">
+              <p className="text-muted-foreground">Unable to load this view. Please try refreshing the page.</p>
+            </div>
+          </div>
+        }>
+          <Suspense fallback={<LoadingFallback />}>
+            {renderView()}
+          </Suspense>
+        </ErrorBoundary>
+      </div>
+
+      {/* Global Modals with Error Boundaries */}
+      <ErrorBoundary>
+        <ProjectDetailModal
+          key="edit-modal"
+          isOpen={!!selectedProjectId}
+          onClose={() => setSelectedProjectId(null)}
+          projectId={selectedProjectId || ''}
+        />
+
+        <ProjectDetailModal
+          key="create-modal"
+          isOpen={!!creatingNewProject}
+          onClose={() => setCreatingNewProject(null)}
+          groupId={creatingNewProject?.groupId || ''}
+        />
+
+        <EventDetailModal
+          key="edit-event-modal"
+          isOpen={!!selectedEventId}
+          onClose={() => setSelectedEventId(null)}
+          eventId={selectedEventId || ''}
+        />
+
+        <EventDetailModal
+          key="create-event-modal"
+          isOpen={!!creatingNewEvent}
+          onClose={() => setCreatingNewEvent(null)}
+          defaultStartTime={creatingNewEvent?.startTime}
+          defaultEndTime={creatingNewEvent?.endTime}
+        />
+
+        <HolidayModal
+          isOpen={creatingNewHoliday}
+          onClose={() => setCreatingNewHoliday(false)}
+        />
+
+        <HolidayModal
+          isOpen={!!editingHolidayId}
+          onClose={() => setEditingHolidayId(null)}
+          holidayId={editingHolidayId || undefined}
+        />
+      </ErrorBoundary>
+    </div>
+  );
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+      <AppProvider>
+        <DevToolsWrapper>
+          <AppContent />
+        </DevToolsWrapper>
+      </AppProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

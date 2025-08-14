@@ -1,0 +1,122 @@
+import React, { useState } from 'react';
+import { useApp } from '../contexts/AppContext';
+import { Calendar, AlignLeft, Folders, Settings, User, ChevronLeft, ChevronRight, PieChart } from 'lucide-react';
+
+export function Sidebar() {
+  const { currentView, setCurrentView } = useApp();
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  const mainNavItems = [
+    {
+      id: 'timeline' as const,
+      label: 'Timeline',
+      icon: AlignLeft,
+    },
+    {
+      id: 'calendar' as const,
+      label: 'Calendar',
+      icon: Calendar,
+    },
+    {
+      id: 'reports' as const,
+      label: 'Overview',
+      icon: PieChart,
+    },
+    {
+      id: 'projects' as const,
+      label: 'Projects',
+      icon: Folders,
+    },
+  ];
+
+  const bottomNavItems = [
+    {
+      id: 'profile' as const,
+      label: 'Profile',
+      icon: User,
+    },
+    {
+      id: 'settings' as const,
+      label: 'Settings',
+      icon: Settings,
+    },
+  ];
+
+  return (
+    <div className={`${isCollapsed ? 'w-16' : 'w-64'} h-screen bg-[#f9f9f9] border-r border-[#e2e2e2] flex flex-col transition-all duration-300 ease-in-out relative flex-shrink-0`}>
+      {/* Header */}
+      <div className={`h-20 px-6 border-b border-[#e2e2e2] flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
+        {isCollapsed ? (
+          <div className="w-5 h-4 bg-primary rounded text-primary-foreground text-xs flex items-center justify-center font-bold">T</div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <div className="w-5 h-4 bg-primary rounded text-primary-foreground text-xs flex items-center justify-center font-bold">T</div>
+            <h1 className="text-lg font-medium text-[#595956]">Timeline App</h1>
+          </div>
+        )}
+        
+        {/* Collapse Toggle Button - Positioned over right edge */}
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="absolute top-7 -right-3 w-6 h-6 bg-white border border-border rounded-md flex items-center justify-center text-[#595956] hover:bg-gray-50 transition-colors duration-200 z-10"
+        >
+          {isCollapsed ? (
+            <ChevronRight className="w-4 h-4" />
+          ) : (
+            <ChevronLeft className="w-4 h-4" />
+          )}
+        </button>
+      </div>
+
+      {/* Main Navigation */}
+      <nav className={`flex-1 overflow-y-auto ${isCollapsed ? 'px-2 py-4' : 'p-4'}`}>
+        <ul className="space-y-2">
+          {mainNavItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <li key={item.id}>
+                <button
+                  onClick={() => setCurrentView(item.id)}
+                  className={`${isCollapsed ? 'w-12 h-12 flex items-center justify-center' : 'w-full flex items-center px-4 py-3'} rounded-lg transition-colors duration-200 ${
+                    currentView === item.id
+                      ? 'bg-[#02c0b7] text-white shadow-lg'
+                      : 'text-[#595956] hover:bg-[#e9e9e9] hover:text-[#494946]'
+                  }`}
+                  title={isCollapsed ? item.label : undefined}
+                >
+                  <Icon className={`w-5 h-5 flex-shrink-0 ${!isCollapsed ? 'mr-3' : ''}`} />
+                  {!isCollapsed && <span className="font-medium">{item.label}</span>}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+
+      {/* Bottom Navigation */}
+      <div className={`${isCollapsed ? 'px-2 py-4' : 'p-4'} border-t border-[#e2e2e2] flex-shrink-0`}>
+        <ul className="space-y-2">
+          {bottomNavItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <li key={item.id}>
+                <button
+                  onClick={() => setCurrentView(item.id)}
+                  className={`${isCollapsed ? 'w-12 h-12 flex items-center justify-center' : 'w-full flex items-center px-4 py-3'} rounded-lg transition-colors duration-200 ${
+                    currentView === item.id
+                      ? 'bg-[#02c0b7] text-white shadow-lg'
+                      : 'text-[#595956] hover:bg-[#e9e9e9] hover:text-[#494946]'
+                  }`}
+                  title={isCollapsed ? item.label : undefined}
+                >
+                  <Icon className={`w-5 h-5 flex-shrink-0 ${!isCollapsed ? 'mr-3' : ''}`} />
+                  {!isCollapsed && <span className="font-medium">{item.label}</span>}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </div>
+  );
+}
