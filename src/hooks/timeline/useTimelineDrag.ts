@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { calculateDaysDelta } from '../../utils/dragUtils';
+import { calculateDaysDelta } from '../../lib/dragUtils';
 import type { DragState, AutoScrollState } from '../../types/core';
 
 interface UseTimelineDragProps {

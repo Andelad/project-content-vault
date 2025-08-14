@@ -68,7 +68,7 @@ export function ProjectTimeline({ project, dates, currentDate }: ProjectTimeline
 
   // Handle time allocation adjustment
   const handleTimeAdjustment = (date: Date, newHours: number) => {
-    updateTimelineEntry(date, project.id, Math.max(0, newHours));
+    updateTimelineEntry({ date, projectId: project.id, hours: Math.max(0, newHours) });
   };
 
   // Handle drag start

@@ -36,6 +36,8 @@ export interface CalendarEvent {
   projectId?: string;
   color: string;
   completed?: boolean; // Whether the event has been marked as completed
+  description?: string; // Optional description
+  duration?: number; // Duration in hours
 }
 
 export interface Holiday {

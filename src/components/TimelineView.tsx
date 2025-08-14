@@ -34,7 +34,7 @@ import { NewAvailabilityCircles } from './timeline/NewAvailabilityCircles';
 
 export function TimelineView() {
   const { projects, groups, rows, settings, currentDate, selectedProjectId, holidays } = useAppDataOnly();
-  const { setCurrentDate, updateProject, updateHoliday, setSelectedProjectId, addProject } = useAppActionsOnly();
+  const { setCurrentDate, updateProject, setSelectedProjectId, addProject, updateHoliday } = useAppActionsOnly();
   
   // Timeline state management
   const [viewportStart, setViewportStart] = useState(() => {

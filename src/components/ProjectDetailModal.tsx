@@ -58,9 +58,10 @@ interface ProjectDetailModalProps {
   onClose: () => void;
   projectId?: string;
   groupId?: string;
+  rowId?: string;
 }
 
-export function ProjectDetailModal({ isOpen, onClose, projectId, groupId }: ProjectDetailModalProps) {
+export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId }: ProjectDetailModalProps) {
   const { projects, groups, updateProject, addProject, deleteProject, creatingNewProject, setCurrentView, events, holidays, settings } = useApp();
   const project = (projectId && projectId !== '') ? projects.find(p => p.id === projectId) : null;
   const isCreating = (!projectId || projectId === '') && (groupId && groupId !== '');
@@ -146,6 +147,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId }: Proj
         endDate: localValues.endDate,
         estimatedHours: localValues.estimatedHours,
         groupId,
+        rowId: rowId || 'work-row-1', // Provide default rowId
         color: localValues.color || OKLCH_PROJECT_COLORS[0],
         notes: localValues.notes,
         icon: localValues.icon
@@ -195,6 +197,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId }: Proj
     estimatedHours: localValues.estimatedHours,
     color: localValues.color,
     groupId: groupId || '',
+    rowId: rowId || 'work-row-1',
     notes: localValues.notes,
     icon: localValues.icon
   };

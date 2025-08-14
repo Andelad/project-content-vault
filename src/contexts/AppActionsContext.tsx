@@ -15,6 +15,7 @@ interface AppActionsContextType {
   addEvent: (event: Omit<CalendarEvent, 'id'>) => void;
   updateEvent: (id: string, updates: Partial<CalendarEvent>) => void;
   deleteEvent: (id: string) => void;
+  updateHoliday: (id: string, updates: any) => void;
   setSelectedProjectId: (projectId: string | null) => void;
 }
 

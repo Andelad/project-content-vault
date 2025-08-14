@@ -109,11 +109,11 @@ export function generateWorkHoursForDate(
     endTime.setHours(endHour, endMin, 0, 0);
 
     return {
-      id: `work-${dayName}-${index}`,
+      id: `work-${String(dayName)}-${index}`,
       title: 'Work Hours',
       startTime,
       endTime,
-      duration: slot.duration,
+      duration: Number(slot.duration),
       type: 'work' as const
     };
   });

@@ -33,6 +33,9 @@ interface AppContextType {
   rows: Row[]; // Add rows to interface
   events: CalendarEvent[];
   settings: Settings;
+  workHours: any[]; // Add workHours property
+  timelineEntries: any[]; // Add timelineEntries property
+  updateTimelineEntry: (entry: any) => void; // Add updateTimelineEntry method
   workHourOverrides: WorkHourOverride[];
   updateSettings: (updates: Partial<Settings>) => void;
   addWorkHourOverride: (override: WorkHourOverride) => void;
@@ -101,6 +104,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Work hour overrides for individual date-specific changes
   const [workHourOverrides, setWorkHourOverrides] = useState<WorkHourOverride[]>([]);
+  
+  // Add missing state
+  const [workHours] = useState<any[]>([]);
+  const [timelineEntries, setTimelineEntries] = useState<any[]>([]);
 
   const setCreatingNewProject = useCallback((groupId: string | null, dates?: { startDate: Date; endDate: Date }, rowId?: string) => {
     if (groupId) {
@@ -687,6 +694,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
+  // Add missing function implementations
+  const updateTimelineEntry = useCallback((entry: any) => {
+    setTimelineEntries(prev => {
+      const index = prev.findIndex(e => e.id === entry.id);
+      if (index >= 0) {
+        return prev.map((e, i) => i === index ? { ...e, ...entry } : e);
+      }
+      return [...prev, entry];
+    });
+  }, []);
+
   // Memoize state and actions separately
   const state = useMemo(() => ({
     currentView,
@@ -696,6 +714,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     rows, // Add rows to state properly
     events,
     settings,
+    workHours,
+    timelineEntries,
     workHourOverrides,
     selectedProjectId,
     creatingNewProject,
@@ -705,12 +725,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     holidayCreationState,
     selectedEventId,
     creatingNewEvent
-  }), [currentView, currentDate, projects, groups, rows, events, settings, workHourOverrides, selectedProjectId, creatingNewProject, holidays, creatingNewHoliday, editingHolidayId, holidayCreationState, selectedEventId, creatingNewEvent]);
+  }), [currentView, currentDate, projects, groups, rows, events, settings, workHours, timelineEntries, workHourOverrides, selectedProjectId, creatingNewProject, holidays, creatingNewHoliday, editingHolidayId, holidayCreationState, selectedEventId, creatingNewEvent]);
 
   const actions = useMemo(() => ({
     setCurrentView,
     setCurrentDate,
     updateSettings,
+    updateTimelineEntry,
     addWorkHourOverride,
     removeWorkHourOverride,
     addProject,
@@ -742,6 +763,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setCurrentView,
     setCurrentDate,
     updateSettings,
+    updateTimelineEntry,
     addWorkHourOverride,
     removeWorkHourOverride,
     addProject,

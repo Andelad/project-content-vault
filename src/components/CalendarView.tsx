@@ -145,6 +145,7 @@ export function CalendarView() {
         title: 'Client Presentation',
         description: 'Present initial wireframes and design concepts to the client',
         projectId: '1', // Connected to "Website Redesign" project - will inherit blue color
+        color: 'oklch(0.8 0.12 240)', // Blue color for the event
         ...getEventDate(2, 14, 1.5), // Day after tomorrow 2pm-3:30pm
       });
 
@@ -152,6 +153,7 @@ export function CalendarView() {
         title: 'Team Standup',
         description: 'Daily standup meeting with the development team',
         projectId: '2', // Connected to "Mobile App Development" project - will inherit red color
+        color: 'oklch(0.8 0.12 0)', // Red color for the event
         ...getEventDate(4, 9, 0.5), // 4 days from now 9am-9:30am
       });
 
@@ -167,6 +169,7 @@ export function CalendarView() {
         title: 'Brand Strategy Meeting',
         description: 'Initial brand strategy discussion with the creative team',
         projectId: '3', // Connected to "Brand Identity" project - will inherit purple color
+        color: 'oklch(0.8 0.12 270)', // Purple color for the event
         ...getEventDate(5, 10, 2), // 5 days from now 10am-12pm
       });
     }

@@ -16,6 +16,7 @@ interface TimelineBarProps {
   dragState: any;
   handleMouseDown: (e: React.MouseEvent, projectId: string, action: string) => void;
   mode?: 'days' | 'weeks';
+  isMultiProjectRow?: boolean;
 }
 
 // Helper function to get hover color

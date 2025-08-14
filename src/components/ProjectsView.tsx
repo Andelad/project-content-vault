@@ -245,6 +245,7 @@ export function ProjectsView() {
         name: projectName,
         client: projectClient,
         groupId: projectGroupId,
+        rowId: 'work-row-1', // Provide default rowId
         startDate,
         endDate,
         estimatedHours,
