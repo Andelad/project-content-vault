@@ -171,8 +171,13 @@ export const TimelineBar = memo(function TimelineBar({
   return (
     <div className="relative h-[52px] group">
       <div className="h-full relative flex flex-col">
-        {/* Project rectangles area - positioned to sit on top of baseline */}
-        <div className="flex w-full relative z-20 flex-1 items-end" style={{ minWidth: `${dates.length * (mode === 'weeks' ? 72 : 40)}px` }}>
+        {/* Project rectangles area - positioned to rest bottom edge on top of baseline */}
+        <div 
+          className="flex w-full relative z-20 flex-1" 
+          style={{ 
+            minWidth: `${dates.length * (mode === 'weeks' ? 72 : 40)}px`
+          }}
+        >
           
           {dates.map((date, dateIndex) => {
             if (mode === 'weeks') {
@@ -218,8 +223,8 @@ export const TimelineBar = memo(function TimelineBar({
               const dayWidths = [10, 10, 10, 10, 10, 11, 11]; // Mon, Tue, Wed, Thu, Fri, Sat, Sun
               
               return (
-                <div key={dateIndex} className="flex flex-col-reverse relative" style={{ minWidth: '72px', width: '72px' }}>
-                  <div className="flex w-full" style={{ height: `${heightInPixels}px` }}>
+                <div key={dateIndex} className="flex relative h-full items-end" style={{ minWidth: '72px', width: '72px' }}>
+                  <div className="flex w-full items-end" style={{ height: `${heightInPixels}px` }}>
                     {dayWidths.map((dayWidth, dayOfWeek) => {
                       const currentDay = new Date(weekStart);
                       currentDay.setDate(weekStart.getDate() + dayOfWeek);
@@ -245,9 +250,9 @@ export const TimelineBar = memo(function TimelineBar({
                         <Tooltip key={dayOfWeek}>
                           <TooltipTrigger asChild>
                             <div
-                              className={`shadow-sm hover:shadow-md cursor-move relative ${
+                              className={`cursor-move relative ${
                                 isDragging && dragState?.projectId === project.id 
-                                  ? 'opacity-90 shadow-lg' 
+                                  ? 'opacity-90' 
                                   : ''
                               }`}
                               style={(() => {
@@ -273,8 +278,9 @@ export const TimelineBar = memo(function TimelineBar({
                                   backgroundColor: isPlannedTime ? project.color : autoEstimateColor,
                                   height: `${dayRectangleHeight}px`,
                                   width: `${dayWidth}px`,
-                                  borderTopLeftRadius: '2px', // 2px rounded corners as requested
-                                  borderTopRightRadius: '2px', // 2px rounded corners as requested
+                                  borderTopLeftRadius: '2px',
+                                  borderTopRightRadius: '2px',
+                                  // Remove all animations and transitions
                                   // Handle borders based on planned time like in day view
                                   ...(isPlannedTime ? {
                                     borderLeft: `2px dashed ${baselineColor}`,
@@ -297,7 +303,7 @@ export const TimelineBar = memo(function TimelineBar({
                               {/* Resize handles for first and last day segments */}
                               {dayOfWeek === 0 && (
                                 <div 
-                                  className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity" 
+                                  className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-black/10 opacity-0 group-hover:opacity-100" 
                                   onMouseDown={(e) => { 
                                     e.stopPropagation(); 
                                     handleMouseDown(e, project.id, 'resize-left'); 
@@ -307,7 +313,7 @@ export const TimelineBar = memo(function TimelineBar({
                               
                               {dayOfWeek === 6 && (
                                 <div 
-                                  className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity" 
+                                  className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-black/10 opacity-0 group-hover:opacity-100" 
                                   onMouseDown={(e) => { 
                                     e.stopPropagation(); 
                                     handleMouseDown(e, project.id, 'resize-right'); 
@@ -390,18 +396,20 @@ export const TimelineBar = memo(function TimelineBar({
               const isProjectDay = projectDays.some(projectDay => {
                 const normalizedProjectDay = new Date(projectDay);
                 normalizedProjectDay.setHours(0, 0, 0, 0);
-                return normalizedProjectDay.toDateString() === normalizedTimelineDate.toDateString();
+                const normalizedTimelineDate = new Date(date);
+                normalizedTimelineDate.setHours(0, 0, 0, 0);
+                return normalizedProjectDay.getTime() === normalizedTimelineDate.getTime();
               });
               
               // Don't render rectangle if not a project day OR if it's a 0-hour day OR if it's a holiday
               if (!isProjectDay || !isWorkingDay(date)) {
-                return <div key={dateIndex} className="flex flex-col-reverse" style={{ minWidth: '40px', width: '40px' }}></div>;
+                return <div key={dateIndex} className="h-full" style={{ minWidth: '40px', width: '40px' }}></div>;
               }
 
               // Get time allocation info for this date
               const timeAllocation = getProjectTimeAllocation(
                 project.id,
-                normalizedTimelineDate, // Use normalized date
+                date, // Use the original date from the dates array (already normalized)
                 events,
                 project,
                 settings,
@@ -410,7 +418,7 @@ export const TimelineBar = memo(function TimelineBar({
 
               // Don't render if no time allocation
               if (timeAllocation.type === 'none') {
-                return <div key={dateIndex} className="flex flex-col-reverse" style={{ minWidth: '40px', width: '40px' }}></div>;
+                return <div key={dateIndex} className="h-full" style={{ minWidth: '40px', width: '40px' }}></div>;
               }
 
               // Normalize project dates for comparison
@@ -496,13 +504,13 @@ export const TimelineBar = memo(function TimelineBar({
               };
               
               return (
-                <div key={dateIndex} className="flex flex-col-reverse" style={{ minWidth: '40px', width: '40px' }}>
+                <div key={dateIndex} className="flex items-end h-full" style={{ minWidth: '40px', width: '40px' }}>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <div 
-                        className={`w-full shadow-sm hover:shadow-md group cursor-move relative ${ 
+                        className={`cursor-move relative ${ 
                           isDragging && dragState?.projectId === project.id 
-                            ? 'opacity-90 shadow-lg' 
+                            ? 'opacity-90' 
                             : ''
                         }`}
                         style={rectangleStyle}
@@ -650,7 +658,7 @@ export const TimelineBar = memo(function TimelineBar({
             <div className="relative flex w-full h-[8px] z-20" style={{ overflow: 'visible' }}>
               {/* Baseline line using absolute pixel positioning like HolidayOverlay */}
               <div 
-                className="absolute top-0 h-[3px] z-20 cursor-move hover:opacity-80 transition-opacity"
+                className="absolute top-0 h-[3px] z-20 cursor-move hover:opacity-80"
                 style={{ 
                   backgroundColor: baselineColor,
                   left: `${positions.baselineStartPx}px`, // Use exact positioning without artificial constraints in weeks mode

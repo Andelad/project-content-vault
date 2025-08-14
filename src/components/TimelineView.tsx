@@ -6,7 +6,7 @@ import { Card } from './ui/card';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 import { Button } from './ui/button';
 import { ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
-import { useAppDataOnly, useAppActionsOnly } from '../contexts/AppContext';
+import { useAppDataOnly, useAppActionsOnly, useApp } from '../contexts/AppContext';
 import { useTimelineData } from '../hooks/useTimelineData';
 import { useDynamicViewportDays } from '../hooks/useDynamicViewportDays';
 import { calculateDaysDelta, createSmoothAnimation, TIMELINE_CONSTANTS, debounce, throttle } from '@/lib/dragUtils';
@@ -26,6 +26,7 @@ import { TimelineScrollbar } from './timeline/TimelineScrollbar';
 import { HoverableTimelineScrollbar } from './timeline/HoverableTimelineScrollbar';
 import { TimelineAddProjectRow, AddHolidayRow } from './timeline/AddProjectRow';
 import { HoverAddProjectBar } from './timeline/HoverAddProjectBar';
+import { SmartHoverAddProjectBar } from './timeline/SmartHoverAddProjectBar';
 import { PerformanceStatus } from './PerformanceStatus';
 
 // Import new availability component
@@ -34,11 +35,13 @@ import { NewAvailabilityCircles } from './timeline/NewAvailabilityCircles';
 export function TimelineView() {
   const { projects, groups, rows, settings, currentDate, selectedProjectId, holidays } = useAppDataOnly();
   const { setCurrentDate, updateProject, setSelectedProjectId, addProject, updateHoliday } = useAppActionsOnly();
+  const { setCreatingNewProject } = useApp();
   
   // Timeline state management
   const [viewportStart, setViewportStart] = useState(() => {
     const start = new Date(currentDate);
     start.setDate(1); // Start at beginning of month
+    start.setHours(0, 0, 0, 0); // Normalize time component
     return start;
   });
   
@@ -505,7 +508,7 @@ export function TimelineView() {
     }));
   }, [groups, projects]);
 
-  // Handle creating projects from hover drag
+  // Handle creating projects from hover drag - opens modal for confirmation
   const handleCreateProject = useCallback((rowId: string, startDate: Date, endDate: Date) => {
     const row = rows.find(r => r.id === rowId);
     if (!row) return;
@@ -519,27 +522,15 @@ export function TimelineView() {
       projects
     );
 
-    // If there are overlaps, don't create the project
+    // If there are overlaps, don't open modal
     if (overlaps.length > 0) {
       console.warn('Cannot create project: overlaps with existing projects in the same row');
       return;
     }
 
-    // Calculate duration in days
-    const durationDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-    const estimatedHours = durationDays * 8; // Assume 8 hours per day
-
-    addProject({
-      name: 'New Project',
-      client: 'Client',
-      startDate,
-      endDate,
-      estimatedHours,
-      groupId: row.groupId,
-      rowId: rowId,
-      color: undefined // Will be auto-assigned
-    });
-  }, [rows, addProject, projects]);
+    // Open the project creation modal with the selected dates and row
+    setCreatingNewProject(row.groupId, { startDate, endDate }, rowId);
+  }, [rows, setCreatingNewProject, projects]);
 
   return (
     <DndProvider backend={HTML5Backend}>
@@ -561,14 +552,14 @@ export function TimelineView() {
               <div className="flex items-center" style={{ gap: '21px' }}>
                 <ToggleGroup
                   type="single"
-                  variant="outline"
                   value={timelineMode}
                   onValueChange={(value) => value && setTimelineMode(value as 'days' | 'weeks')}
+                  className="border border-gray-200 rounded-lg h-9 p-1"
                 >
-                  <ToggleGroupItem value="weeks" aria-label="Weeks mode">
+                  <ToggleGroupItem value="weeks" aria-label="Weeks mode" className="px-3 py-1 h-7">
                     Weeks
                   </ToggleGroupItem>
-                  <ToggleGroupItem value="days" aria-label="Days mode">
+                  <ToggleGroupItem value="days" aria-label="Days mode" className="px-3 py-1 h-7">
                     Days
                   </ToggleGroupItem>
                 </ToggleGroup>
@@ -600,8 +591,8 @@ export function TimelineView() {
           <div className="flex-1 flex flex-col px-6 pb-6 min-h-0">
             <div className="flex-1 flex flex-col min-h-0 pt-[0px] pr-[0px] pb-[21px] pl-[0px]">
               {/* Timeline Card */}
-              <Card className="flex-1 flex flex-col overflow-hidden relative">
-                <div className="flex-1 flex min-h-0">
+              <Card className="flex-1 flex flex-col overflow-hidden relative timeline-card-container">
+                <div className="flex-1 flex min-h-0 overflow-x-auto">
                   {/* Sidebar */}
                   <TimelineSidebar
                     groups={groupsWithProjects}
@@ -648,8 +639,19 @@ export function TimelineView() {
                           
                           return (
                             <div key={group.id}>
-                              {/* Group Header Row - Visual separator only, NO PROJECTS */}
-                              <div className="h-8 border-b border-gray-200 bg-gray-50/50" />
+                              {/* Group Header Row - Visual separator with optional group title when collapsed */}
+                              <div className="h-8 border-b border-gray-200 bg-gray-50/50 relative">
+                                {collapsed && (
+                                  <div 
+                                    className="absolute left-2 top-1/2 transform -translate-y-1/2 z-30 bg-gray-50/90 px-2 py-1 rounded text-xs font-medium text-gray-700"
+                                    style={{ 
+                                      marginLeft: '8px' // 8px gap from sidebar edge
+                                    }}
+                                  >
+                                    {group.name}
+                                  </div>
+                                )}
+                              </div>
                               
                               {/* Rows in this group */}
                               {groupRows.map((row: any) => {
@@ -696,14 +698,13 @@ export function TimelineView() {
                                       );
                                     })}
                                     
-                                    {/* Hover Add Project Bar - only show if no projects or in empty spaces */}
-                                    {rowProjects.length === 0 && (
-                                      <HoverAddProjectBar
-                                        rowId={row.id}
-                                        dates={dates}
-                                        onCreateProject={handleCreateProject}
-                                      />
-                                    )}
+                                    {/* Smart Hover Add Project Bar - shows on all rows, detects available spaces */}
+                                    <SmartHoverAddProjectBar
+                                      rowId={row.id}
+                                      dates={dates}
+                                      projects={rowProjects}
+                                      onCreateProject={handleCreateProject}
+                                    />
                                   </div>
                                 );
                               })}
@@ -829,6 +830,8 @@ export function TimelineView() {
                   setIsAnimating={setIsAnimating}
                   sidebarWidth={collapsed ? 48 : 280}
                   bottomOffset={0}
+                  isDragging={isDragging}
+                  stopAutoScroll={stopAutoScroll}
                 />
               </Card>
               

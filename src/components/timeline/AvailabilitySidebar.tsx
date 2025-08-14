@@ -19,7 +19,7 @@ export const AvailabilitySidebar = memo(function AvailabilitySidebar({
       }}
     >
       {/* Availability Items */}
-      <div className="flex-1 overflow-y-auto min-h-0">
+      <div className="flex-1 min-h-0">
         {/* Available Hours Row */}
         <div className={`h-12 border-b border-gray-100 flex items-center ${collapsed ? 'px-0 justify-center' : 'px-4'}`}>
           {collapsed ? (

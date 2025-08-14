@@ -45,7 +45,8 @@ export const HoverableTimelineScrollbar = memo(function HoverableTimelineScrollb
   const [smoothThumbPosition, setSmoothThumbPosition] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
   
-  const TOTAL_DAYS = 365; // Full year
+  // Use a year-based timeline but adapt to content length
+  const TOTAL_DAYS = Math.max(365, VIEWPORT_DAYS * 2); // At least a year, or double the viewport
   
   // Calculate full timeline start (January 1st of current year)
   const fullTimelineStart = new Date(viewportStart.getFullYear(), 0, 1);
@@ -56,7 +57,10 @@ export const HoverableTimelineScrollbar = memo(function HoverableTimelineScrollb
   // Calculate thumb position and size as percentages
   const maxOffset = TOTAL_DAYS - VIEWPORT_DAYS;
   const calculatedThumbPosition = maxOffset > 0 ? (currentDayOffset / maxOffset) * 100 : 0;
-  const thumbWidth = (VIEWPORT_DAYS / TOTAL_DAYS) * 100;
+  
+  // Make thumb smaller for weeks mode - use a more reasonable visible window size
+  const effectiveViewportDays = VIEWPORT_DAYS > 200 ? Math.min(VIEWPORT_DAYS / 3, 60) : VIEWPORT_DAYS;
+  const thumbWidth = (effectiveViewportDays / TOTAL_DAYS) * 100;
   
   // Use smooth position during animations, but NOT during dragging
   const thumbPosition = (isAnimating && !isDraggingThumb) ? smoothThumbPosition : calculatedThumbPosition;
@@ -92,12 +96,13 @@ export const HoverableTimelineScrollbar = memo(function HoverableTimelineScrollb
     }
   }, [isDragging.current, setViewportStart]);
   
-  // Update smooth position when not animating and not dragging, but respect final drag position
+  // Update smooth position when not dragging, but respect final drag position
+  // Allow updates during external animations (like Today button)
   useEffect(() => {
-    if (!isAnimating && !isDraggingThumb && finalDragPosition.current === null) {
+    if (!isDraggingThumb && finalDragPosition.current === null) {
       setSmoothThumbPosition(calculatedThumbPosition);
     }
-  }, [calculatedThumbPosition, isAnimating, isDraggingThumb]);
+  }, [calculatedThumbPosition, isDraggingThumb]);
   
   const updateViewportFromDayOffset = useCallback((dayOffset: number) => {
     const clampedDayOffset = Math.max(0, Math.min(maxOffset, dayOffset));

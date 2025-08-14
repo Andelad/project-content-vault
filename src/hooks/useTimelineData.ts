@@ -21,6 +21,7 @@ export function useTimelineData(projects: any[], viewportStart: Date, viewportDa
       for (let w = 0; w < viewportWeeks; w++) {
         const weekDate = new Date(weekStart);
         weekDate.setDate(weekStart.getDate() + (w * 7));
+        weekDate.setHours(0, 0, 0, 0); // Ensure consistent normalization
         dates.push(weekDate);
       }
       
@@ -46,7 +47,9 @@ export function useTimelineData(projects: any[], viewportStart: Date, viewportDa
       // Generate array of dates for the current viewport
       const dates = [];
       for (let d = new Date(viewportStart); d <= viewportEnd; d.setDate(d.getDate() + 1)) {
-        dates.push(new Date(d));
+        const normalizedDate = new Date(d);
+        normalizedDate.setHours(0, 0, 0, 0); // Ensure consistent normalization
+        dates.push(normalizedDate);
       }
       
       // Filter projects that intersect with the current viewport

@@ -68,14 +68,35 @@ export function calculateTimelinePositions(
     };
   } else {
     // Original days mode logic
-    const projectStartIndex = dates.findIndex(date => date.toDateString() === projectStart.toDateString());
-    const projectEndIndex = dates.findIndex(date => date.toDateString() === projectEnd.toDateString());
+    // Normalize all dates for consistent comparison
+    const normalizedProjectStart = new Date(projectStart);
+    normalizedProjectStart.setHours(0, 0, 0, 0);
+    const normalizedProjectEnd = new Date(projectEnd);
+    normalizedProjectEnd.setHours(0, 0, 0, 0);
+    
+    const projectStartIndex = dates.findIndex(date => {
+      const normalizedDate = new Date(date);
+      normalizedDate.setHours(0, 0, 0, 0);
+      return normalizedDate.toDateString() === normalizedProjectStart.toDateString();
+    });
+    
+    const projectEndIndex = dates.findIndex(date => {
+      const normalizedDate = new Date(date);
+      normalizedDate.setHours(0, 0, 0, 0);
+      return normalizedDate.toDateString() === normalizedProjectEnd.toDateString();
+    });
     
     // Calculate baseline start and end indices
     let baselineStartIndex: number;
     let baselineEndIndex: number;
     
-    if (projectStart < viewportStart) {
+    // Normalize viewport dates for comparison
+    const normalizedViewportStart = new Date(viewportStart);
+    normalizedViewportStart.setHours(0, 0, 0, 0);
+    const normalizedViewportEnd = new Date(viewportEnd);
+    normalizedViewportEnd.setHours(0, 0, 0, 0);
+    
+    if (normalizedProjectStart < normalizedViewportStart) {
       baselineStartIndex = 0; // Start baseline at viewport beginning
     } else if (projectStartIndex !== -1) {
       baselineStartIndex = projectStartIndex;
@@ -84,7 +105,7 @@ export function calculateTimelinePositions(
       baselineStartIndex = dates.length;
     }
     
-    if (projectEnd > viewportEnd) {
+    if (normalizedProjectEnd > normalizedViewportEnd) {
       baselineEndIndex = dates.length - 1; // End baseline at viewport end
     } else if (projectEndIndex !== -1) {
       baselineEndIndex = projectEndIndex;
@@ -111,7 +132,7 @@ export function calculateTimelinePositions(
     } else {
       // Project start is outside viewport - calculate relative position
       const msPerDay = 24 * 60 * 60 * 1000;
-      const daysSinceViewportStart = (projectStart.getTime() - viewportStart.getTime()) / msPerDay;
+      const daysSinceViewportStart = (normalizedProjectStart.getTime() - normalizedViewportStart.getTime()) / msPerDay;
       circleLeftPx = daysSinceViewportStart * columnWidth;
     }
     
@@ -123,7 +144,7 @@ export function calculateTimelinePositions(
     } else {
       // Project end is outside viewport - calculate relative position
       const msPerDay = 24 * 60 * 60 * 1000;
-      const daysSinceViewportStartEnd = (projectEnd.getTime() - viewportStart.getTime()) / msPerDay;
+      const daysSinceViewportStartEnd = (normalizedProjectEnd.getTime() - normalizedViewportStart.getTime()) / msPerDay;
       triangleLeftPx = (daysSinceViewportStartEnd + 1) * columnWidth;
     }
     

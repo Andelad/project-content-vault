@@ -105,6 +105,7 @@ function AppContent() {
           isOpen={!!creatingNewProject}
           onClose={() => setCreatingNewProject(null)}
           groupId={creatingNewProject?.groupId || ''}
+          rowId={creatingNewProject?.rowId || ''}
         />
 
         <EventDetailModal

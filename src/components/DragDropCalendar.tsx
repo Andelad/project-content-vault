@@ -346,6 +346,7 @@ function CalendarGrid({
   const dates = useMemo(() => {
     if (viewType === 'week') {
       const startOfWeek = new Date(currentDate);
+      startOfWeek.setHours(0, 0, 0, 0); // Normalize time component
       const day = startOfWeek.getDay();
       // Adjust for Monday start: if day is 0 (Sunday), go back 6 days; otherwise go back (day - 1) days
       const daysToSubtract = day === 0 ? 6 : day - 1;
@@ -354,11 +355,13 @@ function CalendarGrid({
       return Array.from({ length: 7 }, (_, i) => {
         const date = new Date(startOfWeek);
         date.setDate(startOfWeek.getDate() + i);
+        date.setHours(0, 0, 0, 0); // Ensure normalized dates
         return date;
       });
     } else {
       // Month view - simplified to show current week for now
       const startOfWeek = new Date(currentDate);
+      startOfWeek.setHours(0, 0, 0, 0); // Normalize time component
       const day = startOfWeek.getDay();
       // Adjust for Monday start: if day is 0 (Sunday), go back 6 days; otherwise go back (day - 1) days
       const daysToSubtract = day === 0 ? 6 : day - 1;
@@ -367,6 +370,7 @@ function CalendarGrid({
       return Array.from({ length: 7 }, (_, i) => {
         const date = new Date(startOfWeek);
         date.setDate(startOfWeek.getDate() + i);
+        date.setHours(0, 0, 0, 0); // Ensure normalized dates
         return date;
       });
     }
@@ -500,7 +504,7 @@ function CalendarGrid({
     // Find which day column
     const relativeX = e.clientX - rect.left;
     const dayWidth = (rect.width - 49) / 7; // Subtract time column width (49px)
-    const dayIndex = Math.floor((relativeX - 49) / dayWidth);
+    const dayIndex = Math.max(0, Math.min(6, Math.floor((relativeX - 49) / dayWidth))); // Clamp to valid range
 
     if (dayIndex >= 0 && dayIndex < dates.length && hour >= 0 && hour < 24) {
       const newTime = new Date(dates[dayIndex]);
