@@ -17,11 +17,27 @@ export function Sidebar() {
     }
   }, [user]);
 
+  // Listen for storage changes to refresh avatar when updated
+  useEffect(() => {
+    const handleStorageChange = () => {
+      if (user) {
+        fetchProfile();
+      }
+    };
+
+    // Listen for custom events from profile updates
+    window.addEventListener('profile-updated', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('profile-updated', handleStorageChange);
+    };
+  }, [user]);
+
   const fetchProfile = async () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('avatar_url')
+        .select('avatar_url, display_name')
         .eq('user_id', user?.id)
         .maybeSingle();
       

@@ -311,6 +311,9 @@ export function ProfileView() {
         avatar_url: data.publicUrl
       }));
 
+      // Dispatch custom event to refresh sidebar avatar
+      window.dispatchEvent(new CustomEvent('profile-updated'));
+
       toast({
         title: "Success",
         description: "Avatar uploaded successfully",
