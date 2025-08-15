@@ -9,7 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Textarea } from './ui/textarea';
 import { Badge } from './ui/badge';
 import { Checkbox } from './ui/checkbox';
-import { Calendar, Clock, Tag, X, Palette, CheckCircle2 } from 'lucide-react';
+import { Calendar } from './ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Calendar as CalendarIcon, Clock, Tag, X, Palette, CheckCircle2 } from 'lucide-react';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface EventDetailModalProps {
   isOpen: boolean;
@@ -38,8 +42,10 @@ export function EventDetailModal({
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    startTime: defaultStartTime || new Date(),
-    endTime: defaultEndTime || new Date(Date.now() + 60 * 60 * 1000), // 1 hour default
+    startDate: defaultStartTime || new Date(),
+    startTime: defaultStartTime ? format(defaultStartTime, 'HH:mm') : '09:00',
+    endDate: defaultEndTime || new Date(),
+    endTime: defaultEndTime ? format(defaultEndTime, 'HH:mm') : '10:00',
     projectId: '',
     color: '#6b7280', // Default gray color
     completed: false
@@ -58,21 +64,25 @@ export function EventDetailModal({
         setFormData({
           title: existingEvent.title,
           description: existingEvent.description || '',
-          startTime: existingEvent.startTime,
-          endTime: existingEvent.endTime,
+          startDate: new Date(existingEvent.startTime),
+          startTime: format(new Date(existingEvent.startTime), 'HH:mm'),
+          endDate: new Date(existingEvent.endTime),
+          endTime: format(new Date(existingEvent.endTime), 'HH:mm'),
           projectId: existingEvent.projectId || 'none',
           color: existingEvent.color || '#6b7280',
           completed: existingEvent.completed || false
         });
       } else {
         // Reset for new event
-        const now = defaultStartTime || new Date();
-        const endTime = defaultEndTime || new Date(now.getTime() + 60 * 60 * 1000);
+        const startDate = defaultStartTime || new Date();
+        const endDate = defaultEndTime || new Date(startDate.getTime() + 60 * 60 * 1000);
         setFormData({
           title: '',
           description: '',
-          startTime: now,
-          endTime: endTime,
+          startDate,
+          startTime: format(startDate, 'HH:mm'),
+          endDate,
+          endTime: format(endDate, 'HH:mm'),
           projectId: 'none',
           color: '#6b7280',
           completed: false
@@ -92,12 +102,19 @@ export function EventDetailModal({
     }
   }, [formData.projectId, projects]);
 
-  const formatDateTime = (date: Date) => {
-    return date.toISOString().slice(0, 16); // Format for datetime-local input
+  // Combine date and time for calculations
+  const getStartDateTime = () => {
+    const [hours, minutes] = formData.startTime.split(':').map(Number);
+    const dateTime = new Date(formData.startDate);
+    dateTime.setHours(hours, minutes, 0, 0);
+    return dateTime;
   };
 
-  const parseDateTime = (dateTimeString: string) => {
-    return new Date(dateTimeString);
+  const getEndDateTime = () => {
+    const [hours, minutes] = formData.endTime.split(':').map(Number);
+    const dateTime = new Date(formData.endDate);
+    dateTime.setHours(hours, minutes, 0, 0);
+    return dateTime;
   };
 
   const validateForm = () => {
@@ -107,7 +124,10 @@ export function EventDetailModal({
       newErrors.title = 'Title is required';
     }
 
-    if (formData.startTime >= formData.endTime) {
+    const startDateTime = getStartDateTime();
+    const endDateTime = getEndDateTime();
+
+    if (startDateTime >= endDateTime) {
       newErrors.endTime = 'End time must be after start time';
     }
 
@@ -125,13 +145,15 @@ export function EventDetailModal({
     setIsSubmitting(true);
 
     try {
-      const duration = (formData.endTime.getTime() - formData.startTime.getTime()) / (1000 * 60 * 60);
+      const startDateTime = getStartDateTime();
+      const endDateTime = getEndDateTime();
+      const duration = (endDateTime.getTime() - startDateTime.getTime()) / (1000 * 60 * 60);
       
       const eventData: Omit<CalendarEvent, 'id'> = {
         title: formData.title.trim(),
         description: formData.description.trim() || undefined,
-        startTime: formData.startTime,
-        endTime: formData.endTime,
+        startTime: startDateTime,
+        endTime: endDateTime,
         duration,
         projectId: formData.projectId && formData.projectId !== 'none' ? formData.projectId : undefined,
         color: formData.color,
@@ -211,35 +233,88 @@ export function EventDetailModal({
             )}
           </div>
 
-          {/* Time Range */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="startTime">Start Time *</Label>
-              <Input
-                id="startTime"
-                type="datetime-local"
-                value={formatDateTime(formData.startTime)}
-                onChange={(e) => setFormData(prev => ({ 
-                  ...prev, 
-                  startTime: parseDateTime(e.target.value) 
-                }))}
-              />
+          {/* Date and Time Range */}
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Start Date *</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !formData.startDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {formData.startDate ? format(formData.startDate, "PPP") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={formData.startDate}
+                      onSelect={(date) => date && setFormData(prev => ({ ...prev, startDate: date }))}
+                      initialFocus
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="startTime">Start Time *</Label>
+                <Input
+                  id="startTime"
+                  type="time"
+                  value={formData.startTime}
+                  onChange={(e) => setFormData(prev => ({ ...prev, startTime: e.target.value }))}
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="endTime">End Time *</Label>
-              <Input
-                id="endTime"
-                type="datetime-local"
-                value={formatDateTime(formData.endTime)}
-                onChange={(e) => setFormData(prev => ({ 
-                  ...prev, 
-                  endTime: parseDateTime(e.target.value) 
-                }))}
-                className={errors.endTime ? 'border-destructive' : ''}
-              />
-              {errors.endTime && (
-                <p className="text-sm text-destructive">{errors.endTime}</p>
-              )}
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>End Date *</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !formData.endDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {formData.endDate ? format(formData.endDate, "PPP") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={formData.endDate}
+                      onSelect={(date) => date && setFormData(prev => ({ ...prev, endDate: date }))}
+                      initialFocus
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="endTime">End Time *</Label>
+                <Input
+                  id="endTime"
+                  type="time"
+                  value={formData.endTime}
+                  onChange={(e) => setFormData(prev => ({ ...prev, endTime: e.target.value }))}
+                  className={errors.endTime ? 'border-destructive' : ''}
+                />
+                {errors.endTime && (
+                  <p className="text-sm text-destructive">{errors.endTime}</p>
+                )}
+              </div>
             </div>
           </div>
 
@@ -247,7 +322,7 @@ export function EventDetailModal({
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Clock className="w-4 h-4" />
             <span>
-              Duration: {((formData.endTime.getTime() - formData.startTime.getTime()) / (1000 * 60 * 60)).toFixed(1)} hours
+              Duration: {((getEndDateTime().getTime() - getStartDateTime().getTime()) / (1000 * 60 * 60)).toFixed(1)} hours
             </span>
           </div>
 
