@@ -140,11 +140,11 @@ export function ReportsView() {
   }, [projects, today]);
 
   // Generate time analysis data based on selected timeframe
-  const timeAnalysisData = useMemo(() => {
+  const { timeAnalysisData, headerData } = useMemo(() => {
     const data = [];
     const now = new Date();
     
-    let periods: { label: string; start: Date; end: Date; }[] = [];
+    let periods: { label: string; monthYear: string; year: number; start: Date; end: Date; }[] = [];
     
     if (timeAnalysisTimeFrame === 'week') {
       // 12 weeks with time offset - each offset moves by 1 week
@@ -161,7 +161,9 @@ export function ReportsView() {
         weekEnd.setDate(weekStart.getDate() + 6);
         
         periods.push({
-          label: `W${Math.ceil((weekEnd.getTime() - new Date(weekEnd.getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000))} '${weekEnd.getFullYear().toString().slice(-2)}`,
+          label: `${weekStart.getDate()}-${weekEnd.getDate()}`,
+          monthYear: `${weekStart.toLocaleDateString('en-US', { month: 'short' })} ${weekStart.getFullYear()}`,
+          year: weekStart.getFullYear(),
           start: weekStart,
           end: weekEnd
         });
@@ -177,7 +179,9 @@ export function ReportsView() {
         const monthEnd = new Date(baseYear, adjustedMonth - i + 1, 0);
         
         periods.push({
-          label: `${monthStart.toLocaleDateString('en-US', { month: 'short' })} '${monthStart.getFullYear().toString().slice(-2)}`,
+          label: `${monthStart.toLocaleDateString('en-US', { month: 'short' })}`,
+          monthYear: `${monthStart.toLocaleDateString('en-US', { month: 'long' })} ${monthStart.getFullYear()}`,
+          year: monthStart.getFullYear(),
           start: monthStart,
           end: monthEnd
         });
@@ -192,6 +196,8 @@ export function ReportsView() {
         
         periods.push({
           label: (baseYear - i).toString(),
+          monthYear: (baseYear - i).toString(),
+          year: baseYear - i,
           start: yearStart,
           end: yearEnd
         });
@@ -257,7 +263,24 @@ export function ReportsView() {
       });
     });
 
-    return data;
+    // Generate header data for sticky year headers
+    const headerData = timeAnalysisTimeFrame !== 'year' ? 
+      periods.reduce((acc, period, index) => {
+        const currentYear = period.year;
+        const isFirstOfYear = index === 0 || periods[index - 1].year !== currentYear;
+        
+        if (isFirstOfYear) {
+          acc.push({
+            year: currentYear,
+            startIndex: index,
+            monthYear: timeAnalysisTimeFrame === 'week' ? period.monthYear : undefined
+          });
+        }
+        
+        return acc;
+      }, [] as { year: number; startIndex: number; monthYear?: string }[]) : [];
+
+    return { timeAnalysisData: data, headerData };
   }, [projects, events, timeAnalysisTimeFrame, weeklyCapacity, timeOffset]);
 
   // Future projects
@@ -358,11 +381,53 @@ export function ReportsView() {
                 </div>
               </CardHeader>
               <CardContent>
+                {/* Sticky Year/Month Headers for Week and Month views */}
+                {timeAnalysisTimeFrame !== 'year' && headerData.length > 0 && (
+                  <div className="relative mb-4">
+                    <div className="flex h-8 border-b border-gray-200">
+                      {headerData.map((header, index) => {
+                        const isLastHeader = index === headerData.length - 1;
+                        const nextHeaderStart = isLastHeader ? timeAnalysisData.length : headerData[index + 1].startIndex;
+                        const width = ((nextHeaderStart - header.startIndex) / timeAnalysisData.length) * 100;
+                        
+                        return (
+                          <div
+                            key={`${header.year}-${header.startIndex}`}
+                            className="flex items-center justify-center bg-gray-50 border-r border-gray-200 text-sm font-medium text-gray-700 relative"
+                            style={{ width: `${width}%` }}
+                          >
+                            <div className="absolute left-2 flex items-center gap-2">
+                              <span className="font-semibold">{header.year}</span>
+                              {timeAnalysisTimeFrame === 'week' && header.monthYear && (
+                                <span className="text-xs text-gray-500">{header.monthYear}</span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={timeAnalysisData} maxBarSize={50} barCategoryGap="20%" margin={{ top: 20, right: 60, left: 20, bottom: 5 }}>
+                    <BarChart 
+                      data={timeAnalysisData} 
+                      maxBarSize={50} 
+                      barCategoryGap="20%" 
+                      margin={{ 
+                        top: timeAnalysisTimeFrame !== 'year' ? 10 : 20, 
+                        right: 60, 
+                        left: 20, 
+                        bottom: 5 
+                      }}
+                    >
                       <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="period" />
+                      <XAxis 
+                        dataKey="period" 
+                        tick={{ fontSize: 11 }}
+                        height={40}
+                      />
                       <YAxis />
                       <Tooltip 
                         formatter={(value, name) => {
