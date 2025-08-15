@@ -144,9 +144,12 @@ export function TimeTracker({ className }: TimeTrackerProps) {
         }
       }
       
+      // Reset everything
       setCurrentEventId(null);
       startTimeRef.current = null;
       setSeconds(0);
+      setSelectedProject(null);
+      setSearchQuery('');
     }
   };
 
@@ -194,7 +197,7 @@ export function TimeTracker({ className }: TimeTrackerProps) {
                 setShowSearchDropdown(true);
               }}
               onFocus={() => setShowSearchDropdown(true)}
-              className="w-64 h-10 bg-background/95 border-border/50 focus:border-primary/50"
+              className="w-64 h-10 bg-background border-border focus:border-primary cursor-text"
               disabled={isTracking}
             />
             <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -209,16 +212,23 @@ export function TimeTracker({ className }: TimeTrackerProps) {
                   className="w-full px-3 py-2 text-left hover:bg-accent/50 border-b border-border/30 last:border-b-0"
                   onClick={() => handleSelectItem(item)}
                 >
-                  <div className="text-sm font-medium truncate">
-                    {item.name}
-                  </div>
-                  {item.type === 'project' && item.client && (
-                    <div className="text-xs text-muted-foreground truncate">
-                      {item.client}
+                  <div className="flex items-center gap-2">
+                    {item.type === 'project' && (
+                      <div 
+                        className="w-3 h-3 rounded-full flex-shrink-0" 
+                        style={{ backgroundColor: projects.find(p => p.id === item.id)?.color || '#8B5CF6' }}
+                      />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate">
+                        {item.name}
+                      </div>
+                      {item.type === 'project' && item.client && (
+                        <div className="text-xs text-muted-foreground truncate">
+                          {item.client}
+                        </div>
+                      )}
                     </div>
-                  )}
-                  <div className="text-xs text-muted-foreground/70 mt-1">
-                    {item.type === 'project' ? 'Project' : 'Client'}
                   </div>
                 </button>
               ))
@@ -236,7 +246,7 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       </Popover>
 
       {/* Timer Display */}
-      <div className="text-lg font-mono tabular-nums text-foreground min-w-[5.5rem] text-center">
+      <div className="text-lg font-semibold tabular-nums text-foreground min-w-[5.5rem] text-center">
         {formatTime(seconds)}
       </div>
 
@@ -244,7 +254,7 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       <Button
         onClick={handleToggleTracking}
         size="sm"
-        className={`w-10 h-10 rounded-full p-0 ${
+        className={`w-10 h-10 rounded-full p-0 transition-colors ${
           isTracking 
             ? 'bg-red-500 hover:bg-red-600 text-white' 
             : 'bg-primary hover:bg-primary/90 text-primary-foreground'
