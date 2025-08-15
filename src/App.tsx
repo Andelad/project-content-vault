@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import { ProjectDetailModal } from '@/components/ProjectDetailModal';
 import { HolidayModal } from '@/components/HolidayModal';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { DevToolsWrapper } from '@/components/DevTools';
+import LandingPage from '@/pages/LandingPage';
 
 // Lazy load view components for better performance
 const TimelineView = lazy(() => import('@/components/TimelineView').then(module => ({ default: module.TimelineView })));
@@ -155,12 +156,20 @@ function AuthenticatedContent() {
 
 function AppContent() {
   const { user, loading } = useAuth();
+  const location = useLocation();
+  const isAppRoute = location.pathname.startsWith('/app');
 
   if (loading) {
     return <LoadingFallback />;
   }
 
-  if (!user) {
+  // Show landing page for root route
+  if (location.pathname === '/') {
+    return <LandingPage />;
+  }
+
+  // Show auth page for /auth route
+  if (location.pathname === '/auth') {
     return (
       <Suspense fallback={<LoadingFallback />}>
         <Auth />
@@ -168,13 +177,28 @@ function AppContent() {
     );
   }
 
-  return (
-    <AppProvider>
-      <DevToolsWrapper>
-        <AuthenticatedContent />
-      </DevToolsWrapper>
-    </AppProvider>
-  );
+  // For app routes, require authentication
+  if (isAppRoute && !user) {
+    return (
+      <Suspense fallback={<LoadingFallback />}>
+        <Auth />
+      </Suspense>
+    );
+  }
+
+  // For app routes with authenticated user
+  if (isAppRoute && user) {
+    return (
+      <AppProvider>
+        <DevToolsWrapper>
+          <AuthenticatedContent />
+        </DevToolsWrapper>
+      </AppProvider>
+    );
+  }
+
+  // Fallback - redirect to appropriate page
+  return <LandingPage />;
 }
 
 const App = () => (
@@ -183,7 +207,9 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <AppContent />
+        <Routes>
+          <Route path="/*" element={<AppContent />} />
+        </Routes>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
