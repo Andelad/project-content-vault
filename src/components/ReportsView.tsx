@@ -147,13 +147,16 @@ export function ReportsView() {
     let periods: { label: string; start: Date; end: Date; }[] = [];
     
     if (timeAnalysisTimeFrame === 'week') {
-      // 12 weeks with time offset
+      // 12 weeks with time offset - each offset moves by 12 weeks
+      const baseDate = new Date(now);
+      baseDate.setDate(baseDate.getDate() + (timeOffset * 12 * 7));
+      
       for (let i = 11; i >= 0; i--) {
-        const weekStart = new Date(now);
+        const weekStart = new Date(baseDate);
         // Adjust for Monday start: if day is 0 (Sunday), go back 6 days; otherwise go back (day - 1) days
-        const day = now.getDay();
+        const day = baseDate.getDay();
         const daysToSubtract = day === 0 ? 6 : day - 1;
-        weekStart.setDate(now.getDate() - (i * 7) - daysToSubtract + (timeOffset * 7));
+        weekStart.setDate(baseDate.getDate() - (i * 7) - daysToSubtract);
         const weekEnd = new Date(weekStart);
         weekEnd.setDate(weekStart.getDate() + 6);
         
@@ -164,10 +167,14 @@ export function ReportsView() {
         });
       }
     } else if (timeAnalysisTimeFrame === 'month') {
-      // 12 months with time offset, including year
+      // 12 months with time offset - each offset moves by 12 months
+      const baseMonth = now.getMonth() + (timeOffset * 12);
+      const baseYear = now.getFullYear() + Math.floor(baseMonth / 12);
+      const adjustedMonth = baseMonth % 12;
+      
       for (let i = 11; i >= 0; i--) {
-        const monthStart = new Date(now.getFullYear(), now.getMonth() - i + timeOffset, 1);
-        const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + timeOffset + 1, 0);
+        const monthStart = new Date(baseYear, adjustedMonth - i, 1);
+        const monthEnd = new Date(baseYear, adjustedMonth - i + 1, 0);
         
         periods.push({
           label: `${monthStart.toLocaleDateString('en-US', { month: 'short' })} '${monthStart.getFullYear().toString().slice(-2)}`,
@@ -176,13 +183,15 @@ export function ReportsView() {
         });
       }
     } else {
-      // 5 years with time offset
+      // 5 years with time offset - each offset moves by 5 years
+      const baseYear = now.getFullYear() + (timeOffset * 5);
+      
       for (let i = 4; i >= 0; i--) {
-        const yearStart = new Date(now.getFullYear() - i + timeOffset, 0, 1);
-        const yearEnd = new Date(now.getFullYear() - i + timeOffset, 11, 31);
+        const yearStart = new Date(baseYear - i, 0, 1);
+        const yearEnd = new Date(baseYear - i, 11, 31);
         
         periods.push({
-          label: (now.getFullYear() - i + timeOffset).toString(),
+          label: (baseYear - i).toString(),
           start: yearStart,
           end: yearEnd
         });
