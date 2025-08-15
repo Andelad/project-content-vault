@@ -147,9 +147,9 @@ export function ReportsView() {
     let periods: { label: string; start: Date; end: Date; }[] = [];
     
     if (timeAnalysisTimeFrame === 'week') {
-      // 12 weeks with time offset - each offset moves by 12 weeks
+      // 12 weeks with time offset - each offset moves by 1 week
       const baseDate = new Date(now);
-      baseDate.setDate(baseDate.getDate() + (timeOffset * 12 * 7));
+      baseDate.setDate(baseDate.getDate() + (timeOffset * 7));
       
       for (let i = 11; i >= 0; i--) {
         const weekStart = new Date(baseDate);
@@ -167,10 +167,10 @@ export function ReportsView() {
         });
       }
     } else if (timeAnalysisTimeFrame === 'month') {
-      // 12 months with time offset - each offset moves by 12 months
-      const baseMonth = now.getMonth() + (timeOffset * 12);
+      // 12 months with time offset - each offset moves by 1 month
+      const baseMonth = now.getMonth() + timeOffset;
       const baseYear = now.getFullYear() + Math.floor(baseMonth / 12);
-      const adjustedMonth = baseMonth % 12;
+      const adjustedMonth = ((baseMonth % 12) + 12) % 12; // Handle negative months
       
       for (let i = 11; i >= 0; i--) {
         const monthStart = new Date(baseYear, adjustedMonth - i, 1);
@@ -183,8 +183,8 @@ export function ReportsView() {
         });
       }
     } else {
-      // 5 years with time offset - each offset moves by 5 years
-      const baseYear = now.getFullYear() + (timeOffset * 5);
+      // 5 years with time offset - each offset moves by 1 year
+      const baseYear = now.getFullYear() + timeOffset;
       
       for (let i = 4; i >= 0; i--) {
         const yearStart = new Date(baseYear - i, 0, 1);
@@ -321,10 +321,12 @@ export function ReportsView() {
                         variant="outline"
                         size="sm"
                         onClick={() => {
-                          const segments = timeAnalysisTimeFrame === 'week' ? 12 : timeAnalysisTimeFrame === 'month' ? 12 : 5;
-                          setTimeOffset(prev => prev - segments);
+                          // Limit backwards navigation: -5 years worth of periods
+                          const maxBackward = timeAnalysisTimeFrame === 'week' ? -260 : timeAnalysisTimeFrame === 'month' ? -60 : -5;
+                          setTimeOffset(prev => Math.max(maxBackward, prev - 1));
                         }}
                         className="p-2"
+                        disabled={timeOffset <= (timeAnalysisTimeFrame === 'week' ? -260 : timeAnalysisTimeFrame === 'month' ? -60 : -5)}
                       >
                         <ChevronLeft className="h-4 w-4" />
                       </Button>
@@ -342,10 +344,12 @@ export function ReportsView() {
                         variant="outline"
                         size="sm"
                         onClick={() => {
-                          const segments = timeAnalysisTimeFrame === 'week' ? 12 : timeAnalysisTimeFrame === 'month' ? 12 : 5;
-                          setTimeOffset(prev => prev + segments);
+                          // Limit forward navigation: +5 years worth of periods
+                          const maxForward = timeAnalysisTimeFrame === 'week' ? 260 : timeAnalysisTimeFrame === 'month' ? 60 : 5;
+                          setTimeOffset(prev => Math.min(maxForward, prev + 1));
                         }}
                         className="p-2"
+                        disabled={timeOffset >= (timeAnalysisTimeFrame === 'week' ? 260 : timeAnalysisTimeFrame === 'month' ? 60 : 5)}
                       >
                         <ChevronRight className="h-4 w-4" />
                       </Button>
