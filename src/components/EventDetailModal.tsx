@@ -206,7 +206,7 @@ export function EventDetailModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto z-50">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Calendar className="w-5 h-5" />
@@ -251,7 +251,7 @@ export function EventDetailModal({
                       {formData.startDate ? format(formData.startDate, "PPP") : "Pick a date"}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
+                  <PopoverContent className="w-auto p-0 z-[60] bg-popover border shadow-lg" align="start">
                     <Calendar
                       mode="single"
                       selected={formData.startDate}
@@ -290,7 +290,7 @@ export function EventDetailModal({
                       {formData.endDate ? format(formData.endDate, "PPP") : "Pick a date"}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
+                  <PopoverContent className="w-auto p-0 z-[60] bg-popover border shadow-lg" align="start">
                     <Calendar
                       mode="single"
                       selected={formData.endDate}
