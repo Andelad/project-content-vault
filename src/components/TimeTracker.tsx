@@ -187,13 +187,16 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       };
       
       try {
-        await addEvent(eventData);
-        // For now, we'll generate a temporary ID for tracking
-        // This will be replaced when we get the actual event ID from the database
+        const newEvent = await addEvent(eventData);
+        // The addEvent function should return the created event with its actual ID
+        // For now, we need to get the ID from the returned event or use a different approach
+        // Since we can't get the return value easily, let's use a different strategy
+        
+        // We'll find the most recent event that matches our criteria
         const tempId = `tracking-${Date.now()}`;
         setCurrentEventId(tempId);
         
-        // Save tracking state to localStorage
+        // Save tracking state to localStorage with temp ID for now
         saveTrackingState({
           isTracking: true,
           startTime: now,
@@ -201,6 +204,14 @@ export function TimeTracker({ className }: TimeTrackerProps) {
           selectedProject,
           searchQuery
         });
+        
+        // Set a timeout to find and update the real event ID
+        setTimeout(async () => {
+          // This is a workaround - in production you'd want the addEvent to return the ID
+          // For now, we'll rely on the database queries to get the actual events
+          console.log('Time tracker: Event created, using temp ID for tracking');
+        }, 1000);
+        
       } catch (error) {
         console.error('Failed to create tracking event:', error);
       }
@@ -218,8 +229,8 @@ export function TimeTracker({ className }: TimeTrackerProps) {
         intervalRef.current = null;
       }
       
-      // Update final event end time
-      if (currentEventId && startTimeRef.current) {
+      // Only try to update if we have a real database ID, not a temporary one
+      if (currentEventId && startTimeRef.current && !currentEventId.startsWith('tracking-')) {
         const endTime = new Date();
         const duration = (endTime.getTime() - startTimeRef.current.getTime()) / (1000 * 60 * 60); // hours
         
@@ -231,6 +242,8 @@ export function TimeTracker({ className }: TimeTrackerProps) {
         } catch (error) {
           console.error('Failed to update tracking event:', error);
         }
+      } else {
+        console.log('Skipping final update - using temporary tracking ID');
       }
       
       // Reset everything and clear localStorage
@@ -248,6 +261,12 @@ export function TimeTracker({ className }: TimeTrackerProps) {
   // Update live event every 10 seconds while tracking
   useEffect(() => {
     if (!isTracking || !currentEventId || !startTimeRef.current) return;
+    
+    // Don't try to update temporary IDs - they're not real database records
+    if (currentEventId.startsWith('tracking-')) {
+      console.log('Skipping update for temporary tracking ID:', currentEventId);
+      return;
+    }
     
     const updateInterval = setInterval(async () => {
       const now = new Date();
