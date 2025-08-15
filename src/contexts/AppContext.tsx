@@ -79,6 +79,7 @@ interface AppContextType {
   setCreatingNewHoliday: (creating: { startDate: Date; endDate: Date } | null) => void;
   editingHolidayId: string | null;
   setEditingHolidayId: (holidayId: string | null) => void;
+  setDefaultView: (defaultViewSetting: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -607,7 +608,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         <AppContext.Provider value={{
           ...state,
           ...actions
-        }}>
+        } as unknown as AppContextType}>
           {children}
         </AppContext.Provider>
       </AppActionsProvider>

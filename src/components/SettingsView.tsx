@@ -15,7 +15,7 @@ import { CalendarImport } from './CalendarImport';
 import { useToast } from '../hooks/use-toast';
 
 export function SettingsView() {
-  const { settings: appSettings, updateSettings } = useApp();
+  const { settings: appSettings, updateSettings, setDefaultView } = useApp();
   const { toast } = useToast();
   const [localSettings, setLocalSettings] = useState({
     notifications: true,
@@ -41,7 +41,7 @@ export function SettingsView() {
     
     // If defaultView is being changed, immediately apply it
     if (key === 'defaultView') {
-      // setDefaultView is not available, we'll just update settings
+      setDefaultView(value);
       
       // Save to localStorage (until database migration is available)
       try {
