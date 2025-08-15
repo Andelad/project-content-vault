@@ -8,9 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Separator } from './ui/separator';
 import { Badge } from './ui/badge';
 
-import { Save, Bell, Palette, Clock, Globe, Shield, Trash2, User, Plus, X } from 'lucide-react';
+import { Save, Bell, Palette, Clock, Globe, Shield, Trash2, User, Plus, X, Calendar } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { WorkSlot } from '../contexts/AppContext';
+import { CalendarImport } from './CalendarImport';
 
 export function SettingsView() {
   const { settings: appSettings, updateSettings } = useApp();
@@ -582,6 +583,22 @@ export function SettingsView() {
                 onCheckedChange={(checked) => handleSettingChange('emailNotifications', checked)}
               />
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Calendar Integration */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="w-5 h-5" />
+              Calendar Integration
+            </CardTitle>
+            <CardDescription>
+              Import events from external calendars and calendar files
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <CalendarImport />
           </CardContent>
         </Card>
 

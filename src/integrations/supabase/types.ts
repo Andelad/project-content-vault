@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      calendar_connections: {
+        Row: {
+          access_token: string | null
+          connection_name: string
+          connection_type: string
+          created_at: string
+          external_calendar_id: string
+          id: string
+          is_active: boolean | null
+          last_sync_at: string | null
+          refresh_token: string | null
+          sync_frequency: number | null
+          token_expires_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token?: string | null
+          connection_name: string
+          connection_type: string
+          created_at?: string
+          external_calendar_id: string
+          id?: string
+          is_active?: boolean | null
+          last_sync_at?: string | null
+          refresh_token?: string | null
+          sync_frequency?: number | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string | null
+          connection_name?: string
+          connection_type?: string
+          created_at?: string
+          external_calendar_id?: string
+          id?: string
+          is_active?: boolean | null
+          last_sync_at?: string | null
+          refresh_token?: string | null
+          sync_frequency?: number | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       calendar_events: {
         Row: {
           color: string
@@ -22,7 +70,12 @@ export type Database = {
           description: string | null
           duration: number | null
           end_time: string
+          external_calendar_id: string | null
+          external_last_modified: string | null
+          external_source: string | null
+          external_url: string | null
           id: string
+          is_external_event: boolean | null
           project_id: string | null
           recurring_count: number | null
           recurring_end_date: string | null
@@ -40,7 +93,12 @@ export type Database = {
           description?: string | null
           duration?: number | null
           end_time: string
+          external_calendar_id?: string | null
+          external_last_modified?: string | null
+          external_source?: string | null
+          external_url?: string | null
           id?: string
+          is_external_event?: boolean | null
           project_id?: string | null
           recurring_count?: number | null
           recurring_end_date?: string | null
@@ -58,7 +116,12 @@ export type Database = {
           description?: string | null
           duration?: number | null
           end_time?: string
+          external_calendar_id?: string | null
+          external_last_modified?: string | null
+          external_source?: string | null
+          external_url?: string | null
           id?: string
+          is_external_event?: boolean | null
           project_id?: string | null
           recurring_count?: number | null
           recurring_end_date?: string | null
@@ -75,6 +138,65 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calendar_import_history: {
+        Row: {
+          connection_id: string | null
+          created_at: string
+          error_message: string | null
+          events_failed: number | null
+          events_imported: number | null
+          events_updated: number | null
+          file_name: string | null
+          id: string
+          import_date_range_end: string | null
+          import_date_range_start: string | null
+          import_source: string
+          import_status: string | null
+          import_type: string
+          user_id: string
+        }
+        Insert: {
+          connection_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          events_failed?: number | null
+          events_imported?: number | null
+          events_updated?: number | null
+          file_name?: string | null
+          id?: string
+          import_date_range_end?: string | null
+          import_date_range_start?: string | null
+          import_source: string
+          import_status?: string | null
+          import_type: string
+          user_id: string
+        }
+        Update: {
+          connection_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          events_failed?: number | null
+          events_imported?: number | null
+          events_updated?: number | null
+          file_name?: string | null
+          id?: string
+          import_date_range_end?: string | null
+          import_date_range_start?: string | null
+          import_source?: string
+          import_status?: string | null
+          import_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_import_history_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_connections"
             referencedColumns: ["id"]
           },
         ]
