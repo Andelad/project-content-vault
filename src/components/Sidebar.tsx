@@ -104,11 +104,7 @@ export function Sidebar() {
               }`}
               title={isCollapsed ? 'Profile' : undefined}
             >
-              <div className={`${isCollapsed ? 'w-8 h-8' : 'w-5 h-5 mr-3'} rounded-full border-2 flex items-center justify-center font-semibold text-xs flex-shrink-0 ${
-                currentView === 'profile' 
-                  ? 'border-white text-white' 
-                  : 'border-gray-400'
-              }`}>
+              <div className={`${isCollapsed ? 'w-8 h-8' : 'w-5 h-5 mr-3'} rounded-full flex items-center justify-center font-semibold text-xs flex-shrink-0 bg-[#595956] text-white`}>
                 {user?.email ? user.email.charAt(0).toUpperCase() : 'U'}
               </div>
               {!isCollapsed && <span className="font-medium">Profile</span>}
