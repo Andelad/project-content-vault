@@ -258,7 +258,7 @@ export function ReportsView() {
     });
 
     return data;
-  }, [projects, events, timeAnalysisTimeFrame, weeklyCapacity]);
+  }, [projects, events, timeAnalysisTimeFrame, weeklyCapacity, timeOffset]);
 
   // Future projects
   const futureProjects = useMemo(() => {
