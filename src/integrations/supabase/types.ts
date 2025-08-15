@@ -14,6 +14,134 @@ export type Database = {
   }
   public: {
     Tables: {
+      calendar_events: {
+        Row: {
+          color: string
+          completed: boolean | null
+          created_at: string
+          description: string | null
+          duration: number | null
+          end_time: string
+          id: string
+          project_id: string | null
+          recurring_count: number | null
+          recurring_end_date: string | null
+          recurring_interval: number | null
+          recurring_type: string | null
+          start_time: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color: string
+          completed?: boolean | null
+          created_at?: string
+          description?: string | null
+          duration?: number | null
+          end_time: string
+          id?: string
+          project_id?: string | null
+          recurring_count?: number | null
+          recurring_end_date?: string | null
+          recurring_interval?: number | null
+          recurring_type?: string | null
+          start_time: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string
+          completed?: boolean | null
+          created_at?: string
+          description?: string | null
+          duration?: number | null
+          end_time?: string
+          id?: string
+          project_id?: string | null
+          recurring_count?: number | null
+          recurring_end_date?: string | null
+          recurring_interval?: number | null
+          recurring_type?: string | null
+          start_time?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_events_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      groups: {
+        Row: {
+          color: string
+          created_at: string
+          description: string
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color: string
+          created_at?: string
+          description: string
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          description?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      holidays: {
+        Row: {
+          created_at: string
+          end_date: string
+          id: string
+          notes: string | null
+          start_date: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          end_date: string
+          id?: string
+          notes?: string | null
+          start_date: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          end_date?: string
+          id?: string
+          notes?: string | null
+          start_date?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -41,6 +169,134 @@ export type Database = {
           id?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      projects: {
+        Row: {
+          client: string
+          color: string
+          created_at: string
+          end_date: string
+          estimated_hours: number
+          group_id: string
+          icon: string | null
+          id: string
+          name: string
+          notes: string | null
+          row_id: string
+          start_date: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client: string
+          color: string
+          created_at?: string
+          end_date: string
+          estimated_hours: number
+          group_id: string
+          icon?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          row_id: string
+          start_date: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client?: string
+          color?: string
+          created_at?: string
+          end_date?: string
+          estimated_hours?: number
+          group_id?: string
+          icon?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          row_id?: string
+          start_date?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_row_id_fkey"
+            columns: ["row_id"]
+            isOneToOne: false
+            referencedRelation: "rows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rows: {
+        Row: {
+          created_at: string
+          group_id: string
+          id: string
+          name: string
+          order_index: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          group_id: string
+          id?: string
+          name: string
+          order_index: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          group_id?: string
+          id?: string
+          name?: string
+          order_index?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rows_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      settings: {
+        Row: {
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+          weekly_work_hours: Json
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+          weekly_work_hours?: Json
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+          weekly_work_hours?: Json
         }
         Relationships: []
       }
