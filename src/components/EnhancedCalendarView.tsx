@@ -104,13 +104,6 @@ function CustomToolbar({ onNavigate, onView, label, view }: CustomToolbarProps) 
       
       <div className="flex items-center space-x-2">
         <Button
-          variant={view === Views.MONTH ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => onView(Views.MONTH)}
-        >
-          Month
-        </Button>
-        <Button
           variant={view === Views.WEEK ? 'default' : 'outline'}
           size="sm"
           onClick={() => onView(Views.WEEK)}
@@ -123,13 +116,6 @@ function CustomToolbar({ onNavigate, onView, label, view }: CustomToolbarProps) 
           onClick={() => onView(Views.DAY)}
         >
           Day
-        </Button>
-        <Button
-          variant={view === Views.AGENDA ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => onView(Views.AGENDA)}
-        >
-          Agenda
         </Button>
       </div>
     </div>

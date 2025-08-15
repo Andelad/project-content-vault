@@ -8,8 +8,11 @@ import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Textarea } from './ui/textarea';
 import { Checkbox } from './ui/checkbox';
-import { Calendar, Clock, Repeat, Trash2, CheckCircle2 } from 'lucide-react';
+import { Calendar } from './ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Calendar as CalendarIcon, Clock, Repeat, Trash2, CheckCircle2 } from 'lucide-react';
 import { Switch } from './ui/switch';
+import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 interface EventDetailModalProps {
@@ -39,9 +42,9 @@ export function EventDetailModal({
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    startDate: '',
+    startDate: new Date(),
     startTime: '',
-    endDate: '',
+    endDate: new Date(),
     endTime: '',
     projectId: '',
     color: '#6b7280',
@@ -50,7 +53,7 @@ export function EventDetailModal({
     recurringType: 'weekly' as 'daily' | 'weekly' | 'monthly' | 'yearly',
     recurringInterval: 1,
     recurringEndType: 'never' as 'never' | 'date' | 'count',
-    recurringEndDate: '',
+    recurringEndDate: new Date(),
     recurringCount: 10
   });
 
@@ -60,11 +63,6 @@ export function EventDetailModal({
   const isEditing = !!eventId;
   const existingEvent = isEditing ? events.find(e => e.id === eventId) : null;
 
-  // Format date for date input (YYYY-MM-DD)
-  const formatDate = (date: Date) => {
-    return date.toISOString().split('T')[0];
-  };
-
   // Format time for time input (HH:MM)
   const formatTime = (date: Date) => {
     return date.toTimeString().slice(0, 5);
@@ -72,12 +70,16 @@ export function EventDetailModal({
 
   // Parse form data into Date objects
   const getStartDateTime = () => {
-    const date = new Date(`${formData.startDate}T${formData.startTime}`);
+    const date = new Date(formData.startDate);
+    const [hours, minutes] = formData.startTime.split(':').map(Number);
+    date.setHours(hours || 0, minutes || 0, 0, 0);
     return date;
   };
 
   const getEndDateTime = () => {
-    const date = new Date(`${formData.endDate}T${formData.endTime}`);
+    const date = new Date(formData.endDate);
+    const [hours, minutes] = formData.endTime.split(':').map(Number);
+    date.setHours(hours || 0, minutes || 0, 0, 0);
     return date;
   };
 
@@ -88,9 +90,9 @@ export function EventDetailModal({
         setFormData({
           title: existingEvent.title,
           description: existingEvent.description || '',
-          startDate: formatDate(new Date(existingEvent.startTime)),
+          startDate: new Date(existingEvent.startTime),
           startTime: formatTime(new Date(existingEvent.startTime)),
-          endDate: formatDate(new Date(existingEvent.endTime)),
+          endDate: new Date(existingEvent.endTime),
           endTime: formatTime(new Date(existingEvent.endTime)),
           projectId: existingEvent.projectId || '',
           color: existingEvent.color || '#6b7280',
@@ -99,7 +101,7 @@ export function EventDetailModal({
           recurringType: existingEvent.recurring?.type || 'weekly',
           recurringInterval: existingEvent.recurring?.interval || 1,
           recurringEndType: existingEvent.recurring?.endDate ? 'date' : existingEvent.recurring?.count ? 'count' : 'never',
-          recurringEndDate: existingEvent.recurring?.endDate ? formatDate(existingEvent.recurring.endDate) : '',
+          recurringEndDate: existingEvent.recurring?.endDate || new Date(),
           recurringCount: existingEvent.recurring?.count || 10
         });
       } else {
@@ -109,9 +111,9 @@ export function EventDetailModal({
         setFormData({
           title: '',
           description: '',
-          startDate: formatDate(startDate),
+          startDate,
           startTime: formatTime(startDate),
-          endDate: formatDate(endDate),
+          endDate,
           endTime: formatTime(endDate),
           projectId: '',
           color: '#6b7280',
@@ -120,7 +122,7 @@ export function EventDetailModal({
           recurringType: 'weekly',
           recurringInterval: 1,
           recurringEndType: 'never',
-          recurringEndDate: '',
+          recurringEndDate: new Date(),
           recurringCount: 10
         });
       }
@@ -289,14 +291,29 @@ export function EventDetailModal({
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="startDate">Start Date *</Label>
-                <Input
-                  id="startDate"
-                  type="date"
-                  value={formData.startDate}
-                  onChange={(e) => setFormData(prev => ({ ...prev, startDate: e.target.value }))}
-                  className={errors.startDateTime ? 'border-destructive' : ''}
-                />
+                <Label>Start Date *</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !formData.startDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {formData.startDate ? format(formData.startDate, "PPP") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 z-[60] bg-popover border shadow-lg" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={formData.startDate}
+                      onSelect={(date) => date && setFormData(prev => ({ ...prev, startDate: date }))}
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
               
               <div className="space-y-2">
@@ -313,14 +330,29 @@ export function EventDetailModal({
             
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="endDate">End Date *</Label>
-                <Input
-                  id="endDate"
-                  type="date"
-                  value={formData.endDate}
-                  onChange={(e) => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
-                  className={errors.endDateTime ? 'border-destructive' : ''}
-                />
+                <Label>End Date *</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !formData.endDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {formData.endDate ? format(formData.endDate, "PPP") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 z-[60] bg-popover border shadow-lg" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={formData.endDate}
+                      onSelect={(date) => date && setFormData(prev => ({ ...prev, endDate: date }))}
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
               
               <div className="space-y-2">
@@ -472,14 +504,29 @@ export function EventDetailModal({
 
                 {formData.recurringEndType === 'date' && (
                   <div className="space-y-2">
-                    <Label htmlFor="recurringEndDate">End date</Label>
-                    <Input
-                      id="recurringEndDate"
-                      type="date"
-                      value={formData.recurringEndDate}
-                      onChange={(e) => setFormData(prev => ({ ...prev, recurringEndDate: e.target.value }))}
-                      className={errors.recurringEndDate ? 'border-destructive' : ''}
-                    />
+                    <Label>End date</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !formData.recurringEndDate && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {formData.recurringEndDate ? format(formData.recurringEndDate, "PPP") : "Pick end date"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0 z-[60] bg-popover border shadow-lg" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={formData.recurringEndDate}
+                          onSelect={(date) => date && setFormData(prev => ({ ...prev, recurringEndDate: date }))}
+                          className="p-3 pointer-events-auto"
+                        />
+                      </PopoverContent>
+                    </Popover>
                     {errors.recurringEndDate && (
                       <p className="text-sm text-destructive">{errors.recurringEndDate}</p>
                     )}
