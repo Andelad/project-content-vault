@@ -92,20 +92,29 @@ export function Sidebar() {
 
       {/* Avatar and Bottom Navigation */}
       <div className={`${isCollapsed ? 'px-2 py-4' : 'p-4'} border-t border-[#e2e2e2] flex-shrink-0 space-y-4`}>
-        {/* User Avatar */}
-        <div className="flex items-center justify-center">
-          <button
-            onClick={() => setCurrentView('profile')}
-            className={`${isCollapsed ? 'w-10 h-10' : 'w-12 h-12'} rounded-full border-2 ${
-              currentView === 'profile' 
-                ? 'border-[#02c0b7] bg-[#02c0b7] text-white' 
-                : 'border-gray-300 bg-gray-100 hover:border-[#02c0b7] hover:bg-gray-200'
-            } flex items-center justify-center font-semibold text-sm transition-colors duration-200`}
-            title={isCollapsed ? 'Profile' : undefined}
-          >
-            {user?.email ? user.email.charAt(0).toUpperCase() : 'U'}
-          </button>
-        </div>
+        {/* Profile Navigation with Avatar */}
+        <ul className="space-y-2">
+          <li>
+            <button
+              onClick={() => setCurrentView('profile')}
+              className={`${isCollapsed ? 'w-12 h-12 flex items-center justify-center' : 'w-full flex items-center px-4 py-3'} rounded-lg transition-colors duration-200 ${
+                currentView === 'profile'
+                  ? 'bg-[#02c0b7] text-white shadow-lg'
+                  : 'text-[#595956] hover:bg-[#e9e9e9] hover:text-[#494946]'
+              }`}
+              title={isCollapsed ? 'Profile' : undefined}
+            >
+              <div className={`${isCollapsed ? 'w-8 h-8' : 'w-5 h-5 mr-3'} rounded-full border-2 flex items-center justify-center font-semibold text-xs flex-shrink-0 ${
+                currentView === 'profile' 
+                  ? 'border-white text-white' 
+                  : 'border-gray-400'
+              }`}>
+                {user?.email ? user.email.charAt(0).toUpperCase() : 'U'}
+              </div>
+              {!isCollapsed && <span className="font-medium">Profile</span>}
+            </button>
+          </li>
+        </ul>
         
         {/* Bottom Navigation */}
         <ul className="space-y-2">
