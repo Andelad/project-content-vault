@@ -292,16 +292,7 @@ export function ReportsView() {
                       Available time vs. committed and overbooked hours
                     </CardDescription>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setTimeOffset(prev => prev - 1)}
-                      className="p-2"
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    
+                  <div className="flex items-center gap-4">
                     <Select value={timeAnalysisTimeFrame} onValueChange={(value: TimeFrame) => {
                       setTimeAnalysisTimeFrame(value);
                       setTimeOffset(0); // Reset offset when changing timeframe
@@ -315,15 +306,41 @@ export function ReportsView() {
                         <SelectItem value="year">Yearly</SelectItem>
                       </SelectContent>
                     </Select>
-                    
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setTimeOffset(prev => prev + 1)}
-                      className="p-2"
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
+
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const segments = timeAnalysisTimeFrame === 'week' ? 12 : timeAnalysisTimeFrame === 'month' ? 12 : 5;
+                          setTimeOffset(prev => prev - segments);
+                        }}
+                        className="p-2"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setTimeOffset(0)}
+                        className="px-3"
+                      >
+                        Today
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const segments = timeAnalysisTimeFrame === 'week' ? 12 : timeAnalysisTimeFrame === 'month' ? 12 : 5;
+                          setTimeOffset(prev => prev + segments);
+                        }}
+                        className="p-2"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </CardHeader>
