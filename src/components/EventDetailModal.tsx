@@ -258,7 +258,7 @@ export function EventDetailModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Calendar className="w-5 h-5" />
@@ -355,12 +355,12 @@ export function EventDetailModal({
           {/* Project Selection */}
           <div className="space-y-2">
             <Label htmlFor="project">Project (Optional)</Label>
-            <Select value={formData.projectId} onValueChange={(value) => setFormData(prev => ({ ...prev, projectId: value }))}>
+            <Select value={formData.projectId || "none"} onValueChange={(value) => setFormData(prev => ({ ...prev, projectId: value === "none" ? "" : value }))}>
               <SelectTrigger>
                 <SelectValue placeholder="Select a project (optional)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">No project</SelectItem>
+                <SelectItem value="none">No project</SelectItem>
                 {Object.entries(projectsByGroup).map(([groupName, groupProjects]) => (
                   <div key={groupName}>
                     <div className="px-2 py-1 text-sm font-semibold text-muted-foreground">
@@ -382,7 +382,7 @@ export function EventDetailModal({
                 ))}
               </SelectContent>
             </Select>
-            {selectedProject && (
+            {selectedProject && formData.projectId !== "none" && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <div 
                   className="w-3 h-3 rounded-full border border-gray-300"
