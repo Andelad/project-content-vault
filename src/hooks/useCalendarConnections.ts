@@ -61,9 +61,16 @@ export function useCalendarConnections() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
+      // Remove any sensitive token data before storing
+      const { access_token, refresh_token, ...safeConnectionData } = connectionData as any;
+
       const { data, error } = await supabase
         .from('calendar_connections')
-        .insert([{ ...connectionData, user_id: user.id }])
+        .insert([{ 
+          ...safeConnectionData, 
+          user_id: user.id,
+          connection_status: 'disconnected' // Will be updated via secure OAuth flow
+        }])
         .select()
         .single();
 
@@ -71,7 +78,7 @@ export function useCalendarConnections() {
       setConnections(prev => [data, ...prev]);
       toast({
         title: "Success",
-        description: "Calendar connection added successfully",
+        description: "Calendar connection created. Please complete OAuth authentication.",
       });
       return data;
     } catch (error) {
@@ -136,6 +143,69 @@ export function useCalendarConnections() {
     }
   };
 
+  const authenticateConnection = async (connectionId: string) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('User not authenticated');
+
+      // Call secure edge function for OAuth handling
+      const { data, error } = await supabase.functions.invoke('calendar-oauth', {
+        body: { 
+          connection_id: connectionId,
+          action: 'authenticate'
+        }
+      });
+
+      if (error) throw error;
+      
+      await fetchConnections(); // Refresh to show updated status
+      toast({
+        title: "Success",
+        description: "Calendar connection authenticated successfully",
+      });
+    } catch (error) {
+      console.error('Error authenticating connection:', error);
+      toast({
+        title: "Error",
+        description: "Failed to authenticate calendar connection",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
+  const revokeConnection = async (connectionId: string) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('User not authenticated');
+
+      // Call secure edge function to revoke tokens
+      const { data, error } = await supabase.functions.invoke('calendar-oauth', {
+        method: 'DELETE',
+        body: { 
+          connection_id: connectionId,
+          action: 'revoke_tokens'
+        }
+      });
+
+      if (error) throw error;
+      
+      await fetchConnections(); // Refresh to show updated status
+      toast({
+        title: "Success",
+        description: "Calendar connection revoked successfully",
+      });
+    } catch (error) {
+      console.error('Error revoking connection:', error);
+      toast({
+        title: "Error",
+        description: "Failed to revoke calendar connection",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
   return {
     connections,
     importHistory,
@@ -143,6 +213,8 @@ export function useCalendarConnections() {
     addConnection,
     updateConnection,
     deleteConnection,
+    authenticateConnection,
+    revokeConnection,
     refetch: () => {
       fetchConnections();
       fetchImportHistory();
