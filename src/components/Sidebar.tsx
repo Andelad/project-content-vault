@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useApp } from '../contexts/AppContext';
-import { Calendar, AlignLeft, Folders, Settings, User, ChevronLeft, ChevronRight, PieChart } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { Calendar, AlignLeft, Folders, Settings, ChevronLeft, ChevronRight, PieChart } from 'lucide-react';
 
 export function Sidebar() {
   const { currentView, setCurrentView } = useApp();
+  const { user } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const mainNavItems = [
@@ -30,11 +32,6 @@ export function Sidebar() {
   ];
 
   const bottomNavItems = [
-    {
-      id: 'profile' as const,
-      label: 'Profile',
-      icon: User,
-    },
     {
       id: 'settings' as const,
       label: 'Settings',
@@ -93,8 +90,24 @@ export function Sidebar() {
         </ul>
       </nav>
 
-      {/* Bottom Navigation */}
-      <div className={`${isCollapsed ? 'px-2 py-4' : 'p-4'} border-t border-[#e2e2e2] flex-shrink-0`}>
+      {/* Avatar and Bottom Navigation */}
+      <div className={`${isCollapsed ? 'px-2 py-4' : 'p-4'} border-t border-[#e2e2e2] flex-shrink-0 space-y-4`}>
+        {/* User Avatar */}
+        <div className="flex items-center justify-center">
+          <button
+            onClick={() => setCurrentView('profile')}
+            className={`${isCollapsed ? 'w-10 h-10' : 'w-12 h-12'} rounded-full border-2 ${
+              currentView === 'profile' 
+                ? 'border-[#02c0b7] bg-[#02c0b7] text-white' 
+                : 'border-gray-300 bg-gray-100 hover:border-[#02c0b7] hover:bg-gray-200'
+            } flex items-center justify-center font-semibold text-sm transition-colors duration-200`}
+            title={isCollapsed ? 'Profile' : undefined}
+          >
+            {user?.email ? user.email.charAt(0).toUpperCase() : 'U'}
+          </button>
+        </div>
+        
+        {/* Bottom Navigation */}
         <ul className="space-y-2">
           {bottomNavItems.map((item) => {
             const Icon = item.icon;

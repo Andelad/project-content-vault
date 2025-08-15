@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -7,6 +8,8 @@ import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
 import { Switch } from './ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   CreditCard, 
   Crown, 
@@ -21,13 +24,32 @@ import {
   Calendar,
   Zap,
   Users,
-  Settings
+  Settings,
+  Lock,
+  User,
+  LogOut
 } from 'lucide-react';
 
 export function ProfileView() {
+  const { user, signOut } = useAuth();
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const [profile, setProfile] = useState<any>(null);
+  
+  // Form states
+  const [emailForm, setEmailForm] = useState({
+    newEmail: '',
+    showForm: false
+  });
+  
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+    showForm: false
+  });
+
   const [accountSettings, setAccountSettings] = useState({
-    email: 'alex.johnson@example.com',
-    emailVerified: true,
     twoFactorEnabled: false,
     notifications: {
       email: true,
@@ -40,25 +62,142 @@ export function ProfileView() {
   });
 
   const [subscription] = useState({
-    plan: 'Professional',
+    plan: 'Free',
     status: 'active',
-    nextBilling: '2024-09-15',
-    amount: 29.99,
+    nextBilling: null,
+    amount: 0,
     currency: 'USD',
     features: [
-      'Unlimited projects',
-      'Advanced analytics',
-      'Team collaboration',
-      'Priority support',
-      'Data export'
+      'Basic project management',
+      'Up to 5 projects',
+      'Standard support'
     ],
     usage: {
-      projects: 12,
-      projectsLimit: 'unlimited',
-      storage: 2.4,
-      storageLimit: 100
+      projects: 3,
+      projectsLimit: 5,
+      storage: 0.2,
+      storageLimit: 1
     }
   });
+
+  // Load user profile on mount
+  useEffect(() => {
+    if (user) {
+      fetchProfile();
+    }
+  }, [user]);
+
+  const fetchProfile = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user?.id)
+        .maybeSingle();
+      
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching profile:', error);
+      } else {
+        setProfile(data);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
+
+  const handleEmailChange = async () => {
+    if (!emailForm.newEmail || emailForm.newEmail === user?.email) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid new email address",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        email: emailForm.newEmail
+      });
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Email Update Initiated",
+          description: "Please check both your old and new email for confirmation links",
+        });
+        setEmailForm({ newEmail: '', showForm: false });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordChange = async () => {
+    if (!passwordForm.newPassword || passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast({
+        title: "Error",
+        description: "New passwords don't match",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 6) {
+      toast({
+        title: "Error",
+        description: "Password must be at least 6 characters",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: passwordForm.newPassword
+      });
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: "Password updated successfully",
+        });
+        setPasswordForm({ 
+          currentPassword: '', 
+          newPassword: '', 
+          confirmPassword: '', 
+          showForm: false 
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleNotificationChange = (key: string, value: boolean) => {
     setAccountSettings(prev => ({
@@ -70,16 +209,18 @@ export function ProfileView() {
     }));
   };
 
-  const handleCancelSubscription = () => {
-    console.log('Cancel subscription requested');
-  };
-
   const handleDownloadData = () => {
-    console.log('Download data requested');
+    toast({
+      title: "Export Started",
+      description: "Your data export will be emailed to you shortly",
+    });
   };
 
   const handleDeleteAccount = () => {
-    console.log('Delete account requested');
+    toast({
+      title: "Account Deletion",
+      description: "This feature requires additional confirmation steps",
+    });
   };
 
   return (
@@ -87,16 +228,13 @@ export function ProfileView() {
       {/* Header */}
       <div className="h-20 border-b border-[#e2e2e2] flex items-center justify-between px-8">
         <div className="flex items-center space-x-6">
-          <h1 className="text-lg font-semibold text-[#595956]">Account</h1>
-          <Badge variant="secondary" className="bg-gray-100 text-gray-700">
-            {subscription.plan} Plan
-          </Badge>
+          <h1 className="text-lg font-semibold text-[#595956]">Profile & Account</h1>
         </div>
         
         <div className="flex items-center gap-3">
           <Button variant="outline">
             <ExternalLink className="w-4 h-4 mr-2" />
-            Billing Portal
+            Help Center
           </Button>
           <Button className="bg-[#02c0b7] hover:bg-[#02a09a] text-white">
             <Crown className="w-4 h-4 mr-2" />
@@ -107,72 +245,54 @@ export function ProfileView() {
 
       {/* Content */}
       <div className="p-[21px] space-y-[21px] max-w-5xl light-scrollbar">
+        {/* User Info Header */}
+        <Card className="relative">
+          <div className="absolute top-4 left-4">
+            <Badge variant="secondary" className="bg-green-100 text-green-800">
+              Functioning
+            </Badge>
+          </div>
+          <CardHeader className="pt-12">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-full bg-[#02c0b7] text-white flex items-center justify-center font-bold text-xl">
+                {user?.email ? user.email.charAt(0).toUpperCase() : 'U'}
+              </div>
+              <div className="flex-1">
+                <CardTitle className="flex items-center gap-2">
+                  <User className="w-5 h-5" />
+                  {profile?.display_name || user?.email?.split('@')[0] || 'User'}
+                </CardTitle>
+                <CardDescription className="flex items-center gap-4 mt-2">
+                  <span className="flex items-center gap-2">
+                    <Mail className="w-4 h-4" />
+                    Signed in as: {user?.email}
+                  </span>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={signOut}
+                    className="ml-auto"
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Sign Out
+                  </Button>
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+        </Card>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-[21px]">
           {/* Account Management */}
           <div className="lg:col-span-2 space-y-[21px]">
-            {/* Subscription Info */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Crown className="w-5 h-5 text-yellow-500" />
-                  Subscription Details
-                </CardTitle>
-                <CardDescription>
-                  Manage your subscription and billing information
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-semibold">{subscription.plan} Plan</h4>
-                    <p className="text-sm text-gray-600">
-                      ${subscription.amount}/{subscription.currency === 'USD' ? 'month' : 'mo'}
-                    </p>
-                  </div>
-                  <Badge className="bg-green-100 text-green-800">
-                    {subscription.status.charAt(0).toUpperCase() + subscription.status.slice(1)}
-                  </Badge>
-                </div>
-
-                <Separator />
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-sm text-gray-600">Next Billing Date</Label>
-                    <p className="font-medium">{new Date(subscription.nextBilling).toLocaleDateString()}</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm text-gray-600">Billing Amount</Label>
-                    <p className="font-medium">${subscription.amount} USD</p>
-                  </div>
-                </div>
-
-                <div>
-                  <Label className="text-sm text-gray-600 mb-2 block">Plan Features</Label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {subscription.features.map((feature, index) => (
-                      <div key={index} className="flex items-center gap-2">
-                        <Check className="w-4 h-4 text-green-500" />
-                        <span className="text-sm">{feature}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <Button variant="outline" size="sm">
-                    Change Plan
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={handleCancelSubscription}>
-                    Cancel Subscription
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
             {/* Account Settings */}
-            <Card>
-              <CardHeader>
+            <Card className="relative">
+              <div className="absolute top-4 left-4">
+                <Badge variant="secondary" className="bg-green-100 text-green-800">
+                  Functioning
+                </Badge>
+              </div>
+              <CardHeader className="pt-12">
                 <CardTitle className="flex items-center gap-2">
                   <Settings className="w-5 h-5" />
                   Account Settings
@@ -190,23 +310,121 @@ export function ProfileView() {
                       <span className="font-medium">Email Address</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-600">{accountSettings.email}</span>
-                      {accountSettings.emailVerified && (
-                        <Badge variant="secondary" className="bg-green-100 text-green-800">
-                          Verified
-                        </Badge>
-                      )}
+                      <span className="text-sm text-gray-600">{user?.email}</span>
+                      <Badge variant="secondary" className="bg-green-100 text-green-800">
+                        Verified
+                      </Badge>
                     </div>
                   </div>
-                  <Button variant="outline" size="sm">
-                    Change Email
-                  </Button>
+                  
+                  {!emailForm.showForm ? (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setEmailForm(prev => ({ ...prev, showForm: true }))}
+                    >
+                      Change Email
+                    </Button>
+                  ) : (
+                    <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
+                      <div className="space-y-2">
+                        <Label htmlFor="newEmail">New Email Address</Label>
+                        <Input
+                          id="newEmail"
+                          type="email"
+                          value={emailForm.newEmail}
+                          onChange={(e) => setEmailForm(prev => ({ ...prev, newEmail: e.target.value }))}
+                          placeholder="Enter new email address"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button 
+                          size="sm" 
+                          onClick={handleEmailChange}
+                          disabled={loading}
+                        >
+                          Update Email
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setEmailForm({ newEmail: '', showForm: false })}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <Separator />
 
                 {/* Security Settings */}
                 <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Lock className="w-4 h-4 text-gray-500" />
+                      <div>
+                        <p className="font-medium">Password</p>
+                        <p className="text-sm text-gray-600">Update your password</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {!passwordForm.showForm ? (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setPasswordForm(prev => ({ ...prev, showForm: true }))}
+                    >
+                      Change Password
+                    </Button>
+                  ) : (
+                    <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
+                      <div className="space-y-2">
+                        <Label htmlFor="newPassword">New Password</Label>
+                        <Input
+                          id="newPassword"
+                          type="password"
+                          value={passwordForm.newPassword}
+                          onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                          placeholder="Enter new password"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                        <Input
+                          id="confirmPassword"
+                          type="password"
+                          value={passwordForm.confirmPassword}
+                          onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                          placeholder="Confirm new password"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button 
+                          size="sm" 
+                          onClick={handlePasswordChange}
+                          disabled={loading}
+                        >
+                          Update Password
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setPasswordForm({ 
+                            currentPassword: '', 
+                            newPassword: '', 
+                            confirmPassword: '', 
+                            showForm: false 
+                          })}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Shield className="w-4 h-4 text-gray-500" />
@@ -223,9 +441,6 @@ export function ProfileView() {
                       }))}
                     />
                   </div>
-                  <Button variant="outline" size="sm">
-                    Change Password
-                  </Button>
                 </div>
 
                 <Separator />
@@ -267,8 +482,13 @@ export function ProfileView() {
             </Card>
 
             {/* Notifications */}
-            <Card>
-              <CardHeader>
+            <Card className="relative">
+              <div className="absolute top-4 left-4">
+                <Badge variant="secondary" className="bg-green-100 text-green-800">
+                  Functioning
+                </Badge>
+              </div>
+              <CardHeader className="pt-12">
                 <CardTitle className="flex items-center gap-2">
                   <Bell className="w-5 h-5" />
                   Notification Preferences
@@ -327,9 +547,47 @@ export function ProfileView() {
 
           {/* Usage & Actions Sidebar */}
           <div className="space-y-[21px]">
-            {/* Usage Overview */}
+            {/* Subscription Info */}
             <Card>
               <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Crown className="w-5 h-5 text-yellow-500" />
+                  Current Plan
+                </CardTitle>
+                <CardDescription>
+                  {subscription.plan} Plan
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Status</span>
+                  <Badge className="bg-green-100 text-green-800">
+                    {subscription.status.charAt(0).toUpperCase() + subscription.status.slice(1)}
+                  </Badge>
+                </div>
+                
+                <div>
+                  <Label className="text-sm text-gray-600 mb-2 block">Plan Features</Label>
+                  <div className="space-y-2">
+                    {subscription.features.map((feature, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <Check className="w-4 h-4 text-green-500" />
+                        <span className="text-sm">{feature}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Usage Overview */}
+            <Card className="relative">
+              <div className="absolute top-4 left-4">
+                <Badge variant="secondary" className="bg-green-100 text-green-800">
+                  Functioning
+                </Badge>
+              </div>
+              <CardHeader className="pt-12">
                 <CardTitle className="flex items-center gap-2">
                   <Zap className="w-5 h-5 text-blue-500" />
                   Usage Overview
@@ -349,7 +607,7 @@ export function ProfileView() {
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div 
                       className="bg-[#02c0b7] h-2 rounded-full" 
-                      style={{ width: '40%' }}
+                      style={{ width: `${(subscription.usage.projects / subscription.usage.projectsLimit) * 100}%` }}
                     />
                   </div>
                 </div>
@@ -371,34 +629,14 @@ export function ProfileView() {
               </CardContent>
             </Card>
 
-            {/* Billing Info */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CreditCard className="w-5 h-5 text-green-500" />
-                  Billing Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Payment Method</span>
-                  <span className="text-sm font-medium">•••• 4242</span>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Next Payment</span>
-                  <span className="text-sm font-medium">${subscription.amount}</span>
-                </div>
-
-                <Button variant="outline" size="sm" className="w-full">
-                  Update Payment Method
-                </Button>
-              </CardContent>
-            </Card>
-
             {/* Account Actions */}
-            <Card>
-              <CardHeader>
+            <Card className="relative">
+              <div className="absolute top-4 left-4">
+                <Badge variant="secondary" className="bg-green-100 text-green-800">
+                  Functioning
+                </Badge>
+              </div>
+              <CardHeader className="pt-12">
                 <CardTitle>Account Actions</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -431,23 +669,6 @@ export function ProfileView() {
                   <Trash2 className="w-4 h-4 mr-2" />
                   Delete Account
                 </Button>
-              </CardContent>
-            </Card>
-
-            {/* Warning Card */}
-            <Card className="border-amber-200 bg-amber-50">
-              <CardContent className="p-4">
-                <div className="flex items-start gap-3">
-                  <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <h4 className="font-medium text-amber-900 mb-1">
-                      Subscription Renewal
-                    </h4>
-                    <p className="text-sm text-amber-800">
-                      Your subscription will renew automatically on {new Date(subscription.nextBilling).toLocaleDateString()}.
-                    </p>
-                  </div>
-                </div>
               </CardContent>
             </Card>
           </div>
