@@ -40,10 +40,24 @@
 /* Time slots */
 .rbc-time-slot {
   border-top: 1px solid hsl(var(--border)) !important;
+  background-color: transparent !important;
 }
 
 .rbc-timeslot-group {
   border-bottom: 1px solid hsl(var(--border)) !important;
+  background-color: transparent !important;
+}
+
+.rbc-day-slot {
+  background-color: transparent !important;
+}
+
+.rbc-day-bg {
+  background-color: transparent !important;
+}
+
+.rbc-day-bg + .rbc-day-bg {
+  border-left: 1px solid hsl(var(--border)) !important;
 }
 
 /* Time gutter */

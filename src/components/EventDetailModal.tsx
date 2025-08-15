@@ -305,12 +305,12 @@ export function EventDetailModal({
                       {formData.startDate ? format(formData.startDate, "PPP") : "Pick a date"}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 z-[60] bg-popover border shadow-lg" align="start">
+                  <PopoverContent className="w-auto p-0 z-[70] bg-popover border shadow-md" align="start" sideOffset={4}>
                     <Calendar
                       mode="single"
                       selected={formData.startDate}
                       onSelect={(date) => date && setFormData(prev => ({ ...prev, startDate: date }))}
-                      className="p-3 pointer-events-auto"
+                      className="pointer-events-auto"
                     />
                   </PopoverContent>
                 </Popover>
@@ -344,12 +344,12 @@ export function EventDetailModal({
                       {formData.endDate ? format(formData.endDate, "PPP") : "Pick a date"}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 z-[60] bg-popover border shadow-lg" align="start">
+                  <PopoverContent className="w-auto p-0 z-[70] bg-popover border shadow-md" align="start" sideOffset={4}>
                     <Calendar
                       mode="single"
                       selected={formData.endDate}
                       onSelect={(date) => date && setFormData(prev => ({ ...prev, endDate: date }))}
-                      className="p-3 pointer-events-auto"
+                      className="pointer-events-auto"
                     />
                   </PopoverContent>
                 </Popover>
@@ -518,12 +518,12 @@ export function EventDetailModal({
                           {formData.recurringEndDate ? format(formData.recurringEndDate, "PPP") : "Pick end date"}
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0 z-[60] bg-popover border shadow-lg" align="start">
+                      <PopoverContent className="w-auto p-0 z-[70] bg-popover border shadow-md" align="start" sideOffset={4}>
                         <Calendar
                           mode="single"
                           selected={formData.recurringEndDate}
                           onSelect={(date) => date && setFormData(prev => ({ ...prev, recurringEndDate: date }))}
-                          className="p-3 pointer-events-auto"
+                          className="pointer-events-auto"
                         />
                       </PopoverContent>
                     </Popover>
