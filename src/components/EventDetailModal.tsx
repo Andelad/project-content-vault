@@ -238,7 +238,7 @@ export function EventDetailModal({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Start Date *</Label>
-                <Popover open={false}>
+                <Popover>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
@@ -256,7 +256,6 @@ export function EventDetailModal({
                       mode="single"
                       selected={formData.startDate}
                       onSelect={(date) => date && setFormData(prev => ({ ...prev, startDate: date }))}
-                      initialFocus
                       className="p-3 pointer-events-auto"
                     />
                   </PopoverContent>
@@ -277,7 +276,7 @@ export function EventDetailModal({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>End Date *</Label>
-                <Popover open={false}>
+                <Popover>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
@@ -295,7 +294,6 @@ export function EventDetailModal({
                       mode="single"
                       selected={formData.endDate}
                       onSelect={(date) => date && setFormData(prev => ({ ...prev, endDate: date }))}
-                      initialFocus
                       className="p-3 pointer-events-auto"
                     />
                   </PopoverContent>

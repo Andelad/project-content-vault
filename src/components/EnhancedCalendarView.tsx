@@ -274,13 +274,6 @@ export function EnhancedCalendarView() {
       <div className="flex-1 p-6">
         <Card className="h-full">
           <div className="p-6 h-full">
-            <CustomToolbar
-              onNavigate={handleNavigate}
-              onView={setView}
-              label={moment(calendarDate).format('MMMM YYYY')}
-              view={view}
-            />
-            
             <DragAndDropCalendar
               localizer={localizer}
               events={bigCalendarEvents}
@@ -298,10 +291,10 @@ export function EnhancedCalendarView() {
               selectable
               resizable
               eventPropGetter={eventStyleGetter}
-              components={{
-                event: CustomEvent,
-                toolbar: CustomToolbar
-              }}
+               components={{
+                 event: CustomEvent,
+                 toolbar: CustomToolbar
+               }}
               formats={{
                 timeGutterFormat: 'HH:mm',
                 eventTimeRangeFormat: ({ start, end }) => 
