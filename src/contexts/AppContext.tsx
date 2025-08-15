@@ -12,6 +12,12 @@ import {
   WorkSlot, 
   Settings 
 } from '@/types/core';
+import { useProjects } from '@/hooks/useProjects';
+import { useGroups } from '@/hooks/useGroups';
+import { useRows } from '@/hooks/useRows';
+import { useEvents } from '@/hooks/useEvents';
+import { useHolidays } from '@/hooks/useHolidays';
+import { useSettings } from '@/hooks/useSettings';
 
 // Individual work hour override for specific dates
 export interface WorkHourOverride {
@@ -30,12 +36,12 @@ interface AppContextType {
   setCurrentDate: (date: Date) => void;
   projects: Project[];
   groups: Group[];
-  rows: Row[]; // Add rows to interface
+  rows: Row[];
   events: CalendarEvent[];
   settings: Settings;
-  workHours: any[]; // Add workHours property
-  timelineEntries: any[]; // Add timelineEntries property
-  updateTimelineEntry: (entry: any) => void; // Add updateTimelineEntry method
+  workHours: any[];
+  timelineEntries: any[];
+  updateTimelineEntry: (entry: any) => void;
   workHourOverrides: WorkHourOverride[];
   updateSettings: (updates: Partial<Settings>) => void;
   addWorkHourOverride: (override: WorkHourOverride) => void;
@@ -48,7 +54,7 @@ interface AppContextType {
   updateGroup: (id: string, updates: Partial<Group>) => void;
   deleteGroup: (id: string) => void;
   reorderGroups: (fromIndex: number, toIndex: number) => void;
-  addRow: (row: Omit<Row, 'id'>) => void; // Add row management functions
+  addRow: (row: Omit<Row, 'id'>) => void;
   updateRow: (id: string, updates: Partial<Row>) => void;
   deleteRow: (id: string) => void;
   reorderRows: (groupId: string, fromIndex: number, toIndex: number) => void;
@@ -57,7 +63,7 @@ interface AppContextType {
   deleteEvent: (id: string) => void;
   selectedProjectId: string | null;
   setSelectedProjectId: (projectId: string | null) => void;
-  creatingNewProject: { groupId: string; rowId?: string; startDate?: Date; endDate?: Date } | null; // Add rowId
+  creatingNewProject: { groupId: string; rowId?: string; startDate?: Date; endDate?: Date } | null;
   setCreatingNewProject: (groupId: string | null, dates?: { startDate: Date; endDate: Date }, rowId?: string) => void;
   selectedEventId: string | null;
   setSelectedEventId: (eventId: string | null) => void;
@@ -90,6 +96,14 @@ const getNextGroupColor = () => {
 };
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
+  // Import database hooks
+  const { projects: dbProjects, loading: projectsLoading, addProject: dbAddProject, updateProject: dbUpdateProject, deleteProject: dbDeleteProject, reorderProjects: dbReorderProjects } = useProjects();
+  const { groups: dbGroups, loading: groupsLoading, addGroup: dbAddGroup, updateGroup: dbUpdateGroup, deleteGroup: dbDeleteGroup } = useGroups();
+  const { rows: dbRows, loading: rowsLoading, addRow: dbAddRow, updateRow: dbUpdateRow, deleteRow: dbDeleteRow, reorderRows: dbReorderRows } = useRows();
+  const { events: dbEvents, loading: eventsLoading, addEvent: dbAddEvent, updateEvent: dbUpdateEvent, deleteEvent: dbDeleteEvent } = useEvents();
+  const { holidays: dbHolidays, loading: holidaysLoading, addHoliday: dbAddHoliday, updateHoliday: dbUpdateHoliday, deleteHoliday: dbDeleteHoliday } = useHolidays();
+  const { settings: dbSettings, loading: settingsLoading, updateSettings: dbUpdateSettings } = useSettings();
+
   const [currentView, setCurrentView] = useState('timeline');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
@@ -114,8 +128,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
   
-  // Settings state
-  const [settings, setSettings] = useState<Settings>({
+  // Default settings fallback if not loaded from database
+  const defaultSettings: Settings = {
     weeklyWorkHours: {
       monday: [{ id: '1', startTime: '09:00', endTime: '17:00', duration: 8 }],
       tuesday: [{ id: '2', startTime: '09:00', endTime: '17:00', duration: 8 }],
@@ -128,420 +142,282 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       saturday: [],
       sunday: []
     }
-  });
-  
-  // Sample groups
-  const [groups, setGroups] = useState<Group[]>([
-    { 
-      id: 'work-group', 
-      name: 'Work Projects', 
-      description: 'Professional work projects',
-      color: 'oklch(0.8 0.12 240)' // Blue
-    },
-    { 
-      id: 'home-group', 
-      name: 'Personal Projects', 
-      description: 'Personal and home projects',
-      color: 'oklch(0.8 0.12 120)' // Green
-    }
-  ]);
+  };
 
-  // Sample rows - each group starts with one row
-  const [rows, setRows] = useState<Row[]>([
-    {
-      id: 'work-row-1',
-      groupId: 'work-group',
-      name: 'Row 1',
-      order: 1
-    },
-    {
-      id: 'work-row-2',
-      groupId: 'work-group',
-      name: 'Row 2',
-      order: 2
-    },
-    {
-      id: 'work-row-3',
-      groupId: 'work-group',
-      name: 'Row 3',
-      order: 3
-    },
-    {
-      id: 'home-row-1',
-      groupId: 'home-group',
-      name: 'Row 1',
-      order: 1
-    }
-  ]);
+  // Convert database data to component format
+  const processedProjects = useMemo(() => dbProjects?.map(p => ({
+    id: p.id,
+    name: p.name,
+    client: p.client,
+    startDate: new Date(p.start_date),
+    endDate: new Date(p.end_date),
+    estimatedHours: p.estimated_hours,
+    color: p.color,
+    groupId: p.group_id,
+    rowId: p.row_id,
+    notes: p.notes || '',
+    icon: p.icon || 'folder'
+  })) || [], [dbProjects]);
 
-  // Sample projects with OKLCH colors
-  const [projects, setProjects] = useState<Project[]>([
-    {
-      id: '1',
-      name: 'Website Redesign (Starts Today)',
-      client: 'Acme Corp',
-      startDate: new Date(), // Starts today
-      endDate: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000), // 3 weeks from today
-      estimatedHours: 120,
-      color: 'oklch(0.8 0.12 240)', // Blue
-      groupId: 'work-group',
-      rowId: 'work-row-1',
-      notes: 'Initial requirements gathering completed. Need to focus on responsive design and modern UI/UX patterns. Key stakeholders include marketing team and design lead.'
-    },
-    {
-      id: '2',
-      name: 'Mobile App Development (Past Project)',
-      client: 'Tech Startup',
-      startDate: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000), // Started 60 days ago
-      endDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Ended 30 days ago
-      estimatedHours: 200,
-      color: 'oklch(0.8 0.12 0)', // Red
-      groupId: 'work-group',
-      rowId: 'work-row-2',
-      notes: 'Native mobile app development using React Native. Target platforms: iOS and Android. Will need to coordinate with backend team for API integration.'
-    },
-    {
-      id: '3',
-      name: 'Brand Identity (Future Project)',
-      client: 'Creative Agency',
-      startDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Starts 30 days from now
-      endDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000), // Ends 60 days from now
-      estimatedHours: 80,
-      color: 'oklch(0.8 0.12 270)', // Purple
-      groupId: 'work-group',
-      rowId: 'work-row-3',
-      notes: 'Complete brand identity overhaul including:\\n• Logo design and variations\\n• Color palette and typography\\n• Brand guidelines document\\n• Marketing materials templates'
-    },
-    {
-      id: '4',
-      name: 'Home Renovation',
-      client: 'Personal',
-      startDate: new Date(2025, 1, 10), // Feb 10, 2025
-      endDate: new Date(2025, 2, 25), // Mar 25, 2025
-      estimatedHours: 100,
-      color: 'oklch(0.8 0.12 120)', // Green
-      groupId: 'home-group',
-      rowId: 'home-row-1'
-    },
-    {
-      id: '5',
-      name: 'Garden Planning',
-      client: 'Personal',
-      startDate: new Date(2025, 3, 1), // Apr 1, 2025 (no overlap with Home Renovation)
-      endDate: new Date(2025, 4, 15), // May 15, 2025
-      estimatedHours: 40,
-      color: 'oklch(0.8 0.12 150)', // Green-Cyan
-      groupId: 'home-group',
-      rowId: 'home-row-1'
-    },
-    {
-      id: '6',
-      name: 'Past Project (Left Scroll)',
-      client: 'Test Client',
-      startDate: new Date(2024, 10, 1), // November 2024
-      endDate: new Date(2024, 11, 15), // December 2024
-      estimatedHours: 60,
-      color: 'oklch(0.8 0.12 30)', // Orange
-      groupId: 'work-group',
-      rowId: 'work-row-1', // Different row from Mobile App to avoid any potential overlap
-      notes: 'Completed project for reference'
-    },
-    {
-      id: '7',
-      name: 'Future Project (Right Scroll)',
-      client: 'Test Client',
-      startDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // Starts 90 days from now (3 months)
-      endDate: new Date(Date.now() + 120 * 24 * 60 * 60 * 1000), // Ends 120 days from now (4 months)
-      estimatedHours: 80,
-      color: 'oklch(0.8 0.12 180)', // Cyan
-      groupId: 'work-group',
-      rowId: 'work-row-2', // Different row from Brand Identity to ensure no overlap
-      notes: 'Future expansion project'
-    }
-  ]);
+  const processedEvents = useMemo(() => dbEvents?.map(e => ({
+    id: e.id,
+    title: e.title,
+    description: e.description || '',
+    startTime: new Date(e.start_time),
+    endTime: new Date(e.end_time),
+    projectId: e.project_id,
+    color: e.color,
+    completed: e.completed || false,
+    duration: e.duration || 0,
+    recurringType: e.recurring_type,
+    recurringInterval: e.recurring_interval,
+    recurringEndDate: e.recurring_end_date ? new Date(e.recurring_end_date) : undefined,
+    recurringCount: e.recurring_count
+  })) || [], [dbEvents]);
 
-  const [events, setEvents] = useState<CalendarEvent[]>([
-    // Dummy event 1: Connected to Website Redesign project, during work hours
-    {
-      id: 'dummy-1',
-      title: 'Website Redesign Kickoff Meeting',
-      startTime: (() => {
-        const today = new Date();
-        const thisWeekMonday = new Date(today);
-        thisWeekMonday.setDate(today.getDate() - today.getDay() + 1); // Get Monday of this week
-        thisWeekMonday.setHours(10, 0, 0, 0); // 10:00 AM Monday
-        return thisWeekMonday;
-      })(),
-      endTime: (() => {
-        const today = new Date();
-        const thisWeekMonday = new Date(today);
-        thisWeekMonday.setDate(today.getDate() - today.getDay() + 1); // Get Monday of this week
-        thisWeekMonday.setHours(12, 0, 0, 0); // 12:00 PM Monday (2 hours, within work time)
-        return thisWeekMonday;
-      })(),
-      projectId: '1', // Website Redesign project
-      color: 'oklch(0.8 0.12 240)' // Blue to match project
-    },
-    // Dummy event 2: Connected to Mobile App Development project, overlapping work/non-work hours
-    {
-      id: 'dummy-2',
-      title: 'Mobile App Dev Team Dinner',
-      startTime: (() => {
-        const today = new Date();
-        const thisWeekTuesday = new Date(today);
-        thisWeekTuesday.setDate(today.getDate() - today.getDay() + 2); // Get Tuesday of this week
-        thisWeekTuesday.setHours(16, 30, 0, 0); // 4:30 PM Tuesday (starts in work hours)
-        return thisWeekTuesday;
-      })(),
-      endTime: (() => {
-        const today = new Date();
-        const thisWeekTuesday = new Date(today);
-        thisWeekTuesday.setDate(today.getDate() - today.getDay() + 2); // Get Tuesday of this week
-        thisWeekTuesday.setHours(19, 30, 0, 0); // 7:30 PM Tuesday (ends outside work hours - overlaps)
-        return thisWeekTuesday;
-      })(),
-      projectId: '2', // Mobile App Development project
-      color: 'oklch(0.8 0.12 0)' // Red to match project
-    },
-    // Dummy event 3: Connected to Brand Identity project, completely outside work hours
-    {
-      id: 'dummy-3',
-      title: 'Brand Identity Client Call',
-      startTime: (() => {
-        const today = new Date();
-        const thisWeekWednesday = new Date(today);
-        thisWeekWednesday.setDate(today.getDate() - today.getDay() + 3); // Get Wednesday of this week
-        thisWeekWednesday.setHours(19, 0, 0, 0); // 7:00 PM Wednesday (outside work hours)
-        return thisWeekWednesday;
-      })(),
-      endTime: (() => {
-        const today = new Date();
-        const thisWeekWednesday = new Date(today);
-        thisWeekWednesday.setDate(today.getDate() - today.getDay() + 3); // Get Wednesday of this week
-        thisWeekWednesday.setHours(20, 30, 0, 0); // 8:30 PM Wednesday (1.5 hours, fully outside work hours)
-        return thisWeekWednesday;
-      })(),
-      projectId: '3', // Brand Identity project
-      color: 'oklch(0.8 0.12 270)' // Purple to match project
-    }
-  ]);
+  const processedHolidays = useMemo(() => dbHolidays?.map(h => ({
+    id: h.id,
+    title: h.title,
+    startDate: new Date(h.start_date),
+    endDate: new Date(h.end_date),
+    notes: h.notes || ''
+  })) || [], [dbHolidays]);
 
-  const [holidays, setHolidays] = useState<Holiday[]>([
-    {
-      id: 'demo-holiday',
-      title: 'Team Holiday',
-      startDate: new Date(), // Today
-      endDate: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000), // 5 days total (today + 4 more days)
-      notes: 'Company-wide holiday period for team bonding and rest.'
-    }
-  ]);
+  const processedRows = useMemo(() => dbRows?.map(r => ({
+    id: r.id,
+    name: r.name,
+    groupId: r.group_id,
+    order: r.order_index
+  })) || [], [dbRows]);
 
-  // Data integrity check - DISABLED to prevent project jumping
-  // This was automatically moving newly created projects to different rows
-  // even when SmartHoverAddProjectBar had already validated placement
-  useEffect(() => {
-    console.log('⚠️ DATA INTEGRITY CHECK DISABLED - Was causing project jumping');
-    console.log('ℹ️ If manual cleanup is needed, check for overlapping projects manually');
-    
-    // Only log project data for debugging, no automatic moves
-    console.log('📋 Current Projects:');
-    projects.forEach(project => {
-      console.log(`  - "${project.name}": ${project.groupId} → ${project.rowId}`);
-      console.log(`    ${new Date(project.startDate).toDateString()} - ${new Date(project.endDate).toDateString()}`);
-    });
-    
-    // DISABLED: All automatic cleanup logic that was moving projects
-    // const cleanedProjects = projects.map(project => { ... });
-    // Auto-moving logic removed to prevent interference with user intentions
-  }, [projects.length]); // Only run when number of projects changes
+  const processedSettings: Settings = dbSettings ? {
+    weeklyWorkHours: (typeof dbSettings.weekly_work_hours === 'object' && 
+                     dbSettings.weekly_work_hours !== null && 
+                     !Array.isArray(dbSettings.weekly_work_hours) &&
+                     'monday' in dbSettings.weekly_work_hours) 
+      ? dbSettings.weekly_work_hours as unknown as Settings['weeklyWorkHours']
+      : defaultSettings.weeklyWorkHours
+  } : defaultSettings;
 
-  const addProject = useCallback((projectData: Omit<Project, 'id'>) => {
-    console.log('📝 AppContext.addProject called with FULL DATA:', projectData);
-    console.log('📝 DETAILED: startDate ISO:', projectData.startDate.toISOString(), 'endDate ISO:', projectData.endDate.toISOString());
-    console.log('📝 DETAILED: rowId received:', projectData.rowId, 'groupId received:', projectData.groupId);
-    // Check project limit for the group
-    const projectsInGroup = projects.filter(p => p.groupId === projectData.groupId).length;
-    if (projectsInGroup >= PERFORMANCE_LIMITS.MAX_PROJECTS_PER_GROUP) {
-      console.warn(`Cannot add project: Group has reached maximum limit of ${PERFORMANCE_LIMITS.MAX_PROJECTS_PER_GROUP} projects`);
-      return;
-    }
-
-    // REMOVED: Third competing overlap check - SmartHoverAddProjectBar already validated this
-    // Trust the UI component's validation instead of re-checking here
-
-    const newProject: Project = {
-      ...projectData,
-      id: Date.now().toString(),
-      color: projectData.color || getNextProjectColor()
-    };
-    
-    console.log('📝 FINAL: newProject being added:', {
-      id: newProject.id,
-      name: newProject.name,
-      rowId: newProject.rowId,
-      groupId: newProject.groupId,
-      startDate: newProject.startDate.toISOString(),
-      endDate: newProject.endDate.toISOString()
-    });
-    
-    setProjects(prev => [...prev, newProject]);
-    return true; // Return success so modal closes
-  }, [projects]);
-
-  const updateProject = useCallback((id: string, updates: Partial<Project>) => {
-    // Import overlap checking function
-    
-    const currentProject = projects.find(p => p.id === id);
-    if (!currentProject) return;
-    
-    const updatedProject = { ...currentProject, ...updates };
-    
-    // Check for overlaps if rowId, startDate, or endDate is being changed
-    if (updatedProject.rowId && (updates.rowId || updates.startDate || updates.endDate)) {
-      const overlaps = checkProjectOverlap(
-        id,
-        updatedProject.rowId,
-        updatedProject.startDate,
-        updatedProject.endDate,
-        projects
-      );
+  const addProject = useCallback(async (projectData: Omit<Project, 'id'>) => {
+    try {
+      const dbProjectData = {
+        name: projectData.name,
+        client: projectData.client,
+        start_date: projectData.startDate.toISOString().split('T')[0],
+        end_date: projectData.endDate.toISOString().split('T')[0],
+        estimated_hours: projectData.estimatedHours,
+        color: projectData.color || getNextProjectColor(),
+        group_id: projectData.groupId,
+        row_id: projectData.rowId,
+        notes: projectData.notes || '',
+        icon: projectData.icon || 'folder'
+      };
       
-      if (overlaps.length > 0) {
-        console.error('Cannot update project: Would overlap with existing projects in the same row:', overlaps);
-        alert(`Cannot update project: It would overlap with "${overlaps[0].name}" in the same row. Projects in the same row cannot have overlapping dates.`);
-        return;
-      }
+      await dbAddProject(dbProjectData);
+      return true;
+    } catch (error) {
+      console.error('Failed to add project:', error);
+      return false;
     }
-    
-    setProjects(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
-  }, [projects]);
+  }, [dbAddProject]);
 
-  const deleteProject = useCallback((id: string) => {
-    setProjects(prev => prev.filter(p => p.id !== id));
-    // Also delete related events
-    setEvents(prev => prev.filter(e => e.projectId !== id));
-  }, []);
+  const updateProject = useCallback(async (id: string, updates: Partial<Project>) => {
+    try {
+      const dbUpdates: any = {};
+      if (updates.name !== undefined) dbUpdates.name = updates.name;
+      if (updates.client !== undefined) dbUpdates.client = updates.client;
+      if (updates.startDate !== undefined) dbUpdates.start_date = updates.startDate.toISOString().split('T')[0];
+      if (updates.endDate !== undefined) dbUpdates.end_date = updates.endDate.toISOString().split('T')[0];
+      if (updates.estimatedHours !== undefined) dbUpdates.estimated_hours = updates.estimatedHours;
+      if (updates.color !== undefined) dbUpdates.color = updates.color;
+      if (updates.groupId !== undefined) dbUpdates.group_id = updates.groupId;
+      if (updates.rowId !== undefined) dbUpdates.row_id = updates.rowId;
+      if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+      if (updates.icon !== undefined) dbUpdates.icon = updates.icon;
+      
+      await dbUpdateProject(id, dbUpdates);
+    } catch (error) {
+      console.error('Failed to update project:', error);
+    }
+  }, [dbUpdateProject]);
+
+  const deleteProject = useCallback(async (id: string) => {
+    try {
+      await dbDeleteProject(id);
+    } catch (error) {
+      console.error('Failed to delete project:', error);
+    }
+  }, [dbDeleteProject]);
 
   const reorderProjects = useCallback((groupId: string, fromIndex: number, toIndex: number) => {
-    setProjects(prev => {
-      const groupProjects = prev.filter(p => p.groupId === groupId);
-      const otherProjects = prev.filter(p => p.groupId !== groupId);
-      
-      const [movedProject] = groupProjects.splice(fromIndex, 1);
-      groupProjects.splice(toIndex, 0, movedProject);
-      
-      return [...otherProjects, ...groupProjects];
-    });
-  }, []);
+    dbReorderProjects(groupId, fromIndex, toIndex);
+  }, [dbReorderProjects]);
 
-  const addGroup = useCallback((groupData: Omit<Group, 'id'>) => {
-    // Check group limit
-    if (groups.length >= PERFORMANCE_LIMITS.MAX_GROUPS) {
-      console.warn(`Cannot add group: Maximum limit of ${PERFORMANCE_LIMITS.MAX_GROUPS} groups reached`);
-      return;
+  const addGroup = useCallback(async (groupData: Omit<Group, 'id'>) => {
+    try {
+      await dbAddGroup(groupData);
+    } catch (error) {
+      console.error('Failed to add group:', error);
     }
+  }, [dbAddGroup]);
 
-    const newGroup: Group = {
-      ...groupData,
-      id: Date.now().toString(),
-      color: groupData.color || getNextGroupColor()
-    };
-    setGroups(prev => [...prev, newGroup]);
-  }, [groups]);
+  const updateGroup = useCallback(async (id: string, updates: Partial<Group>) => {
+    try {
+      await dbUpdateGroup(id, updates);
+    } catch (error) {
+      console.error('Failed to update group:', error);
+    }
+  }, [dbUpdateGroup]);
 
-  const updateGroup = useCallback((id: string, updates: Partial<Group>) => {
-    setGroups(prev => prev.map(g => g.id === id ? { ...g, ...updates } : g));
-  }, []);
-
-  const deleteGroup = useCallback((id: string) => {
-    // Don't allow deleting default groups
-    if (id === 'work-group' || id === 'home-group') return;
-    
-    setGroups(prev => prev.filter(g => g.id !== id));
-    // Move projects from deleted group to work group
-    setProjects(prev => prev.map(p => 
-      p.groupId === id ? { ...p, groupId: 'work-group' } : p
-    ));
-  }, []);
+  const deleteGroup = useCallback(async (id: string) => {
+    try {
+      await dbDeleteGroup(id);
+    } catch (error) {
+      console.error('Failed to delete group:', error);
+    }
+  }, [dbDeleteGroup]);
 
   const reorderGroups = useCallback((fromIndex: number, toIndex: number) => {
-    setGroups(prev => {
-      const newGroups = [...prev];
-      const [movedGroup] = newGroups.splice(fromIndex, 1);
-      newGroups.splice(toIndex, 0, movedGroup);
-      return newGroups;
-    });
+    // This functionality isn't implemented in the hook yet
+    console.log('Group reordering not implemented yet');
   }, []);
 
-  const addRow = useCallback((rowData: Omit<Row, 'id'>) => {
-    const newRow: Row = {
-      ...rowData,
-      id: Date.now().toString()
-    };
-    setRows(prev => [...prev, newRow]);
-  }, []);
+  const addRow = useCallback(async (rowData: Omit<Row, 'id'>) => {
+    try {
+      const dbRowData = {
+        name: rowData.name,
+        group_id: rowData.groupId,
+        order_index: rowData.order
+      };
+      await dbAddRow(dbRowData);
+    } catch (error) {
+      console.error('Failed to add row:', error);
+    }
+  }, [dbAddRow]);
 
-  const updateRow = useCallback((id: string, updates: Partial<Row>) => {
-    setRows(prev => prev.map(r => r.id === id ? { ...r, ...updates } : r));
-  }, []);
+  const updateRow = useCallback(async (id: string, updates: Partial<Row>) => {
+    try {
+      const dbUpdates: any = {};
+      if (updates.name !== undefined) dbUpdates.name = updates.name;
+      if (updates.groupId !== undefined) dbUpdates.group_id = updates.groupId;
+      if (updates.order !== undefined) dbUpdates.order_index = updates.order;
+      
+      await dbUpdateRow(id, dbUpdates);
+    } catch (error) {
+      console.error('Failed to update row:', error);
+    }
+  }, [dbUpdateRow]);
 
-  const deleteRow = useCallback((id: string) => {
-    setRows(prev => prev.filter(r => r.id !== id));
-  }, []);
+  const deleteRow = useCallback(async (id: string) => {
+    try {
+      await dbDeleteRow(id);
+    } catch (error) {
+      console.error('Failed to delete row:', error);
+    }
+  }, [dbDeleteRow]);
 
   const reorderRows = useCallback((groupId: string, fromIndex: number, toIndex: number) => {
-    setRows(prev => {
-      const groupRows = prev.filter(r => r.groupId === groupId);
-      const otherRows = prev.filter(r => r.groupId !== groupId);
+    dbReorderRows(groupId, fromIndex, toIndex);
+  }, [dbReorderRows]);
+
+  const addEvent = useCallback(async (eventData: Omit<CalendarEvent, 'id'>) => {
+    try {
+      const dbEventData = {
+        title: eventData.title,
+        description: eventData.description || '',
+        start_time: eventData.startTime.toISOString(),
+        end_time: eventData.endTime.toISOString(),
+        project_id: eventData.projectId || null,
+        color: eventData.color,
+        completed: eventData.completed || false,
+        duration: eventData.duration || 0,
+        recurring_type: null,
+        recurring_interval: null,
+        recurring_end_date: null,
+        recurring_count: null
+      };
       
-      const [movedRow] = groupRows.splice(fromIndex, 1);
-      groupRows.splice(toIndex, 0, movedRow);
+      await dbAddEvent(dbEventData);
+    } catch (error) {
+      console.error('Failed to add event:', error);
+    }
+  }, [dbAddEvent]);
+
+  const updateEvent = useCallback(async (id: string, updates: Partial<CalendarEvent>) => {
+    try {
+      const dbUpdates: any = {};
+      if (updates.title !== undefined) dbUpdates.title = updates.title;
+      if (updates.description !== undefined) dbUpdates.description = updates.description;
+      if (updates.startTime !== undefined) dbUpdates.start_time = updates.startTime.toISOString();
+      if (updates.endTime !== undefined) dbUpdates.end_time = updates.endTime.toISOString();
+      if (updates.projectId !== undefined) dbUpdates.project_id = updates.projectId;
+      if (updates.color !== undefined) dbUpdates.color = updates.color;
+      if (updates.completed !== undefined) dbUpdates.completed = updates.completed;
+      if (updates.duration !== undefined) dbUpdates.duration = updates.duration;
+      // Recurring fields are disabled for now
       
-      return [...otherRows, ...groupRows];
-    });
-  }, []);
+      await dbUpdateEvent(id, dbUpdates);
+    } catch (error) {
+      console.error('Failed to update event:', error);
+    }
+  }, [dbUpdateEvent]);
 
-  const addEvent = useCallback((eventData: Omit<CalendarEvent, 'id'>) => {
-    const newEvent: CalendarEvent = {
-      ...eventData,
-      id: Date.now().toString(),
-      color: eventData.color || '#3b82f6' // Default to blue if no color provided
-    };
-    setEvents(prev => [...prev, newEvent]);
-  }, []);
+  const deleteEvent = useCallback(async (id: string) => {
+    try {
+      await dbDeleteEvent(id);
+    } catch (error) {
+      console.error('Failed to delete event:', error);
+    }
+  }, [dbDeleteEvent]);
 
-  const updateEvent = useCallback((id: string, updates: Partial<CalendarEvent>) => {
-    setEvents(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e));
-  }, []);
+  const addHoliday = useCallback(async (holidayData: Omit<Holiday, 'id'>) => {
+    try {
+      const dbHolidayData = {
+        title: holidayData.title,
+        start_date: holidayData.startDate.toISOString().split('T')[0],
+        end_date: holidayData.endDate.toISOString().split('T')[0],
+        notes: holidayData.notes || ''
+      };
+      
+      await dbAddHoliday(dbHolidayData);
+    } catch (error) {
+      console.error('Failed to add holiday:', error);
+    }
+  }, [dbAddHoliday]);
 
-  const deleteEvent = useCallback((id: string) => {
-    setEvents(prev => prev.filter(e => e.id !== id));
-  }, []);
+  const updateHoliday = useCallback(async (id: string, updates: Partial<Holiday>) => {
+    try {
+      const dbUpdates: any = {};
+      if (updates.title !== undefined) dbUpdates.title = updates.title;
+      if (updates.startDate !== undefined) dbUpdates.start_date = updates.startDate.toISOString().split('T')[0];
+      if (updates.endDate !== undefined) dbUpdates.end_date = updates.endDate.toISOString().split('T')[0];
+      if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+      
+      await dbUpdateHoliday(id, dbUpdates);
+    } catch (error) {
+      console.error('Failed to update holiday:', error);
+    }
+  }, [dbUpdateHoliday]);
 
-  const addHoliday = useCallback((holidayData: Omit<Holiday, 'id'>) => {
-    const newHoliday: Holiday = {
-      ...holidayData,
-      id: Date.now().toString()
-    };
-    setHolidays(prev => [...prev, newHoliday]);
-  }, []);
+  const deleteHoliday = useCallback(async (id: string) => {
+    try {
+      await dbDeleteHoliday(id);
+    } catch (error) {
+      console.error('Failed to delete holiday:', error);
+    }
+  }, [dbDeleteHoliday]);
 
-  const updateHoliday = useCallback((id: string, updates: Partial<Holiday>) => {
-    console.log('🔧 updateHoliday called:', { id, updates });
-    setHolidays(prev => {
-      const updated = prev.map(h => h.id === id ? { ...h, ...updates } : h);
-      console.log('🔧 Holiday updated:', updated.find(h => h.id === id));
-      return updated;
-    });
-  }, []);
-
-  const deleteHoliday = useCallback((id: string) => {
-    setHolidays(prev => prev.filter(h => h.id !== id));
-  }, []);
-
-  const updateSettings = useCallback((updates: Partial<Settings>) => {
-    setSettings(prev => ({ ...prev, ...updates }));
-  }, []);
+  const updateSettings = useCallback(async (updates: Partial<Settings>) => {
+    try {
+      const dbUpdates: any = {};
+      if (updates.weeklyWorkHours !== undefined) dbUpdates.weekly_work_hours = updates.weeklyWorkHours;
+      
+      await dbUpdateSettings(dbUpdates);
+    } catch (error) {
+      console.error('Failed to update settings:', error);
+    }
+  }, [dbUpdateSettings]);
 
   // Work hour override management
   const addWorkHourOverride = useCallback((override: WorkHourOverride) => {
@@ -575,22 +451,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const state = useMemo(() => ({
     currentView,
     currentDate,
-    projects,
-    groups,
-    rows, // Add rows to state properly
-    events,
-    settings,
+    projects: processedProjects,
+    groups: dbGroups || [],
+    rows: processedRows,
+    events: processedEvents,
+    settings: processedSettings,
     workHours,
     timelineEntries,
     workHourOverrides,
     selectedProjectId,
     creatingNewProject,
-    holidays,
+    holidays: processedHolidays,
     creatingNewHoliday,
     editingHolidayId,
     selectedEventId,
     creatingNewEvent
-  }), [currentView, currentDate, projects, groups, rows, events, settings, workHours, timelineEntries, workHourOverrides, selectedProjectId, creatingNewProject, holidays, creatingNewHoliday, editingHolidayId, selectedEventId, creatingNewEvent]);
+  }), [currentView, currentDate, processedProjects, dbGroups, processedRows, processedEvents, processedSettings, workHours, timelineEntries, workHourOverrides, selectedProjectId, creatingNewProject, processedHolidays, creatingNewHoliday, editingHolidayId, selectedEventId, creatingNewEvent]);
 
   const actions = useMemo(() => ({
     setCurrentView,
