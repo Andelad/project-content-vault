@@ -193,7 +193,8 @@ export function ProfileView() {
         .upsert({
           user_id: user?.id,
           display_name: profile.display_name,
-          email: user?.email
+          email: user?.email,
+          avatar_url: profile.avatar_url
         });
 
       if (error) {
@@ -208,6 +209,105 @@ export function ProfileView() {
           description: "Profile updated successfully",
         });
       }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAvatarUpload = async (file: File) => {
+    if (!user) return;
+
+    setLoading(true);
+    try {
+      // Validate file size (5MB limit)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "Error",
+          description: "File size must be less than 5MB",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast({
+          title: "Error",
+          description: "Please upload an image file",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Create unique filename with user ID
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/avatar.${fileExt}`;
+
+      // Delete existing avatar if it exists
+      if (profile?.avatar_url) {
+        const existingPath = profile.avatar_url.split('/').slice(-2).join('/');
+        await supabase.storage
+          .from('avatars')
+          .remove([existingPath]);
+      }
+
+      // Upload new avatar
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, file, {
+          upsert: true
+        });
+
+      if (uploadError) {
+        toast({
+          title: "Error",
+          description: uploadError.message,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Get public URL
+      const { data } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(fileName);
+
+      // Update profile with new avatar URL
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .upsert({
+          user_id: user.id,
+          display_name: profile?.display_name || user.email?.split('@')[0],
+          email: user.email,
+          avatar_url: data.publicUrl
+        });
+
+      if (updateError) {
+        toast({
+          title: "Error",
+          description: updateError.message,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Update local state
+      setProfile(prev => ({
+        ...prev,
+        avatar_url: data.publicUrl
+      }));
+
+      toast({
+        title: "Success",
+        description: "Avatar uploaded successfully",
+      });
+
     } catch (error: any) {
       toast({
         title: "Error",
@@ -299,15 +399,29 @@ export function ProfileView() {
             <CardContent>
               <div className="flex items-center gap-6">
                 <div 
-                  className="w-24 h-24 rounded-full border-2 border-dashed border-[#e2e2e2] flex items-center justify-center font-semibold text-2xl bg-[#595956] text-white cursor-pointer hover:bg-[#494946] transition-colors"
+                  className="w-24 h-24 rounded-full border-2 border-dashed border-[#e2e2e2] flex items-center justify-center font-semibold text-2xl cursor-pointer hover:bg-muted/50 transition-colors overflow-hidden"
                   onClick={() => document.getElementById('avatar-upload')?.click()}
                 >
-                  {user?.email ? user.email.charAt(0).toUpperCase() : 'U'}
+                  {profile?.avatar_url ? (
+                    <img 
+                      src={profile.avatar_url} 
+                      alt="Profile avatar" 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="bg-[#595956] text-white w-full h-full rounded-full flex items-center justify-center">
+                      {user?.email ? user.email.charAt(0).toUpperCase() : 'U'}
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-2">
-                  <Button variant="outline" onClick={() => document.getElementById('avatar-upload')?.click()}>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => document.getElementById('avatar-upload')?.click()}
+                    disabled={loading}
+                  >
                     <Camera className="w-4 h-4 mr-2" />
-                    Upload Photo
+                    {loading ? 'Uploading...' : 'Upload Photo'}
                   </Button>
                   <p className="text-sm text-muted-foreground">
                     JPG, PNG or GIF. Max file size 5MB.
@@ -321,8 +435,7 @@ export function ProfileView() {
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) {
-                      // Handle file upload
-                      console.log('File selected:', file);
+                      handleAvatarUpload(file);
                     }
                   }}
                 />

@@ -1,12 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { Calendar, AlignLeft, Folders, Settings, ChevronLeft, ChevronRight, PieChart } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 export function Sidebar() {
   const { currentView, setCurrentView } = useApp();
   const { user } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [profile, setProfile] = useState<any>(null);
+
+  // Load user profile for avatar
+  useEffect(() => {
+    if (user) {
+      fetchProfile();
+    }
+  }, [user]);
+
+  const fetchProfile = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('avatar_url')
+        .eq('user_id', user?.id)
+        .maybeSingle();
+      
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching profile:', error);
+      } else {
+        setProfile(data);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
 
   const mainNavItems = [
     {
@@ -104,8 +131,18 @@ export function Sidebar() {
               }`}
               title={isCollapsed ? 'Profile' : undefined}
             >
-              <div className={`${isCollapsed ? 'w-8 h-8' : 'w-5 h-5 mr-3'} rounded-full flex items-center justify-center font-semibold text-xs flex-shrink-0 bg-[#595956] text-white`}>
-                {user?.email ? user.email.charAt(0).toUpperCase() : 'U'}
+              <div className={`${isCollapsed ? 'w-8 h-8' : 'w-5 h-5 mr-3'} rounded-full flex items-center justify-center font-semibold text-xs flex-shrink-0 overflow-hidden`}>
+                {profile?.avatar_url ? (
+                  <img 
+                    src={profile.avatar_url} 
+                    alt="Profile avatar" 
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="bg-[#595956] text-white w-full h-full rounded-full flex items-center justify-center">
+                    {user?.email ? user.email.charAt(0).toUpperCase() : 'U'}
+                  </div>
+                )}
               </div>
               {!isCollapsed && <span className="font-medium">Profile</span>}
             </button>
