@@ -16,9 +16,7 @@ const LandingPage = () => {
       {/* Header */}
       <header className="container mx-auto px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="h-8 w-8 bg-gradient-primary rounded-lg flex items-center justify-center">
-            <Clock className="h-4 w-4 text-white" />
-          </div>
+          <img src="/lovable-uploads/b7b3f5f1-d45e-4fc7-9113-f39c988b4951.png" alt="Budgi Logo" className="h-8 w-8" />
           <span className="text-xl font-bold">Budgi</span>
         </div>
         <Button variant="outline" onClick={navigateToApp}>

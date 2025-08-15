@@ -70,13 +70,16 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
 
   const [editingTitle, setEditingTitle] = useState(false);
   const [editingProperty, setEditingProperty] = useState<string | null>(null);
-  const [colorPickerOpen, setColorPickerOpen] = useState(false);
-  const [iconPickerOpen, setIconPickerOpen] = useState(false);
+  const [stylePickerOpen, setStylePickerOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  
+  // Temporary state for style picker
+  const [tempColor, setTempColor] = useState('');
+  const [tempIcon, setTempIcon] = useState('');
   const [localValues, setLocalValues] = useState({
     name: '',
     client: '',
-    estimatedHours: 0,
+    estimatedHours: 40, // Default to 40 hours instead of 0
     notes: '',
     startDate: new Date(),
     endDate: new Date(),
@@ -88,7 +91,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
   const [originalValues, setOriginalValues] = useState({
     name: '',
     client: '',
-    estimatedHours: 0,
+    estimatedHours: 40, // Default to 40 hours instead of 0
     notes: '',
     startDate: new Date(),
     endDate: new Date(),
@@ -316,14 +319,16 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
             className="text-3xl font-bold h-auto py-2 border-0 bg-transparent focus-visible:ring-2 focus-visible:ring-primary"
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
-                const newValue = parseInt((e.target as HTMLInputElement).value) || 0;
+                const inputValue = (e.target as HTMLInputElement).value.trim();
+                const newValue = inputValue === '' ? value : (parseInt(inputValue) || 0);
                 handleSaveProperty(property, newValue);
               } else if (e.key === 'Escape') {
                 setEditingProperty(null);
               }
             }}
             onBlur={(e) => {
-              const newValue = parseInt(e.target.value) || 0;
+              const inputValue = e.target.value.trim();
+              const newValue = inputValue === '' ? value : (parseInt(inputValue) || 0);
               handleSaveProperty(property, newValue);
             }}
             autoFocus
@@ -392,21 +397,35 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
   };
 
   const handleColorChange = (color: string) => {
-    if (isCreating) {
-      setLocalValues(prev => ({ ...prev, color }));
-    } else if (projectId && projectId !== '') {
-      updateProject(projectId, { color });
-    }
-    setColorPickerOpen(false);
+    setTempColor(color);
   };
 
   const handleIconChange = (icon: string) => {
+    setTempIcon(icon);
+  };
+
+  const handleStylePickerOpen = () => {
+    // Initialize temp values with current values
+    setTempColor(project?.color || localValues.color || OKLCH_PROJECT_COLORS[0]);
+    setTempIcon(project?.icon || localValues.icon || 'folder');
+    setStylePickerOpen(true);
+  };
+
+  const handleStyleSave = () => {
+    // Apply the changes
     if (isCreating) {
-      setLocalValues(prev => ({ ...prev, icon }));
+      setLocalValues(prev => ({ ...prev, color: tempColor, icon: tempIcon }));
     } else if (projectId && projectId !== '') {
-      updateProject(projectId, { icon });
+      updateProject(projectId, { color: tempColor, icon: tempIcon });
     }
-    setIconPickerOpen(false);
+    setStylePickerOpen(false);
+  };
+
+  const handleStyleCancel = () => {
+    // Reset temp values and close
+    setTempColor('');
+    setTempIcon('');
+    setStylePickerOpen(false);
   };
 
   const handleNotesChange = (value: string) => {
@@ -703,72 +722,86 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
           {/* Project Title and Dates */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Popover open={colorPickerOpen} onOpenChange={setColorPickerOpen}>
+              <Popover open={stylePickerOpen} onOpenChange={setStylePickerOpen}>
                 <PopoverTrigger asChild>
                   <div 
                     className="w-8 h-8 rounded-lg flex-shrink-0 cursor-pointer relative group transition-all duration-200 hover:scale-105 hover:shadow-md ring-2 ring-transparent hover:ring-primary/20"
                     style={{ backgroundColor: project?.color || localValues.color || OKLCH_PROJECT_COLORS[0] }}
-                  >
-                    {/* Palette icon overlay on hover */}
-                    <div className="absolute inset-0 rounded-lg bg-black/0 group-hover:bg-black/20 transition-all duration-200 flex items-center justify-center">
-                      <Palette className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-                    </div>
-                  </div>
-                </PopoverTrigger>
-                <PopoverContent className="w-64 p-4">
-                  <h4 className="text-sm font-medium mb-3">Choose a color</h4>
-                  <div className="grid grid-cols-6 gap-2">
-                    {OKLCH_PROJECT_COLORS.map((color) => (
-                      <button
-                        key={color}
-                        className={`w-8 h-8 rounded border-2 transition-all duration-200 hover:scale-110 ${
-                          (project?.color || localValues.color || OKLCH_PROJECT_COLORS[0]) === color 
-                            ? 'border-primary ring-2 ring-primary/20' 
-                            : 'border-border hover:border-primary/50'
-                        }`}
-                        style={{ backgroundColor: color }}
-                        onClick={() => handleColorChange(color)}
-                        title={color}
-                      />
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
-              <Popover open={iconPickerOpen} onOpenChange={setIconPickerOpen}>
-                <PopoverTrigger asChild>
-                  <div 
-                    className="w-8 h-8 rounded-lg flex-shrink-0 cursor-pointer relative group transition-all duration-200 hover:scale-105 hover:shadow-md ring-2 ring-transparent hover:ring-primary/20"
-                    style={{ backgroundColor: project?.color || localValues.color || OKLCH_PROJECT_COLORS[0] }}
+                    onClick={handleStylePickerOpen}
                   >
                     {(() => {
                       const currentIcon = PROJECT_ICONS.find(icon => icon.name === (project?.icon || localValues.icon || 'folder'));
                       const IconComponent = currentIcon?.component || Folder;
                       return <IconComponent className="w-4 h-4 text-foreground absolute inset-0 m-auto" />;
                     })()}
-                    {/* Icon picker overlay on hover */}
+                    {/* Style picker overlay on hover */}
                     <div className="absolute inset-0 rounded-lg bg-black/0 group-hover:bg-black/20 transition-all duration-200 flex items-center justify-center">
                       <Palette className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
                     </div>
                   </div>
                 </PopoverTrigger>
                 <PopoverContent className="w-64 p-4">
-                  <h4 className="text-sm font-medium mb-3">Choose an icon</h4>
-                  <div className="grid grid-cols-6 gap-2">
-                    {PROJECT_ICONS.map((icon) => (
-                      <button
-                        key={icon.name}
-                        className={`w-8 h-8 rounded border-2 transition-all duration-200 hover:scale-110 flex items-center justify-center ${
-                          (project?.icon || localValues.icon || 'folder') === icon.name 
-                            ? 'border-primary ring-2 ring-primary/20' 
-                            : 'border-border hover:border-primary/50'
-                        }`}
-                        style={{ backgroundColor: project?.color || localValues.color || OKLCH_PROJECT_COLORS[0] }}
-                        onClick={() => handleIconChange(icon.name)}
-                        title={icon.label}
-                      >
-                        <icon.component className="w-4 h-4 text-foreground" />
-                      </button>
-                    ))}
+                  <h4 className="text-sm font-medium mb-3">Choose color & icon</h4>
+                  
+                  {/* Colors section */}
+                  <div className="mb-4">
+                    <p className="text-xs text-muted-foreground mb-2">Colors</p>
+                    <div className="grid grid-cols-6 gap-2">
+                      {OKLCH_PROJECT_COLORS.map((color) => (
+                        <button
+                          key={color}
+                          className={`w-8 h-8 rounded border-2 transition-all duration-200 hover:scale-110 ${
+                            tempColor === color 
+                              ? 'border-primary ring-2 ring-primary/20' 
+                              : 'border-border hover:border-primary/50'
+                          }`}
+                          style={{ backgroundColor: color }}
+                          onClick={() => handleColorChange(color)}
+                          title={color}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Icons section */}
+                  <div className="mb-4">
+                    <p className="text-xs text-muted-foreground mb-2">Icons</p>
+                    <div className="grid grid-cols-6 gap-2">
+                      {PROJECT_ICONS.map((icon) => (
+                        <button
+                          key={icon.name}
+                          className={`w-8 h-8 rounded border-2 transition-all duration-200 hover:scale-110 flex items-center justify-center ${
+                            tempIcon === icon.name 
+                              ? 'border-primary ring-2 ring-primary/20' 
+                              : 'border-border hover:border-primary/50'
+                          }`}
+                          style={{ backgroundColor: tempColor || project?.color || localValues.color || OKLCH_PROJECT_COLORS[0] }}
+                          onClick={() => handleIconChange(icon.name)}
+                          title={icon.label}
+                        >
+                          <icon.component className="w-4 h-4 text-foreground" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Action buttons */}
+                  <div className="flex gap-2 pt-2 border-t border-border">
+                    <Button 
+                      size="sm" 
+                      onClick={handleStyleSave}
+                      className="flex-1"
+                    >
+                      Save
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={handleStyleCancel}
+                      className="flex-1"
+                    >
+                      Cancel
+                    </Button>
                   </div>
                 </PopoverContent>
               </Popover>
