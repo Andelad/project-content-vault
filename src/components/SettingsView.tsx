@@ -12,9 +12,11 @@ import { Save, Bell, Palette, Clock, Globe, Shield, Trash2, User, Plus, X, Calen
 import { useApp } from '../contexts/AppContext';
 import { WorkSlot } from '../contexts/AppContext';
 import { CalendarImport } from './CalendarImport';
+import { useToast } from '../hooks/use-toast';
 
 export function SettingsView() {
-  const { settings: appSettings, updateSettings } = useApp();
+  const { settings: appSettings, updateSettings, setDefaultView } = useApp();
+  const { toast } = useToast();
   const [localSettings, setLocalSettings] = useState({
     notifications: true,
     emailNotifications: false,
@@ -28,11 +30,40 @@ export function SettingsView() {
 
   // Sync app settings with local state
   useEffect(() => {
-    // Load any other settings that might be stored elsewhere
-  }, []);
+    setLocalSettings(prev => ({
+      ...prev,
+      defaultView: appSettings.defaultView || 'timeline'
+    }));
+  }, [appSettings.defaultView]);
 
-  const handleSettingChange = (key: string, value: any) => {
+  const handleSettingChange = async (key: string, value: any) => {
     setLocalSettings(prev => ({ ...prev, [key]: value }));
+    
+    // If defaultView is being changed, immediately apply it
+    if (key === 'defaultView') {
+      setDefaultView(value);
+      
+      // Save to localStorage (until database migration is available)
+      try {
+        await updateSettings({ defaultView: value });
+        
+        const viewDisplayName = value === 'timeline-weeks' ? 'Timeline (weeks)' : 
+                               value === 'timeline' ? 'Timeline (days)' :
+                               value === 'projects' ? 'Projects' : 
+                               value === 'calendar' ? 'Calendar' : value;
+        
+        toast({
+          title: "Default view updated",
+          description: `Your default view has been set to ${viewDisplayName}`,
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to save default view setting",
+          variant: "destructive",
+        });
+      }
+    }
   };
 
   // Helper functions for work slots
@@ -122,8 +153,25 @@ export function SettingsView() {
     });
   };
 
-  const handleSaveSettings = () => {
-    // Implementation for saving settings
+  const handleSaveSettings = async () => {
+    try {
+      // Save any remaining settings
+      await updateSettings({
+        defaultView: localSettings.defaultView,
+        // Add other settings here as they're implemented
+      });
+      
+      toast({
+        title: "Settings saved",
+        description: "Your preferences have been updated successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Settings applied locally",
+        description: "Changes applied in current session (database save pending).",
+      });
+    }
+    
     console.log('Settings saved:', localSettings, 'App settings:', appSettings);
   };
 
@@ -213,7 +261,8 @@ export function SettingsView() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="projects">Projects</SelectItem>
-                    <SelectItem value="timeline">Timeline</SelectItem>
+                    <SelectItem value="timeline">Timeline (Days)</SelectItem>
+                    <SelectItem value="timeline-weeks">Timeline (Weeks)</SelectItem>
                     <SelectItem value="calendar">Calendar</SelectItem>
                   </SelectContent>
                 </Select>

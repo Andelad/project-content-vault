@@ -34,9 +34,23 @@ import { PerformanceStatus } from './PerformanceStatus';
 import { NewAvailabilityCircles } from './timeline/NewAvailabilityCircles';
 
 export function TimelineView() {
-  const { projects, groups, rows, settings, currentDate, selectedProjectId, holidays } = useAppDataOnly();
-  const { setCurrentDate, updateProject, setSelectedProjectId, addProject, updateHoliday } = useAppActionsOnly();
-  const { setCreatingNewProject } = useApp();
+  const { 
+    projects, 
+    groups, 
+    rows, 
+    settings, 
+    currentDate, 
+    selectedProjectId, 
+    holidays,
+    timelineMode,
+    setTimelineMode,
+    setCurrentDate, 
+    updateProject, 
+    setSelectedProjectId, 
+    addProject, 
+    updateHoliday,
+    setCreatingNewProject 
+  } = useApp();
   
   // Timeline state management
   const [viewportStart, setViewportStart] = useState(() => {
@@ -60,7 +74,6 @@ export function TimelineView() {
   const [isDragging, setIsDragging] = useState(false);
   const [dragState, setDragState] = useState<any>(null);
   const [isAnimating, setIsAnimating] = useState(false);
-  const [timelineMode, setTimelineMode] = useState<'days' | 'weeks'>('days');
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
   // Auto-scroll state for drag operations

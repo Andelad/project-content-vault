@@ -71,6 +71,7 @@ export interface Settings {
     saturday: WorkSlot[];
     sunday: WorkSlot[];
   };
+  defaultView?: string;
 }
 
 export interface WorkHour {

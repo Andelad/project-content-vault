@@ -32,6 +32,8 @@ export interface WorkHourOverride {
 interface AppContextType {
   currentView: string;
   setCurrentView: (view: string) => void;
+  timelineMode: 'days' | 'weeks';
+  setTimelineMode: (mode: 'days' | 'weeks') => void;
   currentDate: Date;
   setCurrentDate: (date: Date) => void;
   projects: Project[];
@@ -113,6 +115,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const { settings: dbSettings, loading: settingsLoading, updateSettings: dbUpdateSettings } = useSettings();
 
   const [currentView, setCurrentView] = useState('timeline');
+  const [timelineMode, setTimelineMode] = useState<'days' | 'weeks'>('days');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [creatingNewProject, setCreatingNewProjectState] = useState<{ groupId: string; rowId?: string; startDate?: Date; endDate?: Date } | null>(null);
@@ -149,7 +152,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       friday: [{ id: '5', startTime: '09:00', endTime: '17:00', duration: 8 }],
       saturday: [],
       sunday: []
-    }
+    },
+    defaultView: 'timeline'
   };
 
   // Convert database data to component format
@@ -199,14 +203,53 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     order: r.order_index
   })) || [], [dbRows]);
 
+  // Temporary local storage for defaultView until database migration is applied
+  const [localDefaultView, setLocalDefaultView] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('defaultView') || defaultSettings.defaultView;
+    }
+    return defaultSettings.defaultView;
+  });
+
   const processedSettings: Settings = dbSettings ? {
     weeklyWorkHours: (typeof dbSettings.weekly_work_hours === 'object' && 
                      dbSettings.weekly_work_hours !== null && 
                      !Array.isArray(dbSettings.weekly_work_hours) &&
                      'monday' in dbSettings.weekly_work_hours) 
       ? dbSettings.weekly_work_hours as unknown as Settings['weeklyWorkHours']
-      : defaultSettings.weeklyWorkHours
-  } : defaultSettings;
+      : defaultSettings.weeklyWorkHours,
+    defaultView: localDefaultView // Use local storage value for now
+  } : { ...defaultSettings, defaultView: localDefaultView };
+
+  // Helper function to set view based on default view setting
+  const setDefaultView = useCallback((defaultViewSetting: string) => {
+    switch (defaultViewSetting) {
+      case 'timeline':
+        setCurrentView('timeline');
+        setTimelineMode('days');
+        break;
+      case 'timeline-weeks':
+        setCurrentView('timeline');
+        setTimelineMode('weeks');
+        break;
+      case 'projects':
+        setCurrentView('projects');
+        break;
+      case 'calendar':
+        setCurrentView('calendar');
+        break;
+      default:
+        setCurrentView('timeline');
+        setTimelineMode('days');
+    }
+  }, []);
+
+  // Apply default view setting on app initialization
+  useEffect(() => {
+    if (processedSettings.defaultView) {
+      setDefaultView(processedSettings.defaultView);
+    }
+  }, [processedSettings.defaultView, setDefaultView]);
 
   const addProject = useCallback(async (projectData: Omit<Project, 'id'>) => {
     try {
@@ -422,9 +465,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const dbUpdates: any = {};
       if (updates.weeklyWorkHours !== undefined) dbUpdates.weekly_work_hours = updates.weeklyWorkHours;
       
-      await dbUpdateSettings(dbUpdates);
+      // Handle defaultView with local storage until database migration is applied
+      if (updates.defaultView !== undefined) {
+        setLocalDefaultView(updates.defaultView);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('defaultView', updates.defaultView);
+        }
+        // For now, we skip database save for defaultView
+        // if (updates.defaultView !== undefined) dbUpdates.default_view = updates.defaultView;
+      }
+      
+      // Only update database if there are actual database fields to update
+      if (Object.keys(dbUpdates).length > 0) {
+        await dbUpdateSettings(dbUpdates);
+      }
     } catch (error) {
       console.error('Failed to update settings:', error);
+      throw error; // Re-throw so the UI can handle the error
     }
   }, [dbUpdateSettings]);
 
@@ -459,6 +516,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Memoize state and actions separately
   const state = useMemo(() => ({
     currentView,
+    timelineMode,
     currentDate,
     projects: processedProjects,
     groups: dbGroups || [],
@@ -475,10 +533,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     editingHolidayId,
     selectedEventId,
     creatingNewEvent
-  }), [currentView, currentDate, processedProjects, dbGroups, processedRows, processedEvents, processedSettings, workHours, timelineEntries, workHourOverrides, selectedProjectId, creatingNewProject, processedHolidays, creatingNewHoliday, editingHolidayId, selectedEventId, creatingNewEvent]);
+  }), [currentView, timelineMode, currentDate, processedProjects, dbGroups, processedRows, processedEvents, processedSettings, workHours, timelineEntries, workHourOverrides, selectedProjectId, creatingNewProject, processedHolidays, creatingNewHoliday, editingHolidayId, selectedEventId, creatingNewEvent]);
 
   const actions = useMemo(() => ({
     setCurrentView,
+    setTimelineMode,
     setCurrentDate,
     updateSettings,
     updateTimelineEntry,
@@ -538,7 +597,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setCreatingNewHoliday,
     setEditingHolidayId,
     setSelectedEventId,
-    setCreatingNewEvent
+    setCreatingNewEvent,
+    setDefaultView
   ]);
 
   return (
