@@ -162,11 +162,11 @@ export function SettingsView() {
   };
 
   return (
-    <div className="h-full flex flex-col bg-background">
+    <div className="h-full flex flex-col bg-[#f9f9f9]">
       {/* Header */}
-      <div className="h-20 border-b border-border flex items-center justify-between px-8 flex-shrink-0">
+      <div className="h-20 border-b border-[#e2e2e2] flex items-center justify-between px-8 flex-shrink-0">
         <div className="flex items-center space-x-6">
-          <h1 className="text-lg font-semibold text-foreground">Settings</h1>
+          <h1 className="text-lg font-semibold text-[#595956]">Settings</h1>
           <Badge variant="secondary">
             Preferences & Configuration
           </Badge>

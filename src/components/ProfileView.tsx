@@ -230,11 +230,11 @@ export function ProfileView() {
   };
 
   return (
-    <div className="h-full flex flex-col bg-background">
+    <div className="h-full flex flex-col bg-[#f9f9f9]">
       {/* Header */}
-      <div className="h-20 border-b border-border flex items-center justify-between px-8 flex-shrink-0">
+      <div className="h-20 border-b border-[#e2e2e2] flex items-center justify-between px-8 flex-shrink-0">
         <div className="flex items-center space-x-6">
-          <h1 className="text-lg font-semibold text-foreground">Profile</h1>
+          <h1 className="text-lg font-semibold text-[#595956]">Profile</h1>
           <Badge variant="secondary">
             Account Management
           </Badge>
@@ -299,7 +299,7 @@ export function ProfileView() {
             <CardContent>
               <div className="flex items-center gap-6">
                 <div 
-                  className="w-24 h-24 rounded-full border-2 border-dashed border-border flex items-center justify-center font-semibold text-2xl bg-muted cursor-pointer hover:bg-muted/80 transition-colors"
+                  className="w-24 h-24 rounded-full border-2 border-dashed border-[#e2e2e2] flex items-center justify-center font-semibold text-2xl bg-[#595956] text-white cursor-pointer hover:bg-[#494946] transition-colors"
                   onClick={() => document.getElementById('avatar-upload')?.click()}
                 >
                   {user?.email ? user.email.charAt(0).toUpperCase() : 'U'}
