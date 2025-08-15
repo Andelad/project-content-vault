@@ -553,68 +553,134 @@ function HolidayColumn({
           className={`absolute top-1/2 left-0 -translate-y-1/2 h-9 bg-orange-200/80 border border-orange-300/50 rounded-md flex items-center justify-center text-orange-800 text-sm transition-all shadow-sm z-20 group ${
             isDragging && dragState?.holidayId === holiday.id 
               ? 'opacity-90 shadow-lg' 
-              : 'cursor-move hover:bg-orange-300/80'
+              : 'hover:bg-orange-300/80'
           }`}
           style={{
             width: `${holiday.dayCount * columnWidth}px`,
           }}
-          onMouseDown={(e) => handleHolidayMouseDownWithClickDetection(e, holiday.id, 'move')}
-          onMouseUp={(e) => handleHolidayMouseUp(e, holiday.id)}
-          onMouseMove={handleHolidayMouseMove}
-          onDoubleClick={(e) => {
-            console.log('🏖️ Holiday double-click detected:', holiday.id);
-            e.stopPropagation();
-            onHolidayClick(holiday.id);
-          }}
-          title={`Drag to move ${holiday.title}, click/double-click to edit`}
+          title={`${holiday.title} - Click handles to resize, drag center to move`}
         >
           {/* Holiday title */}
-          <span className="truncate px-2 pointer-events-none">
+          <span className="truncate px-8 pointer-events-none select-none">
             🏖️ {holiday.title}
           </span>
 
-          {/* Left resize handle */}
+          {/* Left resize handle - COMPLETELY REWRITTEN */}
           <div 
-            className="absolute left-0 top-0 bottom-0 w-4 cursor-ew-resize hover:bg-black/30 opacity-30 group-hover:opacity-100 transition-opacity rounded-l-md z-50 bg-black/10" 
-            onClick={(e) => {
-              e.stopPropagation();
-              alert('LEFT HANDLE CLICKED - This proves the handle is clickable!');
+            className="absolute left-0 top-0 bottom-0 w-8 cursor-ew-resize bg-transparent hover:bg-orange-500/30 z-60 flex items-center justify-center"
+            style={{ 
+              minWidth: '32px',
+              touchAction: 'none'
             }}
-            onMouseDown={handleHolidayMouseDown ? (e) => { 
+            onMouseDown={(e) => { 
               e.stopPropagation(); 
-              console.log('🔥 LEFT RESIZE HANDLE CLICKED!!!');
-              handleHolidayMouseDown(e, holiday.id, 'resize-start-date'); 
-            } : undefined}
-            title="Drag to change start date"
-          />
+              e.preventDefault();
+              console.log('🔥 LEFT RESIZE STARTING');
+              
+              if (!handleHolidayMouseDown) return;
+              
+              // Call the handler directly
+              handleHolidayMouseDown(e, holiday.id, 'resize-start-date');
+            }}
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              console.log('🔥 LEFT RESIZE TOUCH STARTING');
+              
+              if (!handleHolidayMouseDown) return;
+              
+              const touch = e.touches[0];
+              const fakeMouseEvent = {
+                clientX: touch.clientX,
+                clientY: touch.clientY,
+                preventDefault: () => {},
+                stopPropagation: () => {}
+              } as any;
+              
+              handleHolidayMouseDown(fakeMouseEvent, holiday.id, 'resize-start-date');
+            }}
+            title="◀ Resize start date"
+          >
+            <div className="w-1 h-4 bg-orange-600/50 rounded opacity-0 group-hover:opacity-100 transition-opacity" />
+          </div>
           
-          {/* Right resize handle */}
+          {/* Right resize handle - COMPLETELY REWRITTEN */}
           <div 
-            className="absolute right-0 top-0 bottom-0 w-4 cursor-ew-resize hover:bg-black/30 opacity-30 group-hover:opacity-100 transition-opacity rounded-r-md z-50 bg-black/10" 
-            onClick={(e) => {
-              e.stopPropagation();
-              alert('RIGHT HANDLE CLICKED - This proves the handle is clickable!');
+            className="absolute right-0 top-0 bottom-0 w-8 cursor-ew-resize bg-transparent hover:bg-orange-500/30 z-60 flex items-center justify-center"
+            style={{ 
+              minWidth: '32px',
+              touchAction: 'none'
             }}
-            onMouseDown={handleHolidayMouseDown ? (e) => { 
+            onMouseDown={(e) => { 
               e.stopPropagation(); 
-              console.log('🔥 RIGHT RESIZE HANDLE CLICKED!!!');
-              handleHolidayMouseDown(e, holiday.id, 'resize-end-date'); 
-            } : undefined}
-            title="Drag to change end date"
-          />
+              e.preventDefault();
+              console.log('🔥 RIGHT RESIZE STARTING');
+              
+              if (!handleHolidayMouseDown) return;
+              
+              handleHolidayMouseDown(e, holiday.id, 'resize-end-date');
+            }}
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              console.log('🔥 RIGHT RESIZE TOUCH STARTING');
+              
+              if (!handleHolidayMouseDown) return;
+              
+              const touch = e.touches[0];
+              const fakeMouseEvent = {
+                clientX: touch.clientX,
+                clientY: touch.clientY,
+                preventDefault: () => {},
+                stopPropagation: () => {}
+              } as any;
+              
+              handleHolidayMouseDown(fakeMouseEvent, holiday.id, 'resize-end-date');
+            }}
+            title="Resize end date ▶"
+          >
+            <div className="w-1 h-4 bg-orange-600/50 rounded opacity-0 group-hover:opacity-100 transition-opacity" />
+          </div>
 
-          {/* Edit click area */}
+          {/* Move handle - CENTER AREA FOR MOVING */}
           <div 
-            className="absolute top-0 bottom-0 cursor-pointer z-25"
+            className="absolute top-0 bottom-0 cursor-move bg-transparent hover:bg-orange-400/20 z-50"
             style={{
-              left: '16px',
-              right: '16px',
+              left: '32px',
+              right: '32px',
+              touchAction: 'none'
+            }}
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              console.log('🔥 MOVE STARTING');
+              
+              if (!handleHolidayMouseDown) return;
+              
+              handleHolidayMouseDown(e, holiday.id, 'move');
+            }}
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              console.log('🔥 MOVE TOUCH STARTING');
+              
+              if (!handleHolidayMouseDown) return;
+              
+              const touch = e.touches[0];
+              const fakeMouseEvent = {
+                clientX: touch.clientX,
+                clientY: touch.clientY,
+                preventDefault: () => {},
+                stopPropagation: () => {}
+              } as any;
+              
+              handleHolidayMouseDown(fakeMouseEvent, holiday.id, 'move');
             }}
             onDoubleClick={(e) => {
               e.stopPropagation();
               onHolidayClick(holiday.id);
             }}
-            title={`Double-click to edit ${holiday.title}`}
+            title="Drag to move holiday, double-click to edit"
           />
         </div>
       )}

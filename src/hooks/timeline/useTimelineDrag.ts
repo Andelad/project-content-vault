@@ -201,11 +201,8 @@ export function useTimelineDrag({
           const newStartDate = new Date(dragState.originalStartDate);
           newStartDate.setDate(newStartDate.getDate() + daysDelta);
           
-          const endDate = new Date(currentHoliday.endDate);
-          const oneDayBefore = new Date(endDate);
-          oneDayBefore.setDate(endDate.getDate() - 1);
-          
-          if (newStartDate <= oneDayBefore) {
+          // Allow start date to equal end date (single day holiday)
+          if (newStartDate <= dragState.originalEndDate) {
             updateHoliday(dragState.holidayId, { startDate: newStartDate });
             dragState.lastDaysDelta = daysDelta;
           }
@@ -215,11 +212,8 @@ export function useTimelineDrag({
           const newEndDate = new Date(dragState.originalEndDate);
           newEndDate.setDate(newEndDate.getDate() + daysDelta);
           
-          const startDate = new Date(currentHoliday.startDate);
-          const oneDayAfter = new Date(startDate);
-          oneDayAfter.setDate(startDate.getDate() + 1);
-          
-          if (newEndDate >= oneDayAfter) {
+          // Allow end date to equal start date (single day holiday)
+          if (newEndDate >= dragState.originalStartDate) {
             updateHoliday(dragState.holidayId, { endDate: newEndDate });
             dragState.lastDaysDelta = daysDelta;
           }

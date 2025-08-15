@@ -95,6 +95,14 @@ const getNextGroupColor = () => {
   return color;
 };
 
+// Helper to get YYYY-MM-DD in local time, not UTC
+const toLocalDateString = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
   // Import database hooks
   const { projects: dbProjects, loading: projectsLoading, addProject: dbAddProject, updateProject: dbUpdateProject, deleteProject: dbDeleteProject, reorderProjects: dbReorderProjects } = useProjects();
@@ -178,8 +186,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const processedHolidays = useMemo(() => dbHolidays?.map(h => ({
     id: h.id,
     title: h.title,
-    startDate: new Date(h.start_date),
-    endDate: new Date(h.end_date),
+    // Correctly parse date strings from DB to avoid timezone issues
+    startDate: new Date(h.start_date.replace(/-/g, '/')),
+    endDate: new Date(h.end_date.replace(/-/g, '/')),
     notes: h.notes || ''
   })) || [], [dbHolidays]);
 
@@ -375,8 +384,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       const dbHolidayData = {
         title: holidayData.title,
-        start_date: holidayData.startDate.toISOString().split('T')[0],
-        end_date: holidayData.endDate.toISOString().split('T')[0],
+        start_date: toLocalDateString(holidayData.startDate),
+        end_date: toLocalDateString(holidayData.endDate),
         notes: holidayData.notes || ''
       };
       
@@ -390,8 +399,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       const dbUpdates: any = {};
       if (updates.title !== undefined) dbUpdates.title = updates.title;
-      if (updates.startDate !== undefined) dbUpdates.start_date = updates.startDate.toISOString().split('T')[0];
-      if (updates.endDate !== undefined) dbUpdates.end_date = updates.endDate.toISOString().split('T')[0];
+      if (updates.startDate !== undefined) dbUpdates.start_date = toLocalDateString(updates.startDate);
+      if (updates.endDate !== undefined) dbUpdates.end_date = toLocalDateString(updates.endDate);
       if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
       
       await dbUpdateHoliday(id, dbUpdates);

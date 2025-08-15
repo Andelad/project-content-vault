@@ -462,7 +462,7 @@ export function TimelineView() {
     document.addEventListener('mouseup', handleMouseUp);
   }, [projects, dates, updateProject, checkAutoScroll, timelineMode]);
 
-  // Mouse handlers for holiday bar interactions
+  // COMPLETELY REWRITTEN HOLIDAY DRAG HANDLER - SIMPLE AND FAST
   const handleHolidayMouseDown = useCallback((e: React.MouseEvent, holidayId: string, action: string) => {
     e.preventDefault();
     e.stopPropagation();
@@ -470,86 +470,89 @@ export function TimelineView() {
     const targetHoliday = holidays.find(h => h.id === holidayId);
     if (!targetHoliday) return;
     
-    console.log('🏖️ Holiday resize started:', {
-      action,
-      holidayId,
-      startDate: targetHoliday.startDate,
-      endDate: targetHoliday.endDate
-    });
+    console.log('🏖️ HOLIDAY DRAG START:', { action, holidayId });
     
     const startX = e.clientX;
+    const dayWidth = timelineMode === 'weeks' ? 72 : 40;
     const originalStartDate = new Date(targetHoliday.startDate);
     const originalEndDate = new Date(targetHoliday.endDate);
-    let lastDaysDelta = 0;
     
     setIsDragging(true);
     
     const handleMouseMove = (e: MouseEvent) => {
       const deltaX = e.clientX - startX;
-      const daysDelta = Math.round(deltaX / 40); // 40px per day
+      const daysDelta = Math.round(deltaX / dayWidth);
       
-      // Only process if delta changed
-      if (daysDelta === lastDaysDelta) return;
-      lastDaysDelta = daysDelta;
+      console.log(`🏖️ ${action.toUpperCase()}:`, { deltaX, daysDelta });
       
-      console.log('🏖️ Holiday drag move:', { action, daysDelta, deltaX });
-      
-      if (action === 'resize-start-date') {
-        const newStartDate = new Date(originalStartDate);
-        newStartDate.setDate(originalStartDate.getDate() + daysDelta);
-        
-        // Ensure new start date doesn't go past end date
-        if (newStartDate <= originalEndDate) {
-          console.log('🏖️ Updating start date:', newStartDate.toISOString());
-          updateHoliday(holidayId, { startDate: newStartDate });
-        } else {
-          console.log('🏖️ Start date blocked - would exceed end date');
+      try {
+        if (action === 'resize-start-date') {
+          const newStartDate = new Date(originalStartDate);
+          newStartDate.setDate(originalStartDate.getDate() + daysDelta);
+          
+          // Allow start date to equal end date (single day holiday)
+          if (newStartDate <= originalEndDate) {
+            console.log('✅ START DATE UPDATE:', newStartDate.toDateString());
+            updateHoliday(holidayId, { startDate: newStartDate });
+          } else {
+            console.log('❌ START DATE BLOCKED');
+          }
+          
+        } else if (action === 'resize-end-date') {
+          const newEndDate = new Date(originalEndDate);
+          newEndDate.setDate(originalEndDate.getDate() + daysDelta);
+          
+          // Allow end date to equal start date (single day holiday)
+          if (newEndDate >= originalStartDate) {
+            console.log('✅ END DATE UPDATE:', newEndDate.toDateString());
+            updateHoliday(holidayId, { endDate: newEndDate });
+          } else {
+            console.log('❌ END DATE BLOCKED');
+          }
+          
+        } else if (action === 'move') {
+          const newStartDate = new Date(originalStartDate);
+          const newEndDate = new Date(originalEndDate);
+          
+          newStartDate.setDate(originalStartDate.getDate() + daysDelta);
+          newEndDate.setDate(originalEndDate.getDate() + daysDelta);
+          
+          console.log('✅ MOVE UPDATE:', newStartDate.toDateString(), 'to', newEndDate.toDateString());
+          updateHoliday(holidayId, { 
+            startDate: newStartDate,
+            endDate: newEndDate 
+          });
         }
-      } else if (action === 'resize-end-date') {
-        const newEndDate = new Date(originalEndDate);
-        newEndDate.setDate(originalEndDate.getDate() + daysDelta);
-        
-        // Ensure new end date doesn't go before start date
-        if (newEndDate >= originalStartDate) {
-          console.log('🏖️ Updating end date:', newEndDate.toISOString());
-          updateHoliday(holidayId, { endDate: newEndDate });
-        } else {
-          console.log('🏖️ End date blocked - would precede start date');
-        }
-      } else if (action === 'move') {
-        const newStartDate = new Date(originalStartDate);
-        const newEndDate = new Date(originalEndDate);
-        
-        newStartDate.setDate(originalStartDate.getDate() + daysDelta);
-        newEndDate.setDate(originalEndDate.getDate() + daysDelta);
-        
-        console.log('🏖️ Moving holiday:', {
-          newStart: newStartDate.toISOString(),
-          newEnd: newEndDate.toISOString()
-        });
-        
-        updateHoliday(holidayId, { 
-          startDate: newStartDate,
-          endDate: newEndDate 
-        });
+      } catch (error) {
+        console.error('🚨 HOLIDAY UPDATE ERROR:', error);
       }
       
-      // Check for auto-scroll during drag
       checkAutoScroll(e.clientX);
     };
     
     const handleMouseUp = () => {
-      console.log('🏖️ Holiday drag ended');
+      console.log('🏖️ DRAG END');
       setIsDragging(false);
       setDragState(null);
       stopAutoScroll();
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleMouseUp);
+    };
+    
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length > 0) {
+        const touch = e.touches[0];
+        handleMouseMove({ clientX: touch.clientX } as MouseEvent);
+      }
     };
     
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  }, [holidays, updateHoliday, checkAutoScroll, stopAutoScroll]);
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', handleMouseUp);
+  }, [holidays, updateHoliday, checkAutoScroll, stopAutoScroll, timelineMode]);
 
   // Organize projects by groups for sidebar
   const groupsWithProjects = useMemo(() => {
