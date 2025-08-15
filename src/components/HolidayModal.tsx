@@ -1,18 +1,23 @@
 import React, { useState, useEffect } from 'react';
+import { Calendar as CalendarIcon } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Calendar } from './ui/calendar';
 import { useApp } from '../contexts/AppContext';
 
 interface HolidayModalProps {
   isOpen: boolean;
   onClose: () => void;
   holidayId?: string;
+  defaultStartDate?: Date;
+  defaultEndDate?: Date;
 }
 
-export function HolidayModal({ isOpen, onClose, holidayId }: HolidayModalProps) {
+export function HolidayModal({ isOpen, onClose, holidayId, defaultStartDate, defaultEndDate }: HolidayModalProps) {
   const { holidays, addHoliday, updateHoliday, deleteHoliday } = useApp();
   
   // Find the holiday if editing
@@ -25,6 +30,51 @@ export function HolidayModal({ isOpen, onClose, holidayId }: HolidayModalProps) 
   const [endDate, setEndDate] = useState<Date>();
   const [notes, setNotes] = useState('');
 
+  // Format date for display
+  const formatDate = (date: Date) => {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+  };
+
+  // Date picker component
+  const DatePicker = ({ 
+    value, 
+    onSelect, 
+    placeholder 
+  }: { 
+    value?: Date; 
+    onSelect: (date: Date | undefined) => void; 
+    placeholder: string;
+  }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    
+    return (
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            className="w-full justify-start text-left font-normal"
+          >
+            <CalendarIcon className="mr-2 h-4 w-4" />
+            {value ? formatDate(value) : placeholder}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="single"
+            selected={value}
+            onSelect={(selectedDate) => {
+              onSelect(selectedDate);
+              setIsOpen(false);
+            }}
+            initialFocus
+          />
+        </PopoverContent>
+      </Popover>
+    );
+  };
+
   // Initialize form data
   useEffect(() => {
     if (isEditing && existingHoliday) {
@@ -35,13 +85,21 @@ export function HolidayModal({ isOpen, onClose, holidayId }: HolidayModalProps) 
     } else {
       // Default values for new holiday
       setTitle('Holiday');
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      setStartDate(today);
-      setEndDate(today);
+      
+      // Use provided default dates or fallback to today
+      if (defaultStartDate && defaultEndDate) {
+        setStartDate(defaultStartDate);
+        setEndDate(defaultEndDate);
+      } else {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        setStartDate(today);
+        setEndDate(today);
+      }
+      
       setNotes('');
     }
-  }, [isEditing, existingHoliday, isOpen]);
+  }, [isEditing, existingHoliday, isOpen, defaultStartDate, defaultEndDate]);
 
   const handleSave = () => {
     if (!title.trim() || !startDate || !endDate) return;
@@ -108,33 +166,21 @@ export function HolidayModal({ isOpen, onClose, holidayId }: HolidayModalProps) 
             <div className="grid grid-cols-2 gap-4">
               {/* From Date */}
               <div className="space-y-2">
-                <Label htmlFor="start-date">From</Label>
-                <Input
-                  id="start-date"
-                  type="date"
-                  value={startDate ? startDate.toISOString().split('T')[0] : ''}
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      const date = new Date(e.target.value + 'T00:00:00');
-                      setStartDate(date);
-                    }
-                  }}
+                <Label>From</Label>
+                <DatePicker
+                  value={startDate}
+                  onSelect={setStartDate}
+                  placeholder="Select start date"
                 />
               </div>
 
               {/* To Date */}
               <div className="space-y-2">
-                <Label htmlFor="end-date">To</Label>
-                <Input
-                  id="end-date"
-                  type="date"
-                  value={endDate ? endDate.toISOString().split('T')[0] : ''}
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      const date = new Date(e.target.value + 'T00:00:00');
-                      setEndDate(date);
-                    }
-                  }}
+                <Label>To</Label>
+                <DatePicker
+                  value={endDate}
+                  onSelect={setEndDate}
+                  placeholder="Select end date"
                 />
               </div>
             </div>

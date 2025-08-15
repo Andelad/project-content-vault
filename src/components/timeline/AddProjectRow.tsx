@@ -5,6 +5,7 @@ import BeachAccess from '@/imports/BeachAccess';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import { Button } from '../ui/button';
 import { wouldOverlapHolidays } from '@/lib/workHoursUtils';
+import { SmartHoverAddHolidayBar } from './SmartHoverAddHolidayBar';
 
 interface AddProjectRowProps {
   groupId: string;
@@ -341,10 +342,11 @@ interface AddHolidayRowProps {
   isDragging?: boolean;
   dragState?: any;
   handleHolidayMouseDown?: (e: React.MouseEvent, holidayId: string, action: string) => void;
+  mode?: 'days' | 'weeks';
 }
 
-export function AddHolidayRow({ dates, collapsed, isDragging, dragState, handleHolidayMouseDown }: AddHolidayRowProps) {
-  const { setCreatingNewHoliday, holidays: globalHolidays, setEditingHolidayId, holidayCreationState, setHolidayCreationState, addHoliday } = useApp();
+export function AddHolidayRow({ dates, collapsed, isDragging, dragState, handleHolidayMouseDown, mode = 'days' }: AddHolidayRowProps) {
+  const { setCreatingNewHoliday, holidays: globalHolidays, setEditingHolidayId, addHoliday } = useApp();
   
   // Convert global holidays to timeline format
   const timelineHolidays = globalHolidays.map(holiday => {
@@ -372,146 +374,13 @@ export function AddHolidayRow({ dates, collapsed, isDragging, dragState, handleH
     };
   }).filter(Boolean) as { startIndex: number; dayCount: number; id: string; title: string }[];
   
-  // Simple state for interactions
-  const [holidayDrag, setHolidayDrag] = useState<{ 
-    holidayId: string; 
-    dragType: 'move' | 'resize-left' | 'resize-right';
-    originalStart: number;
-    originalCount: number;
-  } | null>(null);
-  
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const getDayIndex = (clientX: number): number => {
-    if (!containerRef.current || dates.length === 0) return 0;
-    const rect = containerRef.current.getBoundingClientRect();
-    const x = clientX - rect.left;
-    const dayWidth = rect.width / dates.length;
-    return Math.max(0, Math.min(Math.floor(x / dayWidth), dates.length - 1));
+  // Handle holiday creation after drag
+  const handleCreateHoliday = (startDate: Date, endDate: Date) => {
+    // Instead of creating the holiday immediately, store the date range for the modal
+    setCreatingNewHoliday({ startDate, endDate });
   };
-
-  const isDayOccupied = (dayIndex: number): boolean => {
-    return timelineHolidays.some(holiday => {
-      const endIndex = holiday.startIndex + holiday.dayCount - 1;
-      return dayIndex >= holiday.startIndex && dayIndex <= endIndex;
-    });
-  };
-
-  const isHolidayDateRange = (dayIndex: number): boolean => {
-    if (!holidayCreationState?.startDate) return false;
-    
-    // Find the start date in the dates array
-    const startIndex = dates.findIndex(date => 
-      date.toDateString() === holidayCreationState.startDate!.toDateString()
-    );
-    
-    if (startIndex === -1) return false;
-    
-    if (holidayCreationState.phase === 'start') {
-      return dayIndex === startIndex;
-    } else {
-      // During end selection, only show the start date as selected
-      return dayIndex === startIndex;
-    }
-  };
-
-  const getHolidayAtPosition = (dayIndex: number) => {
-    return timelineHolidays.find(holiday => {
-      const endIndex = holiday.startIndex + holiday.dayCount - 1;
-      return dayIndex >= holiday.startIndex && dayIndex <= endIndex;
-    });
-  };
-
-  // Mouse handlers
-  const handleMouseMove = (e: React.MouseEvent) => {
-    // No hover preview needed anymore - handled by individual column components
-  };
-
-  const handleMouseLeave = () => {
-    // No hover preview to clear
-  };
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    // Holiday creation is now handled by individual column components
-  };
-
-  const handleGlobalMouseMove = (e: MouseEvent) => {
-    // No longer needed
-  };
-
-  const handleGlobalMouseUp = () => {
-    // No longer needed
-  };
-
-  // Check if a date range would overlap with existing holidays
-  const wouldOverlapHoliday = (startIndex: number, endIndex: number): boolean => {
-    for (let i = startIndex; i <= endIndex; i++) {
-      if (isDayOccupied(i)) {
-        return true;
-      }
-    }
-    return false;
-  };
-
-  // Handle holiday creation
-  const handleHolidayColumnClick = (dayIndex: number) => {
-    const date = dates[dayIndex];
-    
-    if (isDayOccupied(dayIndex)) {
-      // Day is occupied by existing holiday - cancel creation if in progress
-      if (holidayCreationState) {
-        setHolidayCreationState(null);
-      }
-      return;
-    }
-
-    if (!holidayCreationState) {
-      // Start creating holiday - set start date
-      setHolidayCreationState({
-        startDate: date,
-        phase: 'end'
-      });
-    } else if (holidayCreationState.phase === 'end') {
-      // Complete holiday creation - set end date
-      const startDate = holidayCreationState.startDate!;
-      const endDate = date;
-      
-      // Ensure end date is not before start date
-      if (endDate >= startDate) {
-        // Check if range would overlap with any existing holidays
-        const startIndex = dates.findIndex(d => d.toDateString() === startDate.toDateString());
-        const endIndex = dates.findIndex(d => d.toDateString() === endDate.toDateString());
-        
-        if (!wouldOverlapHoliday(startIndex, endIndex)) {
-          // Create the holiday
-          addHoliday({
-            title: 'New Holiday',
-            startDate,
-            endDate,
-            notes: ''
-          });
-          
-          // Reset creation state
-          setHolidayCreationState(null);
-          
-          // Open the holiday modal for editing
-          setCreatingNewHoliday(true);
-        }
-      }
-    }
-  };
-
-  // Add escape key handler to cancel holiday creation
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && holidayCreationState) {
-        setHolidayCreationState(null);
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [holidayCreationState, setHolidayCreationState]);
 
   const dayWidth = dates.length > 0 ? (containerRef.current?.clientWidth || 0) / dates.length : 0;
 
@@ -531,7 +400,7 @@ export function AddHolidayRow({ dates, collapsed, isDragging, dragState, handleH
       >
         {collapsed ? (
           <button 
-            onClick={() => setCreatingNewHoliday(true)}
+            onClick={() => setCreatingNewHoliday(null)}
             className="hover:bg-gray-50 transition-colors p-1 rounded -m-1" 
           >
             <div 
@@ -543,7 +412,7 @@ export function AddHolidayRow({ dates, collapsed, isDragging, dragState, handleH
           </button>
         ) : (
           <button 
-            onClick={() => setCreatingNewHoliday(true)}
+            onClick={() => setCreatingNewHoliday(null)}
             className="flex items-center gap-3 hover:bg-gray-50 transition-colors px-2 py-1 rounded-md -mx-2 -my-1"
           >
             <div 
@@ -562,56 +431,32 @@ export function AddHolidayRow({ dates, collapsed, isDragging, dragState, handleH
         ref={containerRef}
         className="flex-1 relative flex"
       >
-        {/* Holiday Creation Columns */}
+        {/* Import and use the new SmartHoverAddHolidayBar */}
+        <SmartHoverAddHolidayBar
+          dates={dates}
+          holidays={globalHolidays}
+          mode={mode}
+          onCreateHoliday={handleCreateHoliday}
+          isDragging={isDragging}
+        />
+
+        {/* Holiday display columns */}
         {dates.map((date, dayIndex) => {
-          const isOccupied = isDayOccupied(dayIndex);
-          const holiday = getHolidayAtPosition(dayIndex);
-          const isInCreationRange = isHolidayDateRange(dayIndex);
-          
-          // Check if this date would create an overlap during end date selection
-          let wouldOverlap = false;
-          if (holidayCreationState?.phase === 'end' && holidayCreationState.startDate && !isOccupied) {
-            const startIndex = dates.findIndex(d => d.toDateString() === holidayCreationState.startDate!.toDateString());
-            if (startIndex !== -1 && dayIndex >= startIndex) {
-              wouldOverlap = wouldOverlapHoliday(startIndex, dayIndex);
-            }
-          }
-          
-          // Get tooltip text
-          let tooltipText = '';
-          let isInvalid = false;
-          const formattedDate = date.toLocaleDateString('en-US', { 
-            month: 'short', 
-            day: 'numeric' 
-          });
-          
-          if (isOccupied) {
-            tooltipText = 'Cannot create holiday - overlaps existing holiday';
-            isInvalid = true;
-          } else if (wouldOverlap) {
-            tooltipText = 'Holidays can\'t overlap';
-            isInvalid = true;
-          } else if (!holidayCreationState) {
-            tooltipText = `Set start date\n${formattedDate}`;
-          } else if (holidayCreationState.phase === 'end') {
-            tooltipText = `Set end date\n${formattedDate}`;
-          }
+          const holiday = timelineHolidays.find(h => 
+            dayIndex >= h.startIndex && dayIndex < h.startIndex + h.dayCount
+          );
           
           return (
             <HolidayColumn
               key={dayIndex}
               dayIndex={dayIndex}
               date={date}
-              isOccupied={isOccupied}
               holiday={holiday}
-              isInCreationRange={isInCreationRange}
-              isInvalid={isInvalid}
-              tooltipText={tooltipText}
-              onClick={() => handleHolidayColumnClick(dayIndex)}
               onHolidayClick={(holidayId) => setEditingHolidayId(holidayId)}
               isDragging={isDragging}
               dragState={dragState}
               handleHolidayMouseDown={handleHolidayMouseDown}
+              mode={mode}
             />
           );
         })}
@@ -623,132 +468,155 @@ export function AddHolidayRow({ dates, collapsed, isDragging, dragState, handleH
 interface HolidayColumnProps {
   dayIndex: number;
   date: Date;
-  isOccupied: boolean;
   holiday?: { startIndex: number; dayCount: number; id: string; title: string } | null;
-  isInCreationRange: boolean;
-  isInvalid: boolean;
-  tooltipText: string;
-  onClick: () => void;
   onHolidayClick: (holidayId: string) => void;
   isDragging?: boolean;
   dragState?: any;
   handleHolidayMouseDown?: (e: React.MouseEvent, holidayId: string, action: string) => void;
+  mode?: 'days' | 'weeks';
 }
 
 function HolidayColumn({ 
   dayIndex, 
   date, 
-  isOccupied, 
   holiday, 
-  isInCreationRange, 
-  isInvalid,
-  tooltipText, 
-  onClick, 
   onHolidayClick,
   isDragging,
   dragState,
-  handleHolidayMouseDown
+  handleHolidayMouseDown,
+  mode = 'days'
 }: HolidayColumnProps) {
-  const [isHovered, setIsHovered] = useState(false);
-  const { holidayCreationState } = useApp();
+  const columnWidth = mode === 'weeks' ? 72 : 40;
+  const [mouseDownTime, setMouseDownTime] = useState<number | null>(null);
+  const [mouseDownPos, setMouseDownPos] = useState<{ x: number; y: number } | null>(null);
+  const [hasMoved, setHasMoved] = useState(false);
+  
+  const handleHolidayMouseDownWithClickDetection = (e: React.MouseEvent, holidayId: string, action: string) => {
+    console.log('🏖️ Holiday mouse down:', holidayId, action);
+    e.stopPropagation(); // Prevent event bubbling
+    setMouseDownTime(Date.now());
+    setMouseDownPos({ x: e.clientX, y: e.clientY });
+    setHasMoved(false);
+    
+    if (handleHolidayMouseDown) {
+      handleHolidayMouseDown(e, holidayId, action);
+    }
+  };
+
+  const handleHolidayMouseUp = (e: React.MouseEvent, holidayId: string) => {
+    // Don't stop propagation if we're in a drag operation - let the global handler clean up
+    if (!isDragging) {
+      e.stopPropagation(); // Only prevent bubbling for click detection, not during drag
+    }
+    
+    const currentTime = Date.now();
+    const timeDiff = mouseDownTime ? currentTime - mouseDownTime : 0;
+    
+    // If it was a quick click (less than 200ms) and didn't move much, treat as a click
+    if (timeDiff < 200 && !hasMoved && mouseDownPos) {
+      const moveDist = Math.sqrt(
+        Math.pow(e.clientX - mouseDownPos.x, 2) + Math.pow(e.clientY - mouseDownPos.y, 2)
+      );
+      
+      // If moved less than 5 pixels, consider it a click
+      if (moveDist < 5) {
+        console.log('🏖️ Holiday click detected:', holidayId);
+        onHolidayClick(holidayId);
+      }
+    }
+    
+    setMouseDownTime(null);
+    setMouseDownPos(null);
+    setHasMoved(false);
+  };
+
+  const handleHolidayMouseMove = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent event bubbling
+    if (mouseDownPos) {
+      const moveDist = Math.sqrt(
+        Math.pow(e.clientX - mouseDownPos.x, 2) + Math.pow(e.clientY - mouseDownPos.y, 2)
+      );
+      if (moveDist > 5) {
+        setHasMoved(true);
+      }
+    }
+  };
   
   return (
     <div 
       className="relative h-[52px] flex items-center justify-center border-r border-gray-100 last:border-r-0"
-      style={{ minWidth: '40px', width: '40px' }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      style={{ minWidth: `${columnWidth}px`, width: `${columnWidth}px` }}
     >
       {/* Existing holiday display - only show for first day of holiday */}
-      {holiday && isOccupied && dayIndex === holiday.startIndex && (
+      {holiday && dayIndex === holiday.startIndex && (
         <div
-          className={`absolute top-1/2 left-0 -translate-y-1/2 h-9 bg-orange-200/80 border border-orange-300/50 rounded-md flex items-center justify-center text-orange-800 text-sm transition-all shadow-sm z-10 group ${
+          className={`absolute top-1/2 left-0 -translate-y-1/2 h-9 bg-orange-200/80 border border-orange-300/50 rounded-md flex items-center justify-center text-orange-800 text-sm transition-all shadow-sm z-20 group ${
             isDragging && dragState?.holidayId === holiday.id 
-              ? 'opacity-90 shadow-lg scale-105' 
+              ? 'opacity-90 shadow-lg' 
               : 'cursor-move hover:bg-orange-300/80'
           }`}
           style={{
-            width: `${holiday.dayCount * 40}px`, // No gaps needed - holidays span continuously
+            width: `${holiday.dayCount * columnWidth}px`,
           }}
-          onMouseDown={handleHolidayMouseDown ? (e) => {
-            e.stopPropagation(); 
-            handleHolidayMouseDown(e, holiday.id, 'move'); 
-          } : undefined}
-          title={`Drag to move ${holiday.title}`}
+          onMouseDown={(e) => handleHolidayMouseDownWithClickDetection(e, holiday.id, 'move')}
+          onMouseUp={(e) => handleHolidayMouseUp(e, holiday.id)}
+          onMouseMove={handleHolidayMouseMove}
+          onDoubleClick={(e) => {
+            console.log('🏖️ Holiday double-click detected:', holiday.id);
+            e.stopPropagation();
+            onHolidayClick(holiday.id);
+          }}
+          title={`Drag to move ${holiday.title}, click/double-click to edit`}
         >
           {/* Holiday title */}
           <span className="truncate px-2 pointer-events-none">
             🏖️ {holiday.title}
           </span>
 
-          {/* Left resize handle - high z-index to be above click area */}
+          {/* Left resize handle */}
           <div 
-            className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize hover:bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity rounded-l-md z-30" 
+            className="absolute left-0 top-0 bottom-0 w-4 cursor-ew-resize hover:bg-black/30 opacity-30 group-hover:opacity-100 transition-opacity rounded-l-md z-50 bg-black/10" 
+            onClick={(e) => {
+              e.stopPropagation();
+              alert('LEFT HANDLE CLICKED - This proves the handle is clickable!');
+            }}
             onMouseDown={handleHolidayMouseDown ? (e) => { 
               e.stopPropagation(); 
+              console.log('🔥 LEFT RESIZE HANDLE CLICKED!!!');
               handleHolidayMouseDown(e, holiday.id, 'resize-start-date'); 
             } : undefined}
             title="Drag to change start date"
           />
           
-          {/* Right resize handle - high z-index to be above click area */}
+          {/* Right resize handle */}
           <div 
-            className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize hover:bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity rounded-r-md z-30" 
+            className="absolute right-0 top-0 bottom-0 w-4 cursor-ew-resize hover:bg-black/30 opacity-30 group-hover:opacity-100 transition-opacity rounded-r-md z-50 bg-black/10" 
+            onClick={(e) => {
+              e.stopPropagation();
+              alert('RIGHT HANDLE CLICKED - This proves the handle is clickable!');
+            }}
             onMouseDown={handleHolidayMouseDown ? (e) => { 
               e.stopPropagation(); 
+              console.log('🔥 RIGHT RESIZE HANDLE CLICKED!!!');
               handleHolidayMouseDown(e, holiday.id, 'resize-end-date'); 
             } : undefined}
             title="Drag to change end date"
           />
 
-          {/* Edit click area - lower z-index, exclude resize handle areas */}
+          {/* Edit click area */}
           <div 
-            className="absolute top-0 bottom-0 cursor-pointer z-20"
+            className="absolute top-0 bottom-0 cursor-pointer z-25"
             style={{
-              left: '12px', // Start after left resize handle (3px + some margin)
-              right: '12px', // End before right resize handle (3px + some margin)
+              left: '16px',
+              right: '16px',
             }}
-            onClick={(e) => {
+            onDoubleClick={(e) => {
               e.stopPropagation();
               onHolidayClick(holiday.id);
             }}
-            title={`Click to edit ${holiday.title}`}
+            title={`Double-click to edit ${holiday.title}`}
           />
         </div>
-      )}
-      
-      {/* Umbrella symbol for empty columns - don't show during holiday drag operations */}
-      {!isOccupied && (isHovered || isInCreationRange) && !holiday && !(isDragging && dragState?.holidayId) && (
-        <Tooltip delayDuration={100}>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className={`w-6 h-6 z-20 ${
-                isInvalid 
-                  ? 'text-red-500 hover:text-red-600 hover:bg-red-50' 
-                  : 'text-gray-400 hover:text-gray-600'
-              }`}
-              onClick={isInvalid ? undefined : onClick}
-            >
-              <div 
-                className="w-4 h-4"
-                style={{ '--fill-0': 'currentColor' } as React.CSSProperties}
-              >
-                <BeachAccess />
-              </div>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent 
-            side="top" 
-            sideOffset={5}
-            className={isInvalid ? 'bg-red-600 text-white border-red-600' : ''}
-          >
-            <div className={isInvalid ? 'text-white' : ''}>
-              {tooltipText}
-            </div>
-          </TooltipContent>
-        </Tooltip>
       )}
     </div>
   );

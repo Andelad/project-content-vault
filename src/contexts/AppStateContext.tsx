@@ -11,7 +11,6 @@ interface AppStateContextType {
   settings: Settings;
   selectedProjectId: string | null;
   holidays: Holiday[];
-  holidayCreationState: { startDate: Date | null; phase: 'start' | 'end' } | null;
   selectedEventId: string | null;
   creatingNewEvent: { startTime?: Date; endTime?: Date } | null;
 }
@@ -36,7 +35,6 @@ export function AppStateProvider({
     value.settings,
     value.selectedProjectId,
     value.holidays,
-    value.holidayCreationState,
     value.selectedEventId,
     value.creatingNewEvent
   ]);

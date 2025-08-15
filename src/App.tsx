@@ -128,8 +128,10 @@ function AppContent() {
         />
 
         <HolidayModal
-          isOpen={creatingNewHoliday}
-          onClose={() => setCreatingNewHoliday(false)}
+          isOpen={!!creatingNewHoliday}
+          onClose={() => setCreatingNewHoliday(null)}
+          defaultStartDate={creatingNewHoliday?.startDate}
+          defaultEndDate={creatingNewHoliday?.endDate}
         />
 
         <HolidayModal

@@ -464,86 +464,92 @@ export function TimelineView() {
 
   // Mouse handlers for holiday bar interactions
   const handleHolidayMouseDown = useCallback((e: React.MouseEvent, holidayId: string, action: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     const targetHoliday = holidays.find(h => h.id === holidayId);
     if (!targetHoliday) return;
     
-    const initialDragState = {
-      holidayId,
+    console.log('🏖️ Holiday resize started:', {
       action,
-      startX: e.clientX,
-      startY: e.clientY,
-      originalStartDate: new Date(targetHoliday.startDate),
-      originalEndDate: new Date(targetHoliday.endDate),
-      lastDaysDelta: 0
-    };
+      holidayId,
+      startDate: targetHoliday.startDate,
+      endDate: targetHoliday.endDate
+    });
+    
+    const startX = e.clientX;
+    const originalStartDate = new Date(targetHoliday.startDate);
+    const originalEndDate = new Date(targetHoliday.endDate);
+    let lastDaysDelta = 0;
     
     setIsDragging(true);
-    setDragState(initialDragState);
     
     const handleMouseMove = (e: MouseEvent) => {
-      const daysDelta = calculateDaysDelta(e.clientX, initialDragState.startX, dates, false);
+      const deltaX = e.clientX - startX;
+      const daysDelta = Math.round(deltaX / 40); // 40px per day
+      
+      // Only process if delta changed
+      if (daysDelta === lastDaysDelta) return;
+      lastDaysDelta = daysDelta;
+      
+      console.log('🏖️ Holiday drag move:', { action, daysDelta, deltaX });
+      
+      if (action === 'resize-start-date') {
+        const newStartDate = new Date(originalStartDate);
+        newStartDate.setDate(originalStartDate.getDate() + daysDelta);
+        
+        // Ensure new start date doesn't go past end date
+        if (newStartDate <= originalEndDate) {
+          console.log('🏖️ Updating start date:', newStartDate.toISOString());
+          updateHoliday(holidayId, { startDate: newStartDate });
+        } else {
+          console.log('🏖️ Start date blocked - would exceed end date');
+        }
+      } else if (action === 'resize-end-date') {
+        const newEndDate = new Date(originalEndDate);
+        newEndDate.setDate(originalEndDate.getDate() + daysDelta);
+        
+        // Ensure new end date doesn't go before start date
+        if (newEndDate >= originalStartDate) {
+          console.log('🏖️ Updating end date:', newEndDate.toISOString());
+          updateHoliday(holidayId, { endDate: newEndDate });
+        } else {
+          console.log('🏖️ End date blocked - would precede start date');
+        }
+      } else if (action === 'move') {
+        const newStartDate = new Date(originalStartDate);
+        const newEndDate = new Date(originalEndDate);
+        
+        newStartDate.setDate(originalStartDate.getDate() + daysDelta);
+        newEndDate.setDate(originalEndDate.getDate() + daysDelta);
+        
+        console.log('🏖️ Moving holiday:', {
+          newStart: newStartDate.toISOString(),
+          newEnd: newEndDate.toISOString()
+        });
+        
+        updateHoliday(holidayId, { 
+          startDate: newStartDate,
+          endDate: newEndDate 
+        });
+      }
       
       // Check for auto-scroll during drag
       checkAutoScroll(e.clientX);
-      
-      if (action === 'resize-start-date' && daysDelta !== initialDragState.lastDaysDelta) {
-        const currentHoliday = holidays.find(h => h.id === holidayId);
-        if (currentHoliday) {
-          const newStartDate = new Date(initialDragState.originalStartDate);
-          newStartDate.setDate(newStartDate.getDate() + daysDelta);
-          
-          const endDate = new Date(currentHoliday.endDate);
-          const oneDayBefore = new Date(endDate);
-          oneDayBefore.setDate(endDate.getDate() - 1);
-          
-          if (newStartDate <= oneDayBefore) {
-            updateHoliday(holidayId, { startDate: newStartDate });
-            initialDragState.lastDaysDelta = daysDelta;
-          }
-        }
-      } else if (action === 'resize-end-date' && daysDelta !== initialDragState.lastDaysDelta) {
-        const currentHoliday = holidays.find(h => h.id === holidayId);
-        if (currentHoliday) {
-          const newEndDate = new Date(initialDragState.originalEndDate);
-          newEndDate.setDate(newEndDate.getDate() + daysDelta);
-          
-          const startDate = new Date(currentHoliday.startDate);
-          const oneDayAfter = new Date(startDate);
-          oneDayAfter.setDate(startDate.getDate() + 1);
-          
-          if (newEndDate >= oneDayAfter) {
-            updateHoliday(holidayId, { endDate: newEndDate });
-            initialDragState.lastDaysDelta = daysDelta;
-          }
-        }
-      } else if (action === 'move' && daysDelta !== initialDragState.lastDaysDelta) {
-        const currentHoliday = holidays.find(h => h.id === holidayId);
-        if (currentHoliday) {
-          const newStartDate = new Date(initialDragState.originalStartDate);
-          const newEndDate = new Date(initialDragState.originalEndDate);
-          
-          newStartDate.setDate(newStartDate.getDate() + daysDelta);
-          newEndDate.setDate(newEndDate.getDate() + daysDelta);
-          
-          updateHoliday(holidayId, { 
-            startDate: newStartDate,
-            endDate: newEndDate 
-          });
-          initialDragState.lastDaysDelta = daysDelta;
-        }
-      }
     };
     
     const handleMouseUp = () => {
+      console.log('🏖️ Holiday drag ended');
       setIsDragging(false);
       setDragState(null);
+      stopAutoScroll();
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
     
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  }, [holidays, updateHoliday, checkAutoScroll]);
+  }, [holidays, updateHoliday, checkAutoScroll, stopAutoScroll]);
 
   // Organize projects by groups for sidebar
   const groupsWithProjects = useMemo(() => {
@@ -690,11 +696,6 @@ export function TimelineView() {
                             console.warn(`Found ${orphanedProjects.length} orphaned projects in group ${group.id}:`, orphanedProjects.map(p => ({ id: p.id, name: p.name, rowId: p.rowId })));
                           }
                           
-                          // DEBUG: Log what we're rendering for each group
-                          console.log(`🔍 DEBUG - Group "${group.name}" (${group.id}):`);
-                          console.log(`  - Group rows:`, groupRows.map(r => ({ id: r.id, name: r.name })));
-                          console.log(`  - Group projects:`, groupProjects.map(p => ({ id: p.id, name: p.name, groupId: p.groupId, rowId: p.rowId })));
-                          
                           return (
                             <div key={group.id}>
                               {/* Group Header Row - Visual separator with optional group title when collapsed */}
@@ -720,9 +721,6 @@ export function TimelineView() {
                                   project.groupId === row.groupId // Triple check: project group matches row group
                                 );
                                 
-                                // DEBUG: Log what projects are being rendered in each row
-                                console.log(`    - Row "${row.name}" (${row.id}) in group "${group.name}" projects:`, rowProjects.map(p => ({ id: p.id, name: p.name, groupId: p.groupId, rowId: p.rowId })));
-                                
                                 // SAFETY CHECK: Warn about any projects that have mismatched group/row assignments
                                 projects.forEach(project => {
                                   if (project.rowId === row.id && project.groupId !== row.groupId) {
@@ -741,7 +739,6 @@ export function TimelineView() {
                                       {rowProjects.map((project: any) => {
                                         // Always render TimelineBar to maintain consistent positioning
                                         // TimelineBar will handle visibility internally
-                                        console.log(`🎨 RENDERING: Project "${project.name}" in row "${row.name}" (${row.id})`);
                                         return (
                                           <div key={project.id} className="absolute inset-0 pointer-events-none">
                                             <TimelineBar
@@ -810,6 +807,7 @@ export function TimelineView() {
                     isDragging={isDragging}
                     dragState={dragState}
                     handleHolidayMouseDown={handleHolidayMouseDown}
+                    mode={timelineMode}
                   />
                 </div>
               </Card>

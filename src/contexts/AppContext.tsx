@@ -67,12 +67,10 @@ interface AppContextType {
   addHoliday: (holiday: Omit<Holiday, 'id'>) => void;
   updateHoliday: (id: string, updates: Partial<Holiday>) => void;
   deleteHoliday: (id: string) => void;
-  creatingNewHoliday: boolean;
-  setCreatingNewHoliday: (creating: boolean) => void;
+  creatingNewHoliday: { startDate: Date; endDate: Date } | null;
+  setCreatingNewHoliday: (creating: { startDate: Date; endDate: Date } | null) => void;
   editingHolidayId: string | null;
   setEditingHolidayId: (holidayId: string | null) => void;
-  holidayCreationState: { startDate: Date | null; phase: 'start' | 'end' } | null;
-  setHolidayCreationState: (state: { startDate: Date | null; phase: 'start' | 'end' } | null) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -96,9 +94,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [creatingNewProject, setCreatingNewProjectState] = useState<{ groupId: string; rowId?: string; startDate?: Date; endDate?: Date } | null>(null);
-  const [creatingNewHoliday, setCreatingNewHoliday] = useState(false);
+  const [creatingNewHoliday, setCreatingNewHoliday] = useState<{ startDate: Date; endDate: Date } | null>(null);
   const [editingHolidayId, setEditingHolidayId] = useState<string | null>(null);
-  const [holidayCreationState, setHolidayCreationState] = useState<{ startDate: Date | null; phase: 'start' | 'end' } | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [creatingNewEvent, setCreatingNewEvent] = useState<{ startTime?: Date; endTime?: Date } | null>(null);
 
@@ -530,7 +527,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const updateHoliday = useCallback((id: string, updates: Partial<Holiday>) => {
-    setHolidays(prev => prev.map(h => h.id === id ? { ...h, ...updates } : h));
+    console.log('🔧 updateHoliday called:', { id, updates });
+    setHolidays(prev => {
+      const updated = prev.map(h => h.id === id ? { ...h, ...updates } : h);
+      console.log('🔧 Holiday updated:', updated.find(h => h.id === id));
+      return updated;
+    });
   }, []);
 
   const deleteHoliday = useCallback((id: string) => {
@@ -586,10 +588,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     holidays,
     creatingNewHoliday,
     editingHolidayId,
-    holidayCreationState,
     selectedEventId,
     creatingNewEvent
-  }), [currentView, currentDate, projects, groups, rows, events, settings, workHours, timelineEntries, workHourOverrides, selectedProjectId, creatingNewProject, holidays, creatingNewHoliday, editingHolidayId, holidayCreationState, selectedEventId, creatingNewEvent]);
+  }), [currentView, currentDate, projects, groups, rows, events, settings, workHours, timelineEntries, workHourOverrides, selectedProjectId, creatingNewProject, holidays, creatingNewHoliday, editingHolidayId, selectedEventId, creatingNewEvent]);
 
   const actions = useMemo(() => ({
     setCurrentView,
@@ -620,7 +621,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     deleteHoliday,
     setCreatingNewHoliday,
     setEditingHolidayId,
-    setHolidayCreationState,
     setSelectedEventId,
     setCreatingNewEvent
   }), [
@@ -652,7 +652,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     deleteHoliday,
     setCreatingNewHoliday,
     setEditingHolidayId,
-    setHolidayCreationState,
     setSelectedEventId,
     setCreatingNewEvent
   ]);
