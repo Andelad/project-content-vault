@@ -16,47 +16,47 @@ export type Database = {
     Tables: {
       calendar_connections: {
         Row: {
-          access_token: string | null
+          auth_error_message: string | null
           connection_name: string
+          connection_status: string | null
           connection_type: string
           created_at: string
           external_calendar_id: string
           id: string
           is_active: boolean | null
+          last_auth_at: string | null
           last_sync_at: string | null
-          refresh_token: string | null
           sync_frequency: number | null
-          token_expires_at: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
-          access_token?: string | null
+          auth_error_message?: string | null
           connection_name: string
+          connection_status?: string | null
           connection_type: string
           created_at?: string
           external_calendar_id: string
           id?: string
           is_active?: boolean | null
+          last_auth_at?: string | null
           last_sync_at?: string | null
-          refresh_token?: string | null
           sync_frequency?: number | null
-          token_expires_at?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
-          access_token?: string | null
+          auth_error_message?: string | null
           connection_name?: string
+          connection_status?: string | null
           connection_type?: string
           created_at?: string
           external_calendar_id?: string
           id?: string
           is_active?: boolean | null
+          last_auth_at?: string | null
           last_sync_at?: string | null
-          refresh_token?: string | null
           sync_frequency?: number | null
-          token_expires_at?: string | null
           updated_at?: string
           user_id?: string
         }

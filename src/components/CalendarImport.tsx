@@ -24,11 +24,35 @@ export function CalendarImport() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
-    if (!file.name.endsWith('.ics')) {
+    // Enhanced file validation
+    const maxFileSize = 10 * 1024 * 1024; // 10MB limit
+    const allowedMimeTypes = ['text/calendar', 'application/octet-stream', 'text/plain'];
+    
+    // Check file size
+    if (file.size > maxFileSize) {
       toast({
-        title: "Invalid File",
+        title: "File Too Large",
+        description: "Calendar file must be smaller than 10MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file extension
+    if (!file.name.toLowerCase().endsWith('.ics')) {
+      toast({
+        title: "Invalid File Type",
         description: "Please select a valid .ics calendar file",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate MIME type if available
+    if (file.type && !allowedMimeTypes.includes(file.type)) {
+      toast({
+        title: "Invalid File Format",
+        description: "File format not supported. Please select a valid .ics file",
         variant: "destructive",
       });
       return;
@@ -39,8 +63,19 @@ export function CalendarImport() {
     setImportResult(null);
 
     try {
-      // Read file content
+      // Read and validate file content
       const fileContent = await file.text();
+      
+      // Basic content validation
+      if (!fileContent.trim()) {
+        throw new Error('File appears to be empty');
+      }
+      
+      // Check for basic iCal structure
+      if (!fileContent.includes('BEGIN:VCALENDAR') || !fileContent.includes('END:VCALENDAR')) {
+        throw new Error('Invalid iCal file format - missing calendar structure');
+      }
+      
       setImportProgress(30);
 
       // Parse iCal events

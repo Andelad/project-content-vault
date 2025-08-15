@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
+import DOMPurify from 'dompurify';
 import { 
   Bold, 
   Italic, 
@@ -27,24 +28,45 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
   const editorRef = useRef<HTMLDivElement>(null);
   const [isFocused, setIsFocused] = useState(false);
 
-  // Initialize editor content
+  // Configure DOMPurify for safe HTML
+  const purifyConfig = {
+    ALLOWED_TAGS: ['p', 'br', 'strong', 'b', 'em', 'i', 'u', 'h1', 'h2', 'h3', 'ul', 'ol', 'li', 'blockquote', 'pre', 'a', 'hr'],
+    ALLOWED_ATTR: ['href', 'target'],
+    ALLOW_DATA_ATTR: false,
+    FORBID_TAGS: ['script', 'object', 'embed', 'form', 'input', 'button'],
+    FORBID_ATTR: ['onclick', 'onload', 'onerror', 'onmouseover', 'style'],
+  };
+
+  // Initialize editor content with sanitization
   useEffect(() => {
     if (editorRef.current && editorRef.current.innerHTML !== value) {
-      editorRef.current.innerHTML = value || '';
+      const sanitizedValue = value ? DOMPurify.sanitize(value, purifyConfig) : '';
+      editorRef.current.innerHTML = sanitizedValue;
     }
   }, [value]);
 
   const handleInput = () => {
     if (editorRef.current) {
       const content = editorRef.current.innerHTML;
-      onChange(content);
+      // Sanitize content before passing to parent
+      const sanitizedContent = DOMPurify.sanitize(content, purifyConfig);
+      onChange(sanitizedContent);
     }
   };
 
   const executeCommand = (command: string, value: string = '') => {
-    document.execCommand(command, false, value);
-    editorRef.current?.focus();
-    handleInput();
+    // Use modern API when available, fallback to execCommand
+    if (editorRef.current) {
+      try {
+        // Sanitize any value input (e.g., URLs)
+        const sanitizedValue = value ? DOMPurify.sanitize(value, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] }) : '';
+        document.execCommand(command, false, sanitizedValue);
+        editorRef.current.focus();
+        handleInput();
+      } catch (error) {
+        console.warn('Command execution failed:', error);
+      }
+    }
   };
 
   const insertHTML = (html: string) => {
@@ -150,7 +172,17 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
       action: () => {
         const url = prompt('Enter URL:');
         if (url) {
-          executeCommand('createLink', url);
+          // Basic URL validation
+          try {
+            const validUrl = new URL(url);
+            if (validUrl.protocol === 'http:' || validUrl.protocol === 'https:') {
+              executeCommand('createLink', url);
+            } else {
+              console.warn('Invalid URL protocol');
+            }
+          } catch (error) {
+            console.warn('Invalid URL format');
+          }
         }
       }
     },
