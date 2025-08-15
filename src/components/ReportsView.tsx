@@ -140,49 +140,64 @@ export function ReportsView() {
   }, [projects, today]);
 
   // Generate time analysis data based on selected timeframe
-  const timeAnalysisData = useMemo(() => {
+  const { timeAnalysisData, headerData } = useMemo(() => {
     const data = [];
     const now = new Date();
     
-    let periods: { label: string; start: Date; end: Date; }[] = [];
+    let periods: { label: string; monthYear: string; year: number; start: Date; end: Date; }[] = [];
     
     if (timeAnalysisTimeFrame === 'week') {
-      // 12 weeks with time offset
+      // 12 weeks with time offset - each offset moves by 1 week
+      const baseDate = new Date(now);
+      baseDate.setDate(baseDate.getDate() + (timeOffset * 7));
+      
       for (let i = 11; i >= 0; i--) {
-        const weekStart = new Date(now);
+        const weekStart = new Date(baseDate);
         // Adjust for Monday start: if day is 0 (Sunday), go back 6 days; otherwise go back (day - 1) days
-        const day = now.getDay();
+        const day = baseDate.getDay();
         const daysToSubtract = day === 0 ? 6 : day - 1;
-        weekStart.setDate(now.getDate() - (i * 7) - daysToSubtract + (timeOffset * 7));
+        weekStart.setDate(baseDate.getDate() - (i * 7) - daysToSubtract);
         const weekEnd = new Date(weekStart);
         weekEnd.setDate(weekStart.getDate() + 6);
         
         periods.push({
-          label: `W${Math.ceil((weekEnd.getTime() - new Date(weekEnd.getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000))} '${weekEnd.getFullYear().toString().slice(-2)}`,
+          label: `${weekStart.getDate()}-${weekEnd.getDate()}`,
+          monthYear: `${weekStart.toLocaleDateString('en-US', { month: 'short' })} ${weekStart.getFullYear()}`,
+          year: weekStart.getFullYear(),
           start: weekStart,
           end: weekEnd
         });
       }
     } else if (timeAnalysisTimeFrame === 'month') {
-      // 12 months with time offset, including year
+      // 12 months with time offset - each offset moves by 1 month
+      const baseMonth = now.getMonth() + timeOffset;
+      const baseYear = now.getFullYear() + Math.floor(baseMonth / 12);
+      const adjustedMonth = ((baseMonth % 12) + 12) % 12; // Handle negative months
+      
       for (let i = 11; i >= 0; i--) {
-        const monthStart = new Date(now.getFullYear(), now.getMonth() - i + timeOffset, 1);
-        const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + timeOffset + 1, 0);
+        const monthStart = new Date(baseYear, adjustedMonth - i, 1);
+        const monthEnd = new Date(baseYear, adjustedMonth - i + 1, 0);
         
         periods.push({
-          label: `${monthStart.toLocaleDateString('en-US', { month: 'short' })} '${monthStart.getFullYear().toString().slice(-2)}`,
+          label: `${monthStart.toLocaleDateString('en-US', { month: 'short' })}`,
+          monthYear: `${monthStart.toLocaleDateString('en-US', { month: 'long' })} ${monthStart.getFullYear()}`,
+          year: monthStart.getFullYear(),
           start: monthStart,
           end: monthEnd
         });
       }
     } else {
-      // 5 years with time offset
+      // 5 years with time offset - each offset moves by 1 year
+      const baseYear = now.getFullYear() + timeOffset;
+      
       for (let i = 4; i >= 0; i--) {
-        const yearStart = new Date(now.getFullYear() - i + timeOffset, 0, 1);
-        const yearEnd = new Date(now.getFullYear() - i + timeOffset, 11, 31);
+        const yearStart = new Date(baseYear - i, 0, 1);
+        const yearEnd = new Date(baseYear - i, 11, 31);
         
         periods.push({
-          label: (now.getFullYear() - i + timeOffset).toString(),
+          label: (baseYear - i).toString(),
+          monthYear: (baseYear - i).toString(),
+          year: baseYear - i,
           start: yearStart,
           end: yearEnd
         });
@@ -248,8 +263,25 @@ export function ReportsView() {
       });
     });
 
-    return data;
-  }, [projects, events, timeAnalysisTimeFrame, weeklyCapacity]);
+    // Generate header data for sticky year headers
+    const headerData = timeAnalysisTimeFrame !== 'year' ? 
+      periods.reduce((acc, period, index) => {
+        const currentYear = period.year;
+        const isFirstOfYear = index === 0 || periods[index - 1].year !== currentYear;
+        
+        if (isFirstOfYear) {
+          acc.push({
+            year: currentYear,
+            startIndex: index,
+            monthYear: timeAnalysisTimeFrame === 'week' ? period.monthYear : undefined
+          });
+        }
+        
+        return acc;
+      }, [] as { year: number; startIndex: number; monthYear?: string }[]) : [];
+
+    return { timeAnalysisData: data, headerData };
+  }, [projects, events, timeAnalysisTimeFrame, weeklyCapacity, timeOffset]);
 
   // Future projects
   const futureProjects = useMemo(() => {
@@ -292,16 +324,7 @@ export function ReportsView() {
                       Available time vs. committed and overbooked hours
                     </CardDescription>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setTimeOffset(prev => prev - 1)}
-                      className="p-2"
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    
+                  <div className="flex items-center gap-4">
                     <Select value={timeAnalysisTimeFrame} onValueChange={(value: TimeFrame) => {
                       setTimeAnalysisTimeFrame(value);
                       setTimeOffset(0); // Reset offset when changing timeframe
@@ -315,24 +338,96 @@ export function ReportsView() {
                         <SelectItem value="year">Yearly</SelectItem>
                       </SelectContent>
                     </Select>
-                    
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setTimeOffset(prev => prev + 1)}
-                      className="p-2"
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
+
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          // Limit backwards navigation: -5 years worth of periods
+                          const maxBackward = timeAnalysisTimeFrame === 'week' ? -260 : timeAnalysisTimeFrame === 'month' ? -60 : -5;
+                          setTimeOffset(prev => Math.max(maxBackward, prev - 1));
+                        }}
+                        className="p-2"
+                        disabled={timeOffset <= (timeAnalysisTimeFrame === 'week' ? -260 : timeAnalysisTimeFrame === 'month' ? -60 : -5)}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setTimeOffset(0)}
+                        className="px-3"
+                      >
+                        Today
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          // Limit forward navigation: +5 years worth of periods
+                          const maxForward = timeAnalysisTimeFrame === 'week' ? 260 : timeAnalysisTimeFrame === 'month' ? 60 : 5;
+                          setTimeOffset(prev => Math.min(maxForward, prev + 1));
+                        }}
+                        className="p-2"
+                        disabled={timeOffset >= (timeAnalysisTimeFrame === 'week' ? 260 : timeAnalysisTimeFrame === 'month' ? 60 : 5)}
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
+                {/* Sticky Year/Month Headers for Week and Month views */}
+                {timeAnalysisTimeFrame !== 'year' && headerData.length > 0 && (
+                  <div className="relative mb-4">
+                    <div className="flex h-8 border-b border-gray-200">
+                      {headerData.map((header, index) => {
+                        const isLastHeader = index === headerData.length - 1;
+                        const nextHeaderStart = isLastHeader ? timeAnalysisData.length : headerData[index + 1].startIndex;
+                        const width = ((nextHeaderStart - header.startIndex) / timeAnalysisData.length) * 100;
+                        
+                        return (
+                          <div
+                            key={`${header.year}-${header.startIndex}`}
+                            className="flex items-center justify-center bg-gray-50 border-r border-gray-200 text-sm font-medium text-gray-700 relative"
+                            style={{ width: `${width}%` }}
+                          >
+                            <div className="absolute left-2 flex items-center gap-2">
+                              <span className="font-semibold">{header.year}</span>
+                              {timeAnalysisTimeFrame === 'week' && header.monthYear && (
+                                <span className="text-xs text-gray-500">{header.monthYear}</span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={timeAnalysisData} maxBarSize={50} barCategoryGap="20%" margin={{ top: 20, right: 60, left: 20, bottom: 5 }}>
+                    <BarChart 
+                      data={timeAnalysisData} 
+                      maxBarSize={50} 
+                      barCategoryGap="20%" 
+                      margin={{ 
+                        top: timeAnalysisTimeFrame !== 'year' ? 10 : 20, 
+                        right: 60, 
+                        left: 20, 
+                        bottom: 5 
+                      }}
+                    >
                       <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="period" />
+                      <XAxis 
+                        dataKey="period" 
+                        tick={{ fontSize: 11 }}
+                        height={40}
+                      />
                       <YAxis />
                       <Tooltip 
                         formatter={(value, name) => {
