@@ -13,6 +13,7 @@ import { DevToolsWrapper } from '@/components/DevTools';
 // Lazy load view components for better performance
 const TimelineView = lazy(() => import('@/components/TimelineView').then(module => ({ default: module.TimelineView })));
 const CalendarView = lazy(() => import('@/components/CalendarView').then(module => ({ default: module.CalendarView })));
+const EnhancedCalendarView = lazy(() => import('@/components/EnhancedCalendarView').then(module => ({ default: module.EnhancedCalendarView })));
 const ProjectsView = lazy(() => import('@/components/ProjectsView').then(module => ({ default: module.ProjectsView })));
 const ReportsView = lazy(() => import('@/components/ReportsView').then(module => ({ default: module.ReportsView })));
 const SettingsView = lazy(() => import('@/components/SettingsView').then(module => ({ default: module.SettingsView })));
@@ -59,7 +60,7 @@ function AppContent() {
       case 'timeline':
         return <TimelineView key={currentView} />;
       case 'calendar':
-        return <CalendarView key={currentView} />;
+        return <EnhancedCalendarView key={currentView} />;
       case 'reports':
         return <ReportsView key={currentView} />;
       case 'settings':

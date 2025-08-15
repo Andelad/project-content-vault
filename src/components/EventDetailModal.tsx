@@ -8,7 +8,8 @@ import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Textarea } from './ui/textarea';
 import { Badge } from './ui/badge';
-import { Calendar, Clock, Tag, X, Palette } from 'lucide-react';
+import { Checkbox } from './ui/checkbox';
+import { Calendar, Clock, Tag, X, Palette, CheckCircle2 } from 'lucide-react';
 
 interface EventDetailModalProps {
   isOpen: boolean;
@@ -40,7 +41,8 @@ export function EventDetailModal({
     startTime: defaultStartTime || new Date(),
     endTime: defaultEndTime || new Date(Date.now() + 60 * 60 * 1000), // 1 hour default
     projectId: '',
-    color: '#6b7280' // Default gray color
+    color: '#6b7280', // Default gray color
+    completed: false
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -59,7 +61,8 @@ export function EventDetailModal({
           startTime: existingEvent.startTime,
           endTime: existingEvent.endTime,
           projectId: existingEvent.projectId || 'none',
-          color: existingEvent.color || '#6b7280'
+          color: existingEvent.color || '#6b7280',
+          completed: existingEvent.completed || false
         });
       } else {
         // Reset for new event
@@ -71,7 +74,8 @@ export function EventDetailModal({
           startTime: now,
           endTime: endTime,
           projectId: 'none',
-          color: '#6b7280'
+          color: '#6b7280',
+          completed: false
         });
       }
       setErrors({});
@@ -130,7 +134,8 @@ export function EventDetailModal({
         endTime: formData.endTime,
         duration,
         projectId: formData.projectId && formData.projectId !== 'none' ? formData.projectId : undefined,
-        color: formData.color
+        color: formData.color,
+        completed: formData.completed
       };
 
       if (isEditing && existingEvent) {
@@ -319,6 +324,19 @@ export function EventDetailModal({
               )}
             </div>
           )}
+
+          {/* Completed Status */}
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="completed"
+              checked={formData.completed}
+              onCheckedChange={(checked) => setFormData(prev => ({ ...prev, completed: !!checked }))}
+            />
+            <Label htmlFor="completed" className="flex items-center gap-2 cursor-pointer">
+              <CheckCircle2 className="w-4 h-4" />
+              Mark as completed
+            </Label>
+          </div>
 
           {/* Description */}
           <div className="space-y-2">
