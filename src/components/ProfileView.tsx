@@ -195,9 +195,12 @@ export function ProfileView() {
           display_name: profile.display_name,
           email: user?.email,
           avatar_url: profile.avatar_url
+        }, {
+          onConflict: 'user_id'
         });
 
       if (error) {
+        console.error('Profile update error:', error);
         toast({
           title: "Error",
           description: error.message,
@@ -208,8 +211,11 @@ export function ProfileView() {
           title: "Success",
           description: "Profile updated successfully",
         });
+        // Refresh the profile data
+        await fetchProfile();
       }
     } catch (error: any) {
+      console.error('Profile update catch error:', error);
       toast({
         title: "Error",
         description: error.message,
@@ -286,6 +292,8 @@ export function ProfileView() {
           display_name: profile?.display_name || user.email?.split('@')[0],
           email: user.email,
           avatar_url: data.publicUrl
+        }, {
+          onConflict: 'user_id'
         });
 
       if (updateError) {
