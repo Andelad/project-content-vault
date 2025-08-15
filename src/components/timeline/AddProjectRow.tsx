@@ -41,15 +41,21 @@ export function AddProjectRow({ groupId, dates = [] }: AddProjectRowProps) {
 interface TimelineAddProjectRowProps {
   groupId: string;
   dates: Date[];
+  mode?: 'days' | 'weeks'; // Add mode support
 }
 
-export function TimelineAddProjectRow({ groupId, dates }: TimelineAddProjectRowProps) {
+export function TimelineAddProjectRow({ groupId, dates, mode = 'days' }: TimelineAddProjectRowProps) {
   const { setCreatingNewProject } = useApp();
   const [hoverBar, setHoverBar] = useState<{ visible: boolean; left: number; dayIndex: number; dayCount: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragState, setDragState] = useState<{ startX: number; startDayIndex: number; currentDayCount: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Get column width based on mode
+  const columnWidth = mode === 'weeks' ? 72 : 40;
+  const gap = mode === 'weeks' ? 0 : 1; // No gaps in weeks mode
+  const defaultSpan = mode === 'weeks' ? 2 : 5; // 2 weeks or 5 days
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -68,14 +74,14 @@ export function TimelineAddProjectRow({ groupId, dates }: TimelineAddProjectRowP
     
     // Helper function to get column position accounting for gaps
     const getColumnLeftPosition = (index: number) => {
-      return (index * 40) + (index * 1); // 40px per column + 1px gap per column before this one
+      return (index * columnWidth) + (index * gap); // Column width plus gaps
     };
     
     // Find the day index based on x position (accounting for gaps)
     let dayIndex = 0;
     for (let i = 0; i < dates.length; i++) {
       const columnLeft = getColumnLeftPosition(i);
-      const columnRight = columnLeft + 40;
+      const columnRight = columnLeft + columnWidth;
       if (x >= columnLeft && x < columnRight) {
         dayIndex = i;
         break;
@@ -117,10 +123,10 @@ export function TimelineAddProjectRow({ groupId, dates }: TimelineAddProjectRowP
       }
     } else {
       // Normal hover behavior
-      const clampedDayIndex = Math.max(0, Math.min(dayIndex, dates.length - 5));
+      const clampedDayIndex = Math.max(0, Math.min(dayIndex, dates.length - defaultSpan));
       const left = getColumnLeftPosition(clampedDayIndex);
 
-      setHoverBar({ visible: true, left, dayIndex: clampedDayIndex, dayCount: 5 });
+      setHoverBar({ visible: true, left, dayIndex: clampedDayIndex, dayCount: defaultSpan });
     }
   };
 
@@ -150,7 +156,7 @@ export function TimelineAddProjectRow({ groupId, dates }: TimelineAddProjectRowP
     let clickedDayIndex = 0;
     for (let i = 0; i < dates.length; i++) {
       const columnLeft = getColumnLeftPosition(i);
-      const columnRight = columnLeft + 40;
+      const columnRight = columnLeft + columnWidth;
       if (x >= columnLeft && x < columnRight) {
         clickedDayIndex = i;
         break;
@@ -168,14 +174,14 @@ export function TimelineAddProjectRow({ groupId, dates }: TimelineAddProjectRowP
     const currentDragState = {
       startX: e.clientX,
       startDayIndex: clampedStartDayIndex,
-      currentDayCount: 5 // Start with 5 days initially
+      currentDayCount: defaultSpan // Start with default span initially
     };
     
     setDragState(currentDragState);
 
-    // Set initial bar position with 5-day span from click position
+    // Set initial bar position with default span from click position
     const left = getColumnLeftPosition(clampedStartDayIndex);
-    const initialDayCount = Math.min(5, dates.length - clampedStartDayIndex);
+    const initialDayCount = Math.min(defaultSpan, dates.length - clampedStartDayIndex);
     setHoverBar({ 
       visible: true, 
       left, 
@@ -193,7 +199,7 @@ export function TimelineAddProjectRow({ groupId, dates }: TimelineAddProjectRowP
       let currentDayIndex = 0;
       for (let i = 0; i < dates.length; i++) {
         const columnLeft = getColumnLeftPosition(i);
-        const columnRight = columnLeft + 40;
+        const columnRight = columnLeft + columnWidth;
         if (x >= columnLeft && x < columnRight) {
           currentDayIndex = i;
           break;
@@ -240,8 +246,18 @@ export function TimelineAddProjectRow({ groupId, dates }: TimelineAddProjectRowP
       if (hoverBar && dates.length > 0) {
         // Calculate date range and open modal
         const startDate = new Date(dates[hoverBar.dayIndex]);
-        const endDateIndex = Math.min(hoverBar.dayIndex + hoverBar.dayCount - 1, dates.length - 1);
-        const endDate = new Date(dates[endDateIndex]);
+        let endDate: Date;
+        
+        if (mode === 'weeks') {
+          // For weeks mode, end date should be the end of the last week
+          const endWeekStart = new Date(dates[Math.min(hoverBar.dayIndex + hoverBar.dayCount - 1, dates.length - 1)]);
+          endDate = new Date(endWeekStart);
+          endDate.setDate(endWeekStart.getDate() + 6); // End of week
+        } else {
+          // Days mode - use the actual end date
+          const endDateIndex = Math.min(hoverBar.dayIndex + hoverBar.dayCount - 1, dates.length - 1);
+          endDate = new Date(dates[endDateIndex]);
+        }
         
         setCreatingNewProject(groupId, { startDate, endDate });
       }
@@ -268,14 +284,26 @@ export function TimelineAddProjectRow({ groupId, dates }: TimelineAddProjectRowP
 
     // Calculate date range starting from hovered day
     const startDate = new Date(dates[hoverBar.dayIndex]);
-    const endDateIndex = Math.min(hoverBar.dayIndex + hoverBar.dayCount - 1, dates.length - 1);
-    const endDate = new Date(dates[endDateIndex]);
+    let endDate: Date;
+    
+    if (mode === 'weeks') {
+      // For weeks mode, end date should be the end of the last week
+      const endWeekStart = new Date(dates[Math.min(hoverBar.dayIndex + hoverBar.dayCount - 1, dates.length - 1)]);
+      endDate = new Date(endWeekStart);
+      endDate.setDate(endWeekStart.getDate() + 6); // End of week
+    } else {
+      // Days mode - use the actual end date
+      const endDateIndex = Math.min(hoverBar.dayIndex + hoverBar.dayCount - 1, dates.length - 1);
+      endDate = new Date(dates[endDateIndex]);
+    }
 
     setCreatingNewProject(groupId, { startDate, endDate });
   };
 
-  const dayWidth = 40; // Fixed column width
-  const barWidth = hoverBar ? (hoverBar.dayCount * 40) + ((hoverBar.dayCount - 1) * 1) : (5 * 40) + (4 * 1); // Account for gaps between days
+  const dayWidth = columnWidth; // Column width based on mode
+  const barWidth = hoverBar 
+    ? (hoverBar.dayCount * columnWidth) + ((hoverBar.dayCount - 1) * gap) 
+    : (defaultSpan * columnWidth) + ((defaultSpan - 1) * gap); // Account for gaps
 
   return (
     <div 
@@ -283,7 +311,7 @@ export function TimelineAddProjectRow({ groupId, dates }: TimelineAddProjectRowP
       className={`h-[52px] border-b border-gray-100 relative transition-colors ${ 
         isDragging ? 'cursor-grabbing' : 'cursor-pointer hover:bg-gray-50/30'
       }`}
-      style={{ minWidth: `${dates.length * 40}px` }}
+      style={{ minWidth: `${dates.length * columnWidth}px` }}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       onMouseDown={handleMouseDown}
@@ -691,7 +719,7 @@ function HolidayColumn({
       
       {/* Umbrella symbol for empty columns - don't show during holiday drag operations */}
       {!isOccupied && (isHovered || isInCreationRange) && !holiday && !(isDragging && dragState?.holidayId) && (
-        <Tooltip>
+        <Tooltip delayDuration={100}>
           <TooltipTrigger asChild>
             <Button
               variant="ghost"

@@ -169,11 +169,11 @@ export const TimelineBar = memo(function TimelineBar({
   }
   
   return (
-    <div className="relative h-[52px] group">
-      <div className="h-full relative flex flex-col">
+    <div className="relative h-[52px] group pointer-events-none">
+      <div className="h-full relative flex flex-col pointer-events-none">
         {/* Project rectangles area - positioned to rest bottom edge on top of baseline */}
         <div 
-          className="flex w-full relative z-20 flex-1" 
+          className="flex w-full relative z-20 flex-1 pointer-events-none" 
           style={{ 
             minWidth: `${dates.length * (mode === 'weeks' ? 72 : 40)}px`
           }}
@@ -247,10 +247,10 @@ export const TimelineBar = memo(function TimelineBar({
                       const leftPosition = dayWidths.slice(0, dayOfWeek).reduce((sum, w) => sum + w, 0);
                       
                       return (
-                        <Tooltip key={dayOfWeek}>
+                        <Tooltip key={dayOfWeek} delayDuration={100}>
                           <TooltipTrigger asChild>
                             <div
-                              className={`cursor-move relative ${
+                              className={`cursor-move relative pointer-events-auto ${
                                 isDragging && dragState?.projectId === project.id 
                                   ? 'opacity-90' 
                                   : ''
@@ -505,10 +505,10 @@ export const TimelineBar = memo(function TimelineBar({
               
               return (
                 <div key={dateIndex} className="flex items-end h-full" style={{ minWidth: '40px', width: '40px' }}>
-                  <Tooltip>
+                  <Tooltip delayDuration={100}>
                     <TooltipTrigger asChild>
                       <div 
-                        className={`cursor-move relative ${ 
+                        className={`cursor-move relative pointer-events-auto ${ 
                           isDragging && dragState?.projectId === project.id 
                             ? 'opacity-90' 
                             : ''
@@ -658,7 +658,7 @@ export const TimelineBar = memo(function TimelineBar({
             <div className="relative flex w-full h-[8px] z-20" style={{ overflow: 'visible' }}>
               {/* Baseline line using absolute pixel positioning like HolidayOverlay */}
               <div 
-                className="absolute top-0 h-[3px] z-20 cursor-move hover:opacity-80"
+                className="absolute top-0 h-[3px] z-20 cursor-move hover:opacity-80 pointer-events-auto"
                 style={{ 
                   backgroundColor: baselineColor,
                   left: `${positions.baselineStartPx}px`, // Use exact positioning without artificial constraints in weeks mode
@@ -673,7 +673,7 @@ export const TimelineBar = memo(function TimelineBar({
               
               {/* Start date drag circle - center it at the left edge of start column */}
               <div 
-                className="absolute w-[11px] h-[11px] rounded-full shadow-sm cursor-ew-resize z-30"
+                className="absolute w-[11px] h-[11px] rounded-full shadow-sm cursor-ew-resize z-30 pointer-events-auto"
                 style={{ 
                   backgroundColor: baselineColor,
                   left: `${positions.circleLeftPx - 5.5}px`, // Center circle at left edge of start column
@@ -688,7 +688,7 @@ export const TimelineBar = memo(function TimelineBar({
               
               {/* Project Icon Indicator - positioned above the start circle, becomes sticky when scrolling off-screen */}
               <div 
-                className="absolute z-40"
+                className="absolute z-40 pointer-events-auto"
                 style={{ 
                   left: `${Math.max(positions.circleLeftPx - 12, 8)}px`, // Stick with 8px gap from left edge when scrolling off-screen
                   top: '-32px' // Position above the start circle
@@ -699,7 +699,7 @@ export const TimelineBar = memo(function TimelineBar({
               
               {/* End date drag triangle - align right edge with right edge of end column */}
               <div 
-                className="absolute cursor-ew-resize z-30"
+                className="absolute cursor-ew-resize z-30 pointer-events-auto"
                 style={{ 
                   left: `${positions.triangleLeftPx - 7}px`, // Position triangle so right edge aligns with right edge of end column
                   top: '-4px',

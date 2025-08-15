@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, Clock, User, Palette, X, Trash2, Info, Folder, Briefcase, Zap, Target, Lightbulb, Rocket, Star, Heart, Gift, Music, Camera, Code, Book, Gamepad2, Coffee, Home, Building, Car, Plane, Map, Globe } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, User, Palette, X, Trash2, Info, Folder, Briefcase, Zap, Target, Lightbulb, Rocket, Star, Heart, Gift, Music, Camera, Code, Book, Gamepad2, Coffee, Home, Building, Car, Plane, Map, Globe } from 'lucide-react';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Badge } from './ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Calendar } from './ui/calendar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { RichTextEditor } from './RichTextEditor';
@@ -439,37 +440,40 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
     property: string;
     placeholder?: string;
   }) => {
-    const isEditing = editingProperty === property;
+    const [isOpen, setIsOpen] = useState(false);
+    
+    const formatDate = (date: Date) => {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return `${months[date.getMonth()]} ${date.getDate()}`;
+    };
     
     return (
-      <div className="group relative">
-        {isEditing ? (
-          <Input
-            type="date"
-            defaultValue={formatDateForInput(value)}
-            className="w-32 h-8 text-sm border-border bg-background"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                const newValue = new Date((e.target as HTMLInputElement).value);
-                handleSaveProperty(property, newValue);
-              } else if (e.key === 'Escape') {
-                setEditingProperty(null);
-              }
-            }}
-            onBlur={(e) => {
-              const newValue = new Date(e.target.value);
-              handleSaveProperty(property, newValue);
-            }}
-            autoFocus
-          />
-        ) : (
-          <button
-            className="px-3 py-1 text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer rounded border border-transparent hover:border-border hover:bg-muted/50"
-            onClick={() => setEditingProperty(property)}
-          >
-            {formatDate(value)}
-          </button>
-        )}
+      <div className="w-32">
+        <Popover open={isOpen} onOpenChange={setIsOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className="w-full h-8 text-sm justify-start text-left font-normal"
+            >
+              <CalendarIcon className="mr-2 h-3 w-3" />
+              {formatDate(value)}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={value}
+              onSelect={(selectedDate) => {
+                if (selectedDate) {
+                  handleSaveProperty(property, selectedDate);
+                  setIsOpen(false);
+                }
+              }}
+              initialFocus
+            />
+          </PopoverContent>
+        </Popover>
       </div>
     );
   };
@@ -536,23 +540,46 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
     const isEditing = editingProperty === property;
     
     return (
-      <div className="group">
-        <div className="flex items-center gap-2 mb-1">
-          <Icon className="w-4 h-4 text-gray-400" />
-          <Label className="text-sm text-gray-600">{label}</Label>
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <Icon className="w-4 h-4 text-muted-foreground" />
+          <Label className="text-sm font-medium">{label}</Label>
         </div>
-        {isEditing ? (
+        
+        {type === 'date' ? (
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className="w-full justify-start text-left font-normal"
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {formatDate(value)}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={value}
+                onSelect={(selectedDate) => {
+                  if (selectedDate) {
+                    handleSaveProperty(property, selectedDate);
+                  }
+                }}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+        ) : isEditing ? (
           <Input
             type={type}
-            defaultValue={type === 'date' ? formatDateForInput(value) : value}
-            className={`w-full ${type === 'date' ? 'cursor-pointer' : ''}`}
+            defaultValue={value}
+            className="w-full"
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 let newValue;
                 if (type === 'number') {
                   newValue = parseInt((e.target as HTMLInputElement).value) || 0;
-                } else if (type === 'date') {
-                  newValue = new Date((e.target as HTMLInputElement).value);
                 } else {
                   newValue = (e.target as HTMLInputElement).value;
                 }
@@ -565,8 +592,6 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
               let newValue;
               if (type === 'number') {
                 newValue = parseInt(e.target.value) || 0;
-              } else if (type === 'date') {
-                newValue = new Date(e.target.value);
               } else {
                 newValue = e.target.value;
               }
@@ -576,19 +601,13 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
           />
         ) : (
           <div 
-            className={`w-full p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors border border-transparent hover:border-gray-200 ${type === 'date' ? 'hover:border-blue-300' : ''}`}
+            className="w-full p-3 bg-background border border-input rounded-md cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors"
             onClick={() => setEditingProperty(property)}
           >
-            <div className={`text-sm text-gray-900 ${type === 'date' ? 'font-medium' : ''}`}>
+            <div className="text-sm">
               {type === 'number' ? `${value} hours` : 
-               type === 'date' ? formatDate(value) : 
                value || 'Click to add...'}
             </div>
-            {type === 'date' && (
-              <div className="text-xs text-gray-500 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                Click to edit date
-              </div>
-            )}
           </div>
         )}
       </div>
@@ -809,7 +828,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
               value={metrics.plannedTime}
               showInfo={true}
               tooltip="Planned time is time that has been added to your calendar and connected to this project"
-              actionIcon={<Calendar className="w-3 h-3" />}
+              actionIcon={<CalendarIcon className="w-3 h-3" />}
               onActionClick={() => {
                 setCurrentView('calendar');
                 handleClose();

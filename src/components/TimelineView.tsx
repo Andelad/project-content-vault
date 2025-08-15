@@ -5,7 +5,9 @@ import { TooltipProvider } from './ui/tooltip';
 import { Card } from './ui/card';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 import { Button } from './ui/button';
-import { ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Calendar } from './ui/calendar';
+import { ChevronLeft, ChevronRight, MapPin, CalendarSearch } from 'lucide-react';
 import { useAppDataOnly, useAppActionsOnly, useApp } from '../contexts/AppContext';
 import { useTimelineData } from '../hooks/useTimelineData';
 import { useDynamicViewportDays } from '../hooks/useDynamicViewportDays';
@@ -25,7 +27,6 @@ import { AvailabilityCircles } from './timeline/AvailabilityCircles';
 import { TimelineScrollbar } from './timeline/TimelineScrollbar';
 import { HoverableTimelineScrollbar } from './timeline/HoverableTimelineScrollbar';
 import { TimelineAddProjectRow, AddHolidayRow } from './timeline/AddProjectRow';
-import { HoverAddProjectBar } from './timeline/HoverAddProjectBar';
 import { SmartHoverAddProjectBar } from './timeline/SmartHoverAddProjectBar';
 import { PerformanceStatus } from './PerformanceStatus';
 
@@ -60,6 +61,7 @@ export function TimelineView() {
   const [dragState, setDragState] = useState<any>(null);
   const [isAnimating, setIsAnimating] = useState(false);
   const [timelineMode, setTimelineMode] = useState<'days' | 'weeks'>('days');
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
   // Auto-scroll state for drag operations
   const [autoScrollState, setAutoScrollState] = useState<{
@@ -166,6 +168,49 @@ export function TimelineView() {
       () => {
         setViewportStart(targetViewportStart);
         setCurrentDate(today);
+        setIsAnimating(false);
+      }
+    );
+  }, [viewportStart, setCurrentDate, isAnimating, VIEWPORT_DAYS]);
+
+  const handleDateSelect = useCallback((selectedDate: Date | undefined) => {
+    if (!selectedDate || isAnimating) return;
+    
+    // Normalize the selected date
+    const normalizedDate = new Date(selectedDate);
+    normalizedDate.setHours(0, 0, 0, 0);
+    
+    // Calculate target viewport start to center the selected date
+    const targetViewportStart = new Date(normalizedDate);
+    targetViewportStart.setDate(normalizedDate.getDate() - Math.floor(VIEWPORT_DAYS / 4));
+    
+    const currentStart = viewportStart.getTime();
+    const targetStart = targetViewportStart.getTime();
+    const daysDifference = Math.abs((targetStart - currentStart) / (24 * 60 * 60 * 1000));
+    
+    // Close the date picker
+    setIsDatePickerOpen(false);
+    
+    if (daysDifference < 1) {
+      setViewportStart(targetViewportStart);
+      setCurrentDate(normalizedDate);
+      return;
+    }
+    
+    setIsAnimating(true);
+    const animationDuration = Math.min(
+      TIMELINE_CONSTANTS.SCROLL_ANIMATION_MAX_DURATION, 
+      daysDifference * TIMELINE_CONSTANTS.SCROLL_ANIMATION_MS_PER_DAY
+    );
+    
+    createSmoothAnimation(
+      currentStart,
+      targetStart,
+      animationDuration,
+      (intermediateStart) => setViewportStart(intermediateStart),
+      () => {
+        setViewportStart(targetViewportStart);
+        setCurrentDate(normalizedDate);
         setIsAnimating(false);
       }
     );
@@ -510,24 +555,21 @@ export function TimelineView() {
 
   // Handle creating projects from hover drag - opens modal for confirmation
   const handleCreateProject = useCallback((rowId: string, startDate: Date, endDate: Date) => {
+  console.log('🎯 TimelineView.handleCreateProject called with rowId:', rowId, 'startDate:', startDate, 'endDate:', endDate);
+  console.log('🎯 DETAILED: startDate ISO:', startDate.toISOString(), 'endDate ISO:', endDate.toISOString());
     const row = rows.find(r => r.id === rowId);
-    if (!row) return;
-
-    // Check for overlaps with existing projects in the same row
-    const overlaps = checkProjectOverlap(
-      'new-project', // Temporary ID for new project
-      rowId,
-      startDate,
-      endDate,
-      projects
-    );
-
-    // If there are overlaps, don't open modal
-    if (overlaps.length > 0) {
-      console.warn('Cannot create project: overlaps with existing projects in the same row');
+    if (!row) {
+      console.error('❌ Row not found for rowId:', rowId);
       return;
     }
 
+  console.log('✅ Found row:', row, 'groupId:', row.groupId);
+
+    // REMOVED: Competing overlap check - SmartHoverAddProjectBar already validated this is safe
+    // SmartHoverAddProjectBar prevents creation in occupied spaces, so we trust its validation
+
+  console.log('🚀 Opening project creation modal with rowId:', rowId, 'groupId:', row.groupId, 'dates:', { startDate, endDate });
+  console.log('🚀 DETAILED: About to call setCreatingNewProject with startDate ISO:', startDate.toISOString(), 'endDate ISO:', endDate.toISOString());
     // Open the project creation modal with the selected dates and row
     setCreatingNewProject(row.groupId, { startDate, endDate }, rowId);
   }, [rows, setCreatingNewProject, projects]);
@@ -568,6 +610,22 @@ export function TimelineView() {
                   <MapPin className="w-4 h-4" />
                   Today
                 </Button>
+                
+                <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="icon" className="h-9 w-9">
+                      <CalendarSearch className="w-4 h-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={currentDate}
+                      onSelect={handleDateSelect}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
 
               {/* Navigation Controls */}
@@ -674,37 +732,44 @@ export function TimelineView() {
                                 
                                 return (
                                   <div key={row.id} className="h-[52px] border-b border-gray-100 relative">
-                                    {/* Height enforcer - ensures row maintains 52px height even when empty */}
-                                    <div className="absolute inset-0 min-h-[52px]" />
-                                    
-                                    {/* Render all projects in this row */}
-                                    {rowProjects.map((project: any) => {
-                                      // Always render TimelineBar to maintain consistent positioning
-                                      // TimelineBar will handle visibility internally
-                                      return (
-                                        <TimelineBar
-                                          key={project.id}
-                                          project={project}
-                                          dates={dates}
-                                          viewportStart={viewportStart}
-                                          viewportEnd={viewportEnd}
-                                          isDragging={isDragging}
-                                          dragState={dragState}
-                                          handleMouseDown={handleMouseDown}
-                                          mode={mode}
-                                          isMultiProjectRow={true} // Add flag for multi-project rows
-                                          collapsed={collapsed}
-                                        />
-                                      );
-                                    })}
-                                    
-                                    {/* Smart Hover Add Project Bar - shows on all rows, detects available spaces */}
-                                    <SmartHoverAddProjectBar
-                                      rowId={row.id}
-                                      dates={dates}
-                                      projects={rowProjects}
-                                      onCreateProject={handleCreateProject}
-                                    />
+                                    {/* Container for projects in this row - fixed height with absolute positioned children */}
+                                    <div className="relative h-[52px]">
+                                      {/* Height enforcer - ensures row maintains 52px height even when empty */}
+                                      <div className="absolute inset-0 min-h-[52px]" />
+                                      
+                                      {/* Render all projects in this row - positioned absolutely to overlay */}
+                                      {rowProjects.map((project: any) => {
+                                        // Always render TimelineBar to maintain consistent positioning
+                                        // TimelineBar will handle visibility internally
+                                        console.log(`🎨 RENDERING: Project "${project.name}" in row "${row.name}" (${row.id})`);
+                                        return (
+                                          <div key={project.id} className="absolute inset-0 pointer-events-none">
+                                            <TimelineBar
+                                              project={project}
+                                              dates={dates}
+                                              viewportStart={viewportStart}
+                                              viewportEnd={viewportEnd}
+                                              isDragging={isDragging}
+                                              dragState={dragState}
+                                              handleMouseDown={handleMouseDown}
+                                              mode={mode}
+                                              isMultiProjectRow={true} // Add flag for multi-project rows
+                                              collapsed={collapsed}
+                                            />
+                                          </div>
+                                        );
+                                      })}
+                                      
+                                      {/* Smart Hover Add Project Bar - positioned within same container as projects */}
+                                      <SmartHoverAddProjectBar
+                                        rowId={row.id}
+                                        dates={dates}
+                                        projects={rowProjects}
+                                        onCreateProject={handleCreateProject}
+                                        mode={mode}
+                                        isDragging={isDragging}
+                                      />
+                                    </div>
                                   </div>
                                 );
                               })}

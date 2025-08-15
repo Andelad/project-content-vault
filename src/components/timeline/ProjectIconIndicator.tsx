@@ -52,7 +52,7 @@ export function ProjectIconIndicator({ project, mode = 'days' }: ProjectIconIndi
   };
   
   return (
-    <Tooltip>
+    <Tooltip delayDuration={100}>
       <TooltipTrigger asChild>
         <button
           className="relative w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200 shadow-md hover:shadow-lg drop-shadow-sm"

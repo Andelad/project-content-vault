@@ -339,162 +339,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   ]);
 
-  // Data integrity check - runs once on initialization
+  // Data integrity check - DISABLED to prevent project jumping
+  // This was automatically moving newly created projects to different rows
+  // even when SmartHoverAddProjectBar had already validated placement
   useEffect(() => {
+    console.log('⚠️ DATA INTEGRITY CHECK DISABLED - Was causing project jumping');
+    console.log('ℹ️ If manual cleanup is needed, check for overlapping projects manually');
     
-    // DEBUG: Log all projects and their group/row assignments
-    console.log('🚨 DATA DEBUG - All Projects:');
+    // Only log project data for debugging, no automatic moves
+    console.log('📋 Current Projects:');
     projects.forEach(project => {
-      console.log(`  - "${project.name}" (${project.id}):`);
-      console.log(`    groupId: ${project.groupId}`);
-      console.log(`    rowId: ${project.rowId}`);
-      console.log(`    dates: ${new Date(project.startDate).toDateString()} - ${new Date(project.endDate).toDateString()}`);
+      console.log(`  - "${project.name}": ${project.groupId} → ${project.rowId}`);
+      console.log(`    ${new Date(project.startDate).toDateString()} - ${new Date(project.endDate).toDateString()}`);
     });
     
-    console.log('🚨 DATA DEBUG - All Groups:');
-    groups.forEach(group => {
-      console.log(`  - "${group.name}" (${group.id})`);
-    });
-    
-    console.log('🚨 DATA DEBUG - All Rows:');
-    rows.forEach(row => {
-      console.log(`  - "${row.name}" (${row.id}) in group ${row.groupId}`);
-    });
-    
-    // CLEANUP: Fix any data corruption issues
-    let needsCleanup = false;
-    const cleanedProjects = projects.map(project => {
-      // Ensure every project has a valid groupId and rowId
-      if (!project.groupId || !groups.some(g => g.id === project.groupId)) {
-        console.warn(`🔧 FIXING: Project "${project.name}" has invalid groupId "${project.groupId}", assigning to work-group`);
-        needsCleanup = true;
-        return { ...project, groupId: 'work-group', rowId: 'work-row-1' };
-      }
-      
-      if (!project.rowId || !rows.some(r => r.id === project.rowId && r.groupId === project.groupId)) {
-        console.warn(`🔧 FIXING: Project "${project.name}" has invalid rowId "${project.rowId}" for group "${project.groupId}", assigning to first row in group`);
-        const firstRowInGroup = rows.find(r => r.groupId === project.groupId);
-        needsCleanup = true;
-        return { ...project, rowId: firstRowInGroup?.id || 'work-row-1' };
-      }
-      
-      return project;
-    });
-    
-    // Check for overlapping projects in each row and separate them
-    const finalProjects = [...cleanedProjects];
-    
-    rows.forEach(row => {
-      const rowProjects = finalProjects.filter(p => p.rowId === row.id && p.groupId === row.groupId)
-        .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
-      
-      if (rowProjects.length > 1) {
-        // Check each pair of projects in this row for overlaps
-        for (let i = 0; i < rowProjects.length; i++) {
-          for (let j = i + 1; j < rowProjects.length; j++) {
-            const projectA = rowProjects[i];
-            const projectB = rowProjects[j];
-            
-            if (datesOverlap(
-              new Date(projectA.startDate),
-              new Date(projectA.endDate),
-              new Date(projectB.startDate),
-              new Date(projectB.endDate)
-            )) {
-              console.warn(`🔧 FIXING OVERLAP: "${projectA.name}" and "${projectB.name}" overlap in row "${row.name}"`);
-              
-              // Find or create a new row in the same group for the overlapping project
-              const groupRows = rows.filter(r => r.groupId === row.groupId).sort((a, b) => a.order - b.order);
-              let targetRow = groupRows.find(r => {
-                const existingProjects = finalProjects.filter(p => p.rowId === r.id && p.id !== projectB.id);
-                return !existingProjects.some(p => datesOverlap(
-                  new Date(projectB.startDate),
-                  new Date(projectB.endDate),
-                  new Date(p.startDate),
-                  new Date(p.endDate)
-                ));
-              });
-              
-              if (!targetRow) {
-                // Create a new row in the same group
-                const newRowId = `${row.groupId}-row-${Date.now()}`;
-                const newRow = {
-                  id: newRowId,
-                  groupId: row.groupId,
-                  name: `Row ${groupRows.length + 1}`,
-                  order: groupRows.length + 1
-                };
-                
-                console.log(`🔧 CREATING NEW ROW: "${newRow.name}" in group "${row.groupId}" for project "${projectB.name}"`);
-                setRows(prev => [...prev, newRow]);
-                targetRow = newRow;
-              }
-              
-              // Move projectB to the target row
-              const projectIndex = finalProjects.findIndex(p => p.id === projectB.id);
-              if (projectIndex !== -1) {
-                finalProjects[projectIndex] = { ...projectB, rowId: targetRow.id };
-                needsCleanup = true;
-                console.log(`🔧 MOVED: "${projectB.name}" to row "${targetRow.name}"`);
-              }
-            }
-          }
-        }
-      }
-    });
-    
-    // Apply cleanup if needed
-    if (needsCleanup) {
-      console.log('🔧 APPLYING DATA CLEANUP...');
-      setProjects(finalProjects);
-    }
-    
-    // Final overlap check after cleanup
-    const overlappingProjects = [];
-    
-    rows.forEach(row => {
-      const rowProjects = finalProjects.filter(p => p.rowId === row.id);
-      
-      if (rowProjects.length > 1) {
-        for (let i = 0; i < rowProjects.length; i++) {
-          for (let j = i + 1; j < rowProjects.length; j++) {
-            const projectA = rowProjects[i];
-            const projectB = rowProjects[j];
-            
-            if (datesOverlap(
-              new Date(projectA.startDate),
-              new Date(projectA.endDate),
-              new Date(projectB.startDate),
-              new Date(projectB.endDate)
-            )) {
-              overlappingProjects.push({
-                rowId: row.id,
-                rowName: row.name,
-                groupName: groups.find(g => g.id === row.groupId)?.name || 'Unknown Group',
-                projectA: { id: projectA.id, name: projectA.name, startDate: projectA.startDate, endDate: projectA.endDate },
-                projectB: { id: projectB.id, name: projectB.name, startDate: projectB.startDate, endDate: projectB.endDate }
-              });
-            }
-          }
-        }
-      }
-    });
-    
-    if (overlappingProjects.length > 0) {
-      console.error('🚨 REMAINING DATA INTEGRITY ISSUES: Found overlapping projects after cleanup:');
-      overlappingProjects.forEach(overlap => {
-        console.error(`- Row "${overlap.rowName}" in ${overlap.groupName}:`);
-        console.error(`  "${overlap.projectA.name}" (${new Date(overlap.projectA.startDate).toDateString()} - ${new Date(overlap.projectA.endDate).toDateString()})`);
-        console.error(`  "${overlap.projectB.name}" (${new Date(overlap.projectB.startDate).toDateString()} - ${new Date(overlap.projectB.endDate).toDateString()})`);
-      });
-      
-      alert(`⚠️ Data Integrity Issue: Found ${overlappingProjects.length} overlapping project${overlappingProjects.length > 1 ? 's' : ''} in shared rows even after cleanup. Please check the console for details.`);
-    } else {
-      console.log('✅ DATA INTEGRITY CHECK PASSED: No overlapping projects found');
-    }
-  }, []);
+    // DISABLED: All automatic cleanup logic that was moving projects
+    // const cleanedProjects = projects.map(project => { ... });
+    // Auto-moving logic removed to prevent interference with user intentions
+  }, [projects.length]); // Only run when number of projects changes
 
   const addProject = useCallback((projectData: Omit<Project, 'id'>) => {
+    console.log('📝 AppContext.addProject called with FULL DATA:', projectData);
+    console.log('📝 DETAILED: startDate ISO:', projectData.startDate.toISOString(), 'endDate ISO:', projectData.endDate.toISOString());
+    console.log('📝 DETAILED: rowId received:', projectData.rowId, 'groupId received:', projectData.groupId);
     // Check project limit for the group
     const projectsInGroup = projects.filter(p => p.groupId === projectData.groupId).length;
     if (projectsInGroup >= PERFORMANCE_LIMITS.MAX_PROJECTS_PER_GROUP) {
@@ -502,29 +369,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Check for overlaps if rowId is provided
-    if (projectData.rowId) {
-      const overlaps = checkProjectOverlap(
-        'new-project',
-        projectData.rowId,
-        projectData.startDate,
-        projectData.endDate,
-        projects
-      );
-      
-      if (overlaps.length > 0) {
-        console.error('Cannot add project: Overlaps with existing projects in the same row:', overlaps);
-        alert(`Cannot add project: It would overlap with "${overlaps[0].name}" in the same row. Projects in the same row cannot have overlapping dates.`);
-        return;
-      }
-    }
+    // REMOVED: Third competing overlap check - SmartHoverAddProjectBar already validated this
+    // Trust the UI component's validation instead of re-checking here
 
     const newProject: Project = {
       ...projectData,
       id: Date.now().toString(),
       color: projectData.color || getNextProjectColor()
     };
+    
+    console.log('📝 FINAL: newProject being added:', {
+      id: newProject.id,
+      name: newProject.name,
+      rowId: newProject.rowId,
+      groupId: newProject.groupId,
+      startDate: newProject.startDate.toISOString(),
+      endDate: newProject.endDate.toISOString()
+    });
+    
     setProjects(prev => [...prev, newProject]);
+    return true; // Return success so modal closes
   }, [projects]);
 
   const updateProject = useCallback((id: string, updates: Partial<Project>) => {

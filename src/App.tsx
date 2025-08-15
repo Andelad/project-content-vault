@@ -105,7 +105,11 @@ function AppContent() {
           isOpen={!!creatingNewProject}
           onClose={() => setCreatingNewProject(null)}
           groupId={creatingNewProject?.groupId || ''}
-          rowId={creatingNewProject?.rowId || ''}
+          rowId={(() => {
+            console.log('📋 App.tsx: creatingNewProject:', creatingNewProject);
+            console.log('📋 App.tsx: rowId being passed to modal:', creatingNewProject?.rowId);
+            return creatingNewProject?.rowId;
+          })()}
         />
 
         <EventDetailModal
