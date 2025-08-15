@@ -38,6 +38,12 @@ export interface CalendarEvent {
   completed?: boolean; // Whether the event has been marked as completed
   description?: string; // Optional description
   duration?: number; // Duration in hours
+  recurring?: {
+    type: 'daily' | 'weekly' | 'monthly' | 'yearly';
+    interval: number; // Every X days/weeks/months/years
+    endDate?: Date; // When to stop recurring
+    count?: number; // Or number of occurrences
+  };
 }
 
 export interface Holiday {

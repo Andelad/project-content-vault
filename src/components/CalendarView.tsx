@@ -188,8 +188,8 @@ export function CalendarView() {
     // Create event immediately with default title and color
     addEvent({
       title: 'New Event',
-      startTime: startDateTime,
-      endTime: endDateTime,
+      startTime: new Date(startDateTime), // Ensure we create a new Date object
+      endTime: new Date(endDateTime), // Ensure we create a new Date object
       duration,
       color: '#3b82f6' // Default blue color
     });
@@ -201,7 +201,7 @@ export function CalendarView() {
     endDateTime.setHours(startDateTime.getHours() + 1); // Default 1 hour duration
     
     setCreatingNewEvent({
-      startTime: startDateTime,
+      startTime: new Date(startDateTime), // Ensure we create a new Date object
       endTime: endDateTime
     });
   };
