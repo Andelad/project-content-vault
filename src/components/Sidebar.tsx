@@ -47,10 +47,10 @@ export function Sidebar() {
       {/* Header */}
       <div className={`h-20 px-6 border-b border-[#e2e2e2] flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
         {isCollapsed ? (
-          <div className="w-5 h-4 bg-primary rounded text-primary-foreground text-xs flex items-center justify-center font-bold">T</div>
+          <img src="/lovable-uploads/b7b3f5f1-d45e-4fc7-9113-f39c988b4951.png" alt="Budgi Logo" className="w-8 h-8" />
         ) : (
           <div className="flex items-center gap-3">
-            <div className="w-5 h-4 bg-primary rounded text-primary-foreground text-xs flex items-center justify-center font-bold">T</div>
+            <img src="/lovable-uploads/b7b3f5f1-d45e-4fc7-9113-f39c988b4951.png" alt="Budgi Logo" className="w-8 h-8" />
             <h1 className="text-lg font-medium text-[#595956]">Budgi</h1>
           </div>
         )}
