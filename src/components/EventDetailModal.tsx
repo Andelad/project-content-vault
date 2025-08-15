@@ -238,7 +238,7 @@ export function EventDetailModal({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Start Date *</Label>
-                <Popover>
+                <Popover open={false}>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
@@ -277,7 +277,7 @@ export function EventDetailModal({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>End Date *</Label>
-                <Popover>
+                <Popover open={false}>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"

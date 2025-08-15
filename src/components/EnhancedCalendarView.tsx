@@ -262,26 +262,11 @@ export function EnhancedCalendarView() {
   }, [calendarDate, view, setCurrentDate]);
 
   return (
-    <div className="h-full flex flex-col bg-background">
-      {/* Header */}
-      <div className="border-b border-border bg-card">
-        <div className="p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <CalendarIcon className="w-6 h-6 text-primary" />
-              <h1 className="text-2xl font-semibold text-foreground">Calendar</h1>
-            </div>
-            
-            {/* Stats */}
-            <div className="flex items-center space-x-4">
-              <div className="text-sm text-muted-foreground">
-                {events.filter(e => e.completed).length} / {events.length} completed
-              </div>
-              <Badge variant="secondary">
-                {events.filter(e => !e.completed).length} pending
-              </Badge>
-            </div>
-          </div>
+    <div className="h-full flex flex-col bg-gray-50 overflow-hidden">
+      {/* Calendar Header */}
+      <div className="h-20 border-b border-[#e2e2e2] flex items-center px-8">
+        <div className="flex items-center">
+          <h1 className="text-lg font-semibold text-[#595956]">Calendar</h1>
         </div>
       </div>
 
@@ -289,6 +274,13 @@ export function EnhancedCalendarView() {
       <div className="flex-1 p-6">
         <Card className="h-full">
           <div className="p-6 h-full">
+            <CustomToolbar
+              onNavigate={handleNavigate}
+              onView={setView}
+              label={moment(calendarDate).format('MMMM YYYY')}
+              view={view}
+            />
+            
             <DragAndDropCalendar
               localizer={localizer}
               events={bigCalendarEvents}
