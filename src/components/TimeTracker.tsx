@@ -24,6 +24,86 @@ export function TimeTracker({ className }: TimeTrackerProps) {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<Date | null>(null);
 
+  // Storage keys for persistence
+  const STORAGE_KEYS = {
+    isTracking: 'timeTracker_isTracking',
+    startTime: 'timeTracker_startTime',
+    eventId: 'timeTracker_eventId',
+    selectedProject: 'timeTracker_selectedProject',
+    searchQuery: 'timeTracker_searchQuery'
+  };
+
+  // Load tracking state from localStorage on mount
+  useEffect(() => {
+    const loadTrackingState = () => {
+      const savedIsTracking = localStorage.getItem(STORAGE_KEYS.isTracking) === 'true';
+      const savedStartTime = localStorage.getItem(STORAGE_KEYS.startTime);
+      const savedEventId = localStorage.getItem(STORAGE_KEYS.eventId);
+      const savedProject = localStorage.getItem(STORAGE_KEYS.selectedProject);
+      const savedQuery = localStorage.getItem(STORAGE_KEYS.searchQuery);
+
+      if (savedIsTracking && savedStartTime) {
+        const startTime = new Date(savedStartTime);
+        const now = new Date();
+        const elapsedSeconds = Math.floor((now.getTime() - startTime.getTime()) / 1000);
+        
+        setIsTracking(true);
+        setSeconds(elapsedSeconds);
+        setCurrentEventId(savedEventId);
+        startTimeRef.current = startTime;
+        
+        if (savedProject) {
+          try {
+            setSelectedProject(JSON.parse(savedProject));
+          } catch (e) {
+            console.error('Failed to parse saved project:', e);
+          }
+        }
+        
+        if (savedQuery) {
+          setSearchQuery(savedQuery);
+        }
+        
+        // Start the timer interval
+        intervalRef.current = setInterval(() => {
+          setSeconds(prev => prev + 1);
+        }, 1000);
+      }
+    };
+
+    loadTrackingState();
+  }, []);
+
+  // Save tracking state to localStorage
+  const saveTrackingState = (trackingData: {
+    isTracking: boolean;
+    startTime?: Date;
+    eventId?: string | null;
+    selectedProject?: any;
+    searchQuery?: string;
+  }) => {
+    if (trackingData.isTracking) {
+      localStorage.setItem(STORAGE_KEYS.isTracking, 'true');
+      if (trackingData.startTime) {
+        localStorage.setItem(STORAGE_KEYS.startTime, trackingData.startTime.toISOString());
+      }
+      if (trackingData.eventId) {
+        localStorage.setItem(STORAGE_KEYS.eventId, trackingData.eventId);
+      }
+      if (trackingData.selectedProject) {
+        localStorage.setItem(STORAGE_KEYS.selectedProject, JSON.stringify(trackingData.selectedProject));
+      }
+      if (trackingData.searchQuery) {
+        localStorage.setItem(STORAGE_KEYS.searchQuery, trackingData.searchQuery);
+      }
+    } else {
+      // Clear all tracking data
+      Object.values(STORAGE_KEYS).forEach(key => {
+        localStorage.removeItem(key);
+      });
+    }
+  };
+
   // Filter projects and clients based on search query
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return [];
@@ -112,6 +192,15 @@ export function TimeTracker({ className }: TimeTrackerProps) {
         // This will be replaced when we get the actual event ID from the database
         const tempId = `tracking-${Date.now()}`;
         setCurrentEventId(tempId);
+        
+        // Save tracking state to localStorage
+        saveTrackingState({
+          isTracking: true,
+          startTime: now,
+          eventId: tempId,
+          selectedProject,
+          searchQuery
+        });
       } catch (error) {
         console.error('Failed to create tracking event:', error);
       }
@@ -144,12 +233,15 @@ export function TimeTracker({ className }: TimeTrackerProps) {
         }
       }
       
-      // Reset everything
+      // Reset everything and clear localStorage
       setCurrentEventId(null);
       startTimeRef.current = null;
       setSeconds(0);
       setSelectedProject(null);
       setSearchQuery('');
+      
+      // Clear tracking state from localStorage
+      saveTrackingState({ isTracking: false });
     }
   };
 
