@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -7,6 +8,8 @@ import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
 import { Switch } from './ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   CreditCard, 
   Crown, 
@@ -21,13 +24,35 @@ import {
   Calendar,
   Zap,
   Users,
-  Settings
+  Settings,
+  Lock,
+  User,
+  LogOut,
+  Camera,
+  Upload,
+  Save
 } from 'lucide-react';
 
 export function ProfileView() {
+  const { user, signOut } = useAuth();
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const [profile, setProfile] = useState<any>(null);
+  
+  // Form states
+  const [emailForm, setEmailForm] = useState({
+    newEmail: '',
+    showForm: false
+  });
+  
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+    showForm: false
+  });
+
   const [accountSettings, setAccountSettings] = useState({
-    email: 'alex.johnson@example.com',
-    emailVerified: true,
     twoFactorEnabled: false,
     notifications: {
       email: true,
@@ -39,26 +64,271 @@ export function ProfileView() {
     timezone: 'America/Los_Angeles'
   });
 
-  const [subscription] = useState({
-    plan: 'Professional',
-    status: 'active',
-    nextBilling: '2024-09-15',
-    amount: 29.99,
-    currency: 'USD',
-    features: [
-      'Unlimited projects',
-      'Advanced analytics',
-      'Team collaboration',
-      'Priority support',
-      'Data export'
-    ],
-    usage: {
-      projects: 12,
-      projectsLimit: 'unlimited',
-      storage: 2.4,
-      storageLimit: 100
+  // Load user profile on mount
+  useEffect(() => {
+    if (user) {
+      fetchProfile();
     }
-  });
+  }, [user]);
+
+  const fetchProfile = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user?.id)
+        .maybeSingle();
+      
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching profile:', error);
+      } else {
+        setProfile(data);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
+
+  const handleEmailChange = async () => {
+    if (!emailForm.newEmail || emailForm.newEmail === user?.email) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid new email address",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        email: emailForm.newEmail
+      });
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Email Update Initiated",
+          description: "Please check both your old and new email for confirmation links",
+        });
+        setEmailForm({ newEmail: '', showForm: false });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordChange = async () => {
+    if (!passwordForm.newPassword || passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast({
+        title: "Error",
+        description: "New passwords don't match",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 6) {
+      toast({
+        title: "Error",
+        description: "Password must be at least 6 characters",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: passwordForm.newPassword
+      });
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: "Password updated successfully",
+        });
+        setPasswordForm({ 
+          currentPassword: '', 
+          newPassword: '', 
+          confirmPassword: '', 
+          showForm: false 
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleProfileUpdate = async () => {
+    if (!profile) return;
+    
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({
+          user_id: user?.id,
+          display_name: profile.display_name,
+          email: user?.email,
+          avatar_url: profile.avatar_url
+        }, {
+          onConflict: 'user_id'
+        });
+
+      if (error) {
+        console.error('Profile update error:', error);
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: "Profile updated successfully",
+        });
+        // Refresh the profile data
+        await fetchProfile();
+      }
+    } catch (error: any) {
+      console.error('Profile update catch error:', error);
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAvatarUpload = async (file: File) => {
+    if (!user) return;
+
+    setLoading(true);
+    try {
+      // Validate file size (5MB limit)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "Error",
+          description: "File size must be less than 5MB",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast({
+          title: "Error",
+          description: "Please upload an image file",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Create unique filename with user ID
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/avatar.${fileExt}`;
+
+      // Delete existing avatar if it exists
+      if (profile?.avatar_url) {
+        const existingPath = profile.avatar_url.split('/').slice(-2).join('/');
+        await supabase.storage
+          .from('avatars')
+          .remove([existingPath]);
+      }
+
+      // Upload new avatar
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, file, {
+          upsert: true
+        });
+
+      if (uploadError) {
+        toast({
+          title: "Error",
+          description: uploadError.message,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Get public URL
+      const { data } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(fileName);
+
+      // Update profile with new avatar URL
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .upsert({
+          user_id: user.id,
+          display_name: profile?.display_name || user.email?.split('@')[0],
+          email: user.email,
+          avatar_url: data.publicUrl
+        }, {
+          onConflict: 'user_id'
+        });
+
+      if (updateError) {
+        toast({
+          title: "Error",
+          description: updateError.message,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Update local state
+      setProfile(prev => ({
+        ...prev,
+        avatar_url: data.publicUrl
+      }));
+
+      // Dispatch custom event to refresh sidebar avatar
+      window.dispatchEvent(new CustomEvent('profile-updated'));
+
+      toast({
+        title: "Success",
+        description: "Avatar uploaded successfully",
+      });
+
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleNotificationChange = (key: string, value: boolean) => {
     setAccountSettings(prev => ({
@@ -70,33 +340,21 @@ export function ProfileView() {
     }));
   };
 
-  const handleCancelSubscription = () => {
-    console.log('Cancel subscription requested');
-  };
-
-  const handleDownloadData = () => {
-    console.log('Download data requested');
-  };
-
-  const handleDeleteAccount = () => {
-    console.log('Delete account requested');
-  };
-
   return (
-    <div className="flex-1 bg-white">
+    <div className="h-full flex flex-col bg-[#f9f9f9]">
       {/* Header */}
-      <div className="h-20 border-b border-[#e2e2e2] flex items-center justify-between px-8">
+      <div className="h-20 border-b border-[#e2e2e2] flex items-center justify-between px-8 flex-shrink-0">
         <div className="flex items-center space-x-6">
-          <h1 className="text-lg font-semibold text-[#595956]">Account</h1>
-          <Badge variant="secondary" className="bg-gray-100 text-gray-700">
-            {subscription.plan} Plan
+          <h1 className="text-lg font-semibold text-[#595956]">Profile</h1>
+          <Badge variant="secondary">
+            Account Management
           </Badge>
         </div>
         
         <div className="flex items-center gap-3">
           <Button variant="outline">
             <ExternalLink className="w-4 h-4 mr-2" />
-            Billing Portal
+            Help Center
           </Button>
           <Button className="bg-[#02c0b7] hover:bg-[#02a09a] text-white">
             <Crown className="w-4 h-4 mr-2" />
@@ -105,352 +363,331 @@ export function ProfileView() {
         </div>
       </div>
 
-      {/* Content */}
-      <div className="p-[21px] space-y-[21px] max-w-5xl light-scrollbar">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-[21px]">
-          {/* Account Management */}
-          <div className="lg:col-span-2 space-y-[21px]">
-            {/* Subscription Info */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Crown className="w-5 h-5 text-yellow-500" />
-                  Subscription Details
-                </CardTitle>
-                <CardDescription>
-                  Manage your subscription and billing information
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
+      {/* Content - Scrollable */}
+      <div className="flex-1 overflow-auto light-scrollbar">
+        <div className="p-8 space-y-8 max-w-4xl">
+          {/* Account Status Card */}
+          <Card className="relative">
+            <Badge className="absolute top-4 left-4 bg-green-100 text-green-800 border-green-200">
+              Functioning
+            </Badge>
+            <CardHeader className="pt-12">
+              <CardTitle className="flex items-center gap-2">
+                <User className="w-5 h-5" />
+                Account Status
+              </CardTitle>
+              <CardDescription>
+                Current authentication and session information
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="text-sm text-muted-foreground">
+                  Signed in as {user?.email}
+                </div>
+                <Button variant="ghost" size="sm" onClick={signOut} className="gap-2">
+                  <LogOut className="h-4 w-4" />
+                  Sign Out
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Profile Picture Card */}
+          <Card className="relative">
+            <Badge className="absolute top-4 left-4 bg-green-100 text-green-800 border-green-200">
+              Functioning
+            </Badge>
+            <CardHeader className="pt-12">
+              <CardTitle className="flex items-center gap-2">
+                <Upload className="w-5 h-5" />
+                Profile Picture
+              </CardTitle>
+              <CardDescription>
+                Upload and manage your profile avatar
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-6">
+                <div 
+                  className="w-24 h-24 rounded-full border-2 border-dashed border-[#e2e2e2] flex items-center justify-center font-semibold text-2xl cursor-pointer hover:bg-muted/50 transition-colors overflow-hidden"
+                  onClick={() => document.getElementById('avatar-upload')?.click()}
+                >
+                  {profile?.avatar_url ? (
+                    <img 
+                      src={profile.avatar_url} 
+                      alt="Profile avatar" 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="bg-[#595956] text-white w-full h-full rounded-full flex items-center justify-center">
+                      {user?.email ? user.email.charAt(0).toUpperCase() : 'U'}
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => document.getElementById('avatar-upload')?.click()}
+                    disabled={loading}
+                  >
+                    <Camera className="w-4 h-4 mr-2" />
+                    {loading ? 'Uploading...' : 'Upload Photo'}
+                  </Button>
+                  <p className="text-sm text-muted-foreground">
+                    JPG, PNG or GIF. Max file size 5MB.
+                  </p>
+                </div>
+                <input
+                  id="avatar-upload"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      handleAvatarUpload(file);
+                    }
+                  }}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Personal Information */}
+          <Card className="relative">
+            <Badge className="absolute top-4 left-4 bg-green-100 text-green-800 border-green-200">
+              Functioning
+            </Badge>
+            <CardHeader className="pt-12">
+              <CardTitle className="flex items-center gap-2">
+                <User className="w-5 h-5" />
+                Personal Information
+              </CardTitle>
+              <CardDescription>
+                Update your personal details and contact information
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="username">Username</Label>
+                    <Input
+                      id="username"
+                      value={profile?.display_name || ''}
+                      onChange={(e) => setProfile(prev => prev ? { ...prev, display_name: e.target.value } : { display_name: e.target.value })}
+                      placeholder="Enter your username"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      value={user?.email || ''}
+                      disabled
+                      className="bg-muted"
+                    />
+                  </div>
+                </div>
+                <Button onClick={handleProfileUpdate} disabled={loading}>
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Changes
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Account Settings */}
+          <Card className="relative">
+            <Badge className="absolute top-4 left-4 bg-green-100 text-green-800 border-green-200">
+              Functioning
+            </Badge>
+            <CardHeader className="pt-12">
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="w-5 h-5" />
+                Account Settings
+              </CardTitle>
+              <CardDescription>
+                Manage your account preferences and security
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Email Settings */}
+              <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-semibold">{subscription.plan} Plan</h4>
-                    <p className="text-sm text-gray-600">
-                      ${subscription.amount}/{subscription.currency === 'USD' ? 'month' : 'mo'}
-                    </p>
+                  <div className="flex items-center gap-2">
+                    <Mail className="w-4 h-4 text-muted-foreground" />
+                    <span className="font-medium">Email Address</span>
                   </div>
-                  <Badge className="bg-green-100 text-green-800">
-                    {subscription.status.charAt(0).toUpperCase() + subscription.status.slice(1)}
-                  </Badge>
-                </div>
-
-                <Separator />
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-sm text-gray-600">Next Billing Date</Label>
-                    <p className="font-medium">{new Date(subscription.nextBilling).toLocaleDateString()}</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm text-gray-600">Billing Amount</Label>
-                    <p className="font-medium">${subscription.amount} USD</p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">{user?.email}</span>
+                    <Badge variant="secondary" className="bg-green-100 text-green-800">
+                      Verified
+                    </Badge>
                   </div>
                 </div>
-
-                <div>
-                  <Label className="text-sm text-gray-600 mb-2 block">Plan Features</Label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {subscription.features.map((feature, index) => (
-                      <div key={index} className="flex items-center gap-2">
-                        <Check className="w-4 h-4 text-green-500" />
-                        <span className="text-sm">{feature}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <Button variant="outline" size="sm">
-                    Change Plan
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={handleCancelSubscription}>
-                    Cancel Subscription
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Account Settings */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Settings className="w-5 h-5" />
-                  Account Settings
-                </CardTitle>
-                <CardDescription>
-                  Manage your account preferences and security
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Email Settings */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Mail className="w-4 h-4 text-gray-500" />
-                      <span className="font-medium">Email Address</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-600">{accountSettings.email}</span>
-                      {accountSettings.emailVerified && (
-                        <Badge variant="secondary" className="bg-green-100 text-green-800">
-                          Verified
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                  <Button variant="outline" size="sm">
+                
+                {!emailForm.showForm ? (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setEmailForm(prev => ({ ...prev, showForm: true }))}
+                  >
                     Change Email
                   </Button>
-                </div>
-
-                <Separator />
-
-                {/* Security Settings */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Shield className="w-4 h-4 text-gray-500" />
-                      <div>
-                        <p className="font-medium">Two-Factor Authentication</p>
-                        <p className="text-sm text-gray-600">Add an extra layer of security</p>
-                      </div>
+                ) : (
+                  <div className="space-y-3 p-4 bg-muted rounded-lg">
+                    <div className="space-y-2">
+                      <Label htmlFor="newEmail">New Email Address</Label>
+                      <Input
+                        id="newEmail"
+                        type="email"
+                        value={emailForm.newEmail}
+                        onChange={(e) => setEmailForm(prev => ({ ...prev, newEmail: e.target.value }))}
+                        placeholder="Enter new email address"
+                      />
                     </div>
-                    <Switch 
-                      checked={accountSettings.twoFactorEnabled}
-                      onCheckedChange={(checked) => setAccountSettings(prev => ({
-                        ...prev,
-                        twoFactorEnabled: checked
-                      }))}
-                    />
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm" 
+                        onClick={handleEmailChange}
+                        disabled={loading}
+                      >
+                        Update Email
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => setEmailForm({ newEmail: '', showForm: false })}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
                   </div>
-                  <Button variant="outline" size="sm">
+                )}
+              </div>
+
+              <Separator />
+
+              {/* Security Settings */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Lock className="w-4 h-4 text-muted-foreground" />
+                    <div>
+                      <p className="font-medium">Password</p>
+                      <p className="text-sm text-muted-foreground">Update your password</p>
+                    </div>
+                  </div>
+                </div>
+                
+                {!passwordForm.showForm ? (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setPasswordForm(prev => ({ ...prev, showForm: true }))}
+                  >
                     Change Password
                   </Button>
-                </div>
-
-                <Separator />
-
-                {/* Preferences */}
-                <div className="space-y-4">
-                  <h4 className="font-medium">Preferences</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                ) : (
+                  <div className="space-y-3 p-4 bg-muted rounded-lg">
                     <div className="space-y-2">
-                      <Label htmlFor="language">Language</Label>
-                      <Select value={accountSettings.language}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="en">English</SelectItem>
-                          <SelectItem value="es">Spanish</SelectItem>
-                          <SelectItem value="fr">French</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Label htmlFor="newPassword">New Password</Label>
+                      <Input
+                        id="newPassword"
+                        type="password"
+                        value={passwordForm.newPassword}
+                        onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                        placeholder="Enter new password"
+                      />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="timezone">Timezone</Label>
-                      <Select value={accountSettings.timezone}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="America/Los_Angeles">Pacific Time</SelectItem>
-                          <SelectItem value="America/Denver">Mountain Time</SelectItem>
-                          <SelectItem value="America/Chicago">Central Time</SelectItem>
-                          <SelectItem value="America/New_York">Eastern Time</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                      <Input
+                        id="confirmPassword"
+                        type="password"
+                        value={passwordForm.confirmPassword}
+                        onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                        placeholder="Confirm new password"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm" 
+                        onClick={handlePasswordChange}
+                        disabled={loading}
+                      >
+                        Update Password
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => setPasswordForm({ 
+                          currentPassword: '', 
+                          newPassword: '', 
+                          confirmPassword: '', 
+                          showForm: false 
+                        })}
+                      >
+                        Cancel
+                      </Button>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
-            {/* Notifications */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Bell className="w-5 h-5" />
-                  Notification Preferences
-                </CardTitle>
-                <CardDescription>
-                  Configure how you receive updates and reminders
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Email Notifications</p>
-                    <p className="text-sm text-gray-600">Receive updates via email</p>
-                  </div>
-                  <Switch 
-                    checked={accountSettings.notifications.email}
-                    onCheckedChange={(checked) => handleNotificationChange('email', checked)}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Push Notifications</p>
-                    <p className="text-sm text-gray-600">Browser push notifications</p>
-                  </div>
-                  <Switch 
-                    checked={accountSettings.notifications.push}
-                    onCheckedChange={(checked) => handleNotificationChange('push', checked)}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Project Reminders</p>
-                    <p className="text-sm text-gray-600">Deadline and milestone alerts</p>
-                  </div>
-                  <Switch 
-                    checked={accountSettings.notifications.reminders}
-                    onCheckedChange={(checked) => handleNotificationChange('reminders', checked)}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Product Updates</p>
-                    <p className="text-sm text-gray-600">News about new features</p>
-                  </div>
-                  <Switch 
-                    checked={accountSettings.notifications.updates}
-                    onCheckedChange={(checked) => handleNotificationChange('updates', checked)}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Usage & Actions Sidebar */}
-          <div className="space-y-[21px]">
-            {/* Usage Overview */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Zap className="w-5 h-5 text-blue-500" />
-                  Usage Overview
-                </CardTitle>
-                <CardDescription>
-                  Current plan usage
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
+          {/* Notifications */}
+          <Card className="relative">
+            <Badge className="absolute top-4 left-4 bg-green-100 text-green-800 border-green-200">
+              Functioning
+            </Badge>
+            <CardHeader className="pt-12">
+              <CardTitle className="flex items-center gap-2">
+                <Bell className="w-5 h-5" />
+                Notification Preferences
+              </CardTitle>
+              <CardDescription>
+                Configure how you receive updates and reminders
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
                 <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm text-gray-600">Projects</span>
-                    <span className="text-sm font-medium">
-                      {subscription.usage.projects} / {subscription.usage.projectsLimit}
-                    </span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-[#02c0b7] h-2 rounded-full" 
-                      style={{ width: '40%' }}
-                    />
-                  </div>
+                  <p className="font-medium">Email Notifications</p>
+                  <p className="text-sm text-muted-foreground">Receive updates via email</p>
                 </div>
+                <Switch 
+                  checked={accountSettings.notifications.email}
+                  onCheckedChange={(checked) => handleNotificationChange('email', checked)}
+                />
+              </div>
 
+              <div className="flex items-center justify-between">
                 <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm text-gray-600">Storage</span>
-                    <span className="text-sm font-medium">
-                      {subscription.usage.storage} GB / {subscription.usage.storageLimit} GB
-                    </span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-blue-500 h-2 rounded-full" 
-                      style={{ width: `${(subscription.usage.storage / subscription.usage.storageLimit) * 100}%` }}
-                    />
-                  </div>
+                  <p className="font-medium">Push Notifications</p>
+                  <p className="text-sm text-muted-foreground">Browser push notifications</p>
                 </div>
-              </CardContent>
-            </Card>
+                <Switch 
+                  checked={accountSettings.notifications.push}
+                  onCheckedChange={(checked) => handleNotificationChange('push', checked)}
+                />
+              </div>
 
-            {/* Billing Info */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CreditCard className="w-5 h-5 text-green-500" />
-                  Billing Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Payment Method</span>
-                  <span className="text-sm font-medium">•••• 4242</span>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Project Reminders</p>
+                  <p className="text-sm text-muted-foreground">Deadline and milestone alerts</p>
                 </div>
-                
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Next Payment</span>
-                  <span className="text-sm font-medium">${subscription.amount}</span>
-                </div>
-
-                <Button variant="outline" size="sm" className="w-full">
-                  Update Payment Method
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Account Actions */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Account Actions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button 
-                  variant="outline" 
-                  className="w-full justify-start"
-                  onClick={handleDownloadData}
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  Export Data
-                </Button>
-                
-                <Button variant="outline" className="w-full justify-start">
-                  <Users className="w-4 h-4 mr-2" />
-                  Invite Team
-                </Button>
-                
-                <Button variant="outline" className="w-full justify-start">
-                  <Calendar className="w-4 h-4 mr-2" />
-                  Billing History
-                </Button>
-                
-                <Separator />
-                
-                <Button 
-                  variant="outline" 
-                  className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
-                  onClick={handleDeleteAccount}
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Delete Account
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Warning Card */}
-            <Card className="border-amber-200 bg-amber-50">
-              <CardContent className="p-4">
-                <div className="flex items-start gap-3">
-                  <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <h4 className="font-medium text-amber-900 mb-1">
-                      Subscription Renewal
-                    </h4>
-                    <p className="text-sm text-amber-800">
-                      Your subscription will renew automatically on {new Date(subscription.nextBilling).toLocaleDateString()}.
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                <Switch 
+                  checked={accountSettings.notifications.reminders}
+                  onCheckedChange={(checked) => handleNotificationChange('reminders', checked)}
+                />
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

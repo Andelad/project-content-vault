@@ -86,16 +86,6 @@ function AuthenticatedContent() {
       </ErrorBoundary>
       
       <div className="flex-1 bg-background light-scrollbar overflow-auto">
-        {/* Auth status bar */}
-        <div className="flex justify-between items-center p-4 border-b bg-background/50 backdrop-blur-sm">
-          <div className="text-sm text-muted-foreground">
-            Signed in as {user?.email}
-          </div>
-          <Button variant="ghost" size="sm" onClick={signOut} className="gap-2">
-            <LogOut className="h-4 w-4" />
-            Sign Out
-          </Button>
-        </div>
         
         <ErrorBoundary fallback={
           <div className="flex-1 flex items-center justify-center bg-background h-full">
