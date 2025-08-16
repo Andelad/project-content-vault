@@ -350,29 +350,85 @@ export function AddHolidayRow({ dates, collapsed, isDragging, dragState, handleH
   
   // Convert global holidays to timeline format
   const timelineHolidays = globalHolidays.map(holiday => {
-    const startIndex = dates.findIndex(date => {
-      const dateStr = date.toDateString();
-      const holidayStartStr = holiday.startDate.toDateString();
-      return dateStr === holidayStartStr;
-    });
-    
-    if (startIndex === -1) return null;
-    
-    const endIndex = dates.findIndex(date => {
-      const dateStr = date.toDateString();
-      const holidayEndStr = holiday.endDate.toDateString();
-      return dateStr === holidayEndStr;
-    });
-    
-    const dayCount = endIndex >= startIndex ? endIndex - startIndex + 1 : 1;
-    
-    return {
-      startIndex,
-      dayCount,
-      id: holiday.id,
-      title: holiday.title
-    };
-  }).filter(Boolean) as { startIndex: number; dayCount: number; id: string; title: string }[];
+    if (mode === 'weeks') {
+      // For weeks mode, we need to calculate which weeks contain the holiday
+      // and then calculate the exact day positions within those weeks
+      const holidayStart = new Date(holiday.startDate);
+      holidayStart.setHours(0, 0, 0, 0);
+      const holidayEnd = new Date(holiday.endDate);
+      holidayEnd.setHours(0, 0, 0, 0);
+      
+      // Find which week columns this holiday spans
+      let startWeekIndex = -1;
+      let endWeekIndex = -1;
+      
+      dates.forEach((weekStart, weekIndex) => {
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+        weekEnd.setHours(23, 59, 59, 999);
+        
+        // Check if holiday overlaps with this week
+        if (!(holidayEnd < weekStart || holidayStart > weekEnd)) {
+          if (startWeekIndex === -1) {
+            startWeekIndex = weekIndex;
+          }
+          endWeekIndex = weekIndex;
+        }
+      });
+      
+      if (startWeekIndex === -1) return null;
+      
+      // Calculate the day-level start and end indices
+      const firstWeekStart = dates[startWeekIndex];
+      const msPerDay = 24 * 60 * 60 * 1000;
+      
+      // Calculate start day index (within the week view timeline)
+      const daysFromFirstWeekToHolidayStart = Math.floor((holidayStart.getTime() - firstWeekStart.getTime()) / msPerDay);
+      const startDayIndex = startWeekIndex * 7 + daysFromFirstWeekToHolidayStart;
+      
+      // Calculate end day index
+      const daysFromFirstWeekToHolidayEnd = Math.floor((holidayEnd.getTime() - firstWeekStart.getTime()) / msPerDay);
+      const endDayIndex = startWeekIndex * 7 + daysFromFirstWeekToHolidayEnd;
+      
+      // Calculate the day count for display
+      const dayCount = endDayIndex - startDayIndex + 1;
+      
+      return {
+        startIndex: startDayIndex,
+        dayCount,
+        id: holiday.id,
+        title: holiday.title,
+        weekMode: true, // Flag to indicate this is week mode calculation
+        actualStartWeek: startWeekIndex,
+        actualEndWeek: endWeekIndex
+      };
+    } else {
+      // Original days mode logic
+      const startIndex = dates.findIndex(date => {
+        const dateStr = date.toDateString();
+        const holidayStartStr = holiday.startDate.toDateString();
+        return dateStr === holidayStartStr;
+      });
+      
+      if (startIndex === -1) return null;
+      
+      const endIndex = dates.findIndex(date => {
+        const dateStr = date.toDateString();
+        const holidayEndStr = holiday.endDate.toDateString();
+        return dateStr === holidayEndStr;
+      });
+      
+      const dayCount = endIndex >= startIndex ? endIndex - startIndex + 1 : 1;
+      
+      return {
+        startIndex,
+        dayCount,
+        id: holiday.id,
+        title: holiday.title,
+        weekMode: false
+      };
+    }
+  }).filter(Boolean) as { startIndex: number; dayCount: number; id: string; title: string; weekMode?: boolean; actualStartWeek?: number; actualEndWeek?: number }[];
   
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -442,12 +498,27 @@ export function AddHolidayRow({ dates, collapsed, isDragging, dragState, handleH
 
         {/* Holiday display columns */}
         {dates.map((date, dayIndex) => {
-          const holiday = timelineHolidays.find(h => 
-            dayIndex >= h.startIndex && dayIndex < h.startIndex + h.dayCount
-          );
+          let holiday = null;
+          
+          if (mode === 'weeks') {
+            // In week mode, show the holiday in the week where it should be visually positioned
+            // Find holidays that span this week and render them with proper positioning
+            holiday = timelineHolidays.find(h => 
+              h.weekMode && 
+              dayIndex >= h.actualStartWeek && 
+              dayIndex <= h.actualEndWeek &&
+              dayIndex === h.actualStartWeek // Only render in the first week to avoid duplicates
+            );
+          } else {
+            // Days mode: dayIndex represents actual day index
+            // Show holiday in each day it spans
+            holiday = timelineHolidays.find(h => 
+              dayIndex >= h.startIndex && dayIndex < h.startIndex + h.dayCount
+            );
+          }
           
           return (
-            <HolidayColumn
+            <HolidayBar
               key={dayIndex}
               dayIndex={dayIndex}
               date={date}
@@ -465,7 +536,7 @@ export function AddHolidayRow({ dates, collapsed, isDragging, dragState, handleH
   );
 }
 
-interface HolidayColumnProps {
+interface HolidayBarProps {
   dayIndex: number;
   date: Date;
   holiday?: { startIndex: number; dayCount: number; id: string; title: string } | null;
@@ -476,7 +547,7 @@ interface HolidayColumnProps {
   mode?: 'days' | 'weeks';
 }
 
-function HolidayColumn({ 
+function HolidayBar({ 
   dayIndex, 
   date, 
   holiday, 
@@ -485,7 +556,7 @@ function HolidayColumn({
   dragState,
   handleHolidayMouseDown,
   mode = 'days'
-}: HolidayColumnProps) {
+}: HolidayBarProps) {
   const columnWidth = mode === 'weeks' ? 72 : 40;
   const [mouseDownTime, setMouseDownTime] = useState<number | null>(null);
   const [mouseDownPos, setMouseDownPos] = useState<{ x: number; y: number } | null>(null);
@@ -547,17 +618,39 @@ function HolidayColumn({
       className="relative h-[52px] flex items-center justify-center border-r border-gray-100 last:border-r-0"
       style={{ minWidth: `${columnWidth}px`, width: `${columnWidth}px` }}
     >
-      {/* Existing holiday display - only show for first day of holiday */}
-      {holiday && dayIndex === holiday.startIndex && (
+      {/* Existing holiday display - show if holiday exists for this column */}
+      {holiday && (
+        (mode === 'weeks' || dayIndex === holiday.startIndex)
+      ) && (
         <div
           className={`absolute top-1/2 left-0 -translate-y-1/2 h-9 bg-orange-200/80 border border-orange-300/50 rounded-md flex items-center justify-center text-orange-800 text-sm transition-all shadow-sm z-20 group ${
             isDragging && dragState?.holidayId === holiday.id 
               ? 'opacity-90 shadow-lg' 
               : 'hover:bg-orange-300/80'
           }`}
-          style={{
-            width: `${holiday.dayCount * columnWidth}px`,
-          }}
+          style={(() => {
+            if (mode === 'weeks') {
+              // For week mode, calculate the precise positioning within week columns
+              const dayWidth = columnWidth / 7; // ~10.3px per day
+              
+              // Use modulo to get position within the current week
+              const holidayStartInCurrentWeek = holiday.startIndex % 7; // Day of week (0-6)
+              const leftOffset = holidayStartInCurrentWeek * dayWidth;
+              
+              // Calculate the width based on how many days the holiday spans
+              const width = holiday.dayCount * dayWidth;
+              
+              return {
+                left: `${leftOffset}px`,
+                width: `${width}px`,
+              };
+            } else {
+              // Days mode: original logic
+              return {
+                width: `${holiday.dayCount * columnWidth}px`,
+              };
+            }
+          })()}
           title={`${holiday.title} - Click handles to resize, drag center to move`}
         >
           {/* Holiday title */}

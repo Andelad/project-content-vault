@@ -243,10 +243,12 @@ html {
   background-image: repeating-linear-gradient(
     -45deg,
     transparent,
-    transparent 2px,
-    rgba(107, 114, 128, 0.125) 2px,
-    rgba(107, 114, 128, 0.125) 4px
+    transparent 3px,
+    rgba(128, 128, 128, 0.3) 3px,
+    rgba(128, 128, 128, 0.3) 6px
   );
+  z-index: 10;
+  pointer-events: none;
 }
 
 .holiday-pattern-availability {

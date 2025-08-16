@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
@@ -11,9 +11,20 @@ export function useHolidays() {
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  
+  // Debouncing for update success toasts
+  const updateToastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastUpdatedHolidayRef = useRef<string | null>(null);
 
   useEffect(() => {
     fetchHolidays();
+    
+    // Cleanup timeout on unmount
+    return () => {
+      if (updateToastTimeoutRef.current) {
+        clearTimeout(updateToastTimeoutRef.current);
+      }
+    };
   }, []);
 
   const fetchHolidays = async () => {
@@ -77,13 +88,32 @@ export function useHolidays() {
 
       if (error) throw error;
       setHolidays(prev => prev.map(holiday => holiday.id === id ? data : holiday));
-      toast({
-        title: "Success",
-        description: "Holiday updated successfully",
-      });
+      
+      // Debounce success toast to prevent spam during drag operations
+      lastUpdatedHolidayRef.current = id;
+      if (updateToastTimeoutRef.current) {
+        clearTimeout(updateToastTimeoutRef.current);
+      }
+      
+      updateToastTimeoutRef.current = setTimeout(() => {
+        // Only show toast if this was the last holiday updated
+        if (lastUpdatedHolidayRef.current === id) {
+          toast({
+            title: "Success",
+            description: "Holiday updated successfully",
+          });
+        }
+      }, 500); // 500ms debounce delay
+      
       return data;
     } catch (error) {
       console.error('Error updating holiday:', error);
+      // Clear any pending success toast when there's an error
+      if (updateToastTimeoutRef.current) {
+        clearTimeout(updateToastTimeoutRef.current);
+        updateToastTimeoutRef.current = null;
+      }
+      // Show error toast immediately
       toast({
         title: "Error",
         description: "Failed to update holiday",

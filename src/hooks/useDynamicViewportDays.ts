@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 const MIN_DAY_COLUMN_WIDTH = 40; // 40px minimum width per day column
 const MIN_WEEK_COLUMN_WIDTH = 72; // 72px minimum width per week column
 const MIN_VIEWPORT_DAYS = 7; // Always show at least 7 days
-const MAX_VIEWPORT_DAYS = 120; // Reasonable cap for performance
+const MAX_VIEWPORT_DAYS = 60; // Reduced from 120 for better performance
 const MIN_VIEWPORT_WEEKS = 4; // Always show at least 4 weeks
 const MAX_VIEWPORT_WEEKS = 30; // Reasonable cap (210 days worth)
 
@@ -33,11 +33,19 @@ export function useDynamicViewportDays(sidebarCollapsed: boolean, mode: 'days' |
       // Calculate how many complete day columns can fit
       const completeColumns = Math.floor(availableWidth / MIN_DAY_COLUMN_WIDTH);
       
-      // Add modest buffer for days mode
-      const daysWithBuffer = completeColumns + 15;
+      // Add modest buffer for days mode - reduced for better performance
+      const daysWithBuffer = completeColumns + 7; // Reduced from 15
       
       // Clamp between min and max values
       const days = Math.max(MIN_VIEWPORT_DAYS, Math.min(MAX_VIEWPORT_DAYS, daysWithBuffer));
+      
+      // Debug logging
+      console.log(`🔍 Days mode viewport calculation:`, {
+        availableWidth,
+        completeColumns,
+        daysWithBuffer,
+        finalDays: days
+      });
       
       return days;
     }

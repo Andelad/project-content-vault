@@ -4,7 +4,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import { useAppDataOnly } from '../../contexts/AppContext';
 import { calculateTimelinePositions, getSafePosition } from '@/lib/timelinePositioning';
 import { calculateWorkHourCapacity, isHolidayDate } from '@/lib/workHoursUtils';
-import { getProjectTimeAllocation, generateWorkHoursForDate } from '@/lib/eventWorkHourUtils';
+import { getProjectTimeAllocation, memoizedGetProjectTimeAllocation, generateWorkHoursForDate } from '@/lib/eventWorkHourUtils';
 import { ProjectIconIndicator } from './ProjectIconIndicator';
 
 interface TimelineBarProps {
@@ -57,16 +57,6 @@ export const TimelineBar = memo(function TimelineBar({
   collapsed
 }: TimelineBarProps) {
   const { settings, events, holidays } = useAppDataOnly();
-  
-  // Memoize color calculations
-  const colors = useMemo(() => ({
-    hover: getHoverColor(project.color),
-    baseline: getBaselineColor(project.color),
-    midTone: getMidToneColor(project.color),
-    autoEstimate: getAutoEstimateColor(project.color)
-  }), [project.color]);
-  
-  const { hover: hoverColor, baseline: baselineColor, midTone: midToneColor, autoEstimate: autoEstimateColor } = colors;
   
   // Memoize project days calculation
   const projectDays = useMemo(() => {
@@ -148,8 +138,10 @@ export const TimelineBar = memo(function TimelineBar({
     const dailyHours = Math.floor(exactHoursPerDay);
     const dailyMinutes = Math.round((exactHoursPerDay - dailyHours) * 60);
     
-    // Calculate precise height in pixels (minimum 3px)
-    const heightInPixels = Math.max(3, Math.round(exactHoursPerDay * 2));
+    // Calculate precise height in pixels (minimum 3px only if estimated hours > 0)
+    const heightInPixels = project.estimatedHours > 0 
+      ? Math.max(3, Math.round(exactHoursPerDay * 2))
+      : 0;
     // Cap the outer rectangle at 40px to stay within taller row height (52px - 12px padding)
     const cappedHeight = Math.min(heightInPixels, 40);
     
@@ -161,6 +153,21 @@ export const TimelineBar = memo(function TimelineBar({
       workingDaysCount: totalWorkingDays
     };
   }, [project.startDate, project.endDate, project.estimatedHours, isWorkingDay]);
+  
+  // Memoize color calculations to avoid repeated parsing
+  const colorScheme = useMemo(() => {
+    const baselineColor = getBaselineColor(project.color);
+    const midToneColor = getMidToneColor(project.color);
+    const hoverColor = getHoverColor(project.color);
+    const autoEstimateColor = getAutoEstimateColor(project.color);
+    
+    return {
+      baseline: baselineColor,
+      midTone: midToneColor,
+      hover: hoverColor,
+      autoEstimate: autoEstimateColor
+    };
+  }, [project.color]);
   
   const { exactDailyHours, dailyHours, dailyMinutes, heightInPixels, workingDaysCount } = projectMetrics;
   
@@ -257,7 +264,7 @@ export const TimelineBar = memo(function TimelineBar({
                               }`}
                               style={(() => {
                                 // Get time allocation info for this specific day
-                                const timeAllocation = getProjectTimeAllocation(
+                                const timeAllocation = memoizedGetProjectTimeAllocation(
                                   project.id,
                                   currentDay,
                                   events,
@@ -271,11 +278,13 @@ export const TimelineBar = memo(function TimelineBar({
 
                                 // Calculate daily height based on allocated hours (like day view)
                                 const dailyHours = timeAllocation.hours;
-                                const calculatedHeight = Math.max(3, Math.round(dailyHours * 2));
+                                const calculatedHeight = timeAllocation.hours > 0 
+                                  ? Math.max(3, Math.round(dailyHours * 2))
+                                  : 0;
                                 const dayRectangleHeight = Math.min(calculatedHeight, 28);
 
                                 return {
-                                  backgroundColor: isPlannedTime ? project.color : autoEstimateColor,
+                                  backgroundColor: isPlannedTime ? project.color : colorScheme.autoEstimate,
                                   height: `${dayRectangleHeight}px`,
                                   width: `${dayWidth}px`,
                                   borderTopLeftRadius: '2px',
@@ -283,9 +292,9 @@ export const TimelineBar = memo(function TimelineBar({
                                   // Remove all animations and transitions
                                   // Handle borders based on planned time like in day view
                                   ...(isPlannedTime ? {
-                                    borderLeft: `2px dashed ${baselineColor}`,
-                                    borderRight: `2px dashed ${baselineColor}`,
-                                    borderTop: `2px dashed ${baselineColor}`,
+                                    borderLeft: `2px dashed ${colorScheme.baseline}`,
+                                    borderRight: `2px dashed ${colorScheme.baseline}`,
+                                    borderTop: `2px dashed ${colorScheme.baseline}`,
                                     borderBottom: 'none'
                                   } : {
                                     borderRight: dayOfWeek === 6 ? 'none' : '1px solid rgba(255, 255, 255, 0.2)',
@@ -325,7 +334,7 @@ export const TimelineBar = memo(function TimelineBar({
                           <TooltipContent>
                             {(() => {
                               // Use daily calculations like in day view
-                              const timeAllocation = getProjectTimeAllocation(
+                              const timeAllocation = memoizedGetProjectTimeAllocation(
                                 project.id,
                                 currentDay,
                                 events,
@@ -407,7 +416,7 @@ export const TimelineBar = memo(function TimelineBar({
               }
 
               // Get time allocation info for this date
-              const timeAllocation = getProjectTimeAllocation(
+              const timeAllocation = memoizedGetProjectTimeAllocation(
                 project.id,
                 date, // Use the original date from the dates array (already normalized)
                 events,
@@ -448,7 +457,9 @@ export const TimelineBar = memo(function TimelineBar({
 
               // Calculate height based on allocated hours
               const dailyHours = timeAllocation.hours;
-              const calculatedHeight = Math.max(3, Math.round(dailyHours * 2));
+              const calculatedHeight = timeAllocation.hours > 0 
+                ? Math.max(3, Math.round(dailyHours * 2))
+                : 0;
               const rectangleHeight = Math.min(calculatedHeight, 28);
               
               // Determine border radius for this day rectangle based on working days
@@ -482,7 +493,7 @@ export const TimelineBar = memo(function TimelineBar({
               // Determine styling based on time allocation type
               const isPlannedTime = timeAllocation.type === 'planned';
               const rectangleStyle = {
-                backgroundColor: isPlannedTime ? project.color : autoEstimateColor,
+                backgroundColor: isPlannedTime ? project.color : colorScheme.autoEstimate,
                 borderTopLeftRadius: borderTopLeftRadius,
                 borderTopRightRadius: borderTopRightRadius,
                 borderBottomLeftRadius: borderBottomLeftRadius,
@@ -491,9 +502,9 @@ export const TimelineBar = memo(function TimelineBar({
                 width: isLastWorkingDay ? '40px' : '39px',
                 // Handle borders based on planned time and position
                 ...(isPlannedTime ? {
-                  borderLeft: `2px dashed ${baselineColor}`,
-                  borderRight: `2px dashed ${baselineColor}`,
-                  borderTop: `2px dashed ${baselineColor}`,
+                  borderLeft: `2px dashed ${colorScheme.baseline}`,
+                  borderRight: `2px dashed ${colorScheme.baseline}`,
+                  borderTop: `2px dashed ${colorScheme.baseline}`,
                   borderBottom: 'none'
                 } : {
                   borderRight: isLastWorkingDay ? 'none' : '1px solid rgba(255, 255, 255, 0.3)',
@@ -527,7 +538,7 @@ export const TimelineBar = memo(function TimelineBar({
                               <div 
                                 className="rounded-t-[3px] relative"
                                 style={{
-                                  backgroundColor: midToneColor,
+                                  backgroundColor: colorScheme.midTone,
                                   // Cap inner rectangle to 3px from top of outer rectangle (max 22px for new row height)
                                   height: `${Math.min((dailyHours - 16) * 2, 22)}px`,
                                   width: 'calc(100% - 8px)' // 4px padding on each side
@@ -537,7 +548,7 @@ export const TimelineBar = memo(function TimelineBar({
                               <div 
                                 className="rounded-t-[3px] relative flex items-center justify-center"
                                 style={{
-                                  backgroundColor: midToneColor,
+                                  backgroundColor: colorScheme.midTone,
                                   height: '22px', // Max inner rectangle height (28px - 6px)
                                   width: 'calc(100% - 8px)' // 4px padding on each side
                                 }}
@@ -546,14 +557,14 @@ export const TimelineBar = memo(function TimelineBar({
                                   <AlertTriangle 
                                     className="w-4 h-4" 
                                     style={{ 
-                                      fill: baselineColor,
-                                      stroke: baselineColor,
+                                      fill: colorScheme.baseline,
+                                      stroke: colorScheme.baseline,
                                       strokeWidth: 0
                                     }}
                                   />
                                   <div 
                                     className="absolute inset-0 flex items-center justify-center"
-                                    style={{ color: midToneColor }}
+                                    style={{ color: colorScheme.midTone }}
                                   >
                                     <span className="text-xs font-bold leading-none">!</span>
                                   </div>
@@ -660,7 +671,7 @@ export const TimelineBar = memo(function TimelineBar({
               <div 
                 className="absolute top-0 h-[3px] z-20 cursor-move hover:opacity-80 pointer-events-auto"
                 style={{ 
-                  backgroundColor: baselineColor,
+                  backgroundColor: colorScheme.baseline,
                   left: `${positions.baselineStartPx}px`, // Use exact positioning without artificial constraints in weeks mode
                   width: `${positions.baselineWidthPx}px` 
                 }}
@@ -675,7 +686,7 @@ export const TimelineBar = memo(function TimelineBar({
               <div 
                 className="absolute w-[11px] h-[11px] rounded-full shadow-sm cursor-ew-resize z-30 pointer-events-auto"
                 style={{ 
-                  backgroundColor: baselineColor,
+                  backgroundColor: colorScheme.baseline,
                   left: `${positions.circleLeftPx - 5.5}px`, // Center circle at left edge of start column
                   top: '-4px'
                 }}
@@ -707,7 +718,7 @@ export const TimelineBar = memo(function TimelineBar({
                   height: '0',
                   borderTop: '5.5px solid transparent',
                   borderBottom: '5.5px solid transparent',
-                  borderRight: `7px solid ${baselineColor}`
+                  borderRight: `7px solid ${colorScheme.baseline}`
                 }}
                 onMouseDown={(e) => {
                   e.stopPropagation();

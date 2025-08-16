@@ -68,10 +68,10 @@ class MemoizationCache<T> {
   }
 }
 
-// Global caches for different types of calculations
-export const timelineCalculationCache = new MemoizationCache<any>(50, 10000); // 10 second TTL
-export const dateCalculationCache = new MemoizationCache<any>(100, 30000);   // 30 second TTL
-export const projectMetricsCache = new MemoizationCache<any>(200, 5000);      // 5 second TTL
+// Global caches for different types of calculations - increased cache sizes for better performance
+export const timelineCalculationCache = new MemoizationCache<any>(500, 30000); // Increased size and TTL
+export const dateCalculationCache = new MemoizationCache<any>(200, 30000);   // 30 second TTL
+export const projectMetricsCache = new MemoizationCache<any>(300, 30000);      // Increased size and TTL
 
 // Memoization decorators
 export function memoizeExpensiveCalculation<T extends (...args: any[]) => any>(
@@ -79,14 +79,22 @@ export function memoizeExpensiveCalculation<T extends (...args: any[]) => any>(
   cache: MemoizationCache<ReturnType<T>>,
   keyGenerator?: (...args: Parameters<T>) => string
 ): T {
+  let hitCount = 0;
+  let missCount = 0;
+  
   return ((...args: Parameters<T>) => {
     const key = keyGenerator ? keyGenerator(...args) : JSON.stringify(args);
     
     const cached = cache.get(key);
     if (cached !== undefined) {
+      hitCount++;
+      if ((hitCount + missCount) % 100 === 0) {
+        console.log(`📈 Cache stats - Hits: ${hitCount}, Misses: ${missCount}, Hit rate: ${(hitCount / (hitCount + missCount) * 100).toFixed(1)}%`);
+      }
       return cached;
     }
 
+    missCount++;
     const result = fn(...args);
     cache.set(key, result);
     return result;
@@ -132,7 +140,9 @@ export const memoizedProjectMetrics = memoizeExpensiveCalculation(
     const exactHoursPerDay = project.estimatedHours / totalWorkingDays;
     const dailyHours = Math.floor(exactHoursPerDay);
     const dailyMinutes = Math.round((exactHoursPerDay - dailyHours) * 60);
-    const heightInPixels = Math.max(3, Math.min(32, Math.round(exactHoursPerDay * 2)));
+    const heightInPixels = project.estimatedHours > 0 
+      ? Math.max(3, Math.min(32, Math.round(exactHoursPerDay * 2)))
+      : 0;
     
     return {
       exactDailyHours: exactHoursPerDay,

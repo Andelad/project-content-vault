@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
@@ -11,9 +11,20 @@ export function useProjects() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  
+  // Debouncing for update success toasts
+  const updateToastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastUpdatedProjectRef = useRef<string | null>(null);
 
   useEffect(() => {
     fetchProjects();
+    
+    // Cleanup timeout on unmount
+    return () => {
+      if (updateToastTimeoutRef.current) {
+        clearTimeout(updateToastTimeoutRef.current);
+      }
+    };
   }, []);
 
   const fetchProjects = async () => {
@@ -77,13 +88,32 @@ export function useProjects() {
 
       if (error) throw error;
       setProjects(prev => prev.map(project => project.id === id ? data : project));
-      toast({
-        title: "Success",
-        description: "Project updated successfully",
-      });
+      
+      // Debounce success toast to prevent spam during drag operations
+      lastUpdatedProjectRef.current = id;
+      if (updateToastTimeoutRef.current) {
+        clearTimeout(updateToastTimeoutRef.current);
+      }
+      
+      updateToastTimeoutRef.current = setTimeout(() => {
+        // Only show toast if this was the last project updated
+        if (lastUpdatedProjectRef.current === id) {
+          toast({
+            title: "Success",
+            description: "Project updated successfully",
+          });
+        }
+      }, 500); // 500ms debounce delay
+      
       return data;
     } catch (error) {
       console.error('Error updating project:', error);
+      // Clear any pending success toast when there's an error
+      if (updateToastTimeoutRef.current) {
+        clearTimeout(updateToastTimeoutRef.current);
+        updateToastTimeoutRef.current = null;
+      }
+      // Show error toast immediately
       toast({
         title: "Error",
         description: "Failed to update project",

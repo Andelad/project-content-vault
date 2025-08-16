@@ -1,11 +1,12 @@
-import React, { memo } from 'react';
+import React, { memo, useMemo } from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import { useApp } from '../../contexts/AppContext';
 import { isHolidayDate } from '@/lib/workHoursUtils';
 import { 
   calculateAvailabilityReduction, 
   generateWorkHoursForDate,
-  getProjectTimeAllocation 
+  memoizedGetProjectTimeAllocation,
+  memoizedProjectWorkingDays 
 } from '@/lib/eventWorkHourUtils';
 
 interface AvailabilityCirclesProps {
@@ -98,44 +99,40 @@ export const AvailabilityCircles = memo(function AvailabilityCircles({
     }
   };
   
-  // Calculate daily project hours for each date
-  const getDailyProjectHours = (date: Date) => {
-    let totalHours = 0;
-    
-    // If this isn't a working day, no hours should be allocated
-    if (!isWorkingDay(date)) {
-      return 0;
-    }
-    
-    projects.forEach((project: any) => {
-      const projectStart = new Date(project.startDate);
-      const projectEnd = new Date(project.endDate);
+  // Memoized calculation of project hours for a specific date
+  const getDailyProjectHours = useMemo(() => {
+    return (date: Date) => {
+      let totalHours = 0;
       
-      if (date >= projectStart && date <= projectEnd) {
-        // Count only working days for this project (excludes holidays and 0-hour days)
-        const workingDays = [];
-        for (let d = new Date(projectStart); d <= projectEnd; d.setDate(d.getDate() + 1)) {
-          if (isWorkingDay(new Date(d))) {
-            workingDays.push(new Date(d));
-          }
-        }
-        
-        const totalWorkingDays = workingDays.length;
-        
-        // If no working days, don't allocate hours
-        if (totalWorkingDays === 0) {
-          return;
-        }
-        
-        const hoursPerDay = project.estimatedHours / totalWorkingDays;
-        const roundedHoursPerDay = Math.ceil(hoursPerDay);
-        totalHours += roundedHoursPerDay;
+      // If this isn't a working day, no hours should be allocated
+      if (!isWorkingDay(date)) {
+        return 0;
       }
-    });
-    
-    return totalHours;
-  };
-  
+      
+      projects.forEach((project: any) => {
+        const projectStart = new Date(project.startDate);
+        const projectEnd = new Date(project.endDate);
+        
+        if (date >= projectStart && date <= projectEnd) {
+          // Use the memoized working days calculation
+          const workingDays = memoizedProjectWorkingDays(projectStart, projectEnd, settings, holidays);
+          const totalWorkingDays = workingDays.length;
+          
+          // If no working days, don't allocate hours
+          if (totalWorkingDays === 0) {
+            return;
+          }
+          
+          const hoursPerDay = project.estimatedHours / totalWorkingDays;
+          const roundedHoursPerDay = Math.ceil(hoursPerDay);
+          totalHours += roundedHoursPerDay;
+        }
+      });
+      
+      return totalHours;
+    };
+  }, [projects, settings, holidays, isWorkingDay]);
+
   // Get work hours for a specific day
   const getWorkHoursForDay = (date: Date) => {
     // If it's a holiday, return 0 hours

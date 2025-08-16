@@ -22,7 +22,6 @@ import { AvailabilitySidebar } from './timeline/AvailabilitySidebar';
 import { TimelineDateHeaders } from './timeline/TimelineDateHeaders';
 import { TimelineBar } from './timeline/TimelineBar';
 import { WeekendOverlay } from './timeline/WeekendOverlay';
-import { HolidayOverlay } from './timeline/HolidayOverlay';
 import { AvailabilityCircles } from './timeline/AvailabilityCircles';
 import { TimelineScrollbar } from './timeline/TimelineScrollbar';
 import { HoverableTimelineScrollbar } from './timeline/HoverableTimelineScrollbar';
@@ -92,6 +91,14 @@ export function TimelineView() {
 
   // Get timeline data using your existing hook
   const { dates, viewportEnd, filteredProjects, mode, actualViewportStart } = useTimelineData(projects, viewportStart, VIEWPORT_DAYS, timelineMode);
+
+  // Debug performance logging
+  console.log(`🚀 Timeline performance:`, {
+    mode: timelineMode,
+    days: dates.length,
+    projects: filteredProjects.length,
+    totalCalculations: dates.length * filteredProjects.length
+  });
 
   // Memoize date range formatting
   const dateRangeText = useMemo(() => {
@@ -617,7 +624,16 @@ export function TimelineView() {
                 <ToggleGroup
                   type="single"
                   value={timelineMode}
-                  onValueChange={(value) => value && setTimelineMode(value as 'days' | 'weeks')}
+                  onValueChange={(value) => {
+                    if (value) {
+                      console.time(`⏱️ Timeline mode change to ${value}`);
+                      setTimelineMode(value as 'days' | 'weeks');
+                      // Use setTimeout to measure after render
+                      setTimeout(() => {
+                        console.timeEnd(`⏱️ Timeline mode change to ${value}`);
+                      }, 100);
+                    }
+                  }}
                   className="border border-gray-200 rounded-lg h-9 p-1"
                 >
                   <ToggleGroupItem value="weeks" aria-label="Weeks mode" className="px-3 py-1 h-7">
@@ -688,12 +704,65 @@ export function TimelineView() {
                     <TimelineDateHeaders dates={dates} mode={mode} />
                     
                     {/* Timeline Grid - Scrollable Content */}
-                    <div className="flex-1 overflow-y-auto relative pb-12 light-scrollbar">
+                    <div className="flex-1 overflow-y-auto relative light-scrollbar">
                       {/* Weekend Overlay */}
                       <WeekendOverlay dates={dates} mode={mode} />
                       
+                      {/* DIRECT HOLIDAY PATTERN - INLINE FOR TESTING */}
+                      {holidays && holidays.length > 0 && (
+                        <div className="absolute inset-0 pointer-events-none z-50" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+                          {holidays.map(holiday => {
+                            const holidayStart = new Date(holiday.startDate);
+                            const holidayEnd = new Date(holiday.endDate);
+                            const columnWidth = mode === 'weeks' ? 72 : 40;
+                            
+                            console.log(`🏖️ Holiday "${holiday.title}": ${holidayStart.toDateString()} to ${holidayEnd.toDateString()}`);
+                            console.log(`📅 Timeline range: ${dates[0]?.toDateString()} to ${dates[dates.length-1]?.toDateString()}`);
+                            
+                            // Simple days mode only for now
+                            if (mode === 'days') {
+                              const startMs = holidayStart.getTime();
+                              const endMs = holidayEnd.getTime();
+                              
+                              // Find start and end indices
+                              let startIndex = -1;
+                              let endIndex = -1;
+                              
+                              dates.forEach((date, index) => {
+                                const dateMs = date.getTime();
+                                if (dateMs >= startMs && startIndex === -1) {
+                                  startIndex = index;
+                                }
+                                if (dateMs <= endMs) {
+                                  endIndex = index;
+                                }
+                              });
+                              
+                              if (startIndex !== -1 && endIndex !== -1) {
+                                const patternWidth = (endIndex - startIndex + 1) * columnWidth;
+                                return (
+                                  <div
+                                    key={`holiday-${holiday.id}`}
+                                    className="holiday-pattern"
+                                    style={{
+                                      position: 'absolute',
+                                      top: 0,
+                                      bottom: 0,
+                                      left: `${startIndex * columnWidth}px`,
+                                      width: `${patternWidth}px`
+                                    }}
+                                  />
+                                );
+                              }
+                            }
+                            
+                            return null;
+                          })}
+                        </div>
+                      )}
+                      
                       {/* Holiday Overlay */}
-                      <HolidayOverlay dates={dates} type="projects" mode={mode} />
+                      {/* <HolidayOverlay dates={dates} type="projects" mode={mode} /> */}
                       
                       {/* Project Timeline Bars - Organized by Groups and Rows */}
                       <div className="relative">
@@ -797,6 +866,8 @@ export function TimelineView() {
                         <div className="h-12 border-b border-gray-100" />
                       </div>
                       
+                      {/* Spacer for the fixed holiday row */}
+                      <div style={{ height: '60px' }} />
                     </div>
                   </div>
                 </div>
@@ -843,7 +914,7 @@ export function TimelineView() {
                     <WeekendOverlay dates={dates} mode={mode} />
                     
                     {/* Holiday Overlay */}
-                    <HolidayOverlay dates={dates} type="availability" mode={mode} />
+                    {/* <HolidayOverlay dates={dates} type="availability" mode={mode} /> */}
                     
                     {/* Available Hours Row */}
                     <div className="border-b border-gray-100 h-12">

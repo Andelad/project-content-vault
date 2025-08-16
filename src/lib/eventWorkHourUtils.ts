@@ -1,4 +1,8 @@
 import { CalendarEvent, WorkHour } from '../types';
+import { memoizeExpensiveCalculation, timelineCalculationCache } from './memoization';
+
+// Debug counters
+let allocationCallCount = 0;
 
 /**
  * Calculates the overlap between an event and work hours in minutes
@@ -120,6 +124,45 @@ export function generateWorkHoursForDate(
 }
 
 /**
+ * Memoized calculation of working days for a project
+ * This is the expensive calculation that was causing performance issues
+ */
+export const memoizedProjectWorkingDays = memoizeExpensiveCalculation(
+  (projectStart: Date, projectEnd: Date, settings: any, holidays: any[]) => {
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const projectWorkingDays = [];
+    
+    for (let d = new Date(projectStart); d <= projectEnd; d.setDate(d.getDate() + 1)) {
+      const checkDate = new Date(d);
+      const checkDayName = dayNames[checkDate.getDay()] as keyof typeof settings.weeklyWorkHours;
+      const checkWorkSlots = settings.weeklyWorkHours[checkDayName] || [];
+      const checkIsHoliday = holidays.some(holiday => 
+        checkDate >= new Date(holiday.startDate) && checkDate <= new Date(holiday.endDate)
+      );
+      
+      if (!checkIsHoliday && Array.isArray(checkWorkSlots) && 
+          checkWorkSlots.reduce((sum, slot) => sum + slot.duration, 0) > 0) {
+        projectWorkingDays.push(new Date(checkDate));
+      }
+    }
+    
+    return projectWorkingDays;
+  },
+  timelineCalculationCache,
+  (projectStart, projectEnd, settings, holidays) => {
+    // More efficient cache key generation
+    const settingsHash = Object.keys(settings.weeklyWorkHours || {}).map(day => {
+      const slots = settings.weeklyWorkHours[day];
+      return Array.isArray(slots) ? slots.reduce((sum, slot) => sum + slot.duration, 0) : (slots || 0);
+    }).join('-');
+    
+    const holidaysHash = holidays.map(h => `${h.id}`).join(',');
+    
+    return `days-${projectStart.getTime()}-${projectEnd.getTime()}-${settingsHash}-${holidaysHash}`;
+  }
+);
+
+/**
  * Calculates project time allocation type for a specific date
  */
 export function getProjectTimeAllocation(
@@ -134,6 +177,13 @@ export function getProjectTimeAllocation(
   hours: number;
   isWorkingDay: boolean;
 } {
+  allocationCallCount++;
+  const startTime = performance.now();
+  
+  if (allocationCallCount % 100 === 0) {
+    console.log(`📊 getProjectTimeAllocation called ${allocationCallCount} times`);
+  }
+  
   // Check if it's a working day
   const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   const dayName = dayNames[date.getDay()] as keyof typeof settings.weeklyWorkHours;
@@ -173,29 +223,41 @@ export function getProjectTimeAllocation(
     return { type: 'none', hours: 0, isWorkingDay: true };
   }
 
-  // Calculate auto-estimate
-  const projectWorkingDays = [];
-  for (let d = new Date(projectStart); d <= projectEnd; d.setDate(d.getDate() + 1)) {
-    const checkDate = new Date(d);
-    const checkDayName = dayNames[checkDate.getDay()] as keyof typeof settings.weeklyWorkHours;
-    const checkWorkSlots = settings.weeklyWorkHours[checkDayName] || [];
-    const checkIsHoliday = holidays.some(holiday => 
-      checkDate >= new Date(holiday.startDate) && checkDate <= new Date(holiday.endDate)
-    );
-    
-    if (!checkIsHoliday && Array.isArray(checkWorkSlots) && 
-        checkWorkSlots.reduce((sum, slot) => sum + slot.duration, 0) > 0) {
-      projectWorkingDays.push(checkDate);
-    }
-  }
+  // Use memoized calculation for project working days
+  const projectWorkingDays = memoizedProjectWorkingDays(projectStart, projectEnd, settings, holidays);
 
   if (projectWorkingDays.length === 0) {
     return { type: 'none', hours: 0, isWorkingDay: true };
   }
 
   const autoEstimateHours = project.estimatedHours / projectWorkingDays.length;
+  
+  const endTime = performance.now();
+  if (endTime - startTime > 1) { // Log if it takes more than 1ms
+    console.log(`⚠️ Slow getProjectTimeAllocation: ${(endTime - startTime).toFixed(2)}ms for project ${projectId} on ${date.toDateString()}`);
+  }
+  
   return { type: 'auto-estimate', hours: autoEstimateHours, isWorkingDay: true };
 }
+
+/**
+ * Memoized version of getProjectTimeAllocation for performance
+ */
+export const memoizedGetProjectTimeAllocation = memoizeExpensiveCalculation(
+  getProjectTimeAllocation,
+  timelineCalculationCache,
+  (projectId, date, events, project, settings, holidays) => {
+    // More efficient cache key - avoid expensive JSON.stringify and reduce granularity
+    const settingsHash = Object.keys(settings.weeklyWorkHours || {}).map(day => {
+      const slots = settings.weeklyWorkHours[day];
+      return Array.isArray(slots) ? slots.reduce((sum, slot) => sum + slot.duration, 0) : (slots || 0);
+    }).join('-');
+    
+    const holidaysHash = holidays.map(h => `${h.id}`).join(',');
+    
+    return `alloc-${projectId}-${date.getTime()}-${project.estimatedHours}-${project.startDate.getTime()}-${project.endDate.getTime()}-${settingsHash}-${holidaysHash}`;
+  }
+);
 
 /**
  * Calculates overtime planned hours for a specific date
