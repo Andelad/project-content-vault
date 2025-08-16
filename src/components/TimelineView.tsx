@@ -692,7 +692,7 @@ export function TimelineView() {
             <div className="flex-1 flex flex-col min-h-0 pt-[0px] pr-[0px] pb-[21px] pl-[0px]">
               {/* Timeline Card */}
               <Card className="flex-1 flex flex-col overflow-hidden relative timeline-card-container">
-                <div className="flex-1 flex min-h-0 overflow-x-hidden">
+                <div className="flex-1 flex min-h-0" style={{ overflowX: 'hidden', overflowY: 'hidden' }}>
                   {/* Sidebar */}
                   <TimelineSidebar
                     groups={groupsWithProjects}
@@ -703,12 +703,21 @@ export function TimelineView() {
                   />
                   
                   {/* Timeline Content */}
-                  <div className="flex-1 flex flex-col bg-white timeline-content-area" style={{ minWidth: `${dates.length * (mode === 'weeks' ? 72 : 40)}px` }}>
+                  <div className="flex-1 flex flex-col bg-white timeline-content-area" style={{ 
+                    minWidth: `${dates.length * (mode === 'weeks' ? 72 : 40)}px`,
+                    maxWidth: `${dates.length * (mode === 'weeks' ? 72 : 40)}px`,
+                    overflowX: 'hidden'
+                  }}>
                     {/* Date Headers */}
                     <TimelineDateHeaders dates={dates} mode={mode} />
                     
                     {/* Timeline Grid - Scrollable Content */}
-                    <div className="flex-1 overflow-y-auto relative light-scrollbar-vertical-only">
+                    <div className="flex-1 relative" style={{ 
+                      overflowY: 'auto', 
+                      overflowX: 'hidden',
+                      scrollbarWidth: 'thin',
+                      scrollbarColor: '#d1d5db #f9fafb'
+                    }}>
                       {/* Weekend Overlay */}
                       <WeekendOverlay dates={dates} mode={mode} />
                       
