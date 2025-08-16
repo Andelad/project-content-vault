@@ -187,7 +187,25 @@ export function TimelineView() {
     
     const today = new Date();
     const targetViewportStart = new Date(today);
-    targetViewportStart.setDate(today.getDate() - Math.floor(VIEWPORT_DAYS / 4));
+    
+    // Position today based on timeline mode:
+    // - Days view: Today should be the 5th column (4 days from left)
+    // - Weeks view: Today's week should be the 3rd column (2 weeks from left)
+    if (timelineMode === 'weeks') {
+      // In weeks view, we need to position so today's week is the 3rd column
+      // First, find the start of today's week (Monday)
+      const dayOfWeek = today.getDay();
+      const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Convert Sunday=0 to Monday=0
+      const weekStart = new Date(today);
+      weekStart.setDate(today.getDate() - mondayOffset);
+      
+      // Position so this week is the 3rd column (2 weeks from left)
+      targetViewportStart.setTime(weekStart.getTime());
+      targetViewportStart.setDate(weekStart.getDate() - (2 * 7)); // Go back 2 weeks
+    } else {
+      // In days view, position so today is the 5th column (4 days from left)
+      targetViewportStart.setDate(today.getDate() - 4);
+    }
     
     const currentStart = viewportStart.getTime();
     const targetStart = targetViewportStart.getTime();
@@ -216,7 +234,7 @@ export function TimelineView() {
         setIsAnimating(false);
       }
     );
-  }, [viewportStart, setCurrentDate, isAnimating, VIEWPORT_DAYS]);
+  }, [viewportStart, setCurrentDate, isAnimating, VIEWPORT_DAYS, timelineMode]);
 
   const handleDateSelect = useCallback((selectedDate: Date | undefined) => {
     if (!selectedDate || isAnimating) return;
