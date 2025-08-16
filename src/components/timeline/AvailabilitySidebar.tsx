@@ -11,11 +11,12 @@ export const AvailabilitySidebar = memo(function AvailabilitySidebar({
 }: AvailabilitySidebarProps) {
   return (
     <div 
-      className="bg-white border-r border-gray-200 transition-all duration-300"
+      className="bg-white border-r border-gray-200"
       style={{ 
         width: collapsed ? '48px' : '280px',
         minWidth: collapsed ? '48px' : '280px',
-        maxWidth: collapsed ? '48px' : '280px'
+        maxWidth: collapsed ? '48px' : '280px',
+        transition: 'all 300ms cubic-bezier(0.4, 0, 0.2, 1)'
       }}
     >
       {/* Availability Items */}

@@ -7,7 +7,7 @@ import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 import { Button } from './ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
-import { ChevronLeft, ChevronRight, MapPin, CalendarSearch } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MapPin, CalendarSearch, Folders } from 'lucide-react';
 import { useAppDataOnly, useAppActionsOnly, useApp } from '../contexts/AppContext';
 import { useTimelineData } from '../hooks/useTimelineData';
 import { useDynamicViewportDays } from '../hooks/useDynamicViewportDays';
@@ -28,6 +28,10 @@ import { HoverableTimelineScrollbar } from './timeline/HoverableTimelineScrollba
 import { TimelineAddProjectRow, AddHolidayRow } from './timeline/AddProjectRow';
 import { SmartHoverAddProjectBar } from './timeline/SmartHoverAddProjectBar';
 import { PerformanceStatus } from './PerformanceStatus';
+import { DraggableRowComponent } from './timeline/DraggableRowComponent';
+import { AddRowComponent } from './timeline/AddRowComponent';
+import { DraggableGroupRow } from './timeline/DraggableGroupRow';
+import { AddGroupRow } from './timeline/AddGroupRow';
 
 // Import new availability component
 import { NewAvailabilityCircles } from './timeline/NewAvailabilityCircles';
@@ -692,36 +696,100 @@ export function TimelineView() {
             <div className="flex-1 flex flex-col min-h-0 pt-[0px] pr-[0px] pb-[21px] pl-[0px]">
               {/* Timeline Card */}
               <Card className="flex-1 flex flex-col overflow-hidden relative timeline-card-container">
-                <div className="flex-1 flex min-h-0" style={{ overflowX: 'hidden', overflowY: 'hidden' }}>
-                  {/* Sidebar */}
-                  <TimelineSidebar
-                    groups={groupsWithProjects}
-                    rows={rows}
-                    collapsed={collapsed}
-                    onToggleCollapse={handleToggleCollapse}
-                    dates={dates}
-                  />
-                  
-                  {/* Timeline Content */}
-                  <div className="flex-1 flex flex-col bg-white timeline-content-area" style={{ 
-                    minWidth: `${dates.length * (mode === 'weeks' ? 72 : 40)}px`,
-                    maxWidth: `${dates.length * (mode === 'weeks' ? 72 : 40)}px`,
-                    overflowX: 'hidden'
-                  }}>
-                    {/* Date Headers */}
-                    <TimelineDateHeaders dates={dates} mode={mode} />
-                    
-                    {/* Timeline Grid - Scrollable Content */}
-                    <div className="flex-1 relative" style={{ 
-                      overflowY: 'auto', 
-                      overflowX: 'hidden',
-                      scrollbarWidth: 'thin',
-                      scrollbarColor: '#d1d5db #f9fafb'
-                    }}>
-                      {/* Weekend Overlay */}
-                      <WeekendOverlay dates={dates} mode={mode} />
+                {/* Fixed Weekend Overlay - covers timeline area only, doesn't scroll */}
+                <div className="absolute pointer-events-none z-5" style={{
+                  top: '48px', // Below date header
+                  bottom: '52px', // Above holiday row
+                  left: collapsed ? '48px' : '280px', // After sidebar
+                  right: 0
+                }}>
+                  <WeekendOverlay dates={dates} mode={mode} />
+                </div>
+                <div className="flex flex-col h-full">
+                  {/* Fixed Headers Row */}
+                  <div className="flex border-b border-gray-200 bg-white relative z-10">
+                    {/* Sidebar Header */}
+                    <div 
+                      className="bg-white border-r border-gray-200 flex items-center py-2 relative"
+                      style={{ 
+                        width: collapsed ? '48px' : '280px',
+                        minWidth: collapsed ? '48px' : '280px',
+                        transition: 'all 300ms cubic-bezier(0.4, 0, 0.2, 1)'
+                      }}
+                    >
+                      <div className={`flex items-center w-full ${collapsed ? 'justify-center' : 'px-4 gap-3'}`}>
+                        {collapsed ? (
+                          <Folders className="w-4 h-4 text-gray-600" />
+                        ) : (
+                          <>
+                            <Folders className="w-4 h-4 text-gray-600" />
+                            <span>Projects</span>
+                          </>
+                        )}
+                      </div>
                       
-                      {/* DIRECT HOLIDAY PATTERN - INLINE FOR TESTING */}
+                      {/* Collapse Toggle Button */}
+                      <button
+                        onClick={handleToggleCollapse}
+                        className="absolute top-3 -right-3 w-6 h-6 bg-white border border-border rounded-md flex items-center justify-center text-[#595956] hover:bg-gray-50 transition-colors duration-200 z-20"
+                      >
+                        {collapsed ? (
+                          <ChevronRight className="w-4 h-4" />
+                        ) : (
+                          <ChevronLeft className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                    
+                    {/* Date Headers */}
+                    <div className="flex-1 bg-white" style={{ 
+                      minWidth: `${dates.length * (mode === 'weeks' ? 72 : 40)}px`
+                    }}>
+                      <TimelineDateHeaders dates={dates} mode={mode} />
+                    </div>
+                  </div>
+                  
+                  {/* Scrollable Content Area */}
+                  <div className="flex-1 flex overflow-x-hidden overflow-y-auto light-scrollbar-vertical-only">
+                    <div 
+                      className="bg-white border-r border-gray-200"
+                      style={{ 
+                        width: collapsed ? '48px' : '280px',
+                        minWidth: collapsed ? '48px' : '280px',
+                        transition: 'all 300ms cubic-bezier(0.4, 0, 0.2, 1)'
+                      }}
+                    >
+                      {!collapsed && (
+                        <div>
+                          {groups.map((group, groupIndex) => (
+                            <DraggableGroupRow key={group.id} group={group} index={groupIndex}>
+                              {rows
+                                .filter(row => row.groupId === group.id)
+                                .sort((a, b) => a.order - b.order)
+                                .map((row: any, rowIndex: number) => (
+                                  <DraggableRowComponent
+                                    key={row.id}
+                                    row={row}
+                                    index={rowIndex}
+                                    groupId={group.id}
+                                  />
+                                ))
+                              }
+                              <AddRowComponent groupId={group.id} />
+                            </DraggableGroupRow>
+                          ))}
+                          <AddGroupRow />
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Timeline Content */}
+                    <div className="flex-1 bg-white timeline-content-area relative" style={{ 
+                      minWidth: `${dates.length * (mode === 'weeks' ? 72 : 40)}px`
+                    }}>
+                      {/* Scrollable Content Layer */}
+                      <div className="relative z-10 h-full">
+                        {/* DIRECT HOLIDAY PATTERN - INLINE FOR TESTING */}
                       {holidays && holidays.length > 0 && (
                         <div className="absolute inset-0 pointer-events-none z-50" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
                           {holidays.map(holiday => {
@@ -879,9 +947,20 @@ export function TimelineView() {
                         <div className="h-12 border-b border-gray-100" />
                       </div>
                       
-                      {/* Spacer for the fixed holiday row */}
-                      <div style={{ height: '60px' }} />
+                      </div> {/* End of Scrollable Content Layer */}
                     </div>
+                  </div>
+                  
+                  {/* Fixed Add Holiday Row at bottom */}
+                  <div className="border-t border-gray-200 bg-white">
+                    <AddHolidayRow 
+                      dates={dates} 
+                      collapsed={collapsed} 
+                      isDragging={isDragging}
+                      dragState={dragState}
+                      handleHolidayMouseDown={handleHolidayMouseDown}
+                      mode={timelineMode}
+                    />
                   </div>
                 </div>
                 
@@ -898,18 +977,6 @@ export function TimelineView() {
                   isDragging={isDragging}
                   stopAutoScroll={stopAutoScroll}
                 />
-                
-                {/* Fixed Add Holiday Row at bottom */}
-                <div className="absolute bottom-0 left-0 right-0 border-t border-gray-200 z-40">
-                  <AddHolidayRow 
-                    dates={dates} 
-                    collapsed={collapsed} 
-                    isDragging={isDragging}
-                    dragState={dragState}
-                    handleHolidayMouseDown={handleHolidayMouseDown}
-                    mode={timelineMode}
-                  />
-                </div>
               </Card>
               
               {/* Availability Timeline Card */}
