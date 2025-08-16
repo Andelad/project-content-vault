@@ -3,6 +3,7 @@ import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { Calendar, AlignLeft, Folders, Settings, ChevronLeft, ChevronRight, PieChart } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { GitVersionDisplay } from './GitVersionDisplay';
 
 export function Sidebar() {
   const { currentView, setCurrentView } = useApp();
@@ -91,7 +92,7 @@ export function Sidebar() {
         ) : (
           <div className="flex items-center gap-3">
             <img src="/lovable-uploads/b7b3f5f1-d45e-4fc7-9113-f39c988b4951.png" alt="Budgi Logo" className="w-5 h-5" />
-            <h1 className="text-lg font-medium text-[#595956]">Budgi v1.001</h1>
+            <h1 className="text-lg font-medium text-[#595956]">Budgi</h1>
           </div>
         )}
         
@@ -187,6 +188,9 @@ export function Sidebar() {
             );
           })}
         </ul>
+        
+        {/* Git Version Display */}
+        {!isCollapsed && <GitVersionDisplay />}
       </div>
     </div>
   );

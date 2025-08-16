@@ -2,21 +2,44 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
+import { execSync } from "child_process";
+
+// Get Git information at build time
+function getGitInfo() {
+  try {
+    const commitHash = execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
+    const commitCount = execSync('git rev-list --count HEAD', { encoding: 'utf8' }).trim();
+    const branchName = execSync('git branch --show-current', { encoding: 'utf8' }).trim();
+    return { commitHash, commitCount, branchName };
+  } catch (error) {
+    console.warn('Git information not available:', (error as Error).message);
+    return { commitHash: 'unknown', commitCount: '0', branchName: 'unknown' };
+  }
+}
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ mode }) => {
+  const gitInfo = getGitInfo();
+  
+  return {
   server: {
     host: "::",
     port: 8080,
   },
-  plugins: [
-    react(),
-    mode === 'development' &&
-    componentTagger(),
-  ].filter(Boolean),
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
+    plugins: [
+      react(),
+      mode === 'development' &&
+      componentTagger(),
+    ].filter(Boolean),
+    define: {
+      'import.meta.env.VITE_GIT_COMMIT_HASH': JSON.stringify(gitInfo.commitHash),
+      'import.meta.env.VITE_GIT_COMMIT_COUNT': JSON.stringify(gitInfo.commitCount),
+      'import.meta.env.VITE_GIT_BRANCH': JSON.stringify(gitInfo.branchName),
     },
-  },
-}));
+    resolve: {
+      alias: {
+        "@": path.resolve(__dirname, "./src"),
+      },
+    },
+  };
+});
