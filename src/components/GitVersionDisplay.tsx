@@ -1,10 +1,10 @@
 import React from 'react';
 
 export function GitVersionDisplay() {
-  // Only show in production mode
-  if (!import.meta.env.PROD) {
-    return null;
-  }
+  // Show in both development and production for now (you can change this later)
+  // if (!import.meta.env.PROD) {
+  //   return null;
+  // }
 
   const commitHash = import.meta.env.VITE_GIT_COMMIT_HASH;
   const commitCount = import.meta.env.VITE_GIT_COMMIT_COUNT;
