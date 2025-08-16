@@ -21,7 +21,7 @@ import { TimelineSidebar } from './timeline/TimelineSidebar';
 import { AvailabilitySidebar } from './timeline/AvailabilitySidebar';
 import { TimelineDateHeaders } from './timeline/TimelineDateHeaders';
 import { TimelineBar } from './timeline/TimelineBar';
-import { WeekendOverlay } from './timeline/WeekendOverlay';
+import { TimelineColumnMarkers } from './timeline/TimelineColumnMarkers';
 import { AvailabilityCircles } from './timeline/AvailabilityCircles';
 import { TimelineScrollbar } from './timeline/TimelineScrollbar';
 import { HoverableTimelineScrollbar } from './timeline/HoverableTimelineScrollbar';
@@ -95,6 +95,23 @@ export function TimelineView() {
 
   // Get timeline data using your existing hook
   const { dates, viewportEnd, filteredProjects, mode, actualViewportStart } = useTimelineData(projects, viewportStart, VIEWPORT_DAYS, timelineMode, collapsed);
+
+  // Expand holiday ranges into individual Date objects for fast lookup by the markers
+  const holidayDates = useMemo(() => {
+    if (!holidays || holidays.length === 0) return [] as Date[];
+    const result: Date[] = [];
+    for (const h of holidays) {
+      // h.startDate and h.endDate are Date objects in AppContext processing
+      const start = new Date(h.startDate);
+      const end = new Date(h.endDate);
+      start.setHours(0,0,0,0);
+      end.setHours(0,0,0,0);
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        result.push(new Date(d));
+      }
+    }
+    return result;
+  }, [holidays]);
 
   // Debug performance logging
   console.log(`🚀 Timeline performance:`, {
@@ -696,8 +713,8 @@ export function TimelineView() {
             <div className="flex-1 flex flex-col min-h-0 pt-[0px] pr-[0px] pb-[21px] pl-[0px]">
               {/* Timeline Card */}
               <Card className="flex-1 flex flex-col overflow-hidden relative timeline-card-container">
-                {/* Fixed Weekend Overlay - covers timeline area only, doesn't scroll */}
-                <div className="absolute pointer-events-none z-5" style={{
+                {/* Column Markers - covers timeline area only, doesn't scroll */}
+                <div className="absolute pointer-events-none z-1" style={{
                   top: '48px', // Below date header
                   bottom: '52px', // Above holiday row
                   left: collapsed ? '48px' : '280px', // After sidebar
@@ -705,7 +722,52 @@ export function TimelineView() {
                   transition: 'left 300ms cubic-bezier(0.4, 0, 0.2, 1)',
                   willChange: 'left'
                 }}>
-                  <WeekendOverlay dates={dates} mode={mode} />
+                  <TimelineColumnMarkers dates={dates} mode={mode} />
+                  {/* Full-column holiday overlays that span the full scroll window */}
+                  <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }}>
+                    {holidays && holidays.length > 0 && holidays.map(holiday => {
+                      const holidayStart = new Date(holiday.startDate);
+                      const holidayEnd = new Date(holiday.endDate);
+                      const columnWidth = mode === 'weeks' ? 72 : 40;
+                      const dayWidth = mode === 'weeks' ? columnWidth / 7 : columnWidth;
+                      const timelineStart = new Date(dates[0]);
+                      timelineStart.setHours(0,0,0,0);
+                      const msPerDay = 24 * 60 * 60 * 1000;
+
+                      holidayStart.setHours(0,0,0,0);
+                      holidayEnd.setHours(0,0,0,0);
+
+                      const startDay = Math.floor((holidayStart.getTime() - timelineStart.getTime()) / msPerDay);
+                      const holidayDays = Math.round((holidayEnd.getTime() - holidayStart.getTime()) / msPerDay) + 1;
+                      const totalDays = mode === 'weeks' ? dates.length * 7 : dates.length;
+
+                      const startDayIndex = Math.max(0, startDay);
+                      const endDayIndex = Math.min(totalDays - 1, startDay + holidayDays - 1);
+
+                      if (endDayIndex < 0 || startDayIndex > totalDays - 1) return null;
+
+                      const leftPx = startDayIndex * dayWidth;
+                      const widthPx = (endDayIndex - startDayIndex + 1) * dayWidth;
+
+                      // More condensed pattern for weeks view (thinner lines, smaller gaps)
+                      const backgroundPattern = mode === 'weeks' 
+                        ? 'repeating-linear-gradient(-45deg, rgba(107,114,128,0.16) 0 1.5px, transparent 1.5px 4px)'
+                        : 'repeating-linear-gradient(-45deg, rgba(107,114,128,0.16) 0 2px, transparent 2px 6px)';
+
+                      return (
+                        <div
+                          key={`holiday-full-${holiday.id}`}
+                          className="absolute top-0 bottom-0 pointer-events-none"
+                          style={{
+                            left: `${leftPx}px`,
+                            width: `${widthPx}px`,
+                            backgroundImage: backgroundPattern
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
+
                 </div>
                 <div className="flex flex-col min-h-full bg-white">
                   {/* Fixed Headers Row */}
@@ -717,7 +779,8 @@ export function TimelineView() {
                         width: collapsed ? '48px' : '280px',
                         minWidth: collapsed ? '48px' : '280px',
                         transition: 'width 300ms cubic-bezier(0.4, 0, 0.2, 1), min-width 300ms cubic-bezier(0.4, 0, 0.2, 1)',
-                        willChange: 'width, min-width'
+                        willChange: 'width, min-width',
+                        zIndex: 25
                       }}
                     >
                       <div className={`flex items-center w-full ${collapsed ? 'justify-center' : 'px-4 gap-3'}`}>
@@ -754,18 +817,19 @@ export function TimelineView() {
                   
                   {/* Scrollable Content Area */}
                                     {/* Scrollable Content Area */}
-                  <div className="flex-1 overflow-x-hidden overflow-y-auto light-scrollbar-vertical-only" style={{ 
+                  <div className="flex-1 overflow-x-hidden overflow-y-auto light-scrollbar-vertical-only relative" style={{ 
                     display: 'flex',
                     height: '100%'
                   }}>
                     {/* Sidebar Content */}
                     <div 
-                      className="bg-white"
+                      className="bg-white relative"
                       style={{ 
                         width: collapsed ? '48px' : '280px',
                         height: '100%',
                         transition: 'width 300ms cubic-bezier(0.4, 0, 0.2, 1)',
-                        willChange: 'width'
+                        willChange: 'width',
+                        zIndex: 25
                       }}
                     >
                       {/* Border wrapper: at least viewport height, grows with content */}
@@ -804,63 +868,13 @@ export function TimelineView() {
                     }}>
                       {/* Scrollable Content Layer */}
                       <div className="relative z-10">
-                        {/* DIRECT HOLIDAY PATTERN - INLINE FOR TESTING */}
-                      {holidays && holidays.length > 0 && (
-                        <div className="absolute inset-0 pointer-events-none z-50" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
-                          {holidays.map(holiday => {
-                            const holidayStart = new Date(holiday.startDate);
-                            const holidayEnd = new Date(holiday.endDate);
-                            const columnWidth = mode === 'weeks' ? 72 : 40;
-                            
-                            console.log(`🏖️ Holiday "${holiday.title}": ${holidayStart.toDateString()} to ${holidayEnd.toDateString()}`);
-                            console.log(`📅 Timeline range: ${dates[0]?.toDateString()} to ${dates[dates.length-1]?.toDateString()}`);
-                            
-                            // Simple days mode only for now
-                            if (mode === 'days') {
-                              const startMs = holidayStart.getTime();
-                              const endMs = holidayEnd.getTime();
-                              
-                              // Find start and end indices
-                              let startIndex = -1;
-                              let endIndex = -1;
-                              
-                              dates.forEach((date, index) => {
-                                const dateMs = date.getTime();
-                                if (dateMs >= startMs && startIndex === -1) {
-                                  startIndex = index;
-                                }
-                                if (dateMs <= endMs) {
-                                  endIndex = index;
-                                }
-                              });
-                              
-                              if (startIndex !== -1 && endIndex !== -1) {
-                                const patternWidth = (endIndex - startIndex + 1) * columnWidth;
-                                return (
-                                  <div
-                                    key={`holiday-${holiday.id}`}
-                                    className="holiday-pattern"
-                                    style={{
-                                      position: 'absolute',
-                                      top: 0,
-                                      bottom: 0,
-                                      left: `${startIndex * columnWidth}px`,
-                                      width: `${patternWidth}px`
-                                    }}
-                                  />
-                                );
-                              }
-                            }
-                            
-                            return null;
-                          })}
-                        </div>
-                      )}
+                        {/* per-row holiday overlays will render inside each row container */}
                       
                       {/* Holiday Overlay */}
                       {/* <HolidayOverlay dates={dates} type="projects" mode={mode} /> */}
                       
                       {/* Project Timeline Bars - Organized by Groups and Rows */}
+                      
                       <div className="relative">
                         {groups.map(group => {
                           // Get all valid rows for this group
@@ -915,7 +929,9 @@ export function TimelineView() {
                                     <div className="relative h-[52px]">
                                       {/* Height enforcer - ensures row maintains 52px height even when empty */}
                                       <div className="absolute inset-0 min-h-[52px]" />
-                                      
+
+                                      {/* holiday overlays moved to full-column containers outside rows */}
+
                                       {/* Render all projects in this row - positioned absolutely to overlay */}
                                       {rowProjects.map((project: any) => {
                                         // Always render TimelineBar to maintain consistent positioning
@@ -996,6 +1012,62 @@ export function TimelineView() {
               
               {/* Availability Timeline Card */}
               <Card className="mt-4 h-60 flex flex-col overflow-hidden relative">
+                {/* Column Markers - spans full availability card height */}
+                <div className="absolute pointer-events-none z-1" style={{
+                  top: 0,
+                  bottom: 0,
+                  left: collapsed ? '48px' : '280px', // After sidebar
+                  right: 0,
+                  transition: 'left 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+                  willChange: 'left'
+                }}>
+                  <TimelineColumnMarkers dates={dates} mode={mode} />
+                  {/* Full-column holiday overlays for availability card */}
+                  <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }}>
+                    {holidays && holidays.length > 0 && holidays.map(holiday => {
+                      const holidayStart = new Date(holiday.startDate);
+                      const holidayEnd = new Date(holiday.endDate);
+                      const columnWidth = mode === 'weeks' ? 72 : 40;
+                      const dayWidth = mode === 'weeks' ? columnWidth / 7 : columnWidth;
+                      const timelineStart = new Date(dates[0]);
+                      timelineStart.setHours(0,0,0,0);
+                      const msPerDay = 24 * 60 * 60 * 1000;
+
+                      holidayStart.setHours(0,0,0,0);
+                      holidayEnd.setHours(0,0,0,0);
+
+                      const startDay = Math.floor((holidayStart.getTime() - timelineStart.getTime()) / msPerDay);
+                      const holidayDays = Math.round((holidayEnd.getTime() - holidayStart.getTime()) / msPerDay) + 1;
+                      const totalDays = mode === 'weeks' ? dates.length * 7 : dates.length;
+
+                      const startDayIndex = Math.max(0, startDay);
+                      const endDayIndex = Math.min(totalDays - 1, startDay + holidayDays - 1);
+
+                      if (endDayIndex < 0 || startDayIndex > totalDays - 1) return null;
+
+                      const leftPx = startDayIndex * dayWidth;
+                      const widthPx = (endDayIndex - startDayIndex + 1) * dayWidth;
+
+                      // More condensed pattern for weeks view (thinner lines, smaller gaps)
+                      const backgroundPattern = mode === 'weeks' 
+                        ? 'repeating-linear-gradient(-45deg, rgba(107,114,128,0.16) 0 1.5px, transparent 1.5px 4px)'
+                        : 'repeating-linear-gradient(-45deg, rgba(107,114,128,0.16) 0 2px, transparent 2px 6px)';
+
+                      return (
+                        <div
+                          key={`holiday-avail-${holiday.id}`}
+                          className="absolute top-0 bottom-0 pointer-events-none"
+                          style={{
+                            left: `${leftPx}px`,
+                            width: `${widthPx}px`,
+                            backgroundImage: backgroundPattern
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
+
+                </div>
                 <div className="flex h-full">
                   {/* Availability Sidebar */}
                   <AvailabilitySidebar
@@ -1005,9 +1077,6 @@ export function TimelineView() {
                   
                   {/* Availability Timeline Content */}
                   <div className="flex-1 flex flex-col bg-white relative" style={{ minWidth: `${dates.length * (mode === 'weeks' ? 72 : 40)}px` }}>
-                    {/* Weekend Overlay */}
-                    <WeekendOverlay dates={dates} mode={mode} />
-                    
                     {/* Holiday Overlay */}
                     {/* <HolidayOverlay dates={dates} type="availability" mode={mode} /> */}
                     

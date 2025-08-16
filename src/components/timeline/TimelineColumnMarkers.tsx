@@ -8,6 +8,7 @@ interface TimelineColumnMarkersProps {
 export const TimelineColumnMarkers = memo(function TimelineColumnMarkers({ dates, mode = 'days' }: TimelineColumnMarkersProps) {
   const columnWidth = mode === 'weeks' ? 72 : 40;
   const today = new Date();
+  // Note: holiday overlays are rendered at row level in TimelineView so markers stay behind project bars
   
   return (
     <div className="absolute inset-0 pointer-events-none z-10" style={{ minWidth: `${dates.length * columnWidth}px` }}>
@@ -34,14 +35,42 @@ export const TimelineColumnMarkers = memo(function TimelineColumnMarkers({ dates
               <div 
                 key={`week-${index}`} 
                 className={`h-full relative ${isNewMonth ? 'border-l-2 border-gray-300' : isNewWeek ? 'border-l border-gray-200' : ''}`}
-                style={{ 
+                style={{
                   minWidth: `${columnWidth}px`,
                   width: `${columnWidth}px`
-                }} 
+                }}
               >
+                {/* Weekend day overlays inside week column (show Saturday/Sunday slices) */}
+                {Array.from({ length: 7 }).map((_, dayOffset) => {
+                  const dayDate = new Date(date);
+                  dayDate.setDate(date.getDate() + dayOffset);
+                  const dayOfWeek = dayDate.getDay();
+                  const isWeekendDay = dayOfWeek === 0 || dayOfWeek === 6;
+                  if (!isWeekendDay) return null;
+
+                  const leftPx = (dayOffset / 7) * columnWidth;
+                  const dayWidthPx = columnWidth / 7;
+
+                  return (
+                    <React.Fragment key={`week-${index}-day-${dayOffset}`}>
+                      <div
+                        className="absolute top-0 bottom-0 pointer-events-none"
+                        style={{
+                          left: `${leftPx}px`,
+                          width: `${dayWidthPx}px`,
+                          backgroundColor: 'rgba(229, 231, 235, 0.15)',
+                          zIndex: 1
+                        }}
+                      />
+
+                      {/* no-op: holiday overlays are rendered at row level */}
+                    </React.Fragment>
+                  );
+                })}
+
                 {isToday && (
                   <div 
-                    className="absolute top-0 bottom-0 pointer-events-none"
+                    className="absolute top-0 bottom-0 pointer-events-none border-l-2 border-dashed border-gray-500"
                     style={{
                       left: (() => {
                         // Calculate position within the week for today
@@ -49,8 +78,6 @@ export const TimelineColumnMarkers = memo(function TimelineColumnMarkers({ dates
                         const daysFromWeekStart = (dayOfWeek + 6) % 7; // Convert to Monday = 0 system
                         return `${(daysFromWeekStart / 7) * columnWidth}px`;
                       })(),
-                      width: '2px',
-                      backgroundColor: 'rgb(219 234 254)', // bg-blue-100 color
                       zIndex: 5
                     }}
                   />
@@ -75,13 +102,12 @@ export const TimelineColumnMarkers = memo(function TimelineColumnMarkers({ dates
                   width: `${columnWidth}px`
                 }} 
               >
+                {/* no-op: holiday overlays are rendered at row level */}
                 {isToday && (
                   <div 
-                    className="absolute top-0 bottom-0 pointer-events-none"
+                    className="absolute top-0 bottom-0 pointer-events-none border-l-2 border-dashed border-gray-500"
                     style={{
                       left: '0px',
-                      width: '2px',
-                      backgroundColor: 'rgb(219 234 254)', // bg-blue-100 color
                       zIndex: 5
                     }}
                   />

@@ -182,7 +182,8 @@ export const TimelineBar = memo(function TimelineBar({
         <div 
           className="flex w-full relative z-20 flex-1 pointer-events-none" 
           style={{ 
-            minWidth: `${dates.length * (mode === 'weeks' ? 72 : 40)}px`
+            minWidth: `${dates.length * (mode === 'weeks' ? 72 : 40)}px`,
+            zIndex: 20
           }}
         >
           
@@ -666,14 +667,15 @@ export const TimelineBar = memo(function TimelineBar({
           }
           
           return (
-            <div className="relative flex w-full h-[8px] z-20" style={{ overflow: 'visible' }}>
+            <div className="relative flex w-full h-[8px]" style={{ overflow: 'visible', zIndex: 20 }}>
               {/* Baseline line using absolute pixel positioning like HolidayOverlay */}
               <div 
-                className="absolute top-0 h-[3px] z-20 cursor-move hover:opacity-80 pointer-events-auto"
+                className="absolute top-0 h-[3px] cursor-move hover:opacity-80 pointer-events-auto"
                 style={{ 
                   backgroundColor: colorScheme.baseline,
                   left: `${positions.baselineStartPx}px`, // Use exact positioning without artificial constraints in weeks mode
-                  width: `${positions.baselineWidthPx}px` 
+                  width: `${positions.baselineWidthPx}px`,
+                  zIndex: 20
                 }}
                 onMouseDown={(e) => {
                   e.stopPropagation();
