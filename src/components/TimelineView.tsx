@@ -90,7 +90,7 @@ export function TimelineView() {
   const VIEWPORT_DAYS = useDynamicViewportDays(collapsed, timelineMode);
 
   // Get timeline data using your existing hook
-  const { dates, viewportEnd, filteredProjects, mode, actualViewportStart } = useTimelineData(projects, viewportStart, VIEWPORT_DAYS, timelineMode);
+  const { dates, viewportEnd, filteredProjects, mode, actualViewportStart } = useTimelineData(projects, viewportStart, VIEWPORT_DAYS, timelineMode, collapsed);
 
   // Debug performance logging
   console.log(`🚀 Timeline performance:`, {
@@ -102,38 +102,42 @@ export function TimelineView() {
 
   // Memoize date range formatting
   const dateRangeText = useMemo(() => {
-    const sameMonth = viewportStart.getMonth() === viewportEnd.getMonth();
-    const sameYear = viewportStart.getFullYear() === viewportEnd.getFullYear();
+    // Use the actual timeline start and end dates, not the requested viewport dates
+    const timelineStart = actualViewportStart;
+    const timelineEnd = viewportEnd;
+    
+    const sameMonth = timelineStart.getMonth() === timelineEnd.getMonth();
+    const sameYear = timelineStart.getFullYear() === timelineEnd.getFullYear();
     
     if (sameMonth && sameYear) {
-      return `${viewportStart.toLocaleDateString('en-US', { 
+      return `${timelineStart.toLocaleDateString('en-US', { 
         month: 'long',
         day: 'numeric'
-      })} - ${viewportEnd.toLocaleDateString('en-US', { 
+      })} - ${timelineEnd.toLocaleDateString('en-US', { 
         day: 'numeric',
         year: 'numeric'
       })}`;
     } else if (sameYear) {
-      return `${viewportStart.toLocaleDateString('en-US', { 
+      return `${timelineStart.toLocaleDateString('en-US', { 
         month: 'short',
         day: 'numeric'
-      })} - ${viewportEnd.toLocaleDateString('en-US', { 
+      })} - ${timelineEnd.toLocaleDateString('en-US', { 
         month: 'short',
         day: 'numeric',
         year: 'numeric'
       })}`;
     } else {
-      return `${viewportStart.toLocaleDateString('en-US', { 
+      return `${timelineStart.toLocaleDateString('en-US', { 
         month: 'short',
         day: 'numeric',
         year: 'numeric'
-      })} - ${viewportEnd.toLocaleDateString('en-US', { 
+      })} - ${timelineEnd.toLocaleDateString('en-US', { 
         month: 'short',
         day: 'numeric',
         year: 'numeric'
       })}`;
     }
-  }, [viewportStart, viewportEnd]);
+  }, [actualViewportStart, viewportEnd]);
 
   // Navigation handlers with smooth scrolling  
   const handleNavigate = useCallback((direction: 'prev' | 'next') => {
@@ -688,7 +692,7 @@ export function TimelineView() {
             <div className="flex-1 flex flex-col min-h-0 pt-[0px] pr-[0px] pb-[21px] pl-[0px]">
               {/* Timeline Card */}
               <Card className="flex-1 flex flex-col overflow-hidden relative timeline-card-container">
-                <div className="flex-1 flex min-h-0 overflow-x-auto">
+                <div className="flex-1 flex min-h-0 overflow-x-hidden">
                   {/* Sidebar */}
                   <TimelineSidebar
                     groups={groupsWithProjects}
@@ -704,7 +708,7 @@ export function TimelineView() {
                     <TimelineDateHeaders dates={dates} mode={mode} />
                     
                     {/* Timeline Grid - Scrollable Content */}
-                    <div className="flex-1 overflow-y-auto relative light-scrollbar">
+                    <div className="flex-1 overflow-y-auto relative light-scrollbar-vertical-only">
                       {/* Weekend Overlay */}
                       <WeekendOverlay dates={dates} mode={mode} />
                       

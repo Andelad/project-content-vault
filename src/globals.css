@@ -238,6 +238,38 @@ html {
   background: #f9fafb;
 }
 
+/* Light scrollbar with disabled horizontal scrolling */
+.light-scrollbar-vertical-only {
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db #f9fafb;
+  overflow-x: hidden !important;
+  overflow-y: auto;
+}
+
+.light-scrollbar-vertical-only::-webkit-scrollbar {
+  width: 8px;
+  height: 0px; /* Disable horizontal scrollbar */
+}
+
+.light-scrollbar-vertical-only::-webkit-scrollbar-track {
+  background: #f9fafb;
+  border-radius: 4px;
+}
+
+.light-scrollbar-vertical-only::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+  border: 1px solid #f9fafb;
+}
+
+.light-scrollbar-vertical-only::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+.light-scrollbar-vertical-only::-webkit-scrollbar-corner {
+  background: #f9fafb;
+}
+
 /* Holiday diagonal pattern */
 .holiday-pattern {
   background-image: repeating-linear-gradient(

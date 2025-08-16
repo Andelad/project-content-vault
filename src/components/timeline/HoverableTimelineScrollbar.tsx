@@ -58,8 +58,8 @@ export const HoverableTimelineScrollbar = memo(function HoverableTimelineScrollb
   const maxOffset = TOTAL_DAYS - VIEWPORT_DAYS;
   const calculatedThumbPosition = maxOffset > 0 ? (currentDayOffset / maxOffset) * 100 : 0;
   
-  // Make thumb smaller for weeks mode - use a more reasonable visible window size
-  const effectiveViewportDays = VIEWPORT_DAYS > 200 ? Math.min(VIEWPORT_DAYS / 3, 60) : VIEWPORT_DAYS;
+  // Make thumb much smaller for weeks mode - represent actual visible content better
+  const effectiveViewportDays = VIEWPORT_DAYS > 200 ? Math.min(VIEWPORT_DAYS / 8, 30) : VIEWPORT_DAYS;
   const thumbWidth = (effectiveViewportDays / TOTAL_DAYS) * 100;
   
   // Use smooth position during animations, but NOT during dragging
@@ -97,9 +97,16 @@ export const HoverableTimelineScrollbar = memo(function HoverableTimelineScrollb
   }, [isDragging.current, setViewportStart]);
   
   // Update smooth position when not dragging, but respect final drag position
-  // Allow updates during external animations (like Today button)
+  // Allow updates during external animations (like Today button) and normal scrolling
   useEffect(() => {
-    if (!isDraggingThumb && finalDragPosition.current === null) {
+    if (!isDraggingThumb) {
+      // Reset final drag position after a short delay to allow normal updates
+      if (finalDragPosition.current !== null) {
+        const resetTimer = setTimeout(() => {
+          finalDragPosition.current = null;
+        }, 100);
+        return () => clearTimeout(resetTimer);
+      }
       setSmoothThumbPosition(calculatedThumbPosition);
     }
   }, [calculatedThumbPosition, isDraggingThumb]);

@@ -1,29 +1,58 @@
 import { useMemo } from 'react';
 
-export function useTimelineData(projects: any[], viewportStart: Date, viewportDays: number, mode: 'days' | 'weeks' = 'days') {
+export function useTimelineData(projects: any[], viewportStart: Date, viewportDays: number, mode: 'days' | 'weeks' = 'days', collapsed: boolean = false) {
   return useMemo(() => {
+    // Calculate visible columns using the EXACT same logic as useDynamicViewportDays
+    const calculateVisibleColumns = () => {
+      const viewportWidth = window.innerWidth;
+      const sidebarWidth = collapsed ? 48 : 280;
+      const margins = 100;
+      const availableWidth = Math.max(600, viewportWidth - sidebarWidth - margins);
+      
+      if (mode === 'weeks') {
+        const theoreticalColumns = Math.floor(availableWidth / 72);
+        return Math.max(1, theoreticalColumns - 2); // Subtract 2 weeks to match actual display
+      } else {
+        const theoreticalColumns = Math.floor(availableWidth / 40);
+        return Math.max(1, theoreticalColumns - 5); // Subtract 5 days to match actual display
+      }
+    };
+    
+    const visibleColumns = calculateVisibleColumns();
+    
     if (mode === 'weeks') {
-      // For weeks mode, calculate the number of weeks to show
-      const viewportWeeks = Math.ceil(viewportDays / 7);
+      // For weeks mode, show only the visible week columns
+      const actualWeeks = visibleColumns;
       
       // Adjust viewportStart to start of week (Monday)
       const weekStart = new Date(viewportStart);
       const day = weekStart.getDay();
-      const daysToSubtract = day === 0 ? 6 : day - 1; // Adjust for Monday start
+      const daysToSubtract = day === 0 ? 6 : day - 1;
       weekStart.setDate(weekStart.getDate() - daysToSubtract);
       
-      // Calculate viewport end based on weeks
-      const viewportEnd = new Date(weekStart);
-      viewportEnd.setDate(weekStart.getDate() + (viewportWeeks * 7) - 1);
-      
-      // Generate array of week start dates
+      // Generate array of week start dates for visible weeks only
       const dates = [];
-      for (let w = 0; w < viewportWeeks; w++) {
+      for (let w = 0; w < actualWeeks; w++) {
         const weekDate = new Date(weekStart);
         weekDate.setDate(weekStart.getDate() + (w * 7));
-        weekDate.setHours(0, 0, 0, 0); // Ensure consistent normalization
+        weekDate.setHours(0, 0, 0, 0);
         dates.push(weekDate);
       }
+      
+      // Calculate viewport end based on the last visible week
+      const lastWeekStart = dates[dates.length - 1];
+      const viewportEnd = new Date(lastWeekStart);
+      viewportEnd.setDate(lastWeekStart.getDate() + 6); // End of the last week (Sunday)
+      
+      console.log(`🗓️ WEEKS VIEW DEBUG:`, {
+        availableWidth: Math.max(600, window.innerWidth - (collapsed ? 48 : 280) - 100),
+        visibleColumns,
+        actualWeeks,
+        datesGenerated: dates.length,
+        firstDate: dates[0]?.toDateString(),
+        lastDate: dates[dates.length - 1]?.toDateString(),
+        calculatedEnd: viewportEnd.toDateString()
+      });
       
       // Filter projects that intersect with the current viewport
       const filteredProjects = (projects || []).filter(project => {
@@ -40,17 +69,30 @@ export function useTimelineData(projects: any[], viewportStart: Date, viewportDa
         actualViewportStart: weekStart
       };
     } else {
-      // Original days logic
-      const viewportEnd = new Date(viewportStart);
-      viewportEnd.setDate(viewportStart.getDate() + viewportDays - 1);
+      // For days mode, show only the visible day columns
+      const actualDays = visibleColumns;
       
-      // Generate array of dates for the current viewport
+      // Generate array of dates for visible days only
       const dates = [];
-      for (let d = new Date(viewportStart); d <= viewportEnd; d.setDate(d.getDate() + 1)) {
-        const normalizedDate = new Date(d);
-        normalizedDate.setHours(0, 0, 0, 0); // Ensure consistent normalization
+      for (let d = 0; d < actualDays; d++) {
+        const normalizedDate = new Date(viewportStart);
+        normalizedDate.setDate(viewportStart.getDate() + d);
+        normalizedDate.setHours(0, 0, 0, 0);
         dates.push(normalizedDate);
       }
+      
+      // Calculate viewport end based on the last visible day
+      const viewportEnd = new Date(dates[dates.length - 1]);
+      
+      console.log(`📅 DAYS VIEW DEBUG:`, {
+        availableWidth: Math.max(600, window.innerWidth - (collapsed ? 48 : 280) - 100),
+        visibleColumns,
+        actualDays,
+        datesGenerated: dates.length,
+        firstDate: dates[0]?.toDateString(),
+        lastDate: dates[dates.length - 1]?.toDateString(),
+        calculatedEnd: viewportEnd.toDateString()
+      });
       
       // Filter projects that intersect with the current viewport
       const filteredProjects = (projects || []).filter(project => {
@@ -67,5 +109,5 @@ export function useTimelineData(projects: any[], viewportStart: Date, viewportDa
         actualViewportStart: viewportStart
       };
     }
-  }, [projects, viewportStart, viewportDays, mode]);
+  }, [projects, viewportStart, viewportDays, mode, collapsed]);
 }
