@@ -701,11 +701,13 @@ export function TimelineView() {
                   top: '48px', // Below date header
                   bottom: '52px', // Above holiday row
                   left: collapsed ? '48px' : '280px', // After sidebar
-                  right: 0
+                  right: 0,
+                  transition: 'left 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+                  willChange: 'left'
                 }}>
                   <WeekendOverlay dates={dates} mode={mode} />
                 </div>
-                <div className="flex flex-col h-full">
+                <div className="flex flex-col min-h-full bg-white">
                   {/* Fixed Headers Row */}
                   <div className="flex border-b border-gray-200 bg-white relative z-10">
                     {/* Sidebar Header */}
@@ -714,7 +716,8 @@ export function TimelineView() {
                       style={{ 
                         width: collapsed ? '48px' : '280px',
                         minWidth: collapsed ? '48px' : '280px',
-                        transition: 'all 300ms cubic-bezier(0.4, 0, 0.2, 1)'
+                        transition: 'width 300ms cubic-bezier(0.4, 0, 0.2, 1), min-width 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+                        willChange: 'width, min-width'
                       }}
                     >
                       <div className={`flex items-center w-full ${collapsed ? 'justify-center' : 'px-4 gap-3'}`}>
@@ -750,17 +753,28 @@ export function TimelineView() {
                   </div>
                   
                   {/* Scrollable Content Area */}
-                  <div className="flex-1 flex overflow-x-hidden overflow-y-auto light-scrollbar-vertical-only">
+                                    {/* Scrollable Content Area */}
+                  <div className="flex-1 overflow-x-hidden overflow-y-auto light-scrollbar-vertical-only" style={{ 
+                    display: 'flex',
+                    height: '100%'
+                  }}>
+                    {/* Sidebar Content */}
                     <div 
-                      className="bg-white border-r border-gray-200"
+                      className="bg-white"
                       style={{ 
                         width: collapsed ? '48px' : '280px',
-                        minWidth: collapsed ? '48px' : '280px',
-                        transition: 'all 300ms cubic-bezier(0.4, 0, 0.2, 1)'
+                        height: '100%',
+                        transition: 'width 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+                        willChange: 'width'
                       }}
                     >
-                      {!collapsed && (
-                        <div>
+                      {/* Border wrapper: at least viewport height, grows with content */}
+                      <div className="border-r border-gray-200 min-h-full w-full">
+                        <div style={{ 
+                          opacity: collapsed ? 0 : 1,
+                          visibility: collapsed ? 'hidden' : 'visible',
+                          transition: 'opacity 300ms cubic-bezier(0.4, 0, 0.2, 1), visibility 300ms cubic-bezier(0.4, 0, 0.2, 1)'
+                        }}>
                           {groups.map((group, groupIndex) => (
                             <DraggableGroupRow key={group.id} group={group} index={groupIndex}>
                               {rows
@@ -780,15 +794,16 @@ export function TimelineView() {
                           ))}
                           <AddGroupRow />
                         </div>
-                      )}
+                      </div>
                     </div>
                     
                     {/* Timeline Content */}
-                    <div className="flex-1 bg-white timeline-content-area relative" style={{ 
-                      minWidth: `${dates.length * (mode === 'weeks' ? 72 : 40)}px`
+                    <div className="bg-white timeline-content-area relative" style={{ 
+                      flex: 1,
+                      height: '100%'
                     }}>
                       {/* Scrollable Content Layer */}
-                      <div className="relative z-10 h-full">
+                      <div className="relative z-10">
                         {/* DIRECT HOLIDAY PATTERN - INLINE FOR TESTING */}
                       {holidays && holidays.length > 0 && (
                         <div className="absolute inset-0 pointer-events-none z-50" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
@@ -952,7 +967,7 @@ export function TimelineView() {
                   </div>
                   
                   {/* Fixed Add Holiday Row at bottom */}
-                  <div className="border-t border-gray-200 bg-white">
+                  <div className="border-t border-gray-200 bg-yellow-200">
                     <AddHolidayRow 
                       dates={dates} 
                       collapsed={collapsed} 
