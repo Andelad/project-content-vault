@@ -23,7 +23,8 @@ export function calculateMilestoneSegments(
   milestones: Milestone[],
   settings: any,
   holidays: any[],
-  isWorkingDay: (date: Date) => boolean
+  isWorkingDay: (date: Date) => boolean,
+  events: any[] = []
 ): MilestoneSegment[] {
   // Filter and sort milestones for this project
   const projectMilestones = milestones
@@ -44,22 +45,37 @@ export function calculateMilestoneSegments(
     const milestoneDate = new Date(milestone.dueDate);
     milestoneDate.setHours(0, 0, 0, 0);
 
-    // Calculate working days in this segment
+    // Segment end date is one day BEFORE the milestone date
+    const segmentEndDate = new Date(milestoneDate);
+    segmentEndDate.setDate(milestoneDate.getDate() - 1);
+
+    // Calculate working days in this segment (up to day before milestone)
     const workingDays = calculateWorkingDaysInRange(
       currentStartDate,
-      milestoneDate,
+      segmentEndDate,
       isWorkingDay,
       holidays
     );
 
+    // Calculate total planned time in this segment
+    const plannedTimeInSegment = calculatePlannedTimeInSegment(
+      projectId,
+      currentStartDate,
+      segmentEndDate,
+      events
+    );
+
+    // Subtract planned time from milestone budget for auto-estimate
+    const remainingBudget = Math.max(0, milestone.timeAllocation - plannedTimeInSegment);
+
     // Calculate hours per day and visual height
-    const hoursPerDay = workingDays > 0 ? milestone.timeAllocation / workingDays : 0;
+    const hoursPerDay = workingDays > 0 ? remainingBudget / workingDays : 0;
     const heightInPixels = calculateSegmentHeight(hoursPerDay);
 
     segments.push({
       id: `segment-${milestone.id}`,
       startDate: new Date(currentStartDate),
-      endDate: new Date(milestoneDate),
+      endDate: new Date(segmentEndDate),
       milestone,
       allocatedHours: milestone.timeAllocation,
       workingDays,
@@ -67,12 +83,48 @@ export function calculateMilestoneSegments(
       heightInPixels
     });
 
-    // Move to next segment start (day after milestone)
+    // Move to next segment start (milestone date)
     currentStartDate = new Date(milestoneDate);
-    currentStartDate.setDate(milestoneDate.getDate() + 1);
   }
 
   return segments;
+}
+
+/**
+ * Calculate total planned time for a project in a specific date range
+ */
+function calculatePlannedTimeInSegment(
+  projectId: string,
+  startDate: Date,
+  endDate: Date,
+  events: any[]
+): number {
+  let totalPlannedHours = 0;
+  const current = new Date(startDate);
+  
+  while (current <= endDate) {
+    // Find events for this project on this date
+    const dayEvents = events.filter(event => {
+      const eventDate = new Date(event.startTime);
+      eventDate.setHours(0, 0, 0, 0);
+      const currentDay = new Date(current);
+      currentDay.setHours(0, 0, 0, 0);
+      
+      return event.projectId === projectId && 
+             eventDate.getTime() === currentDay.getTime();
+    });
+
+    // Sum up the duration of events for this day
+    for (const event of dayEvents) {
+      const durationMs = event.endTime.getTime() - event.startTime.getTime();
+      const durationHours = durationMs / (1000 * 60 * 60);
+      totalPlannedHours += durationHours;
+    }
+    
+    current.setDate(current.getDate() + 1);
+  }
+  
+  return totalPlannedHours;
 }
 
 /**

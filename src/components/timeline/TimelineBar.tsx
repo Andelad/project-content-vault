@@ -121,9 +121,10 @@ export const TimelineBar = memo(function TimelineBar({
       milestones,
       settings,
       holidays,
-      isWorkingDay
+      isWorkingDay,
+      events
     );
-  }, [project.id, project.startDate, project.endDate, milestones, settings, holidays, isWorkingDay]);
+  }, [project.id, project.startDate, project.endDate, milestones, settings, holidays, isWorkingDay, events]);
 
   // Memoize project metrics calculation
   const projectMetrics = useMemo(() => {
