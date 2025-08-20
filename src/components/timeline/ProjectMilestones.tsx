@@ -86,32 +86,55 @@ export const ProjectMilestones = memo(function ProjectMilestones({
     e.stopPropagation();
     setDraggingMilestone(milestoneId);
 
+    const startX = e.clientX;
+    const dayWidth = mode === 'weeks' ? 72 : 40; // Day width in pixels
+    const originalMilestone = projectMilestones.find(m => m.id === milestoneId);
+    if (!originalMilestone) return;
+
+    const originalDate = new Date(originalMilestone.dueDate);
+    originalDate.setHours(0, 0, 0, 0);
+
+    // Project boundaries
+    const projectStart = new Date(project.startDate);
+    projectStart.setHours(0, 0, 0, 0);
+    const projectEnd = new Date(project.endDate);
+    projectEnd.setHours(0, 0, 0, 0);
+
     const handleMouseMove = (moveEvent: MouseEvent) => {
       if (!onMilestoneDrag) return;
 
-      // Calculate new date based on mouse position
-      const rect = (e.target as HTMLElement).closest('.timeline-dates')?.getBoundingClientRect();
-      if (!rect) return;
-
-      const mouseX = moveEvent.clientX - rect.left;
-      const dayWidth = mode === 'weeks' ? rect.width / dates.length : 40; // 40px per day in day mode
-      const dayIndex = Math.floor(mouseX / dayWidth);
+      // Calculate days delta from original position
+      const deltaX = moveEvent.clientX - startX;
+      const daysDelta = Math.round(deltaX / dayWidth);
       
-      if (dayIndex >= 0 && dayIndex < dates.length) {
-        const newDate = new Date(dates[dayIndex]);
-        newDate.setHours(0, 0, 0, 0);
-        
-        // Check if the new position would overlap with other milestones
-        const otherMilestones = projectMilestones.filter(m => m.id !== milestoneId);
-        const wouldOverlap = otherMilestones.some(m => {
-          const mDate = new Date(m.dueDate);
-          mDate.setHours(0, 0, 0, 0);
-          return Math.abs(mDate.getTime() - newDate.getTime()) < 24 * 60 * 60 * 1000; // Same day
-        });
+      // Calculate new date
+      const newDate = new Date(originalDate);
+      newDate.setDate(originalDate.getDate() + daysDelta);
+      newDate.setHours(0, 0, 0, 0);
 
-        if (!wouldOverlap) {
-          onMilestoneDrag(milestoneId, newDate);
-        }
+      // Constrain milestone within project boundaries (with 1 day buffer)
+      const minDate = new Date(projectStart);
+      minDate.setDate(projectStart.getDate() + 1); // 1 day after start
+      const maxDate = new Date(projectEnd);
+      maxDate.setDate(projectEnd.getDate() - 1); // 1 day before end
+
+      if (newDate < minDate) {
+        newDate.setTime(minDate.getTime());
+      } else if (newDate > maxDate) {
+        newDate.setTime(maxDate.getTime());
+      }
+
+      // Check if the new position would overlap with other milestones
+      const otherMilestones = projectMilestones.filter(m => m.id !== milestoneId);
+      const wouldOverlap = otherMilestones.some(m => {
+        const mDate = new Date(m.dueDate);
+        mDate.setHours(0, 0, 0, 0);
+        return Math.abs(mDate.getTime() - newDate.getTime()) < 24 * 60 * 60 * 1000; // Same day
+      });
+
+      // Only update if no overlap and within project boundaries
+      if (!wouldOverlap && newDate >= minDate && newDate <= maxDate) {
+        onMilestoneDrag(milestoneId, newDate);
       }
     };
 
@@ -140,8 +163,8 @@ export const ProjectMilestones = memo(function ProjectMilestones({
           <Tooltip key={milestone.id} delayDuration={100}>
             <TooltipTrigger asChild>
               <div
-                className={`absolute pointer-events-auto cursor-move transform -translate-x-1/2 transition-transform ${
-                  draggingMilestone === milestone.id ? 'scale-110' : 'hover:scale-105'
+                className={`absolute pointer-events-auto cursor-ew-resize transform -translate-x-1/2 transition-all duration-150 ${
+                  draggingMilestone === milestone.id ? 'scale-110 z-40' : 'hover:scale-105 hover:z-30'
                 }`}
                 style={{
                   left: `${position}px`,
@@ -149,16 +172,21 @@ export const ProjectMilestones = memo(function ProjectMilestones({
                   zIndex: 25
                 }}
                 onMouseDown={(e) => onMilestoneDrag && handleMilestoneMouseDown(e, milestone.id!)}
+                title="Drag to change milestone date"
               >
                 {/* Diamond shape */}
                 <div
-                  className="relative"
+                  className={`relative transition-all duration-150 ${
+                    draggingMilestone === milestone.id ? 'shadow-lg' : 'hover:shadow-md'
+                  }`}
                   style={{
                     width: '9px',
                     height: '9px',
                     backgroundColor: colorScheme.baseline,
                     transform: 'rotate(45deg)',
-                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)'
+                    boxShadow: draggingMilestone === milestone.id 
+                      ? '0 4px 12px rgba(0, 0, 0, 0.3)' 
+                      : '0 1px 3px rgba(0, 0, 0, 0.2)'
                   }}
                 />
               </div>
