@@ -390,9 +390,23 @@ export const TimelineBar = memo(function TimelineBar({
                                 ? { totalHours: 0, allocatedHours: 0, availableHours: 0, events: [] }
                                 : calculateWorkHourCapacity(workHours, events, currentDay);
                               
+                              // Check if there's a milestone segment for this day for tooltip display
+                              const milestoneSegmentForTooltip = getMilestoneSegmentForDate(currentDay, milestoneSegments);
+                              
                               const tooltipType = timeAllocation.type === 'planned' ? 'planned time' : 'auto-estimate';
-                              const displayHours = Math.floor(timeAllocation.hours);
-                              const displayMinutes = Math.round((timeAllocation.hours - displayHours) * 60);
+                              
+                              // Use milestone segment hours if available and not planned time
+                              let tooltipHours: number;
+                              if (timeAllocation.type === 'planned') {
+                                tooltipHours = timeAllocation.hours;
+                              } else if (milestoneSegmentForTooltip) {
+                                tooltipHours = milestoneSegmentForTooltip.hoursPerDay;
+                              } else {
+                                tooltipHours = timeAllocation.hours;
+                              }
+                              
+                              const displayHours = Math.floor(tooltipHours);
+                              const displayMinutes = Math.round((tooltipHours - displayHours) * 60);
                               
                               return (
                                 <div className="text-xs">
@@ -409,6 +423,11 @@ export const TimelineBar = memo(function TimelineBar({
                                       ? `${displayHours}h ${displayMinutes}m/day ${tooltipType}`
                                       : `${displayHours} hour${displayHours !== 1 ? 's' : ''}/day ${tooltipType}`
                                     }
+                                    {milestoneSegmentForTooltip && timeAllocation.type !== 'planned' && (
+                                      <div className="text-blue-600 text-xs mt-1">
+                                        Target: {milestoneSegmentForTooltip.milestone?.name}
+                                      </div>
+                                    )}
                                   </div>
                                   {capacity.totalHours > 0 && (
                                     <>
@@ -666,9 +685,23 @@ export const TimelineBar = memo(function TimelineBar({
                           ? { totalHours: 0, allocatedHours: 0, availableHours: 0, events: [] }
                           : calculateWorkHourCapacity(workHours, events, date);
                         
+                        // Check if there's a milestone segment for this day for tooltip display
+                        const milestoneSegmentForTooltip = getMilestoneSegmentForDate(date, milestoneSegments);
+                        
                         const tooltipType = timeAllocation.type === 'planned' ? 'planned time' : 'auto-estimate';
-                        const displayHours = Math.floor(timeAllocation.hours);
-                        const displayMinutes = Math.round((timeAllocation.hours - displayHours) * 60);
+                        
+                        // Use milestone segment hours if available and not planned time
+                        let tooltipHours: number;
+                        if (timeAllocation.type === 'planned') {
+                          tooltipHours = timeAllocation.hours;
+                        } else if (milestoneSegmentForTooltip) {
+                          tooltipHours = milestoneSegmentForTooltip.hoursPerDay;
+                        } else {
+                          tooltipHours = timeAllocation.hours;
+                        }
+                        
+                        const displayHours = Math.floor(tooltipHours);
+                        const displayMinutes = Math.round((tooltipHours - displayHours) * 60);
                         
                         return (
                           <div className="text-xs">
@@ -678,6 +711,11 @@ export const TimelineBar = memo(function TimelineBar({
                                 ? `${displayHours}h ${displayMinutes}m/day ${tooltipType}`
                                 : `${displayHours} hour${displayHours !== 1 ? 's' : ''}/day ${tooltipType}`
                               }
+                              {milestoneSegmentForTooltip && timeAllocation.type !== 'planned' && (
+                                <div className="text-blue-600 text-xs mt-1">
+                                  Target: {milestoneSegmentForTooltip.milestone?.name}
+                                </div>
+                              )}
                             </div>
                             {capacity.totalHours > 0 && (
                               <>
