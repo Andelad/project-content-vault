@@ -18,6 +18,23 @@ interface DataPoint {
 }
 
 export function ProjectProgressGraph({ project, metrics, events, milestones = [] }: ProjectProgressGraphProps) {
+  // Create a pure event-based planned time helper
+  const getPlannedTimeUpToDate = (targetDate: Date): number => {
+    const projectEvents = events.filter(event => event.projectId === project.id);
+    return projectEvents
+      .filter(event => {
+        const eventDate = new Date(event.startTime);
+        eventDate.setHours(0, 0, 0, 0);
+        const target = new Date(targetDate);
+        target.setHours(0, 0, 0, 0);
+        return eventDate <= target;
+      })
+      .reduce((total, event) => {
+        const durationMs = event.endTime.getTime() - event.startTime.getTime();
+        return total + (durationMs / (1000 * 60 * 60));
+      }, 0);
+  };
+
   const graphData = useMemo(() => {
     const startDate = new Date(project.startDate);
     const endDate = new Date(project.endDate);
@@ -28,97 +45,128 @@ export function ProjectProgressGraph({ project, metrics, events, milestones = []
     const data: DataPoint[] = [];
     const projectEvents = events.filter(event => event.projectId === project.id);
     
-    // Get all unique dates that have planned events, plus milestone dates, plus start/end dates
-    const allImportantDates = new Set<number>();
-    
-    // Add start and end dates
-    allImportantDates.add(startDate.getTime());
-    allImportantDates.add(endDate.getTime());
+    // Create a set of all important dates (milestones + event dates)
+    const importantDates = new Set<string>();
     
     // Add milestone dates
     if (milestones.length > 0) {
-      milestones.forEach(milestone => {
-        const milestoneDate = new Date(milestone.dueDate);
-        milestoneDate.setHours(0, 0, 0, 0);
-        if (milestoneDate >= startDate && milestoneDate <= endDate) {
-          allImportantDates.add(milestoneDate.getTime());
-        }
+      const relevantMilestones = milestones
+        .filter(m => {
+          const milestoneDate = new Date(m.dueDate);
+          return milestoneDate >= startDate && milestoneDate <= endDate;
+        });
+      
+      relevantMilestones.forEach(milestone => {
+        const dateString = new Date(milestone.dueDate).toISOString().split('T')[0];
+        importantDates.add(dateString);
       });
     }
     
-    // Add dates that have planned events
+    // Add event dates (for planned time steps)
     projectEvents.forEach(event => {
       const eventDate = new Date(event.startTime);
       eventDate.setHours(0, 0, 0, 0);
       if (eventDate >= startDate && eventDate <= endDate) {
-        allImportantDates.add(eventDate.getTime());
+        const dateString = eventDate.toISOString().split('T')[0];
+        importantDates.add(dateString);
       }
     });
     
-    // Convert to sorted array of dates
-    const sortedDates = Array.from(allImportantDates)
-      .map(timestamp => new Date(timestamp))
-      .sort((a, b) => a.getTime() - b.getTime());
+    // Always include start and end dates
+    importantDates.add(startDate.toISOString().split('T')[0]);
+    importantDates.add(endDate.toISOString().split('T')[0]);
     
-    // Track cumulative planned time as we go through dates
-    let cumulativePlannedTime = 0;
+    // Convert to sorted array of Date objects
+    const sortedDates = Array.from(importantDates)
+      .sort()
+      .map(dateString => new Date(dateString + 'T00:00:00.000Z'));
     
-    sortedDates.forEach((currentDate) => {
-      // Calculate estimated progress based on milestones or linear progression
-      let estimatedProgress = 0;
-      if (milestones.length > 0) {
-        // Milestone-based estimated progress
-        const relevantMilestones = milestones
-          .filter(m => {
-            const milestoneDate = new Date(m.dueDate);
-            return milestoneDate <= currentDate;
-          })
-          .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+    if (milestones.length > 0) {
+      // Milestone-based progress calculation
+      const relevantMilestones = milestones
+        .filter(m => {
+          const milestoneDate = new Date(m.dueDate);
+          return milestoneDate >= startDate && milestoneDate <= endDate;
+        })
+        .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+      
+      // Create data points for all important dates
+      sortedDates.forEach(currentDate => {
+        // Calculate estimated progress up to this date
+        let estimatedProgress = 0;
+        relevantMilestones.forEach(milestone => {
+          const milestoneDate = new Date(milestone.dueDate);
+          if (milestoneDate <= currentDate) {
+            estimatedProgress += milestone.timeAllocation;
+          }
+        });
         
-        estimatedProgress = relevantMilestones.reduce((total, milestone) => {
-          return total + milestone.timeAllocation;
-        }, 0);
-      } else {
-        // Linear estimated progress
-        const daysSinceStart = Math.ceil((currentDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-        const dailyRate = project.estimatedHours / Math.max(1, totalDays);
-        estimatedProgress = Math.min(project.estimatedHours, dailyRate * daysSinceStart);
-      }
-      
-      // Calculate completed time up to this date
-      const completedTime = projectEvents
-        .filter(event => {
-          const eventDate = new Date(event.startTime);
-          eventDate.setHours(0, 0, 0, 0);
-          return event.completed && eventDate <= currentDate;
-        })
-        .reduce((total, event) => {
-          const durationMs = event.endTime.getTime() - event.startTime.getTime();
-          return total + (durationMs / (1000 * 60 * 60));
-        }, 0);
-      
-      // Add planned time ONLY for events that occur exactly on this date
-      const plannedTimeOnThisDate = projectEvents
-        .filter(event => {
-          const eventDate = new Date(event.startTime);
-          eventDate.setHours(0, 0, 0, 0);
-          return eventDate.getTime() === currentDate.getTime();
-        })
-        .reduce((total, event) => {
-          const durationMs = event.endTime.getTime() - event.startTime.getTime();
-          return total + (durationMs / (1000 * 60 * 60));
-        }, 0);
-      
-      // Increase cumulative planned time only if there are events on this date
-      cumulativePlannedTime += plannedTimeOnThisDate;
-      
-      data.push({
-        date: new Date(currentDate),
-        estimatedProgress,
-        completedTime,
-        plannedTime: cumulativePlannedTime
+        // If this is the end date and we haven't reached full estimated hours, use the project total
+        if (currentDate.getTime() === endDate.getTime() && estimatedProgress < project.estimatedHours) {
+          estimatedProgress = project.estimatedHours;
+        }
+        
+        // Calculate completed time up to this date
+        const completedTime = projectEvents
+          .filter(event => {
+            const eventDate = new Date(event.startTime);
+            eventDate.setHours(0, 0, 0, 0);
+            return event.completed && eventDate <= currentDate;
+          })
+          .reduce((total, event) => {
+            const durationMs = event.endTime.getTime() - event.startTime.getTime();
+            return total + (durationMs / (1000 * 60 * 60));
+          }, 0);
+        
+        // Calculate planned time up to this date
+        const plannedTime = getPlannedTimeUpToDate(currentDate);
+        
+        data.push({
+          date: new Date(currentDate),
+          estimatedProgress,
+          completedTime,
+          plannedTime
+        });
       });
-    });
+    } else {
+      // Linear progression fallback
+      const dailyEstimatedRate = project.estimatedHours / Math.max(1, totalDays);
+      
+      // Generate data points for key dates in the project range
+      const samplePoints = Math.min(20, totalDays);
+      for (let i = 0; i <= samplePoints; i++) {
+        const dayIndex = Math.floor((i / samplePoints) * totalDays);
+        const currentDate = new Date(startDate);
+        currentDate.setDate(startDate.getDate() + dayIndex);
+        
+        // Linear estimated progress based on project timeline
+        const estimatedProgress = Math.min(project.estimatedHours, dailyEstimatedRate * dayIndex);
+        
+        // Calculate completed time up to this date
+        const completedTime = projectEvents
+          .filter(event => {
+            const eventDate = new Date(event.startTime);
+            eventDate.setHours(0, 0, 0, 0);
+            const targetDate = new Date(currentDate);
+            targetDate.setHours(0, 0, 0, 0);
+            return event.completed && eventDate <= targetDate;
+          })
+          .reduce((total, event) => {
+            const durationMs = event.endTime.getTime() - event.startTime.getTime();
+            return total + (durationMs / (1000 * 60 * 60));
+          }, 0);
+        
+        // Calculate cumulative planned time up to this date
+        const plannedTime = getPlannedTimeUpToDate(currentDate);
+        
+        data.push({
+          date: currentDate,
+          estimatedProgress,
+          completedTime,
+          plannedTime
+        });
+      }
+    }
     
     return data;
   }, [project, events, milestones]);
