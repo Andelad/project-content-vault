@@ -14,6 +14,7 @@ interface DataPoint {
   date: Date;
   estimatedProgress: number;
   completedTime: number;
+  plannedTime: number;
 }
 
 export function ProjectProgressGraph({ project, metrics, events, milestones = [] }: ProjectProgressGraphProps) {
@@ -45,7 +46,7 @@ export function ProjectProgressGraph({ project, metrics, events, milestones = []
       let cumulativeEstimatedHours = 0;
       let currentDate = new Date(startDate);
       
-      // Add starting point
+            // Add starting point
       const completedTimeAtStart = projectEvents
         .filter(event => {
           const eventDate = new Date(event.startTime);
@@ -59,10 +60,69 @@ export function ProjectProgressGraph({ project, metrics, events, milestones = []
           return total + (durationMs / (1000 * 60 * 60));
         }, 0);
       
+      // Calculate planned time only for events that occur exactly on start date
+      const plannedTimeAtStart = projectEvents
+        .filter(event => {
+          const eventDate = new Date(event.startTime);
+          eventDate.setHours(0, 0, 0, 0);
+          const targetDate = new Date(startDate);
+          targetDate.setHours(0, 0, 0, 0);
+          return eventDate.getTime() === targetDate.getTime();
+        })
+        .reduce((total, event) => {
+          const durationMs = event.endTime.getTime() - event.startTime.getTime();
+          return total + (durationMs / (1000 * 60 * 60));
+        }, 0);
+      
       data.push({
         date: new Date(startDate),
         estimatedProgress: 0,
-        completedTime: completedTimeAtStart
+        completedTime: completedTimeAtStart,
+        plannedTime: plannedTimeAtStart
+      });
+      
+      // Track cumulative planned time as we go through milestones
+      let cumulativePlannedTime = plannedTimeAtStart;
+      
+      // Add milestone points
+      relevantMilestones.forEach((milestone) => {
+        const milestoneDate = new Date(milestone.dueDate);
+        cumulativeEstimatedHours += milestone.timeAllocation;
+        
+        // Calculate completed time up to milestone date
+        const completedTimeAtMilestone = projectEvents
+          .filter(event => {
+            const eventDate = new Date(event.startTime);
+            eventDate.setHours(0, 0, 0, 0);
+            const targetDate = new Date(milestoneDate);
+            targetDate.setHours(0, 0, 0, 0);
+            return event.completed && eventDate <= targetDate;
+          })
+          .reduce((total, event) => {
+            const durationMs = event.endTime.getTime() - event.startTime.getTime();
+            return total + (durationMs / (1000 * 60 * 60));
+          }, 0);
+        
+        // Calculate planned time up to milestone date
+        const plannedTimeAtMilestone = projectEvents
+          .filter(event => {
+            const eventDate = new Date(event.startTime);
+            eventDate.setHours(0, 0, 0, 0);
+            const targetDate = new Date(milestoneDate);
+            targetDate.setHours(0, 0, 0, 0);
+            return eventDate <= targetDate;
+          })
+          .reduce((total, event) => {
+            const durationMs = event.endTime.getTime() - event.startTime.getTime();
+            return total + (durationMs / (1000 * 60 * 60));
+          }, 0);
+        
+        data.push({
+          date: new Date(milestoneDate),
+          estimatedProgress: cumulativeEstimatedHours,
+          completedTime: completedTimeAtMilestone,
+          plannedTime: plannedTimeAtMilestone
+        });
       });
       
       // Add milestone points
@@ -84,10 +144,25 @@ export function ProjectProgressGraph({ project, metrics, events, milestones = []
             return total + (durationMs / (1000 * 60 * 60));
           }, 0);
         
+        // Calculate planned time up to milestone date
+        const plannedTimeAtMilestone = projectEvents
+          .filter(event => {
+            const eventDate = new Date(event.startTime);
+            eventDate.setHours(0, 0, 0, 0);
+            const targetDate = new Date(milestoneDate);
+            targetDate.setHours(0, 0, 0, 0);
+            return eventDate <= targetDate;
+          })
+          .reduce((total, event) => {
+            const durationMs = event.endTime.getTime() - event.startTime.getTime();
+            return total + (durationMs / (1000 * 60 * 60));
+          }, 0);
+        
         data.push({
           date: new Date(milestoneDate),
           estimatedProgress: cumulativeEstimatedHours,
-          completedTime: completedTimeAtMilestone
+          completedTime: completedTimeAtMilestone,
+          plannedTime: plannedTimeAtMilestone
         });
       });
       
@@ -109,10 +184,24 @@ export function ProjectProgressGraph({ project, metrics, events, milestones = []
             return total + (durationMs / (1000 * 60 * 60));
           }, 0);
         
+        const plannedTimeAtEnd = projectEvents
+          .filter(event => {
+            const eventDate = new Date(event.startTime);
+            eventDate.setHours(0, 0, 0, 0);
+            const targetDate = new Date(endDate);
+            targetDate.setHours(0, 0, 0, 0);
+            return eventDate <= targetDate;
+          })
+          .reduce((total, event) => {
+            const durationMs = event.endTime.getTime() - event.startTime.getTime();
+            return total + (durationMs / (1000 * 60 * 60));
+          }, 0);
+        
         data.push({
           date: new Date(endDate),
           estimatedProgress: project.estimatedHours,
-          completedTime: completedTimeAtEnd
+          completedTime: completedTimeAtEnd,
+          plannedTime: plannedTimeAtEnd
         });
       }
     } else {
@@ -143,10 +232,25 @@ export function ProjectProgressGraph({ project, metrics, events, milestones = []
             return total + (durationMs / (1000 * 60 * 60));
           }, 0);
         
+        // Calculate planned time up to this date
+        const plannedTime = projectEvents
+          .filter(event => {
+            const eventDate = new Date(event.startTime);
+            eventDate.setHours(0, 0, 0, 0);
+            const targetDate = new Date(currentDate);
+            targetDate.setHours(0, 0, 0, 0);
+            return eventDate <= targetDate;
+          })
+          .reduce((total, event) => {
+            const durationMs = event.endTime.getTime() - event.startTime.getTime();
+            return total + (durationMs / (1000 * 60 * 60));
+          }, 0);
+        
         data.push({
           date: currentDate,
           estimatedProgress,
-          completedTime
+          completedTime,
+          plannedTime
         });
       }
     }
@@ -154,7 +258,12 @@ export function ProjectProgressGraph({ project, metrics, events, milestones = []
     return data;
   }, [project, events, milestones]);
 
-  const maxHours = Math.max(project.estimatedHours, metrics.completedTime, 1);
+  const maxHours = Math.max(
+    project.estimatedHours, 
+    metrics.completedTime, 
+    Math.max(...graphData.map(d => d.plannedTime), 0),
+    1
+  );
   const svgWidth = 800;
   const svgHeight = 240;
   const padding = { top: 20, right: 60, bottom: 60, left: 80 };
@@ -307,6 +416,20 @@ export function ProjectProgressGraph({ project, metrics, events, milestones = []
                   opacity="0.8"
                 />
                 
+                {/* Planned progress line */}
+                <polyline
+                  points={graphData.map((point, index) => {
+                    const x = padding.left + (index / Math.max(1, graphData.length - 1)) * chartWidth;
+                    const y = padding.top + chartHeight - (point.plannedTime / maxHours) * chartHeight;
+                    return `${x},${y}`;
+                  }).join(' ')}
+                  fill="none"
+                  stroke="#f59e0b"
+                  strokeWidth="2"
+                  strokeDasharray="3,3"
+                  opacity="0.9"
+                />
+                
                 {/* Completed time line */}
                 <polyline
                   points={graphData.map((point, index) => {
@@ -423,6 +546,12 @@ export function ProjectProgressGraph({ project, metrics, events, milestones = []
                 <line x1="0" y1="1" x2="20" y2="1" stroke="#10b981" strokeWidth="2" strokeDasharray="5,5" opacity="0.8" />
               </svg>
               <span className="text-sm text-gray-700">Estimated Progress</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <svg width="20" height="2">
+                <line x1="0" y1="1" x2="20" y2="1" stroke="#f59e0b" strokeWidth="2" strokeDasharray="3,3" opacity="0.9" />
+              </svg>
+              <span className="text-sm text-gray-700">Planned Progress</span>
             </div>
             <div className="flex items-center gap-2">
               <svg width="20" height="2">
