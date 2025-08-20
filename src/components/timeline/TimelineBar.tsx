@@ -694,7 +694,7 @@ export const TimelineBar = memo(function TimelineBar({
                 style={{ 
                   backgroundColor: colorScheme.baseline,
                   left: `${positions.circleLeftPx - 5.5}px`, // Center circle at left edge of start column
-                  top: '-4px'
+                  top: '-4px' // Center 11px circle on 3px baseline (5.5px above, 2.5px below)
                 }}
                 onMouseDown={(e) => {
                   e.stopPropagation();
@@ -719,7 +719,7 @@ export const TimelineBar = memo(function TimelineBar({
                 className="absolute cursor-ew-resize z-30 pointer-events-auto"
                 style={{ 
                   left: `${positions.triangleLeftPx - 7}px`, // Position triangle so right edge aligns with right edge of end column
-                  top: '-4px',
+                  top: '-4px', // Center 11px triangle on 3px baseline (5.5px above, 2.5px below)
                   width: '0',
                   height: '0',
                   borderTop: '5.5px solid transparent',

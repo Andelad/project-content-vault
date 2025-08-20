@@ -1,4 +1,5 @@
 import React, { memo, useMemo, useState } from 'react';
+import { Flag } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import { useAppDataOnly } from '../../contexts/AppContext';
 import { calculateTimelinePositions } from '@/lib/timelinePositioning';
@@ -144,7 +145,7 @@ export const ProjectMilestones = memo(function ProjectMilestones({
                 }`}
                 style={{
                   left: `${position}px`,
-                  top: '-4px',
+                  top: '-3px', // Center 9px diamond on 3px baseline (3px above, 3px below)
                   zIndex: 25
                 }}
                 onMouseDown={(e) => onMilestoneDrag && handleMilestoneMouseDown(e, milestone.id!)}
@@ -164,7 +165,10 @@ export const ProjectMilestones = memo(function ProjectMilestones({
             </TooltipTrigger>
             <TooltipContent>
               <div className="text-xs">
-                <div className="font-medium">{milestone.name}</div>
+                <div className="flex items-center gap-1 font-medium">
+                  <Flag className="w-3 h-3" />
+                  {milestone.name}
+                </div>
                 <div className="text-gray-500">
                   Due: {milestone.dueDate.toLocaleDateString('en-US', {
                     weekday: 'short',
