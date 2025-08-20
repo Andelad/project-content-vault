@@ -264,6 +264,50 @@ export type Database = {
         }
         Relationships: []
       }
+      milestones: {
+        Row: {
+          created_at: string
+          due_date: string
+          id: string
+          name: string
+          order_index: number
+          project_id: string
+          time_allocation: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          due_date: string
+          id?: string
+          name: string
+          order_index?: number
+          project_id: string
+          time_allocation: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          due_date?: string
+          id?: string
+          name?: string
+          order_index?: number
+          project_id?: string
+          time_allocation?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "milestones_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -293,50 +337,6 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
-      }
-      milestones: {
-        Row: {
-          id: string
-          name: string
-          due_date: string
-          time_allocation: number
-          project_id: string
-          order_index: number
-          user_id: string
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          name: string
-          due_date: string
-          time_allocation: number
-          project_id: string
-          order_index?: number
-          user_id: string
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          name?: string
-          due_date?: string
-          time_allocation?: number
-          project_id?: string
-          order_index?: number
-          user_id?: string
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "milestones_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       projects: {
         Row: {
