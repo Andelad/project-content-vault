@@ -65,7 +65,7 @@ interface ProjectDetailModalProps {
 }
 
 export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId }: ProjectDetailModalProps) {
-  const { projects, groups, updateProject, addProject, deleteProject, creatingNewProject, setCurrentView, events, holidays, settings } = useApp();
+  const { projects, groups, updateProject, addProject, deleteProject, creatingNewProject, setCurrentView, events, holidays, settings, milestones } = useApp();
   const project = (projectId && projectId !== '') ? projects.find(p => p.id === projectId) : null;
   const isCreating = (!projectId || projectId === '') && (groupId && groupId !== '');
   const group = groups.find(g => g.id === (project?.groupId || groupId));
@@ -927,6 +927,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
             }}
             metrics={metrics}
             events={events}
+            milestones={milestones.filter(m => m.projectId === (projectId || project?.id))}
           />
         )}
 

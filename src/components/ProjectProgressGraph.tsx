@@ -1,11 +1,13 @@
 import React, { useMemo } from 'react';
-import { Project, CalendarEvent } from '@/types/core';
+import { Project, CalendarEvent, Milestone } from '@/types/core';
 import { ProjectTimeMetrics } from '@/lib/projectCalculations';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 interface ProjectProgressGraphProps {
   project: Project;
   metrics: ProjectTimeMetrics;
   events: CalendarEvent[];
+  milestones?: Milestone[];
 }
 
 interface DataPoint {
@@ -14,7 +16,7 @@ interface DataPoint {
   completedTime: number;
 }
 
-export function ProjectProgressGraph({ project, metrics, events }: ProjectProgressGraphProps) {
+export function ProjectProgressGraph({ project, metrics, events, milestones = [] }: ProjectProgressGraphProps) {
   const graphData = useMemo(() => {
     const startDate = new Date(project.startDate);
     const endDate = new Date(project.endDate);
@@ -31,23 +33,24 @@ export function ProjectProgressGraph({ project, metrics, events }: ProjectProgre
       return total + (durationMs / (1000 * 60 * 60));
     }, 0);
     
-    // Daily rate for linear progression (total estimated hours divided by project days)
-    const dailyEstimatedRate = project.estimatedHours / Math.max(1, totalDays);
-    
-    // Generate data points for each day in the project range
-    for (let i = 0; i <= totalDays; i++) {
-      const currentDate = new Date(startDate);
-      currentDate.setDate(startDate.getDate() + i);
+    if (milestones.length > 0) {
+      // Milestone-based progress calculation
+      const relevantMilestones = milestones
+        .filter(m => {
+          const milestoneDate = new Date(m.dueDate);
+          return milestoneDate >= startDate && milestoneDate <= endDate;
+        })
+        .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
       
-      // Linear estimated progress based on project timeline
-      const estimatedProgress = Math.min(project.estimatedHours, dailyEstimatedRate * i);
+      let cumulativeEstimatedHours = 0;
+      let currentDate = new Date(startDate);
       
-      // Calculate completed time up to this date
-      const completedTime = projectEvents
+      // Add starting point
+      const completedTimeAtStart = projectEvents
         .filter(event => {
           const eventDate = new Date(event.startTime);
           eventDate.setHours(0, 0, 0, 0);
-          const targetDate = new Date(currentDate);
+          const targetDate = new Date(startDate);
           targetDate.setHours(0, 0, 0, 0);
           return event.completed && eventDate <= targetDate;
         })
@@ -57,14 +60,99 @@ export function ProjectProgressGraph({ project, metrics, events }: ProjectProgre
         }, 0);
       
       data.push({
-        date: currentDate,
-        estimatedProgress,
-        completedTime
+        date: new Date(startDate),
+        estimatedProgress: 0,
+        completedTime: completedTimeAtStart
       });
+      
+      // Add milestone points
+      relevantMilestones.forEach((milestone) => {
+        const milestoneDate = new Date(milestone.dueDate);
+        cumulativeEstimatedHours += milestone.timeAllocation;
+        
+        // Calculate completed time up to milestone date
+        const completedTimeAtMilestone = projectEvents
+          .filter(event => {
+            const eventDate = new Date(event.startTime);
+            eventDate.setHours(0, 0, 0, 0);
+            const targetDate = new Date(milestoneDate);
+            targetDate.setHours(0, 0, 0, 0);
+            return event.completed && eventDate <= targetDate;
+          })
+          .reduce((total, event) => {
+            const durationMs = event.endTime.getTime() - event.startTime.getTime();
+            return total + (durationMs / (1000 * 60 * 60));
+          }, 0);
+        
+        data.push({
+          date: new Date(milestoneDate),
+          estimatedProgress: cumulativeEstimatedHours,
+          completedTime: completedTimeAtMilestone
+        });
+      });
+      
+      // Add end point if last milestone doesn't reach the end
+      const lastMilestone = relevantMilestones[relevantMilestones.length - 1];
+      if (!lastMilestone || new Date(lastMilestone.dueDate) < endDate) {
+        const remainingHours = project.estimatedHours - cumulativeEstimatedHours;
+        
+        const completedTimeAtEnd = projectEvents
+          .filter(event => {
+            const eventDate = new Date(event.startTime);
+            eventDate.setHours(0, 0, 0, 0);
+            const targetDate = new Date(endDate);
+            targetDate.setHours(0, 0, 0, 0);
+            return event.completed && eventDate <= targetDate;
+          })
+          .reduce((total, event) => {
+            const durationMs = event.endTime.getTime() - event.startTime.getTime();
+            return total + (durationMs / (1000 * 60 * 60));
+          }, 0);
+        
+        data.push({
+          date: new Date(endDate),
+          estimatedProgress: project.estimatedHours,
+          completedTime: completedTimeAtEnd
+        });
+      }
+    } else {
+      // Linear progression fallback
+      const dailyEstimatedRate = project.estimatedHours / Math.max(1, totalDays);
+      
+      // Generate data points for key dates in the project range
+      const samplePoints = Math.min(20, totalDays);
+      for (let i = 0; i <= samplePoints; i++) {
+        const dayIndex = Math.floor((i / samplePoints) * totalDays);
+        const currentDate = new Date(startDate);
+        currentDate.setDate(startDate.getDate() + dayIndex);
+        
+        // Linear estimated progress based on project timeline
+        const estimatedProgress = Math.min(project.estimatedHours, dailyEstimatedRate * dayIndex);
+        
+        // Calculate completed time up to this date
+        const completedTime = projectEvents
+          .filter(event => {
+            const eventDate = new Date(event.startTime);
+            eventDate.setHours(0, 0, 0, 0);
+            const targetDate = new Date(currentDate);
+            targetDate.setHours(0, 0, 0, 0);
+            return event.completed && eventDate <= targetDate;
+          })
+          .reduce((total, event) => {
+            const durationMs = event.endTime.getTime() - event.startTime.getTime();
+            return total + (durationMs / (1000 * 60 * 60));
+          }, 0);
+        
+        data.push({
+          date: currentDate,
+          estimatedProgress,
+          completedTime
+        });
+      }
     }
     
     return data;
-  }, [project, events]);
+  }, [project, events, milestones]);
 
   const maxHours = Math.max(project.estimatedHours, metrics.completedTime, 1);
   const svgWidth = 800;
@@ -99,18 +187,19 @@ export function ProjectProgressGraph({ project, metrics, events }: ProjectProgre
   }
 
   return (
-    <div className="border-b border-gray-200 bg-white px-8 py-6 flex-shrink-0">
-      <h3 className="text-lg font-medium text-gray-900 mb-4">Project Progress</h3>
-      
-      {graphData.length > 1 ? (
-        <div className="relative w-full">
-          <svg
-            width="100%"
-            height={svgHeight}
-            viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-            className="w-full"
-            style={{ maxHeight: '240px', minWidth: '600px' }}
-          >
+    <TooltipProvider>
+      <div className="border-b border-gray-200 bg-white px-8 py-6 flex-shrink-0">
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Project Progress</h3>
+        
+        {graphData.length > 1 ? (
+          <div className="relative w-full">
+            <svg
+              width="100%"
+              height={svgHeight}
+              viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+              className="w-full"
+              style={{ maxHeight: '240px', minWidth: '600px' }}
+            >
             {/* Background */}
             <rect 
               x={padding.left} 
@@ -229,9 +318,103 @@ export function ProjectProgressGraph({ project, metrics, events }: ProjectProgre
                   stroke="#3b82f6"
                   strokeWidth="3"
                 />
+                
+                {/* Milestone diamonds on estimated progress line */}
+                {milestones.length > 0 && milestones
+                  .filter(m => {
+                    const milestoneDate = new Date(m.dueDate);
+                    const startDate = new Date(project.startDate);
+                    const endDate = new Date(project.endDate);
+                    return milestoneDate >= startDate && milestoneDate <= endDate;
+                  })
+                  .map((milestone, index) => {
+                    // Find the data point that corresponds to this milestone
+                    const milestoneDate = new Date(milestone.dueDate);
+                    const dataPointIndex = graphData.findIndex(point => {
+                      const pointDate = new Date(point.date);
+                      return pointDate.toDateString() === milestoneDate.toDateString();
+                    });
+                    
+                    if (dataPointIndex === -1) return null;
+                    
+                    const dataPoint = graphData[dataPointIndex];
+                    const x = padding.left + (dataPointIndex / Math.max(1, graphData.length - 1)) * chartWidth;
+                    const y = padding.top + chartHeight - (dataPoint.estimatedProgress / maxHours) * chartHeight;
+                    
+                    return (
+                      <g key={`milestone-${milestone.id}`}>
+                        {/* Milestone diamond */}
+                        <rect
+                          x={x - 4}
+                          y={y - 4}
+                          width="8"
+                          height="8"
+                          fill="#10b981"
+                          stroke="#059669"
+                          strokeWidth="1"
+                          transform={`rotate(45 ${x} ${y})`}
+                          className="cursor-pointer hover:fill-emerald-600 transition-colors"
+                        />
+                      </g>
+                    );
+                  })}
               </>
             )}
           </svg>
+          
+          {/* Milestone diamond tooltips positioned absolutely over the SVG */}
+          {milestones.length > 0 && milestones
+            .filter(m => {
+              const milestoneDate = new Date(m.dueDate);
+              const startDate = new Date(project.startDate);
+              const endDate = new Date(project.endDate);
+              return milestoneDate >= startDate && milestoneDate <= endDate;
+            })
+            .map((milestone) => {
+              // Find the data point that corresponds to this milestone
+              const milestoneDate = new Date(milestone.dueDate);
+              const dataPointIndex = graphData.findIndex(point => {
+                const pointDate = new Date(point.date);
+                return pointDate.toDateString() === milestoneDate.toDateString();
+              });
+              
+              if (dataPointIndex === -1) return null;
+              
+              const dataPoint = graphData[dataPointIndex];
+              
+              // Calculate position as percentage of the SVG viewBox
+              const xPercent = ((padding.left + (dataPointIndex / Math.max(1, graphData.length - 1)) * chartWidth) / svgWidth) * 100;
+              const yPercent = ((padding.top + chartHeight - (dataPoint.estimatedProgress / maxHours) * chartHeight) / svgHeight) * 100;
+              
+              return (
+                <Tooltip key={`milestone-tooltip-${milestone.id}`}>
+                  <TooltipTrigger asChild>
+                    <div
+                      className="absolute w-4 h-4 cursor-pointer"
+                      style={{
+                        left: `${xPercent}%`,
+                        top: `${yPercent}%`,
+                        transform: 'translate(-50%, -50%)',
+                        zIndex: 10
+                      }}
+                    />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <div className="text-sm">
+                      <div className="font-medium">{milestone.name}</div>
+                      <div className="text-gray-600">
+                        {new Date(milestone.dueDate).toLocaleDateString('en-US', { 
+                          month: 'short', 
+                          day: 'numeric',
+                          year: 'numeric'
+                        })}
+                      </div>
+                      <div className="text-gray-600">{milestone.timeAllocation}h allocated</div>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              );
+            })}
           
           {/* Legend */}
           <div className="flex justify-center gap-6 mt-4">
@@ -257,6 +440,7 @@ export function ProjectProgressGraph({ project, metrics, events }: ProjectProgre
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }
