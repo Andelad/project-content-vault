@@ -72,6 +72,42 @@ export function ProjectProgressGraph({ project, metrics, events, milestones = []
         return plannedTime;
       };
       
+      // Helper function to calculate linear interpolated estimated progress for any date
+      const getEstimatedProgressForDate = (targetDate: Date): number => {
+        // Find the milestone segment this date falls into
+        let prevDate = startDate;
+        let prevHours = 0;
+        
+        for (const milestone of relevantMilestones) {
+          const milestoneDate = new Date(milestone.dueDate);
+          
+          if (targetDate <= milestoneDate) {
+            // Target date is within this segment, interpolate
+            const segmentDays = Math.ceil((milestoneDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
+            const targetDays = Math.ceil((targetDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
+            
+            if (segmentDays === 0) return prevHours + milestone.timeAllocation;
+            
+            const progressRatio = targetDays / segmentDays;
+            return prevHours + (milestone.timeAllocation * progressRatio);
+          }
+          
+          // Move to next segment
+          prevDate = milestoneDate;
+          prevHours += milestone.timeAllocation;
+        }
+        
+        // Target date is after all milestones, interpolate to end date
+        const segmentDays = Math.ceil((endDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
+        const targetDays = Math.ceil((targetDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (segmentDays === 0) return project.estimatedHours;
+        
+        const remainingHours = project.estimatedHours - prevHours;
+        const progressRatio = Math.min(1, targetDays / segmentDays);
+        return prevHours + (remainingHours * progressRatio);
+      };
+      
       // Add starting point
       const completedTimeAtStart = projectEvents
         .filter(event => {
@@ -157,24 +193,8 @@ export function ProjectProgressGraph({ project, metrics, events, milestones = []
         .sort((a, b) => a.getTime() - b.getTime());
       
       eventDates.forEach(eventDate => {
-        // For event dates, interpolate estimated progress between milestone points
-        let estimatedProgress = 0;
-        
-        // Find the milestone-based estimated progress for this date by interpolation
-        const prevMilestone = relevantMilestones
-          .filter(m => new Date(m.dueDate) <= eventDate)
-          .pop();
-        
-        if (prevMilestone) {
-          estimatedProgress = relevantMilestones
-            .filter(m => new Date(m.dueDate) <= eventDate)
-            .reduce((total, m) => total + m.timeAllocation, 0);
-        }
-        
-        // If this is after all milestones but before end date, use total estimated hours
-        if (eventDate >= endDate || (relevantMilestones.length > 0 && eventDate > new Date(relevantMilestones[relevantMilestones.length - 1].dueDate))) {
-          estimatedProgress = project.estimatedHours;
-        }
+        // Use the interpolation function for estimated progress
+        const estimatedProgress = getEstimatedProgressForDate(eventDate);
         
         // Calculate completed time up to event date
         const completedTime = projectEvents
