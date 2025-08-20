@@ -4,7 +4,7 @@ export interface Milestone {
   id: string;
   name: string;
   dueDate: Date;
-  timeAllocation: number; // Percentage of total project budget (0-100)
+  timeAllocation: number; // Allocated hours for this milestone
   projectId: string;
   order: number; // For sorting milestones within a project
 }

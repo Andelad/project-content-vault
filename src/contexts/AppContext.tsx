@@ -216,7 +216,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const processedMilestones = useMemo(() => dbMilestones?.map(m => ({
     id: m.id,
     name: m.name,
-    dueDate: new Date(m.due_date.replace(/-/g, '/')),
+    dueDate: new Date(m.due_date),
     timeAllocation: m.time_allocation,
     projectId: m.project_id,
     order: m.order_index
@@ -484,7 +484,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       const dbMilestoneData = {
         name: milestoneData.name,
-        due_date: toLocalDateString(milestoneData.dueDate),
+        due_date: milestoneData.dueDate.toISOString(),
         time_allocation: milestoneData.timeAllocation,
         project_id: milestoneData.projectId,
         order_index: milestoneData.order
@@ -500,7 +500,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       const dbUpdates: any = {};
       if (updates.name !== undefined) dbUpdates.name = updates.name;
-      if (updates.dueDate !== undefined) dbUpdates.due_date = toLocalDateString(updates.dueDate);
+      if (updates.dueDate !== undefined) dbUpdates.due_date = updates.dueDate.toISOString();
       if (updates.timeAllocation !== undefined) dbUpdates.time_allocation = updates.timeAllocation;
       if (updates.projectId !== undefined) dbUpdates.project_id = updates.projectId;
       if (updates.order !== undefined) dbUpdates.order_index = updates.order;

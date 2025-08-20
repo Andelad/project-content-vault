@@ -39,28 +39,24 @@ export function MilestoneManager({
     return [...existing, ...newMilestones] as (Milestone | LocalMilestone)[];
   }, [milestones, projectId, localMilestones]);
 
-  // Calculate total time allocation
+  // Calculate total time allocation in hours
   const totalTimeAllocation = useMemo(() => {
     return projectMilestones.reduce((total, milestone) => total + milestone.timeAllocation, 0);
   }, [projectMilestones]);
 
   // Calculate suggested budget based on milestones
   const suggestedBudgetFromMilestones = useMemo(() => {
-    if (totalTimeAllocation > 100) {
-      // Calculate required budget to make percentages work
-      const totalHours = projectMilestones.reduce((total, milestone) => {
-        return total + (milestone.timeAllocation * projectEstimatedHours / 100);
-      }, 0);
-      return Math.ceil(totalHours);
+    if (totalTimeAllocation > projectEstimatedHours) {
+      return Math.ceil(totalTimeAllocation);
     }
     return projectEstimatedHours;
-  }, [projectMilestones, projectEstimatedHours, totalTimeAllocation]);
+  }, [totalTimeAllocation, projectEstimatedHours]);
 
   const addNewMilestone = () => {
     const newMilestone: LocalMilestone = {
       name: '',
       dueDate: new Date(),
-      timeAllocation: 10,
+      timeAllocation: 8, // Default to 8 hours (1 day)
       projectId,
       order: projectMilestones.length,
       isNew: true
@@ -78,9 +74,9 @@ export function MilestoneManager({
     const milestone = localMilestones[index];
     if (!milestone || !milestone.name.trim()) return;
 
-    // Check if total allocation exceeds 100%
+    // Check if total allocation exceeds project budget
     const newTotal = totalTimeAllocation;
-    if (newTotal > 100) {
+    if (newTotal > projectEstimatedHours) {
       setSuggestedBudget(suggestedBudgetFromMilestones);
       setShowBudgetDialog(true);
       return;
@@ -136,7 +132,7 @@ export function MilestoneManager({
     }
   };
 
-  const isOverBudget = totalTimeAllocation > 100;
+  const isOverBudget = totalTimeAllocation > projectEstimatedHours;
 
   return (
     <div className="border-b border-gray-200">
@@ -162,7 +158,7 @@ export function MilestoneManager({
           <div className="flex items-center gap-2 text-orange-600">
             <AlertTriangle className="w-4 h-4" />
             <span className="text-sm font-medium">
-              {totalTimeAllocation.toFixed(1)}% allocated
+              {totalTimeAllocation}h / {projectEstimatedHours}h allocated
             </span>
           </div>
         )}
@@ -183,7 +179,7 @@ export function MilestoneManager({
                   <div className="flex items-center gap-2 text-orange-800">
                     <AlertTriangle className="w-4 h-4" />
                     <span className="text-sm font-medium">
-                      Milestone allocations exceed project budget ({totalTimeAllocation.toFixed(1)}%)
+                      Milestone allocations exceed project budget ({totalTimeAllocation}h / {projectEstimatedHours}h)
                     </span>
                   </div>
                   <p className="text-sm text-orange-700 mt-1">
@@ -235,8 +231,7 @@ export function MilestoneManager({
                   <div className="flex justify-between items-center text-sm">
                     <span className="font-medium">Total Allocation:</span>
                     <span className={`font-medium ${isOverBudget ? 'text-orange-600' : 'text-gray-900'}`}>
-                      {totalTimeAllocation.toFixed(1)}% 
-                      ({((totalTimeAllocation * projectEstimatedHours) / 100).toFixed(1)}h)
+                      {totalTimeAllocation}h / {projectEstimatedHours}h
                     </span>
                   </div>
                 </div>
@@ -318,7 +313,7 @@ function MilestoneRow({
           </div>
           
           <div>
-            <Label htmlFor="allocation">Time Allocation (%)</Label>
+            <Label htmlFor="allocation">Hours Allocated</Label>
             <Input
               id="allocation"
               type="number"
@@ -364,9 +359,7 @@ function MilestoneRow({
           <h4 className="font-medium text-gray-900">{milestone.name}</h4>
           <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
             <span>Due: {milestone.dueDate.toLocaleDateString()}</span>
-            <span>
-              {milestone.timeAllocation}% ({((milestone.timeAllocation * projectEstimatedHours) / 100).toFixed(1)}h)
-            </span>
+            <span>{milestone.timeAllocation}h</span>
           </div>
         </div>
         
@@ -420,7 +413,7 @@ function NewMilestoneRow({
         </div>
         
         <div>
-          <Label htmlFor="newAllocation">Time Allocation (%)</Label>
+          <Label htmlFor="newAllocation">Hours Allocated</Label>
           <Input
             id="newAllocation"
             type="number"

@@ -121,7 +121,7 @@ export const ProjectMilestones = memo(function ProjectMilestones({
       {milestonePositions.map(({ milestone, visible, position }) => {
         if (!visible) return null;
 
-        const estimatedHours = (milestone.timeAllocation * project.estimatedHours) / 100;
+        const estimatedHours = milestone.timeAllocation;
 
         return (
           <Tooltip key={milestone.id} delayDuration={100}>
@@ -173,7 +173,7 @@ export const ProjectMilestones = memo(function ProjectMilestones({
                   })}
                 </div>
                 <div className="text-gray-500">
-                  {milestone.timeAllocation}% ({estimatedHours.toFixed(1)}h)
+                  {estimatedHours}h
                 </div>
               </div>
             </TooltipContent>
