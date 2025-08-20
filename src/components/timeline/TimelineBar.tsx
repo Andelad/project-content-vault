@@ -6,6 +6,7 @@ import { calculateTimelinePositions, getSafePosition } from '@/lib/timelinePosit
 import { calculateWorkHourCapacity, isHolidayDate } from '@/lib/workHoursUtils';
 import { getProjectTimeAllocation, memoizedGetProjectTimeAllocation, generateWorkHoursForDate } from '@/lib/eventWorkHourUtils';
 import { ProjectIconIndicator } from './ProjectIconIndicator';
+import { ProjectMilestones } from './ProjectMilestones';
 
 interface TimelineBarProps {
   project: any;
@@ -18,6 +19,7 @@ interface TimelineBarProps {
   mode?: 'days' | 'weeks';
   isMultiProjectRow?: boolean;
   collapsed: boolean;
+  onMilestoneDrag?: (milestoneId: string, newDate: Date) => void;
 }
 
 // Helper function to get hover color
@@ -54,7 +56,8 @@ export const TimelineBar = memo(function TimelineBar({
   handleMouseDown,
   mode,
   isMultiProjectRow,
-  collapsed
+  collapsed,
+  onMilestoneDrag
 }: TimelineBarProps) {
   const { settings, events, holidays } = useAppDataOnly();
   
@@ -163,6 +166,7 @@ export const TimelineBar = memo(function TimelineBar({
     
     return {
       baseline: baselineColor,
+      main: project.color,
       midTone: midToneColor,
       hover: hoverColor,
       autoEstimate: autoEstimateColor
@@ -727,6 +731,17 @@ export const TimelineBar = memo(function TimelineBar({
                   handleMouseDown(e, project.id, 'resize-end-date');
                 }}
                 title="Drag to change end date"
+              />
+              
+              {/* Project Milestones */}
+              <ProjectMilestones
+                project={project}
+                dates={dates}
+                viewportStart={viewportStart}
+                viewportEnd={viewportEnd}
+                mode={mode}
+                colorScheme={colorScheme}
+                onMilestoneDrag={onMilestoneDrag}
               />
             </div>
           );

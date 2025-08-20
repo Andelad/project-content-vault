@@ -46,12 +46,14 @@ export function TimelineView() {
     selectedProjectId, 
     holidays,
     timelineMode,
+    milestones,
     setTimelineMode,
     setCurrentDate, 
     updateProject, 
     setSelectedProjectId, 
     addProject, 
     updateHoliday,
+    updateMilestone,
     setCreatingNewProject 
   } = useApp();
   
@@ -646,6 +648,11 @@ export function TimelineView() {
     setCreatingNewProject(row.groupId, { startDate, endDate }, rowId);
   }, [rows, setCreatingNewProject, projects]);
 
+  // Handle milestone drag updates
+  const handleMilestoneDrag = useCallback((milestoneId: string, newDate: Date) => {
+    updateMilestone(milestoneId, { dueDate: newDate });
+  }, [updateMilestone]);
+
   return (
     <DndProvider backend={HTML5Backend}>
       <TooltipProvider>
@@ -967,6 +974,7 @@ export function TimelineView() {
                                               mode={mode}
                                               isMultiProjectRow={true} // Add flag for multi-project rows
                                               collapsed={collapsed}
+                                              onMilestoneDrag={handleMilestoneDrag}
                                             />
                                           </div>
                                         );

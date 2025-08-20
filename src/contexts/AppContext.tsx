@@ -10,7 +10,8 @@ import {
   CalendarEvent, 
   Holiday, 
   WorkSlot, 
-  Settings 
+  Settings,
+  Milestone
 } from '@/types/core';
 import { useProjects } from '@/hooks/useProjects';
 import { useGroups } from '@/hooks/useGroups';
@@ -18,6 +19,7 @@ import { useRows } from '@/hooks/useRows';
 import { useEvents } from '@/hooks/useEvents';
 import { useHolidays } from '@/hooks/useHolidays';
 import { useSettings } from '@/hooks/useSettings';
+import { useMilestones } from '@/hooks/useMilestones';
 
 // Individual work hour override for specific dates
 export interface WorkHourOverride {
@@ -80,6 +82,12 @@ interface AppContextType {
   editingHolidayId: string | null;
   setEditingHolidayId: (holidayId: string | null) => void;
   setDefaultView: (defaultViewSetting: string) => void;
+  // Milestone management
+  milestones: Milestone[];
+  addMilestone: (milestone: Omit<Milestone, 'id'>) => void;
+  updateMilestone: (id: string, updates: Partial<Milestone>) => void;
+  deleteMilestone: (id: string) => void;
+  reorderMilestones: (projectId: string, fromIndex: number, toIndex: number) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -114,6 +122,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const { events: dbEvents, loading: eventsLoading, addEvent: dbAddEvent, updateEvent: dbUpdateEvent, deleteEvent: dbDeleteEvent } = useEvents();
   const { holidays: dbHolidays, loading: holidaysLoading, addHoliday: dbAddHoliday, updateHoliday: dbUpdateHoliday, deleteHoliday: dbDeleteHoliday } = useHolidays();
   const { settings: dbSettings, loading: settingsLoading, updateSettings: dbUpdateSettings } = useSettings();
+  const { milestones: dbMilestones, loading: milestonesLoading, addMilestone: dbAddMilestone, updateMilestone: dbUpdateMilestone, deleteMilestone: dbDeleteMilestone, reorderMilestones: dbReorderMilestones } = useMilestones();
 
   const [currentView, setCurrentView] = useState('timeline');
   const [timelineMode, setTimelineMode] = useState<'days' | 'weeks'>('days');
@@ -203,6 +212,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     groupId: r.group_id,
     order: r.order_index
   })) || [], [dbRows]);
+
+  const processedMilestones = useMemo(() => dbMilestones?.map(m => ({
+    id: m.id,
+    name: m.name,
+    dueDate: new Date(m.due_date.replace(/-/g, '/')),
+    timeAllocation: m.time_allocation,
+    projectId: m.project_id,
+    order: m.order_index
+  })) || [], [dbMilestones]);
 
   // Temporary local storage for defaultView until database migration is applied
   const [localDefaultView, setLocalDefaultView] = useState<string>(() => {
@@ -461,6 +479,50 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [dbDeleteHoliday]);
 
+  // Milestone management functions
+  const addMilestone = useCallback(async (milestoneData: Omit<Milestone, 'id'>) => {
+    try {
+      const dbMilestoneData = {
+        name: milestoneData.name,
+        due_date: toLocalDateString(milestoneData.dueDate),
+        time_allocation: milestoneData.timeAllocation,
+        project_id: milestoneData.projectId,
+        order_index: milestoneData.order
+      };
+      
+      await dbAddMilestone(dbMilestoneData);
+    } catch (error) {
+      console.error('Failed to add milestone:', error);
+    }
+  }, [dbAddMilestone]);
+
+  const updateMilestone = useCallback(async (id: string, updates: Partial<Milestone>) => {
+    try {
+      const dbUpdates: any = {};
+      if (updates.name !== undefined) dbUpdates.name = updates.name;
+      if (updates.dueDate !== undefined) dbUpdates.due_date = toLocalDateString(updates.dueDate);
+      if (updates.timeAllocation !== undefined) dbUpdates.time_allocation = updates.timeAllocation;
+      if (updates.projectId !== undefined) dbUpdates.project_id = updates.projectId;
+      if (updates.order !== undefined) dbUpdates.order_index = updates.order;
+      
+      await dbUpdateMilestone(id, dbUpdates);
+    } catch (error) {
+      console.error('Failed to update milestone:', error);
+    }
+  }, [dbUpdateMilestone]);
+
+  const deleteMilestone = useCallback(async (id: string) => {
+    try {
+      await dbDeleteMilestone(id);
+    } catch (error) {
+      console.error('Failed to delete milestone:', error);
+    }
+  }, [dbDeleteMilestone]);
+
+  const reorderMilestones = useCallback((projectId: string, fromIndex: number, toIndex: number) => {
+    dbReorderMilestones(projectId, fromIndex, toIndex);
+  }, [dbReorderMilestones]);
+
   const updateSettings = useCallback(async (updates: Partial<Settings>) => {
     try {
       const dbUpdates: any = {};
@@ -533,8 +595,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     creatingNewHoliday,
     editingHolidayId,
     selectedEventId,
-    creatingNewEvent
-  }), [currentView, timelineMode, currentDate, processedProjects, dbGroups, processedRows, processedEvents, processedSettings, workHours, timelineEntries, workHourOverrides, selectedProjectId, creatingNewProject, processedHolidays, creatingNewHoliday, editingHolidayId, selectedEventId, creatingNewEvent]);
+    creatingNewEvent,
+    milestones: processedMilestones
+  }), [currentView, timelineMode, currentDate, processedProjects, dbGroups, processedRows, processedEvents, processedSettings, workHours, timelineEntries, workHourOverrides, selectedProjectId, creatingNewProject, processedHolidays, creatingNewHoliday, editingHolidayId, selectedEventId, creatingNewEvent, processedMilestones]);
 
   const actions = useMemo(() => ({
     setCurrentView,
@@ -567,7 +630,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setCreatingNewHoliday,
     setEditingHolidayId,
     setSelectedEventId,
-    setCreatingNewEvent
+    setCreatingNewEvent,
+    addMilestone,
+    updateMilestone,
+    deleteMilestone,
+    reorderMilestones
   }), [
     setCurrentView,
     setCurrentDate,
@@ -599,7 +666,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setEditingHolidayId,
     setSelectedEventId,
     setCreatingNewEvent,
-    setDefaultView
+    setDefaultView,
+    addMilestone,
+    updateMilestone,
+    deleteMilestone,
+    reorderMilestones
   ]);
 
   return (
@@ -634,4 +705,4 @@ export function useAppActionsOnly() {
 }
 
 // Re-export core types for components that need them
-export type { Project, Group, Row, CalendarEvent, Holiday, WorkSlot, Settings } from '@/types/core';
+export type { Project, Group, Row, CalendarEvent, Holiday, WorkSlot, Settings, Milestone } from '@/types/core';

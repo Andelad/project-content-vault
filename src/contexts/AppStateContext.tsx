@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useMemo } from 'react';
-import { Project, Group, CalendarEvent, Settings, Holiday, Row } from './AppContext';
+import { Project, Group, CalendarEvent, Settings, Holiday, Row, Milestone } from './AppContext';
 
 interface AppStateContextType {
   currentView: string;
@@ -13,6 +13,7 @@ interface AppStateContextType {
   holidays: Holiday[];
   selectedEventId: string | null;
   creatingNewEvent: { startTime?: Date; endTime?: Date } | null;
+  milestones: Milestone[];
 }
 
 const AppStateContext = createContext<AppStateContextType | undefined>(undefined);
@@ -36,7 +37,8 @@ export function AppStateProvider({
     value.selectedProjectId,
     value.holidays,
     value.selectedEventId,
-    value.creatingNewEvent
+    value.creatingNewEvent,
+    value.milestones
   ]);
 
   return (

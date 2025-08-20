@@ -10,6 +10,8 @@ import { Calendar } from './ui/calendar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { RichTextEditor } from './RichTextEditor';
+import { ProjectProgressGraph } from './ProjectProgressGraph';
+import { MilestoneManager } from './MilestoneManager';
 import { useApp } from '../contexts/AppContext';
 import { calculateProjectTimeMetrics } from '@/lib/projectCalculations';
 
@@ -846,6 +848,20 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
           </div>
         </div>
 
+        {/* Milestone Manager */}
+        {!isCreating && projectId && (
+          <MilestoneManager
+            projectId={projectId}
+            projectEstimatedHours={localValues.estimatedHours}
+            onUpdateProjectBudget={(newBudget) => {
+              setLocalValues(prev => ({ ...prev, estimatedHours: newBudget }));
+              if (!isCreating && projectId && projectId !== '') {
+                updateProject(projectId, { estimatedHours: newBudget });
+              }
+            }}
+          />
+        )}
+
         {/* Time Forecasting Dashboard */}
         <div className="border-b border-gray-200 bg-gray-50 px-8 py-6 flex-shrink-0">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -899,6 +915,20 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
             />
           </div>
         </div>
+
+        {/* Project Progress Graph */}
+        {!isCreating && (
+          <ProjectProgressGraph 
+            project={project || {
+              ...localValues,
+              id: projectId || '',
+              groupId: groupId || '',
+              rowId: rowId || ''
+            }}
+            metrics={metrics}
+            events={events}
+          />
+        )}
 
         {/* Main Content - Column Layout */}
         <div className="flex-1 overflow-hidden flex flex-col">

@@ -1,5 +1,14 @@
 // Core application types - single source of truth
 
+export interface Milestone {
+  id: string;
+  name: string;
+  dueDate: Date;
+  timeAllocation: number; // Percentage of total project budget (0-100)
+  projectId: string;
+  order: number; // For sorting milestones within a project
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -12,6 +21,7 @@ export interface Project {
   rowId: string; // Projects now belong to rows
   notes?: string;
   icon?: string; // Lucide icon name, defaults to 'folder'
+  milestones?: Milestone[]; // Project milestones
 }
 
 export interface Row {
