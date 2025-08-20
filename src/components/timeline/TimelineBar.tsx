@@ -5,6 +5,7 @@ import { useAppDataOnly } from '../../contexts/AppContext';
 import { calculateTimelinePositions, getSafePosition } from '@/lib/timelinePositioning';
 import { calculateWorkHourCapacity, isHolidayDate } from '@/lib/workHoursUtils';
 import { getProjectTimeAllocation, memoizedGetProjectTimeAllocation, generateWorkHoursForDate } from '@/lib/eventWorkHourUtils';
+import { calculateMilestoneSegments, getMilestoneSegmentForDate } from '@/lib/milestoneSegmentUtils';
 import { ProjectIconIndicator } from './ProjectIconIndicator';
 import { ProjectMilestones } from './ProjectMilestones';
 
@@ -59,7 +60,7 @@ export const TimelineBar = memo(function TimelineBar({
   collapsed,
   onMilestoneDrag
 }: TimelineBarProps) {
-  const { settings, events, holidays } = useAppDataOnly();
+  const { settings, events, holidays, milestones } = useAppDataOnly();
   
   // Memoize project days calculation
   const projectDays = useMemo(() => {
@@ -110,6 +111,19 @@ export const TimelineBar = memo(function TimelineBar({
       return totalHours > 0;
     };
   }, [settings.weeklyWorkHours, holidays]);
+
+  // Memoize milestone segments calculation
+  const milestoneSegments = useMemo(() => {
+    return calculateMilestoneSegments(
+      project.id,
+      project.startDate,
+      project.endDate,
+      milestones,
+      settings,
+      holidays,
+      isWorkingDay
+    );
+  }, [project.id, project.startDate, project.endDate, milestones, settings, holidays, isWorkingDay]);
 
   // Memoize project metrics calculation
   const projectMetrics = useMemo(() => {
@@ -278,15 +292,35 @@ export const TimelineBar = memo(function TimelineBar({
                                   holidays
                                 );
 
-                                // Determine styling based on time allocation type
+                                // Check if there's a milestone segment for this day
+                                const milestoneSegment = getMilestoneSegmentForDate(currentDay, milestoneSegments);
+
+                                // Determine styling based on time allocation type and milestone segment
                                 const isPlannedTime = timeAllocation.type === 'planned';
 
-                                // Calculate daily height based on allocated hours (like day view)
-                                const dailyHours = timeAllocation.hours;
-                                const calculatedHeight = timeAllocation.hours > 0 
-                                  ? Math.max(3, Math.round(dailyHours * 2))
-                                  : 0;
-                                const dayRectangleHeight = Math.min(calculatedHeight, 28);
+                                // Calculate daily height - use milestone segment if available, otherwise fallback to timeAllocation
+                                let dailyHours: number;
+                                let heightInPixels: number;
+                                
+                                if (isPlannedTime) {
+                                  // For planned time, use actual planned hours
+                                  dailyHours = timeAllocation.hours;
+                                  heightInPixels = timeAllocation.hours > 0 
+                                    ? Math.max(3, Math.round(dailyHours * 2))
+                                    : 0;
+                                } else if (milestoneSegment) {
+                                  // For auto-estimate with milestone segment, use segment hours per day
+                                  dailyHours = milestoneSegment.hoursPerDay;
+                                  heightInPixels = milestoneSegment.heightInPixels;
+                                } else {
+                                  // Fallback to project auto-estimate
+                                  dailyHours = timeAllocation.hours;
+                                  heightInPixels = timeAllocation.hours > 0 
+                                    ? Math.max(3, Math.round(dailyHours * 2))
+                                    : 0;
+                                }
+
+                                const dayRectangleHeight = Math.min(heightInPixels, 28);
 
                                 return {
                                   backgroundColor: isPlannedTime ? project.color : colorScheme.autoEstimate,
@@ -460,11 +494,33 @@ export const TimelineBar = memo(function TimelineBar({
               const isFirstWorkingDay = workingDayIndex === 0;
               const isLastWorkingDay = workingDayIndex === visibleWorkingDays.length - 1;
 
-              // Calculate height based on allocated hours
-              const dailyHours = timeAllocation.hours;
-              const calculatedHeight = timeAllocation.hours > 0 
-                ? Math.max(3, Math.round(dailyHours * 2))
-                : 0;
+              // Check if there's a milestone segment for this day
+              const milestoneSegment = getMilestoneSegmentForDate(date, milestoneSegments);
+
+              // Determine styling based on time allocation type and milestone segment
+              const isPlannedTime = timeAllocation.type === 'planned';
+
+              // Calculate daily height - use milestone segment if available, otherwise fallback to timeAllocation
+              let dailyHours: number;
+              let calculatedHeight: number;
+              
+              if (isPlannedTime) {
+                // For planned time, use actual planned hours
+                dailyHours = timeAllocation.hours;
+                calculatedHeight = timeAllocation.hours > 0 
+                  ? Math.max(3, Math.round(dailyHours * 2))
+                  : 0;
+              } else if (milestoneSegment) {
+                // For auto-estimate with milestone segment, use segment hours per day
+                dailyHours = milestoneSegment.hoursPerDay;
+                calculatedHeight = milestoneSegment.heightInPixels;
+              } else {
+                // Fallback to project auto-estimate
+                dailyHours = timeAllocation.hours;
+                calculatedHeight = timeAllocation.hours > 0 
+                  ? Math.max(3, Math.round(dailyHours * 2))
+                  : 0;
+              }
               const rectangleHeight = Math.min(calculatedHeight, 28);
               
               // Determine border radius for this day rectangle based on working days
@@ -496,7 +552,6 @@ export const TimelineBar = memo(function TimelineBar({
               }
 
               // Determine styling based on time allocation type
-              const isPlannedTime = timeAllocation.type === 'planned';
               const rectangleStyle = {
                 backgroundColor: isPlannedTime ? project.color : colorScheme.autoEstimate,
                 borderTopLeftRadius: borderTopLeftRadius,
