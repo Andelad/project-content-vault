@@ -18,6 +18,8 @@ interface ProjectMilestonesProps {
     hover: string;
   };
   onMilestoneDrag?: (milestoneId: string, newDate: Date) => void;
+  isDragging?: boolean;
+  dragState?: any;
 }
 
 export const ProjectMilestones = memo(function ProjectMilestones({
@@ -27,7 +29,9 @@ export const ProjectMilestones = memo(function ProjectMilestones({
   viewportEnd,
   mode,
   colorScheme,
-  onMilestoneDrag
+  onMilestoneDrag,
+  isDragging,
+  dragState
 }: ProjectMilestonesProps) {
   const { milestones } = useAppDataOnly();
   const [draggingMilestone, setDraggingMilestone] = useState<string | null>(null);
@@ -45,15 +49,23 @@ export const ProjectMilestones = memo(function ProjectMilestones({
       const milestoneDate = new Date(milestone.dueDate);
       milestoneDate.setHours(0, 0, 0, 0);
 
-      // Check if milestone is within viewport
-      if (milestoneDate < viewportStart || milestoneDate > viewportEnd) {
+      // If project is being dragged, adjust milestone date accordingly
+      let adjustedMilestoneDate = milestoneDate;
+      if (isDragging && dragState?.projectId === project.id && dragState?.action === 'move') {
+        adjustedMilestoneDate = new Date(milestoneDate);
+        const daysDelta = dragState.daysDelta || 0;
+        adjustedMilestoneDate.setDate(adjustedMilestoneDate.getDate() + daysDelta);
+      }
+
+      // Check if milestone is within viewport (use adjusted date for visibility check)
+      if (adjustedMilestoneDate < viewportStart || adjustedMilestoneDate > viewportEnd) {
         return { milestone, visible: false, position: 0 };
       }
 
-      // Calculate position using the same logic as the project bar
+      // Calculate position using the adjusted date
       const positions = calculateTimelinePositions(
-        milestoneDate,
-        milestoneDate,
+        adjustedMilestoneDate,
+        adjustedMilestoneDate,
         viewportStart,
         viewportEnd,
         dates,
@@ -66,7 +78,7 @@ export const ProjectMilestones = memo(function ProjectMilestones({
         position: positions.circleLeftPx
       };
     });
-  }, [projectMilestones, viewportStart, viewportEnd, dates, mode]);
+  }, [projectMilestones, viewportStart, viewportEnd, dates, mode, isDragging, dragState, project.id]);
 
   // Handle milestone drag start
   const handleMilestoneMouseDown = (e: React.MouseEvent, milestoneId: string) => {
@@ -141,25 +153,13 @@ export const ProjectMilestones = memo(function ProjectMilestones({
                 <div
                   className="relative"
                   style={{
-                    width: '11px',
-                    height: '11px',
+                    width: '9px',
+                    height: '9px',
                     backgroundColor: colorScheme.baseline,
                     transform: 'rotate(45deg)',
-                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)',
-                    border: `1px solid ${colorScheme.main}`
+                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)'
                   }}
-                >
-                  {/* Inner dot for contrast */}
-                  <div
-                    className="absolute inset-0 m-auto"
-                    style={{
-                      width: '5px',
-                      height: '5px',
-                      backgroundColor: colorScheme.main,
-                      borderRadius: '1px'
-                    }}
-                  />
-                </div>
+                />
               </div>
             </TooltipTrigger>
             <TooltipContent>

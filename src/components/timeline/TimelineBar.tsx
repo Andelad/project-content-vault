@@ -742,6 +742,8 @@ export const TimelineBar = memo(function TimelineBar({
                 mode={mode}
                 colorScheme={colorScheme}
                 onMilestoneDrag={onMilestoneDrag}
+                isDragging={isDragging}
+                dragState={dragState}
               />
             </div>
           );

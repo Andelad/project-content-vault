@@ -510,6 +510,17 @@ export function TimelineView() {
               startDate: newStartDate,
               endDate: newEndDate 
             });
+            
+            // Update milestone dates when project is moved
+            const projectMilestones = milestones.filter(m => m.projectId === projectId);
+            projectMilestones.forEach(milestone => {
+              const originalMilestoneDate = new Date(milestone.dueDate);
+              const newMilestoneDate = new Date(originalMilestoneDate);
+              newMilestoneDate.setDate(originalMilestoneDate.getDate() + daysDelta);
+              
+              updateMilestone(milestone.id, { dueDate: newMilestoneDate });
+            });
+            
             initialDragState.lastDaysDelta = daysDelta;
           }
         }
@@ -525,7 +536,7 @@ export function TimelineView() {
     
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  }, [projects, dates, updateProject, checkAutoScroll, timelineMode]);
+  }, [projects, dates, updateProject, checkAutoScroll, timelineMode, milestones, updateMilestone]);
 
   // COMPLETELY REWRITTEN HOLIDAY DRAG HANDLER - SIMPLE AND FAST
   const handleHolidayMouseDown = useCallback((e: React.MouseEvent, holidayId: string, action: string) => {
