@@ -7,6 +7,7 @@ import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 import { Button } from './ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
+import { Input } from './ui/input';
 import { ChevronLeft, ChevronRight, MapPin, CalendarSearch, Folders } from 'lucide-react';
 import { useAppDataOnly, useAppActionsOnly, useApp } from '../contexts/AppContext';
 import { useTimelineData } from '../hooks/useTimelineData';
@@ -77,6 +78,7 @@ export function TimelineView() {
   const [dragState, setDragState] = useState<any>(null);
   const [isAnimating, setIsAnimating] = useState(false);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [projectSearchQuery, setProjectSearchQuery] = useState('');
 
   // Auto-scroll state for drag operations
   const [autoScrollState, setAutoScrollState] = useState<{
@@ -810,19 +812,27 @@ export function TimelineView() {
                     />
                   </PopoverContent>
                 </Popover>
+                
+                <Input
+                  type="text"
+                  placeholder="search for project"
+                  value={projectSearchQuery}
+                  onChange={(e) => setProjectSearchQuery(e.target.value)}
+                  className="h-9 w-48"
+                />
               </div>
 
               {/* Navigation Controls */}
-              <div className="flex items-center space-x-2">
-                <Button variant="ghost" size="icon" onClick={() => handleNavigate('prev')}>
+              <div className="flex items-center gap-0.5">
+                <Button variant="ghost" className="h-9 w-9 px-0" onClick={() => handleNavigate('prev')}>
                   <ChevronLeft className="w-4 h-4" />
                 </Button>
                 
-                <h2 className="text-xl font-semibold text-gray-900 min-w-[280px] text-center">
+                <h2 className="text-sm font-semibold text-gray-900 text-center px-2">
                   {dateRangeText}
                 </h2>
                 
-                <Button variant="ghost" size="icon" onClick={() => handleNavigate('next')}>
+                <Button variant="ghost" className="h-9 w-9 px-0" onClick={() => handleNavigate('next')}>
                   <ChevronRight className="w-4 h-4" />
                 </Button>
               </div>
