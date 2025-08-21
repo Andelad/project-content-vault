@@ -13,7 +13,7 @@ interface AppActionsContextType {
   updateGroup: (id: string, updates: Partial<Group>) => void;
   deleteGroup: (id: string) => void;
   addEvent: (event: Omit<CalendarEvent, 'id'>) => void;
-  updateEvent: (id: string, updates: Partial<CalendarEvent>) => void;
+  updateEvent: (id: string, updates: Partial<CalendarEvent>, options?: { silent?: boolean }) => void;
   deleteEvent: (id: string) => void;
   updateHoliday: (id: string, updates: any) => void;
   setSelectedProjectId: (projectId: string | null) => void;

@@ -62,8 +62,8 @@ interface AppContextType {
   updateRow: (id: string, updates: Partial<Row>) => void;
   deleteRow: (id: string) => void;
   reorderRows: (groupId: string, fromIndex: number, toIndex: number) => void;
-  addEvent: (event: Omit<CalendarEvent, 'id'>) => void;
-  updateEvent: (id: string, updates: Partial<CalendarEvent>) => void;
+  addEvent: (event: Omit<CalendarEvent, 'id'>) => Promise<any>;
+  updateEvent: (id: string, updates: Partial<CalendarEvent>, options?: { silent?: boolean }) => void;
   deleteEvent: (id: string) => void;
   selectedProjectId: string | null;
   setSelectedProjectId: (projectId: string | null) => void;
@@ -191,7 +191,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     color: e.color,
     completed: e.completed || false,
     duration: e.duration || 0,
-    type: e.event_type || 'planned', // Map database event_type to application type
+    type: (e.event_type as 'planned' | 'tracked' | 'completed') || 'planned', // Type assertion for event_type
     recurringType: e.recurring_type,
     recurringInterval: e.recurring_interval,
     recurringEndDate: e.recurring_end_date ? new Date(e.recurring_end_date) : undefined,
@@ -411,13 +411,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         recurring_count: null
       };
       
-      await dbAddEvent(dbEventData);
+      const result = await dbAddEvent(dbEventData);
+      return result; // Return the created event
     } catch (error) {
       console.error('Failed to add event:', error);
+      throw error; // Re-throw so caller can handle
     }
   }, [dbAddEvent]);
 
-  const updateEvent = useCallback(async (id: string, updates: Partial<CalendarEvent>) => {
+  const updateEvent = useCallback(async (id: string, updates: Partial<CalendarEvent>, options?: { silent?: boolean }) => {
     try {
       const dbUpdates: any = {};
       if (updates.title !== undefined) dbUpdates.title = updates.title;
@@ -431,7 +433,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (updates.type !== undefined) dbUpdates.event_type = updates.type; // Include event type
       // Recurring fields are disabled for now
       
-      await dbUpdateEvent(id, dbUpdates);
+      await dbUpdateEvent(id, dbUpdates, options);
     } catch (error) {
       console.error('Failed to update event:', error);
     }

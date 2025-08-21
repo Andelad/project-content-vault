@@ -127,7 +127,7 @@ export function TimeTracker({ className }: TimeTrackerProps) {
         updateEvent(event.id, {
           endTime: firstPartEnd,
           duration: firstPartDuration
-        });
+        }, { silent: true });
         
         // Create second part (after tracking) if there's enough time
         const secondPartStart = new Date(trackingEnd);
@@ -154,7 +154,7 @@ export function TimeTracker({ className }: TimeTrackerProps) {
           updateEvent(event.id, {
             startTime: newStart,
             duration: newDuration
-          });
+          }, { silent: true });
           newAffectedEvents.push(event.id);
         } else {
           deleteEvent(event.id);
@@ -168,7 +168,7 @@ export function TimeTracker({ className }: TimeTrackerProps) {
           updateEvent(event.id, {
             endTime: newEnd,
             duration: newDuration
-          });
+          }, { silent: true });
           newAffectedEvents.push(event.id);
         } else {
           deleteEvent(event.id);
@@ -190,11 +190,11 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       const now = new Date();
       const duration = (now.getTime() - startTime.getTime()) / (1000 * 60 * 60);
       
-      // Update the tracking event
+      // Update the tracking event silently (no toast notifications)
       updateEvent(eventId, {
         endTime: now,
         duration
-      });
+      }, { silent: true });
 
       // Check for new overlaps as the event grows
       const affected = handlePlannedEventOverlaps(startTime, now);
@@ -324,38 +324,27 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       
       try {
         // Create the tracking event
-        const result = await addEvent(eventData);
+        const createdEvent = await addEvent(eventData);
         
-        // Since addEvent might not return the ID directly, we'll use a different approach
-        // Find the most recent tracking event
-        setTimeout(() => {
-          const trackingEvents = events.filter(e => 
-            e.type === 'tracked' && 
-            e.title.includes('🔴') &&
-            Math.abs(new Date(e.startTime).getTime() - now.getTime()) < 10000 // Within 10 seconds
-          );
+        if (createdEvent && createdEvent.id) {
+          // Use the actual event ID from the database
+          setCurrentEventId(createdEvent.id);
           
-          if (trackingEvents.length > 0) {
-            const newestEvent = trackingEvents.sort((a, b) => 
-              new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
-            )[0];
-            
-            setCurrentEventId(newestEvent.id);
-            
-            // Start live updates
-            startLiveUpdates(newestEvent.id, now);
-            
-            // Save tracking state
-            saveTrackingState({
-              isTracking: true,
-              startTime: now,
-              eventId: newestEvent.id,
-              selectedProject,
-              searchQuery,
-              affectedEvents: []
-            });
-          }
-        }, 1000);
+          // Start live updates immediately
+          startLiveUpdates(createdEvent.id, now);
+          
+          // Save tracking state
+          saveTrackingState({
+            isTracking: true,
+            startTime: now,
+            eventId: createdEvent.id,
+            selectedProject,
+            searchQuery,
+            affectedEvents: []
+          });
+        } else {
+          throw new Error('Failed to get event ID from created event');
+        }
         
       } catch (error) {
         console.error('Failed to create tracking event:', error);

@@ -66,7 +66,7 @@ export function useEvents() {
     }
   };
 
-  const updateEvent = async (id: string, updates: CalendarEventUpdate) => {
+  const updateEvent = async (id: string, updates: CalendarEventUpdate, options?: { silent?: boolean }) => {
     try {
       const { data, error } = await supabase
         .from('calendar_events')
@@ -77,18 +77,24 @@ export function useEvents() {
 
       if (error) throw error;
       setEvents(prev => prev.map(event => event.id === id ? data : event));
-      toast({
-        title: "Success",
-        description: "Event updated successfully",
-      });
+      
+      // Only show toast if not silent
+      if (!options?.silent) {
+        toast({
+          title: "Success",
+          description: "Event updated successfully",
+        });
+      }
       return data;
     } catch (error) {
       console.error('Error updating event:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update event",
-        variant: "destructive",
-      });
+      if (!options?.silent) {
+        toast({
+          title: "Error",
+          description: "Failed to update event",
+          variant: "destructive",
+        });
+      }
       throw error;
     }
   };
