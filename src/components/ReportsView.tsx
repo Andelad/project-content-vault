@@ -17,14 +17,17 @@ import {
   AlertTriangle, 
   Target,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Sun
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Checkbox } from './ui/checkbox';
 
 type TimeFrame = 'week' | 'month' | 'year';
+type AveragePeriod = 'week' | 'month' | '6months';
 
 // Custom shape component for overlaying bars
 const OverlaidBars = (props: any) => {
@@ -69,13 +72,34 @@ const OverlaidBars = (props: any) => {
 
 
 export function ReportsView() {
-  const { projects, events, settings } = useApp();
+  const { projects, events, settings, groups } = useApp();
   const [timeAnalysisTimeFrame, setTimeAnalysisTimeFrame] = useState<TimeFrame>('month');
   const [showActiveProjects, setShowActiveProjects] = useState(true);
   const [animationKey, setAnimationKey] = useState(0);
   const [timeOffset, setTimeOffset] = useState(0); // For navigating through time
   
+  // Average Day card state
+  const [averagePeriod, setAveragePeriod] = useState<AveragePeriod>('month');
+  const [includedDays, setIncludedDays] = useState({
+    monday: true,
+    tuesday: true,
+    wednesday: true,
+    thursday: true,
+    friday: true,
+    saturday: false,
+    sunday: false
+  });
+  
   const today = new Date();
+
+  // Early return if essential data is not loaded
+  if (!projects || !events || !settings) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="text-gray-500">Loading...</div>
+      </div>
+    );
+  }
 
   // Trigger animation when data changes
   useEffect(() => {
@@ -138,6 +162,137 @@ export function ReportsView() {
       .filter(project => new Date(project.startDate) > today)
       .reduce((sum, project) => sum + project.estimatedHours, 0);
   }, [projects, today]);
+
+  // Helper function to calculate valid days in period
+  const calculateValidDays = (startDate: Date, endDate: Date) => {
+    let count = 0;
+    const current = new Date(startDate);
+    
+    while (current <= endDate) {
+      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const dayName = dayNames[current.getDay()] as keyof typeof includedDays;
+      
+      if (includedDays[dayName]) {
+        count++;
+      }
+      
+      current.setDate(current.getDate() + 1);
+    }
+    
+    return count;
+  };
+
+  // Average Day calculation
+  const averageDayData = useMemo(() => {
+    // Early return if groups is not available yet
+    if (!groups || !Array.isArray(groups)) {
+      return {
+        timeline: [],
+        totalAverageHours: 0,
+        validDays: 0
+      };
+    }
+
+    // Calculate date range based on selected period
+    const endDate = new Date();
+    const startDate = new Date();
+    
+    switch (averagePeriod) {
+      case 'week':
+        startDate.setDate(endDate.getDate() - 7);
+        break;
+      case 'month':
+        startDate.setMonth(endDate.getMonth() - 1);
+        break;
+      case '6months':
+        startDate.setMonth(endDate.getMonth() - 6);
+        break;
+    }
+
+    // Get events within the date range that are completed or tracked
+    const relevantEvents = events.filter(event => {
+      try {
+        const eventDate = new Date(event.startTime);
+        const isInRange = eventDate >= startDate && eventDate <= endDate;
+        const isCompleted = event.completed === true || event.type === 'tracked';
+        
+        // Check if the event's day of week is included
+        const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const dayName = dayNames[eventDate.getDay()] as keyof typeof includedDays;
+        const isDayIncluded = includedDays[dayName];
+        
+        return isInRange && isCompleted && isDayIncluded;
+      } catch (error) {
+        console.warn('Error processing event:', event, error);
+        return false;
+      }
+    });
+
+    // Group events by hour of day and group
+    const hourlyData: { [hour: number]: { [groupId: string]: number } } = {};
+    const totalValidDays = calculateValidDays(startDate, endDate);
+
+    relevantEvents.forEach(event => {
+      try {
+        const startTime = new Date(event.startTime);
+        const endTime = new Date(event.endTime);
+        
+        // Find the project group for this event
+        const project = event.projectId ? projects.find(p => p.id === event.projectId) : null;
+        const groupId = project?.groupId || 'ungrouped';
+
+        const startHour = startTime.getHours();
+        const endHour = endTime.getHours();
+        
+        // Handle events that span multiple hours
+        for (let hour = startHour; hour <= endHour; hour++) {
+          if (!hourlyData[hour]) hourlyData[hour] = {};
+          if (!hourlyData[hour][groupId]) hourlyData[hour][groupId] = 0;
+          
+          // Create hour boundaries
+          const hourStart = new Date(startTime);
+          hourStart.setHours(hour, 0, 0, 0);
+          const hourEnd = new Date(startTime);
+          hourEnd.setHours(hour + 1, 0, 0, 0);
+          
+          // Find overlap between event and this hour
+          const overlapStart = new Date(Math.max(startTime.getTime(), hourStart.getTime()));
+          const overlapEnd = new Date(Math.min(endTime.getTime(), hourEnd.getTime()));
+          
+          if (overlapEnd > overlapStart) {
+            const hourPortion = (overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60);
+            hourlyData[hour][groupId] += hourPortion;
+          }
+        }
+      } catch (error) {
+        console.warn('Error processing event times:', event, error);
+      }
+    });
+
+    // Calculate averages and create 24-hour timeline
+    const timelineData = [];
+    for (let hour = 0; hour < 24; hour++) {
+      const hourData = hourlyData[hour] || {};
+      const groupTotals: { [groupId: string]: number } = {};
+      
+      Object.keys(hourData).forEach(groupId => {
+        groupTotals[groupId] = totalValidDays > 0 ? hourData[groupId] / totalValidDays : 0;
+      });
+
+      timelineData.push({
+        hour,
+        time: `${hour.toString().padStart(2, '0')}:00`,
+        groups: groupTotals,
+        totalHours: Object.values(groupTotals).reduce((sum, hours) => sum + hours, 0)
+      });
+    }
+
+    return {
+      timeline: timelineData,
+      totalAverageHours: timelineData.reduce((sum, hour) => sum + hour.totalHours, 0),
+      validDays: totalValidDays
+    };
+  }, [events, projects, groups, averagePeriod, includedDays]);
 
   // Generate time analysis data based on selected timeframe
   const { timeAnalysisData, headerData } = useMemo(() => {
@@ -479,7 +634,7 @@ export function ReportsView() {
           {/* Projects and Commitments Row */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-[21px]">
             {/* Projects Detail */}
-            <Card className="lg:col-span-2">
+            <Card className="lg:col-span-1">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -662,6 +817,116 @@ export function ReportsView() {
                   {futureProjects.length === 0 && (
                     <div className="text-center py-4 text-gray-500">
                       <p className="text-sm">No future commitments</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Average Day Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Sun className="h-5 w-5 text-orange-500" />
+                  Average Day
+                </CardTitle>
+                <CardDescription>
+                  Your typical day based on completed activities
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {/* Period Selection */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600">Period:</span>
+                    <Select value={averagePeriod} onValueChange={(value: AveragePeriod) => setAveragePeriod(value)}>
+                      <SelectTrigger className="w-32">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="week">Last Week</SelectItem>
+                        <SelectItem value="month">Last Month</SelectItem>
+                        <SelectItem value="6months">Last 6 Months</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Day Filter */}
+                  <div className="space-y-2">
+                    <span className="text-sm text-gray-600">Include days:</span>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      {Object.entries(includedDays).map(([day, checked]) => (
+                        <label key={day} className="flex items-center space-x-2 cursor-pointer">
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={(isChecked) => 
+                              setIncludedDays(prev => ({ ...prev, [day]: !!isChecked }))
+                            }
+                          />
+                          <span className="capitalize">{day.substring(0, 3)}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Summary Stats */}
+                  <div className="text-center py-2 border-t border-gray-100">
+                    <div className="text-2xl font-bold text-foreground mb-1">
+                      {averageDayData.totalAverageHours.toFixed(1)}h
+                    </div>
+                    <div className="text-sm text-gray-600">Average daily hours</div>
+                  </div>
+
+                  {/* 24-Hour Timeline */}
+                  <div className="space-y-1 max-h-48 overflow-y-auto">
+                    {averageDayData.timeline
+                      .filter(hourData => hourData.totalHours > 0.1) // Only show hours with meaningful activity
+                      .map((hourData) => (
+                        <div key={hourData.hour} className="flex items-center gap-2">
+                          <div className="text-xs text-gray-500 w-10">{hourData.time}</div>
+                          <div className="flex-1 flex gap-1">
+                            {Object.entries(hourData.groups).map(([groupId, hours]) => {
+                              const hoursNum = Number(hours);
+                              if (hoursNum < 0.1) return null;
+                              
+                              const group = groups?.find(g => g.id === groupId);
+                              const groupName = group?.name || 'Other';
+                              const groupColor = group?.color || '#6b7280';
+                              
+                              return (
+                                <div
+                                  key={groupId}
+                                  className="h-4 rounded-sm relative group"
+                                  style={{
+                                    backgroundColor: groupColor,
+                                    width: `${Math.max(hoursNum * 20, 8)}px`, // Min width of 8px for visibility
+                                    opacity: 0.8
+                                  }}
+                                  title={`${groupName}: ${hoursNum.toFixed(1)}h`}
+                                />
+                              );
+                            })}
+                          </div>
+                          <div className="text-xs text-gray-600 w-8">
+                            {hourData.totalHours.toFixed(1)}h
+                          </div>
+                        </div>
+                      ))
+                    }
+                    
+                    {averageDayData.timeline.every(hourData => hourData.totalHours <= 0.1) && (
+                      <div className="text-center py-4 text-gray-500">
+                        <p className="text-sm">No activity data for this period</p>
+                        <p className="text-xs">Try a different time period or include more days</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {averageDayData.validDays > 0 && (
+                    <div className="text-center pt-2 border-t border-gray-100">
+                      <span className="text-xs text-gray-500">
+                        Based on {averageDayData.validDays} days
+                      </span>
                     </div>
                   )}
                 </div>

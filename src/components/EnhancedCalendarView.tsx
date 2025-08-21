@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { Calendar, momentLocalizer, View, Views } from 'react-big-calendar';
+import { Calendar as BigCalendar, momentLocalizer, View, Views } from 'react-big-calendar';
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
 import moment from 'moment';
 import 'moment/locale/en-gb'; // Import GB locale for Monday week start
@@ -31,7 +31,7 @@ moment.updateLocale('en-gb', {
 });
 
 const localizer = momentLocalizer(moment);
-const DragAndDropCalendar = withDragAndDrop(Calendar);
+const DragAndDropCalendar = withDragAndDrop(BigCalendar);
 
 interface BigCalendarEvent {
   id: string;
