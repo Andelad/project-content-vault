@@ -48,6 +48,7 @@ export interface CalendarEvent {
   completed?: boolean; // Whether the event has been marked as completed
   description?: string; // Optional description
   duration?: number; // Duration in hours
+  type?: 'planned' | 'tracked' | 'completed'; // Type to distinguish between planned, tracked, and completed events
   recurring?: {
     type: 'daily' | 'weekly' | 'monthly' | 'yearly';
     interval: number; // Every X days/weeks/months/years

@@ -50,7 +50,7 @@ interface AppContextType {
   updateSettings: (updates: Partial<Settings>) => void;
   addWorkHourOverride: (override: WorkHourOverride) => void;
   removeWorkHourOverride: (date: string, dayName: string, slotIndex: number) => void;
-  addProject: (project: Omit<Project, 'id'>) => void;
+  addProject: (project: Omit<Project, 'id'>) => Promise<any>;
   updateProject: (id: string, updates: Partial<Project>) => void;
   deleteProject: (id: string) => void;
   reorderProjects: (groupId: string, fromIndex: number, toIndex: number) => void;
@@ -191,6 +191,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     color: e.color,
     completed: e.completed || false,
     duration: e.duration || 0,
+    type: e.event_type || 'planned', // Map database event_type to application type
     recurringType: e.recurring_type,
     recurringInterval: e.recurring_interval,
     recurringEndDate: e.recurring_end_date ? new Date(e.recurring_end_date) : undefined,
@@ -285,11 +286,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         icon: projectData.icon || 'folder'
       };
       
-      await dbAddProject(dbProjectData);
-      return true;
+      const createdProject = await dbAddProject(dbProjectData);
+      return createdProject;
     } catch (error) {
       console.error('Failed to add project:', error);
-      return false;
+      throw error;
     }
   }, [dbAddProject]);
 
@@ -403,6 +404,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         color: eventData.color,
         completed: eventData.completed || false,
         duration: eventData.duration || 0,
+        event_type: eventData.type || 'planned', // Include event type
         recurring_type: null,
         recurring_interval: null,
         recurring_end_date: null,
@@ -426,6 +428,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (updates.color !== undefined) dbUpdates.color = updates.color;
       if (updates.completed !== undefined) dbUpdates.completed = updates.completed;
       if (updates.duration !== undefined) dbUpdates.duration = updates.duration;
+      if (updates.type !== undefined) dbUpdates.event_type = updates.type; // Include event type
       // Recurring fields are disabled for now
       
       await dbUpdateEvent(id, dbUpdates);

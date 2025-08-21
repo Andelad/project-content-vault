@@ -11,8 +11,8 @@ interface TimeTrackerProps {
 }
 
 export function TimeTracker({ className }: TimeTrackerProps) {
-  const { projects } = useAppDataOnly();
-  const { addEvent, updateEvent } = useAppActionsOnly();
+  const { projects, events } = useAppDataOnly();
+  const { addEvent, updateEvent, deleteEvent } = useAppActionsOnly();
   
   const [isTracking, setIsTracking] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -20,9 +20,11 @@ export function TimeTracker({ className }: TimeTrackerProps) {
   const [seconds, setSeconds] = useState(0);
   const [currentEventId, setCurrentEventId] = useState<string | null>(null);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const [affectedPlannedEvents, setAffectedPlannedEvents] = useState<string[]>([]);
   
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<Date | null>(null);
+  const liveUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Storage keys for persistence
   const STORAGE_KEYS = {
@@ -30,7 +32,8 @@ export function TimeTracker({ className }: TimeTrackerProps) {
     startTime: 'timeTracker_startTime',
     eventId: 'timeTracker_eventId',
     selectedProject: 'timeTracker_selectedProject',
-    searchQuery: 'timeTracker_searchQuery'
+    searchQuery: 'timeTracker_searchQuery',
+    affectedEvents: 'timeTracker_affectedEvents'
   };
 
   // Load tracking state from localStorage on mount
@@ -41,8 +44,9 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       const savedEventId = localStorage.getItem(STORAGE_KEYS.eventId);
       const savedProject = localStorage.getItem(STORAGE_KEYS.selectedProject);
       const savedQuery = localStorage.getItem(STORAGE_KEYS.searchQuery);
+      const savedAffectedEvents = localStorage.getItem(STORAGE_KEYS.affectedEvents);
 
-      if (savedIsTracking && savedStartTime) {
+      if (savedIsTracking && savedStartTime && savedEventId) {
         const startTime = new Date(savedStartTime);
         const now = new Date();
         const elapsedSeconds = Math.floor((now.getTime() - startTime.getTime()) / 1000);
@@ -63,16 +67,142 @@ export function TimeTracker({ className }: TimeTrackerProps) {
         if (savedQuery) {
           setSearchQuery(savedQuery);
         }
+
+        if (savedAffectedEvents) {
+          try {
+            setAffectedPlannedEvents(JSON.parse(savedAffectedEvents));
+          } catch (e) {
+            console.error('Failed to parse saved affected events:', e);
+          }
+        }
         
         // Start the timer interval
         intervalRef.current = setInterval(() => {
           setSeconds(prev => prev + 1);
         }, 1000);
+
+        // Start live update interval
+        startLiveUpdates(savedEventId, startTime);
       }
     };
 
     loadTrackingState();
   }, []);
+
+  // Check for overlapping planned events and adjust them
+  const handlePlannedEventOverlaps = (trackingStart: Date, trackingEnd: Date) => {
+    const overlappingEvents = events.filter(event => 
+      event.type === 'planned' && 
+      event.id !== currentEventId &&
+      (
+        // Event starts during tracking period
+        (event.startTime >= trackingStart && event.startTime < trackingEnd) ||
+        // Event ends during tracking period  
+        (event.endTime > trackingStart && event.endTime <= trackingEnd) ||
+        // Event completely contains tracking period
+        (event.startTime <= trackingStart && event.endTime >= trackingEnd) ||
+        // Tracking period completely contains event
+        (trackingStart <= event.startTime && trackingEnd >= event.endTime)
+      )
+    );
+
+    const newAffectedEvents: string[] = [];
+    
+    overlappingEvents.forEach(event => {
+      const eventStart = new Date(event.startTime);
+      const eventEnd = new Date(event.endTime);
+      
+      if (trackingStart <= eventStart && trackingEnd >= eventEnd) {
+        // Tracking completely overlaps the planned event - delete it
+        deleteEvent(event.id);
+      } else if (trackingStart > eventStart && trackingEnd < eventEnd) {
+        // Tracking is in the middle of planned event - split it
+        const originalDuration = event.duration || 
+          (eventEnd.getTime() - eventStart.getTime()) / (1000 * 60 * 60);
+        
+        // Create first part (before tracking)
+        const firstPartEnd = new Date(trackingStart);
+        const firstPartDuration = (firstPartEnd.getTime() - eventStart.getTime()) / (1000 * 60 * 60);
+        
+        updateEvent(event.id, {
+          endTime: firstPartEnd,
+          duration: firstPartDuration
+        });
+        
+        // Create second part (after tracking) if there's enough time
+        const secondPartStart = new Date(trackingEnd);
+        const secondPartDuration = (eventEnd.getTime() - secondPartStart.getTime()) / (1000 * 60 * 60);
+        
+        if (secondPartDuration > 0.1) { // Only create if > 6 minutes
+          addEvent({
+            title: event.title,
+            startTime: secondPartStart,
+            endTime: eventEnd,
+            projectId: event.projectId,
+            color: event.color,
+            description: event.description,
+            duration: secondPartDuration,
+            type: 'planned'
+          });
+        }
+      } else if (trackingStart <= eventStart && trackingEnd > eventStart) {
+        // Tracking overlaps start of planned event - trim the start
+        const newStart = new Date(trackingEnd);
+        const newDuration = (eventEnd.getTime() - newStart.getTime()) / (1000 * 60 * 60);
+        
+        if (newDuration > 0.1) { // Only keep if > 6 minutes
+          updateEvent(event.id, {
+            startTime: newStart,
+            duration: newDuration
+          });
+          newAffectedEvents.push(event.id);
+        } else {
+          deleteEvent(event.id);
+        }
+      } else if (trackingStart < eventEnd && trackingEnd >= eventEnd) {
+        // Tracking overlaps end of planned event - trim the end
+        const newEnd = new Date(trackingStart);
+        const newDuration = (newEnd.getTime() - eventStart.getTime()) / (1000 * 60 * 60);
+        
+        if (newDuration > 0.1) { // Only keep if > 6 minutes
+          updateEvent(event.id, {
+            endTime: newEnd,
+            duration: newDuration
+          });
+          newAffectedEvents.push(event.id);
+        } else {
+          deleteEvent(event.id);
+        }
+      }
+    });
+
+    setAffectedPlannedEvents(newAffectedEvents);
+    return newAffectedEvents;
+  };
+
+  // Start live updates for the tracking event
+  const startLiveUpdates = (eventId: string, startTime: Date) => {
+    if (liveUpdateIntervalRef.current) {
+      clearInterval(liveUpdateIntervalRef.current);
+    }
+
+    liveUpdateIntervalRef.current = setInterval(() => {
+      const now = new Date();
+      const duration = (now.getTime() - startTime.getTime()) / (1000 * 60 * 60);
+      
+      // Update the tracking event
+      updateEvent(eventId, {
+        endTime: now,
+        duration
+      });
+
+      // Check for new overlaps as the event grows
+      const affected = handlePlannedEventOverlaps(startTime, now);
+      
+      // Save affected events to localStorage
+      localStorage.setItem(STORAGE_KEYS.affectedEvents, JSON.stringify(affected));
+    }, 5000); // Update every 5 seconds
+  };
 
   // Save tracking state to localStorage
   const saveTrackingState = (trackingData: {
@@ -81,6 +211,7 @@ export function TimeTracker({ className }: TimeTrackerProps) {
     eventId?: string | null;
     selectedProject?: any;
     searchQuery?: string;
+    affectedEvents?: string[];
   }) => {
     if (trackingData.isTracking) {
       localStorage.setItem(STORAGE_KEYS.isTracking, 'true');
@@ -95,6 +226,9 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       }
       if (trackingData.searchQuery) {
         localStorage.setItem(STORAGE_KEYS.searchQuery, trackingData.searchQuery);
+      }
+      if (trackingData.affectedEvents) {
+        localStorage.setItem(STORAGE_KEYS.affectedEvents, JSON.stringify(trackingData.affectedEvents));
       }
     } else {
       // Clear all tracking data
@@ -176,44 +310,58 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       setSeconds(0);
       setIsTracking(true);
       
-      // Create initial event
+      // Create tracking event with distinctive styling
       const eventData: Omit<CalendarEvent, 'id'> = {
-        title: selectedProject?.name || searchQuery || 'Time Tracking',
+        title: `🔴 ${selectedProject?.name || searchQuery || 'Time Tracking'}`,
         startTime: now,
         endTime: new Date(now.getTime() + 60000), // Start with 1 minute
         projectId: selectedProject?.id,
-        color: selectedProject?.color || '#8B5CF6',
-        description: selectedProject ? `Tracking time for ${selectedProject.name}` : undefined
+        color: selectedProject?.color || '#DC2626', // Red color for tracking
+        description: `Active time tracking${selectedProject ? ` for ${selectedProject.name}` : ''}`,
+        duration: 0.0167, // 1 minute in hours
+        type: 'tracked'
       };
       
       try {
-        const newEvent = await addEvent(eventData);
-        // The addEvent function should return the created event with its actual ID
-        // For now, we need to get the ID from the returned event or use a different approach
-        // Since we can't get the return value easily, let's use a different strategy
+        // Create the tracking event
+        const result = await addEvent(eventData);
         
-        // We'll find the most recent event that matches our criteria
-        const tempId = `tracking-${Date.now()}`;
-        setCurrentEventId(tempId);
-        
-        // Save tracking state to localStorage with temp ID for now
-        saveTrackingState({
-          isTracking: true,
-          startTime: now,
-          eventId: tempId,
-          selectedProject,
-          searchQuery
-        });
-        
-        // Set a timeout to find and update the real event ID
-        setTimeout(async () => {
-          // This is a workaround - in production you'd want the addEvent to return the ID
-          // For now, we'll rely on the database queries to get the actual events
-          console.log('Time tracker: Event created, using temp ID for tracking');
+        // Since addEvent might not return the ID directly, we'll use a different approach
+        // Find the most recent tracking event
+        setTimeout(() => {
+          const trackingEvents = events.filter(e => 
+            e.type === 'tracked' && 
+            e.title.includes('🔴') &&
+            Math.abs(new Date(e.startTime).getTime() - now.getTime()) < 10000 // Within 10 seconds
+          );
+          
+          if (trackingEvents.length > 0) {
+            const newestEvent = trackingEvents.sort((a, b) => 
+              new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+            )[0];
+            
+            setCurrentEventId(newestEvent.id);
+            
+            // Start live updates
+            startLiveUpdates(newestEvent.id, now);
+            
+            // Save tracking state
+            saveTrackingState({
+              isTracking: true,
+              startTime: now,
+              eventId: newestEvent.id,
+              selectedProject,
+              searchQuery,
+              affectedEvents: []
+            });
+          }
         }, 1000);
         
       } catch (error) {
         console.error('Failed to create tracking event:', error);
+        setIsTracking(false);
+        startTimeRef.current = null;
+        return;
       }
       
       // Start timer
@@ -228,22 +376,33 @@ export function TimeTracker({ className }: TimeTrackerProps) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
+
+      if (liveUpdateIntervalRef.current) {
+        clearInterval(liveUpdateIntervalRef.current);
+        liveUpdateIntervalRef.current = null;
+      }
       
-      // Only try to update if we have a real database ID, not a temporary one
-      if (currentEventId && startTimeRef.current && !currentEventId.startsWith('tracking-')) {
+      if (currentEventId && startTimeRef.current) {
         const endTime = new Date();
         const duration = (endTime.getTime() - startTimeRef.current.getTime()) / (1000 * 60 * 60); // hours
         
         try {
+          // Final update to the tracking event - mark as completed
           await updateEvent(currentEventId, {
             endTime,
-            duration
+            duration,
+            title: (selectedProject?.name || searchQuery || 'Time Tracking'), // Clean title
+            description: `Completed time tracking${selectedProject ? ` for ${selectedProject.name}` : ''} - ${formatTime(seconds)}`,
+            completed: true, // Mark as completed
+            type: 'completed' // Change type to completed
           });
+          
+          // Handle any final overlaps
+          handlePlannedEventOverlaps(startTimeRef.current, endTime);
+          
         } catch (error) {
           console.error('Failed to update tracking event:', error);
         }
-      } else {
-        console.log('Skipping final update - using temporary tracking ID');
       }
       
       // Reset everything and clear localStorage
@@ -252,44 +411,21 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       setSeconds(0);
       setSelectedProject(null);
       setSearchQuery('');
+      setAffectedPlannedEvents([]);
       
       // Clear tracking state from localStorage
       saveTrackingState({ isTracking: false });
     }
   };
 
-  // Update live event every 10 seconds while tracking
-  useEffect(() => {
-    if (!isTracking || !currentEventId || !startTimeRef.current) return;
-    
-    // Don't try to update temporary IDs - they're not real database records
-    if (currentEventId.startsWith('tracking-')) {
-      console.log('Skipping update for temporary tracking ID:', currentEventId);
-      return;
-    }
-    
-    const updateInterval = setInterval(async () => {
-      const now = new Date();
-      const duration = (now.getTime() - startTimeRef.current!.getTime()) / (1000 * 60 * 60);
-      
-      try {
-        await updateEvent(currentEventId, {
-          endTime: now,
-          duration
-        });
-      } catch (error) {
-        console.error('Failed to update live tracking event:', error);
-      }
-    }, 10000); // Update every 10 seconds
-    
-    return () => clearInterval(updateInterval);
-  }, [isTracking, currentEventId, updateEvent]);
-
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
+      }
+      if (liveUpdateIntervalRef.current) {
+        clearInterval(liveUpdateIntervalRef.current);
       }
     };
   }, []);

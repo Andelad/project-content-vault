@@ -10,6 +10,7 @@ import { ChevronLeft, ChevronRight, CheckCircle2, Circle, Calendar as CalendarIc
 import { EventDetailModal } from './EventDetailModal';
 import { Checkbox } from './ui/checkbox';
 import { Badge } from './ui/badge';
+import { TimeTracker } from './TimeTracker';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
 import './calendar-overrides.css';
@@ -250,10 +251,13 @@ export function EnhancedCalendarView() {
   return (
     <div className="h-full flex flex-col bg-gray-50 overflow-hidden">
       {/* Calendar Header */}
-      <div className="h-20 border-b border-[#e2e2e2] flex items-center px-8">
+      <div className="h-20 border-b border-[#e2e2e2] flex items-center justify-between px-8">
         <div className="flex items-center">
           <h1 className="text-lg font-semibold text-[#595956]">Calendar</h1>
         </div>
+        
+        {/* Time Tracker in top right */}
+        <TimeTracker />
       </div>
 
       {/* Calendar Content */}

@@ -65,7 +65,7 @@ interface ProjectDetailModalProps {
 }
 
 export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId }: ProjectDetailModalProps) {
-  const { projects, groups, updateProject, addProject, deleteProject, creatingNewProject, setCurrentView, events, holidays, settings, milestones } = useApp();
+  const { projects, groups, updateProject, addProject, deleteProject, creatingNewProject, setCurrentView, events, holidays, settings, milestones, addMilestone } = useApp();
   const project = (projectId && projectId !== '') ? projects.find(p => p.id === projectId) : null;
   const isCreating = (!projectId || projectId === '') && (groupId && groupId !== '');
   const group = groups.find(g => g.id === (project?.groupId || groupId));
@@ -78,6 +78,17 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
   // Temporary state for style picker
   const [tempColor, setTempColor] = useState('');
   const [tempIcon, setTempIcon] = useState('');
+  
+  // State for milestones in new projects
+  const [localProjectMilestones, setLocalProjectMilestones] = useState<Array<{
+    name: string;
+    dueDate: Date;
+    timeAllocation: number;
+    projectId: string;
+    order: number;
+    isNew?: boolean;
+  }>>([]);
+  
   const [localValues, setLocalValues] = useState({
     name: '',
     client: '',
@@ -116,6 +127,8 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
       
       setLocalValues(projectValues);
       setOriginalValues(projectValues);
+      // Clear local milestones for existing projects
+      setLocalProjectMilestones([]);
     } else if (isCreating) {
       // Set defaults for new project, using pre-populated dates if available
       const today = new Date();
@@ -135,6 +148,8 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
       
       setLocalValues(defaultValues);
       setOriginalValues(defaultValues);
+      // Reset milestones for new projects
+      setLocalProjectMilestones([]);
     }
   }, [project, isCreating, creatingNewProject]);
 
@@ -144,21 +159,46 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
   }, [onClose]);
 
   // Handle creating the new project
-  const handleCreateProject = () => {
+  const handleCreateProject = async () => {
     if (isCreating && groupId && groupId !== '') {
-      addProject({
-        name: localValues.name.trim() || 'New Project', // Default to "New Project" if no name provided
-        client: localValues.client.trim() || 'N/A', // Provide default if client is empty
-        startDate: localValues.startDate,
-        endDate: localValues.endDate,
-        estimatedHours: localValues.estimatedHours,
-        groupId,
-        rowId: rowId || 'work-row-1', // Provide default rowId
-        color: localValues.color || OKLCH_PROJECT_COLORS[0],
-        notes: localValues.notes,
-        icon: localValues.icon
-      });
-      handleClose();
+      try {
+        const createdProject = await addProject({
+          name: localValues.name.trim() || 'New Project', // Default to "New Project" if no name provided
+          client: localValues.client.trim() || 'N/A', // Provide default if client is empty
+          startDate: localValues.startDate,
+          endDate: localValues.endDate,
+          estimatedHours: localValues.estimatedHours,
+          groupId,
+          rowId: rowId || 'work-row-1', // Provide default rowId
+          color: localValues.color || OKLCH_PROJECT_COLORS[0],
+          notes: localValues.notes,
+          icon: localValues.icon
+        });
+
+        // If project was created successfully and we have milestones, save them
+        if (createdProject && localProjectMilestones.length > 0) {
+          for (const milestone of localProjectMilestones) {
+            if (milestone.name.trim()) {
+              try {
+                await addMilestone({
+                  name: milestone.name,
+                  dueDate: milestone.dueDate,
+                  timeAllocation: milestone.timeAllocation,
+                  projectId: createdProject.id,
+                  order: milestone.order
+                });
+              } catch (error) {
+                console.error('Failed to save milestone:', error);
+                // Continue with other milestones even if one fails
+              }
+            }
+          }
+        }
+
+        handleClose();
+      } catch (error) {
+        console.error('Failed to create project:', error);
+      }
     }
   };
 
@@ -849,18 +889,21 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
         </div>
 
         {/* Milestone Manager */}
-        {!isCreating && projectId && (
-          <MilestoneManager
-            projectId={projectId}
-            projectEstimatedHours={localValues.estimatedHours}
-            onUpdateProjectBudget={(newBudget) => {
-              setLocalValues(prev => ({ ...prev, estimatedHours: newBudget }));
-              if (!isCreating && projectId && projectId !== '') {
-                updateProject(projectId, { estimatedHours: newBudget });
-              }
-            }}
-          />
-        )}
+        <MilestoneManager
+          projectId={!isCreating ? projectId : undefined}
+          projectEstimatedHours={localValues.estimatedHours}
+          onUpdateProjectBudget={(newBudget) => {
+            setLocalValues(prev => ({ ...prev, estimatedHours: newBudget }));
+            if (!isCreating && projectId && projectId !== '') {
+              updateProject(projectId, { estimatedHours: newBudget });
+            }
+          }}
+          localMilestonesState={isCreating ? {
+            milestones: localProjectMilestones,
+            setMilestones: setLocalProjectMilestones
+          } : undefined}
+          isCreatingProject={isCreating}
+        />
 
         {/* Time Forecasting Dashboard */}
         <div className="border-b border-gray-200 bg-gray-50 px-8 py-6 flex-shrink-0">

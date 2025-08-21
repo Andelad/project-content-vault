@@ -1,4 +1,5 @@
 import React, { memo } from 'react';
+import { HoverableDateCell } from './HoverableDateCell';
 
 interface TimelineDateHeadersProps {
   dates: Date[];
@@ -96,9 +97,11 @@ export const TimelineDateHeaders = memo(function TimelineDateHeaders({ dates, mo
             
             return (
               <div key={index} className="text-center" style={{ minWidth: '72px', width: '72px' }}>
-                <div className={`text-xs px-1 ${isCurrentWeek ? 'font-medium text-blue-600' : 'text-gray-700'}`}>
-                  {dateRange}
-                </div>
+                <HoverableDateCell date={weekStart} mode={mode} width={72}>
+                  <div className={`text-xs px-1 ${isCurrentWeek ? 'font-medium text-blue-600' : 'text-gray-700'}`}>
+                    {dateRange}
+                  </div>
+                </HoverableDateCell>
               </div>
             );
           })}
@@ -193,9 +196,11 @@ export const TimelineDateHeaders = memo(function TimelineDateHeaders({ dates, mo
           
           return (
             <div key={index} className="text-center" style={{ minWidth: '40px', width: '40px' }}>
-              <div className={`text-xs ${isToday ? 'font-medium text-blue-600 bg-blue-100 rounded-full w-5 h-5 flex items-center justify-center mx-auto' : isWeekend ? 'text-gray-400' : 'text-gray-700'}`}>
-                {date.getDate()}
-              </div>
+              <HoverableDateCell date={date} mode={mode} width={40}>
+                <div className={`text-xs ${isToday ? 'font-medium text-blue-600 bg-blue-100 rounded-full w-5 h-5 flex items-center justify-center mx-auto' : isWeekend ? 'text-gray-400' : 'text-gray-700'}`}>
+                  {date.getDate()}
+                </div>
+              </HoverableDateCell>
             </div>
           );
         })}

@@ -3,7 +3,7 @@ import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { useApp } from '../contexts/AppContext';
 import { CalendarEvent, WorkHour } from '../types';
-import { Clock, Grip, Edit } from 'lucide-react';
+import { Clock, Grip, Edit, Check } from 'lucide-react';
 import { DraggableWorkHour } from './DraggableWorkHour';
 import { WorkHourCreator } from './WorkHourCreator';
 
@@ -150,7 +150,7 @@ interface DraggableEventProps {
 }
 
 function DraggableEvent({ event, style, onEventUpdate, onEventEdit, onResizeStart, onResizeMove, resizeState }: DraggableEventProps) {
-  const { projects } = useApp();
+  const { projects, updateEvent } = useApp();
   const [{ isDragging }, drag, dragPreview] = useDrag({
     type: ItemTypes.EVENT,
     item: {
@@ -192,24 +192,77 @@ function DraggableEvent({ event, style, onEventUpdate, onEventEdit, onResizeStar
     onResizeStart(event.id, resizeType, event);
   };
 
+  // Handle marking planned event as completed
+  const handleMarkCompleted = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    
+    if (event.type === 'planned' && !event.completed) {
+      const now = new Date();
+      // Only allow completion if the event has started or is in the past
+      if (event.startTime <= now) {
+        try {
+          await updateEvent(event.id, {
+            completed: true,
+            type: 'completed'
+          });
+        } catch (error) {
+          console.error('Failed to mark event as completed:', error);
+        }
+      }
+    }
+  };
+
   const isCurrentlyResizing = resizeState.isResizing && resizeState.eventId === event.id;
+  const isTrackedEvent = event.type === 'tracked';
+  const isPlannedEvent = event.type === 'planned';
+  const isCompletedEvent = event.type === 'completed' || event.completed;
+  const now = new Date();
+  const canMarkCompleted = isPlannedEvent && !event.completed && event.startTime <= now;
+
+  // Different border styles based on event type
+  const getBorderStyle = () => {
+    if (isPlannedEvent && !event.completed) {
+      return 'border-2 border-dashed border-white/60';
+    } else if (isTrackedEvent) {
+      return 'border-2 border-red-400 shadow-red-200';
+    } else {
+      return 'border border-white/20';
+    }
+  };
 
   return (
     <div
       ref={dragPreview}
-      className={`absolute rounded-md text-white text-xs shadow-lg border border-white/20 overflow-hidden transition-all duration-200 group cursor-pointer ${
+      className={`absolute rounded-md text-white text-xs shadow-lg overflow-hidden transition-all duration-200 group cursor-pointer ${getBorderStyle()} ${
         isDragging ? 'opacity-50 scale-105 z-50' : 
         isCurrentlyResizing ? 'shadow-2xl ring-2 ring-blue-500 ring-opacity-50 z-40' :
         'opacity-100 hover:shadow-xl hover:scale-[1.02]'
+      } ${
+        isTrackedEvent ? 'animate-pulse' : ''
+      } ${
+        isCompletedEvent ? 'opacity-90' : ''
       }`}
       style={{
         ...style,
-        backgroundColor,
+        backgroundColor: isPlannedEvent && !event.completed ? `${backgroundColor}80` : backgroundColor, // Semi-transparent for planned
         minHeight: '24px'
       }}
       onDoubleClick={handleDoubleClick}
       onClick={handleSingleClick}
     >
+      {/* Active tracking indicator */}
+      {isTrackedEvent && event.title.includes('🔴') && (
+        <div className="absolute top-0 left-0 w-full h-1 bg-red-500 animate-pulse" />
+      )}
+
+      {/* Completion indicator for completed events */}
+      {isCompletedEvent && (
+        <div className="absolute top-1 right-1 w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
+          <Check className="w-2 h-2 text-white" />
+        </div>
+      )}
+
       {/* Top resize handle */}
       <div
         className={`absolute top-0 left-0 right-0 h-1 cursor-ns-resize opacity-0 group-hover:opacity-100 hover:bg-white/30 transition-opacity ${
@@ -226,10 +279,21 @@ function DraggableEvent({ event, style, onEventUpdate, onEventEdit, onResizeStar
         onMouseDown={(e) => handleResizeMouseDown(e, 'bottom')}
       />
 
+      {/* Completion button for planned events that can be completed */}
+      {canMarkCompleted && (
+        <div
+          className="absolute top-1 right-1 p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-green-500/80 cursor-pointer transition-all"
+          onClick={handleMarkCompleted}
+          title="Mark as completed"
+        >
+          <Check className="w-3 h-3" />
+        </div>
+      )}
+
       {/* Drag handle */}
       <div
         ref={drag}
-        className={`absolute top-1 right-1 p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-white/20 cursor-grab active:cursor-grabbing transition-opacity ${
+        className={`absolute top-1 ${canMarkCompleted ? 'right-8' : 'right-1'} p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-white/20 cursor-grab active:cursor-grabbing transition-opacity ${
           resizeState.isResizing ? 'pointer-events-none' : ''
         }`}
       >
@@ -241,7 +305,7 @@ function DraggableEvent({ event, style, onEventUpdate, onEventEdit, onResizeStar
         <Edit className="w-3 h-3" />
       </div>
 
-      <div className="p-2">
+      <div className={`p-2 ${canMarkCompleted || isCompletedEvent ? 'pr-8' : 'pr-2'}`}>
         <div className="font-medium truncate pr-8">{event.title}</div>
         
         <div className="flex items-center text-xs opacity-90 mt-1">
@@ -266,6 +330,23 @@ function DraggableEvent({ event, style, onEventUpdate, onEventEdit, onResizeStar
               : `${event.duration} hours`
           }
         </div>
+
+        {/* Event type indicator */}
+        {isPlannedEvent && !event.completed && (
+          <div className="text-xs opacity-60 mt-1 italic">
+            Planned
+          </div>
+        )}
+        {isTrackedEvent && (
+          <div className="text-xs opacity-80 mt-1 italic text-red-200">
+            Tracking...
+          </div>
+        )}
+        {isCompletedEvent && (
+          <div className="text-xs opacity-60 mt-1 italic text-green-200">
+            Completed
+          </div>
+        )}
       </div>
 
       {/* Resize indicators */}

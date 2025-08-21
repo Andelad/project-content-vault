@@ -11,9 +11,15 @@ import { useApp } from '../contexts/AppContext';
 import { Milestone } from '@/types/core';
 
 interface MilestoneManagerProps {
-  projectId: string;
+  projectId?: string; // Made optional to support new projects
   projectEstimatedHours: number;
   onUpdateProjectBudget?: (newBudget: number) => void;
+  // For new projects, we need local state management
+  localMilestonesState?: {
+    milestones: LocalMilestone[];
+    setMilestones: (milestones: LocalMilestone[]) => void;
+  };
+  isCreatingProject?: boolean;
 }
 
 interface LocalMilestone extends Omit<Milestone, 'id'> {
@@ -24,7 +30,9 @@ interface LocalMilestone extends Omit<Milestone, 'id'> {
 export function MilestoneManager({ 
   projectId, 
   projectEstimatedHours, 
-  onUpdateProjectBudget 
+  onUpdateProjectBudget,
+  localMilestonesState,
+  isCreatingProject = false
 }: MilestoneManagerProps) {
   const { milestones, addMilestone, updateMilestone, deleteMilestone } = useApp();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -32,12 +40,21 @@ export function MilestoneManager({
   const [showBudgetDialog, setShowBudgetDialog] = useState(false);
   const [suggestedBudget, setSuggestedBudget] = useState(0);
 
-  // Get milestones for this project
+  // Get milestones for this project - handle both new and existing projects
   const projectMilestones = useMemo(() => {
-    const existing = milestones.filter(m => m.projectId === projectId);
-    const newMilestones = localMilestones.filter(m => 'isNew' in m && m.isNew);
-    return [...existing, ...newMilestones] as (Milestone | LocalMilestone)[];
-  }, [milestones, projectId, localMilestones]);
+    if (isCreatingProject && localMilestonesState) {
+      // For new projects, use the provided local state
+      return localMilestonesState.milestones;
+    } else if (projectId) {
+      // For existing projects, combine database milestones with any local ones
+      const existing = milestones.filter(m => m.projectId === projectId);
+      const newMilestones = localMilestones.filter(m => 'isNew' in m && m.isNew);
+      return [...existing, ...newMilestones] as (Milestone | LocalMilestone)[];
+    } else {
+      // Fallback: just local milestones
+      return localMilestones;
+    }
+  }, [milestones, projectId, localMilestones, isCreatingProject, localMilestonesState]);
 
   // Calculate total time allocation in hours
   const totalTimeAllocation = useMemo(() => {
@@ -57,21 +74,40 @@ export function MilestoneManager({
       name: '',
       dueDate: new Date(),
       timeAllocation: 8, // Default to 8 hours (1 day)
-      projectId,
+      projectId: projectId || 'temp', // Use temp for new projects
       order: projectMilestones.length,
       isNew: true
     };
-    setLocalMilestones(prev => [...prev, newMilestone]);
+    
+    if (isCreatingProject && localMilestonesState) {
+      // For new projects, update the provided state
+      localMilestonesState.setMilestones([...localMilestonesState.milestones, newMilestone]);
+    } else {
+      // For existing projects, use local state
+      setLocalMilestones(prev => [...prev, newMilestone]);
+    }
   };
 
   const updateLocalMilestone = (index: number, updates: Partial<LocalMilestone>) => {
-    setLocalMilestones(prev => prev.map((milestone, i) => 
-      i === index ? { ...milestone, ...updates } : milestone
-    ));
+    if (isCreatingProject && localMilestonesState) {
+      // For new projects, update the provided state
+      const updatedMilestones = localMilestonesState.milestones.map((milestone, i) => 
+        i === index ? { ...milestone, ...updates } : milestone
+      );
+      localMilestonesState.setMilestones(updatedMilestones);
+    } else {
+      // For existing projects, use local state
+      setLocalMilestones(prev => prev.map((milestone, i) => 
+        i === index ? { ...milestone, ...updates } : milestone
+      ));
+    }
   };
 
   const saveNewMilestone = async (index: number) => {
-    const milestone = localMilestones[index];
+    const milestone = isCreatingProject && localMilestonesState 
+      ? localMilestonesState.milestones[index]
+      : localMilestones[index];
+    
     if (!milestone || !milestone.name.trim()) return;
 
     // Check if total allocation exceeds project budget
@@ -82,24 +118,42 @@ export function MilestoneManager({
       return;
     }
 
-    try {
-      await addMilestone({
-        name: milestone.name,
-        dueDate: milestone.dueDate,
-        timeAllocation: milestone.timeAllocation,
-        projectId,
-        order: milestone.order
-      });
-      
-      // Remove from local state
-      setLocalMilestones(prev => prev.filter((_, i) => i !== index));
-    } catch (error) {
-      console.error('Failed to save milestone:', error);
+    // For new projects, we don't save to database yet - just keep in local state
+    if (isCreatingProject) {
+      // Mark the milestone as no longer "new" since it's been validated
+      const updatedMilestone = { ...milestone, isNew: false };
+      updateLocalMilestone(index, updatedMilestone);
+      return;
+    }
+
+    // For existing projects, save to database
+    if (projectId) {
+      try {
+        await addMilestone({
+          name: milestone.name,
+          dueDate: milestone.dueDate,
+          timeAllocation: milestone.timeAllocation,
+          projectId,
+          order: milestone.order
+        });
+        
+        // Remove from local state
+        setLocalMilestones(prev => prev.filter((_, i) => i !== index));
+      } catch (error) {
+        console.error('Failed to save milestone:', error);
+      }
     }
   };
 
   const deleteLocalMilestone = (index: number) => {
-    setLocalMilestones(prev => prev.filter((_, i) => i !== index));
+    if (isCreatingProject && localMilestonesState) {
+      // For new projects, update the provided state
+      const updatedMilestones = localMilestonesState.milestones.filter((_, i) => i !== index);
+      localMilestonesState.setMilestones(updatedMilestones);
+    } else {
+      // For existing projects, use local state
+      setLocalMilestones(prev => prev.filter((_, i) => i !== index));
+    }
   };
 
   const handleDeleteMilestone = async (milestoneId: string) => {
@@ -125,10 +179,18 @@ export function MilestoneManager({
     setShowBudgetDialog(false);
     
     // Now save the milestone
-    const pendingMilestone = localMilestones.find(m => m.isNew);
+    const pendingMilestone = isCreatingProject && localMilestonesState
+      ? localMilestonesState.milestones.find(m => m.isNew)
+      : localMilestones.find(m => m.isNew);
+    
     if (pendingMilestone) {
-      const index = localMilestones.findIndex(m => m.isNew);
-      saveNewMilestone(index);
+      const index = isCreatingProject && localMilestonesState
+        ? localMilestonesState.milestones.findIndex(m => m.isNew)
+        : localMilestones.findIndex(m => m.isNew);
+      
+      if (index !== -1) {
+        saveNewMilestone(index);
+      }
     }
   };
 
@@ -191,19 +253,23 @@ export function MilestoneManager({
               {/* Existing Milestones */}
               {projectMilestones.filter(m => !('isNew' in m) || !m.isNew).map((milestone) => (
                 <MilestoneRow
-                  key={milestone.id}
+                  key={milestone.id || `milestone-${milestone.name}`}
                   milestone={milestone as Milestone}
                   projectEstimatedHours={projectEstimatedHours}
                   onUpdate={handleUpdateMilestone}
                   onDelete={handleDeleteMilestone}
+                  isCreatingProject={isCreatingProject}
                 />
               ))}
 
               {/* New Milestones */}
-              {localMilestones.map((milestone, index) => (
+              {(isCreatingProject && localMilestonesState
+                ? localMilestonesState.milestones
+                : localMilestones
+              ).map((milestone, index) => (
                 ('isNew' in milestone && milestone.isNew) && (
                   <NewMilestoneRow
-                    key={index}
+                    key={`new-${index}`}
                     milestone={milestone}
                     projectEstimatedHours={projectEstimatedHours}
                     onUpdate={(updates) => updateLocalMilestone(index, updates)}
@@ -270,12 +336,14 @@ function MilestoneRow({
   milestone, 
   projectEstimatedHours, 
   onUpdate, 
-  onDelete 
+  onDelete,
+  isCreatingProject = false
 }: {
   milestone: Milestone;
   projectEstimatedHours: number;
   onUpdate: (id: string, updates: Partial<Milestone>) => void;
   onDelete: (id: string) => void;
+  isCreatingProject?: boolean;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValues, setEditValues] = useState({
@@ -285,7 +353,9 @@ function MilestoneRow({
   });
 
   const handleSave = () => {
-    onUpdate(milestone.id!, editValues);
+    if (milestone.id) {
+      onUpdate(milestone.id, editValues);
+    }
     setIsEditing(false);
   };
 
@@ -296,6 +366,12 @@ function MilestoneRow({
       dueDate: milestone.dueDate
     });
     setIsEditing(false);
+  };
+
+  const handleDelete = () => {
+    if (milestone.id) {
+      onDelete(milestone.id);
+    }
   };
 
   if (isEditing) {
@@ -368,14 +444,16 @@ function MilestoneRow({
             size="sm" 
             variant="outline" 
             onClick={() => setIsEditing(true)}
+            disabled={isCreatingProject}
           >
             Edit
           </Button>
           <Button 
             size="sm" 
             variant="outline" 
-            onClick={() => onDelete(milestone.id!)}
+            onClick={handleDelete}
             className="text-red-600 hover:bg-red-50"
+            disabled={isCreatingProject}
           >
             <Trash2 className="w-4 h-4" />
           </Button>

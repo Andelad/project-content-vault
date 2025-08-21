@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Clock, Calendar, MapPin } from 'lucide-react
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
+import { TimeTracker } from './TimeTracker';
 
 import { DragDropCalendar } from './DragDropCalendar';
 import { WorkHourChangeModal } from './WorkHourChangeModal';
@@ -146,6 +147,7 @@ export function CalendarView() {
         description: 'Present initial wireframes and design concepts to the client',
         projectId: '1', // Connected to "Website Redesign" project - will inherit blue color
         color: 'oklch(0.8 0.12 240)', // Blue color for the event
+        type: 'planned', // Mark as planned event
         ...getEventDate(2, 14, 1.5), // Day after tomorrow 2pm-3:30pm
       });
 
@@ -154,6 +156,7 @@ export function CalendarView() {
         description: 'Daily standup meeting with the development team',
         projectId: '2', // Connected to "Mobile App Development" project - will inherit red color
         color: 'oklch(0.8 0.12 0)', // Red color for the event
+        type: 'planned', // Mark as planned event
         ...getEventDate(4, 9, 0.5), // 4 days from now 9am-9:30am
       });
 
@@ -161,6 +164,7 @@ export function CalendarView() {
         title: 'Personal Appointment',
         description: 'Doctor appointment - not work related',
         // No projectId - standalone event with custom color
+        type: 'planned', // Mark as planned event
         ...getEventDate(1, 16, 1), // Tomorrow 4pm-5pm
         color: '#10b981' // Green color
       });
@@ -170,6 +174,7 @@ export function CalendarView() {
         description: 'Initial brand strategy discussion with the creative team',
         projectId: '3', // Connected to "Brand Identity" project - will inherit purple color
         color: 'oklch(0.8 0.12 270)', // Purple color for the event
+        type: 'planned', // Mark as planned event
         ...getEventDate(5, 10, 2), // 5 days from now 10am-12pm
       });
     }
@@ -191,7 +196,8 @@ export function CalendarView() {
       startTime: new Date(startDateTime), // Ensure we create a new Date object
       endTime: new Date(endDateTime), // Ensure we create a new Date object
       duration,
-      color: '#3b82f6' // Default blue color
+      color: '#3b82f6', // Default blue color
+      type: 'planned' // Default to planned event
     });
   };
 
@@ -487,10 +493,13 @@ export function CalendarView() {
   return (
     <div className="h-full flex flex-col bg-gray-50 overflow-hidden">
       {/* Calendar Header */}
-      <div className="h-20 border-b border-[#e2e2e2] flex items-center px-8">
+      <div className="h-20 border-b border-[#e2e2e2] flex items-center justify-between px-8">
         <div className="flex items-center">
           <h1 className="text-lg font-semibold text-[#595956]">Calendar</h1>
         </div>
+        
+        {/* Time Tracker in top right */}
+        <TimeTracker />
       </div>
 
       {/* Calendar Mode Toggle and Navigation */}
