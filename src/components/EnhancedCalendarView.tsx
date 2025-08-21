@@ -1,7 +1,8 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Calendar, momentLocalizer, View, Views } from 'react-big-calendar';
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
 import moment from 'moment';
+import 'moment/locale/en-gb'; // Import GB locale for Monday week start
 import { useApp } from '../contexts/AppContext';
 import { CalendarEvent, WorkHour } from '../types';
 import { Button } from './ui/button';
@@ -12,10 +13,20 @@ import { Checkbox } from './ui/checkbox';
 import { Badge } from './ui/badge';
 import { TimeTracker } from './TimeTracker';
 import { WorkHourCreationModal } from './WorkHourCreationModal';
+import { WorkHourScopeDialog } from './WorkHourScopeDialog';
 import { useWorkHours } from '../hooks/useWorkHours';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
 import './calendar-overrides.css';
+
+// Set moment locale to ensure Monday week start
+moment.locale('en-gb');
+moment.updateLocale('en-gb', {
+  week: {
+    dow: 1, // Monday is the first day of the week
+    doy: 4  // The week that contains Jan 4th is the first week of the year
+  }
+});
 
 const localizer = momentLocalizer(moment);
 const DragAndDropCalendar = withDragAndDrop(Calendar);
@@ -178,13 +189,18 @@ export function EnhancedCalendarView() {
     setCreatingNewEvent
   } = useApp();
   
-  const { workHours, addWorkHour, updateWorkHour, deleteWorkHour } = useWorkHours();
+  const { workHours, addWorkHour, updateWorkHour, deleteWorkHour, showScopeDialog, pendingWorkHourChange, confirmWorkHourChange, cancelWorkHourChange, setCurrentViewDate } = useWorkHours();
   
   const [view, setView] = useState<View>(Views.WEEK);
   const [calendarDate, setCalendarDate] = useState(new Date(currentDate));
   const [showWorkHours, setShowWorkHours] = useState(true);
   const [showWorkHourCreator, setShowWorkHourCreator] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<{ start: Date; end: Date } | null>(null);
+
+  // Set initial view date for work hours
+  useEffect(() => {
+    setCurrentViewDate(calendarDate);
+  }, []);
 
   // Convert our events to Big Calendar format
   const bigCalendarEvents: BigCalendarEvent[] = useMemo(() => {
@@ -298,6 +314,7 @@ export function EnhancedCalendarView() {
     if (event.isWorkHour) {
       // Update work hour
       const workHourId = event.id.replace('work-', '');
+      console.log('Dragging work hour:', { originalEventId: event.id, workHourId, start, end });
       updateWorkHour(workHourId, {
         start: start.toISOString(),
         end: end.toISOString(),
@@ -321,6 +338,7 @@ export function EnhancedCalendarView() {
     if (event.isWorkHour) {
       // Update work hour
       const workHourId = event.id.replace('work-', '');
+      console.log('Resizing work hour:', { originalEventId: event.id, workHourId, start, end });
       updateWorkHour(workHourId, {
         start: start.toISOString(),
         end: end.toISOString(),
@@ -337,6 +355,7 @@ export function EnhancedCalendarView() {
   }, [updateEvent, updateWorkHour]);
 
   const handleCreateWorkHour = useCallback((workHourData: Omit<WorkHour, 'id'>) => {
+    // Don't pass scope - let the hook handle showing the dialog
     addWorkHour(workHourData);
     setShowWorkHourCreator(false);
     setSelectedSlot(null);
@@ -371,7 +390,14 @@ export function EnhancedCalendarView() {
     
     setCalendarDate(newDate);
     setCurrentDate(newDate);
-  }, [calendarDate, view, setCurrentDate]);
+    setCurrentViewDate(newDate);
+  }, [calendarDate, view, setCurrentDate, setCurrentViewDate]);
+
+  const handleOnNavigate = useCallback((date: Date) => {
+    setCalendarDate(date);
+    setCurrentDate(date);
+    setCurrentViewDate(date);
+  }, [setCurrentDate, setCurrentViewDate]);
 
   return (
     <div className="h-full flex flex-col bg-gray-50 overflow-hidden">
@@ -413,7 +439,7 @@ export function EnhancedCalendarView() {
               view={view}
               onView={setView}
               date={calendarDate}
-              onNavigate={setCalendarDate}
+              onNavigate={handleOnNavigate}
               onSelectEvent={handleSelectEvent}
               onSelectSlot={handleSelectSlot}
               onEventDrop={handleEventDrop}
@@ -421,10 +447,10 @@ export function EnhancedCalendarView() {
               selectable
               resizable
               eventPropGetter={eventStyleGetter}
-               components={{
-                 event: CustomEvent,
-                 toolbar: CustomToolbar
-               }}
+              components={{
+                event: CustomEvent,
+                toolbar: CustomToolbar
+              }}
               formats={{
                 timeGutterFormat: 'HH:mm',
                 eventTimeRangeFormat: ({ start, end }) => 
@@ -440,6 +466,18 @@ export function EnhancedCalendarView() {
               defaultView={Views.WEEK}
               popup
               popupOffset={30}
+              culture="en-GB"
+              titleAccessor="title"
+              allDayAccessor={() => false}
+              messages={{
+                week: 'Week',
+                day: 'Day',
+                month: 'Month',
+                previous: 'Previous',
+                next: 'Next',
+                today: 'Today',
+                agenda: 'Agenda'
+              }}
             />
           </div>
         </Card>
@@ -456,6 +494,17 @@ export function EnhancedCalendarView() {
           onSave={handleCreateWorkHour}
           defaultStart={selectedSlot.start}
           defaultEnd={selectedSlot.end}
+        />
+      )}
+
+      {/* Work Hour Scope Dialog */}
+      {showScopeDialog && pendingWorkHourChange && (
+        <WorkHourScopeDialog
+          isOpen={showScopeDialog}
+          onClose={cancelWorkHourChange}
+          onConfirm={confirmWorkHourChange}
+          changeType={pendingWorkHourChange.type}
+          isFromSettings={pendingWorkHourChange.isFromSettings}
         />
       )}
     </div>
