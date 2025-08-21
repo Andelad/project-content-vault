@@ -110,10 +110,10 @@ export function WorkHourCreator({
       setHasDragged(true);
       const endTime = calculateTimeFromPosition(e.clientY);
       
-      // Ensure end time is after start time and minimum 30 minutes
+      // Ensure end time is after start time and minimum 15 minutes
       const adjustedEndTime = endTime > createState.startTime 
         ? endTime 
-        : new Date(createState.startTime.getTime() + 30 * 60 * 1000);
+        : new Date(createState.startTime.getTime() + 15 * 60 * 1000);
       
       setCreateState(prev => ({
         ...prev,
@@ -156,7 +156,7 @@ export function WorkHourCreator({
       if (hasDragged) {
         const duration = (createState.endTime.getTime() - createState.startTime.getTime()) / (1000 * 60 * 60);
         
-        if (duration >= 0.5) { // Minimum 30 minutes
+        if (duration >= 0.25) { // Minimum 15 minutes
           const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
           const dayName = dayNames[date.getDay()];
           

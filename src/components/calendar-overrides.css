@@ -4,6 +4,11 @@
 .rbc-calendar {
   background-color: transparent !important;
   font-family: inherit !important;
+  height: 100% !important;
+  width: 100% !important;
+  border: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 /* Header styling */
@@ -37,15 +42,53 @@
   box-shadow: -2px 0px 0px 0px rgba(255, 255, 255, 0.5) !important;
 }
 
-/* Time slots */
-.rbc-time-slot {
-  border-top: 1px solid hsl(var(--border)) !important;
+/* Time slots - hide all borders by default with high specificity */
+.rbc-time-view .rbc-time-content .rbc-time-slot {
+  border-top: none !important;
   background-color: transparent !important;
 }
 
-.rbc-timeslot-group {
-  border-bottom: 1px solid hsl(var(--border)) !important;
+/* Timeslot groups */
+.rbc-time-view .rbc-time-content .rbc-timeslot-group {
+  border-bottom: none !important;
   background-color: transparent !important;
+}
+
+/* Target specific slots within each timeslot group */
+/* First slot in each group = hour mark (00 minutes) */
+.rbc-time-view .rbc-time-content .rbc-timeslot-group .rbc-time-slot:nth-child(1) {
+  border-top: 1px solid hsl(var(--border)) !important;
+}
+
+/* Third slot in each group = half-hour mark (30 minutes) */
+.rbc-time-view .rbc-time-content .rbc-timeslot-group .rbc-time-slot:nth-child(3) {
+  border-top: 1px solid hsl(var(--border) / 0.4) !important;
+}
+
+/* Main calendar content - fills available space */
+.rbc-month-view,
+.rbc-time-view,
+.rbc-agenda-view {
+  height: 100% !important;
+  overflow: hidden !important;
+  border: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Remove any internal borders and padding from calendar wrapper */
+.rbc-calendar > *,
+.rbc-calendar .rbc-time-header,
+.rbc-calendar .rbc-time-content,
+.rbc-calendar .rbc-time-view {
+  border: none !important;
+  margin: 0 !important;
+}
+
+/* Time grid container */
+.rbc-time-content {
+  height: 100% !important;
+  flex: 1 !important;
 }
 
 .rbc-day-slot {
@@ -66,8 +109,21 @@
   border-right: 1px solid hsl(var(--border)) !important;
 }
 
-.rbc-time-gutter .rbc-timeslot-group {
-  border-bottom: 1px solid hsl(var(--border)) !important;
+.rbc-time-view .rbc-time-gutter .rbc-timeslot-group {
+  border-bottom: none !important;
+}
+
+/* Apply same time slot rules to time gutter with high specificity */
+.rbc-time-view .rbc-time-gutter .rbc-time-slot {
+  border-top: none !important;
+}
+
+.rbc-time-view .rbc-time-gutter .rbc-timeslot-group .rbc-time-slot:nth-child(1) {
+  border-top: 1px solid hsl(var(--border)) !important;
+}
+
+.rbc-time-view .rbc-time-gutter .rbc-timeslot-group .rbc-time-slot:nth-child(3) {
+  border-top: 1px solid hsl(var(--border) / 0.4) !important;
 }
 
 /* Month view */

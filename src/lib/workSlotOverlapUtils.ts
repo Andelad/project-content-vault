@@ -70,8 +70,8 @@ export function validateWorkSlotTimes(
   const endMinutes = timeToMinutes(endTime);
   const duration = (endMinutes - startMinutes) / 60;
   
-  // Check for minimum duration (30 minutes)
-  if (duration < 0.5) {
+  // Check for minimum duration (15 minutes)
+  if (duration < 0.25) {
     return {
       isValid: false,
       overlaps: [],
@@ -88,7 +88,7 @@ export function validateWorkSlotTimes(
   const overlaps = findOverlappingSlots(newSlot, existingSlots, excludeSlotId);
   
   return {
-    isValid: overlaps.length === 0 && duration >= 0.5,
+    isValid: overlaps.length === 0 && duration >= 0.25,
     overlaps,
     duration
   };

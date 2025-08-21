@@ -157,24 +157,24 @@ export function DraggableWorkHour({
             newEndTime = new Date(newEndTime.getTime() + adjustment);
           }
           
-          if (newEndTime.getHours() > 23 || (newEndTime.getHours() === 23 && newEndTime.getMinutes() > 30)) {
+          if (newEndTime.getHours() > 23 || (newEndTime.getHours() === 23 && newEndTime.getMinutes() > 45)) {
             const maxEndTime = new Date(newEndTime);
-            maxEndTime.setHours(23, 30, 0, 0);
+            maxEndTime.setHours(23, 45, 0, 0);
             const adjustment = newEndTime.getTime() - maxEndTime.getTime();
             newEndTime = maxEndTime;
             newStartTime = new Date(newStartTime.getTime() - adjustment);
           }
         } else if (prev.dragType === 'resize-top') {
           newStartTime = newTime;
-          // Ensure minimum 30 minutes duration
+          // Ensure minimum 15 minutes duration
           if (newStartTime >= newEndTime) {
-            newEndTime = new Date(newStartTime.getTime() + 30 * 60 * 1000);
+            newEndTime = new Date(newStartTime.getTime() + 15 * 60 * 1000);
           }
         } else if (prev.dragType === 'resize-bottom') {
           newEndTime = newTime;
-          // Ensure minimum 30 minutes duration
+          // Ensure minimum 15 minutes duration
           if (newEndTime <= newStartTime) {
-            newEndTime = new Date(newStartTime.getTime() + 30 * 60 * 1000);
+            newEndTime = new Date(newStartTime.getTime() + 15 * 60 * 1000);
           }
         }
         
@@ -185,7 +185,7 @@ export function DraggableWorkHour({
           currentChanges: {
             startTime: newStartTime,
             endTime: newEndTime,
-            duration: Math.max(0.5, duration)
+            duration: Math.max(0.25, duration)
           }
         };
       });

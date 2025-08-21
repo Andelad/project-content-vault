@@ -6,11 +6,13 @@ import 'moment/locale/en-gb'; // Import GB locale for Monday week start
 import { useApp } from '../contexts/AppContext';
 import { CalendarEvent, WorkHour } from '../types';
 import { Button } from './ui/button';
-import { Card } from './ui/card';
-import { ChevronLeft, ChevronRight, CheckCircle2, Circle, Calendar as CalendarIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle2, Circle, Calendar as CalendarIcon, MapPin, CalendarSearch } from 'lucide-react';
 import { EventDetailModal } from './EventDetailModal';
 import { Checkbox } from './ui/checkbox';
 import { Badge } from './ui/badge';
+import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Calendar as DatePicker } from './ui/calendar';
 import { TimeTracker } from './TimeTracker';
 import { WorkHourCreationModal } from './WorkHourCreationModal';
 import { WorkHourScopeDialog } from './WorkHourScopeDialog';
@@ -121,62 +123,6 @@ function CustomEvent({ event }: CustomEventProps) {
   }
 }
 
-interface CustomToolbarProps {
-  onNavigate: (action: 'PREV' | 'NEXT' | 'TODAY') => void;
-  onView: (view: View) => void;
-  label: string;
-  view: View;
-}
-
-function CustomToolbar({ onNavigate, onView, label, view }: CustomToolbarProps) {
-  return (
-    <div className="flex items-center justify-between mb-4">
-      <div className="flex items-center space-x-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onNavigate('PREV')}
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onNavigate('TODAY')}
-        >
-          Today
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onNavigate('NEXT')}
-        >
-          <ChevronRight className="w-4 h-4" />
-        </Button>
-      </div>
-      
-      <h2 className="text-lg font-semibold">{label}</h2>
-      
-      <div className="flex items-center space-x-2">
-        <Button
-          variant={view === Views.WEEK ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => onView(Views.WEEK)}
-        >
-          Week
-        </Button>
-        <Button
-          variant={view === Views.DAY ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => onView(Views.DAY)}
-        >
-          Day
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 export function EnhancedCalendarView() {
   const {
     currentDate,
@@ -196,6 +142,7 @@ export function EnhancedCalendarView() {
   const [showWorkHours, setShowWorkHours] = useState(true);
   const [showWorkHourCreator, setShowWorkHourCreator] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<{ start: Date; end: Date } | null>(null);
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
   // Set initial view date for work hours
   useEffect(() => {
@@ -399,6 +346,41 @@ export function EnhancedCalendarView() {
     setCurrentViewDate(date);
   }, [setCurrentDate, setCurrentViewDate]);
 
+  const handleDateSelect = useCallback((selectedDate: Date | undefined) => {
+    if (!selectedDate) return;
+    
+    // Normalize the selected date
+    const normalizedDate = new Date(selectedDate);
+    normalizedDate.setHours(0, 0, 0, 0);
+    
+    // Close the date picker
+    setIsDatePickerOpen(false);
+    
+    // Update calendar view to the selected date
+    setCalendarDate(normalizedDate);
+    setCurrentDate(normalizedDate);
+    setCurrentViewDate(normalizedDate);
+  }, [setCurrentDate, setCurrentViewDate]);
+
+  const formatDateRange = useCallback(() => {
+    const start = moment(calendarDate);
+    
+    if (view === Views.WEEK) {
+      const weekStart = start.clone().startOf('week');
+      const weekEnd = start.clone().endOf('week');
+      
+      if (weekStart.month() === weekEnd.month()) {
+        return `${weekStart.format('MMM D')} - ${weekEnd.format('D, YYYY')}`;
+      } else {
+        return `${weekStart.format('MMM D')} - ${weekEnd.format('MMM D, YYYY')}`;
+      }
+    } else if (view === Views.DAY) {
+      return start.format('MMMM D, YYYY');
+    } else {
+      return start.format('MMMM YYYY');
+    }
+  }, [calendarDate, view]);
+
   return (
     <div className="h-full flex flex-col bg-gray-50 overflow-hidden">
       {/* Calendar Header */}
@@ -426,61 +408,121 @@ export function EnhancedCalendarView() {
         <TimeTracker />
       </div>
 
-      {/* Calendar Content */}
-      <div className="flex-1 p-6">
-        <Card className="h-full">
-          <div className="p-6 h-full">
-            <DragAndDropCalendar
-              localizer={localizer}
-              events={bigCalendarEvents}
-              startAccessor="start"
-              endAccessor="end"
-              style={{ height: '100%' }}
-              view={view}
-              onView={setView}
-              date={calendarDate}
-              onNavigate={handleOnNavigate}
-              onSelectEvent={handleSelectEvent}
-              onSelectSlot={handleSelectSlot}
-              onEventDrop={handleEventDrop}
-              onEventResize={handleEventResize}
-              selectable
-              resizable
-              eventPropGetter={eventStyleGetter}
-              components={{
-                event: CustomEvent,
-                toolbar: CustomToolbar
+      {/* Calendar Controls - styled like Timeline view */}
+      <div className="px-6 p-[21px]">
+        <div className="flex items-center justify-between">
+          {/* Left side controls */}
+          <div className="flex items-center" style={{ gap: '21px' }}>
+            <ToggleGroup
+              type="single"
+              value={view}
+              onValueChange={(value) => {
+                if (value) {
+                  setView(value as View);
+                }
               }}
-              formats={{
-                timeGutterFormat: 'HH:mm',
-                eventTimeRangeFormat: ({ start, end }) => 
-                  `${moment(start).format('HH:mm')} - ${moment(end).format('HH:mm')}`,
-                agendaTimeFormat: 'HH:mm',
-                agendaTimeRangeFormat: ({ start, end }) => 
-                  `${moment(start).format('HH:mm')} - ${moment(end).format('HH:mm')}`
-              }}
-              step={30}
-              timeslots={2}
-              min={moment().hours(6).minutes(0).toDate()}
-              max={moment().hours(22).minutes(0).toDate()}
-              defaultView={Views.WEEK}
-              popup
-              popupOffset={30}
-              culture="en-GB"
-              titleAccessor="title"
-              allDayAccessor={() => false}
-              messages={{
-                week: 'Week',
-                day: 'Day',
-                month: 'Month',
-                previous: 'Previous',
-                next: 'Next',
-                today: 'Today',
-                agenda: 'Agenda'
-              }}
-            />
+              className="border border-gray-200 rounded-lg h-9 p-1"
+            >
+              <ToggleGroupItem value={Views.WEEK} aria-label="Week mode" className="px-3 py-1 h-7">
+                Week
+              </ToggleGroupItem>
+              <ToggleGroupItem value={Views.DAY} aria-label="Day mode" className="px-3 py-1 h-7">
+                Day
+              </ToggleGroupItem>
+            </ToggleGroup>
+            
+            <Button variant="outline" onClick={() => handleNavigate('TODAY')} className="h-9 gap-2">
+              <MapPin className="w-4 h-4" />
+              Today
+            </Button>
+            
+            <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="icon" className="h-9 w-9">
+                  <CalendarSearch className="w-4 h-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <DatePicker
+                  mode="single"
+                  selected={calendarDate}
+                  onSelect={handleDateSelect}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
           </div>
-        </Card>
+
+          {/* Right side navigation */}
+          <div className="flex items-center gap-0.5">
+            <Button variant="ghost" className="h-9 w-9 px-0" onClick={() => handleNavigate('PREV')}>
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            
+            <h2 className="text-sm font-semibold text-gray-900 text-center px-2">
+              {formatDateRange()}
+            </h2>
+            
+            <Button variant="ghost" className="h-9 w-9 px-0" onClick={() => handleNavigate('NEXT')}>
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Calendar Content */}
+      <div className="flex-1 px-6 pb-6">
+        <div className="h-full bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+          <DragAndDropCalendar
+            localizer={localizer}
+            events={bigCalendarEvents}
+            startAccessor="start"
+            endAccessor="end"
+            style={{ height: '100%' }}
+            view={view}
+            onView={setView}
+            date={calendarDate}
+            onNavigate={handleOnNavigate}
+            onSelectEvent={handleSelectEvent}
+            onSelectSlot={handleSelectSlot}
+            onEventDrop={handleEventDrop}
+            onEventResize={handleEventResize}
+            selectable
+            resizable
+            eventPropGetter={eventStyleGetter}
+            components={{
+              event: CustomEvent,
+              toolbar: () => null // Remove the default toolbar
+            }}
+            formats={{
+              timeGutterFormat: 'HH:mm',
+              eventTimeRangeFormat: ({ start, end }) => 
+                `${moment(start).format('HH:mm')} - ${moment(end).format('HH:mm')}`,
+              agendaTimeFormat: 'HH:mm',
+              agendaTimeRangeFormat: ({ start, end }) => 
+                `${moment(start).format('HH:mm')} - ${moment(end).format('HH:mm')}`
+            }}
+            step={30}
+            timeslots={2}
+            min={moment().hours(6).minutes(0).toDate()}
+            max={moment().hours(22).minutes(0).toDate()}
+            defaultView={Views.WEEK}
+            popup
+            popupOffset={30}
+            culture="en-GB"
+            titleAccessor="title"
+            allDayAccessor={() => false}
+            messages={{
+              week: 'Week',
+              day: 'Day',
+              month: 'Month',
+              previous: 'Previous',
+              next: 'Next',
+              today: 'Today',
+              agenda: 'Agenda'
+            }}
+          />
+        </div>
       </div>
 
       {/* Work Hour Creation Modal */}
