@@ -88,10 +88,9 @@ export interface Settings {
 export interface WorkHour {
   id: string;
   title: string;
-  startTime: Date;
-  endTime: Date;
-  duration: number;
-  type: 'work' | 'break' | 'meeting';
+  description?: string;
+  start: string; // ISO string for consistency with CalendarEvent
+  end: string; // ISO string for consistency with CalendarEvent
 }
 
 export interface TimelineEntry {
