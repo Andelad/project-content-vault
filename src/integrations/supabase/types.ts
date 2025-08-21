@@ -70,6 +70,7 @@ export type Database = {
           description: string | null
           duration: number | null
           end_time: string
+          event_type: string | null
           external_calendar_id: string | null
           external_last_modified: string | null
           external_source: string | null
@@ -93,6 +94,7 @@ export type Database = {
           description?: string | null
           duration?: number | null
           end_time: string
+          event_type?: string | null
           external_calendar_id?: string | null
           external_last_modified?: string | null
           external_source?: string | null
@@ -116,6 +118,7 @@ export type Database = {
           description?: string | null
           duration?: number | null
           end_time?: string
+          event_type?: string | null
           external_calendar_id?: string | null
           external_last_modified?: string | null
           external_source?: string | null
