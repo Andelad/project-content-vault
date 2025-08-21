@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Play, Pause, Search } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { useAppDataOnly, useAppActionsOnly } from '../contexts/AppContext';
 import { CalendarEvent } from '../types';
 
@@ -25,6 +24,7 @@ export function TimeTracker({ className }: TimeTrackerProps) {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<Date | null>(null);
   const liveUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
 
   // Storage keys for persistence
   const STORAGE_KEYS = {
@@ -287,7 +287,7 @@ export function TimeTracker({ className }: TimeTrackerProps) {
     if (item.type === 'project') {
       const project = projects.find(p => p.id === item.id);
       setSelectedProject(project);
-      setSearchQuery(project ? `${project.name} (${project.client})` : '');
+      setSearchQuery(project ? `${project.name} • ${project.client}` : '');
     } else {
       // Client selected - use just client name
       setSelectedProject({ client: item.name, name: item.name });
@@ -403,6 +403,23 @@ export function TimeTracker({ className }: TimeTrackerProps) {
     }
   };
 
+  // Handle click outside to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowSearchDropdown(false);
+      }
+    };
+
+    if (showSearchDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showSearchDropdown]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -418,64 +435,62 @@ export function TimeTracker({ className }: TimeTrackerProps) {
   return (
     <div className={`flex items-center gap-3 ${className}`}>
       {/* Search Input with Dropdown */}
-      <Popover open={showSearchDropdown} onOpenChange={setShowSearchDropdown}>
-        <PopoverTrigger asChild>
-          <div className="relative">
-            <Input
-              placeholder="What are you working on?"
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setShowSearchDropdown(true);
-              }}
-              onFocus={() => setShowSearchDropdown(true)}
-              className="w-64 h-10 bg-background border-border focus:border-primary cursor-text"
-              disabled={isTracking}
-            />
-            <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          </div>
-        </PopoverTrigger>
-        <PopoverContent className="w-64 p-0" align="start">
-          <div className="max-h-64 overflow-y-auto">
-            {searchResults.length > 0 ? (
-              searchResults.map((item) => (
-                <button
-                  key={`${item.type}-${item.id}`}
-                  className="w-full px-3 py-2 text-left hover:bg-accent/50 border-b border-border/30 last:border-b-0"
-                  onClick={() => handleSelectItem(item)}
-                >
-                  <div className="flex items-center gap-2">
-                    {item.type === 'project' && (
-                      <div 
-                        className="w-3 h-3 rounded-full flex-shrink-0" 
-                        style={{ backgroundColor: projects.find(p => p.id === item.id)?.color || '#8B5CF6' }}
-                      />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate">
-                        {item.name}
-                      </div>
-                      {item.type === 'project' && item.client && (
-                        <div className="text-xs text-muted-foreground truncate">
-                          {item.client}
-                        </div>
+      <div className="relative" ref={dropdownRef}>
+        <Input
+          placeholder="What are you working on?"
+          value={searchQuery}
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            setShowSearchDropdown(true);
+          }}
+          onFocus={() => setShowSearchDropdown(true)}
+          className="w-64 h-10 bg-background border-border focus:border-primary cursor-text"
+          disabled={isTracking}
+        />
+        <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        
+        {/* Dropdown */}
+        {showSearchDropdown && (
+          <div className="absolute top-full left-0 w-64 mt-1 bg-popover border border-border rounded-md shadow-lg z-50">
+            <div className="max-h-64 overflow-y-auto">
+              {searchResults.length > 0 ? (
+                searchResults.map((item) => (
+                  <button
+                    key={`${item.type}-${item.id}`}
+                    className="w-full px-3 py-2 text-left hover:bg-accent/50 border-b border-border/30 last:border-b-0"
+                    onClick={() => handleSelectItem(item)}
+                  >
+                    <div className="flex items-center gap-2">
+                      {item.type === 'project' && (
+                        <div 
+                          className="w-3 h-3 rounded-full flex-shrink-0" 
+                          style={{ backgroundColor: projects.find(p => p.id === item.id)?.color || '#8B5CF6' }}
+                        />
                       )}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium truncate">
+                          {item.type === 'project' && item.client 
+                            ? `${item.name} • ${item.client}`
+                            : item.name
+                          }
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </button>
-              ))
-            ) : searchQuery.trim() ? (
-              <div className="px-3 py-4 text-sm text-muted-foreground text-center">
-                No projects or clients found
-              </div>
-            ) : (
-              <div className="px-3 py-4 text-sm text-muted-foreground text-center">
-                Start typing to search projects and clients
-              </div>
-            )}
+                  </button>
+                ))
+              ) : searchQuery.trim() ? (
+                <div className="px-3 py-4 text-sm text-muted-foreground text-center">
+                  No projects or clients found
+                </div>
+              ) : (
+                <div className="px-3 py-4 text-sm text-muted-foreground text-center">
+                  Start typing to search projects and clients
+                </div>
+              )}
+            </div>
           </div>
-        </PopoverContent>
-      </Popover>
+        )}
+      </div>
 
       {/* Timer Display */}
       <div className="text-lg font-semibold tabular-nums text-foreground min-w-[5.5rem] text-center">
