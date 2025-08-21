@@ -50,7 +50,7 @@ const ToggleGroupItem = React.forwardRef<
           variant: context.variant || variant,
           size: context.size || size,
         }),
-        context.variant === "outline" && "border-0 rounded-sm data-[state=on]:bg-background data-[state=on]:text-foreground shadow-none",
+        context.variant === "outline" && "border-0 rounded-sm data-[state=on]:bg-white data-[state=on]:text-gray-900 shadow-none",
         className
       )}
       {...props}

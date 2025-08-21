@@ -421,6 +421,7 @@ export function EnhancedCalendarView() {
                   setView(value as View);
                 }
               }}
+              variant="outline"
               className="border border-gray-200 rounded-lg h-9 p-1"
             >
               <ToggleGroupItem value={Views.WEEK} aria-label="Week mode" className="px-3 py-1 h-7">

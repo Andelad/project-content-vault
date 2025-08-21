@@ -782,6 +782,7 @@ export function TimelineView() {
                       }, 100);
                     }
                   }}
+                  variant="outline"
                   className="border border-gray-200 rounded-lg h-9 p-1"
                 >
                   <ToggleGroupItem value="weeks" aria-label="Weeks mode" className="px-3 py-1 h-7">
