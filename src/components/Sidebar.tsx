@@ -65,7 +65,7 @@ export function Sidebar() {
     },
     {
       id: 'reports' as const,
-      label: 'Overview',
+      label: 'Insights',
       icon: PieChart,
     },
     {

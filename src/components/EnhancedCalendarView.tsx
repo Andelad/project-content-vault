@@ -149,6 +149,44 @@ export function EnhancedCalendarView() {
     setCurrentViewDate(calendarDate);
   }, []);
 
+  // Scroll to 6am on initial load and view changes
+  useEffect(() => {
+    const scrollToDefaultTime = () => {
+      // Find the time content container
+      const timeContent = document.querySelector('.rbc-time-content');
+      if (timeContent) {
+        // Calculate scroll position for 6am
+        // Each hour is approximately 60px (timeslot-group height)
+        const hourHeight = 60;
+        const sixAmPosition = 6 * hourHeight;
+        
+        // Smooth scroll to position
+        timeContent.scrollTo({
+          top: sixAmPosition,
+          behavior: 'smooth'
+        });
+      }
+    };
+
+    // Use multiple attempts to ensure DOM is ready
+    let attempts = 0;
+    const maxAttempts = 5;
+    
+    const scrollWithRetry = () => {
+      const timeContent = document.querySelector('.rbc-time-content');
+      if (timeContent && timeContent.scrollHeight > 0) {
+        scrollToDefaultTime();
+      } else if (attempts < maxAttempts) {
+        attempts++;
+        setTimeout(scrollWithRetry, 200);
+      }
+    };
+
+    // Initial attempt after a short delay
+    const timer = setTimeout(scrollWithRetry, 100);
+    return () => clearTimeout(timer);
+  }, [view, calendarDate]);
+
   // Convert our events to Big Calendar format
   const bigCalendarEvents: BigCalendarEvent[] = useMemo(() => {
     const eventItems: BigCalendarEvent[] = events.map(event => ({
@@ -472,7 +510,7 @@ export function EnhancedCalendarView() {
       </div>
 
       {/* Calendar Content */}
-      <div className="flex-1 px-6 pb-6">
+      <div className="flex-1 px-6 pb-6 min-h-0">
         <div className="h-full bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
           <DragAndDropCalendar
             localizer={localizer}
@@ -505,8 +543,7 @@ export function EnhancedCalendarView() {
             }}
             step={30}
             timeslots={2}
-            min={moment().hours(6).minutes(0).toDate()}
-            max={moment().hours(22).minutes(0).toDate()}
+            scrollToTime={moment().hours(6).minutes(0).toDate()}
             defaultView={Views.WEEK}
             popup
             popupOffset={30}
