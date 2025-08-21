@@ -87,7 +87,8 @@ export const ProjectMilestones = memo(function ProjectMilestones({
     setDraggingMilestone(milestoneId);
 
     const startX = e.clientX;
-    const dayWidth = mode === 'weeks' ? 72 : 40; // Day width in pixels
+    // Calculate actual day width based on mode
+    const dayWidth = mode === 'weeks' ? (72 / 7) : 40; // 10.3px for weeks, 40px for days
     const originalMilestone = projectMilestones.find(m => m.id === milestoneId);
     if (!originalMilestone) return;
 
@@ -103,13 +104,16 @@ export const ProjectMilestones = memo(function ProjectMilestones({
     const handleMouseMove = (moveEvent: MouseEvent) => {
       if (!onMilestoneDrag) return;
 
-      // Calculate days delta from original position
+      // Calculate days delta from original position - use fractional movement for responsiveness
       const deltaX = moveEvent.clientX - startX;
-      const daysDelta = Math.round(deltaX / dayWidth);
+      const daysDelta = deltaX / dayWidth; // Don't round yet - allow fractional movement
+      
+      // Only round when we've moved at least 0.5 days worth of pixels
+      const roundedDaysDelta = Math.round(daysDelta);
       
       // Calculate new date
       const newDate = new Date(originalDate);
-      newDate.setDate(originalDate.getDate() + daysDelta);
+      newDate.setDate(originalDate.getDate() + roundedDaysDelta);
       newDate.setHours(0, 0, 0, 0);
 
       // Constrain milestone within project boundaries (with 1 day buffer)
@@ -132,8 +136,8 @@ export const ProjectMilestones = memo(function ProjectMilestones({
         return Math.abs(mDate.getTime() - newDate.getTime()) < 24 * 60 * 60 * 1000; // Same day
       });
 
-      // Only update if no overlap and within project boundaries
-      if (!wouldOverlap && newDate >= minDate && newDate <= maxDate) {
+      // Only update if no overlap, within project boundaries, and we've moved at least half a day
+      if (!wouldOverlap && newDate >= minDate && newDate <= maxDate && Math.abs(daysDelta) >= 0.5) {
         onMilestoneDrag(milestoneId, newDate);
       }
     };
