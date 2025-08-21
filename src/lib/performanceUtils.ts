@@ -33,7 +33,7 @@ export const performanceMonitor = {
         performanceLog.shift();
       }
       
-      // Log slow renders in development
+      // Log slow renders in development only
       if (process.env.NODE_ENV === 'development' && metrics.renderTime > 16) {
         console.warn(`Slow render detected: ${componentName} took ${metrics.renderTime.toFixed(2)}ms`);
       }

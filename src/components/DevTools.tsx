@@ -66,7 +66,9 @@ export function DevTools() {
 
   const handleClearCache = () => {
     cleanupMemoizationCaches();
-    console.log('🧹 All memoization caches cleared');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🧹 All memoization caches cleared');
+    }
   };
 
   const getDataSummary = () => ({

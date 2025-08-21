@@ -41,5 +41,26 @@ export default defineConfig(({ mode }) => {
         "@": path.resolve(__dirname, "./src"),
       },
     },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            vendor: ['react', 'react-dom'],
+            ui: [
+              '@radix-ui/react-dialog', 
+              '@radix-ui/react-popover', 
+              '@radix-ui/react-toast',
+              '@radix-ui/react-tooltip',
+              '@radix-ui/react-select'
+            ],
+            calendar: ['react-big-calendar', 'moment'],
+            charts: ['recharts'],
+            forms: ['react-hook-form', '@hookform/resolvers', 'zod'],
+            utils: ['date-fns', 'dompurify', 'clsx', 'tailwind-merge']
+          }
+        }
+      },
+      chunkSizeWarningLimit: 600 // Increase warning limit since we're optimizing chunks
+    }
   };
 });

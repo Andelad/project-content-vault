@@ -17,7 +17,6 @@ import LandingPage from '@/pages/LandingPage';
 
 // Lazy load view components for better performance
 const TimelineView = lazy(() => import('@/components/TimelineView').then(module => ({ default: module.TimelineView })));
-const CalendarView = lazy(() => import('@/components/CalendarView').then(module => ({ default: module.CalendarView })));
 const EnhancedCalendarView = lazy(() => import('@/components/EnhancedCalendarView').then(module => ({ default: module.EnhancedCalendarView })));
 const ProjectsView = lazy(() => import('@/components/ProjectsView').then(module => ({ default: module.ProjectsView })));
 const ReportsView = lazy(() => import('@/components/ReportsView').then(module => ({ default: module.ReportsView })));
@@ -115,11 +114,7 @@ function AuthenticatedContent() {
           isOpen={!!creatingNewProject}
           onClose={() => setCreatingNewProject(null)}
           groupId={creatingNewProject?.groupId || ''}
-          rowId={(() => {
-            console.log('📋 App.tsx: creatingNewProject:', creatingNewProject);
-            console.log('📋 App.tsx: rowId being passed to modal:', creatingNewProject?.rowId);
-            return creatingNewProject?.rowId;
-          })()}
+          rowId={creatingNewProject?.rowId}
         />
 
         <EventDetailModal

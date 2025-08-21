@@ -22,7 +22,7 @@ import { AvailabilitySidebar } from './timeline/AvailabilitySidebar';
 import { TimelineDateHeaders } from './timeline/TimelineDateHeaders';
 import { TimelineBar } from './timeline/TimelineBar';
 import { TimelineColumnMarkers } from './timeline/TimelineColumnMarkers';
-import { AvailabilityCircles } from './timeline/AvailabilityCircles';
+import { UnifiedAvailabilityCircles } from './timeline/UnifiedAvailabilityCircles';
 import { TimelineScrollbar } from './timeline/TimelineScrollbar';
 import { HoverableTimelineScrollbar } from './timeline/HoverableTimelineScrollbar';
 import { TimelineAddProjectRow, AddHolidayRow } from './timeline/AddProjectRow';
@@ -32,9 +32,6 @@ import { DraggableRowComponent } from './timeline/DraggableRowComponent';
 import { AddRowComponent } from './timeline/AddRowComponent';
 import { DraggableGroupRow } from './timeline/DraggableGroupRow';
 import { AddGroupRow } from './timeline/AddGroupRow';
-
-// Import new availability component
-import { NewAvailabilityCircles } from './timeline/NewAvailabilityCircles';
 
 export function TimelineView() {
   const { 
@@ -1010,8 +1007,8 @@ export function TimelineView() {
                             !project.rowId || !rows.some(row => row.id === project.rowId)
                           );
                           
-                          // Log warning for orphaned projects
-                          if (orphanedProjects.length > 0) {
+                          // Log warning for orphaned projects in development only
+                          if (process.env.NODE_ENV === 'development' && orphanedProjects.length > 0) {
                             console.warn(`Found ${orphanedProjects.length} orphaned projects in group ${group.id}:`, orphanedProjects.map(p => ({ id: p.id, name: p.name, rowId: p.rowId })));
                           }
                           
@@ -1207,7 +1204,7 @@ export function TimelineView() {
                     
                     {/* Available Hours Row */}
                     <div className="border-b border-gray-100 h-12">
-                      <AvailabilityCircles
+                      <UnifiedAvailabilityCircles
                         dates={dates}
                         projects={projects}
                         settings={settings}
@@ -1218,7 +1215,7 @@ export function TimelineView() {
                     
                     {/* Overbooked Hours Row */}
                     <div className="border-b border-gray-100 h-12">
-                      <AvailabilityCircles
+                      <UnifiedAvailabilityCircles
                         dates={dates}
                         projects={projects}
                         settings={settings}
@@ -1229,7 +1226,7 @@ export function TimelineView() {
 
                     {/* Overtime Planned/Completed Row */}
                     <div className="border-b border-gray-100 h-12">
-                      <NewAvailabilityCircles
+                      <UnifiedAvailabilityCircles
                         dates={dates}
                         settings={settings}
                         type="overtime-planned"
@@ -1239,7 +1236,7 @@ export function TimelineView() {
 
                     {/* Planned/Completed Row */}
                     <div className="border-b border-gray-100 h-12">
-                      <NewAvailabilityCircles
+                      <UnifiedAvailabilityCircles
                         dates={dates}
                         settings={settings}
                         type="total-planned"
@@ -1249,7 +1246,7 @@ export function TimelineView() {
 
                     {/* Other Time Row */}
                     <div className="h-12">
-                      <NewAvailabilityCircles
+                      <UnifiedAvailabilityCircles
                         dates={dates}
                         settings={settings}
                         type="other-time"

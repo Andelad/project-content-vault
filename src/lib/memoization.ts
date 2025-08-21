@@ -88,7 +88,7 @@ export function memoizeExpensiveCalculation<T extends (...args: any[]) => any>(
     const cached = cache.get(key);
     if (cached !== undefined) {
       hitCount++;
-      if ((hitCount + missCount) % 100 === 0) {
+      if (process.env.NODE_ENV === 'development' && (hitCount + missCount) % 100 === 0) {
         console.log(`📈 Cache stats - Hits: ${hitCount}, Misses: ${missCount}, Hit rate: ${(hitCount / (hitCount + missCount) * 100).toFixed(1)}%`);
       }
       return cached;
