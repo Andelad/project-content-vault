@@ -89,8 +89,10 @@ export interface WorkHour {
   id: string;
   title: string;
   description?: string;
-  start: string; // ISO string for consistency with CalendarEvent
-  end: string; // ISO string for consistency with CalendarEvent
+  startTime: Date; // Date object for consistency with how it's used in the app
+  endTime: Date; // Date object for consistency with how it's used in the app  
+  duration: number; // Duration in hours
+  type?: 'work' | 'meeting' | 'break'; // Optional type for different work hour categories
 }
 
 export interface TimelineEntry {

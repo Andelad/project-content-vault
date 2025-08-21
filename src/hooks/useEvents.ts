@@ -37,7 +37,7 @@ export function useEvents() {
     }
   };
 
-  const addEvent = async (eventData: Omit<CalendarEventInsert, 'user_id'>) => {
+  const addEvent = async (eventData: Omit<CalendarEventInsert, 'user_id'>): Promise<CalendarEvent> => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');

@@ -324,27 +324,23 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       
       try {
         // Create the tracking event
-        const createdEvent = await addEvent(eventData);
+        const createdEvent = await addEvent(eventData) as unknown as CalendarEvent;
         
-        if (createdEvent && createdEvent.id) {
-          // Use the actual event ID from the database
-          setCurrentEventId(createdEvent.id);
-          
-          // Start live updates immediately
-          startLiveUpdates(createdEvent.id, now);
-          
-          // Save tracking state
-          saveTrackingState({
-            isTracking: true,
-            startTime: now,
-            eventId: createdEvent.id,
-            selectedProject,
-            searchQuery,
-            affectedEvents: []
-          });
-        } else {
-          throw new Error('Failed to get event ID from created event');
-        }
+        // Use the actual event ID from the database
+        setCurrentEventId(createdEvent.id);
+        
+        // Start live updates immediately
+        startLiveUpdates(createdEvent.id, now);
+        
+        // Save tracking state
+        saveTrackingState({
+          isTracking: true,
+          startTime: now,
+          eventId: createdEvent.id,
+          selectedProject,
+          searchQuery,
+          affectedEvents: []
+        });
         
       } catch (error) {
         console.error('Failed to create tracking event:', error);

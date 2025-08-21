@@ -36,8 +36,10 @@ export function WorkHourCreationModal({
     const workHour: Omit<WorkHour, 'id'> = {
       title: title.trim(),
       description: description.trim(),
-      start: new Date(startTime).toISOString(),
-      end: new Date(endTime).toISOString(),
+      startTime: new Date(startTime),
+      endTime: new Date(endTime),
+      duration: (new Date(endTime).getTime() - new Date(startTime).getTime()) / (1000 * 60 * 60),
+      type: 'work'
     };
 
     onSave(workHour);

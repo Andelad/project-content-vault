@@ -88,8 +88,10 @@ export const useWorkHours = (): UseWorkHoursReturn => {
           id: `settings-${dayName}-${slot.id}-${weekStartDate.getTime()}`, // Include week to make unique
           title: `Work Hours`,
           description: `Default ${dayName} work hours`,
-          start: startDateTime.toISOString(),
-          end: endDateTime.toISOString(),
+          startTime: startDateTime,
+          endTime: endDateTime,
+          duration: slot.duration,
+          type: 'work'
         });
       });
     });
@@ -148,11 +150,11 @@ export const useWorkHours = (): UseWorkHoursReturn => {
           }
         });
         
-        finalWorkHours.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+        finalWorkHours.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
         setWorkHours(finalWorkHours);
       } else {
         // For non-current weeks, just show settings work hours (no overrides)
-        settingsWorkHours.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+        settingsWorkHours.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
         setWorkHours(settingsWorkHours);
       }
     } catch (err) {
@@ -191,8 +193,10 @@ export const useWorkHours = (): UseWorkHoursReturn => {
           id: `custom-${nextId++}`,
           title: workHourData.title,
           description: workHourData.description || '',
-          start: workHourData.start,
-          end: workHourData.end,
+          startTime: new Date(workHourData.startTime),
+          endTime: new Date(workHourData.endTime),
+          duration: (new Date(workHourData.endTime).getTime() - new Date(workHourData.startTime).getTime()) / (1000 * 60 * 60),
+          type: workHourData.type || 'work'
         };
 
         weeklyOverrides.push(newWorkHour);
@@ -307,8 +311,9 @@ export const useWorkHours = (): UseWorkHoursReturn => {
             weeklyOverrides.push({
               id: `deleted-${id}`,
               title: '',
-              start: originalWorkHour.start,
-              end: originalWorkHour.end,
+              startTime: originalWorkHour.startTime,
+              endTime: originalWorkHour.endTime,
+              duration: originalWorkHour.duration,
               description: 'DELETED_OVERRIDE'
             });
           }
@@ -346,13 +351,13 @@ export const useWorkHours = (): UseWorkHoursReturn => {
         if (slot.id === slotId) {
           const result = { ...slot };
           
-          if (updates.start) {
-            const startDate = new Date(updates.start);
+          if (updates.startTime) {
+            const startDate = new Date(updates.startTime);
             result.startTime = `${startDate.getHours().toString().padStart(2, '0')}:${startDate.getMinutes().toString().padStart(2, '0')}`;
           }
           
-          if (updates.end) {
-            const endDate = new Date(updates.end);
+          if (updates.endTime) {
+            const endDate = new Date(updates.endTime);
             result.endTime = `${endDate.getHours().toString().padStart(2, '0')}:${endDate.getMinutes().toString().padStart(2, '0')}`;
           }
           
@@ -387,7 +392,7 @@ export const useWorkHours = (): UseWorkHoursReturn => {
 
   const addToSettingsPermanently = async (workHourData: Omit<WorkHour, 'id'>): Promise<WorkHour> => {
     // Determine which day this work hour is for
-    const startDate = new Date(workHourData.start);
+    const startDate = new Date(workHourData.startTime);
     const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
     const dayName = dayNames[startDate.getDay()];
     
@@ -396,10 +401,10 @@ export const useWorkHours = (): UseWorkHoursReturn => {
       id: Date.now().toString(),
       startTime: `${startDate.getHours().toString().padStart(2, '0')}:${startDate.getMinutes().toString().padStart(2, '0')}`,
       endTime: (() => {
-        const endDate = new Date(workHourData.end);
+        const endDate = new Date(workHourData.endTime);
         return `${endDate.getHours().toString().padStart(2, '0')}:${endDate.getMinutes().toString().padStart(2, '0')}`;
       })(),
-      duration: (new Date(workHourData.end).getTime() - new Date(workHourData.start).getTime()) / (1000 * 60 * 60)
+      duration: (new Date(workHourData.endTime).getTime() - new Date(workHourData.startTime).getTime()) / (1000 * 60 * 60)
     };
 
     // Update settings
@@ -418,8 +423,10 @@ export const useWorkHours = (): UseWorkHoursReturn => {
       id: `settings-${dayName}-${newSlot.id}`,
       title: workHourData.title,
       description: workHourData.description || '',
-      start: workHourData.start,
-      end: workHourData.end,
+      startTime: workHourData.startTime,
+      endTime: workHourData.endTime,
+      duration: workHourData.duration || newSlot.duration,
+      type: workHourData.type || 'work'
     };
   };
 

@@ -218,8 +218,8 @@ export function EnhancedCalendarView() {
       const workHourEvents: BigCalendarEvent[] = workHours.map(workHour => ({
         id: `work-${workHour.id}`,
         title: `Work: ${workHour.title}`,
-        start: new Date(workHour.start),
-        end: new Date(workHour.end),
+        start: workHour.startTime,
+        end: workHour.endTime,
         resource: workHour,
         isWorkHour: true
       }));
@@ -316,8 +316,8 @@ export function EnhancedCalendarView() {
       const workHourId = event.id.replace('work-', '');
       console.log('Dragging work hour:', { originalEventId: event.id, workHourId, start, end });
       updateWorkHour(workHourId, {
-        start: start.toISOString(),
-        end: end.toISOString(),
+        startTime: start,
+        endTime: end,
       });
     } else {
       // Update regular event
@@ -340,8 +340,8 @@ export function EnhancedCalendarView() {
       const workHourId = event.id.replace('work-', '');
       console.log('Resizing work hour:', { originalEventId: event.id, workHourId, start, end });
       updateWorkHour(workHourId, {
-        start: start.toISOString(),
-        end: end.toISOString(),
+        startTime: start,
+        endTime: end,
       });
     } else {
       // Update regular event
