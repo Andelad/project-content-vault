@@ -139,10 +139,10 @@ export function ProfileView() {
       return;
     }
 
-    if (passwordForm.newPassword.length < 6) {
+    if (passwordForm.newPassword.length < 8) {
       toast({
         title: "Error",
-        description: "Password must be at least 6 characters",
+        description: "Password must be at least 8 characters long",
         variant: "destructive"
       });
       return;
@@ -193,7 +193,6 @@ export function ProfileView() {
         .upsert({
           user_id: user?.id,
           display_name: profile.display_name,
-          email: user?.email,
           avatar_url: profile.avatar_url
         }, {
           onConflict: 'user_id'
@@ -290,7 +289,6 @@ export function ProfileView() {
         .upsert({
           user_id: user.id,
           display_name: profile?.display_name || user.email?.split('@')[0],
-          email: user.email,
           avatar_url: data.publicUrl
         }, {
           onConflict: 'user_id'
