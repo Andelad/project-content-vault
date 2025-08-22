@@ -342,6 +342,7 @@ export type Database = {
         Row: {
           client: string
           color: string
+          continuous: boolean | null
           created_at: string
           end_date: string
           estimated_hours: number
@@ -358,6 +359,7 @@ export type Database = {
         Insert: {
           client: string
           color: string
+          continuous?: boolean | null
           created_at?: string
           end_date: string
           estimated_hours: number
@@ -374,6 +376,7 @@ export type Database = {
         Update: {
           client?: string
           color?: string
+          continuous?: boolean | null
           created_at?: string
           end_date?: string
           estimated_hours?: number
