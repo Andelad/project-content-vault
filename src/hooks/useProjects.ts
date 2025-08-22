@@ -79,11 +79,14 @@ export function useProjects() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   
+  console.log('🚀 useProjects hook initialized');
+  
   // Debouncing for update success toasts
   const updateToastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastUpdatedProjectRef = useRef<string | null>(null);
 
   useEffect(() => {
+    console.log('🔥 useProjects useEffect triggered');
     fetchProjects();
     
     // Cleanup timeout on unmount
@@ -98,27 +101,46 @@ export function useProjects() {
     try {
       console.log('🔍 fetchProjects: Starting to fetch projects...');
       
+      // Test the connection first
+      const { data: testData, error: testError } = await supabase
+        .from('projects')
+        .select('count')
+        .limit(1);
+      console.log('🔍 Database connection test:', { testData, testError });
+      
       const { data: { user } } = await supabase.auth.getUser();
       console.log('🔍 fetchProjects: Current user:', user?.id);
       
       if (!user) {
-        console.log('No authenticated user found');
+        console.log('❌ No authenticated user found');
         setProjects([]);
         return;
       }
 
+      // Test user-specific query
       const { data, error } = await supabase
         .from('projects')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: true });
 
-      console.log('🔍 fetchProjects: Raw query result:', { data, error });
+      console.log('🔍 fetchProjects: Raw query result:', { data, error, userFiltered: true });
       
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Supabase query error:', error);
+        throw error;
+      }
+      
+      console.log('🔍 fetchProjects: Raw data count:', data?.length || 0);
       
       // Transform database projects to frontend format
-      const transformedProjects = (data || []).map(transformDatabaseProject);
+      const transformedProjects = (data || []).map((dbProject, index) => {
+        console.log(`🔍 Transforming project ${index}:`, dbProject);
+        const transformed = transformDatabaseProject(dbProject);
+        console.log(`🔍 Transformed project ${index}:`, transformed);
+        return transformed;
+      });
+      
       console.log('🔍 fetchProjects: Setting projects:', transformedProjects.length, 'projects');
       setProjects(transformedProjects);
     } catch (error) {
