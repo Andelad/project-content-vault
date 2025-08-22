@@ -10,6 +10,7 @@ import { Calendar } from './ui/calendar';
 import { Input } from './ui/input';
 import { ChevronLeft, ChevronRight, MapPin, CalendarSearch, Folders, Hash, Circle } from 'lucide-react';
 import { useAppDataOnly, useAppActionsOnly, useApp } from '../contexts/AppContext';
+import { useProjectContext } from '../contexts/ProjectContext';
 import { useTimelineData } from '../hooks/useTimelineData';
 import { useDynamicViewportDays } from '../hooks/useDynamicViewportDays';
 import { calculateDaysDelta, createSmoothAnimation, TIMELINE_CONSTANTS, debounce, throttle } from '@/lib/dragUtils';
@@ -55,6 +56,9 @@ export function TimelineView() {
     updateMilestone,
     setCreatingNewProject 
   } = useApp();
+
+  // Import project context for milestone utilities
+  const { getMilestonesForProject } = useProjectContext();
   
   // Timeline state management
   const [viewportStart, setViewportStart] = useState(() => {
@@ -448,8 +452,37 @@ export function TimelineView() {
             if (newStartDate <= oneDayBefore) {
               console.log('🔄 Updating project start date:', { projectId, newStartDate: newStartDate.toISOString() });
               
-              // Update project immediately without complex milestone logic
+              // Update project
               updateProject(projectId, { startDate: newStartDate });
+              
+              // Update milestones to maintain their relative distance from start date
+              const projectMilestones = getMilestonesForProject(projectId);
+              const originalStartDate = new Date(initialDragState.originalStartDate);
+              
+              projectMilestones.forEach(milestone => {
+                const originalMilestoneDate = new Date(milestone.due_date);
+                const daysFromOriginalStart = Math.floor((originalMilestoneDate.getTime() - originalStartDate.getTime()) / (1000 * 60 * 60 * 24));
+                
+                const newMilestoneDate = new Date(newStartDate);
+                newMilestoneDate.setDate(newStartDate.getDate() + daysFromOriginalStart);
+                
+                // Ensure milestone is at least one day after start date and at least one day before end date
+                const minDate = new Date(newStartDate);
+                minDate.setDate(newStartDate.getDate() + 1);
+                const maxDate = new Date(currentProject.endDate);
+                maxDate.setDate(maxDate.getDate() - 1);
+                
+                if (newMilestoneDate < minDate) {
+                  newMilestoneDate.setTime(minDate.getTime());
+                } else if (newMilestoneDate > maxDate) {
+                  newMilestoneDate.setTime(maxDate.getTime());
+                }
+                
+                updateMilestone(milestone.id, { 
+                  dueDate: new Date(newMilestoneDate.toISOString().split('T')[0] + 'T00:00:00+00:00')
+                });
+              });
+              
               initialDragState.lastDaysDelta = daysDelta;
             } else {
               console.log('❌ Start date would be after end date, skipping update');
@@ -469,8 +502,24 @@ export function TimelineView() {
             if (newEndDate >= oneDayAfter) {
               console.log('🔄 Updating project end date:', { projectId, newEndDate: newEndDate.toISOString() });
               
-              // Update project immediately without complex milestone logic
+              // Update project
               updateProject(projectId, { endDate: newEndDate });
+              
+              // Update milestones that would be at or after the new end date
+              const projectMilestones = getMilestonesForProject(projectId);
+              const maxMilestoneDate = new Date(newEndDate);
+              maxMilestoneDate.setDate(newEndDate.getDate() - 1); // One day before end date
+              
+              projectMilestones.forEach(milestone => {
+                const milestoneDate = new Date(milestone.due_date);
+                if (milestoneDate >= newEndDate) {
+                  // Move milestone to one day before the new end date
+                  updateMilestone(milestone.id, { 
+                    dueDate: new Date(maxMilestoneDate.toISOString().split('T')[0] + 'T00:00:00+00:00')
+                  });
+                }
+              });
+              
               initialDragState.lastDaysDelta = daysDelta;
             } else {
               console.log('❌ End date would be before start date, skipping update');
@@ -487,10 +536,23 @@ export function TimelineView() {
             
             console.log('🔄 Moving project:', { projectId, newStartDate: newStartDate.toISOString(), newEndDate: newEndDate.toISOString() });
             
-            // Update project immediately without complex overlap checking
+            // Update project
             updateProject(projectId, { 
               startDate: newStartDate,
               endDate: newEndDate 
+            });
+            
+            // Move all milestones by the same delta to maintain their relative positions
+            const projectMilestones = getMilestonesForProject(projectId);
+            
+            projectMilestones.forEach(milestone => {
+              const originalMilestoneDate = new Date(milestone.due_date);
+              const newMilestoneDate = new Date(originalMilestoneDate);
+              newMilestoneDate.setDate(originalMilestoneDate.getDate() + daysDelta);
+              
+              updateMilestone(milestone.id, { 
+                dueDate: new Date(newMilestoneDate.toISOString().split('T')[0] + 'T00:00:00+00:00')
+              });
             });
             
             initialDragState.lastDaysDelta = daysDelta;
@@ -512,7 +574,7 @@ export function TimelineView() {
     
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  }, [projects, dates, updateProject, checkAutoScroll, stopAutoScroll, timelineMode, milestones, updateMilestone]);
+  }, [projects, dates, updateProject, checkAutoScroll, stopAutoScroll, timelineMode, milestones, updateMilestone, getMilestonesForProject]);
 
   // COMPLETELY REWRITTEN HOLIDAY DRAG HANDLER - SIMPLE AND FAST
   const handleHolidayMouseDown = useCallback((e: React.MouseEvent, holidayId: string, action: string) => {
