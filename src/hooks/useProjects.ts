@@ -192,8 +192,11 @@ export function useProjects() {
 
   const updateProject = async (id: string, updates: any) => {
     try {
+      console.log('🔄 updateProject called with:', { id, updates });
+      
       // Transform frontend data to database format
       const dbUpdates = transformToDatabase(updates);
+      console.log('🔄 Transformed updates for database:', dbUpdates);
 
       const { data, error } = await supabase
         .from('projects')
@@ -202,10 +205,14 @@ export function useProjects() {
         .select()
         .single();
 
+      console.log('🔄 Supabase update result:', { data, error });
+
       if (error) throw error;
       
       // Transform the returned data to frontend format
       const transformedProject = transformDatabaseProject(data);
+      console.log('🔄 Transformed project after update:', transformedProject);
+      
       setProjects(prev => 
         prev.map(p => p.id === id ? transformedProject : p)
       );
@@ -215,7 +222,7 @@ export function useProjects() {
       });
       return transformedProject;
     } catch (error) {
-      console.error('Error updating project:', error);
+      console.error('❌ Error updating project:', error);
       toast({
         title: "Error",
         description: "Failed to update project",
@@ -223,7 +230,9 @@ export function useProjects() {
       });
       throw error;
     }
-  };  const deleteProject = async (id: string) => {
+  };
+
+  const deleteProject = async (id: string) => {
     try {
       const { error } = await supabase
         .from('projects')
