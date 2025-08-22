@@ -3,9 +3,76 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
 
-type Project = Database['public']['Tables']['projects']['Row'];
+type DatabaseProject = Database['public']['Tables']['projects']['Row'];
 type ProjectInsert = Database['public']['Tables']['projects']['Insert'];
 type ProjectUpdate = Database['public']['Tables']['projects']['Update'];
+
+// Frontend Project interface with Date objects
+interface Project {
+  id: string;
+  name: string;
+  client: string;
+  startDate: Date;
+  endDate: Date;
+  estimatedHours: number;
+  color: string;
+  groupId: string;
+  rowId: string;
+  notes?: string;
+  icon?: string;
+  continuous?: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  userId: string;
+}
+
+// Transform database project to frontend project
+function transformDatabaseProject(dbProject: DatabaseProject): Project {
+  return {
+    id: dbProject.id,
+    name: dbProject.name,
+    client: dbProject.client,
+    startDate: new Date(dbProject.start_date),
+    endDate: new Date(dbProject.end_date),
+    estimatedHours: dbProject.estimated_hours,
+    color: dbProject.color,
+    groupId: dbProject.group_id,
+    rowId: dbProject.row_id,
+    notes: dbProject.notes || undefined,
+    icon: dbProject.icon || undefined,
+    continuous: dbProject.continuous ?? false,
+    createdAt: new Date(dbProject.created_at),
+    updatedAt: new Date(dbProject.updated_at),
+    userId: dbProject.user_id,
+  };
+}
+
+// Transform frontend project data to database format
+function transformToDatabase(projectData: any): any {
+  const dbData: any = {};
+  
+  if (projectData.name !== undefined) dbData.name = projectData.name;
+  if (projectData.client !== undefined) dbData.client = projectData.client;
+  if (projectData.startDate !== undefined) {
+    dbData.start_date = projectData.startDate instanceof Date 
+      ? projectData.startDate.toISOString().split('T')[0] 
+      : projectData.startDate;
+  }
+  if (projectData.endDate !== undefined) {
+    dbData.end_date = projectData.endDate instanceof Date 
+      ? projectData.endDate.toISOString().split('T')[0] 
+      : projectData.endDate;
+  }
+  if (projectData.estimatedHours !== undefined) dbData.estimated_hours = projectData.estimatedHours;
+  if (projectData.color !== undefined) dbData.color = projectData.color;
+  if (projectData.groupId !== undefined) dbData.group_id = projectData.groupId;
+  if (projectData.rowId !== undefined) dbData.row_id = projectData.rowId;
+  if (projectData.notes !== undefined) dbData.notes = projectData.notes;
+  if (projectData.icon !== undefined) dbData.icon = projectData.icon;
+  if (projectData.continuous !== undefined) dbData.continuous = projectData.continuous;
+  
+  return dbData;
+}
 
 export function useProjects() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -34,17 +101,26 @@ export function useProjects() {
       const { data: { user } } = await supabase.auth.getUser();
       console.log('🔍 fetchProjects: Current user:', user?.id);
       
+      if (!user) {
+        console.log('No authenticated user found');
+        setProjects([]);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('projects')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: true });
 
       console.log('🔍 fetchProjects: Raw query result:', { data, error });
       
       if (error) throw error;
       
-      console.log('🔍 fetchProjects: Setting projects:', data?.length || 0, 'projects');
-      setProjects(data || []);
+      // Transform database projects to frontend format
+      const transformedProjects = (data || []).map(transformDatabaseProject);
+      console.log('🔍 fetchProjects: Setting projects:', transformedProjects.length, 'projects');
+      setProjects(transformedProjects);
     } catch (error) {
       console.error('❌ Error fetching projects:', error);
       toast({
@@ -57,24 +133,30 @@ export function useProjects() {
     }
   };
 
-  const addProject = async (projectData: Omit<ProjectInsert, 'user_id'>) => {
+  const addProject = async (projectData: any) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
+      // Transform frontend data to database format
+      const dbData = transformToDatabase(projectData);
+
       const { data, error } = await supabase
         .from('projects')
-        .insert([{ ...projectData, user_id: user.id }])
+        .insert([{ ...dbData, user_id: user.id } as any])
         .select()
         .single();
 
       if (error) throw error;
-      setProjects(prev => [...prev, data]);
+      
+      // Transform the returned data to frontend format
+      const transformedProject = transformDatabaseProject(data);
+      setProjects(prev => [...prev, transformedProject]);
       toast({
         title: "Success",
         description: "Project created successfully",
       });
-      return data;
+      return transformedProject;
     } catch (error) {
       console.error('Error adding project:', error);
       toast({
@@ -86,43 +168,32 @@ export function useProjects() {
     }
   };
 
-  const updateProject = async (id: string, updates: ProjectUpdate) => {
+  const updateProject = async (id: string, updates: any) => {
     try {
+      // Transform frontend data to database format
+      const dbUpdates = transformToDatabase(updates);
+
       const { data, error } = await supabase
         .from('projects')
-        .update(updates)
+        .update(dbUpdates)
         .eq('id', id)
         .select()
         .single();
 
       if (error) throw error;
-      setProjects(prev => prev.map(project => project.id === id ? data : project));
       
-      // Debounce success toast to prevent spam during drag operations
-      lastUpdatedProjectRef.current = id;
-      if (updateToastTimeoutRef.current) {
-        clearTimeout(updateToastTimeoutRef.current);
-      }
-      
-      updateToastTimeoutRef.current = setTimeout(() => {
-        // Only show toast if this was the last project updated
-        if (lastUpdatedProjectRef.current === id) {
-          toast({
-            title: "Success",
-            description: "Project updated successfully",
-          });
-        }
-      }, 500); // 500ms debounce delay
-      
-      return data;
+      // Transform the returned data to frontend format
+      const transformedProject = transformDatabaseProject(data);
+      setProjects(prev => 
+        prev.map(p => p.id === id ? transformedProject : p)
+      );
+      toast({
+        title: "Success",
+        description: "Project updated successfully",
+      });
+      return transformedProject;
     } catch (error) {
       console.error('Error updating project:', error);
-      // Clear any pending success toast when there's an error
-      if (updateToastTimeoutRef.current) {
-        clearTimeout(updateToastTimeoutRef.current);
-        updateToastTimeoutRef.current = null;
-      }
-      // Show error toast immediately
       toast({
         title: "Error",
         description: "Failed to update project",
@@ -130,9 +201,7 @@ export function useProjects() {
       });
       throw error;
     }
-  };
-
-  const deleteProject = async (id: string) => {
+  };  const deleteProject = async (id: string) => {
     try {
       const { error } = await supabase
         .from('projects')
@@ -158,12 +227,12 @@ export function useProjects() {
 
   const reorderProjects = async (groupId: string, fromIndex: number, toIndex: number) => {
     // For now, just update local state - can implement proper ordering later
-    const groupProjects = projects.filter(p => p.group_id === groupId);
+    const groupProjects = projects.filter(p => p.groupId === groupId);
     const [reorderedProject] = groupProjects.splice(fromIndex, 1);
     groupProjects.splice(toIndex, 0, reorderedProject);
     
     setProjects(prev => [
-      ...prev.filter(p => p.group_id !== groupId),
+      ...prev.filter(p => p.groupId !== groupId),
       ...groupProjects
     ]);
   };

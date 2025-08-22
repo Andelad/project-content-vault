@@ -125,7 +125,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
         endDate: new Date(project.endDate),
         color: project.color,
         icon: project.icon,
-        continuous: project.continuous || false
+        continuous: project.continuous ?? false // Handle null values from database
       };
       
       setLocalValues(projectValues);
@@ -489,6 +489,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
     
     // Auto-save for existing projects
     if (!isCreating && projectId && projectId !== '') {
+      // Ensure we pass the value as boolean (not null)
       updateProject(projectId, { continuous: newContinuous });
     }
   };
