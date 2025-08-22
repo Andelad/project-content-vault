@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Play, Pause, Search } from 'lucide-react';
+import { Play, Square, Search } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+import { Card, CardContent } from './ui/card';
 import { useAppDataOnly, useAppActionsOnly } from '../contexts/AppContext';
 import { CalendarEvent } from '../types';
 
@@ -433,86 +434,90 @@ export function TimeTracker({ className }: TimeTrackerProps) {
   }, []);
 
   return (
-    <div className={`flex items-center gap-3 ${className}`}>
-      {/* Search Input with Dropdown */}
-      <div className="relative" ref={dropdownRef}>
-        <Input
-          placeholder="What are you working on?"
-          value={searchQuery}
-          onChange={(e) => {
-            setSearchQuery(e.target.value);
-            setShowSearchDropdown(true);
-          }}
-          onFocus={() => setShowSearchDropdown(true)}
-          className="w-64 h-10 bg-background border-border focus:border-primary cursor-text"
-          disabled={isTracking}
-        />
-        <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+    <Card className={`bg-transparent shadow-none ${className}`}>
+      <CardContent className="p-3">
+        <div className="flex items-center gap-3">
+          {/* Search Input with Dropdown */}
+          <div className="relative" ref={dropdownRef}>
+            <Input
+              placeholder="What are you working on?"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setShowSearchDropdown(true);
+              }}
+              onFocus={() => setShowSearchDropdown(true)}
+              className="w-64 h-8 bg-background border-border focus:border-primary cursor-text"
+              disabled={isTracking}
+            />
+            <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         
-        {/* Dropdown */}
-        {showSearchDropdown && (
-          <div className="absolute top-full left-0 w-64 mt-1 bg-popover border border-border rounded-md shadow-lg z-50">
-            <div className="max-h-64 overflow-y-auto">
-              {searchResults.length > 0 ? (
-                searchResults.map((item) => (
-                  <button
-                    key={`${item.type}-${item.id}`}
-                    className="w-full px-3 py-2 text-left hover:bg-accent/50 border-b border-border/30 last:border-b-0"
-                    onClick={() => handleSelectItem(item)}
-                  >
-                    <div className="flex items-center gap-2">
-                      {item.type === 'project' && (
-                        <div 
-                          className="w-3 h-3 rounded-full flex-shrink-0" 
-                          style={{ backgroundColor: projects.find(p => p.id === item.id)?.color || '#8B5CF6' }}
-                        />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium truncate">
-                          {item.type === 'project' && item.client 
-                            ? `${item.name} • ${item.client}`
-                            : item.name
-                          }
+            {/* Dropdown */}
+            {showSearchDropdown && (
+              <div className="absolute top-full left-0 w-64 mt-1 bg-popover border border-border rounded-md shadow-lg z-50">
+                <div className="max-h-64 overflow-y-auto">
+                  {searchResults.length > 0 ? (
+                    searchResults.map((item) => (
+                      <button
+                        key={`${item.type}-${item.id}`}
+                        className="w-full px-3 py-2 text-left hover:bg-accent/50 border-b border-border/30 last:border-b-0"
+                        onClick={() => handleSelectItem(item)}
+                      >
+                        <div className="flex items-center gap-2">
+                          {item.type === 'project' && (
+                            <div 
+                              className="w-3 h-3 rounded-full flex-shrink-0" 
+                              style={{ backgroundColor: projects.find(p => p.id === item.id)?.color || '#8B5CF6' }}
+                            />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium truncate">
+                              {item.type === 'project' && item.client 
+                                ? `${item.name} • ${item.client}`
+                                : item.name
+                              }
+                            </div>
+                          </div>
                         </div>
-                      </div>
+                      </button>
+                    ))
+                  ) : searchQuery.trim() ? (
+                    <div className="px-3 py-4 text-sm text-muted-foreground text-center">
+                      No projects or clients found
                     </div>
-                  </button>
-                ))
-              ) : searchQuery.trim() ? (
-                <div className="px-3 py-4 text-sm text-muted-foreground text-center">
-                  No projects or clients found
+                  ) : (
+                    <div className="px-3 py-4 text-sm text-muted-foreground text-center">
+                      Start typing to search projects and clients
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="px-3 py-4 text-sm text-muted-foreground text-center">
-                  Start typing to search projects and clients
-                </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
-        )}
-      </div>
 
-      {/* Timer Display */}
-      <div className="text-lg font-semibold tabular-nums text-foreground min-w-[5.5rem] text-center">
-        {formatTime(seconds)}
-      </div>
+          {/* Timer Display */}
+          <div className="text-lg font-semibold tabular-nums text-[#595956] min-w-[5.5rem] text-center">
+            {formatTime(seconds)}
+          </div>
 
-      {/* Play/Pause Button */}
-      <Button
-        onClick={handleToggleTracking}
-        size="sm"
-        className={`w-10 h-10 rounded-full p-0 transition-colors ${
-          isTracking 
-            ? 'bg-red-500 hover:bg-red-600 text-white' 
-            : 'bg-primary hover:bg-primary/90 text-primary-foreground'
-        }`}
-      >
-        {isTracking ? (
-          <Pause className="h-4 w-4" />
-        ) : (
-          <Play className="h-4 w-4 ml-0.5" />
-        )}
-      </Button>
-    </div>
+          {/* Play/Stop Button */}
+          <Button
+            onClick={handleToggleTracking}
+            size="sm"
+            className={`w-8 h-8 rounded-full p-0 transition-colors ${
+              isTracking 
+                ? 'bg-red-500 hover:bg-red-600 text-white' 
+                : 'bg-primary hover:bg-primary/90 text-primary-foreground'
+            }`}
+          >
+            {isTracking ? (
+              <Square className="h-3 w-3" fill="currentColor" />
+            ) : (
+              <Play className="h-3 w-3 ml-0.5" />
+            )}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

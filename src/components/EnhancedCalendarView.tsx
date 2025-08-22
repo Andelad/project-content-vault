@@ -424,7 +424,7 @@ export function EnhancedCalendarView() {
       {/* Calendar Header */}
       <div className="h-20 border-b border-[#e2e2e2] flex items-center justify-between px-8">
         <div className="flex items-center space-x-4">
-          <h1 className="text-lg font-semibold text-[#595956]">Calendar</h1>
+          <h1 className="text-lg font-semibold text-[#595956]">Planner</h1>
           
           {/* Work Hours Toggle */}
           <label className="flex items-center space-x-2 text-sm">

@@ -346,7 +346,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
                     </button>
                   </TooltipTrigger>
                   <TooltipContent side="top">
-                    <p className="text-sm">Go to Calendar</p>
+                    <p className="text-sm">Go to Planner</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>

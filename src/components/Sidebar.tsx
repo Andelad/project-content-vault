@@ -60,7 +60,7 @@ export function Sidebar() {
     },
     {
       id: 'calendar' as const,
-      label: 'Calendar',
+      label: 'Planner',
       icon: Calendar,
     },
     {

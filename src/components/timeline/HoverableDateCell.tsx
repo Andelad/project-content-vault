@@ -15,7 +15,7 @@ export function HoverableDateCell({ date, mode, children, width }: HoverableDate
   const { setCurrentView, setCurrentDate } = useApp();
 
   const handleClick = () => {
-    // Navigate to calendar week view at the specified date
+    // Navigate to planner week view at the specified date
     setCurrentDate(new Date(date));
     setCurrentView('calendar');
   };
@@ -45,7 +45,7 @@ export function HoverableDateCell({ date, mode, children, width }: HoverableDate
           </div>
         </TooltipTrigger>
         <TooltipContent>
-          <p>Go to calendar</p>
+          <p>Go to Planner</p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
