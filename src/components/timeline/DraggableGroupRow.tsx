@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { useDrag, useDrop } from 'react-dnd';
-import { GripVertical, MoreHorizontal } from 'lucide-react';
+import { GripVertical, MoreHorizontal, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '../ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuItem } from '../ui/dropdown-menu';
 import { useApp } from '../../contexts/AppContext';
@@ -14,8 +14,9 @@ interface DraggableGroupRowProps {
 }
 
 export function DraggableGroupRow({ group, index, children }: DraggableGroupRowProps) {
-  const { reorderGroups, deleteGroup } = useApp();
+  const { reorderGroups, deleteGroup, collapsedGroups, toggleGroupCollapse } = useApp();
   const ref = useRef<HTMLDivElement>(null);
+  const isCollapsed = collapsedGroups.has(group.id);
   
   const [{ isDragging }, drag] = useDrag({
     type: ItemTypes.GROUP,
@@ -85,6 +86,17 @@ export function DraggableGroupRow({ group, index, children }: DraggableGroupRowP
         <div className="opacity-0 group-hover:opacity-100 cursor-grab mr-2 text-gray-400">
           <GripVertical className="w-3 h-3" />
         </div>
+        {/* Chevron for expand/collapse */}
+        <button
+          onClick={() => toggleGroupCollapse(group.id)}
+          className="mr-2 p-0.5 hover:bg-gray-200 rounded transition-colors"
+        >
+          {isCollapsed ? (
+            <ChevronRight className="w-3 h-3 text-gray-500" />
+          ) : (
+            <ChevronDown className="w-3 h-3 text-gray-500" />
+          )}
+        </button>
         <div 
           className="w-2 h-2 rounded-full mr-3 flex-shrink-0" 
           style={{ backgroundColor: group.color }} 
@@ -107,8 +119,8 @@ export function DraggableGroupRow({ group, index, children }: DraggableGroupRowP
         </DropdownMenu>
       </div>
       
-      {/* Group Content */}
-      {children}
+      {/* Group Content - conditionally rendered based on collapse state */}
+      {!isCollapsed && children}
     </div>
   );
 }

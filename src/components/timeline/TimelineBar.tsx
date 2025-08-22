@@ -21,6 +21,7 @@ interface TimelineBarProps {
   isMultiProjectRow?: boolean;
   collapsed: boolean;
   onMilestoneDrag?: (milestoneId: string, newDate: Date) => void;
+  onMilestoneDragEnd?: () => void;
 }
 
 // Helper function to get hover color
@@ -58,7 +59,8 @@ export const TimelineBar = memo(function TimelineBar({
   mode,
   isMultiProjectRow,
   collapsed,
-  onMilestoneDrag
+  onMilestoneDrag,
+  onMilestoneDragEnd
 }: TimelineBarProps) {
   const { settings, events, holidays, milestones } = useAppDataOnly();
   
@@ -866,6 +868,7 @@ export const TimelineBar = memo(function TimelineBar({
                 mode={mode}
                 colorScheme={colorScheme}
                 onMilestoneDrag={onMilestoneDrag}
+                onMilestoneDragEnd={onMilestoneDragEnd}
                 isDragging={isDragging}
                 dragState={dragState}
               />

@@ -46,6 +46,7 @@ export function TimelineView() {
     holidays,
     timelineMode,
     milestones,
+    collapsedGroups,
     setTimelineMode,
     setCurrentDate, 
     updateProject, 
@@ -53,7 +54,9 @@ export function TimelineView() {
     addProject, 
     updateHoliday,
     updateMilestone,
-    setCreatingNewProject 
+    setCreatingNewProject,
+    showProjectSuccessToast,
+    showMilestoneSuccessToast
   } = useApp();
   
   // Timeline state management
@@ -448,8 +451,8 @@ export function TimelineView() {
             if (newStartDate <= oneDayBefore) {
               console.log('🔄 Updating project start date:', { projectId, newStartDate: newStartDate.toISOString() });
               
-              // Update project
-              updateProject(projectId, { startDate: newStartDate });
+              // Update project silently during drag
+              updateProject(projectId, { startDate: newStartDate }, { silent: true });
               
               // Update milestones to maintain their relative distance from start date
               const projectMilestones = milestones.filter(m => m.projectId === projectId);
@@ -476,7 +479,7 @@ export function TimelineView() {
                 
                 updateMilestone(milestone.id, { 
                   dueDate: new Date(newMilestoneDate.toISOString().split('T')[0] + 'T00:00:00+00:00')
-                });
+                }, { silent: true });
               });
               
               initialDragState.lastDaysDelta = daysDelta;
@@ -498,8 +501,8 @@ export function TimelineView() {
             if (newEndDate >= oneDayAfter) {
               console.log('🔄 Updating project end date:', { projectId, newEndDate: newEndDate.toISOString() });
               
-              // Update project
-              updateProject(projectId, { endDate: newEndDate });
+              // Update project silently during drag
+              updateProject(projectId, { endDate: newEndDate }, { silent: true });
               
               // Update milestones that would be at or after the new end date
               const projectMilestones = milestones.filter(m => m.projectId === projectId);
@@ -509,10 +512,10 @@ export function TimelineView() {
               projectMilestones.forEach(milestone => {
                 const milestoneDate = new Date(milestone.dueDate);
                 if (milestoneDate >= newEndDate) {
-                  // Move milestone to one day before the new end date
+                  // Move milestone to one day before the new end date silently during drag
                   updateMilestone(milestone.id, { 
                     dueDate: new Date(maxMilestoneDate.toISOString().split('T')[0] + 'T00:00:00+00:00')
-                  });
+                  }, { silent: true });
                 }
               });
               
@@ -532,11 +535,11 @@ export function TimelineView() {
             
             console.log('🔄 Moving project:', { projectId, newStartDate: newStartDate.toISOString(), newEndDate: newEndDate.toISOString() });
             
-            // Update project
+            // Update project silently during drag
             updateProject(projectId, { 
               startDate: newStartDate,
               endDate: newEndDate 
-            });
+            }, { silent: true });
             
             // Move all milestones by the same delta to maintain their relative positions
             const projectMilestones = milestones.filter(m => m.projectId === projectId);
@@ -548,7 +551,7 @@ export function TimelineView() {
               
               updateMilestone(milestone.id, { 
                 dueDate: new Date(newMilestoneDate.toISOString().split('T')[0] + 'T00:00:00+00:00')
-              });
+              }, { silent: true });
             });
             
             initialDragState.lastDaysDelta = daysDelta;
@@ -564,13 +567,17 @@ export function TimelineView() {
       setIsDragging(false);
       setDragState(null);
       stopAutoScroll(); // Fix infinite scrolling
+      
+      // Show success toast when drag operation completes
+      showProjectSuccessToast("Project updated successfully");
+      
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
     
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  }, [projects, dates, updateProject, checkAutoScroll, stopAutoScroll, timelineMode, milestones, updateMilestone]);
+  }, [projects, dates, updateProject, checkAutoScroll, stopAutoScroll, timelineMode, milestones, updateMilestone, showProjectSuccessToast]);
 
   // COMPLETELY REWRITTEN HOLIDAY DRAG HANDLER - SIMPLE AND FAST
   const handleHolidayMouseDown = useCallback((e: React.MouseEvent, holidayId: string, action: string) => {
@@ -695,8 +702,13 @@ export function TimelineView() {
 
   // Handle milestone drag updates
   const handleMilestoneDrag = useCallback((milestoneId: string, newDate: Date) => {
-    updateMilestone(milestoneId, { dueDate: newDate });
+    updateMilestone(milestoneId, { dueDate: newDate }, { silent: true });
   }, [updateMilestone]);
+
+  // Handle milestone drag end
+  const handleMilestoneDragEnd = useCallback(() => {
+    showMilestoneSuccessToast("Milestone updated successfully");
+  }, [showMilestoneSuccessToast]);
 
   return (
     <DndProvider backend={HTML5Backend}>
@@ -972,6 +984,9 @@ export function TimelineView() {
                             console.warn(`Found ${orphanedProjects.length} orphaned projects in group ${group.id}:`, orphanedProjects.map(p => ({ id: p.id, name: p.name, rowId: p.rowId })));
                           }
                           
+                          // Check if group is collapsed
+                          const isGroupCollapsed = collapsedGroups.has(group.id);
+                          
                           return (
                             <div key={group.id}>
                               {/* Group Header Row - Visual separator with optional group title when collapsed */}
@@ -988,8 +1003,8 @@ export function TimelineView() {
                                 )}
                               </div>
                               
-                              {/* Rows in this group */}
-                              {groupRows.map((row: any) => {
+                              {/* Rows in this group - only render if group is not collapsed */}
+                              {!isGroupCollapsed && groupRows.map((row: any) => {
                                 // STRICT FILTERING: Only include projects that match BOTH rowId AND groupId
                                 const rowProjects = projects.filter(project => 
                                   project.rowId === row.id && 
@@ -1031,6 +1046,7 @@ export function TimelineView() {
                                               isMultiProjectRow={true} // Add flag for multi-project rows
                                               collapsed={collapsed}
                                               onMilestoneDrag={handleMilestoneDrag}
+                                              onMilestoneDragEnd={handleMilestoneDragEnd}
                                             />
                                           </div>
                                         );
@@ -1050,8 +1066,8 @@ export function TimelineView() {
                                 );
                               })}
                               
-                              {/* Add Row spacer */}
-                              <div className="h-9 border-b border-gray-100" />
+                              {/* Add Row spacer - only render if group is not collapsed */}
+                              {!isGroupCollapsed && <div className="h-9 border-b border-gray-100" />}
                             </div>
                           );
                         })}

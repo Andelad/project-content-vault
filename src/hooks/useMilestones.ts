@@ -116,7 +116,7 @@ export function useMilestones(projectId?: string) {
     }
   };
 
-  const updateMilestone = async (id: string, updates: MilestoneUpdate) => {
+  const updateMilestone = async (id: string, updates: MilestoneUpdate, options: { silent?: boolean } = {}) => {
     try {
       const { data, error } = await supabase
         .from('milestones')
@@ -130,21 +130,25 @@ export function useMilestones(projectId?: string) {
         milestone.id === id ? data : milestone
       ).sort((a, b) => a.order_index - b.order_index));
       
-      // Debounce success toast
-      if (updateToastTimeoutRef.current) {
-        clearTimeout(updateToastTimeoutRef.current);
+      // Only show toast if not in silent mode
+      if (!options.silent) {
+        // Debounce success toast
+        if (updateToastTimeoutRef.current) {
+          clearTimeout(updateToastTimeoutRef.current);
+        }
+        
+        updateToastTimeoutRef.current = setTimeout(() => {
+          toast({
+            title: "Success",
+            description: "Milestone updated successfully",
+          });
+        }, 500);
       }
-      
-      updateToastTimeoutRef.current = setTimeout(() => {
-        toast({
-          title: "Success",
-          description: "Milestone updated successfully",
-        });
-      }, 500);
       
       return data;
     } catch (error) {
       console.error('Error updating milestone:', error);
+      // Always show error toasts immediately
       toast({
         title: "Error",
         description: "Failed to update milestone",
@@ -152,6 +156,13 @@ export function useMilestones(projectId?: string) {
       });
       throw error;
     }
+  };
+
+  const showSuccessToast = (message: string = "Milestone updated successfully") => {
+    toast({
+      title: "Success",
+      description: message,
+    });
   };
 
   const deleteMilestone = async (id: string) => {
@@ -229,6 +240,7 @@ export function useMilestones(projectId?: string) {
     updateMilestone,
     deleteMilestone,
     reorderMilestones,
+    showSuccessToast,
     refetch: projectId ? () => fetchMilestones(projectId) : fetchAllMilestones
   };
 }

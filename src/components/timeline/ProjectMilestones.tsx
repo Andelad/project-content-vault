@@ -19,6 +19,7 @@ interface ProjectMilestonesProps {
     hover: string;
   };
   onMilestoneDrag?: (milestoneId: string, newDate: Date) => void;
+  onMilestoneDragEnd?: () => void;
   isDragging?: boolean;
   dragState?: any;
 }
@@ -31,6 +32,7 @@ export const ProjectMilestones = memo(function ProjectMilestones({
   mode,
   colorScheme,
   onMilestoneDrag,
+  onMilestoneDragEnd,
   isDragging,
   dragState
 }: ProjectMilestonesProps) {
@@ -144,6 +146,12 @@ export const ProjectMilestones = memo(function ProjectMilestones({
 
     const handleMouseUp = () => {
       setDraggingMilestone(null);
+      
+      // Call the drag end callback to show success toast
+      if (onMilestoneDragEnd) {
+        onMilestoneDragEnd();
+      }
+      
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };

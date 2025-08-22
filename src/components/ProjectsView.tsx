@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { useApp } from '../contexts/AppContext';
-import { Plus, Edit, Trash2, Calendar, Clock, Users, FolderPlus, Grid3X3, List, GripVertical } from 'lucide-react';
+import { Plus, Edit, Trash2, Calendar, Clock, Users, FolderPlus, Grid3X3, List, GripVertical, Archive, PlayCircle, Clock4, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
@@ -13,8 +13,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
-import { Group, Project } from '../types';
+import { Group, Project, ProjectStatus } from '../types';
 import { AppPageLayout } from './layouts/AppPageLayout';
+import { getEffectiveProjectStatus, organizeProjectsByStatus } from '../lib/projectUtils';
 
 type ViewType = 'grid' | 'list';
 
@@ -148,6 +149,14 @@ export function ProjectsView() {
   const [projectEndDate, setProjectEndDate] = useState('');
   const [projectEstimatedHours, setProjectEstimatedHours] = useState('');
   const [projectColor, setProjectColor] = useState('#6366f1');
+
+  // Collapsible state for sections and groups
+  const [collapsedSections, setCollapsedSections] = useState<{[key: string]: boolean}>({
+    current: true,
+    future: true,
+    archived: true
+  });
+  const [collapsedGroups, setCollapsedGroups] = useState<{[key: string]: boolean}>({});
 
   const defaultColors = [
     '#6366f1', '#8b5cf6', '#ec4899', '#ef4444', '#f97316',
@@ -292,6 +301,39 @@ export function ProjectsView() {
     return projects.filter(project => project.groupId === groupId);
   };
 
+  const getProjectsByGroupAndStatus = (groupId: string, status: ProjectStatus) => {
+    return projects.filter(project => project.groupId === groupId && getEffectiveProjectStatus(project) === status);
+  };
+
+  const getProjectCountByStatus = (status: ProjectStatus) => {
+    return projects.filter(project => getEffectiveProjectStatus(project) === status).length;
+  };
+
+  // Collapsible toggle functions
+  const toggleSection = (section: string) => {
+    setCollapsedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+
+  const toggleGroup = (groupId: string, section: string) => {
+    const key = `${section}-${groupId}`;
+    setCollapsedGroups(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
+
+  const isSectionCollapsed = (section: string) => {
+    return collapsedSections[section] || false;
+  };
+
+  const isGroupCollapsed = (groupId: string, section: string) => {
+    const key = `${section}-${groupId}`;
+    return collapsedGroups[key] !== false; // Default to collapsed (true) unless explicitly set to false
+  };
+
   // Handle drag and drop
   const handleMoveGroup = (fromIndex: number, toIndex: number) => {
     reorderGroups(fromIndex, toIndex);
@@ -311,60 +353,48 @@ export function ProjectsView() {
       onMoveProject={handleMoveProject}
     >
       <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setSelectedProjectId(project.id)}>
-        <CardHeader className="pb-3">
+        <CardHeader className="pb-2 pt-3 px-4">
           <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
               <div 
-                className="w-3 h-3 rounded-full" 
+                className="w-2 h-2 rounded-full flex-shrink-0" 
                 style={{ backgroundColor: project.color }}
               />
-              <div>
-                <CardTitle className="text-base">{project.name}</CardTitle>
-                <CardDescription className="text-sm">
+              <div className="min-w-0 flex-1">
+                <CardTitle className="text-sm font-medium truncate">{project.name}</CardTitle>
+                <CardDescription className="text-xs truncate">
                   {project.client}
                 </CardDescription>
               </div>
             </div>
             
-            <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  deleteProject(project.id);
-                }}
-                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-              >
-                <Trash2 className="w-3 h-3" />
-              </Button>
-            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                deleteProject(project.id);
+              }}
+              className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1 h-6 w-6"
+            >
+              <Trash2 className="w-3 h-3" />
+            </Button>
           </div>
         </CardHeader>
         
-        <CardContent className="space-y-3">
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <Calendar className="w-4 h-4" />
-            <span>
+        <CardContent className="space-y-2 pt-0 px-4 pb-3">
+          <div className="flex items-center gap-1 text-xs text-gray-600">
+            <Calendar className="w-3 h-3" />
+            <span className="truncate">
               {formatDate(project.startDate)} - {formatDate(project.endDate)}
             </span>
           </div>
           
-          <div className="flex items-center gap-2 text-sm">
-            <Clock className="w-4 h-4 text-gray-600" />
-            <span className="font-semibold text-gray-900">{project.estimatedHours} hours estimated</span>
-          </div>
-          
-          <Separator />
-          
-          <div className="flex items-center justify-between text-xs text-gray-500">
-            <span>Duration: {getDuration(project.startDate, project.endDate)}</span>
-            <Badge 
-              variant="secondary" 
-              className="bg-gray-100 text-gray-700"
-            >
-              Active
-            </Badge>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1 text-xs">
+              <Clock className="w-3 h-3 text-gray-600" />
+              <span className="font-medium text-gray-900">{project.estimatedHours}h</span>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -381,63 +411,54 @@ export function ProjectsView() {
       onMoveProject={handleMoveProject}
     >
       <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setSelectedProjectId(project.id)}>
-        <CardContent className="p-6">
+        <CardContent className="p-4">
           <div className="flex items-center justify-between">
             {/* Left section - Project info */}
-            <div className="flex items-center gap-4 flex-1">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
               <div 
-                className="w-4 h-4 rounded-full flex-shrink-0" 
+                className="w-3 h-3 rounded-full flex-shrink-0" 
                 style={{ backgroundColor: project.color }}
               />
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-3">
-                  <h3 className="font-semibold text-gray-900 truncate">{project.name}</h3>
-                  <span className="text-sm text-gray-600 whitespace-nowrap">{project.client}</span>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-medium text-gray-900 truncate text-sm">{project.name}</h3>
+                  <span className="text-xs text-gray-600 whitespace-nowrap">{project.client}</span>
                 </div>
               </div>
             </div>
 
             {/* Middle section - Timeline info */}
-            <div className="flex items-center gap-6 flex-1 justify-center">
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Calendar className="w-4 h-4" />
+            <div className="flex items-center gap-4 flex-1 justify-center">
+              <div className="flex items-center gap-1 text-xs text-gray-600">
+                <Calendar className="w-3 h-3" />
                 <span className="whitespace-nowrap">
                   {formatDate(project.startDate)} - {formatDate(project.endDate)}
                 </span>
               </div>
               
-              <div className="flex items-center gap-2 text-sm">
-                <Clock className="w-4 h-4 text-gray-600" />
-                <span className="whitespace-nowrap font-semibold text-gray-900">{project.estimatedHours}h estimated</span>
+              <div className="flex items-center gap-1 text-xs">
+                <Clock className="w-3 h-3 text-gray-600" />
+                <span className="whitespace-nowrap font-medium text-gray-900">{project.estimatedHours}h</span>
               </div>
               
-              <div className="text-sm text-gray-500">
-                <span>Duration: {getDuration(project.startDate, project.endDate)}</span>
+              <div className="text-xs text-gray-500">
+                <span>{getDuration(project.startDate, project.endDate)}</span>
               </div>
             </div>
 
-            {/* Right section - Status and actions */}
-            <div className="flex items-center gap-3 flex-shrink-0">
-              <Badge 
-                variant="secondary" 
-                className="bg-gray-100 text-gray-700"
+            {/* Right section - Actions */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteProject(project.id);
+                }}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1 h-6 w-6"
               >
-                Active
-              </Badge>
-              
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteProject(project.id);
-                  }}
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
+                <Trash2 className="w-3 h-3" />
+              </Button>
             </div>
           </div>
         </CardContent>
@@ -452,9 +473,6 @@ export function ProjectsView() {
         <AppPageLayout.Header className="h-20 border-b border-[#e2e2e2] flex items-center justify-between px-8">
           <div className="flex items-center space-x-6">
             <h1 className="text-lg font-semibold text-[#595956]">Projects</h1>
-            <Badge variant="secondary" className="bg-gray-100 text-gray-700">
-              {projects.length} projects in {groups.length} groups
-            </Badge>
           </div>
           
           <div className="flex items-center gap-3">
@@ -688,134 +706,340 @@ export function ProjectsView() {
       
       {/* Content */}
       <AppPageLayout.Content className="flex-1 overflow-auto light-scrollbar p-0">
-        <div className="p-[21px] space-y-8">
-        {groups.map((group, groupIndex) => {
-          const groupProjects = getProjectsByGroup(group.id);
-          
-          return (
-            <DraggableGroup
-              key={group.id}
-              group={group}
-              index={groupIndex}
-              onMoveGroup={handleMoveGroup}
+        <div className="px-[21px] pb-[21px] pt-[35px] space-y-8">
+          {/* Current Projects Section */}
+          <div className="space-y-6">
+            <div 
+              className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
+              onClick={() => toggleSection('current')}
             >
-              <div className="space-y-4">
-              {/* Group Header */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div 
-                    className="w-4 h-4 rounded-full" 
-                    style={{ backgroundColor: group.color }}
-                  />
-                  <div>
-                    <h2 className="text-lg font-semibold text-gray-900">{group.name}</h2>
-                    {group.description && (
-                      <p className="text-sm text-gray-600 mt-1">{group.description}</p>
+              {isSectionCollapsed('current') ? (
+                <ChevronRight className="w-4 h-4 text-gray-500" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-gray-500" />
+              )}
+              <PlayCircle className="w-5 h-5" />
+              <h2 className="text-xl font-semibold text-gray-900">Current Projects</h2>
+              <Badge variant="secondary" className="bg-green-100 text-green-700">
+                {getProjectCountByStatus('current')} projects
+              </Badge>
+            </div>
+            
+            {!isSectionCollapsed('current') && groups.map((group, groupIndex) => {
+              const groupProjects = getProjectsByGroupAndStatus(group.id, 'current');
+              if (groupProjects.length === 0) return null;
+              
+              return (
+                <DraggableGroup
+                  key={`current-${group.id}`}
+                  group={group}
+                  index={groupIndex}
+                  onMoveGroup={handleMoveGroup}
+                >
+                  <div className="space-y-3">
+                    {/* Group Header */}
+                    <div 
+                      className="flex items-center justify-between cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
+                      onClick={() => toggleGroup(group.id, 'current')}
+                    >
+                      <div className="flex items-center gap-3">
+                        {isGroupCollapsed(group.id, 'current') ? (
+                          <ChevronRight className="w-3 h-3 text-gray-500" />
+                        ) : (
+                          <ChevronDown className="w-3 h-3 text-gray-500" />
+                        )}
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: group.color }}
+                        />
+                        <div>
+                          <h3 className="text-md font-medium text-gray-900">{group.name}</h3>
+                          {group.description && (
+                            <p className="text-xs text-gray-600 mt-1">{group.description}</p>
+                          )}
+                        </div>
+                        <Badge variant="outline" className="text-xs">
+                          {groupProjects.length}
+                        </Badge>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAddProject(group.id);
+                          }}
+                          className="text-xs h-7"
+                        >
+                          <Plus className="w-3 h-3 mr-1" />
+                          Add Project
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Projects Display */}
+                    {!isGroupCollapsed(group.id, 'current') && (
+                      <div className={viewType === 'grid' 
+                        ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" 
+                        : "space-y-2"
+                      }>
+                        {groupProjects.map((project, projectIndex) => 
+                          viewType === 'grid' 
+                            ? renderGridProject(project, projectIndex, group.id)
+                            : renderListProject(project, projectIndex, group.id)
+                        )}
+                      </div>
                     )}
                   </div>
-                  <Badge variant="secondary" className="ml-2">
-                    {groupProjects.length} projects
-                  </Badge>
-                </div>
-                
-                <div className="flex items-center gap-2">
+                </DraggableGroup>
+              );
+            })}
+
+            {!isSectionCollapsed('current') && getProjectCountByStatus('current') === 0 && (
+              <Card className="border-dashed">
+                <CardContent className="flex flex-col items-center justify-center py-8">
+                  <div className="text-gray-400 mb-2">
+                    <PlayCircle className="w-12 h-12" />
+                  </div>
+                  <p className="text-gray-600 mb-4">No current projects</p>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handleAddProject(group.id)}
+                    onClick={() => handleAddProject()}
                   >
-                    <Plus className="w-4 h-4 mr-1" />
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add First Current Project
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          <Separator />
+
+          {/* Future Projects Section */}
+          <div className="space-y-6">
+            <div 
+              className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
+              onClick={() => toggleSection('future')}
+            >
+              {isSectionCollapsed('future') ? (
+                <ChevronRight className="w-4 h-4 text-gray-500" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-gray-500" />
+              )}
+              <Clock4 className="w-5 h-5" />
+              <h2 className="text-xl font-semibold text-gray-900">Future Projects</h2>
+              <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+                {getProjectCountByStatus('future')} projects
+              </Badge>
+            </div>
+            
+            {!isSectionCollapsed('future') && groups.map((group, groupIndex) => {
+              const groupProjects = getProjectsByGroupAndStatus(group.id, 'future');
+              if (groupProjects.length === 0) return null;
+              
+              return (
+                <DraggableGroup
+                  key={`future-${group.id}`}
+                  group={group}
+                  index={groupIndex}
+                  onMoveGroup={handleMoveGroup}
+                >
+                  <div className="space-y-3">
+                    {/* Group Header */}
+                    <div 
+                      className="flex items-center justify-between cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
+                      onClick={() => toggleGroup(group.id, 'future')}
+                    >
+                      <div className="flex items-center gap-3">
+                        {isGroupCollapsed(group.id, 'future') ? (
+                          <ChevronRight className="w-3 h-3 text-gray-500" />
+                        ) : (
+                          <ChevronDown className="w-3 h-3 text-gray-500" />
+                        )}
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: group.color }}
+                        />
+                        <div>
+                          <h3 className="text-md font-medium text-gray-900">{group.name}</h3>
+                          {group.description && (
+                            <p className="text-xs text-gray-600 mt-1">{group.description}</p>
+                          )}
+                        </div>
+                        <Badge variant="outline" className="text-xs">
+                          {groupProjects.length}
+                        </Badge>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAddProject(group.id);
+                          }}
+                          className="text-xs h-7"
+                        >
+                          <Plus className="w-3 h-3 mr-1" />
+                          Add Project
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Projects Display */}
+                    {!isGroupCollapsed(group.id, 'future') && (
+                      <div className={viewType === 'grid' 
+                        ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" 
+                        : "space-y-2"
+                      }>
+                        {groupProjects.map((project, projectIndex) => 
+                          viewType === 'grid' 
+                            ? renderGridProject(project, projectIndex, group.id)
+                            : renderListProject(project, projectIndex, group.id)
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </DraggableGroup>
+              );
+            })}
+
+            {!isSectionCollapsed('future') && getProjectCountByStatus('future') === 0 && (
+              <Card className="border-dashed">
+                <CardContent className="flex flex-col items-center justify-center py-8">
+                  <div className="text-gray-400 mb-2">
+                    <Clock4 className="w-12 h-12" />
+                  </div>
+                  <p className="text-gray-600 mb-4">No future projects</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          <Separator />
+
+          {/* Archive Projects Section */}
+          <div className="space-y-6">
+            <div 
+              className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
+              onClick={() => toggleSection('archived')}
+            >
+              {isSectionCollapsed('archived') ? (
+                <ChevronRight className="w-4 h-4 text-gray-500" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-gray-500" />
+              )}
+              <Archive className="w-5 h-5" />
+              <h2 className="text-xl font-semibold text-gray-900">Archived Projects</h2>
+              <Badge variant="secondary" className="bg-gray-100 text-gray-700">
+                {getProjectCountByStatus('archived')} projects
+              </Badge>
+            </div>
+            
+            {!isSectionCollapsed('archived') && groups.map((group, groupIndex) => {
+              const groupProjects = getProjectsByGroupAndStatus(group.id, 'archived');
+              if (groupProjects.length === 0) return null;
+              
+              return (
+                <DraggableGroup
+                  key={`archive-${group.id}`}
+                  group={group}
+                  index={groupIndex}
+                  onMoveGroup={handleMoveGroup}
+                >
+                  <div className="space-y-3">
+                    {/* Group Header */}
+                    <div 
+                      className="flex items-center justify-between cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
+                      onClick={() => toggleGroup(group.id, 'archived')}
+                    >
+                      <div className="flex items-center gap-3">
+                        {isGroupCollapsed(group.id, 'archived') ? (
+                          <ChevronRight className="w-3 h-3 text-gray-500" />
+                        ) : (
+                          <ChevronDown className="w-3 h-3 text-gray-500" />
+                        )}
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: group.color }}
+                        />
+                        <div>
+                          <h3 className="text-md font-medium text-gray-900">{group.name}</h3>
+                          {group.description && (
+                            <p className="text-xs text-gray-600 mt-1">{group.description}</p>
+                          )}
+                        </div>
+                        <Badge variant="outline" className="text-xs">
+                          {groupProjects.length}
+                        </Badge>
+                      </div>
+                    </div>
+
+                    {/* Projects Display */}
+                    {!isGroupCollapsed(group.id, 'archived') && (
+                      <div className={viewType === 'grid' 
+                        ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" 
+                        : "space-y-2"
+                      }>
+                        {groupProjects.map((project, projectIndex) => 
+                          viewType === 'grid' 
+                            ? renderGridProject(project, projectIndex, group.id)
+                            : renderListProject(project, projectIndex, group.id)
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </DraggableGroup>
+              );
+            })}
+
+            {!isSectionCollapsed('archived') && getProjectCountByStatus('archived') === 0 && (
+              <Card className="border-dashed">
+                <CardContent className="flex flex-col items-center justify-center py-8">
+                  <div className="text-gray-400 mb-2">
+                    <Archive className="w-12 h-12" />
+                  </div>
+                  <p className="text-gray-600 mb-4">No archived projects</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* Show welcome message only if no projects exist at all */}
+          {projects.length === 0 && (
+            <Card className="border-dashed">
+              <CardContent className="flex flex-col items-center justify-center py-16">
+                <div className="text-gray-400 mb-4">
+                  <Users className="w-16 h-16" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Welcome to Projects</h3>
+                <p className="text-gray-600 text-center mb-6 max-w-md">
+                  Organize your work by creating project groups and adding projects with timelines and budgets.
+                </p>
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={handleAddGroup}
+                  >
+                    <FolderPlus className="w-4 h-4 mr-2" />
+                    Create Group
+                  </Button>
+                  <Button
+                    className="bg-[#02c0b7] hover:bg-[#02a09a] text-white"
+                    onClick={() => handleAddProject()}
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
                     Add Project
                   </Button>
-                  
-                  {group.id !== 'work-group' && group.id !== 'home-group' && (
-                    <>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditGroup(group)}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => deleteGroup(group.id)}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </>
-                  )}
                 </div>
-              </div>
-
-              {/* Projects Display */}
-              {groupProjects.length === 0 ? (
-                <Card className="border-dashed">
-                  <CardContent className="flex flex-col items-center justify-center py-12">
-                    <div className="text-gray-400 mb-2">
-                      <Users className="w-12 h-12" />
-                    </div>
-                    <p className="text-gray-600 mb-4">No projects in this group yet</p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleAddProject(group.id)}
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add First Project
-                    </Button>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className={viewType === 'grid' 
-                  ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" 
-                  : "space-y-3"
-                }>
-                  {groupProjects.map((project, projectIndex) => 
-                    viewType === 'grid' 
-                      ? renderGridProject(project, projectIndex, group.id)
-                      : renderListProject(project, projectIndex, group.id)
-                  )}
-                </div>
-              )}
-              
-              {group.id !== groups[groups.length - 1].id && <Separator />}
-              </div>
-            </DraggableGroup>
-          );
-        })}
-
-        {groups.length === 2 && getProjectsByGroup('work-group').length === 0 && getProjectsByGroup('home-group').length === 0 && (
-          <Card className="border-dashed">
-            <CardContent className="flex flex-col items-center justify-center py-16">
-              <div className="text-gray-400 mb-4">
-                <Users className="w-16 h-16" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Welcome to Projects</h3>
-              <p className="text-gray-600 text-center mb-6 max-w-md">
-                Organize your work by creating project groups and adding projects with timelines and budgets.
-              </p>
-              <div className="flex gap-3">
-                <Button
-                  variant="outline"
-                  onClick={handleAddGroup}
-                >
-                  <FolderPlus className="w-4 h-4 mr-2" />
-                  Create Group
-                </Button>
-                <Button
-                  className="bg-[#02c0b7] hover:bg-[#02a09a] text-white"
-                  onClick={() => handleAddProject()}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Project
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+              </CardContent>
+            </Card>
+          )}
         </div>
       </AppPageLayout.Content>
     </AppPageLayout>

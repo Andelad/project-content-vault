@@ -190,7 +190,7 @@ export function useProjects() {
     }
   };
 
-  const updateProject = async (id: string, updates: any) => {
+  const updateProject = async (id: string, updates: any, options: { silent?: boolean } = {}) => {
     try {
       // Transform frontend data to database format
       const dbUpdates = transformToDatabase(updates);
@@ -209,13 +209,26 @@ export function useProjects() {
       setProjects(prev => 
         prev.map(p => p.id === id ? transformedProject : p)
       );
-      toast({
-        title: "Success",
-        description: "Project updated successfully",
-      });
+      
+      // Only show toast if not in silent mode
+      if (!options.silent) {
+        // Debounce success toast
+        if (updateToastTimeoutRef.current) {
+          clearTimeout(updateToastTimeoutRef.current);
+        }
+        
+        updateToastTimeoutRef.current = setTimeout(() => {
+          toast({
+            title: "Success",
+            description: "Project updated successfully",
+          });
+        }, 500);
+      }
+      
       return transformedProject;
     } catch (error) {
       console.error('❌ Error updating project:', error);
+      // Always show error toasts immediately
       toast({
         title: "Error",
         description: "Failed to update project",
@@ -223,6 +236,13 @@ export function useProjects() {
       });
       throw error;
     }
+  };
+
+  const showSuccessToast = (message: string = "Project updated successfully") => {
+    toast({
+      title: "Success",
+      description: message,
+    });
   };
 
   const deleteProject = async (id: string) => {
@@ -268,6 +288,7 @@ export function useProjects() {
     updateProject,
     deleteProject,
     reorderProjects,
+    showSuccessToast,
     refetch: fetchProjects,
   };
 }

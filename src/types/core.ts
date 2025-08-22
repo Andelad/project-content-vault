@@ -1,5 +1,7 @@
 // Core application types - single source of truth
 
+export type ProjectStatus = 'current' | 'future' | 'archived';
+
 export interface Milestone {
   id: string;
   name: string;
@@ -23,6 +25,7 @@ export interface Project {
   icon?: string; // Lucide icon name, defaults to 'folder'
   milestones?: Milestone[]; // Project milestones
   continuous?: boolean; // Whether the project is continuous (no end date)
+  status?: ProjectStatus; // Project status for organization
 }
 
 export interface Row {

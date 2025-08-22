@@ -50,10 +50,13 @@ interface AppContextType {
   updateSettings: (updates: Partial<Settings>) => void;
   addWorkHourOverride: (override: WorkHourOverride) => void;
   removeWorkHourOverride: (date: string, dayName: string, slotIndex: number) => void;
+  collapsedGroups: Set<string>;
+  toggleGroupCollapse: (groupId: string) => void;
   addProject: (project: Omit<Project, 'id'>) => Promise<any>;
-  updateProject: (id: string, updates: Partial<Project>) => void;
+  updateProject: (id: string, updates: Partial<Project>, options?: { silent?: boolean }) => void;
   deleteProject: (id: string) => void;
   reorderProjects: (groupId: string, fromIndex: number, toIndex: number) => void;
+  showProjectSuccessToast: (message?: string) => void;
   addGroup: (group: Omit<Group, 'id'>) => void;
   updateGroup: (id: string, updates: Partial<Group>) => void;
   deleteGroup: (id: string) => void;
@@ -85,9 +88,10 @@ interface AppContextType {
   // Milestone management
   milestones: Milestone[];
   addMilestone: (milestone: Omit<Milestone, 'id'>) => void;
-  updateMilestone: (id: string, updates: Partial<Milestone>) => void;
+  updateMilestone: (id: string, updates: Partial<Milestone>, options?: { silent?: boolean }) => void;
   deleteMilestone: (id: string) => void;
   reorderMilestones: (projectId: string, fromIndex: number, toIndex: number) => void;
+  showMilestoneSuccessToast: (message?: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -116,13 +120,13 @@ const toLocalDateString = (date: Date) => {
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   // Import database hooks
-  const { projects: dbProjects, loading: projectsLoading, addProject: dbAddProject, updateProject: dbUpdateProject, deleteProject: dbDeleteProject, reorderProjects: dbReorderProjects } = useProjects();
+  const { projects: dbProjects, loading: projectsLoading, addProject: dbAddProject, updateProject: dbUpdateProject, deleteProject: dbDeleteProject, reorderProjects: dbReorderProjects, showSuccessToast: showProjectSuccessToast } = useProjects();
   const { groups: dbGroups, loading: groupsLoading, addGroup: dbAddGroup, updateGroup: dbUpdateGroup, deleteGroup: dbDeleteGroup } = useGroups();
   const { rows: dbRows, loading: rowsLoading, addRow: dbAddRow, updateRow: dbUpdateRow, deleteRow: dbDeleteRow, reorderRows: dbReorderRows } = useRows();
   const { events: dbEvents, loading: eventsLoading, addEvent: dbAddEvent, updateEvent: dbUpdateEvent, deleteEvent: dbDeleteEvent } = useEvents();
   const { holidays: dbHolidays, loading: holidaysLoading, addHoliday: dbAddHoliday, updateHoliday: dbUpdateHoliday, deleteHoliday: dbDeleteHoliday } = useHolidays();
   const { settings: dbSettings, loading: settingsLoading, updateSettings: dbUpdateSettings } = useSettings();
-  const { milestones: dbMilestones, loading: milestonesLoading, addMilestone: dbAddMilestone, updateMilestone: dbUpdateMilestone, deleteMilestone: dbDeleteMilestone, reorderMilestones: dbReorderMilestones } = useMilestones();
+  const { milestones: dbMilestones, loading: milestonesLoading, addMilestone: dbAddMilestone, updateMilestone: dbUpdateMilestone, deleteMilestone: dbDeleteMilestone, reorderMilestones: dbReorderMilestones, showSuccessToast: showMilestoneSuccessToast } = useMilestones();
 
   const [currentView, setCurrentView] = useState('timeline');
   const [timelineMode, setTimelineMode] = useState<'days' | 'weeks'>('days');
@@ -136,6 +140,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Work hour overrides for individual date-specific changes
   const [workHourOverrides, setWorkHourOverrides] = useState<WorkHourOverride[]>([]);
+  
+  // Group collapse state
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   
   // Add missing state
   const [workHours] = useState<any[]>([]);
@@ -179,7 +186,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     rowId: p.rowId,
     notes: p.notes || '',
     icon: p.icon || 'folder',
-    continuous: p.continuous || false
+    continuous: p.continuous || false,
+    status: p.status || 'current' // Default to 'current' if not set
   })) || [], [dbProjects]);
 
   const processedEvents = useMemo(() => dbEvents?.map(e => ({
@@ -272,6 +280,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [processedSettings.defaultView, setDefaultView]);
 
+  // Group collapse toggle function
+  const toggleGroupCollapse = useCallback((groupId: string) => {
+    setCollapsedGroups(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(groupId)) {
+        newSet.delete(groupId);
+      } else {
+        newSet.add(groupId);
+      }
+      return newSet;
+    });
+  }, []);
+
   const addProject = useCallback(async (projectData: Omit<Project, 'id'>) => {
     try {
       const dbProjectData = {
@@ -295,10 +316,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [dbAddProject]);
 
-  const updateProject = useCallback(async (id: string, updates: Partial<Project>) => {
+  const updateProject = useCallback(async (id: string, updates: Partial<Project>, options?: { silent?: boolean }) => {
     try {
-      // Pass updates directly to the database hook - let it handle the transformation
-      await dbUpdateProject(id, updates);
+      // Pass updates and options directly to the database hook
+      await dbUpdateProject(id, updates, options);
     } catch (error) {
       console.error('Failed to update project:', error);
     }
@@ -491,7 +512,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [dbAddMilestone]);
 
-  const updateMilestone = useCallback(async (id: string, updates: Partial<Milestone>) => {
+  const updateMilestone = useCallback(async (id: string, updates: Partial<Milestone>, options?: { silent?: boolean }) => {
     try {
       const dbUpdates: any = {};
       if (updates.name !== undefined) dbUpdates.name = updates.name;
@@ -500,7 +521,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (updates.projectId !== undefined) dbUpdates.project_id = updates.projectId;
       if (updates.order !== undefined) dbUpdates.order_index = updates.order;
       
-      await dbUpdateMilestone(id, dbUpdates);
+      await dbUpdateMilestone(id, dbUpdates, options);
     } catch (error) {
       console.error('Failed to update milestone:', error);
     }
@@ -584,6 +605,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     workHours,
     timelineEntries,
     workHourOverrides,
+    collapsedGroups,
     selectedProjectId,
     creatingNewProject,
     holidays: processedHolidays,
@@ -592,7 +614,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     selectedEventId,
     creatingNewEvent,
     milestones: processedMilestones
-  }), [currentView, timelineMode, currentDate, processedProjects, dbGroups, processedRows, processedEvents, processedSettings, workHours, timelineEntries, workHourOverrides, selectedProjectId, creatingNewProject, processedHolidays, creatingNewHoliday, editingHolidayId, selectedEventId, creatingNewEvent, processedMilestones]);
+  }), [currentView, timelineMode, currentDate, processedProjects, dbGroups, processedRows, processedEvents, processedSettings, workHours, timelineEntries, workHourOverrides, collapsedGroups, selectedProjectId, creatingNewProject, processedHolidays, creatingNewHoliday, editingHolidayId, selectedEventId, creatingNewEvent, processedMilestones]);
 
   const actions = useMemo(() => ({
     setCurrentView,
@@ -602,6 +624,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     updateTimelineEntry,
     addWorkHourOverride,
     removeWorkHourOverride,
+    toggleGroupCollapse,
     addProject,
     updateProject,
     deleteProject,
@@ -629,7 +652,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     addMilestone,
     updateMilestone,
     deleteMilestone,
-    reorderMilestones
+    reorderMilestones,
+    showProjectSuccessToast,
+    showMilestoneSuccessToast
   }), [
     setCurrentView,
     setCurrentDate,
@@ -637,6 +662,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     updateTimelineEntry,
     addWorkHourOverride,
     removeWorkHourOverride,
+    toggleGroupCollapse,
     addProject,
     updateProject,
     deleteProject,
@@ -665,7 +691,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     addMilestone,
     updateMilestone,
     deleteMilestone,
-    reorderMilestones
+    reorderMilestones,
+    showProjectSuccessToast,
+    showMilestoneSuccessToast
   ]);
 
   return (
