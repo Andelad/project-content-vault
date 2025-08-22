@@ -782,9 +782,14 @@ export const TimelineBar = memo(function TimelineBar({
               <div 
                 className="absolute top-0 h-[3px] cursor-move hover:opacity-80 pointer-events-auto"
                 style={project.continuous ? {
-                  // For continuous projects, use dashed border instead of solid background
-                  borderTop: `3px dashed ${colorScheme.baseline}`,
-                  backgroundColor: 'transparent',
+                  // For continuous projects, use hazard stripe pattern
+                  background: `repeating-linear-gradient(
+                    45deg,
+                    ${colorScheme.baseline},
+                    ${colorScheme.baseline} 4px,
+                    transparent 4px,
+                    transparent 8px
+                  )`,
                   left: `${positions.baselineStartPx}px`,
                   width: `${positions.baselineWidthPx}px`,
                   zIndex: 20
