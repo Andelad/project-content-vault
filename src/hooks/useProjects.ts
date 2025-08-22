@@ -49,6 +49,9 @@ function transformDatabaseProject(dbProject: DatabaseProject): Project {
 
 // Transform frontend project data to database format
 function transformToDatabase(projectData: any): any {
+  console.log('🔄 transformToDatabase input:', projectData);
+  console.log('🔄 continuous value check:', projectData.continuous, typeof projectData.continuous);
+  
   const dbData: any = {};
   
   if (projectData.name !== undefined) dbData.name = projectData.name;
@@ -69,8 +72,12 @@ function transformToDatabase(projectData: any): any {
   if (projectData.rowId !== undefined) dbData.row_id = projectData.rowId;
   if (projectData.notes !== undefined) dbData.notes = projectData.notes;
   if (projectData.icon !== undefined) dbData.icon = projectData.icon;
-  if (projectData.continuous !== undefined) dbData.continuous = projectData.continuous;
+  if (projectData.continuous !== undefined) {
+    console.log('🔄 Setting continuous in dbData:', projectData.continuous);
+    dbData.continuous = projectData.continuous;
+  }
   
+  console.log('🔄 transformToDatabase output:', dbData);
   return dbData;
 }
 
