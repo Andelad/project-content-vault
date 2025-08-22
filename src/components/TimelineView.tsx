@@ -10,7 +10,6 @@ import { Calendar } from './ui/calendar';
 import { Input } from './ui/input';
 import { ChevronLeft, ChevronRight, MapPin, CalendarSearch, Folders, Hash, Circle } from 'lucide-react';
 import { useAppDataOnly, useAppActionsOnly, useApp } from '../contexts/AppContext';
-import { useProjectContext } from '../contexts/ProjectContext';
 import { useTimelineData } from '../hooks/useTimelineData';
 import { useDynamicViewportDays } from '../hooks/useDynamicViewportDays';
 import { calculateDaysDelta, createSmoothAnimation, TIMELINE_CONSTANTS, debounce, throttle } from '@/lib/dragUtils';
@@ -56,9 +55,6 @@ export function TimelineView() {
     updateMilestone,
     setCreatingNewProject 
   } = useApp();
-
-  // Import project context for milestone utilities
-  const { getMilestonesForProject } = useProjectContext();
   
   // Timeline state management
   const [viewportStart, setViewportStart] = useState(() => {
@@ -456,11 +452,11 @@ export function TimelineView() {
               updateProject(projectId, { startDate: newStartDate });
               
               // Update milestones to maintain their relative distance from start date
-              const projectMilestones = getMilestonesForProject(projectId);
+              const projectMilestones = milestones.filter(m => m.projectId === projectId);
               const originalStartDate = new Date(initialDragState.originalStartDate);
               
               projectMilestones.forEach(milestone => {
-                const originalMilestoneDate = new Date(milestone.due_date);
+                const originalMilestoneDate = new Date(milestone.dueDate);
                 const daysFromOriginalStart = Math.floor((originalMilestoneDate.getTime() - originalStartDate.getTime()) / (1000 * 60 * 60 * 24));
                 
                 const newMilestoneDate = new Date(newStartDate);
@@ -506,12 +502,12 @@ export function TimelineView() {
               updateProject(projectId, { endDate: newEndDate });
               
               // Update milestones that would be at or after the new end date
-              const projectMilestones = getMilestonesForProject(projectId);
+              const projectMilestones = milestones.filter(m => m.projectId === projectId);
               const maxMilestoneDate = new Date(newEndDate);
               maxMilestoneDate.setDate(newEndDate.getDate() - 1); // One day before end date
               
               projectMilestones.forEach(milestone => {
-                const milestoneDate = new Date(milestone.due_date);
+                const milestoneDate = new Date(milestone.dueDate);
                 if (milestoneDate >= newEndDate) {
                   // Move milestone to one day before the new end date
                   updateMilestone(milestone.id, { 
@@ -543,10 +539,10 @@ export function TimelineView() {
             });
             
             // Move all milestones by the same delta to maintain their relative positions
-            const projectMilestones = getMilestonesForProject(projectId);
+            const projectMilestones = milestones.filter(m => m.projectId === projectId);
             
             projectMilestones.forEach(milestone => {
-              const originalMilestoneDate = new Date(milestone.due_date);
+              const originalMilestoneDate = new Date(milestone.dueDate);
               const newMilestoneDate = new Date(originalMilestoneDate);
               newMilestoneDate.setDate(originalMilestoneDate.getDate() + daysDelta);
               
@@ -574,7 +570,7 @@ export function TimelineView() {
     
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  }, [projects, dates, updateProject, checkAutoScroll, stopAutoScroll, timelineMode, milestones, updateMilestone, getMilestonesForProject]);
+  }, [projects, dates, updateProject, checkAutoScroll, stopAutoScroll, timelineMode, milestones, updateMilestone]);
 
   // COMPLETELY REWRITTEN HOLIDAY DRAG HANDLER - SIMPLE AND FAST
   const handleHolidayMouseDown = useCallback((e: React.MouseEvent, holidayId: string, action: string) => {
