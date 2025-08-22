@@ -29,15 +29,24 @@ export function useProjects() {
 
   const fetchProjects = async () => {
     try {
+      console.log('🔍 fetchProjects: Starting to fetch projects...');
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log('🔍 fetchProjects: Current user:', user?.id);
+      
       const { data, error } = await supabase
         .from('projects')
         .select('*')
         .order('created_at', { ascending: true });
 
+      console.log('🔍 fetchProjects: Raw query result:', { data, error });
+      
       if (error) throw error;
+      
+      console.log('🔍 fetchProjects: Setting projects:', data?.length || 0, 'projects');
       setProjects(data || []);
     } catch (error) {
-      console.error('Error fetching projects:', error);
+      console.error('❌ Error fetching projects:', error);
       toast({
         title: "Error",
         description: "Failed to load projects",
