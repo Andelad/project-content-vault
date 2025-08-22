@@ -787,8 +787,8 @@ export const TimelineBar = memo(function TimelineBar({
                     -45deg,
                     ${colorScheme.baseline},
                     ${colorScheme.baseline} 3px,
-                    ${colorScheme.midTone} 3px,
-                    ${colorScheme.midTone} 6px
+                    ${project.color} 3px,
+                    ${project.color} 6px
                   )`,
                   left: `${positions.baselineStartPx}px`,
                   width: `${positions.baselineWidthPx}px`,
