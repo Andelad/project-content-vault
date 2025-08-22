@@ -178,7 +178,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     groupId: p.groupId,
     rowId: p.rowId,
     notes: p.notes || '',
-    icon: p.icon || 'folder'
+    icon: p.icon || 'folder',
+    continuous: p.continuous || false
   })) || [], [dbProjects]);
 
   const processedEvents = useMemo(() => dbEvents?.map(e => ({
@@ -307,6 +308,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (updates.rowId !== undefined) dbUpdates.row_id = updates.rowId;
       if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
       if (updates.icon !== undefined) dbUpdates.icon = updates.icon;
+      if (updates.continuous !== undefined) dbUpdates.continuous = updates.continuous;
       
       await dbUpdateProject(id, dbUpdates);
     } catch (error) {
