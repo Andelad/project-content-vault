@@ -792,13 +792,13 @@ export const TimelineBar = memo(function TimelineBar({
                   )`,
                   left: `${positions.baselineStartPx}px`,
                   width: `${positions.baselineWidthPx}px`,
-                  zIndex: 20
+                  zIndex: 25
                 } : {
                   // For regular projects, use solid background
                   backgroundColor: colorScheme.baseline,
                   left: `${positions.baselineStartPx}px`,
                   width: `${positions.baselineWidthPx}px`,
-                  zIndex: 20
+                  zIndex: 25
                 }}
                 onMouseDown={(e) => {
                   e.stopPropagation();
@@ -809,11 +809,13 @@ export const TimelineBar = memo(function TimelineBar({
               
               {/* Start date drag circle - center it at the left edge of start column */}
               <div 
-                className="absolute w-[11px] h-[11px] rounded-full shadow-sm cursor-ew-resize z-30 pointer-events-auto"
+                className="absolute w-[11px] h-[11px] rounded-full shadow-sm cursor-ew-resize pointer-events-auto hover:scale-110 transition-transform"
                 style={{ 
                   backgroundColor: colorScheme.baseline,
+                  border: '1px solid rgba(255,255,255,0.8)',
                   left: `${positions.circleLeftPx - 5.5}px`, // Center circle at left edge of start column
-                  top: '-4px' // Center 11px circle on 3px baseline (5.5px above, 2.5px below)
+                  top: '-4px', // Center 11px circle on 3px baseline (5.5px above, 2.5px below)
+                  zIndex: 30
                 }}
                 onMouseDown={(e) => {
                   e.stopPropagation();
