@@ -428,12 +428,13 @@ export function TimelineView() {
     setDragState(initialDragState);
     
     const handleMouseMove = (e: MouseEvent) => {
-      const daysDelta = calculateDaysDelta(e.clientX, initialDragState.startX, dates, true, timelineMode);
-      
-      // Check for auto-scroll during drag
-      checkAutoScroll(e.clientX);
-      
-      if (action === 'resize-start-date' && daysDelta !== initialDragState.lastDaysDelta) {
+      try {
+        const daysDelta = calculateDaysDelta(e.clientX, initialDragState.startX, dates, true, timelineMode);
+        
+        // Check for auto-scroll during drag
+        checkAutoScroll(e.clientX);
+        
+        if (action === 'resize-start-date' && daysDelta !== initialDragState.lastDaysDelta) {
         const currentProject = projects.find(p => p.id === projectId);
         if (currentProject) {
           const newStartDate = new Date(initialDragState.originalStartDate);
@@ -614,18 +615,23 @@ export function TimelineView() {
           }
         }
       }
+      } catch (error) {
+        console.error('🚨 PROJECT DRAG ERROR:', error);
+        // Don't show error toast for drag operations to avoid disrupting UX
+      }
     };
     
     const handleMouseUp = () => {
       setIsDragging(false);
       setDragState(null);
+      stopAutoScroll(); // Fix infinite scrolling
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
     
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  }, [projects, dates, updateProject, checkAutoScroll, timelineMode, milestones, updateMilestone]);
+  }, [projects, dates, updateProject, checkAutoScroll, stopAutoScroll, timelineMode, milestones, updateMilestone]);
 
   // COMPLETELY REWRITTEN HOLIDAY DRAG HANDLER - SIMPLE AND FAST
   const handleHolidayMouseDown = useCallback((e: React.MouseEvent, holidayId: string, action: string) => {
