@@ -171,12 +171,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     id: p.id,
     name: p.name,
     client: p.client,
-    startDate: new Date(p.start_date),
-    endDate: new Date(p.end_date),
-    estimatedHours: p.estimated_hours,
+    startDate: p.startDate,
+    endDate: p.endDate,
+    estimatedHours: p.estimatedHours,
     color: p.color,
-    groupId: p.group_id,
-    rowId: p.row_id,
+    groupId: p.groupId,
+    rowId: p.rowId,
     notes: p.notes || '',
     icon: p.icon || 'folder'
   })) || [], [dbProjects]);
