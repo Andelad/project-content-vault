@@ -784,11 +784,11 @@ export const TimelineBar = memo(function TimelineBar({
                 style={project.continuous ? {
                   // For continuous projects, use hazard stripe pattern
                   background: `repeating-linear-gradient(
-                    45deg,
+                    -45deg,
                     ${colorScheme.baseline},
-                    ${colorScheme.baseline} 4px,
-                    transparent 4px,
-                    transparent 8px
+                    ${colorScheme.baseline} 3px,
+                    transparent 3px,
+                    transparent 5px
                   )`,
                   left: `${positions.baselineStartPx}px`,
                   width: `${positions.baselineWidthPx}px`,
