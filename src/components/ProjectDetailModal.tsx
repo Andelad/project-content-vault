@@ -484,13 +484,23 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
   };
 
   const handleContinuousToggle = () => {
+    console.log('🔄 handleContinuousToggle called');
+    console.log('🔄 Current continuous state:', localValues.continuous);
+    console.log('🔄 Project ID:', projectId);
+    console.log('🔄 Is creating:', isCreating);
+    
     const newContinuous = !localValues.continuous;
+    console.log('🔄 New continuous state:', newContinuous);
+    
     setLocalValues(prev => ({ ...prev, continuous: newContinuous }));
     
     // Auto-save for existing projects
     if (!isCreating && projectId && projectId !== '') {
+      console.log('🔄 Calling updateProject with continuous:', newContinuous);
       // Ensure we pass the value as boolean (not null)
       updateProject(projectId, { continuous: newContinuous });
+    } else {
+      console.log('🔄 Not calling updateProject - isCreating:', isCreating, 'projectId:', projectId);
     }
   };
 
