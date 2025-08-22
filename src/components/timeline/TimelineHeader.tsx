@@ -19,13 +19,13 @@ export const TimelineHeader = memo(function TimelineHeader({
   onGoToToday 
 }: TimelineHeaderProps) {
   return (
-    <div className="h-20 border-b border-[#e2e2e2] flex items-center justify-between px-6">
+    <>
       <div className="flex items-center">
         <h1 className="text-lg font-semibold text-[#595956]">Timeline</h1>
       </div>
       
       {/* Time Tracker in top right */}
       <TimeTracker />
-    </div>
+    </>
   );
 });

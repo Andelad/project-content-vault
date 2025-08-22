@@ -13,6 +13,7 @@ import { useApp } from '../contexts/AppContext';
 import { WorkSlot } from '../contexts/AppContext';
 import { CalendarImport } from './CalendarImport';
 import { useToast } from '../hooks/use-toast';
+import { AppPageLayout } from './layouts/AppPageLayout';
 
 export function SettingsView() {
   const { settings: appSettings, updateSettings, setDefaultView } = useApp();
@@ -210,9 +211,9 @@ export function SettingsView() {
   };
 
   return (
-    <div className="h-full flex flex-col bg-[#f9f9f9]">
+    <AppPageLayout className="bg-[#f9f9f9]">
       {/* Header */}
-      <div className="h-20 border-b border-[#e2e2e2] flex items-center justify-between px-8 flex-shrink-0">
+      <AppPageLayout.Header className="h-20 border-b border-[#e2e2e2] flex items-center justify-between px-8 flex-shrink-0">
         <div className="flex items-center space-x-6">
           <h1 className="text-lg font-semibold text-[#595956]">Settings</h1>
           <Badge variant="secondary">
@@ -232,10 +233,12 @@ export function SettingsView() {
             Save Changes
           </Button>
         </div>
-      </div>
+      </AppPageLayout.Header>
+
+      {/* No sub-header for Settings */}
 
       {/* Content - Scrollable */}
-      <div className="flex-1 overflow-auto light-scrollbar">
+      <AppPageLayout.Content className="flex-1 overflow-auto light-scrollbar p-0">
         <div className="p-8 space-y-8 max-w-4xl">
         {/* General Settings */}
         <Card>
@@ -692,7 +695,7 @@ export function SettingsView() {
           <p>Version 1.0.0 • Built with React & TypeScript</p>
         </div>
         </div>
-      </div>
-    </div>
+      </AppPageLayout.Content>
+    </AppPageLayout>
   );
 }

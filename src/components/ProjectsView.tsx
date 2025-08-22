@@ -14,6 +14,7 @@ import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 import { Group, Project } from '../types';
+import { AppPageLayout } from './layouts/AppPageLayout';
 
 type ViewType = 'grid' | 'list';
 
@@ -446,37 +447,37 @@ export function ProjectsView() {
 
   return (
     <DndProvider backend={HTML5Backend}>
-      <div className="h-full flex flex-col bg-gray-50 overflow-hidden">
-      {/* Header */}
-      <div className="h-20 border-b border-[#e2e2e2] flex items-center justify-between px-8">
-        <div className="flex items-center space-x-6">
-          <h1 className="text-lg font-semibold text-[#595956]">Projects</h1>
-          <Badge variant="secondary" className="bg-gray-100 text-gray-700">
-            {projects.length} projects in {groups.length} groups
-          </Badge>
-        </div>
-        
-        <div className="flex items-center gap-3">
-          {/* View Toggle */}
-          <ToggleGroup
-            type="single"
-            value={viewType}
-            onValueChange={(value) => value && setViewType(value as ViewType)}
-            className="border border-gray-200 rounded-lg"
-          >
-            <ToggleGroupItem value="list" aria-label="List view" className="px-3 py-2">
-              <List className="w-4 h-4" />
-            </ToggleGroupItem>
-            <ToggleGroupItem value="grid" aria-label="Grid view" className="px-3 py-2">
-              <Grid3X3 className="w-4 h-4" />
-            </ToggleGroupItem>
-          </ToggleGroup>
+      <AppPageLayout>
+        {/* Header */}
+        <AppPageLayout.Header className="h-20 border-b border-[#e2e2e2] flex items-center justify-between px-8">
+          <div className="flex items-center space-x-6">
+            <h1 className="text-lg font-semibold text-[#595956]">Projects</h1>
+            <Badge variant="secondary" className="bg-gray-100 text-gray-700">
+              {projects.length} projects in {groups.length} groups
+            </Badge>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            {/* View Toggle */}
+            <ToggleGroup
+              type="single"
+              value={viewType}
+              onValueChange={(value) => value && setViewType(value as ViewType)}
+              className="border border-gray-200 rounded-lg"
+            >
+              <ToggleGroupItem value="list" aria-label="List view" className="px-3 py-2">
+                <List className="w-4 h-4" />
+              </ToggleGroupItem>
+              <ToggleGroupItem value="grid" aria-label="Grid view" className="px-3 py-2">
+                <Grid3X3 className="w-4 h-4" />
+              </ToggleGroupItem>
+            </ToggleGroup>
 
-          <Dialog open={isGroupDialogOpen} onOpenChange={setIsGroupDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" onClick={handleAddGroup}>
-                <FolderPlus className="w-4 h-4 mr-2" />
-                New Group
+            <Dialog open={isGroupDialogOpen} onOpenChange={setIsGroupDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" onClick={handleAddGroup}>
+                  <FolderPlus className="w-4 h-4 mr-2" />
+                  New Group
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
@@ -681,10 +682,12 @@ export function ProjectsView() {
             </DialogContent>
           </Dialog>
         </div>
-      </div>
+      </AppPageLayout.Header>
 
+      {/* No sub-header for Projects view */}
+      
       {/* Content */}
-      <div className="flex-1 overflow-auto light-scrollbar">
+      <AppPageLayout.Content className="flex-1 overflow-auto light-scrollbar p-0">
         <div className="p-[21px] space-y-8">
         {groups.map((group, groupIndex) => {
           const groupProjects = getProjectsByGroup(group.id);
@@ -814,8 +817,8 @@ export function ProjectsView() {
           </Card>
         )}
         </div>
-      </div>
-    </div>
+      </AppPageLayout.Content>
+    </AppPageLayout>
     </DndProvider>
   );
 }

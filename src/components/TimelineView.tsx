@@ -8,7 +8,7 @@ import { Button } from './ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { Input } from './ui/input';
-import { ChevronLeft, ChevronRight, MapPin, CalendarSearch, Folders } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MapPin, CalendarSearch, Folders, Hash, Circle } from 'lucide-react';
 import { useAppDataOnly, useAppActionsOnly, useApp } from '../contexts/AppContext';
 import { useTimelineData } from '../hooks/useTimelineData';
 import { useDynamicViewportDays } from '../hooks/useDynamicViewportDays';
@@ -33,6 +33,7 @@ import { DraggableRowComponent } from './timeline/DraggableRowComponent';
 import { AddRowComponent } from './timeline/AddRowComponent';
 import { DraggableGroupRow } from './timeline/DraggableGroupRow';
 import { AddGroupRow } from './timeline/AddGroupRow';
+import { AppPageLayout } from './layouts/AppPageLayout';
 
 export function TimelineView() {
   const { 
@@ -79,6 +80,7 @@ export function TimelineView() {
   const [isAnimating, setIsAnimating] = useState(false);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [projectSearchQuery, setProjectSearchQuery] = useState('');
+  const [availabilityDisplayMode, setAvailabilityDisplayMode] = useState<'circles' | 'numbers'>('circles');
 
   // Auto-scroll state for drag operations
   const [autoScrollState, setAutoScrollState] = useState<{
@@ -754,18 +756,20 @@ export function TimelineView() {
   return (
     <DndProvider backend={HTML5Backend}>
       <TooltipProvider>
-        <div className="h-full flex flex-col bg-gray-50 overflow-hidden">
+        <AppPageLayout>
           {/* Timeline Header */}
-          <TimelineHeader 
-            currentDate={currentDate}
-            viewportStart={viewportStart}
-            viewportEnd={viewportEnd}
-            onNavigate={handleNavigate}
-            onGoToToday={handleGoToToday}
-          />
+          <AppPageLayout.Header className="h-20 border-b border-[#e2e2e2] flex items-center justify-between px-8">
+            <TimelineHeader 
+              currentDate={currentDate}
+              viewportStart={viewportStart}
+              viewportEnd={viewportEnd}
+              onNavigate={handleNavigate}
+              onGoToToday={handleGoToToday}
+            />
+          </AppPageLayout.Header>
           
           {/* Timeline Mode Toggle and Navigation */}
-          <div className="px-6 p-[21px]">
+          <AppPageLayout.SubHeader>
             <div className="flex items-center justify-between">
               {/* Timeline Mode Toggle and Today Button */}
               <div className="flex items-center" style={{ gap: '21px' }}>
@@ -838,10 +842,10 @@ export function TimelineView() {
                 </Button>
               </div>
             </div>
-          </div>
+          </AppPageLayout.SubHeader>
           
           {/* Main Content Area with Card */}
-          <div className="flex-1 flex flex-col px-6 pb-6 min-h-0">
+          <AppPageLayout.Content>
             <div className="flex-1 flex flex-col min-h-0 pt-[0px] pr-[0px] pb-[21px] pl-[0px]">
               {/* Timeline Card */}
               <Card className="flex-1 flex flex-col overflow-hidden relative timeline-card-container">
@@ -1143,8 +1147,30 @@ export function TimelineView() {
                 />
               </Card>
               
+              {/* Availability Display Mode Toggle */}
+              <div className="mt-4 mb-4 flex justify-start">
+                <ToggleGroup
+                  type="single"
+                  value={availabilityDisplayMode}
+                  onValueChange={(value) => {
+                    if (value) {
+                      setAvailabilityDisplayMode(value as 'circles' | 'numbers');
+                    }
+                  }}
+                  variant="outline"
+                  className="border border-gray-200 rounded-lg h-9 p-1"
+                >
+                  <ToggleGroupItem value="circles" aria-label="Circles mode" className="px-2 py-1 h-7">
+                    <Circle className="w-4 h-4" />
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="numbers" aria-label="Numbers mode" className="px-2 py-1 h-7">
+                    <Hash className="w-4 h-4" />
+                  </ToggleGroupItem>
+                </ToggleGroup>
+              </div>
+              
               {/* Availability Timeline Card */}
-              <Card className="mt-4 h-60 flex flex-col overflow-hidden relative">
+              <Card className="h-60 flex flex-col overflow-hidden relative">
                 {/* Column Markers - spans full availability card height */}
                 <div className="absolute pointer-events-none z-1" style={{
                   top: 0,
@@ -1221,6 +1247,7 @@ export function TimelineView() {
                         settings={settings}
                         type="available"
                         mode={mode}
+                        displayMode={availabilityDisplayMode}
                       />
                     </div>
                     
@@ -1232,6 +1259,7 @@ export function TimelineView() {
                         settings={settings}
                         type="busy"
                         mode={mode}
+                        displayMode={availabilityDisplayMode}
                       />
                     </div>
 
@@ -1242,6 +1270,7 @@ export function TimelineView() {
                         settings={settings}
                         type="overtime-planned"
                         mode={mode}
+                        displayMode={availabilityDisplayMode}
                       />
                     </div>
 
@@ -1252,6 +1281,7 @@ export function TimelineView() {
                         settings={settings}
                         type="total-planned"
                         mode={mode}
+                        displayMode={availabilityDisplayMode}
                       />
                     </div>
 
@@ -1262,6 +1292,7 @@ export function TimelineView() {
                         settings={settings}
                         type="other-time"
                         mode={mode}
+                        displayMode={availabilityDisplayMode}
                       />
                     </div>
                   </div>
@@ -1287,8 +1318,8 @@ export function TimelineView() {
                 <PerformanceStatus className="mt-2" />
               </div>
             </div>
-          </div>
-        </div>
+          </AppPageLayout.Content>
+        </AppPageLayout>
       </TooltipProvider>
     </DndProvider>
   );

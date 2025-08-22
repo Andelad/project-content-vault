@@ -25,6 +25,7 @@ interface UnifiedAvailabilityCirclesProps {
   settings: any;
   type: AvailabilityType;
   mode?: 'days' | 'weeks';
+  displayMode?: 'circles' | 'numbers';
 }
 
 export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircles({ 
@@ -32,7 +33,8 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
   projects = [], 
   settings, 
   type,
-  mode = 'days'
+  mode = 'days',
+  displayMode = 'circles'
 }: UnifiedAvailabilityCirclesProps) {
   const { holidays, events } = useApp();
   const columnWidth = mode === 'weeks' ? 72 : 40;
@@ -216,66 +218,95 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
           if (targetHours === 0) {
             return (
               <div key={dateIndex} className="flex justify-center items-center" style={{ minWidth: `${columnWidth}px`, width: `${columnWidth}px` }}>
-                {(type === 'available' || type === 'busy') && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="relative w-2 h-2"></div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <div className="text-xs">
-                        <div className="font-medium text-gray-500">
-                          No {type === 'available' ? 'availability' : 'overcommitment'}
+                {displayMode === 'numbers' ? (
+                  /* Numbers display for zero hours - show nothing */
+                  <div className="flex items-center justify-center min-h-[20px]">
+                    {/* Empty div - no content for 0h */}
+                  </div>
+                ) : (
+                  /* Circles display for zero hours - only show tooltip for available/busy types */
+                  (type === 'available' || type === 'busy') && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="relative w-2 h-2"></div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <div className="text-xs">
+                          <div className="font-medium text-gray-500">
+                            No {type === 'available' ? 'availability' : 'overcommitment'}
+                          </div>
+                          <div className="text-gray-500">
+                            {type === 'available' 
+                              ? `${getDailyAvailableHours(date).toFixed(1)}h available, ${getDailyProjectHours(date)}h scheduled`
+                              : `${getDailyProjectHours(date)}h scheduled, ${getDailyAvailableHours(date).toFixed(1)}h available`
+                            }
+                          </div>
                         </div>
-                        <div className="text-gray-500">
-                          {type === 'available' 
-                            ? `${getDailyAvailableHours(date).toFixed(1)}h available, ${getDailyProjectHours(date)}h scheduled`
-                            : `${getDailyProjectHours(date)}h scheduled, ${getDailyAvailableHours(date).toFixed(1)}h available`
-                          }
-                        </div>
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
+                      </TooltipContent>
+                    </Tooltip>
+                  )
                 )}
               </div>
             );
           }
-          
-          // Split hours: first 8 hours (main circle), then up to 7 more hours (inner circle)
-          const mainHours = Math.min(targetHours, 8);
-          const extraHours = Math.max(0, Math.min(targetHours - 8, 7));
-          
-          // Convert to pixels (3px = 1 hour)
-          const outerDiameter = mainHours * 3;
-          const innerDiameter = extraHours * 3;
           
           return (
             <div key={dateIndex} className="flex justify-center items-center" style={{ minWidth: `${columnWidth}px`, width: `${columnWidth}px` }}>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div className="relative">
-                    {/* Main circle */}
-                    <div 
-                      className={`${colorClass} rounded-full opacity-70 hover:opacity-100 transition-opacity flex items-center justify-center`}
-                      style={{
-                        width: `${outerDiameter}px`,
-                        height: `${outerDiameter}px`,
-                        minWidth: outerDiameter > 0 ? '6px' : '0px',
-                        minHeight: outerDiameter > 0 ? '6px' : '0px'
-                      }}
-                    >
-                      {/* Inner circle for additional hours */}
-                      {extraHours > 0 && (
-                        <div 
-                          className={`${darkColorClass} rounded-full`}
-                          style={{
-                            width: `${Math.min(innerDiameter, outerDiameter - 3)}px`,
-                            height: `${Math.min(innerDiameter, outerDiameter - 3)}px`,
-                            minWidth: innerDiameter > 0 ? '3px' : '0px',
-                            minHeight: innerDiameter > 0 ? '3px' : '0px'
-                          }}
-                        />
-                      )}
-                    </div>
+                    {displayMode === 'circles' ? (
+                      <>
+                        {/* Split hours: first 8 hours (main circle), then up to 7 more hours (inner circle) */}
+                        {(() => {
+                          const mainHours = Math.min(targetHours, 8);
+                          const extraHours = Math.max(0, Math.min(targetHours - 8, 7));
+                          
+                          // Convert to pixels (3px = 1 hour)
+                          const outerDiameter = mainHours * 3;
+                          const innerDiameter = extraHours * 3;
+                          
+                          return (
+                            <>
+                              {/* Main circle */}
+                              <div 
+                                className={`${colorClass} rounded-full opacity-70 hover:opacity-100 transition-opacity flex items-center justify-center`}
+                                style={{
+                                  width: `${outerDiameter}px`,
+                                  height: `${outerDiameter}px`,
+                                  minWidth: outerDiameter > 0 ? '6px' : '0px',
+                                  minHeight: outerDiameter > 0 ? '6px' : '0px'
+                                }}
+                              >
+                                {/* Inner circle for additional hours */}
+                                {extraHours > 0 && (
+                                  <div 
+                                    className={`${darkColorClass} rounded-full`}
+                                    style={{
+                                      width: `${Math.min(innerDiameter, outerDiameter - 3)}px`,
+                                      height: `${Math.min(innerDiameter, outerDiameter - 3)}px`,
+                                      minWidth: innerDiameter > 0 ? '3px' : '0px',
+                                      minHeight: innerDiameter > 0 ? '3px' : '0px'
+                                    }}
+                                  />
+                                )}
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </>
+                    ) : (
+                      /* Numbers display */
+                      <div className="flex items-center justify-center min-h-[20px]">
+                        <span className={`text-xs font-medium ${
+                          type === 'available' ? 'text-green-600' : 
+                          type === 'busy' ? 'text-red-600' : 
+                          'text-gray-600'
+                        }`}>
+                          {targetHours.toFixed(1)}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
