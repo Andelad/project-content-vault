@@ -297,20 +297,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const updateProject = useCallback(async (id: string, updates: Partial<Project>) => {
     try {
-      const dbUpdates: any = {};
-      if (updates.name !== undefined) dbUpdates.name = updates.name;
-      if (updates.client !== undefined) dbUpdates.client = updates.client;
-      if (updates.startDate !== undefined) dbUpdates.start_date = updates.startDate.toISOString().split('T')[0];
-      if (updates.endDate !== undefined) dbUpdates.end_date = updates.endDate.toISOString().split('T')[0];
-      if (updates.estimatedHours !== undefined) dbUpdates.estimated_hours = updates.estimatedHours;
-      if (updates.color !== undefined) dbUpdates.color = updates.color;
-      if (updates.groupId !== undefined) dbUpdates.group_id = updates.groupId;
-      if (updates.rowId !== undefined) dbUpdates.row_id = updates.rowId;
-      if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
-      if (updates.icon !== undefined) dbUpdates.icon = updates.icon;
-      if (updates.continuous !== undefined) dbUpdates.continuous = updates.continuous;
-      
-      await dbUpdateProject(id, dbUpdates);
+      // Pass updates directly to the database hook - let it handle the transformation
+      await dbUpdateProject(id, updates);
     } catch (error) {
       console.error('Failed to update project:', error);
     }

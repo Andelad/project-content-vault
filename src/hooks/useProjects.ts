@@ -192,17 +192,8 @@ export function useProjects() {
 
   const updateProject = async (id: string, updates: any) => {
     try {
-      console.log('🔄 updateProject called with:', { id, updates });
-      
       // Transform frontend data to database format
       const dbUpdates = transformToDatabase(updates);
-      console.log('📝 Transformed to db format:', dbUpdates);
-      
-      // Ensure we have data to update
-      if (Object.keys(dbUpdates).length === 0) {
-        console.error('❌ No valid updates to apply');
-        throw new Error('No valid updates provided');
-      }
 
       const { data, error } = await supabase
         .from('projects')

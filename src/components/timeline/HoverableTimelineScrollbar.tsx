@@ -131,11 +131,7 @@ export const HoverableTimelineScrollbar = memo(function HoverableTimelineScrollb
     
     if (!scrollbarRef.current) return;
     
-    console.log('🎯 SCROLLBAR DRAG START', {
-      timelineDragging,
-      scrollbarDragging: isDragging.current,
-      clientX: e.clientX
-    });
+    console.log('🎯 SCROLLBAR DRAG START');
     
     // Stop any timeline auto-scrolling
     if (stopAutoScroll) {
@@ -163,11 +159,6 @@ export const HoverableTimelineScrollbar = memo(function HoverableTimelineScrollb
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isDragging.current) return;
     
-    console.log('📍 SCROLLBAR DRAG MOVE', {
-      deltaX: e.clientX - dragStartX.current,
-      scrollbarWidth: scrollbarWidth.current
-    });
-    
     e.preventDefault();
     
     // Calculate position change
@@ -177,12 +168,6 @@ export const HoverableTimelineScrollbar = memo(function HoverableTimelineScrollb
     
     // Calculate new day offset
     const newDayOffset = dragStartDayOffset.current + deltaDays;
-    
-    console.log('📍 SCROLLBAR updating viewport', {
-      deltaDays,
-      newDayOffset,
-      maxOffset
-    });
     
     // Update viewport immediately
     updateViewportFromDayOffset(newDayOffset);

@@ -801,7 +801,6 @@ export const TimelineBar = memo(function TimelineBar({
                   zIndex: 25
                 }}
                 onMouseDown={(e) => {
-                  console.log('🎯 Baseline bar clicked', { projectId: project.id, action: 'move' });
                   e.stopPropagation();
                   handleMouseDown(e, project.id, 'move');
                 }}
@@ -819,7 +818,6 @@ export const TimelineBar = memo(function TimelineBar({
                   zIndex: 30
                 }}
                 onMouseDown={(e) => {
-                  console.log('🎯 Start drag circle clicked', { projectId: project.id, action: 'resize-start-date' });
                   e.stopPropagation();
                   handleMouseDown(e, project.id, 'resize-start-date');
                 }}
@@ -852,7 +850,6 @@ export const TimelineBar = memo(function TimelineBar({
                     borderRight: `7px solid ${colorScheme.baseline}`
                   }}
                 onMouseDown={(e) => {
-                  console.log('🎯 End drag triangle clicked', { projectId: project.id, action: 'resize-end-date' });
                   e.stopPropagation();
                   handleMouseDown(e, project.id, 'resize-end-date');
                 }}
