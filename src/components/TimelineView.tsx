@@ -435,186 +435,67 @@ export function TimelineView() {
         checkAutoScroll(e.clientX);
         
         if (action === 'resize-start-date' && daysDelta !== initialDragState.lastDaysDelta) {
-        const currentProject = projects.find(p => p.id === projectId);
-        if (currentProject) {
-          const newStartDate = new Date(initialDragState.originalStartDate);
-          newStartDate.setDate(newStartDate.getDate() + daysDelta);
-          
-          const endDate = new Date(currentProject.endDate);
-          const oneDayBefore = new Date(endDate);
-          oneDayBefore.setDate(endDate.getDate() - 1);
-          
-          if (newStartDate <= oneDayBefore) {
-            // Get milestones for this project, sorted by date
-            const projectMilestones = milestones
-              .filter(m => m.projectId === projectId)
-              .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+          const currentProject = projects.find(p => p.id === projectId);
+          if (currentProject) {
+            const newStartDate = new Date(initialDragState.originalStartDate);
+            newStartDate.setDate(newStartDate.getDate() + daysDelta);
             
-            // Check if start date conflicts with any milestones and shuffle them if needed
-            let milestonesToUpdate: Array<{id: string, newDate: Date}> = [];
-            let furthestShuffleDate = new Date(newStartDate);
+            const endDate = new Date(currentProject.endDate);
+            const oneDayBefore = new Date(endDate);
+            oneDayBefore.setDate(endDate.getDate() - 1);
             
-            // Ensure start date is at least 1 day before the first milestone
-            for (const milestone of projectMilestones) {
-              const milestoneDate = new Date(milestone.dueDate);
-              milestoneDate.setHours(0, 0, 0, 0);
+            // Simple validation - just ensure start date is before end date
+            if (newStartDate <= oneDayBefore) {
+              console.log('🔄 Updating project start date:', { projectId, newStartDate: newStartDate.toISOString() });
               
-              // If milestone would be on same date or 1 day after start date, shuffle it
-              const minMilestoneDate = new Date(furthestShuffleDate);
-              minMilestoneDate.setDate(minMilestoneDate.getDate() + 2); // Start date + 2 days minimum
-              
-              if (milestoneDate <= minMilestoneDate) {
-                const newMilestoneDate = new Date(minMilestoneDate);
-                milestonesToUpdate.push({ id: milestone.id, newDate: newMilestoneDate });
-                furthestShuffleDate = newMilestoneDate;
-              } else {
-                furthestShuffleDate = milestoneDate;
-              }
-            }
-            
-            // Ensure the shuffled milestones don't push into the end date
-            const finalMilestoneDate = milestonesToUpdate.length > 0 
-              ? milestonesToUpdate[milestonesToUpdate.length - 1].newDate 
-              : furthestShuffleDate;
-            
-            const oneDayBeforeEnd = new Date(endDate);
-            oneDayBeforeEnd.setDate(endDate.getDate() - 1);
-            
-            if (finalMilestoneDate < endDate) {
-              // Check for overlaps with other projects in the same row
-              const overlaps = checkProjectOverlap(
-                projectId,
-                currentProject.rowId,
-                newStartDate,
-                endDate,
-                projects
-              );
-              
-              // Only update if no overlaps
-              if (overlaps.length === 0) {
-                // Update project start date
-                updateProject(projectId, { startDate: newStartDate });
-                
-                // Update shuffled milestones
-                milestonesToUpdate.forEach(({ id, newDate }) => {
-                  updateMilestone(id, { dueDate: newDate });
-                });
-                
-                initialDragState.lastDaysDelta = daysDelta;
-              }
+              // Update project immediately without complex milestone logic
+              updateProject(projectId, { startDate: newStartDate });
+              initialDragState.lastDaysDelta = daysDelta;
+            } else {
+              console.log('❌ Start date would be after end date, skipping update');
             }
           }
-        }
-      } else if (action === 'resize-end-date' && daysDelta !== initialDragState.lastDaysDelta) {
-        const currentProject = projects.find(p => p.id === projectId);
-        if (currentProject) {
-          const newEndDate = new Date(initialDragState.originalEndDate);
-          newEndDate.setDate(newEndDate.getDate() + daysDelta);
-          
-          const startDate = new Date(currentProject.startDate);
-          const oneDayAfter = new Date(startDate);
-          oneDayAfter.setDate(startDate.getDate() + 1);
-          
-          if (newEndDate >= oneDayAfter) {
-            // Get milestones for this project, sorted by date (descending for end date logic)
-            const projectMilestones = milestones
-              .filter(m => m.projectId === projectId)
-              .sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime());
+        } else if (action === 'resize-end-date' && daysDelta !== initialDragState.lastDaysDelta) {
+          const currentProject = projects.find(p => p.id === projectId);
+          if (currentProject) {
+            const newEndDate = new Date(initialDragState.originalEndDate);
+            newEndDate.setDate(newEndDate.getDate() + daysDelta);
             
-            // Check if end date conflicts with any milestones and shuffle them if needed
-            let milestonesToUpdate: Array<{id: string, newDate: Date}> = [];
-            let earliestShuffleDate = new Date(newEndDate);
+            const startDate = new Date(currentProject.startDate);
+            const oneDayAfter = new Date(startDate);
+            oneDayAfter.setDate(startDate.getDate() + 1);
             
-            // Ensure end date is at least 1 day after the last milestone
-            for (const milestone of projectMilestones) {
-              const milestoneDate = new Date(milestone.dueDate);
-              milestoneDate.setHours(0, 0, 0, 0);
+            // Simple validation - just ensure end date is after start date
+            if (newEndDate >= oneDayAfter) {
+              console.log('🔄 Updating project end date:', { projectId, newEndDate: newEndDate.toISOString() });
               
-              // If milestone would be on same date or 1 day before end date, shuffle it
-              const maxMilestoneDate = new Date(earliestShuffleDate);
-              maxMilestoneDate.setDate(maxMilestoneDate.getDate() - 2); // End date - 2 days minimum
-              
-              if (milestoneDate >= maxMilestoneDate) {
-                const newMilestoneDate = new Date(maxMilestoneDate);
-                milestonesToUpdate.push({ id: milestone.id, newDate: newMilestoneDate });
-                earliestShuffleDate = newMilestoneDate;
-              } else {
-                earliestShuffleDate = milestoneDate;
-              }
-            }
-            
-            // Ensure the shuffled milestones don't push into the start date
-            const finalMilestoneDate = milestonesToUpdate.length > 0 
-              ? milestonesToUpdate[milestonesToUpdate.length - 1].newDate 
-              : earliestShuffleDate;
-            
-            const oneDayAfterStart = new Date(startDate);
-            oneDayAfterStart.setDate(startDate.getDate() + 1);
-            
-            if (finalMilestoneDate > startDate) {
-              // Check for overlaps with other projects in the same row
-              const overlaps = checkProjectOverlap(
-                projectId,
-                currentProject.rowId,
-                startDate,
-                newEndDate,
-                projects
-              );
-              
-              // Only update if no overlaps
-              if (overlaps.length === 0) {
-                // Update project end date
-                updateProject(projectId, { endDate: newEndDate });
-                
-                // Update shuffled milestones
-                milestonesToUpdate.forEach(({ id, newDate }) => {
-                  updateMilestone(id, { dueDate: newDate });
-                });
-                
-                initialDragState.lastDaysDelta = daysDelta;
-              }
+              // Update project immediately without complex milestone logic
+              updateProject(projectId, { endDate: newEndDate });
+              initialDragState.lastDaysDelta = daysDelta;
+            } else {
+              console.log('❌ End date would be before start date, skipping update');
             }
           }
-        }
-      } else if (action === 'move' && daysDelta !== initialDragState.lastDaysDelta) {
-        const currentProject = projects.find(p => p.id === projectId);
-        if (currentProject) {
-          const newStartDate = new Date(initialDragState.originalStartDate);
-          const newEndDate = new Date(initialDragState.originalEndDate);
-          
-          newStartDate.setDate(newStartDate.getDate() + daysDelta);
-          newEndDate.setDate(newEndDate.getDate() + daysDelta);
-          
-          // Check for overlaps with other projects in the same row
-          const overlaps = checkProjectOverlap(
-            projectId,
-            currentProject.rowId,
-            newStartDate,
-            newEndDate,
-            projects
-          );
-          
-          // Only update if no overlaps
-          if (overlaps.length === 0) {
+        } else if (action === 'move' && daysDelta !== initialDragState.lastDaysDelta) {
+          const currentProject = projects.find(p => p.id === projectId);
+          if (currentProject) {
+            const newStartDate = new Date(initialDragState.originalStartDate);
+            const newEndDate = new Date(initialDragState.originalEndDate);
+            
+            newStartDate.setDate(newStartDate.getDate() + daysDelta);
+            newEndDate.setDate(newEndDate.getDate() + daysDelta);
+            
+            console.log('🔄 Moving project:', { projectId, newStartDate: newStartDate.toISOString(), newEndDate: newEndDate.toISOString() });
+            
+            // Update project immediately without complex overlap checking
             updateProject(projectId, { 
               startDate: newStartDate,
               endDate: newEndDate 
             });
             
-            // Update milestone dates when project is moved
-            const projectMilestones = milestones.filter(m => m.projectId === projectId);
-            projectMilestones.forEach(milestone => {
-              const originalMilestoneDate = new Date(milestone.dueDate);
-              const newMilestoneDate = new Date(originalMilestoneDate);
-              newMilestoneDate.setDate(originalMilestoneDate.getDate() + daysDelta);
-              
-              updateMilestone(milestone.id, { dueDate: newMilestoneDate });
-            });
-            
             initialDragState.lastDaysDelta = daysDelta;
           }
         }
-      }
       } catch (error) {
         console.error('🚨 PROJECT DRAG ERROR:', error);
         // Don't show error toast for drag operations to avoid disrupting UX
