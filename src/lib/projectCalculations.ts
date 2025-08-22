@@ -23,16 +23,33 @@ export function calculateProjectTimeMetrics(
   settings: Settings
 ): ProjectTimeMetrics {
   const projectStart = new Date(project.startDate);
-  const projectEnd = new Date(project.endDate);
-  const now = new Date();
-
-  // Calculate working days for the entire project
+  projectStart.setHours(0, 0, 0, 0);
+  
+  // For continuous projects, use a reasonable calculation end date (1 year from start or today, whichever is later)
+  let projectEnd: Date;
+  if (project.continuous) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const oneYearFromStart = new Date(projectStart);
+    oneYearFromStart.setFullYear(oneYearFromStart.getFullYear() + 1);
+    const oneYearFromToday = new Date(today);
+    oneYearFromToday.setFullYear(oneYearFromToday.getFullYear() + 1);
+    
+    // Use the later of one year from start or one year from today
+    projectEnd = oneYearFromStart > oneYearFromToday ? oneYearFromStart : oneYearFromToday;
+  } else {
+    projectEnd = new Date(project.endDate);
+    projectEnd.setHours(0, 0, 0, 0);
+  }
+  
+  // Calculate total working days in project timeframe
   const allWorkDays = getWorkingDaysInRange(projectStart, projectEnd, holidays, settings);
   
   // Calculate remaining working days (from today to project end, only if project hasn't ended)
+  // For continuous projects, this will be the remaining days in the calculation period
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Start of today
-  const remainingWorkDays = projectEnd >= today 
+  const remainingWorkDays = (project.continuous || projectEnd >= today)
     ? getWorkingDaysInRange(today > projectStart ? today : projectStart, projectEnd, holidays, settings)
     : 0;
 

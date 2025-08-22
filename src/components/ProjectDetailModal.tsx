@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar as CalendarIcon, Clock, User, Palette, X, Trash2, Info, Folder, Briefcase, Zap, Target, Lightbulb, Rocket, Star, Heart, Gift, Music, Camera, Code, Book, Gamepad2, Coffee, Home, Building, Car, Plane, Map, Globe } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, User, Palette, X, Trash2, Info, Folder, Briefcase, Zap, Target, Lightbulb, Rocket, Star, Heart, Gift, Music, Camera, Code, Book, Gamepad2, Coffee, Home, Building, Car, Plane, Map, Globe, Infinity } from 'lucide-react';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
@@ -97,7 +97,8 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
     startDate: new Date(),
     endDate: new Date(),
     color: '',
-    icon: 'folder'
+    icon: 'folder',
+    continuous: false
   });
 
   // Store original values to restore on cancel
@@ -109,7 +110,8 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
     startDate: new Date(),
     endDate: new Date(),
     color: '',
-    icon: 'folder'
+    icon: 'folder',
+    continuous: false
   });
 
   useEffect(() => {
@@ -122,7 +124,8 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
         startDate: new Date(project.startDate),
         endDate: new Date(project.endDate),
         color: project.color,
-        icon: project.icon
+        icon: project.icon,
+        continuous: project.continuous || false
       };
       
       setLocalValues(projectValues);
@@ -143,7 +146,8 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
         startDate: creatingNewProject?.startDate || today,
         endDate: creatingNewProject?.endDate || nextWeek,
         color: OKLCH_PROJECT_COLORS[0],
-        icon: 'folder'
+        icon: 'folder',
+        continuous: false
       };
       
       setLocalValues(defaultValues);
@@ -172,7 +176,8 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
           rowId: rowId || 'work-row-1', // Provide default rowId
           color: localValues.color || OKLCH_PROJECT_COLORS[0],
           notes: localValues.notes,
-          icon: localValues.icon
+          icon: localValues.icon,
+          continuous: localValues.continuous
         });
 
         // If project was created successfully and we have milestones, save them
@@ -475,6 +480,16 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
     // Auto-save notes for existing projects only
     if (!isCreating && projectId && projectId !== '') {
       updateProject(projectId, { notes: value });
+    }
+  };
+
+  const handleContinuousToggle = () => {
+    const newContinuous = !localValues.continuous;
+    setLocalValues(prev => ({ ...prev, continuous: newContinuous }));
+    
+    // Auto-save for existing projects
+    if (!isCreating && projectId && projectId !== '') {
+      updateProject(projectId, { continuous: newContinuous });
     }
   };
 
@@ -880,10 +895,34 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
                 property="startDate"
               />
               <span className="text-muted-foreground">→</span>
-              <HeaderDateField
-                value={localValues.endDate}
-                property="endDate"
-              />
+              {localValues.continuous ? (
+                <div className="flex items-center gap-1 px-3 py-1 rounded border border-input bg-background text-muted-foreground">
+                  <Infinity className="w-3 h-3" />
+                  <span>Continuous</span>
+                </div>
+              ) : (
+                <HeaderDateField
+                  value={localValues.endDate}
+                  property="endDate"
+                />
+              )}
+              <TooltipProvider>
+                <Tooltip delayDuration={300}>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      onClick={handleContinuousToggle}
+                    >
+                      <Infinity className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Make continuous</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           </div>
         </div>

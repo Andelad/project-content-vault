@@ -22,6 +22,7 @@ export interface Project {
   notes?: string;
   icon?: string; // Lucide icon name, defaults to 'folder'
   milestones?: Milestone[]; // Project milestones
+  continuous?: boolean; // Whether the project is continuous (no end date)
 }
 
 export interface Row {

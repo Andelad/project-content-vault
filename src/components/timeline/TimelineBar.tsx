@@ -67,7 +67,12 @@ export const TimelineBar = memo(function TimelineBar({
     // Normalize project dates to remove time components
     const projectStart = new Date(project.startDate);
     projectStart.setHours(0, 0, 0, 0);
-    const projectEnd = new Date(project.endDate);
+    
+    // For continuous projects, use viewport end as the effective end date
+    // This prevents infinite rendering while still showing the project as ongoing
+    const projectEnd = project.continuous 
+      ? new Date(viewportEnd)
+      : new Date(project.endDate);
     projectEnd.setHours(0, 0, 0, 0);
     
     // Normalize viewport dates
@@ -91,7 +96,7 @@ export const TimelineBar = memo(function TimelineBar({
     }
     
     return projectDays;
-  }, [project.startDate, project.endDate, viewportStart, viewportEnd]);
+  }, [project.startDate, project.endDate, project.continuous, viewportStart, viewportEnd]);
   
   // Memoize working day checker
   const isWorkingDay = useMemo(() => {
@@ -747,7 +752,10 @@ export const TimelineBar = memo(function TimelineBar({
         {/* Project baseline - positioned below the rectangles */}
         {(() => {
           const projectStart = new Date(project.startDate);
-          const projectEnd = new Date(project.endDate);
+          // For continuous projects, use viewport end for positioning calculations
+          const projectEnd = project.continuous 
+            ? new Date(viewportEnd)
+            : new Date(project.endDate);
           
           // Use utility function for consistent positioning calculations
           const positions = calculateTimelinePositions(
@@ -759,8 +767,12 @@ export const TimelineBar = memo(function TimelineBar({
             mode
           );
           
-          // Check if project should be visible
-          if (projectEnd < viewportStart || projectStart > viewportEnd) {
+          // Check if project should be visible (continuous projects are always visible if started)
+          const originalProjectEnd = new Date(project.endDate);
+          if (!project.continuous && (originalProjectEnd < viewportStart || projectStart > viewportEnd)) {
+            return null;
+          }
+          if (project.continuous && projectStart > viewportEnd) {
             return null;
           }
           
@@ -769,9 +781,17 @@ export const TimelineBar = memo(function TimelineBar({
               {/* Baseline line using absolute pixel positioning like HolidayOverlay */}
               <div 
                 className="absolute top-0 h-[3px] cursor-move hover:opacity-80 pointer-events-auto"
-                style={{ 
+                style={project.continuous ? {
+                  // For continuous projects, use dashed border instead of solid background
+                  borderTop: `3px dashed ${colorScheme.baseline}`,
+                  backgroundColor: 'transparent',
+                  left: `${positions.baselineStartPx}px`,
+                  width: `${positions.baselineWidthPx}px`,
+                  zIndex: 20
+                } : {
+                  // For regular projects, use solid background
                   backgroundColor: colorScheme.baseline,
-                  left: `${positions.baselineStartPx}px`, // Use exact positioning without artificial constraints in weeks mode
+                  left: `${positions.baselineStartPx}px`,
                   width: `${positions.baselineWidthPx}px`,
                   zIndex: 20
                 }}
@@ -809,23 +829,26 @@ export const TimelineBar = memo(function TimelineBar({
               </div>
               
               {/* End date drag triangle - align right edge with right edge of end column */}
-              <div 
-                className="absolute cursor-ew-resize z-30 pointer-events-auto"
-                style={{ 
-                  left: `${positions.triangleLeftPx - 7}px`, // Position triangle so right edge aligns with right edge of end column
-                  top: '-4px', // Center 11px triangle on 3px baseline (5.5px above, 2.5px below)
-                  width: '0',
-                  height: '0',
-                  borderTop: '5.5px solid transparent',
-                  borderBottom: '5.5px solid transparent',
-                  borderRight: `7px solid ${colorScheme.baseline}`
-                }}
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  handleMouseDown(e, project.id, 'resize-end-date');
-                }}
-                title="Drag to change end date"
-              />
+              {/* Hide for continuous projects since they don't have an end date */}
+              {!project.continuous && (
+                <div 
+                  className="absolute cursor-ew-resize z-30 pointer-events-auto"
+                  style={{ 
+                    left: `${positions.triangleLeftPx - 7}px`, // Position triangle so right edge aligns with right edge of end column
+                    top: '-4px', // Center 11px triangle on 3px baseline (5.5px above, 2.5px below)
+                    width: '0',
+                    height: '0',
+                    borderTop: '5.5px solid transparent',
+                    borderBottom: '5.5px solid transparent',
+                    borderRight: `7px solid ${colorScheme.baseline}`
+                  }}
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    handleMouseDown(e, project.id, 'resize-end-date');
+                  }}
+                  title="Drag to change end date"
+                />
+              )}
               
               {/* Project Milestones */}
               <ProjectMilestones

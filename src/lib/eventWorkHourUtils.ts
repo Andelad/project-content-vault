@@ -216,15 +216,39 @@ export function getProjectTimeAllocation(
   const projectStart = new Date(project.startDate);
   projectStart.setHours(0, 0, 0, 0);
   
-  const projectEnd = new Date(project.endDate);
-  projectEnd.setHours(0, 0, 0, 0);
-  
-  if (normalizedDate < projectStart || normalizedDate > projectEnd) {
-    return { type: 'none', hours: 0, isWorkingDay: true };
+  // For continuous projects, only check start date
+  if (project.continuous) {
+    if (normalizedDate < projectStart) {
+      return { type: 'none', hours: 0, isWorkingDay: true };
+    }
+  } else {
+    const projectEnd = new Date(project.endDate);
+    projectEnd.setHours(0, 0, 0, 0);
+    
+    if (normalizedDate < projectStart || normalizedDate > projectEnd) {
+      return { type: 'none', hours: 0, isWorkingDay: true };
+    }
+  }
+
+  // For continuous projects, calculate working days using a reasonable time frame
+  let effectiveProjectEnd: Date;
+  if (project.continuous) {
+    // Use a reasonable calculation window for continuous projects (1 year from start or today)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const oneYearFromStart = new Date(projectStart);
+    oneYearFromStart.setFullYear(oneYearFromStart.getFullYear() + 1);
+    const oneYearFromToday = new Date(today);
+    oneYearFromToday.setFullYear(oneYearFromToday.getFullYear() + 1);
+    
+    effectiveProjectEnd = oneYearFromStart > oneYearFromToday ? oneYearFromStart : oneYearFromToday;
+  } else {
+    effectiveProjectEnd = new Date(project.endDate);
+    effectiveProjectEnd.setHours(0, 0, 0, 0);
   }
 
   // Use memoized calculation for project working days
-  const projectWorkingDays = memoizedProjectWorkingDays(projectStart, projectEnd, settings, holidays);
+  const projectWorkingDays = memoizedProjectWorkingDays(projectStart, effectiveProjectEnd, settings, holidays);
 
   if (projectWorkingDays.length === 0) {
     return { type: 'none', hours: 0, isWorkingDay: true };
