@@ -60,12 +60,24 @@
   border: none !important;
   border-radius: 6px !important;
   font-size: 12px !important;
-  padding: 2px 4px !important;
+  /* Uniform padding on all sides */
+  padding: 4px !important;
   cursor: pointer !important;
 }
 
+/* Future events get dashed borders */
+.rbc-event.future-event {
+  border: 2px dashed var(--future-event-border-color) !important;
+}
+
+/* Default label style */
 .rbc-event-label {
   font-size: 11px !important;
+}
+
+/* Opt-in: hide built-in time label when we render our own inside the event */
+.rbc-event.hide-label .rbc-event-label {
+  display: none !important;
 }
 
 .rbc-event-overlaps {

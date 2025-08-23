@@ -48,84 +48,71 @@ interface CustomEventProps {
 }
 
 function CustomEvent({ event }: CustomEventProps) {
-  const { updateEvent, projects } = useApp();
+  const { projects } = useApp();
   const { deleteWorkHour } = useWorkHours();
+  const { updateEvent, isTimeTracking } = useApp();
   const resource = event.resource;
-  
-  // Type guard to check if resource is CalendarEvent
-  const isCalendarEvent = (res: CalendarEvent | WorkHour): res is CalendarEvent => {
-    return 'projectId' in res;
-  };
-  
+
+  const isCalendarEvent = (res: CalendarEvent | WorkHour): res is CalendarEvent => 'projectId' in res;
   const isWorkHour = event.isWorkHour || !isCalendarEvent(resource);
-  const workHour = isWorkHour ? resource as WorkHour : null;
-  const calendarEvent = !isWorkHour ? resource as CalendarEvent : null;
+  const workHour = isWorkHour ? (resource as WorkHour) : null;
+  const calendarEvent = !isWorkHour ? (resource as CalendarEvent) : null;
   const project = calendarEvent?.projectId ? projects.find(p => p.id === calendarEvent.projectId) : null;
-  
-  // Define all callbacks at the top level
+  const isCurrentlyTracking = !!(calendarEvent && isTimeTracking && (calendarEvent.type === 'tracked' || calendarEvent.title?.startsWith('🔴')));
+
   const handleDeleteWorkHour = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (workHour) {
       deleteWorkHour(workHour.id);
     }
   }, [workHour?.id, deleteWorkHour]);
-  
-  const handleCompletionToggle = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (calendarEvent) {
-      updateEvent(calendarEvent.id, { completed: !calendarEvent.completed });
-    }
-  }, [calendarEvent?.id, calendarEvent?.completed, updateEvent]);
-  
+
   if (isWorkHour && workHour) {
+    // Show built-in label for work hours (we don't hide it) and our content below
     return (
       <div className="h-full flex items-center justify-between px-2 py-1">
         <div className="flex-1 min-w-0">
-          <div className="text-xs font-medium truncate">
-            {workHour.title}
-          </div>
-          {workHour.description && (
-            <div className="text-xs opacity-75 truncate">
-              {workHour.description}
-            </div>
-          )}
+          <div className="text-xs font-medium truncate">{workHour.title}</div>
+          {workHour.description && <div className="text-xs opacity-75 truncate">{workHour.description}</div>}
         </div>
-        <button
-          className="ml-2 text-red-500 hover:text-red-700 text-xs opacity-60 hover:opacity-100"
-          onClick={handleDeleteWorkHour}
-          title="Delete work hour"
-        >
+        <button className="ml-2 text-red-500 hover:text-red-700 text-xs opacity-60 hover:opacity-100" onClick={handleDeleteWorkHour} title="Delete work hour">
           ×
         </button>
       </div>
     );
-  } else if (calendarEvent) {
+  }
+
+  if (calendarEvent) {
+    // Custom top row: time (left) + checkbox/red dot (right), then client/project lines
+    const start = moment(event.start).format('HH:mm');
+    const end = moment(event.end).format('HH:mm');
+    const handleCompletionToggle = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (calendarEvent && !isCurrentlyTracking) {
+        updateEvent(calendarEvent.id, { completed: !calendarEvent.completed });
+      }
+    };
+
     return (
-      <div className="h-full flex items-center justify-between px-2 py-1">
-        <div className="flex-1 min-w-0">
-          <div className={`text-xs font-medium truncate ${calendarEvent.completed ? 'line-through opacity-60' : ''}`}>
-            {calendarEvent.title}
+  <div className="h-full flex flex-col gap-0.5">
+        <div className="flex items-center justify-between">
+          <div className="text-[11px] leading-none opacity-80 font-medium">{start} - {end}</div>
+          <div className="text-current">
+            {isCurrentlyTracking ? (
+              <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" title="Currently recording" />
+            ) : (
+              <button type="button" className="cursor-pointer hover:scale-110 transition-transform text-current" onClick={handleCompletionToggle} aria-label={calendarEvent.completed ? 'Mark as not completed' : 'Mark as completed'}>
+                {calendarEvent.completed ? <CheckCircle2 className="w-3 h-3" /> : <Circle className="w-3 h-3" />}
+              </button>
+            )}
           </div>
-          {project && (
-            <div className="text-xs opacity-75 truncate">
-              {project.name}
-            </div>
-          )}
         </div>
-        <div 
-          className="ml-2 cursor-pointer hover:scale-110 transition-transform"
-          onClick={handleCompletionToggle}
-        >
-          {calendarEvent.completed ? (
-            <CheckCircle2 className="w-4 h-4 text-green-300" />
-          ) : (
-            <Circle className="w-4 h-4 text-white/60 hover:text-white" />
-          )}
-        </div>
+        {project?.client && <div className="text-xs opacity-75 truncate leading-tight">{project.client}</div>}
+        {project && <div className="text-xs opacity-75 truncate leading-tight">{project.name}</div>}
       </div>
     );
   }
-  
+
   return null;
 }
 
@@ -230,6 +217,11 @@ export function EnhancedCalendarView() {
       return 'projectId' in res;
     };
     
+    // Check if event is in the future (precise to minute)
+    const now = new Date();
+    const eventStart = new Date(event.start);
+    const isFutureEvent = eventStart > now;
+    
     if (event.isWorkHour || !isCalendarEvent(resource)) {
       // Style for work hours
       return {
@@ -252,19 +244,33 @@ export function EnhancedCalendarView() {
       const baseColor = calendarEvent.color || (project ? project.color : OKLCH_FALLBACK_GRAY);
       
       // Create light background and dark text versions
-      const backgroundColor = getCalendarEventBackgroundColor(baseColor);
+      let backgroundColor = getCalendarEventBackgroundColor(baseColor);
       const textColor = getCalendarEventTextColor(baseColor);
+      
+      // Make future events even lighter by increasing lightness further
+      if (isFutureEvent) {
+        // For future events, set lightness very high and reduce chroma for almost white appearance
+        const match = backgroundColor.match(/oklch\(([0-9.]+) ([0-9.]+) ([0-9.]+)\)/);
+        if (match) {
+          const [, lightness, chroma, hue] = match;
+          // Set to very high lightness (0.98) and very low chroma (0.02) for almost white appearance
+          const newLightness = 0.98;
+          const newChroma = 0.02; // Much lower chroma for subtle tint
+          backgroundColor = `oklch(${newLightness} ${newChroma} ${hue})`;
+        }
+      }
       
       return {
         style: {
           backgroundColor,
           borderRadius: '6px',
           opacity: calendarEvent.completed ? 0.6 : 1,
-          border: 'none',
           color: textColor,
           fontSize: '12px',
-          padding: '2px'
-        }
+          // Set CSS variable for future event border color
+          '--future-event-border-color': baseColor
+        } as React.CSSProperties,
+        className: `${isFutureEvent ? 'future-event' : ''} hide-label`.trim()
       };
     }
   }, [projects]);
@@ -542,10 +548,11 @@ export function EnhancedCalendarView() {
             resizable
             eventPropGetter={eventStyleGetter}
             components={{
-              event: CustomEvent,
-              toolbar: () => null // Remove the default toolbar
+              event: (props: any) => <CustomEvent {...props} />,
+              toolbar: () => null
             }}
             formats={{
+              dayFormat: 'ddd DD', // Day abbreviation followed by date (e.g., "Mon 23")
               timeGutterFormat: 'HH:mm',
               eventTimeRangeFormat: ({ start, end }) => 
                 `${moment(start).format('HH:mm')} - ${moment(end).format('HH:mm')}`,
