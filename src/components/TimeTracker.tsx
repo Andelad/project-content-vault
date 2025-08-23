@@ -283,17 +283,77 @@ export function TimeTracker({ className }: TimeTrackerProps) {
   };
 
   // Handle search selection
-  const handleSelectItem = (item: any) => {
+  const handleSelectItem = async (item: any) => {
+    let selectedProjectData;
+    
     if (item.type === 'project') {
       const project = projects.find(p => p.id === item.id);
       setSelectedProject(project);
       setSearchQuery(project ? `${project.name} • ${project.client}` : '');
+      selectedProjectData = project;
     } else {
       // Client selected - use just client name
-      setSelectedProject({ client: item.name, name: item.name });
+      const clientProject = { client: item.name, name: item.name };
+      setSelectedProject(clientProject);
       setSearchQuery(item.name);
+      selectedProjectData = clientProject;
     }
     setShowSearchDropdown(false);
+
+    // Automatically start tracking if not already tracking
+    if (!isTimeTracking) {
+      const now = new Date();
+      startTimeRef.current = now;
+      setSeconds(0);
+      setIsTimeTracking(true);
+      
+      // Create tracking event with distinctive styling
+      const eventData: Omit<CalendarEvent, 'id'> = {
+        title: `🔴 ${selectedProjectData?.name || item.name || 'Time Tracking'}`,
+        startTime: now,
+        endTime: new Date(now.getTime() + 60000), // Start with 1 minute
+        projectId: selectedProjectData?.id,
+        color: selectedProjectData?.color || '#DC2626', // Red color for tracking
+        description: `Active time tracking${selectedProjectData ? ` for ${selectedProjectData.name}` : ''}`,
+        duration: 0.0167, // 1 minute in hours
+        type: 'tracked'
+      };
+      
+      try {
+        // Create the tracking event
+        const createdEvent = await addEvent(eventData) as unknown as CalendarEvent;
+        
+        // Use the actual event ID from the database
+        setCurrentEventId(createdEvent.id);
+        
+        // Start the timer interval
+        intervalRef.current = setInterval(() => {
+          setSeconds(prev => prev + 1);
+        }, 1000);
+        
+        // Start live updates immediately
+        startLiveUpdates(createdEvent.id, now);
+        
+        // Handle any planned event overlaps
+        handlePlannedEventOverlaps(now, new Date(now.getTime() + 60000));
+        
+        // Save tracking state
+        saveTrackingState({
+          isTracking: true,
+          startTime: now,
+          eventId: createdEvent.id,
+          selectedProject: selectedProjectData,
+          searchQuery: selectedProjectData?.name || item.name,
+          affectedEvents: []
+        });
+        
+      } catch (error) {
+        console.error('Failed to create tracking event:', error);
+        setIsTimeTracking(false);
+        startTimeRef.current = null;
+        return;
+      }
+    }
   };
 
   // Start/stop tracking
