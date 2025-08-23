@@ -547,6 +547,10 @@ export function EnhancedCalendarView() {
             onEventResize={handleEventResize}
             selectable
             resizable
+            // Enhanced drag and drop configuration
+            draggableAccessor={() => true}
+            resizableAccessor={() => true}
+            dragFromOutsideItem={null}
             eventPropGetter={eventStyleGetter}
             components={{
               event: (props: any) => <CustomEvent {...props} />,
@@ -561,8 +565,8 @@ export function EnhancedCalendarView() {
               agendaTimeRangeFormat: ({ start, end }) => 
                 `${moment(start).format('HH:mm')} - ${moment(end).format('HH:mm')}`
             }}
-            step={30}
-            timeslots={2}
+            step={15}
+            timeslots={4}
             scrollToTime={moment().hours(6).minutes(0).toDate()}
             defaultView={Views.WEEK}
             popup

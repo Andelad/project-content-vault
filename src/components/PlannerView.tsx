@@ -605,6 +605,10 @@ export function PlannerView() {
             onEventResize={handleEventResize}
             selectable
             resizable
+            // Enhanced drag and drop configuration
+            draggableAccessor={() => true}
+            resizableAccessor={() => true}
+            dragFromOutsideItem={null}
             eventPropGetter={eventStyleGetter}
             components={{
               event: (props: any) => <CustomEvent {...props} layerMode={layerMode} />,

@@ -388,6 +388,59 @@
   border-left: 1px solid hsl(var(--border)) !important;
 }
 
+/* Drag and Drop Event Styling - Direct Manipulation */
+
+/* Hide only the clone/duplicate elements, but keep the drag preview */
+.rbc-addons-dnd .rbc-event.rbc-addons-dnd-drag-clone,
+.rbc-addons-dnd .rbc-addons-dnd-clone {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+
+/* Make the original event semi-transparent during drag so you see it move */
+.rbc-addons-dnd .rbc-event.rbc-addons-dnd-dragging {
+  opacity: 0.5 !important;
+  transform: none !important;
+  transition: none !important;
+}
+
+/* Style the drag preview to follow the cursor smoothly */
+.rbc-addons-dnd .rbc-addons-dnd-drag-preview {
+  border: none !important;
+  border-radius: 6px !important;
+  font-size: 12px !important;
+  padding: 4px !important;
+  cursor: move !important;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3) !important;
+  z-index: 1000 !important;
+  opacity: 0.9 !important;
+  transition: none !important;
+  pointer-events: none !important;
+}
+
+/* Style the resize preview to show incremental changes */
+.rbc-addons-dnd .rbc-addons-dnd-resize-preview {
+  border: 2px solid #3b82f6 !important;
+  background-color: rgba(59, 130, 246, 0.1) !important;
+  border-radius: 6px !important;
+  opacity: 0.8 !important;
+  transition: none !important;
+  pointer-events: none !important;
+}
+
+/* Enhanced visual feedback for the actual event being resized */
+.rbc-addons-dnd .rbc-event.rbc-addons-dnd-resizing {
+  opacity: 0.6 !important;
+  box-shadow: 0 0 0 2px #3b82f6 !important;
+  transition: none !important;
+}
+
+/* Smooth transitions only for events not being manipulated */
+.rbc-event:not(.rbc-addons-dnd-dragging):not(.rbc-addons-dnd-resizing) {
+  transition: box-shadow 0.15s ease !important;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .rbc-event {
