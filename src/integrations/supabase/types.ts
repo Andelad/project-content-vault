@@ -469,6 +469,33 @@ export type Database = {
         }
         Relationships: []
       }
+      usage_analytics: {
+        Row: {
+          event_category: string
+          event_type: string
+          id: string
+          metadata: Json | null
+          timestamp: string | null
+          user_id_hash: string
+        }
+        Insert: {
+          event_category: string
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          timestamp?: string | null
+          user_id_hash: string
+        }
+        Update: {
+          event_category?: string
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          timestamp?: string | null
+          user_id_hash?: string
+        }
+        Relationships: []
+      }
       work_hours: {
         Row: {
           created_at: string | null
@@ -507,7 +534,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      hash_user_id: {
+        Args: { user_uuid: string }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
