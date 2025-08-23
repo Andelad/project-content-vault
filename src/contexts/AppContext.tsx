@@ -92,6 +92,9 @@ interface AppContextType {
   deleteMilestone: (id: string) => void;
   reorderMilestones: (projectId: string, fromIndex: number, toIndex: number) => void;
   showMilestoneSuccessToast: (message?: string) => void;
+  // Time tracking state
+  isTimeTracking: boolean;
+  setIsTimeTracking: (isTracking: boolean) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -137,6 +140,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [editingHolidayId, setEditingHolidayId] = useState<string | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [creatingNewEvent, setCreatingNewEvent] = useState<{ startTime?: Date; endTime?: Date } | null>(null);
+  
+  // Time tracking global state
+  const [isTimeTracking, setIsTimeTracking] = useState<boolean>(false);
 
   // Work hour overrides for individual date-specific changes
   const [workHourOverrides, setWorkHourOverrides] = useState<WorkHourOverride[]>([]);
@@ -613,8 +619,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     editingHolidayId,
     selectedEventId,
     creatingNewEvent,
-    milestones: processedMilestones
-  }), [currentView, timelineMode, currentDate, processedProjects, dbGroups, processedRows, processedEvents, processedSettings, workHours, timelineEntries, workHourOverrides, collapsedGroups, selectedProjectId, creatingNewProject, processedHolidays, creatingNewHoliday, editingHolidayId, selectedEventId, creatingNewEvent, processedMilestones]);
+    milestones: processedMilestones,
+    isTimeTracking
+  }), [currentView, timelineMode, currentDate, processedProjects, dbGroups, processedRows, processedEvents, processedSettings, workHours, timelineEntries, workHourOverrides, collapsedGroups, selectedProjectId, creatingNewProject, processedHolidays, creatingNewHoliday, editingHolidayId, selectedEventId, creatingNewEvent, processedMilestones, isTimeTracking]);
 
   const actions = useMemo(() => ({
     setCurrentView,
@@ -654,7 +661,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     deleteMilestone,
     reorderMilestones,
     showProjectSuccessToast,
-    showMilestoneSuccessToast
+    showMilestoneSuccessToast,
+    setIsTimeTracking
   }), [
     setCurrentView,
     setCurrentDate,
@@ -693,7 +701,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     deleteMilestone,
     reorderMilestones,
     showProjectSuccessToast,
-    showMilestoneSuccessToast
+    showMilestoneSuccessToast,
+    setIsTimeTracking
   ]);
 
   return (

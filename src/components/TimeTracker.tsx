@@ -11,10 +11,9 @@ interface TimeTrackerProps {
 }
 
 export function TimeTracker({ className }: TimeTrackerProps) {
-  const { projects, events } = useAppDataOnly();
-  const { addEvent, updateEvent, deleteEvent } = useAppActionsOnly();
+  const { projects, events, isTimeTracking } = useAppDataOnly();
+  const { addEvent, updateEvent, deleteEvent, setIsTimeTracking } = useAppActionsOnly();
   
-  const [isTracking, setIsTracking] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProject, setSelectedProject] = useState<any>(null);
   const [seconds, setSeconds] = useState(0);
@@ -52,7 +51,7 @@ export function TimeTracker({ className }: TimeTrackerProps) {
         const now = new Date();
         const elapsedSeconds = Math.floor((now.getTime() - startTime.getTime()) / 1000);
         
-        setIsTracking(true);
+        setIsTimeTracking(true);
         setSeconds(elapsedSeconds);
         setCurrentEventId(savedEventId);
         startTimeRef.current = startTime;
@@ -299,7 +298,7 @@ export function TimeTracker({ className }: TimeTrackerProps) {
 
   // Start/stop tracking
   const handleToggleTracking = async () => {
-    if (!isTracking) {
+    if (!isTimeTracking) {
       // Start tracking
       if (!selectedProject && !searchQuery.trim()) {
         setShowSearchDropdown(true);
@@ -309,7 +308,7 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       const now = new Date();
       startTimeRef.current = now;
       setSeconds(0);
-      setIsTracking(true);
+      setIsTimeTracking(true);
       
       // Create tracking event with distinctive styling
       const eventData: Omit<CalendarEvent, 'id'> = {
@@ -345,7 +344,7 @@ export function TimeTracker({ className }: TimeTrackerProps) {
         
       } catch (error) {
         console.error('Failed to create tracking event:', error);
-        setIsTracking(false);
+        setIsTimeTracking(false);
         startTimeRef.current = null;
         return;
       }
@@ -357,7 +356,7 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       
     } else {
       // Stop tracking
-      setIsTracking(false);
+      setIsTimeTracking(false);
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
@@ -448,7 +447,7 @@ export function TimeTracker({ className }: TimeTrackerProps) {
               }}
               onFocus={() => setShowSearchDropdown(true)}
               className="w-64 h-8 bg-background border-border focus:border-primary cursor-text"
-              disabled={isTracking}
+              disabled={isTimeTracking}
             />
             <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         
@@ -505,12 +504,12 @@ export function TimeTracker({ className }: TimeTrackerProps) {
             onClick={handleToggleTracking}
             size="sm"
             className={`w-8 h-8 rounded-full p-0 transition-colors ${
-              isTracking 
+              isTimeTracking 
                 ? 'bg-red-500 hover:bg-red-600 text-white' 
                 : 'bg-primary hover:bg-primary/90 text-primary-foreground'
             }`}
           >
-            {isTracking ? (
+            {isTimeTracking ? (
               <Square className="h-3 w-3" fill="currentColor" />
             ) : (
               <Play className="h-3 w-3 ml-0.5" />

@@ -14,6 +14,7 @@ interface AppStateContextType {
   selectedEventId: string | null;
   creatingNewEvent: { startTime?: Date; endTime?: Date } | null;
   milestones: Milestone[];
+  isTimeTracking: boolean;
 }
 
 const AppStateContext = createContext<AppStateContextType | undefined>(undefined);
@@ -38,7 +39,8 @@ export function AppStateProvider({
     value.holidays,
     value.selectedEventId,
     value.creatingNewEvent,
-    value.milestones
+    value.milestones,
+    value.isTimeTracking
   ]);
 
   return (

@@ -13,6 +13,7 @@ import { ProjectDetailModal } from '@/components/ProjectDetailModal';
 import { HolidayModal } from '@/components/HolidayModal';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { DevToolsWrapper } from '@/components/DevTools';
+import { useFavicon } from '@/hooks/useFavicon';
 import LandingPage from '@/pages/LandingPage';
 
 // Lazy load view components for better performance
@@ -54,10 +55,14 @@ function AuthenticatedContent() {
     selectedEventId,
     setSelectedEventId,
     creatingNewEvent,
-    setCreatingNewEvent
+    setCreatingNewEvent,
+    isTimeTracking
   } = useApp();
 
   const { signOut, user } = useAuth();
+  
+  // Use the favicon hook to change favicon based on time tracking state
+  useFavicon(isTimeTracking);
 
   const renderView = () => {
     // Pass key directly instead of spreading to avoid React warnings

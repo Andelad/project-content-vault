@@ -17,6 +17,7 @@ interface AppActionsContextType {
   deleteEvent: (id: string) => void;
   updateHoliday: (id: string, updates: any) => void;
   setSelectedProjectId: (projectId: string | null) => void;
+  setIsTimeTracking: (isTracking: boolean) => void;
 }
 
 const AppActionsContext = createContext<AppActionsContextType | undefined>(undefined);
@@ -43,7 +44,8 @@ export function AppActionsProvider({
     actions.addEvent,
     actions.updateEvent,
     actions.deleteEvent,
-    actions.setSelectedProjectId
+    actions.setSelectedProjectId,
+    actions.setIsTimeTracking
   ]);
 
   return (
