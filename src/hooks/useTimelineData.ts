@@ -54,9 +54,16 @@ export function useTimelineData(projects: any[], viewportStart: Date, viewportDa
         calculatedEnd: viewportEnd.toDateString()
       });
       
-      // Filter projects that intersect with the current viewport
+      // Filter projects that intersect with the current viewport - optimized for continuous projects
       const filteredProjects = (projects || []).filter(project => {
         const projectStart = new Date(project.startDate);
+        
+        // Optimization: For continuous projects, only check start date
+        if (project.continuous) {
+          return projectStart <= viewportEnd; // Only needs to have started before viewport ends
+        }
+        
+        // For regular projects, do full intersection check
         const projectEnd = new Date(project.endDate);
         return !(projectEnd < weekStart || projectStart > viewportEnd);
       });

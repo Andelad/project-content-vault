@@ -8,12 +8,65 @@ import { Badge } from './ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { RichTextEditor } from './RichTextEditor';
 import { ProjectProgressGraph } from './ProjectProgressGraph';
 import { MilestoneManager } from './MilestoneManager';
 import { useApp } from '../contexts/AppContext';
 import { calculateProjectTimeMetrics } from '@/lib/projectCalculations';
+
+// Function to calculate working days remaining until end date
+const calculateWorkingDaysRemaining = (endDate: Date, settings: any, holidays: any[]): number => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const targetEndDate = new Date(endDate);
+  targetEndDate.setHours(0, 0, 0, 0);
+  
+  // If end date is in the past or today, return 0
+  if (targetEndDate <= today) {
+    return 0;
+  }
+  
+  // If no settings, return 0
+  if (!settings?.weeklyWorkHours) {
+    return 0;
+  }
+  
+  let workingDays = 0;
+  const current = new Date(today);
+  current.setDate(current.getDate() + 1); // Start from tomorrow
+  
+  while (current <= targetEndDate) {
+    // Check if it's a holiday
+    const isHoliday = holidays.some(holiday => {
+      const holidayStart = new Date(holiday.startDate);
+      const holidayEnd = new Date(holiday.endDate);
+      holidayStart.setHours(0, 0, 0, 0);
+      holidayEnd.setHours(0, 0, 0, 0);
+      return current >= holidayStart && current <= holidayEnd;
+    });
+    
+    if (!isHoliday) {
+      // Check if it's a day with work hours configured
+      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const dayName = dayNames[current.getDay()] as keyof typeof settings.weeklyWorkHours;
+      const workSlots = settings.weeklyWorkHours?.[dayName] || [];
+      
+      const hasWorkHours = Array.isArray(workSlots) && 
+        workSlots.reduce((sum, slot) => sum + slot.duration, 0) > 0;
+      
+      if (hasWorkHours) {
+        workingDays++;
+      }
+    }
+    
+    current.setDate(current.getDate() + 1);
+  }
+  
+  return workingDays;
+};
 
 // OKLCH color palette - matches the one defined in AppContext
 const OKLCH_PROJECT_COLORS = [
@@ -494,6 +547,14 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
     }
   };
 
+  const handleGroupChange = (newGroupId: string) => {
+    if (!isCreating && projectId && projectId !== '') {
+      // For existing projects, update the group
+      updateProject(projectId, { groupId: newGroupId });
+    }
+    // Note: For new projects, we can't change the group as it's determined by the creation context
+  };
+
   const formatDate = (date: Date) => {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -526,12 +587,12 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
     };
     
     return (
-      <div className="w-32">
+      <div className="min-w-[80px]">
         <Popover open={isOpen} onOpenChange={setIsOpen}>
           <PopoverTrigger asChild>
             <Button
               variant="outline"
-              className="w-full h-8 text-sm justify-start text-left font-normal"
+              className="h-8 text-sm justify-start text-left font-normal px-3"
             >
               <CalendarIcon className="mr-2 h-3 w-3" />
               {formatDate(value)}
@@ -541,6 +602,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
             <Calendar
               mode="single"
               selected={value}
+              defaultMonth={value} // This makes the calendar open at the set date
               onSelect={(selectedDate) => {
                 if (selectedDate) {
                   handleSaveProperty(property, selectedDate);
@@ -566,15 +628,17 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
     placeholder?: string;
   }) => {
     const isEditing = editingProperty === property;
+    const displayValue = value || placeholder;
     
     return (
-      <div className="group relative">
+      <div className="min-w-[80px]">
         {isEditing ? (
           <Input
             type="text"
             defaultValue={value}
             placeholder={placeholder}
-            className="w-32 h-8 text-sm border-border bg-background"
+            className="h-8 text-sm border-border bg-background"
+            style={{ width: `${Math.max(displayValue.length * 8 + 40, 80)}px` }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 const newValue = (e.target as HTMLInputElement).value;
@@ -590,13 +654,100 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
             autoFocus
           />
         ) : (
-          <button
-            className="px-3 py-1 text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer rounded border border-transparent hover:border-border hover:bg-muted/50"
+          <Button
+            variant="outline"
+            className="h-8 text-sm justify-start text-left font-normal px-3"
+            style={{ width: `${Math.max(displayValue.length * 8 + 40, 80)}px` }}
             onClick={() => setEditingProperty(property)}
           >
-            {value || placeholder}
-          </button>
+            <User className="mr-2 h-3 w-3" />
+            {displayValue}
+          </Button>
         )}
+      </div>
+    );
+  };
+
+  // Compact budgeted time field for header
+  const HeaderBudgetedTimeField = ({ 
+    value, 
+    property 
+  }: {
+    value: number;
+    property: string;
+  }) => {
+    const isEditing = editingProperty === property;
+    const displayValue = `${value}h budgeted`;
+    
+    return (
+      <div className="min-w-[100px]">
+        {isEditing ? (
+          <Input
+            type="number"
+            defaultValue={value}
+            className="h-8 text-sm border-border bg-background"
+            style={{ width: `${Math.max(value.toString().length * 12 + 60, 100)}px` }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                const newValue = parseInt((e.target as HTMLInputElement).value) || 0;
+                handleSaveProperty(property, newValue);
+              } else if (e.key === 'Escape') {
+                setEditingProperty(null);
+              }
+            }}
+            onBlur={(e) => {
+              const newValue = parseInt(e.target.value) || 0;
+              handleSaveProperty(property, newValue);
+            }}
+            autoFocus
+          />
+        ) : (
+          <Button
+            variant="outline"
+            className="h-8 text-sm justify-start text-left font-normal px-3"
+            style={{ width: `${Math.max(displayValue.length * 8 + 40, 100)}px` }}
+            onClick={() => setEditingProperty(property)}
+          >
+            <Clock className="mr-2 h-3 w-3" />
+            {displayValue}
+          </Button>
+        )}
+      </div>
+    );
+  };
+
+  // Group dropdown for header
+  const HeaderGroupField = ({ 
+    currentGroupId, 
+    onGroupChange,
+    disabled = false
+  }: {
+    currentGroupId?: string;
+    onGroupChange: (groupId: string) => void;
+    disabled?: boolean;
+  }) => {
+    const currentGroup = groups.find(g => g.id === currentGroupId);
+    const displayValue = currentGroup ? currentGroup.name : 'Select group';
+    
+    return (
+      <div className="min-w-[100px]">
+        <Select value={currentGroupId || ''} onValueChange={onGroupChange} disabled={disabled}>
+          <SelectTrigger 
+            className="h-8 text-sm"
+            style={{ width: `${Math.max(displayValue.length * 8 + 40, 100)}px` }}
+          >
+            <SelectValue placeholder="Select group">
+              {displayValue}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {groups.map((group) => (
+              <SelectItem key={group.id} value={group.id}>
+                {group.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
     );
   };
@@ -709,7 +860,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
           
           {/* Modal */}
           <motion.div 
-            className="fixed max-w-[1240px] w-[90vw] h-[95vh] bg-white rounded-lg overflow-hidden shadow-2xl z-50"
+            className="fixed max-w-[1240px] w-[90vw] h-[95vh] bg-white rounded-lg overflow-hidden shadow-2xl z-50 flex flex-col"
             style={{
               left: '50%',
               top: '2.5vh'
@@ -763,17 +914,21 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
 
         {/* Header */}
         <div className="px-8 pt-6 pb-4 border-b border-gray-200 flex-shrink-0">
-          {/* Group badge and Client */}
+          {/* First row: Group, Client, Budgeted Time */}
           <div className="flex items-center gap-3 mb-2">
-            {group && (
-              <Badge variant="secondary" className="text-xs">
-                {group.name}
-              </Badge>
-            )}
+            <HeaderGroupField
+              currentGroupId={project?.groupId || groupId}
+              onGroupChange={handleGroupChange}
+              disabled={isCreating} // Can't change group when creating
+            />
             <HeaderClientField
               value={localValues.client}
               property="client"
               placeholder="Client"
+            />
+            <HeaderBudgetedTimeField
+              value={localValues.estimatedHours}
+              property="estimatedHours"
             />
           </div>
           
@@ -890,22 +1045,40 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
             </div>
             
             {/* Date Range */}
-            <div className="flex items-center gap-2 text-sm">
+            <div className="flex items-end gap-2 text-sm">
               <HeaderDateField
                 value={localValues.startDate}
                 property="startDate"
               />
-              <span className="text-muted-foreground">→</span>
+              <span className="text-muted-foreground mb-1">→</span>
               {localValues.continuous ? (
                 <div className="flex items-center gap-1 px-3 py-1 rounded border border-input bg-background text-muted-foreground">
                   <Infinity className="w-3 h-3" />
                   <span>Continuous</span>
                 </div>
               ) : (
-                <HeaderDateField
-                  value={localValues.endDate}
-                  property="endDate"
-                />
+                <div className="relative">
+                  {/* Working days insight - positioned above, aligned to the right */}
+                  <div 
+                    className="absolute -top-5 right-0 text-xs whitespace-nowrap"
+                    style={{ color: localValues.color || OKLCH_PROJECT_COLORS[0] }}
+                  >
+                    {(() => {
+                      const workingDays = calculateWorkingDaysRemaining(localValues.endDate, settings, holidays);
+                      if (workingDays === 0) {
+                        return 'No working days to go';
+                      } else if (workingDays === 1) {
+                        return '1 working day to go';
+                      } else {
+                        return `${workingDays} working days to go`;
+                      }
+                    })()}
+                  </div>
+                  <HeaderDateField
+                    value={localValues.endDate}
+                    property="endDate"
+                  />
+                </div>
               )}
               <TooltipProvider>
                 <Tooltip delayDuration={300}>
@@ -929,100 +1102,92 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
         </div>
 
         {/* Milestone Manager */}
-        <MilestoneManager
-          projectId={!isCreating ? projectId : undefined}
-          projectEstimatedHours={localValues.estimatedHours}
-          onUpdateProjectBudget={(newBudget) => {
-            setLocalValues(prev => ({ ...prev, estimatedHours: newBudget }));
-            if (!isCreating && projectId && projectId !== '') {
-              updateProject(projectId, { estimatedHours: newBudget });
-            }
-          }}
-          localMilestonesState={isCreating ? {
-            milestones: localProjectMilestones,
-            setMilestones: setLocalProjectMilestones
-          } : undefined}
-          isCreatingProject={isCreating}
-        />
-
-        {/* Time Forecasting Dashboard */}
-        <div className="border-b border-gray-200 bg-gray-50 px-8 py-6 flex-shrink-0">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            <TimeMetric
-              label="Total Budgeted Time"
-              value={localValues.estimatedHours}
-              editable={true}
-              property="estimatedHours"
-            />
-            
-            <TimeMetric
-              label="Planned Time"
-              value={metrics.plannedTime}
-              showInfo={true}
-              tooltip="Planned time is time that has been added to your calendar and connected to this project"
-              actionIcon={<CalendarIcon className="w-3 h-3" />}
-              onActionClick={() => {
-                setCurrentView('calendar');
-                handleClose();
-              }}
-            />
-            
-            <TimeMetric
-              label="Completed Time"
-              value={metrics.completedTime}
-              showInfo={true}
-              tooltip="Completed time is time connected to this project that is ticked as done on your calendar"
-            />
-            
-            <AutoEstimateTimeMetric
-              label="Auto-Estimate Time"
-              dailyTime={metrics.originalDailyEstimateFormatted}
-              showInfo={true}
-              tooltip="Auto-estimated time is the total budgeted hours divided by total working days in the project timeframe"
-            />
-            
-            <TimeMetric
-              label="Work Days Left"
-              value={metrics.workDaysLeft}
-              unit="days"
-              showInfo={true}
-              tooltip="Number of work days is less holidays, days with no availability, and blocked days"
-            />
-
-            <TimeMetric
-              label="Total Work Days"
-              value={metrics.totalWorkDays}
-              unit="days"
-              showInfo={true}
-              tooltip="Total working days in the project timeframe (excluding weekends and holidays)"
-            />
-          </div>
-        </div>
-
-        {/* Project Progress Graph */}
-        {!isCreating && (
-          <ProjectProgressGraph 
-            project={project || {
-              ...localValues,
-              id: projectId || '',
-              groupId: groupId || '',
-              rowId: rowId || ''
+        <div className="flex-1 overflow-y-auto">
+          <MilestoneManager
+            projectId={!isCreating ? projectId : undefined}
+            projectEstimatedHours={localValues.estimatedHours}
+            onUpdateProjectBudget={(newBudget) => {
+              setLocalValues(prev => ({ ...prev, estimatedHours: newBudget }));
+              if (!isCreating && projectId && projectId !== '') {
+                updateProject(projectId, { estimatedHours: newBudget });
+              }
             }}
-            metrics={metrics}
-            events={events}
-            milestones={milestones.filter(m => m.projectId === (projectId || project?.id))}
+            localMilestonesState={isCreating ? {
+              milestones: localProjectMilestones,
+              setMilestones: setLocalProjectMilestones
+            } : undefined}
+            isCreatingProject={isCreating}
           />
-        )}
 
-        {/* Main Content - Column Layout */}
-        <div className="flex-1 overflow-hidden flex flex-col">
+          {/* Time Forecasting Dashboard */}
+          <div className="border-b border-gray-200 bg-gray-50 px-8 py-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+              <TimeMetric
+                label="Planned Time"
+                value={metrics.plannedTime}
+                showInfo={true}
+                tooltip="Planned time is time that has been added to your calendar and connected to this project"
+                actionIcon={<CalendarIcon className="w-3 h-3" />}
+                onActionClick={() => {
+                  setCurrentView('calendar');
+                  handleClose();
+                }}
+              />
+              
+              <TimeMetric
+                label="Completed Time"
+                value={metrics.completedTime}
+                showInfo={true}
+                tooltip="Completed time is time connected to this project that is ticked as done on your calendar"
+              />
+              
+              <AutoEstimateTimeMetric
+                label="Auto-Estimate Time"
+                dailyTime={metrics.originalDailyEstimateFormatted}
+                showInfo={true}
+                tooltip="Auto-estimated time is the total budgeted hours divided by total working days in the project timeframe"
+              />
+              
+              <TimeMetric
+                label="Work Days Left"
+                value={metrics.workDaysLeft}
+                unit="days"
+                showInfo={true}
+                tooltip="Number of work days is less holidays, days with no availability, and blocked days"
+              />
+
+              <TimeMetric
+                label="Total Work Days"
+                value={metrics.totalWorkDays}
+                unit="days"
+                showInfo={true}
+                tooltip="Total working days in the project timeframe (excluding weekends and holidays)"
+              />
+            </div>
+          </div>
+
+          {/* Project Progress Graph */}
+          {!isCreating && (
+            <ProjectProgressGraph 
+              project={project || {
+                ...localValues,
+                id: projectId || '',
+                groupId: groupId || '',
+                rowId: rowId || ''
+              }}
+              metrics={metrics}
+              events={events}
+              milestones={milestones.filter(m => m.projectId === (projectId || project?.id))}
+            />
+          )}
+
           {/* Notes Panel */}
-          <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-            <div className="px-8 py-4 border-b border-gray-200 flex-shrink-0">
+          <div className="flex-1 flex flex-col min-w-0">
+            <div className="px-8 py-4 border-b border-gray-200">
               <h3 className="text-lg font-medium text-gray-900">Notes</h3>
             </div>
             
-            <div className="flex-1 p-8 overflow-hidden">
+            <div className="flex-1 p-8">
               <RichTextEditor
                 value={localValues.notes}
                 onChange={handleNotesChange}
@@ -1040,59 +1205,59 @@ Start typing to capture all your project information in one place."
               />
             </div>
           </div>
+        </div>
 
-          {/* Bottom Confirmation Row */}
-          <div className="border-t border-gray-200 px-8 py-4 flex-shrink-0">
-            <div className="flex items-center justify-end gap-3">
-              {/* Right-aligned buttons */}
-              <Button 
-                onClick={handleConfirm}
-                className="h-9 px-6 border border-primary"
-                style={{ 
-                  backgroundColor: 'oklch(0.488 0.243 264.376)', 
-                  color: 'white',
-                  borderColor: 'oklch(0.488 0.243 264.376)'
-                }}
-              >
-                CONFIRM
-              </Button>
-              <Button 
-                variant="outline"
-                onClick={handleCancel}
-                className="h-9 px-6 border border-border"
-              >
-                CANCEL
-              </Button>
+        {/* Bottom Confirmation Row - Fixed Footer */}
+        <div className="border-t border-gray-200 px-8 py-4 flex-shrink-0 bg-white">
+          <div className="flex items-center justify-end gap-3">
+            {/* Right-aligned buttons */}
+            <Button 
+              onClick={handleConfirm}
+              className="h-9 px-6 border border-primary"
+              style={{ 
+                backgroundColor: 'oklch(0.488 0.243 264.376)', 
+                color: 'white',
+                borderColor: 'oklch(0.488 0.243 264.376)'
+              }}
+            >
+              CONFIRM
+            </Button>
+            <Button 
+              variant="outline"
+              onClick={handleCancel}
+              className="h-9 px-6 border border-border"
+            >
+              CANCEL
+            </Button>
 
-              {/* Delete button (only for existing projects) */}
-              {!isCreating && project && (
-                <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-                  <AlertDialogTrigger asChild>
-                    <Button 
-                      variant="outline" 
-                      size="icon"
-                      className="h-9 w-9 border border-border text-destructive hover:text-destructive hover:bg-destructive/10"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete Project</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Are you sure you want to delete "{project.name}"? This action cannot be undone and will also remove all associated calendar events.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleDeleteProject} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                        Delete Project
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              )}
-            </div>
+            {/* Delete button (only for existing projects) */}
+            {!isCreating && project && (
+              <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+                <AlertDialogTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="icon"
+                    className="h-9 w-9 border border-border text-destructive hover:text-destructive hover:bg-destructive/10"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Project</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete "{project.name}"? This action cannot be undone and will also remove all associated calendar events.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteProject} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                      Delete Project
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </div>
         </div>
           </motion.div>

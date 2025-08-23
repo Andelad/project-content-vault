@@ -62,8 +62,12 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
     return weekDates;
   };
 
-  // Memoized calculation of project hours for a specific date
+  // Memoized calculation of project hours for a specific date - optimized for continuous projects
   const getDailyProjectHours = useMemo(() => {
+    // Pre-filter and process continuous vs regular projects for better performance
+    const regularProjects = projects.filter((project: any) => !project.continuous);
+    const continuousProjects = projects.filter((project: any) => project.continuous);
+    
     return (date: Date) => {
       let totalHours = 0;
       
@@ -71,7 +75,8 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
         return 0;
       }
       
-      projects.forEach((project: any) => {
+      // Process regular projects first (more predictable)
+      regularProjects.forEach((project: any) => {
         const projectStart = new Date(project.startDate);
         const projectEnd = new Date(project.endDate);
         
@@ -79,13 +84,32 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
           const workingDays = memoizedProjectWorkingDays(projectStart, projectEnd, settings, holidays);
           const totalWorkingDays = workingDays.length;
           
-          if (totalWorkingDays === 0) {
-            return;
+          if (totalWorkingDays > 0) {
+            const hoursPerDay = project.estimatedHours / totalWorkingDays;
+            const roundedHoursPerDay = Math.ceil(hoursPerDay);
+            totalHours += roundedHoursPerDay;
           }
+        }
+      });
+      
+      // Process continuous projects separately (they only need to check start date)
+      continuousProjects.forEach((project: any) => {
+        const projectStart = new Date(project.startDate);
+        
+        if (date >= projectStart) {
+          // For continuous projects, use a simplified calculation
+          // Assume 1 year duration for working days calculation to avoid viewport dependency
+          const oneYearLater = new Date(projectStart);
+          oneYearLater.setFullYear(projectStart.getFullYear() + 1);
           
-          const hoursPerDay = project.estimatedHours / totalWorkingDays;
-          const roundedHoursPerDay = Math.ceil(hoursPerDay);
-          totalHours += roundedHoursPerDay;
+          const workingDays = memoizedProjectWorkingDays(projectStart, oneYearLater, settings, holidays);
+          const totalWorkingDays = workingDays.length;
+          
+          if (totalWorkingDays > 0) {
+            const hoursPerDay = project.estimatedHours / totalWorkingDays;
+            const roundedHoursPerDay = Math.ceil(hoursPerDay);
+            totalHours += roundedHoursPerDay;
+          }
         }
       });
       
