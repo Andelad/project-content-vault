@@ -26,16 +26,16 @@ export function AppProviders({ children }: AppProvidersProps) {
   );
 }
 
+import { useProjectContext } from './ProjectContext';
+import { usePlannerContext } from './PlannerContext';
+import { useTimelineContext } from './TimelineContext';
+import { useSettingsContext } from './SettingsContext';
+
 /**
  * Hook to use multiple contexts at once.
  * This is a convenience hook for components that need multiple contexts.
  */
 export function useAppContexts() {
-  // Note: Only import these when needed to avoid circular dependencies
-  const { useProjectContext } = require('./ProjectContext');
-  const { usePlannerContext } = require('./PlannerContext');
-  const { useTimelineContext } = require('./TimelineContext');
-  const { useSettingsContext } = require('./SettingsContext');
 
   return {
     project: useProjectContext(),

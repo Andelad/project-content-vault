@@ -1,53 +1,46 @@
-# 🏗️ ARCHITECTURAL RULES - MUST FOLLOW
+# 🏗️ Development Architecture Rules
 
-## 🚨 **CRITICAL: READ BEFORE ANY CODE CHANGES**
+## 🚨 **Essential Rules - Always Follow**
 
-### **📊 CALCULATION RULES**
-- ❌ **NEVER add calculations to components**
-- ❌ **NEVER add math logic to hooks** 
-- ❌ **NEVER duplicate calculation logic**
+### **📊 Calculation Logic**
 - ✅ **ALL calculations MUST use services from `/src/services/`**
-- ✅ **Use memoized functions from `/src/services/index.ts`**
+- ❌ **NEVER add math logic to components or hooks**
+- ✅ **Use memoized functions for performance**
 
 ```typescript
-// ❌ WRONG - Don't do this anywhere
-const totalHours = milestones.reduce((sum, m) => sum + m.hours, 0);
-
-// ✅ CORRECT - Always use services
+// ✅ CORRECT
 import { calculateMilestoneMetrics } from '@/services';
 const metrics = calculateMilestoneMetrics(milestones, projectBudget);
+
+// ❌ WRONG
+const totalHours = milestones.reduce((sum, m) => sum + m.hours, 0);
 ```
 
-### **🔄 CONTEXT RULES**
-- ❌ **NEVER add unrelated state to existing contexts**
-- ❌ **NEVER create god objects like old AppContext**
-- ✅ **Use specialized contexts**: ProjectContext, PlannerContext, TimelineContext, SettingsContext
-- ✅ **Milestones belong to ProjectContext** (not separate context)
+### **🔄 State Management**
+- ✅ **Use specialized contexts**: ProjectContext, TimelineContext, SettingsContext
+- ❌ **NEVER create god objects or bloated contexts**
+- ✅ **Keep contexts focused on their domain**
 
-### **📁 FILE ORGANIZATION RULES**
-- ❌ **NEVER put business logic in components**
-- ❌ **NEVER put UI calculations in utils**
-- ✅ **Services** → `/src/services/` (calculations, business logic)
-- ✅ **Components** → Rendering only, import from services
-- ✅ **Hooks** → State management only, delegate calculations to services
+### **📁 File Organization**
+- **Services** (`/src/services/`) → All calculations and business logic
+- **Components** → Rendering only, import from services
+- **Hooks** → State management, delegate calculations to services
 
-### **⚡ PERFORMANCE RULES**
-- ❌ **NEVER do expensive calculations in render**
-- ❌ **NEVER duplicate caching logic**
+### **⚡ Performance**
 - ✅ **Use memoized calculation functions from services**
-- ✅ **Let CalculationCacheService handle all caching**
+- ❌ **NEVER do expensive calculations in render**
+- ✅ **Let CalculationCacheService handle caching automatically**
 
-### **🧪 TESTING RULES**
-- ✅ **Test calculations in isolation** (services)
-- ✅ **Mock services in component tests**
-- ❌ **Don't test business logic through UI**
+## 🎯 **Quick Decision Guide**
 
-## 🎯 **BEFORE MAKING ANY CHANGE, ASK:**
+**Is this a calculation?** → Use `/src/services/`  
+**Is this UI state?** → Use appropriate context  
+**Is this rendering?** → Component only  
+**Is this business logic?** → Services, not components  
 
-1. **Is this a calculation?** → Use `/src/services/`
-2. **Is this UI positioning?** → Use `TimelineCalculationService`
-3. **Is this date math?** → Use `DateCalculationService`
-4. **Is this project/milestone logic?** → Use `ProjectCalculationService`
+---
+
+*Follow these rules to maintain clean, performant, and maintainable architecture.*
 5. **Does this need state?** → Which specialized context?
 
 ## 🚨 **VIOLATIONS TO WATCH FOR:**

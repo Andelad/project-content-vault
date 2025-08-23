@@ -5,11 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/build-info.js && vite build",
-    "build:dev": "node scripts/build-info.js && vite build --mode development",
-    "lint": "eslint .",
-    "preview": "vite preview",
-    "build-info": "node scripts/build-info.js"
+    "build": "tsc -b && vite build",
+    "lint": "eslint --config eslint.config.js .",
+    "preview": "vite preview"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

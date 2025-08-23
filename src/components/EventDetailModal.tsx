@@ -11,6 +11,7 @@ import { Checkbox } from './ui/checkbox';
 import { Calendar as CalendarIcon, Clock, Repeat, Trash2, CheckCircle2 } from 'lucide-react';
 import { Switch } from './ui/switch';
 import { cn } from '@/lib/utils';
+import { OKLCH_FALLBACK_GRAY } from '@/constants/colors';
 
 interface EventDetailModalProps {
   isOpen: boolean;
@@ -44,7 +45,7 @@ export function EventDetailModal({
     endDate: '',
     endTime: '',
     projectId: '',
-    color: '#6b7280',
+    color: OKLCH_FALLBACK_GRAY,
     completed: false,
     isRecurring: false,
     recurringType: 'weekly' as 'daily' | 'weekly' | 'monthly' | 'yearly',
@@ -93,7 +94,7 @@ export function EventDetailModal({
           endDate: formatDate(new Date(existingEvent.endTime)),
           endTime: formatTime(new Date(existingEvent.endTime)),
           projectId: existingEvent.projectId || '',
-          color: existingEvent.color || '#6b7280',
+          color: existingEvent.color || OKLCH_FALLBACK_GRAY,
           completed: existingEvent.completed || false,
           isRecurring: !!existingEvent.recurring,
           recurringType: existingEvent.recurring?.type || 'weekly',
@@ -114,7 +115,7 @@ export function EventDetailModal({
           endDate: formatDate(endDate),
           endTime: formatTime(endDate),
           projectId: '',
-          color: '#6b7280',
+          color: OKLCH_FALLBACK_GRAY,
           completed: false,
           isRecurring: false,
           recurringType: 'weekly',

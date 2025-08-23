@@ -2,31 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
+import { Project } from '@/types/core';
 
 type DatabaseProject = Database['public']['Tables']['projects']['Row'];
 type ProjectInsert = Database['public']['Tables']['projects']['Insert'];
 type ProjectUpdate = Database['public']['Tables']['projects']['Update'];
 
-// Frontend Project interface with Date objects
-interface Project {
-  id: string;
-  name: string;
-  client: string;
-  startDate: Date;
-  endDate: Date;
-  estimatedHours: number;
-  color: string;
-  groupId: string;
-  rowId: string;
-  notes?: string;
-  icon?: string;
-  continuous?: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  userId: string;
-}
-
-// Transform database project to frontend project
+//Transform database project to frontend project
 function transformDatabaseProject(dbProject: DatabaseProject): Project {
   return {
     id: dbProject.id,
@@ -41,9 +23,7 @@ function transformDatabaseProject(dbProject: DatabaseProject): Project {
     notes: dbProject.notes || undefined,
     icon: dbProject.icon || undefined,
     continuous: dbProject.continuous ?? false,
-    createdAt: new Date(dbProject.created_at),
-    updatedAt: new Date(dbProject.updated_at),
-    userId: dbProject.user_id,
+    status: 'current', // Default until database schema is updated
   };
 }
 

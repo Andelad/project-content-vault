@@ -1,53 +1,53 @@
 # Timeline Performance Improvements
 
-## Issue Identified
-The day view of the timeline was experiencing significant performance degradation, taking several seconds to load when switching from weeks to days mode.
+## Issue Fixed
+Day view timeline had significant performance issues (several seconds to load).
 
-## Root Cause Analysis
-The performance bottleneck was caused by multiple expensive calculations happening on every render:
+## Root Cause
+- Expensive calculations running on every render
+- Quadratic time complexity in multiple components  
+- Inefficient cache key generation with `JSON.stringify`
+- Too many days being rendered (120 days)
+- Multiple component instances doing duplicate calculations
 
-### 1. **Quadratic Time Complexity in Multiple Components**
-- `getProjectTimeAllocation` function: O(P × D × H × W) complexity
-- `AvailabilityCircles` component: Similar expensive loops for each project and day
-- Multiple components calling these functions simultaneously
+## Solutions Implemented
 
-### 2. **Inefficient Cache Key Generation**
-- Cache keys included expensive `JSON.stringify(settings.weeklyWorkHours)`
-- Event arrays were included in cache keys, invalidating cache frequently
-- Large object serialization was happening on every function call
-
-### 3. **Too Many Days Rendered**
-- Day mode was rendering up to 120 days with 15-day buffer
-- Each day × project combination triggered expensive calculations
-
-### 4. **Multiple Component Instances**
-- 2 AvailabilityCircles + 3 NewAvailabilityCircles = 5 components
-- Each doing expensive calculations independently
-
-## Performance Optimizations Implemented
-
-### 1. **Memoized Working Days Calculation**
+### 1. Memoized Calculations
 ```typescript
 export const memoizedProjectWorkingDays = memoizeExpensiveCalculation(
   (projectStart: Date, projectEnd: Date, settings: any, holidays: any[]) => {
-    // Expensive calculation moved to memoized function
+    // Expensive calculation now memoized
   },
   timelineCalculationCache
 )
 ```
 
-### 2. **Memoized Project Time Allocation**
-```typescript
-export const memoizedGetProjectTimeAllocation = memoizeExpensiveCalculation(
-  getProjectTimeAllocation,
-  timelineCalculationCache
-)
-```
-
-### 3. **Optimized Cache Key Generation**
+### 2. Optimized Cache Keys
 - Replaced `JSON.stringify` with simple hash generation
 - Removed event dependency from cache keys
 - Focused on essential parameters only
+
+### 3. Reduced Render Scope
+- Limited day mode to essential days only
+- Reduced buffer days
+- Consolidated component instances
+
+### 4. Service Architecture
+- Moved all calculations to `/src/services/`
+- Centralized caching with `CalculationCacheService`
+- Eliminated duplicate calculation logic
+
+## Results
+✅ Day view now loads instantly  
+✅ Smooth scrolling and interactions  
+✅ Reduced memory usage  
+✅ Better user experience  
+
+## Architecture Benefits
+This performance work led to the current service-based architecture that prevents future performance issues by:
+- Centralizing all calculations
+- Automatic memoization
+- Single source of truth for business logic
 - **Before**: `JSON.stringify(settings.weeklyWorkHours)`
 - **After**: Simple sum-based hash
 

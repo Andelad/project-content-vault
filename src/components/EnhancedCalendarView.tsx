@@ -17,6 +17,7 @@ import { TimeTracker } from './TimeTracker';
 import { WorkHourCreationModal } from './WorkHourCreationModal';
 import { WorkHourScopeDialog } from './WorkHourScopeDialog';
 import { useWorkHours } from '../hooks/useWorkHours';
+import { getCalendarEventBackgroundColor, getCalendarEventTextColor, OKLCH_FALLBACK_GRAY } from '@/constants/colors';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
 import './calendar-overrides.css';
@@ -57,15 +58,26 @@ function CustomEvent({ event }: CustomEventProps) {
   };
   
   const isWorkHour = event.isWorkHour || !isCalendarEvent(resource);
+  const workHour = isWorkHour ? resource as WorkHour : null;
+  const calendarEvent = !isWorkHour ? resource as CalendarEvent : null;
+  const project = calendarEvent?.projectId ? projects.find(p => p.id === calendarEvent.projectId) : null;
   
-  if (isWorkHour) {
-    const workHour = resource as WorkHour;
-    
-    const handleDeleteWorkHour = useCallback((e: React.MouseEvent) => {
-      e.stopPropagation();
+  // Define all callbacks at the top level
+  const handleDeleteWorkHour = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (workHour) {
       deleteWorkHour(workHour.id);
-    }, [workHour.id, deleteWorkHour]);
-    
+    }
+  }, [workHour?.id, deleteWorkHour]);
+  
+  const handleCompletionToggle = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (calendarEvent) {
+      updateEvent(calendarEvent.id, { completed: !calendarEvent.completed });
+    }
+  }, [calendarEvent?.id, calendarEvent?.completed, updateEvent]);
+  
+  if (isWorkHour && workHour) {
     return (
       <div className="h-full flex items-center justify-between px-2 py-1">
         <div className="flex-1 min-w-0">
@@ -87,15 +99,7 @@ function CustomEvent({ event }: CustomEventProps) {
         </button>
       </div>
     );
-  } else {
-    const calendarEvent = resource as CalendarEvent;
-    const project = calendarEvent.projectId ? projects.find(p => p.id === calendarEvent.projectId) : null;
-    
-    const handleCompletionToggle = useCallback((e: React.MouseEvent) => {
-      e.stopPropagation();
-      updateEvent(calendarEvent.id, { completed: !calendarEvent.completed });
-    }, [calendarEvent.id, calendarEvent.completed, updateEvent]);
-    
+  } else if (calendarEvent) {
     return (
       <div className="h-full flex items-center justify-between px-2 py-1">
         <div className="flex-1 min-w-0">
@@ -121,6 +125,8 @@ function CustomEvent({ event }: CustomEventProps) {
       </div>
     );
   }
+  
+  return null;
 }
 
 export function EnhancedCalendarView() {
@@ -241,7 +247,13 @@ export function EnhancedCalendarView() {
       // Style for regular calendar events
       const calendarEvent = resource as CalendarEvent;
       const project = calendarEvent.projectId ? projects.find(p => p.id === calendarEvent.projectId) : null;
-      const backgroundColor = calendarEvent.color || (project ? project.color : '#6b7280');
+      
+      // Get the base color (project color or fallback)
+      const baseColor = calendarEvent.color || (project ? project.color : OKLCH_FALLBACK_GRAY);
+      
+      // Create light background and dark text versions
+      const backgroundColor = getCalendarEventBackgroundColor(baseColor);
+      const textColor = getCalendarEventTextColor(baseColor);
       
       return {
         style: {
@@ -249,7 +261,7 @@ export function EnhancedCalendarView() {
           borderRadius: '6px',
           opacity: calendarEvent.completed ? 0.6 : 1,
           border: 'none',
-          color: 'white',
+          color: textColor,
           fontSize: '12px',
           padding: '2px'
         }
