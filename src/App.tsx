@@ -18,7 +18,7 @@ import LandingPage from '@/pages/LandingPage';
 
 // Lazy load view components for better performance
 const TimelineView = lazy(() => import('@/components/TimelineView').then(module => ({ default: module.TimelineView })));
-const EnhancedCalendarView = lazy(() => import('@/components/EnhancedCalendarView').then(module => ({ default: module.EnhancedCalendarView })));
+const PlannerView = lazy(() => import('@/components/PlannerView').then(module => ({ default: module.PlannerView })));
 const ProjectsView = lazy(() => import('@/components/ProjectsView').then(module => ({ default: module.ProjectsView })));
 const ReportsView = lazy(() => import('@/components/ReportsView').then(module => ({ default: module.ReportsView })));
 const SettingsView = lazy(() => import('@/components/SettingsView').then(module => ({ default: module.SettingsView })));
@@ -72,7 +72,7 @@ function AuthenticatedContent() {
       case 'timeline':
         return <TimelineView key={currentView} />;
       case 'calendar':
-        return <EnhancedCalendarView key={currentView} />;
+        return <PlannerView key={currentView} />;
       case 'reports':
         return <ReportsView key={currentView} />;
       case 'settings':

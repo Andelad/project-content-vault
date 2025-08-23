@@ -16,12 +16,12 @@ import { Calendar as DatePicker } from './ui/calendar';
 import { TimeTracker } from './TimeTracker';
 import { WorkHourCreationModal } from './WorkHourCreationModal';
 import { WorkHourScopeDialog } from './WorkHourScopeDialog';
-import { CalendarInsightCard } from './CalendarInsightCard';
+import { PlannerInsightCard } from './PlannerInsightCard';
 import { useWorkHours } from '../hooks/useWorkHours';
 import { getCalendarEventBackgroundColor, getCalendarEventTextColor, OKLCH_FALLBACK_GRAY } from '@/constants/colors';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
-import './calendar-overrides.css';
+import './planner-overrides.css';
 
 // Set moment locale to ensure Monday week start
 moment.locale('en-gb');
@@ -117,7 +117,7 @@ function CustomEvent({ event }: CustomEventProps) {
   return null;
 }
 
-export function EnhancedCalendarView() {
+export function PlannerView() {
   const {
     currentDate,
     setCurrentDate,
@@ -585,7 +585,7 @@ export function EnhancedCalendarView() {
 
       {/* Calendar Insight Card */}
       <div className="px-6 pb-6">
-        <CalendarInsightCard 
+        <PlannerInsightCard 
           dates={useMemo(() => {
             if (view === Views.DAY) {
               return [calendarDate];
