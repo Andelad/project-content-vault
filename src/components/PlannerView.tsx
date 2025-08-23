@@ -46,9 +46,10 @@ interface BigCalendarEvent {
 
 interface CustomEventProps {
   event: BigCalendarEvent;
+  layerMode: 'events' | 'work-hours';
 }
 
-function CustomEvent({ event }: CustomEventProps) {
+function CustomEvent({ event, layerMode }: CustomEventProps) {
   const { projects } = useApp();
   const { deleteWorkHour } = useWorkHours();
   const { updateEvent, isTimeTracking } = useApp();
@@ -69,16 +70,23 @@ function CustomEvent({ event }: CustomEventProps) {
   }, [workHour?.id, deleteWorkHour]);
 
   if (isWorkHour && workHour) {
-    // Show built-in label for work hours (we don't hide it) and our content below
+    // Show work hours with same layout as events
+    const canInteract = layerMode === 'work-hours';
+    const start = moment(workHour.startTime).format('HH:mm');
+    const end = moment(workHour.endTime).format('HH:mm');
+    
     return (
-      <div className="h-full flex items-center justify-between px-2 py-1">
-        <div className="flex-1 min-w-0">
-          <div className="text-xs font-medium truncate">{workHour.title}</div>
-          {workHour.description && <div className="text-xs opacity-75 truncate">{workHour.description}</div>}
+      <div className="h-full flex flex-col gap-0.5">
+        <div className="flex items-center justify-between">
+          <div className="text-[11px] leading-none opacity-80 font-medium">{start} - {end}</div>
+          {canInteract && (
+            <button className="text-red-500 hover:text-red-700 text-xs opacity-60 hover:opacity-100" onClick={handleDeleteWorkHour} title="Delete work hour">
+              ×
+            </button>
+          )}
         </div>
-        <button className="ml-2 text-red-500 hover:text-red-700 text-xs opacity-60 hover:opacity-100" onClick={handleDeleteWorkHour} title="Delete work hour">
-          ×
-        </button>
+        <div className="text-xs opacity-75 truncate leading-tight">{workHour.title}</div>
+        {workHour.description && <div className="text-xs opacity-75 truncate leading-tight">{workHour.description}</div>}
       </div>
     );
   }
@@ -87,9 +95,11 @@ function CustomEvent({ event }: CustomEventProps) {
     // Custom top row: time (left) + checkbox/red dot (right), then client/project lines
     const start = moment(event.start).format('HH:mm');
     const end = moment(event.end).format('HH:mm');
+    const canInteract = layerMode === 'events';
+    
     const handleCompletionToggle = (e: React.MouseEvent) => {
       e.stopPropagation();
-      if (calendarEvent && !isCurrentlyTracking) {
+      if (calendarEvent && !isCurrentlyTracking && canInteract) {
         updateEvent(calendarEvent.id, { completed: !calendarEvent.completed });
       }
     };
@@ -101,10 +111,14 @@ function CustomEvent({ event }: CustomEventProps) {
           <div className="text-current">
             {isCurrentlyTracking ? (
               <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" title="Currently recording" />
-            ) : (
+            ) : canInteract ? (
               <button type="button" className="cursor-pointer hover:scale-110 transition-transform text-current" onClick={handleCompletionToggle} aria-label={calendarEvent.completed ? 'Mark as not completed' : 'Mark as completed'}>
                 {calendarEvent.completed ? <CheckCircle2 className="w-3 h-3" /> : <Circle className="w-3 h-3" />}
               </button>
+            ) : (
+              <div className="text-current opacity-50">
+                {calendarEvent.completed ? <CheckCircle2 className="w-3 h-3" /> : <Circle className="w-3 h-3" />}
+              </div>
             )}
           </div>
         </div>
@@ -133,7 +147,7 @@ export function PlannerView() {
   
   const [view, setView] = useState<View>(Views.WEEK);
   const [calendarDate, setCalendarDate] = useState(new Date(currentDate));
-  const [showWorkHours, setShowWorkHours] = useState(true);
+  const [layerMode, setLayerMode] = useState<'events' | 'work-hours'>('events');
   const [showWorkHourCreator, setShowWorkHourCreator] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<{ start: Date; end: Date } | null>(null);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
@@ -192,22 +206,18 @@ export function PlannerView() {
       isWorkHour: false
     }));
 
-    // Add work hours if enabled
-    if (showWorkHours) {
-      const workHourEvents: BigCalendarEvent[] = workHours.map(workHour => ({
-        id: `work-${workHour.id}`,
-        title: `Work: ${workHour.title}`,
-        start: workHour.startTime,
-        end: workHour.endTime,
-        resource: workHour,
-        isWorkHour: true
-      }));
-      
-      return [...eventItems, ...workHourEvents];
-    }
-
-    return eventItems;
-  }, [events, workHours, showWorkHours]);
+    // Always include work hours, but their styling will depend on layerMode
+    const workHourEvents: BigCalendarEvent[] = workHours.map(workHour => ({
+      id: `work-${workHour.id}`,
+      title: `Work: ${workHour.title}`,
+      start: workHour.startTime,
+      end: workHour.endTime,
+      resource: workHour,
+      isWorkHour: true
+    }));
+    
+    return [...eventItems, ...workHourEvents];
+  }, [events, workHours]);
 
   // Style events based on project colors and completion status
   const eventStyleGetter = useCallback((event: BigCalendarEvent) => {
@@ -225,21 +235,38 @@ export function PlannerView() {
     
     if (event.isWorkHour || !isCalendarEvent(resource)) {
       // Style for work hours
+      const isActiveLayer = layerMode === 'work-hours';
+      
+      // Check if work hour is in the past
+      const workHourEnd = new Date(event.end);
+      const isPastWorkHour = workHourEnd < now;
+      
+      let opacity = isActiveLayer ? 0.7 : 0.3; // Faded when not active layer
+      let pointerEvents: 'auto' | 'none' = isActiveLayer ? 'auto' : 'none';
+      
+      // Further fade and disable past work hours
+      if (isPastWorkHour) {
+        opacity = Math.min(opacity, 0.4);
+        pointerEvents = 'none';
+      }
+      
       return {
         style: {
           backgroundColor: '#e3f2fd',
           color: '#1976d2',
-          border: '2px dashed #1976d2',
           borderRadius: '6px',
-          opacity: 0.7,
+          opacity,
           fontSize: '12px',
-          padding: '2px'
-        }
+          padding: '2px',
+          pointerEvents, // Disable interaction when not active or in past
+        },
+        className: 'hide-label work-hour-event'
       };
     } else {
       // Style for regular calendar events
       const calendarEvent = resource as CalendarEvent;
       const project = calendarEvent.projectId ? projects.find(p => p.id === calendarEvent.projectId) : null;
+      const isActiveLayer = layerMode === 'events';
       
       // Get the base color (project color or fallback)
       const baseColor = calendarEvent.color || (project ? project.color : OKLCH_FALLBACK_GRAY);
@@ -261,37 +288,54 @@ export function PlannerView() {
         }
       }
       
+      // Apply fading and interaction based on active layer
+      const baseOpacity = calendarEvent.completed ? 0.6 : 1;
+      const finalOpacity = isActiveLayer ? baseOpacity : (baseOpacity * 0.3); // Faded when not active layer
+      
       return {
         style: {
           backgroundColor,
           borderRadius: '6px',
-          opacity: calendarEvent.completed ? 0.6 : 1,
+          opacity: finalOpacity,
           color: textColor,
           fontSize: '12px',
+          pointerEvents: isActiveLayer ? 'auto' : 'none', // Disable interaction when not active
           // Set CSS variable for future event border color
           '--future-event-border-color': baseColor
         } as React.CSSProperties,
         className: `${isFutureEvent ? 'future-event' : ''} hide-label`.trim()
       };
     }
-  }, [projects]);
+  }, [projects, layerMode]);
 
   const handleSelectEvent = useCallback((event: BigCalendarEvent) => {
-    if (!event.isWorkHour) {
+    // Only allow selection if we're in the correct layer mode
+    if (event.isWorkHour && layerMode === 'work-hours') {
+      // Work hour selected in work hours mode
+      // Currently no specific action needed for work hour selection
+      // Could add work hour editing modal here in the future
+      console.log('Work hour selected:', event.id);
+      return;
+    } else if (!event.isWorkHour && layerMode === 'events') {
+      // Regular event selected in events mode
       setSelectedEventId(event.resource.id);
+      return;
     }
-  }, [setSelectedEventId]);
+    
+    // Prevent any interaction when not in the appropriate mode
+    console.log('Event interaction blocked - wrong layer mode:', {
+      eventType: event.isWorkHour ? 'work-hour' : 'event',
+      currentLayer: layerMode
+    });
+  }, [setSelectedEventId, layerMode]);
 
   const handleSelectSlot = useCallback(({ start, end }: { start: Date; end: Date }) => {
-    // Check if it's a Ctrl+click for work hours
-    const isCtrlClick = window.event && (window.event as any).ctrlKey;
-    
-    if (isCtrlClick) {
-      // Create work hour
+    if (layerMode === 'work-hours') {
+      // Create work hour when in work hours mode
       setSelectedSlot({ start, end });
       setShowWorkHourCreator(true);
     } else {
-      // Create regular event
+      // Create regular event when in events mode
       const startTime = new Date(start);
       const endTime = new Date(end);
       
@@ -308,22 +352,29 @@ export function PlannerView() {
         endTime
       });
     }
-  }, [setCreatingNewEvent]);
+  }, [setCreatingNewEvent, layerMode]);
 
   const handleEventDrop = useCallback(({ event, start, end }: { 
     event: BigCalendarEvent; 
     start: Date; 
     end: Date; 
   }) => {
-    if (event.isWorkHour) {
+    // Only allow drag and drop when in the appropriate layer mode
+    if (event.isWorkHour && layerMode === 'work-hours') {
       // Update work hour
       const workHourId = event.id.replace('work-', '');
-      console.log('Dragging work hour:', { originalEventId: event.id, workHourId, start, end });
+      console.log('Dragging work hour:', { 
+        originalEventId: event.id, 
+        workHourId, 
+        start, 
+        end, 
+        originalWorkHour: event.resource
+      });
       updateWorkHour(workHourId, {
         startTime: start,
         endTime: end,
       });
-    } else {
+    } else if (!event.isWorkHour && layerMode === 'events') {
       // Update regular event
       const duration = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
       updateEvent(event.id, {
@@ -332,14 +383,16 @@ export function PlannerView() {
         duration
       });
     }
-  }, [updateEvent, updateWorkHour]);
+    // Ignore drag operations when not in the appropriate mode
+  }, [updateEvent, updateWorkHour, layerMode]);
 
   const handleEventResize = useCallback(({ event, start, end }: { 
     event: BigCalendarEvent; 
     start: Date; 
     end: Date; 
   }) => {
-    if (event.isWorkHour) {
+    // Only allow resize when in the appropriate layer mode
+    if (event.isWorkHour && layerMode === 'work-hours') {
       // Update work hour
       const workHourId = event.id.replace('work-', '');
       console.log('Resizing work hour:', { originalEventId: event.id, workHourId, start, end });
@@ -347,7 +400,7 @@ export function PlannerView() {
         startTime: start,
         endTime: end,
       });
-    } else {
+    } else if (!event.isWorkHour && layerMode === 'events') {
       // Update regular event
       const duration = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
       updateEvent(event.id, {
@@ -356,7 +409,8 @@ export function PlannerView() {
         duration
       });
     }
-  }, [updateEvent, updateWorkHour]);
+    // Ignore resize operations when not in the appropriate mode
+  }, [updateEvent, updateWorkHour, layerMode]);
 
   const handleCreateWorkHour = useCallback((workHourData: Omit<WorkHour, 'id'>) => {
     // Don't pass scope - let the hook handle showing the dialog
@@ -444,21 +498,6 @@ export function PlannerView() {
       <div className="h-20 border-b border-[#e2e2e2] flex items-center justify-between px-8">
         <div className="flex items-center space-x-4">
           <h1 className="text-lg font-semibold text-[#595956]">Planner</h1>
-          
-          {/* Work Hours Toggle */}
-          <label className="flex items-center space-x-2 text-sm">
-            <input
-              type="checkbox"
-              checked={showWorkHours}
-              onChange={(e) => setShowWorkHours(e.target.checked)}
-              className="rounded"
-            />
-            <span className="text-gray-600">Show Work Hours</span>
-          </label>
-          
-          <div className="text-xs text-gray-500">
-            Ctrl+Click to create work hours
-          </div>
         </div>
         
         {/* Time Tracker in top right */}
@@ -486,6 +525,25 @@ export function PlannerView() {
               </ToggleGroupItem>
               <ToggleGroupItem value={Views.DAY} aria-label="Day mode" className="px-3 py-1 h-7">
                 Day
+              </ToggleGroupItem>
+            </ToggleGroup>
+            
+            <ToggleGroup
+              type="single"
+              value={layerMode}
+              onValueChange={(value) => {
+                if (value) {
+                  setLayerMode(value as 'events' | 'work-hours');
+                }
+              }}
+              variant="outline"
+              className="border border-gray-200 rounded-lg h-9 p-1"
+            >
+              <ToggleGroupItem value="events" aria-label="Events mode" className="px-3 py-1 h-7">
+                Events
+              </ToggleGroupItem>
+              <ToggleGroupItem value="work-hours" aria-label="Work Hours mode" className="px-3 py-1 h-7">
+                Work Hours
               </ToggleGroupItem>
             </ToggleGroup>
             
@@ -549,7 +607,7 @@ export function PlannerView() {
             resizable
             eventPropGetter={eventStyleGetter}
             components={{
-              event: (props: any) => <CustomEvent {...props} />,
+              event: (props: any) => <CustomEvent {...props} layerMode={layerMode} />,
               toolbar: () => null
             }}
             formats={{
@@ -561,8 +619,8 @@ export function PlannerView() {
               agendaTimeRangeFormat: ({ start, end }) => 
                 `${moment(start).format('HH:mm')} - ${moment(end).format('HH:mm')}`
             }}
-            step={30}
-            timeslots={2}
+            step={15}
+            timeslots={4}
             scrollToTime={moment().hours(6).minutes(0).toDate()}
             defaultView={Views.WEEK}
             popup

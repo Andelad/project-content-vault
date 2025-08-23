@@ -29,8 +29,9 @@ interface PendingChange {
   isFromSettings: boolean;
 }
 
-// Temporary in-memory storage for calendar-specific overrides
-let weeklyOverrides: WorkHour[] = [];
+// Week-specific storage for calendar overrides
+// Key is the week start timestamp, value is the overrides for that week
+let weeklyOverridesMap: Map<number, WorkHour[]> = new Map();
 let nextId = 1;
 
 export const useWorkHours = (): UseWorkHoursReturn => {
@@ -41,6 +42,44 @@ export const useWorkHours = (): UseWorkHoursReturn => {
   const [showScopeDialog, setShowScopeDialog] = useState(false);
   const [pendingWorkHourChange, setPendingWorkHourChange] = useState<PendingChange | null>(null);
   const [currentViewDate, setCurrentViewDate] = useState(new Date());
+
+  // Helper functions for week-specific overrides
+  const getWeekOverrides = useCallback((weekStart: Date): WorkHour[] => {
+    const weekKey = weekStart.getTime();
+    const overrides = weeklyOverridesMap.get(weekKey) || [];
+    console.log('getWeekOverrides:', { weekKey, count: overrides.length, overrides: overrides.map(o => o.id) });
+    return overrides;
+  }, []);
+
+  const setWeekOverrides = useCallback((weekStart: Date, overrides: WorkHour[]) => {
+    const weekKey = weekStart.getTime();
+    console.log('setWeekOverrides:', { weekKey, count: overrides.length, overrides: overrides.map(o => o.id) });
+    weeklyOverridesMap.set(weekKey, overrides);
+  }, []);
+
+  const addWeekOverride = useCallback((weekStart: Date, override: WorkHour) => {
+    const currentOverrides = getWeekOverrides(weekStart);
+    setWeekOverrides(weekStart, [...currentOverrides, override]);
+  }, [getWeekOverrides, setWeekOverrides]);
+
+  const updateWeekOverride = useCallback((weekStart: Date, overrideId: string, updatedOverride: WorkHour) => {
+    const currentOverrides = getWeekOverrides(weekStart);
+    const existingIndex = currentOverrides.findIndex(wh => wh.id === overrideId);
+    
+    if (existingIndex !== -1) {
+      const newOverrides = [...currentOverrides];
+      newOverrides[existingIndex] = updatedOverride;
+      setWeekOverrides(weekStart, newOverrides);
+    } else {
+      addWeekOverride(weekStart, updatedOverride);
+    }
+  }, [getWeekOverrides, setWeekOverrides, addWeekOverride]);
+
+  const removeWeekOverride = useCallback((weekStart: Date, overrideId: string) => {
+    const currentOverrides = getWeekOverrides(weekStart);
+    const newOverrides = currentOverrides.filter(wh => wh.id !== overrideId);
+    setWeekOverrides(weekStart, newOverrides);
+  }, [getWeekOverrides, setWeekOverrides]);
 
   // Get the start date for any given week (Monday)
   const getWeekStart = useCallback((date: Date) => {
@@ -54,7 +93,9 @@ export const useWorkHours = (): UseWorkHoursReturn => {
 
   // Get the current week's start date (Monday)
   const getCurrentWeekStart = useCallback(() => {
-    return getWeekStart(new Date());
+    const weekStart = getWeekStart(new Date());
+    console.log('getCurrentWeekStart:', weekStart.toISOString());
+    return weekStart;
   }, [getWeekStart]);
 
   // Convert settings work slots to calendar work hours for specified week
@@ -116,6 +157,17 @@ export const useWorkHours = (): UseWorkHoursReturn => {
       const currentWeekStart = getCurrentWeekStart();
       const isCurrentWeek = viewWeekStart.getTime() === currentWeekStart.getTime();
       
+      // Get overrides for the current week
+      const weekOverrides = getWeekOverrides(currentWeekStart);
+      
+      console.log('fetchWorkHours:', { 
+        viewWeekStart: viewWeekStart.toISOString(), 
+        currentWeekStart: currentWeekStart.toISOString(),
+        isCurrentWeek,
+        settingsWorkHours: settingsWorkHours.length,
+        weekOverrides: weekOverrides.length
+      });
+      
       if (isCurrentWeek) {
         // Apply overrides for current week
         const finalWorkHours: WorkHour[] = [];
@@ -123,29 +175,41 @@ export const useWorkHours = (): UseWorkHoursReturn => {
         // First, add all settings work hours
         settingsWorkHours.forEach(settingsWH => {
           // Check if there's an override for this work hour
-          const override = weeklyOverrides.find(override => 
-            override.id === `override-${settingsWH.id}` || 
-            override.id === settingsWH.id
+          const overrideId = `override-${settingsWH.id}`;
+          const override = weekOverrides.find(override => 
+            override.id === overrideId
           );
+          
+          console.log('Checking settings work hour:', { 
+            settingsWHId: settingsWH.id, 
+            overrideId, 
+            foundOverride: !!override,
+            overrideDetails: override 
+          });
           
           if (override) {
             // Use the override instead of the settings work hour
             if (override.description !== 'DELETED_OVERRIDE') {
+              console.log('Using override for:', settingsWH.id, '→', override.id);
               finalWorkHours.push(override);
+            } else {
+              console.log('Skipping deleted work hour:', settingsWH.id);
             }
             // If it's a deleted override, skip adding this work hour
           } else {
             // No override, use the settings work hour
+            console.log('Using settings work hour:', settingsWH.id);
             finalWorkHours.push(settingsWH);
           }
         });
         
         // Add custom work hours (not from settings) for current week only
-        weeklyOverrides.forEach(override => {
+        weekOverrides.forEach(override => {
           const isCustom = !override.id.startsWith('override-') && 
                           !override.id.startsWith('settings-') &&
                           override.description !== 'DELETED_OVERRIDE';
           if (isCustom) {
+            console.log('Adding custom work hour:', override.id);
             finalWorkHours.push(override);
           }
         });
@@ -154,6 +218,8 @@ export const useWorkHours = (): UseWorkHoursReturn => {
         setWorkHours(finalWorkHours);
       } else {
         // For non-current weeks, just show settings work hours (no overrides)
+        console.log('Non-current week, showing all settings work hours:', settingsWorkHours.length);
+        
         settingsWorkHours.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
         setWorkHours(settingsWorkHours);
       }
@@ -199,7 +265,10 @@ export const useWorkHours = (): UseWorkHoursReturn => {
           type: workHourData.type || 'work'
         };
 
-        weeklyOverrides.push(newWorkHour);
+        // Add to current week overrides
+        const currentWeekStart = getCurrentWeekStart();
+        addWeekOverride(currentWeekStart, newWorkHour);
+        
         await fetchWorkHours();
         return newWorkHour;
       }
@@ -217,6 +286,17 @@ export const useWorkHours = (): UseWorkHoursReturn => {
     scope?: 'this-week' | 'permanent'
   ): Promise<void> => {
     const isFromSettings = id.startsWith('settings-');
+    
+    // Check if this is a past event that shouldn't be editable
+    const workHour = workHours.find(wh => wh.id === id);
+    if (workHour) {
+      const now = new Date();
+      const eventEnd = new Date(workHour.endTime);
+      if (eventEnd < now) {
+        setError('Cannot modify past work hours');
+        return;
+      }
+    }
     
     console.log('updateWorkHour called:', { id, updates, scope, isFromSettings });
     
@@ -237,43 +317,64 @@ export const useWorkHours = (): UseWorkHoursReturn => {
       setError(null);
       
       if (scope === 'permanent' && isFromSettings) {
-        // Update settings permanently
+        // Update settings permanently - but only for future events
         console.log('Updating settings permanently for work hour:', id);
         await updateSettingsWorkHour(id, updates);
       } else {
         // Update just this week (add/update override)
+        const currentWeekStart = getCurrentWeekStart();
+        console.log('Updating for this week only:', { currentWeekStart: currentWeekStart.toISOString(), id, updates });
+        
         if (isFromSettings) {
           // Create or update override for settings-based work hour
           const originalWorkHour = workHours.find(wh => wh.id === id);
+          console.log('Found original work hour:', originalWorkHour);
+          
           if (originalWorkHour) {
             const overrideId = `override-${id}`;
-            const existingOverrideIndex = weeklyOverrides.findIndex(wh => wh.id === overrideId);
             
             const updatedWorkHour = {
               ...originalWorkHour,
               ...updates,
-              id: overrideId
+              id: overrideId,
+              // Recalculate duration if start or end time changed
+              duration: updates.startTime && updates.endTime 
+                ? (new Date(updates.endTime).getTime() - new Date(updates.startTime).getTime()) / (1000 * 60 * 60)
+                : originalWorkHour.duration
             };
             
-            if (existingOverrideIndex !== -1) {
-              weeklyOverrides[existingOverrideIndex] = updatedWorkHour;
-            } else {
-              weeklyOverrides.push(updatedWorkHour);
-            }
+            console.log('Creating/updating override:', { overrideId, updatedWorkHour });
+            
+            updateWeekOverride(currentWeekStart, overrideId, updatedWorkHour);
+            console.log('Override added to map');
+          } else {
+            console.error('Original work hour not found for ID:', id);
           }
         } else {
+          console.log('Updating custom work hour');
           // Update custom work hour or existing override
-          const existingIndex = weeklyOverrides.findIndex(wh => wh.id === id);
+          const weekOverrides = getWeekOverrides(currentWeekStart);
+          const existingIndex = weekOverrides.findIndex(wh => wh.id === id);
+          
           if (existingIndex !== -1) {
-            weeklyOverrides[existingIndex] = { 
-              ...weeklyOverrides[existingIndex], 
+            const updatedWorkHour = { 
+              ...weekOverrides[existingIndex], 
               ...updates 
             };
+            
+            // Recalculate duration if start or end time changed
+            if (updates.startTime && updates.endTime) {
+              updatedWorkHour.duration = (new Date(updates.endTime).getTime() - new Date(updates.startTime).getTime()) / (1000 * 60 * 60);
+            }
+            
+            updateWeekOverride(currentWeekStart, id, updatedWorkHour);
           }
         }
       }
       
-      await fetchWorkHours();
+      console.log('About to call fetchWorkHours after work hour update');
+      await fetchWorkHours(new Date()); // Force refresh of current date/week
+      console.log('fetchWorkHours completed after work hour update');
     } catch (err) {
       console.error('Error updating work hour:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to update work hour';
@@ -284,6 +385,17 @@ export const useWorkHours = (): UseWorkHoursReturn => {
 
   const deleteWorkHour = async (id: string, scope?: 'this-week' | 'permanent'): Promise<void> => {
     const isFromSettings = id.startsWith('settings-');
+    
+    // Check if this is a past event that shouldn't be editable
+    const workHour = workHours.find(wh => wh.id === id);
+    if (workHour) {
+      const now = new Date();
+      const eventEnd = new Date(workHour.endTime);
+      if (eventEnd < now) {
+        setError('Cannot delete past work hours');
+        return;
+      }
+    }
     
     if (!scope && isFromSettings) {
       // Show scope dialog for settings-based work hours
@@ -304,22 +416,25 @@ export const useWorkHours = (): UseWorkHoursReturn => {
         await deleteSettingsWorkHour(id);
       } else {
         // Delete just this week
+        const currentWeekStart = getCurrentWeekStart();
+        
         if (isFromSettings) {
           // Add a "deleted" override (empty override that masks the settings entry)
           const originalWorkHour = workHours.find(wh => wh.id === id);
           if (originalWorkHour) {
-            weeklyOverrides.push({
+            const deletedOverride = {
               id: `deleted-${id}`,
               title: '',
               startTime: originalWorkHour.startTime,
               endTime: originalWorkHour.endTime,
               duration: originalWorkHour.duration,
               description: 'DELETED_OVERRIDE'
-            });
+            };
+            addWeekOverride(currentWeekStart, deletedOverride);
           }
         } else {
           // Remove from overrides
-          weeklyOverrides = weeklyOverrides.filter(wh => wh.id !== id);
+          removeWeekOverride(currentWeekStart, id);
         }
       }
       
@@ -454,13 +569,20 @@ export const useWorkHours = (): UseWorkHoursReturn => {
     const { type, workHourId, updates, newWorkHour } = pendingWorkHourChange;
     
     console.log('confirmWorkHourChange called:', { scope, type, workHourId, updates, newWorkHour });
+    console.log('Current weeklyOverridesMap:', Array.from(weeklyOverridesMap.entries()));
     
-    if (type === 'add' && newWorkHour) {
-      await addWorkHour(newWorkHour, scope);
-    } else if (type === 'update' && workHourId) {
-      await updateWorkHour(workHourId, updates!, scope);
-    } else if (type === 'delete' && workHourId) {
-      await deleteWorkHour(workHourId, scope);
+    try {
+      if (type === 'add' && newWorkHour) {
+        await addWorkHour(newWorkHour, scope);
+      } else if (type === 'update' && workHourId) {
+        await updateWorkHour(workHourId, updates!, scope);
+      } else if (type === 'delete' && workHourId) {
+        await deleteWorkHour(workHourId, scope);
+      }
+      
+      console.log('After change, weeklyOverridesMap:', Array.from(weeklyOverridesMap.entries()));
+    } catch (error) {
+      console.error('Error in confirmWorkHourChange:', error);
     }
     
     setPendingWorkHourChange(null);
@@ -473,8 +595,9 @@ export const useWorkHours = (): UseWorkHoursReturn => {
   };
 
   const revertToSettings = async () => {
-    // Clear all overrides and refresh from settings
-    weeklyOverrides = [];
+    // Clear all overrides for current week and refresh from settings
+    const currentWeekStart = getCurrentWeekStart();
+    setWeekOverrides(currentWeekStart, []);
     await fetchWorkHours();
   };
 

@@ -60,9 +60,17 @@
   border: none !important;
   border-radius: 6px !important;
   font-size: 12px !important;
-  /* Uniform padding on all sides */
-  padding: 4px !important;
+  /* Reduced padding for better centering */
+  padding: 2px !important;
   cursor: pointer !important;
+  /* Add left margin to create balanced spacing */
+  margin-left: 5px !important;
+  /* Force full width and override library positioning */
+  position: absolute !important;
+  left: 5px !important;
+  right: 5px !important;
+  width: auto !important;
+  max-width: none !important;
 }
 
 /* Future events get dashed borders */
@@ -82,6 +90,28 @@
 
 .rbc-event-overlaps {
   box-shadow: -2px 0px 0px 0px rgba(255, 255, 255, 0.5) !important;
+}
+
+/* Event positioning and layering for independent work hours and events */
+
+/* All events should take full width in their column */
+.rbc-event {
+  position: absolute !important;
+  left: 0% !important;
+  right: 0% !important;
+  width: auto !important;
+  margin: 0 4px !important;
+}
+
+/* Work hours layer */
+.rbc-event.work-hour-event {
+  z-index: 1 !important;
+  background-color: rgba(227, 242, 253, 0.7) !important;
+}
+
+/* Regular events layer */
+.rbc-event:not(.work-hour-event) {
+  z-index: 2 !important;
 }
 
 /* Time slots - hide all borders by default with high specificity */
@@ -173,7 +203,7 @@
 .rbc-time-view .rbc-time-content .rbc-time-slot {
   border-top: none !important;
   background-color: transparent !important;
-  min-height: 30px !important;
+  min-height: 15px !important;
 }
 
 /* Time slot groups - each represents one hour */
@@ -206,7 +236,7 @@
 .rbc-time-view .rbc-time-gutter .rbc-time-slot {
   font-size: 12px !important;
   color: #6b7280 !important;
-  min-height: 30px !important;
+  min-height: 15px !important;
 }
 
 .rbc-time-view .rbc-time-gutter .rbc-timeslot-group {
