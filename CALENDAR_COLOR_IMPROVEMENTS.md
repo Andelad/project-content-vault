@@ -22,7 +22,7 @@ Updated the calendar view to use a more accessible and visually appealing color 
 - `oklch(0.8 0.02 280)` - same lightness as project colors but with very low chroma
 - Ensures consistent behavior across all color calculations
 
-### 2. Updated Calendar View (`/src/components/EnhancedCalendarView.tsx`)
+### 2. Updated Calendar View (`/src/components/PlannerView.tsx`)
 
 #### Enhanced `eventStyleGetter` Function
 ```typescript

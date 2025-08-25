@@ -6,13 +6,14 @@ import 'moment/locale/en-gb'; // Import GB locale for Monday week start
 import { useApp } from '../contexts/AppContext';
 import { CalendarEvent, WorkHour } from '../types';
 import { Button } from './ui/button';
-import { ChevronLeft, ChevronRight, CheckCircle2, Circle, Calendar as CalendarIcon, MapPin, CalendarSearch } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle2, Circle, Calendar as CalendarIcon, MapPin, CalendarSearch, Trash2 } from 'lucide-react';
 import { EventDetailModal } from './EventDetailModal';
 import { Checkbox } from './ui/checkbox';
 import { Badge } from './ui/badge';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar as DatePicker } from './ui/calendar';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from './ui/alert-dialog';
 import { TimeTracker } from './TimeTracker';
 import { WorkHourCreationModal } from './WorkHourCreationModal';
 import { WorkHourScopeDialog } from './WorkHourScopeDialog';
@@ -47,9 +48,10 @@ interface BigCalendarEvent {
 interface CustomEventProps {
   event: BigCalendarEvent;
   layerMode: 'events' | 'work-hours';
+  updateEventWithUndo?: (eventId: string, updates: Partial<CalendarEvent>, options?: { silent?: boolean }) => void;
 }
 
-function CustomEvent({ event, layerMode }: CustomEventProps) {
+function CustomEvent({ event, layerMode, updateEventWithUndo }: CustomEventProps) {
   const { projects } = useApp();
   const { deleteWorkHour } = useWorkHours();
   const { updateEvent, isTimeTracking } = useApp();
@@ -100,7 +102,8 @@ function CustomEvent({ event, layerMode }: CustomEventProps) {
     const handleCompletionToggle = (e: React.MouseEvent) => {
       e.stopPropagation();
       if (calendarEvent && !isCurrentlyTracking && canInteract) {
-        updateEvent(calendarEvent.id, { completed: !calendarEvent.completed });
+        const updateFn = updateEventWithUndo || updateEvent;
+        updateFn(calendarEvent.id, { completed: !calendarEvent.completed });
       }
     };
 
@@ -138,8 +141,10 @@ export function PlannerView() {
     events,
     addEvent,
     updateEvent,
+    deleteEvent,
     projects,
     setSelectedEventId,
+    selectedEventId,
     setCreatingNewEvent
   } = useApp();
   
@@ -151,6 +156,16 @@ export function PlannerView() {
   const [showWorkHourCreator, setShowWorkHourCreator] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<{ start: Date; end: Date } | null>(null);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [eventToDelete, setEventToDelete] = useState<string | null>(null);
+  
+  // State for undo functionality
+  const [lastAction, setLastAction] = useState<{
+    type: 'update' | 'create' | 'delete';
+    eventId: string;
+    previousState?: Partial<CalendarEvent>;
+    event?: CalendarEvent;
+  } | null>(null);
 
   // Set initial view date for work hours
   useEffect(() => {
@@ -195,6 +210,153 @@ export function PlannerView() {
     return () => clearTimeout(timer);
   }, [view, calendarDate]);
 
+  // Keyboard shortcut handlers
+  const handleEscape = useCallback(() => {
+    // Clear all possible open states
+    if (selectedEventId) {
+      setSelectedEventId(null);
+    }
+    if (isDatePickerOpen) {
+      setIsDatePickerOpen(false);
+    }
+    if (showWorkHourCreator) {
+      setShowWorkHourCreator(false);
+      setSelectedSlot(null);
+    }
+    if (showDeleteConfirm) {
+      setShowDeleteConfirm(false);
+      setEventToDelete(null);
+    }
+  }, [selectedEventId, isDatePickerOpen, showWorkHourCreator, showDeleteConfirm, setSelectedEventId]);
+
+  const handleUndo = useCallback(() => {
+    if (!lastAction) return;
+
+    try {
+      switch (lastAction.type) {
+        case 'update':
+          if (lastAction.previousState && lastAction.eventId) {
+            updateEvent(lastAction.eventId, lastAction.previousState, { silent: true });
+            setLastAction(null);
+          }
+          break;
+        case 'delete':
+          if (lastAction.event) {
+            // Re-create the deleted event
+            const { id, ...eventData } = lastAction.event;
+            addEvent(eventData);
+            setLastAction(null);
+          }
+          break;
+        // Note: We don't undo 'create' actions as they're more complex
+        // and would require deleting the newly created event
+      }
+    } catch (error) {
+      console.error('Failed to undo action:', error);
+    }
+  }, [lastAction, updateEvent, addEvent]);
+
+  // Enhanced updateEvent wrapper to track changes for undo
+  const updateEventWithUndo = useCallback((eventId: string, updates: Partial<CalendarEvent>, options?: { silent?: boolean }) => {
+    if (!options?.silent) {
+      const originalEvent = events.find(e => e.id === eventId);
+      if (originalEvent) {
+        // Store the previous state for undo (only the fields being updated)
+        const previousState: Partial<CalendarEvent> = {};
+        Object.keys(updates).forEach(key => {
+          const typedKey = key as keyof CalendarEvent;
+          (previousState as any)[typedKey] = originalEvent[typedKey];
+        });
+        
+        setLastAction({
+          type: 'update',
+          eventId,
+          previousState
+        });
+      }
+    }
+    
+    updateEvent(eventId, updates, options);
+  }, [events, updateEvent]);
+
+  const handleToggleCompletion = useCallback(() => {
+    if (!selectedEventId || layerMode !== 'events') return;
+
+    const selectedEvent = events.find(e => e.id === selectedEventId);
+    if (!selectedEvent) return;
+
+    updateEventWithUndo(selectedEventId, { completed: !selectedEvent.completed });
+  }, [selectedEventId, events, layerMode, updateEventWithUndo]);
+
+  const handleDeleteSelected = useCallback(() => {
+    if (!selectedEventId || layerMode !== 'events') {
+      return;
+    }
+
+    const selectedEvent = events.find(e => e.id === selectedEventId);
+    if (!selectedEvent) {
+      return;
+    }
+
+    // Show confirmation dialog instead of deleting immediately
+    setEventToDelete(selectedEventId);
+    setShowDeleteConfirm(true);
+  }, [selectedEventId, events, layerMode]);
+
+  const handleConfirmDelete = useCallback(() => {
+    if (!eventToDelete) return;
+
+    const selectedEvent = events.find(e => e.id === eventToDelete);
+    if (selectedEvent) {
+      // Store for undo
+      setLastAction({
+        type: 'delete',
+        eventId: eventToDelete,
+        event: selectedEvent
+      });
+
+      deleteEvent(eventToDelete);
+      setSelectedEventId(null);
+    }
+
+    setShowDeleteConfirm(false);
+    setEventToDelete(null);
+  }, [eventToDelete, events, deleteEvent, setSelectedEventId]);
+
+  const handleCancelDelete = useCallback(() => {
+    setShowDeleteConfirm(false);
+    setEventToDelete(null);
+  }, []);
+
+  const handleCreateNewEvent = useCallback(() => {
+    if (layerMode === 'events') {
+      // Create a 1-hour event starting at the current time or 9 AM
+      const now = new Date();
+      const startTime = new Date(calendarDate);
+      
+      // If viewing today, start from current time, otherwise start at 9 AM
+      if (startTime.toDateString() === now.toDateString()) {
+        startTime.setHours(now.getHours(), 0, 0, 0);
+      } else {
+        startTime.setHours(9, 0, 0, 0);
+      }
+      
+      const endTime = new Date(startTime);
+      endTime.setHours(startTime.getHours() + 1);
+      
+      setCreatingNewEvent({ startTime, endTime });
+    } else {
+      // Create work hour
+      const startTime = new Date(calendarDate);
+      startTime.setHours(9, 0, 0, 0);
+      const endTime = new Date(startTime);
+      endTime.setHours(17, 0, 0, 0);
+      
+      setSelectedSlot({ start: startTime, end: endTime });
+      setShowWorkHourCreator(true);
+    }
+  }, [layerMode, calendarDate, setCreatingNewEvent]);
+
   // Convert our events to Big Calendar format
   const bigCalendarEvents: BigCalendarEvent[] = useMemo(() => {
     const eventItems: BigCalendarEvent[] = events.map(event => ({
@@ -227,6 +389,9 @@ export function PlannerView() {
     const isCalendarEvent = (res: CalendarEvent | WorkHour): res is CalendarEvent => {
       return 'projectId' in res;
     };
+    
+    // Check if this event is selected
+    const isSelected = !event.isWorkHour && selectedEventId === event.resource.id;
     
     // Check if event is in the future (precise to minute)
     const now = new Date();
@@ -271,12 +436,37 @@ export function PlannerView() {
       // Get the base color (project color or fallback)
       const baseColor = calendarEvent.color || (project ? project.color : OKLCH_FALLBACK_GRAY);
       
-      // Create light background and dark text versions
+      // Create light background and project-colored text versions
       let backgroundColor = getCalendarEventBackgroundColor(baseColor);
-      const textColor = getCalendarEventTextColor(baseColor);
       
-      // Make future events even lighter by increasing lightness further
-      if (isFutureEvent) {
+      // Calculate text color in the project color family instead of gray
+      let textColor: string;
+      const match = baseColor.match(/oklch\(([0-9.]+) ([0-9.]+) ([0-9.]+)\)/);
+      if (match) {
+        const [, lightness, chroma, hue] = match;
+        // Create a darker version of the project color for text (good contrast but still in color family)
+        const textLightness = 0.35; // Dark enough for good contrast
+        // Use the same chroma as the original project color (0.12) - don't reduce it at this dark lightness
+        const textChroma = Math.max(0.12, parseFloat(chroma)); // Keep full project color chroma for visibility
+        textColor = `oklch(${textLightness} ${textChroma} ${hue})`;
+      } else {
+        // Fallback to the original function if color parsing fails
+        textColor = getCalendarEventTextColor(baseColor);
+      }
+      
+      // Handle selected state - make it darker
+      if (isSelected) {
+        // For selected events, use a very slightly darker version of the background color
+        // Work with the already-lightened background color for a more subtle effect
+        const match = backgroundColor.match(/oklch\(([0-9.]+) ([0-9.]+) ([0-9.]+)\)/);
+        if (match) {
+          const [, lightness, chroma, hue] = match;
+          // Very subtle changes: reduce lightness by only 0.02 and reduce chroma significantly for muted effect
+          const selectedLightness = Math.max(0.3, parseFloat(lightness) - 0.02);
+          const selectedChroma = Math.max(0.01, parseFloat(chroma) * 0.5); // Reduce chroma by half
+          backgroundColor = `oklch(${selectedLightness} ${selectedChroma} ${hue})`;
+        }
+      } else if (isFutureEvent) {
         // For future events, set lightness very high and reduce chroma for almost white appearance
         const match = backgroundColor.match(/oklch\(([0-9.]+) ([0-9.]+) ([0-9.]+)\)/);
         if (match) {
@@ -292,6 +482,19 @@ export function PlannerView() {
       const baseOpacity = calendarEvent.completed ? 0.6 : 1;
       const finalOpacity = isActiveLayer ? baseOpacity : (baseOpacity * 0.3); // Faded when not active layer
       
+      // Create a subtle border color for selected events
+      let borderColor = 'transparent';
+      if (isSelected) {
+        const match = baseColor.match(/oklch\(([0-9.]+) ([0-9.]+) ([0-9.]+)\)/);
+        if (match) {
+          const [, lightness, chroma, hue] = match;
+          // Use a darker version of the project color with full chroma for visible project color
+          const borderLightness = Math.max(0.4, parseFloat(lightness) - 0.15);
+          const borderChroma = Math.max(0.08, parseFloat(chroma)); // Keep full chroma for visible color
+          borderColor = `oklch(${borderLightness} ${borderChroma} ${hue})`;
+        }
+      }
+      
       return {
         style: {
           backgroundColor,
@@ -300,13 +503,16 @@ export function PlannerView() {
           color: textColor,
           fontSize: '12px',
           pointerEvents: isActiveLayer ? 'auto' : 'none', // Disable interaction when not active
-          // Set CSS variable for future event border color
-          '--future-event-border-color': baseColor
+          outline: 'none', // Ensure no focus outline
+          boxShadow: 'none', // Ensure no box shadow
+          // Set CSS variables for border colors
+          '--future-event-border-color': baseColor,
+          '--selected-event-border-color': borderColor
         } as React.CSSProperties,
-        className: `${isFutureEvent ? 'future-event' : ''} hide-label`.trim()
+        className: `${isFutureEvent ? 'future-event' : ''} ${isSelected ? 'selected-event' : ''} hide-label`.trim()
       };
     }
-  }, [projects, layerMode]);
+  }, [projects, layerMode, selectedEventId]);
 
   const handleSelectEvent = useCallback((event: BigCalendarEvent) => {
     // Only allow selection if we're in the correct layer mode
@@ -314,7 +520,6 @@ export function PlannerView() {
       // Work hour selected in work hours mode
       // Currently no specific action needed for work hour selection
       // Could add work hour editing modal here in the future
-      console.log('Work hour selected:', event.id);
       return;
     } else if (!event.isWorkHour && layerMode === 'events') {
       // Regular event selected in events mode
@@ -323,10 +528,6 @@ export function PlannerView() {
     }
     
     // Prevent any interaction when not in the appropriate mode
-    console.log('Event interaction blocked - wrong layer mode:', {
-      eventType: event.isWorkHour ? 'work-hour' : 'event',
-      currentLayer: layerMode
-    });
   }, [setSelectedEventId, layerMode]);
 
   const handleSelectSlot = useCallback(({ start, end }: { start: Date; end: Date }) => {
@@ -363,13 +564,6 @@ export function PlannerView() {
     if (event.isWorkHour && layerMode === 'work-hours') {
       // Update work hour
       const workHourId = event.id.replace('work-', '');
-      console.log('Dragging work hour:', { 
-        originalEventId: event.id, 
-        workHourId, 
-        start, 
-        end, 
-        originalWorkHour: event.resource
-      });
       updateWorkHour(workHourId, {
         startTime: start,
         endTime: end,
@@ -377,14 +571,14 @@ export function PlannerView() {
     } else if (!event.isWorkHour && layerMode === 'events') {
       // Update regular event
       const duration = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-      updateEvent(event.id, {
+      updateEventWithUndo(event.id, {
         startTime: start,
         endTime: end,
         duration
       });
     }
     // Ignore drag operations when not in the appropriate mode
-  }, [updateEvent, updateWorkHour, layerMode]);
+  }, [updateEventWithUndo, updateWorkHour, layerMode]);
 
   const handleEventResize = useCallback(({ event, start, end }: { 
     event: BigCalendarEvent; 
@@ -395,7 +589,6 @@ export function PlannerView() {
     if (event.isWorkHour && layerMode === 'work-hours') {
       // Update work hour
       const workHourId = event.id.replace('work-', '');
-      console.log('Resizing work hour:', { originalEventId: event.id, workHourId, start, end });
       updateWorkHour(workHourId, {
         startTime: start,
         endTime: end,
@@ -403,14 +596,14 @@ export function PlannerView() {
     } else if (!event.isWorkHour && layerMode === 'events') {
       // Update regular event
       const duration = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-      updateEvent(event.id, {
+      updateEventWithUndo(event.id, {
         startTime: start,
         endTime: end,
         duration
       });
     }
     // Ignore resize operations when not in the appropriate mode
-  }, [updateEvent, updateWorkHour, layerMode]);
+  }, [updateEventWithUndo, updateWorkHour, layerMode]);
 
   const handleCreateWorkHour = useCallback((workHourData: Omit<WorkHour, 'id'>) => {
     // Don't pass scope - let the hook handle showing the dialog
@@ -491,6 +684,89 @@ export function PlannerView() {
       return start.format('MMMM YYYY');
     }
   }, [calendarDate, view]);
+
+  // Keyboard shortcuts - defined after all handlers
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger shortcuts if user is typing in an input/textarea
+      if (e.target instanceof HTMLInputElement || 
+          e.target instanceof HTMLTextAreaElement || 
+          (e.target as HTMLElement).contentEditable === 'true') {
+        return;
+      }
+
+      // Handle modifier key combinations first
+      if (e.metaKey || e.ctrlKey) {
+        switch (e.key.toLowerCase()) {
+          case 'z':
+            e.preventDefault();
+            handleUndo();
+            break;
+        }
+        return;
+      }
+
+      // Handle regular keys
+      switch (e.key) {
+        case 'Escape':
+          e.preventDefault();
+          e.stopPropagation();
+          // Add a small delay to ensure modal handlers complete first
+          setTimeout(() => handleEscape(), 10);
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          handleNavigate('PREV');
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          handleNavigate('NEXT');
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          if (view === Views.WEEK) {
+            setView(Views.MONTH);
+          }
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          if (view === Views.MONTH) {
+            setView(Views.WEEK);
+          } else if (view === Views.WEEK) {
+            setView(Views.DAY);
+          }
+          break;
+        case ' ': // Spacebar
+          e.preventDefault();
+          handleToggleCompletion();
+          break;
+        case 'Delete':
+        case 'Backspace':
+          e.preventDefault();
+          e.stopPropagation();
+          handleDeleteSelected();
+          break;
+        case 'n':
+        case 'N':
+          e.preventDefault();
+          handleCreateNewEvent();
+          break;
+        case 't':
+        case 'T':
+          e.preventDefault();
+          handleNavigate('TODAY');
+          break;
+        case 'w':
+        case 'W':
+          e.preventDefault();
+          setLayerMode(layerMode === 'events' ? 'work-hours' : 'events');
+          break;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [handleEscape, handleUndo, handleNavigate, handleToggleCompletion, handleDeleteSelected, handleCreateNewEvent, view, layerMode, setLayerMode, setView]);
 
   return (
     <div className="h-full flex flex-col bg-gray-50 overflow-hidden">
@@ -611,7 +887,7 @@ export function PlannerView() {
             dragFromOutsideItem={null}
             eventPropGetter={eventStyleGetter}
             components={{
-              event: (props: any) => <CustomEvent {...props} layerMode={layerMode} />,
+              event: (props: any) => <CustomEvent {...props} layerMode={layerMode} updateEventWithUndo={updateEventWithUndo} />,
               toolbar: () => null
             }}
             formats={{
@@ -691,6 +967,25 @@ export function PlannerView() {
           isFromSettings={pendingWorkHourChange.isFromSettings}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Event</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this event? This action cannot be undone (though you can use Ctrl+Z to undo immediately after).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelDelete}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

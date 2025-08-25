@@ -56,26 +56,35 @@
 }
 
 /* Event styling */
+/* Event styling */
 .rbc-event {
-  border: none !important;
+  border: 2px solid transparent !important; /* All events get 2px transparent borders by default */
   border-radius: 6px !important;
+  font-family: inherit !important;
   font-size: 12px !important;
-  /* Reduced padding for better centering */
-  padding: 2px !important;
   cursor: pointer !important;
-  /* Add left margin to create balanced spacing */
-  margin-left: 5px !important;
-  /* Force full width and override library positioning */
-  position: absolute !important;
-  left: 5px !important;
-  right: 5px !important;
-  width: auto !important;
-  max-width: none !important;
+  padding: 4px 4px !important;
+  outline: none !important; /* Remove focus outline */
+  box-sizing: border-box !important; /* Ensure borders don't add to total size */
+}
+
+/* Remove any focus or active state borders that might show blue */
+.rbc-event:focus,
+.rbc-event:active,
+.rbc-selected:focus,
+.rbc-selected:active {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 /* Future events get dashed borders */
 .rbc-event.future-event {
   border: 2px dashed var(--future-event-border-color) !important;
+}
+
+/* Selected events get solid borders in project color */
+.rbc-event.selected-event {
+  border: 2px solid var(--selected-event-border-color) !important;
 }
 
 /* Default label style */
@@ -363,11 +372,7 @@
   z-index: 10 !important;
 }
 
-/* Selected event */
-.rbc-selected {
-  background-color: hsl(var(--primary)) !important;
-  box-shadow: 0 0 0 2px hsl(var(--primary) / 0.3) !important;
-}
+/* Selected event styling is now handled entirely by JavaScript eventStyleGetter */
 
 /* Popup */
 .rbc-overlay {
