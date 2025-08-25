@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar as CalendarIcon, Clock, User, Palette, X, Trash2, Info, Folder, Briefcase, Zap, Target, Lightbulb, Rocket, Star, Heart, Gift, Music, Camera, Code, Book, Gamepad2, Coffee, Home, Building, Car, Plane, Map, Globe, Infinity } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, User, Palette, X, Trash2, Info, Folder, Briefcase, Zap, Target, Lightbulb, Rocket, Star, Heart, Gift, Music, Camera, Code, Book, Gamepad2, Coffee, Home, Building, Car, Plane, Map, Globe, Infinity, ChevronDown, ChevronRight } from 'lucide-react';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
@@ -114,6 +114,23 @@ const calculateTotalWorkingDays = (startDate: Date, endDate: Date, settings: any
   return workingDays;
 };
 
+// Function to format time in hours to "Xh Ym" format, rounded to nearest minute
+const formatTimeHoursMinutes = (hours: number): string => {
+  if (hours === 0) return '0h';
+  
+  const totalMinutes = Math.round(hours * 60); // Convert to minutes and round
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  
+  if (h === 0) {
+    return `${m}m`;
+  } else if (m === 0) {
+    return `${h}h`;
+  } else {
+    return `${h}h ${m}m`;
+  }
+};
+
 // OKLCH color palette - matches the one defined in AppContext
 const OKLCH_PROJECT_COLORS = [
   'oklch(0.8 0.12 0)',      // Red
@@ -173,6 +190,10 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
   const [editingProperty, setEditingProperty] = useState<string | null>(null);
   const [stylePickerOpen, setStylePickerOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  
+  // State for collapsible sections
+  const [isInsightsExpanded, setIsInsightsExpanded] = useState(false);
+  const [isNotesExpanded, setIsNotesExpanded] = useState(true);
   
   // Temporary state for style picker
   const [tempColor, setTempColor] = useState('');
@@ -405,7 +426,8 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
     tooltip = '',
     showInfo = false,
     actionIcon = null,
-    onActionClick = null
+    onActionClick = null,
+    formatAsTime = false
   }: {
     label: string;
     value: number;
@@ -416,8 +438,13 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
     showInfo?: boolean;
     actionIcon?: React.ReactNode;
     onActionClick?: () => void;
+    formatAsTime?: boolean;
   }) => {
     const isEditing = editable && editingProperty === property;
+    
+    // Format the display value based on whether it should be formatted as time
+    const displayValue = formatAsTime ? formatTimeHoursMinutes(value) : value;
+    const displayUnit = formatAsTime ? '' : unit; // Don't show unit if we're showing formatted time
     
     return (
       <div className="bg-white rounded-lg p-4 border border-border">
@@ -484,8 +511,8 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
             className={`flex items-baseline gap-2 ${editable ? 'cursor-pointer hover:bg-muted/50 rounded px-2 py-1 -mx-2 -my-1 transition-colors' : ''}`}
             onClick={editable ? () => setEditingProperty(property) : undefined}
           >
-            <span className="text-3xl font-bold text-foreground">{value}</span>
-            <span className="text-lg text-muted-foreground">{unit}</span>
+            <span className="text-3xl font-bold text-foreground">{displayValue}</span>
+            {displayUnit && <span className="text-lg text-muted-foreground">{displayUnit}</span>}
           </div>
         )}
       </div>
@@ -638,7 +665,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
           <PopoverTrigger asChild>
             <Button
               variant="outline"
-              className="h-8 text-sm justify-start text-left font-normal px-3"
+              className="h-10 text-sm justify-start text-left font-normal px-3"
             >
               <CalendarIcon className="mr-2 h-3 w-3" />
               {formatDate(value)}
@@ -684,7 +711,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
             type="text"
             defaultValue={value}
             placeholder={placeholder}
-            className="h-8 text-sm border-border bg-background"
+            className="h-10 text-sm border-border bg-background"
             style={{ width: `${Math.max(displayValue.length * 8 + 40, 80)}px` }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
@@ -703,7 +730,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
         ) : (
           <Button
             variant="outline"
-            className="h-8 text-sm justify-start text-left font-normal px-3"
+            className="h-10 text-sm justify-start text-left font-normal px-3"
             style={{ width: `${Math.max(displayValue.length * 8 + 40, 80)}px` }}
             onClick={() => setEditingProperty(property)}
           >
@@ -732,7 +759,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
           <Input
             type="number"
             defaultValue={value}
-            className="h-8 text-sm border-border bg-background"
+            className="h-10 text-sm border-border bg-background"
             style={{ width: `${Math.max(value.toString().length * 12 + 60, 100)}px` }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
@@ -751,7 +778,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
         ) : (
           <Button
             variant="outline"
-            className="h-8 text-sm justify-start text-left font-normal px-3"
+            className="h-10 text-sm justify-start text-left font-normal px-3"
             style={{ width: `${Math.max(displayValue.length * 8 + 40, 100)}px` }}
             onClick={() => setEditingProperty(property)}
           >
@@ -780,7 +807,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
         <Label className="text-xs text-muted-foreground mb-1 block">Group</Label>
         <Select value={currentGroupId || ''} onValueChange={onGroupChange} disabled={disabled}>
           <SelectTrigger 
-            className="h-8 text-sm"
+            className="h-10 text-sm"
             style={{ width: `${Math.max(displayValue.length * 8 + 40, 100)}px` }}
           >
             <SelectValue placeholder="Select group">
@@ -907,7 +934,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
           
           {/* Modal */}
           <motion.div 
-            className="fixed max-w-[1240px] w-[90vw] h-[95vh] bg-white rounded-lg overflow-hidden shadow-2xl z-50 flex flex-col"
+            className="fixed max-w-[840px] w-[90vw] h-[95vh] bg-white rounded-lg overflow-hidden shadow-2xl z-50 flex flex-col"
             style={{
               left: '50%',
               top: '2.5vh'
@@ -960,7 +987,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
         </div>
 
         {/* Header */}
-        <div className="px-8 pt-6 pb-4 border-b border-gray-200 flex-shrink-0">
+        <div className="px-8 pt-6 pb-2 border-b border-gray-200 flex-shrink-0">
           {/* First row: Project Icon and Name */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-4">
@@ -1072,6 +1099,50 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
                 </h1>
               )}
             </div>
+            
+            {/* Insights positioned to align above end date field */}
+            {!localValues.continuous && (
+              <div className="flex items-end gap-3 mr-12">
+                <div className="min-w-[80px]">
+                  <div className="text-xs text-muted-foreground mb-1 block opacity-0">Start</div>
+                </div>
+                <span className="mb-1 opacity-0">→</span>
+                <div className="min-w-[80px] flex flex-col items-start">
+                  {/* Average time per day insight */}
+                  <div 
+                    className="text-xs text-muted-foreground mb-0.5"
+                    style={{ color: localValues.color || OKLCH_PROJECT_COLORS[0] }}
+                  >
+                    {(() => {
+                      const workingDays = calculateTotalWorkingDays(localValues.startDate, localValues.endDate, settings, holidays);
+                      if (workingDays === 0) {
+                        return 'Avg -';
+                      } else {
+                        const avgHoursPerDay = localValues.estimatedHours / workingDays;
+                        return `Avg ${formatTimeHoursMinutes(avgHoursPerDay)} per day`;
+                      }
+                    })()}
+                  </div>
+                  
+                  {/* Working days insight */}
+                  <div 
+                    className="text-xs text-muted-foreground"
+                    style={{ color: localValues.color || OKLCH_PROJECT_COLORS[0] }}
+                  >
+                    {(() => {
+                      const workingDays = calculateTotalWorkingDays(localValues.startDate, localValues.endDate, settings, holidays);
+                      if (workingDays === 0) {
+                        return '0 working days';
+                      } else if (workingDays === 1) {
+                        return '1 working day';
+                      } else {
+                        return `${workingDays} working days`;
+                      }
+                    })()}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           
           {/* Second row: Group, Client, Budget (left) and Dates (right) */}
@@ -1106,30 +1177,15 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
               {localValues.continuous ? (
                 <div className="min-w-[100px]">
                   <Label className="text-xs text-muted-foreground mb-1 block">End</Label>
-                  <div className="flex items-center gap-1 px-3 py-1 h-8 rounded border border-input bg-background text-muted-foreground">
+                  <div className="flex items-center gap-1 px-3 py-1 h-10 rounded border border-input bg-background text-muted-foreground">
                     <Infinity className="w-3 h-3" />
                     <span className="text-sm">Continuous</span>
                   </div>
                 </div>
               ) : (
                 <div className="min-w-[80px]">
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="mb-1">
                     <Label className="text-xs text-muted-foreground">End</Label>
-                    <div 
-                      className="text-xs text-muted-foreground"
-                      style={{ color: localValues.color || OKLCH_PROJECT_COLORS[0] }}
-                    >
-                      {(() => {
-                        const workingDays = calculateTotalWorkingDays(localValues.startDate, localValues.endDate, settings, holidays);
-                        if (workingDays === 0) {
-                          return '0 working days';
-                        } else if (workingDays === 1) {
-                          return '1 working day';
-                        } else {
-                          return `${workingDays} working days`;
-                        }
-                      })()}
-                    </div>
                   </div>
                   <HeaderDateField
                     value={localValues.endDate}
@@ -1143,7 +1199,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 w-8 p-0 mb-0"
+                      className="h-10 w-10 p-0 mb-0"
                       onClick={handleContinuousToggle}
                     >
                       <Infinity className="w-4 h-4" />
@@ -1176,79 +1232,131 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
             isCreatingProject={isCreating}
           />
 
-          {/* Time Forecasting Dashboard */}
-          <div className="border-b border-gray-200 bg-gray-50 px-8 py-6">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-              <TimeMetric
-                label="Planned Time"
-                value={metrics.plannedTime}
-                showInfo={true}
-                tooltip="Planned time is time that has been added to your calendar and connected to this project"
-                actionIcon={<CalendarIcon className="w-3 h-3" />}
-                onActionClick={() => {
-                  setCurrentView('calendar');
-                  handleClose();
-                }}
-              />
-              
-              <TimeMetric
-                label="Completed Time"
-                value={metrics.completedTime}
-                showInfo={true}
-                tooltip="Completed time is time connected to this project that is ticked as done on your calendar"
-              />
-              
-              <AutoEstimateTimeMetric
-                label="Auto-Estimate Time"
-                dailyTime={metrics.originalDailyEstimateFormatted}
-                showInfo={true}
-                tooltip="Auto-estimated time is the total budgeted hours divided by total working days in the project timeframe"
-              />
-              
-              <TimeMetric
-                label="Work Days Left"
-                value={metrics.workDaysLeft}
-                unit="days"
-                showInfo={true}
-                tooltip="Number of work days is less holidays, days with no availability, and blocked days"
-              />
+          {/* Project Insights */}
+          <div className="border-b border-gray-200">
+            <button
+              onClick={() => setIsInsightsExpanded(!isInsightsExpanded)}
+              className="w-full px-8 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                {isInsightsExpanded ? (
+                  <ChevronDown className="w-4 h-4 text-gray-500" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 text-gray-500" />
+                )}
+                <h3 className="text-lg font-medium text-gray-900">Project Insights</h3>
+              </div>
+            </button>
+            
+            <AnimatePresence>
+              {isInsightsExpanded && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
+                >
+                  {/* Project Progress Graph */}
+                  {!isCreating && (
+                    <div className="px-8 py-6 border-b border-gray-200">
+                      <ProjectProgressGraph 
+                        project={project || {
+                          ...localValues,
+                          id: projectId || '',
+                          groupId: groupId || '',
+                          rowId: rowId || ''
+                        }}
+                        metrics={metrics}
+                        events={events}
+                        milestones={milestones.filter(m => m.projectId === (projectId || project?.id))}
+                      />
+                    </div>
+                  )}
 
-              <TimeMetric
-                label="Total Work Days"
-                value={metrics.totalWorkDays}
-                unit="days"
-                showInfo={true}
-                tooltip="Total working days in the project timeframe (excluding weekends and holidays)"
-              />
-            </div>
+                  {/* Time Forecasting Dashboard */}
+                  <div className="bg-gray-50 px-8 py-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <TimeMetric
+                        label="Planned Time"
+                        value={metrics.plannedTime}
+                        showInfo={true}
+                        tooltip="Planned time is time that has been added to your calendar and connected to this project"
+                        actionIcon={<CalendarIcon className="w-3 h-3" />}
+                        onActionClick={() => {
+                          setCurrentView('calendar');
+                          handleClose();
+                        }}
+                        formatAsTime={true}
+                      />
+                      
+                      <TimeMetric
+                        label="Completed Time"
+                        value={metrics.completedTime}
+                        showInfo={true}
+                        tooltip="Completed time is time connected to this project that is ticked as done on your calendar"
+                        formatAsTime={true}
+                      />
+                      
+                      <AutoEstimateTimeMetric
+                        label="Auto-Estimate Time"
+                        dailyTime={metrics.originalDailyEstimateFormatted}
+                        showInfo={true}
+                        tooltip="Auto-estimated time is the total budgeted hours divided by total working days in the project timeframe"
+                      />
+                      
+                      <TimeMetric
+                        label="Work Days Left"
+                        value={metrics.workDaysLeft}
+                        unit="days"
+                        showInfo={true}
+                        tooltip="Number of work days is less holidays, days with no availability, and blocked days"
+                      />
+
+                      <TimeMetric
+                        label="Total Work Days"
+                        value={metrics.totalWorkDays}
+                        unit="days"
+                        showInfo={true}
+                        tooltip="Total working days in the project timeframe (excluding weekends and holidays)"
+                      />
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
-          {/* Project Progress Graph */}
-          {!isCreating && (
-            <ProjectProgressGraph 
-              project={project || {
-                ...localValues,
-                id: projectId || '',
-                groupId: groupId || '',
-                rowId: rowId || ''
-              }}
-              metrics={metrics}
-              events={events}
-              milestones={milestones.filter(m => m.projectId === (projectId || project?.id))}
-            />
-          )}
-
-          {/* Notes Panel */}
-          <div className="flex-1 flex flex-col min-w-0">
-            <div className="px-8 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-medium text-gray-900">Notes</h3>
-            </div>
+          {/* Notes */}
+          <div className="border-b border-gray-200">
+            <button
+              onClick={() => setIsNotesExpanded(!isNotesExpanded)}
+              className="w-full px-8 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                {isNotesExpanded ? (
+                  <ChevronDown className="w-4 h-4 text-gray-500" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 text-gray-500" />
+                )}
+                <h3 className="text-lg font-medium text-gray-900">Notes</h3>
+              </div>
+            </button>
             
-            <div className="flex-1 p-8">
-              <RichTextEditor
-                value={localValues.notes}
-                onChange={handleNotesChange}
-                placeholder="Add your project notes here...
+            <AnimatePresence>
+              {isNotesExpanded && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
+                >
+                  <div className="p-8">
+                    <RichTextEditor
+                      value={localValues.notes}
+                      onChange={handleNotesChange}
+                      placeholder="Add your project notes here...
 
 You can format text using the toolbar above:
 • Bold, italic, and underline text
@@ -1258,9 +1366,12 @@ You can format text using the toolbar above:
 • Create code blocks
 
 Start typing to capture all your project information in one place."
-                className="h-full overflow-auto"
-              />
-            </div>
+                      className="h-64 overflow-auto"
+                    />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
 

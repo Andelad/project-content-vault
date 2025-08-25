@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Trash2, ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronRight, AlertTriangle, Calendar as CalendarIcon } from 'lucide-react';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from './ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { useApp } from '../contexts/AppContext';
 import { Milestone } from '@/types/core';
 
@@ -34,11 +34,238 @@ export function MilestoneManager({
   localMilestonesState,
   isCreatingProject = false
 }: MilestoneManagerProps) {
-  const { milestones, addMilestone, updateMilestone, deleteMilestone } = useApp();
+  const { milestones, addMilestone, updateMilestone, deleteMilestone, showMilestoneSuccessToast } = useApp();
   const [isExpanded, setIsExpanded] = useState(false);
   const [localMilestones, setLocalMilestones] = useState<LocalMilestone[]>([]);
-  const [showBudgetDialog, setShowBudgetDialog] = useState(false);
-  const [suggestedBudget, setSuggestedBudget] = useState(0);
+  const [editingProperty, setEditingProperty] = useState<string | null>(null);
+
+  // Helper function to show error toast
+  const showErrorToast = async (message: string) => {
+    const { toast } = await import('@/hooks/use-toast');
+    toast({
+      title: "Error",
+      description: message,
+      variant: "destructive",
+    });
+  };
+
+  // Helper function to check if milestone allocation would exceed budget
+  const wouldExceedBudget = (milestoneId: string, newTimeAllocation: number) => {
+    const currentMilestone = projectMilestones.find(m => m.id === milestoneId);
+    const otherMilestonesTotal = projectMilestones
+      .filter(m => m.id !== milestoneId)
+      .reduce((total, m) => total + m.timeAllocation, 0);
+    
+    return (otherMilestonesTotal + newTimeAllocation) > projectEstimatedHours;
+  };
+
+  // Helper function to handle property saving for milestones
+  const handleSaveMilestoneProperty = async (milestoneId: string, property: string, value: any) => {
+    // Check if this is a time allocation update that would exceed budget
+    if (property === 'timeAllocation') {
+      if (wouldExceedBudget(milestoneId, value)) {
+        await showErrorToast(`Cannot save milestone: Total milestone allocation (${Math.ceil(projectMilestones.reduce((total, m) => total + (m.id === milestoneId ? value : m.timeAllocation), 0))}h) would exceed project budget (${projectEstimatedHours}h).`);
+        setEditingProperty(null);
+        return;
+      }
+    }
+
+    if (isCreatingProject && localMilestonesState) {
+      // For new projects, update local state
+      const updatedMilestones = localMilestonesState.milestones.map(m =>
+        m.id === milestoneId ? { ...m, [property]: value } : m
+      );
+      localMilestonesState.setMilestones(updatedMilestones);
+    } else {
+      // Check if this is a new milestone that needs to be saved first
+      const localMilestone = localMilestones.find(m => m.id === milestoneId);
+      if (localMilestone && localMilestone.isNew && projectId) {
+        // Check budget before saving new milestone
+        const totalWithNewMilestone = projectMilestones.reduce((total, m) => total + m.timeAllocation, 0) + 
+          (property === 'timeAllocation' ? value : localMilestone.timeAllocation);
+        
+        if (totalWithNewMilestone > projectEstimatedHours) {
+          await showErrorToast(`Cannot save milestone: Total milestone allocation (${Math.ceil(totalWithNewMilestone)}h) would exceed project budget (${projectEstimatedHours}h).`);
+          setEditingProperty(null);
+          return;
+        }
+
+        // Save the new milestone to database first
+        try {
+          const savedMilestone = await addMilestone({
+            name: localMilestone.name,
+            dueDate: localMilestone.dueDate,
+            timeAllocation: localMilestone.timeAllocation,
+            projectId: projectId,
+            order: localMilestone.order,
+            [property]: value // Apply the new property value
+          });
+          
+          // Remove from local state since it's now saved
+          setLocalMilestones(prev => prev.filter(m => m.id !== milestoneId));
+        } catch (error) {
+          console.error('Failed to save new milestone:', error);
+          await showErrorToast('Failed to save milestone. Please try again.');
+          setEditingProperty(null);
+          return;
+        }
+      } else if (projectId) {
+        // For existing milestones, update in database
+        try {
+          await updateMilestone(milestoneId, { [property]: value });
+        } catch (error) {
+          console.error('Failed to update milestone:', error);
+          await showErrorToast('Failed to update milestone. Please try again.');
+          setEditingProperty(null);
+          return;
+        }
+      }
+    }
+    setEditingProperty(null);
+  };
+
+  // Inline editing components similar to ProjectDetailModal
+  const MilestoneNameField = ({ 
+    milestone, 
+    property = 'name' 
+  }: {
+    milestone: Milestone | LocalMilestone;
+    property?: string;
+  }) => {
+    const isEditing = editingProperty === `${milestone.id}-${property}`;
+    const displayValue = milestone.name || 'Milestone name';
+    
+    return (
+      <div className="min-w-[120px]">
+        <Label className="text-xs text-muted-foreground mb-1 block">Name</Label>
+        {isEditing ? (
+          <Input
+            type="text"
+            defaultValue={milestone.name}
+            placeholder="Milestone name"
+            className="h-10 text-sm border-border bg-background"
+            style={{ width: `${Math.max(displayValue.length * 8 + 40, 120)}px` }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                const newValue = (e.target as HTMLInputElement).value;
+                handleSaveMilestoneProperty(milestone.id!, property, newValue);
+              } else if (e.key === 'Escape') {
+                setEditingProperty(null);
+              }
+            }}
+            onBlur={(e) => {
+              const newValue = e.target.value;
+              handleSaveMilestoneProperty(milestone.id!, property, newValue);
+            }}
+            autoFocus
+          />
+        ) : (
+          <Button
+            variant="outline"
+            className="h-10 text-sm justify-start text-left font-normal px-3"
+            style={{ width: `${Math.max(displayValue.length * 8 + 40, 120)}px` }}
+            onClick={() => setEditingProperty(`${milestone.id}-${property}`)}
+          >
+            {displayValue}
+          </Button>
+        )}
+      </div>
+    );
+  };
+
+  const MilestoneBudgetField = ({ 
+    milestone, 
+    property = 'timeAllocation' 
+  }: {
+    milestone: Milestone | LocalMilestone;
+    property?: string;
+  }) => {
+    const isEditing = editingProperty === `${milestone.id}-${property}`;
+    const displayValue = `${milestone.timeAllocation}h`;
+    
+    return (
+      <div className="min-w-[80px]">
+        <Label className="text-xs text-muted-foreground mb-1 block">Budget</Label>
+        {isEditing ? (
+          <Input
+            type="number"
+            defaultValue={milestone.timeAllocation}
+            className="h-10 text-sm border-border bg-background"
+            style={{ width: `${Math.max(milestone.timeAllocation.toString().length * 12 + 60, 80)}px` }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                const newValue = parseFloat((e.target as HTMLInputElement).value) || 0;
+                handleSaveMilestoneProperty(milestone.id!, property, newValue);
+              } else if (e.key === 'Escape') {
+                setEditingProperty(null);
+              }
+            }}
+            onBlur={(e) => {
+              const newValue = parseFloat(e.target.value) || 0;
+              handleSaveMilestoneProperty(milestone.id!, property, newValue);
+            }}
+            autoFocus
+          />
+        ) : (
+          <Button
+            variant="outline"
+            className="h-10 text-sm justify-start text-left font-normal px-3"
+            style={{ width: `${Math.max(displayValue.length * 8 + 40, 80)}px` }}
+            onClick={() => setEditingProperty(`${milestone.id}-${property}`)}
+          >
+            {displayValue}
+          </Button>
+        )}
+      </div>
+    );
+  };
+
+  const MilestoneDateField = ({ 
+    milestone, 
+    property = 'dueDate' 
+  }: {
+    milestone: Milestone | LocalMilestone;
+    property?: string;
+  }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    
+    const formatDate = (date: Date) => {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return `${months[date.getMonth()]} ${date.getDate()}`;
+    };
+    
+    return (
+      <div className="min-w-[80px]">
+        <Label className="text-xs text-muted-foreground mb-1 block">Due Date</Label>
+        <Popover open={isOpen} onOpenChange={setIsOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className="h-10 text-sm justify-start text-left font-normal px-3"
+            >
+              <CalendarIcon className="mr-2 h-3 w-3" />
+              {formatDate(milestone.dueDate)}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={milestone.dueDate}
+              defaultMonth={milestone.dueDate}
+              onSelect={(selectedDate) => {
+                if (selectedDate) {
+                  handleSaveMilestoneProperty(milestone.id!, property, selectedDate);
+                  setIsOpen(false);
+                }
+              }}
+              initialFocus
+            />
+          </PopoverContent>
+        </Popover>
+      </div>
+    );
+  };
 
   // Get milestones for this project - handle both new and existing projects
   const projectMilestones = useMemo(() => {
@@ -71,7 +298,8 @@ export function MilestoneManager({
 
   const addNewMilestone = () => {
     const newMilestone: LocalMilestone = {
-      name: '',
+      id: `temp-${Date.now()}`, // Generate temporary ID for editing
+      name: 'New Milestone',
       dueDate: new Date(),
       timeAllocation: 8, // Default to 8 hours (1 day)
       projectId: projectId || 'temp', // Use temp for new projects
@@ -113,8 +341,7 @@ export function MilestoneManager({
     // Check if total allocation exceeds project budget
     const newTotal = totalTimeAllocation;
     if (newTotal > projectEstimatedHours) {
-      setSuggestedBudget(suggestedBudgetFromMilestones);
-      setShowBudgetDialog(true);
+      await showErrorToast(`Cannot save milestone: Total milestone allocation (${Math.ceil(newTotal)}h) would exceed project budget (${projectEstimatedHours}h).`);
       return;
     }
 
@@ -141,6 +368,7 @@ export function MilestoneManager({
         setLocalMilestones(prev => prev.filter((_, i) => i !== index));
       } catch (error) {
         console.error('Failed to save milestone:', error);
+        await showErrorToast('Failed to save milestone. Please try again.');
       }
     }
   };
@@ -161,36 +389,22 @@ export function MilestoneManager({
       await deleteMilestone(milestoneId);
     } catch (error) {
       console.error('Failed to delete milestone:', error);
+      await showErrorToast('Failed to delete milestone. Please try again.');
     }
   };
 
   const handleUpdateMilestone = async (milestoneId: string, updates: Partial<Milestone>) => {
+    // Check if this update would exceed budget
+    if (updates.timeAllocation !== undefined && wouldExceedBudget(milestoneId, updates.timeAllocation)) {
+      await showErrorToast(`Cannot update milestone: Total milestone allocation would exceed project budget (${projectEstimatedHours}h).`);
+      return;
+    }
+
     try {
       await updateMilestone(milestoneId, updates);
     } catch (error) {
       console.error('Failed to update milestone:', error);
-    }
-  };
-
-  const handleConfirmBudgetUpdate = () => {
-    if (onUpdateProjectBudget) {
-      onUpdateProjectBudget(suggestedBudget);
-    }
-    setShowBudgetDialog(false);
-    
-    // Now save the milestone
-    const pendingMilestone = isCreatingProject && localMilestonesState
-      ? localMilestonesState.milestones.find(m => m.isNew)
-      : localMilestones.find(m => m.isNew);
-    
-    if (pendingMilestone) {
-      const index = isCreatingProject && localMilestonesState
-        ? localMilestonesState.milestones.findIndex(m => m.isNew)
-        : localMilestones.findIndex(m => m.isNew);
-      
-      if (index !== -1) {
-        saveNewMilestone(index);
-      }
+      await showErrorToast('Failed to update milestone. Please try again.');
     }
   };
 
@@ -250,33 +464,61 @@ export function MilestoneManager({
                 </div>
               )}
 
-              {/* Existing Milestones */}
-              {projectMilestones.filter(m => !('isNew' in m) || !m.isNew).map((milestone) => (
-                <MilestoneRow
-                  key={milestone.id || `milestone-${milestone.name}`}
-                  milestone={milestone as Milestone}
-                  projectEstimatedHours={projectEstimatedHours}
-                  onUpdate={handleUpdateMilestone}
-                  onDelete={handleDeleteMilestone}
-                  isCreatingProject={isCreatingProject}
-                />
-              ))}
-
-              {/* New Milestones */}
-              {(isCreatingProject && localMilestonesState
-                ? localMilestonesState.milestones
-                : localMilestones
-              ).map((milestone, index) => (
-                ('isNew' in milestone && milestone.isNew) && (
-                  <NewMilestoneRow
-                    key={`new-${index}`}
-                    milestone={milestone}
-                    projectEstimatedHours={projectEstimatedHours}
-                    onUpdate={(updates) => updateLocalMilestone(index, updates)}
-                    onSave={() => saveNewMilestone(index)}
-                    onCancel={() => deleteLocalMilestone(index)}
-                  />
-                )
+              {/* All Milestones with Inline Editing */}
+              {projectMilestones.map((milestone, index) => (
+                <div key={milestone.id || `milestone-${index}`} className="border border-gray-200 rounded-lg p-4 mb-3">
+                  <div className="flex items-end justify-between">
+                    {/* Left side: Name and Budget */}
+                    <div className="flex items-end gap-3">
+                      <MilestoneNameField milestone={milestone} />
+                      <MilestoneBudgetField milestone={milestone} />
+                    </div>
+                    
+                    {/* Right side: Due Date and Delete Button */}
+                    <div className="flex items-end gap-3">
+                      <MilestoneDateField milestone={milestone} />
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-10 w-10 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Milestone</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete "{milestone.name}"? This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction 
+                              onClick={() => {
+                                if (milestone.id) {
+                                  if (isCreatingProject && localMilestonesState) {
+                                    // Remove from local state for new projects
+                                    const filtered = localMilestonesState.milestones.filter(m => m.id !== milestone.id);
+                                    localMilestonesState.setMilestones(filtered);
+                                  } else {
+                                    // Delete from database for existing projects
+                                    handleDeleteMilestone(milestone.id);
+                                  }
+                                }
+                              }}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Delete Milestone
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </div>
+                </div>
               ))}
 
               {/* Add Milestone Button */}
@@ -306,234 +548,6 @@ export function MilestoneManager({
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Budget Update Dialog */}
-      <AlertDialog open={showBudgetDialog} onOpenChange={setShowBudgetDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Update Project Budget?</AlertDialogTitle>
-            <AlertDialogDescription>
-              The milestones you've added require more time than currently budgeted. 
-              Would you like to update the project budget from {projectEstimatedHours}h to {suggestedBudget}h?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowBudgetDialog(false)}>
-              Keep Current Budget
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmBudgetUpdate}>
-              Update Budget to {suggestedBudget}h
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
-  );
-}
-
-// Component for existing milestone rows
-function MilestoneRow({ 
-  milestone, 
-  projectEstimatedHours, 
-  onUpdate, 
-  onDelete,
-  isCreatingProject = false
-}: {
-  milestone: Milestone;
-  projectEstimatedHours: number;
-  onUpdate: (id: string, updates: Partial<Milestone>) => void;
-  onDelete: (id: string) => void;
-  isCreatingProject?: boolean;
-}) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editValues, setEditValues] = useState({
-    name: milestone.name,
-    timeAllocation: milestone.timeAllocation,
-    dueDate: milestone.dueDate
-  });
-
-  const handleSave = () => {
-    if (milestone.id) {
-      onUpdate(milestone.id, editValues);
-    }
-    setIsEditing(false);
-  };
-
-  const handleCancel = () => {
-    setEditValues({
-      name: milestone.name,
-      timeAllocation: milestone.timeAllocation,
-      dueDate: milestone.dueDate
-    });
-    setIsEditing(false);
-  };
-
-  const handleDelete = () => {
-    if (milestone.id) {
-      onDelete(milestone.id);
-    }
-  };
-
-  if (isEditing) {
-    return (
-      <div className="border border-gray-200 rounded-lg p-4 mb-3">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <Label htmlFor="name">Name</Label>
-            <Input
-              id="name"
-              value={editValues.name}
-              onChange={(e) => setEditValues(prev => ({ ...prev, name: e.target.value }))}
-              placeholder="Milestone name"
-            />
-          </div>
-          
-          <div>
-            <Label htmlFor="allocation">Hours Allocated</Label>
-            <Input
-              id="allocation"
-              type="number"
-              min="0"
-              max="100"
-              step="0.1"
-              value={editValues.timeAllocation}
-              onChange={(e) => setEditValues(prev => ({ ...prev, timeAllocation: parseFloat(e.target.value) || 0 }))}
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="dueDate">Due Date</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full justify-start">
-                  {editValues.dueDate.toLocaleDateString()}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={editValues.dueDate}
-                  onSelect={(date) => date && setEditValues(prev => ({ ...prev, dueDate: date }))}
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-        </div>
-
-        <div className="flex gap-2 mt-4">
-          <Button size="sm" onClick={handleSave}>Save</Button>
-          <Button size="sm" variant="outline" onClick={handleCancel}>Cancel</Button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="border border-gray-200 rounded-lg p-4 mb-3 hover:bg-gray-50 transition-colors">
-      <div className="flex items-center justify-between">
-        <div className="flex-1">
-          <h4 className="font-medium text-gray-900">{milestone.name}</h4>
-          <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
-            <span>Due: {milestone.dueDate.toLocaleDateString()}</span>
-            <span>{milestone.timeAllocation}h</span>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <Button 
-            size="sm" 
-            variant="outline" 
-            onClick={() => setIsEditing(true)}
-            disabled={isCreatingProject}
-          >
-            Edit
-          </Button>
-          <Button 
-            size="sm" 
-            variant="outline" 
-            onClick={handleDelete}
-            className="text-red-600 hover:bg-red-50"
-            disabled={isCreatingProject}
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Component for new milestone creation
-function NewMilestoneRow({ 
-  milestone, 
-  projectEstimatedHours, 
-  onUpdate, 
-  onSave, 
-  onCancel 
-}: {
-  milestone: LocalMilestone;
-  projectEstimatedHours: number;
-  onUpdate: (updates: Partial<LocalMilestone>) => void;
-  onSave: () => void;
-  onCancel: () => void;
-}) {
-  return (
-    <div className="border border-blue-200 rounded-lg p-4 mb-3 bg-blue-50">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <Label htmlFor="newName">Name</Label>
-          <Input
-            id="newName"
-            value={milestone.name}
-            onChange={(e) => onUpdate({ name: e.target.value })}
-            placeholder="Milestone name"
-          />
-        </div>
-        
-        <div>
-          <Label htmlFor="newAllocation">Hours Allocated</Label>
-          <Input
-            id="newAllocation"
-            type="number"
-            min="0"
-            max="100"
-            step="0.1"
-            value={milestone.timeAllocation}
-            onChange={(e) => onUpdate({ timeAllocation: parseFloat(e.target.value) || 0 })}
-          />
-        </div>
-
-        <div>
-          <Label htmlFor="newDueDate">Due Date</Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="w-full justify-start">
-                {milestone.dueDate.toLocaleDateString()}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              <Calendar
-                mode="single"
-                selected={milestone.dueDate}
-                onSelect={(date) => date && onUpdate({ dueDate: date })}
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
-      </div>
-
-      <div className="flex gap-2 mt-4">
-        <Button 
-          size="sm" 
-          onClick={onSave}
-          disabled={!milestone.name.trim()}
-        >
-          Add Milestone
-        </Button>
-        <Button size="sm" variant="outline" onClick={onCancel}>
-          Cancel
-        </Button>
-      </div>
     </div>
   );
 }
