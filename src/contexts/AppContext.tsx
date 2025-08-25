@@ -307,20 +307,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const addProject = useCallback(async (projectData: Omit<Project, 'id'>) => {
     try {
-      const dbProjectData = {
-        name: projectData.name,
-        client: projectData.client,
-        start_date: projectData.startDate.toISOString().split('T')[0],
-        end_date: projectData.endDate.toISOString().split('T')[0],
-        estimated_hours: projectData.estimatedHours,
+      // Guard against missing required relations before hitting DB
+      if (!projectData.groupId) {
+        console.error('addProject missing groupId', projectData);
+        throw new Error('Group is required to create a project.');
+      }
+      if (!projectData.rowId) {
+        console.error('addProject missing rowId', projectData);
+        throw new Error('Row is required to create a project.');
+      }
+
+      // Pass camelCase data to the DB hook; it will transform to snake_case
+      const createdProject = await dbAddProject({
+        ...projectData,
         color: projectData.color || getNextProjectColor(),
-        group_id: projectData.groupId,
-        row_id: projectData.rowId,
         notes: projectData.notes || '',
         icon: projectData.icon || 'folder'
-      };
-      
-      const createdProject = await dbAddProject(dbProjectData);
+      } as any);
       return createdProject;
     } catch (error) {
       console.error('Failed to add project:', error);

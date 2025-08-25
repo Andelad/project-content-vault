@@ -59,6 +59,10 @@ export function TimelineView() {
     showMilestoneSuccessToast
   } = useApp();
   
+  // Debug: Log the rows data structure
+  console.log('🔍 TimelineView - Available rows:', rows);
+  console.log('🔍 TimelineView - Available groups:', groups);
+  
   // Timeline state management
   const [viewportStart, setViewportStart] = useState(() => {
     const start = new Date(currentDate);
@@ -683,13 +687,17 @@ export function TimelineView() {
   const handleCreateProject = useCallback((rowId: string, startDate: Date, endDate: Date) => {
   console.log('🎯 TimelineView.handleCreateProject called with rowId:', rowId, 'startDate:', startDate, 'endDate:', endDate);
   console.log('🎯 DETAILED: startDate ISO:', startDate.toISOString(), 'endDate ISO:', endDate.toISOString());
+  console.log('🎯 Available rows:', rows.map(r => ({ id: r.id, groupId: r.groupId, name: r.name })));
     const row = rows.find(r => r.id === rowId);
     if (!row) {
       console.error('❌ Row not found for rowId:', rowId);
+      console.error('❌ Available row IDs:', rows.map(r => r.id));
       return;
     }
 
   console.log('✅ Found row:', row, 'groupId:', row.groupId);
+  console.log('✅ Row object keys:', Object.keys(row));
+  console.log('✅ Row groupId type:', typeof row.groupId, 'value:', JSON.stringify(row.groupId));
 
     // REMOVED: Competing overlap check - SmartHoverAddProjectBar already validated this is safe
     // SmartHoverAddProjectBar prevents creation in occupied spaces, so we trust its validation
@@ -932,23 +940,40 @@ export function TimelineView() {
                           visibility: collapsed ? 'hidden' : 'visible',
                           transition: 'opacity 300ms cubic-bezier(0.4, 0, 0.2, 1), visibility 300ms cubic-bezier(0.4, 0, 0.2, 1)'
                         }}>
-                          {groups.map((group, groupIndex) => (
-                            <DraggableGroupRow key={group.id} group={group} index={groupIndex}>
-                              {rows
-                                .filter(row => row.groupId === group.id)
-                                .sort((a, b) => a.order - b.order)
-                                .map((row: any, rowIndex: number) => (
-                                  <DraggableRowComponent
-                                    key={row.id}
-                                    row={row}
-                                    index={rowIndex}
-                                    groupId={group.id}
-                                  />
-                                ))
-                              }
-                              <AddRowComponent groupId={group.id} />
-                            </DraggableGroupRow>
-                          ))}
+                          {groups.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+                              <div className="text-gray-400 mb-4">
+                                <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                                </svg>
+                              </div>
+                              <h3 className="text-lg font-medium text-gray-900 mb-2">Welcome to Timeline</h3>
+                              <p className="text-sm text-gray-500 mb-4 max-w-xs">
+                                Start by creating a group to organize your projects, then add rows within the group.
+                              </p>
+                              <div className="text-xs text-gray-400">
+                                Click "Add group" below to get started
+                              </div>
+                            </div>
+                          ) : (
+                            groups.map((group, groupIndex) => (
+                              <DraggableGroupRow key={group.id} group={group} index={groupIndex}>
+                                {rows
+                                  .filter(row => row.groupId === group.id)
+                                  .sort((a, b) => a.order - b.order)
+                                  .map((row: any, rowIndex: number) => (
+                                    <DraggableRowComponent
+                                      key={row.id}
+                                      row={row}
+                                      index={rowIndex}
+                                      groupId={group.id}
+                                    />
+                                  ))
+                                }
+                                <AddRowComponent groupId={group.id} />
+                              </DraggableGroupRow>
+                            ))
+                          )}
                           <AddGroupRow />
                         </div>
                       </div>

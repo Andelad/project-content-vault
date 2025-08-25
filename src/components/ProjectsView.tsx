@@ -250,21 +250,15 @@ export function ProjectsView() {
         estimatedHours,
         color: projectColor
       });
+      
+      setIsProjectDialogOpen(false);
+      resetProjectForm();
     } else {
-      addProject({
-        name: projectName,
-        client: projectClient,
-        groupId: projectGroupId,
-        rowId: 'work-row-1', // Provide default rowId
-        startDate,
-        endDate,
-        estimatedHours,
-        color: projectColor
-      });
+      // Project creation is disabled - redirect to Timeline view
+      alert('Please use the Timeline view to create new projects. This ensures proper row assignment.');
+      setIsProjectDialogOpen(false);
+      resetProjectForm();
     }
-
-    setIsProjectDialogOpen(false);
-    resetProjectForm();
   };
 
   const resetProjectForm = () => {
@@ -493,11 +487,13 @@ export function ProjectsView() {
 
             <Dialog open={isGroupDialogOpen} onOpenChange={setIsGroupDialogOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" onClick={handleAddGroup}>
-                  <FolderPlus className="w-4 h-4 mr-2" />
-                  New Group
-              </Button>
-            </DialogTrigger>
+                <div style={{ display: 'none' }}>
+                  <Button variant="outline" onClick={handleAddGroup}>
+                    <FolderPlus className="w-4 h-4 mr-2" />
+                    New Group
+                  </Button>
+                </div>
+              </DialogTrigger>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle>
@@ -570,10 +566,12 @@ export function ProjectsView() {
 
           <Dialog open={isProjectDialogOpen} onOpenChange={setIsProjectDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-[#02c0b7] hover:bg-[#02a09a] text-white" onClick={() => handleAddProject()}>
-                <Plus className="w-4 h-4 mr-2" />
-                New Project
-              </Button>
+              <div style={{ display: 'none' }}>
+                <Button className="bg-[#02c0b7] hover:bg-[#02a09a] text-white" onClick={() => handleAddProject()}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  New Project
+                </Button>
+              </div>
             </DialogTrigger>
             <DialogContent className="sm:max-w-lg">
               <DialogHeader>
@@ -762,21 +760,6 @@ export function ProjectsView() {
                           {groupProjects.length}
                         </Badge>
                       </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleAddProject(group.id);
-                          }}
-                          className="text-xs h-7"
-                        >
-                          <Plus className="w-3 h-3 mr-1" />
-                          Add Project
-                        </Button>
-                      </div>
                     </div>
 
                     {/* Projects Display */}
@@ -804,14 +787,7 @@ export function ProjectsView() {
                     <PlayCircle className="w-12 h-12" />
                   </div>
                   <p className="text-gray-600 mb-4">No current projects</p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleAddProject()}
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add First Current Project
-                  </Button>
+                  <p className="text-gray-500 text-sm">Create projects from the Timeline view</p>
                 </CardContent>
               </Card>
             )}
@@ -873,21 +849,6 @@ export function ProjectsView() {
                         <Badge variant="outline" className="text-xs">
                           {groupProjects.length}
                         </Badge>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleAddProject(group.id);
-                          }}
-                          className="text-xs h-7"
-                        >
-                          <Plus className="w-3 h-3 mr-1" />
-                          Add Project
-                        </Button>
                       </div>
                     </div>
 
@@ -1019,24 +980,9 @@ export function ProjectsView() {
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Welcome to Projects</h3>
                 <p className="text-gray-600 text-center mb-6 max-w-md">
-                  Organize your work by creating project groups and adding projects with timelines and budgets.
+                  Organize your work by creating project groups, adding rows, and creating projects from the Timeline view.
                 </p>
-                <div className="flex gap-3">
-                  <Button
-                    variant="outline"
-                    onClick={handleAddGroup}
-                  >
-                    <FolderPlus className="w-4 h-4 mr-2" />
-                    Create Group
-                  </Button>
-                  <Button
-                    className="bg-[#02c0b7] hover:bg-[#02a09a] text-white"
-                    onClick={() => handleAddProject()}
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Project
-                  </Button>
-                </div>
+                <p className="text-gray-500 text-sm">Start by going to the Timeline view to create your first group and projects.</p>
               </CardContent>
             </Card>
           )}

@@ -185,37 +185,40 @@ export function MilestoneManager({
     
     return (
       <div className="min-w-[80px]">
-        <Label className="text-xs text-muted-foreground mb-1 block">Budget</Label>
-        {isEditing ? (
-          <Input
-            type="number"
-            defaultValue={milestone.timeAllocation}
-            className="h-10 text-sm border-border bg-background"
-            style={{ width: `${Math.max(milestone.timeAllocation.toString().length * 12 + 60, 80)}px` }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                const newValue = parseFloat((e.target as HTMLInputElement).value) || 0;
+        <Label className="text-xs text-muted-foreground mb-1 block">Time Budget</Label>
+        <div className="flex items-center gap-1">
+          {isEditing ? (
+            <Input
+              type="number"
+              defaultValue={milestone.timeAllocation}
+              className="h-10 text-sm border-border bg-background"
+              style={{ width: `${Math.max(milestone.timeAllocation.toString().length * 12 + 60, 80)}px` }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const newValue = parseFloat((e.target as HTMLInputElement).value) || 0;
+                  handleSaveMilestoneProperty(milestone.id!, property, newValue);
+                } else if (e.key === 'Escape') {
+                  setEditingProperty(null);
+                }
+              }}
+              onBlur={(e) => {
+                const newValue = parseFloat(e.target.value) || 0;
                 handleSaveMilestoneProperty(milestone.id!, property, newValue);
-              } else if (e.key === 'Escape') {
-                setEditingProperty(null);
-              }
-            }}
-            onBlur={(e) => {
-              const newValue = parseFloat(e.target.value) || 0;
-              handleSaveMilestoneProperty(milestone.id!, property, newValue);
-            }}
-            autoFocus
-          />
-        ) : (
-          <Button
-            variant="outline"
-            className="h-10 text-sm justify-start text-left font-normal px-3"
-            style={{ width: `${Math.max(displayValue.length * 8 + 40, 80)}px` }}
-            onClick={() => setEditingProperty(`${milestone.id}-${property}`)}
-          >
-            {displayValue}
-          </Button>
-        )}
+              }}
+              autoFocus
+            />
+          ) : (
+            <Button
+              variant="outline"
+              className="h-10 text-sm justify-start text-left font-normal px-3"
+              style={{ width: `${Math.max(displayValue.length * 8 + 40, 80)}px` }}
+              onClick={() => setEditingProperty(`${milestone.id}-${property}`)}
+            >
+              {displayValue}
+            </Button>
+          )}
+          <span className="text-xs text-muted-foreground/60">of {projectEstimatedHours}h</span>
+        </div>
       </div>
     );
   };

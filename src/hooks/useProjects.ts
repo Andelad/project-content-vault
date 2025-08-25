@@ -140,16 +140,30 @@ export function useProjects() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
+      console.log('🚀 addProject called with data:', projectData);
+
       // Transform frontend data to database format
       const dbData = transformToDatabase(projectData);
+      console.log('🔍 Transformed database data:', dbData);
+
+      const finalData = { ...dbData, user_id: user.id };
+      console.log('🔍 Final data to insert:', finalData);
 
       const { data, error } = await supabase
         .from('projects')
-        .insert([{ ...dbData, user_id: user.id } as any])
+        .insert([finalData as any])
         .select()
         .single();
 
-      if (error) throw error;
+      console.log('🔍 Supabase response:', { data, error });
+
+      if (error) {
+        console.error('❌ Supabase error details:', error);
+        console.error('❌ Supabase error message:', error.message);
+        console.error('❌ Supabase error code:', error.code);
+        console.error('❌ Full error object:', JSON.stringify(error, null, 2));
+        throw error;
+      }
       
       // Transform the returned data to frontend format
       const transformedProject = transformDatabaseProject(data);
@@ -160,10 +174,12 @@ export function useProjects() {
       });
       return transformedProject;
     } catch (error) {
-      console.error('Error adding project:', error);
+      console.error('❌ Error adding project:', error);
+      console.error('❌ Error message:', error.message);
+      console.error('❌ Error details:', JSON.stringify(error, null, 2));
       toast({
         title: "Error",
-        description: "Failed to create project",
+        description: `Failed to create project: ${error.message}`,
         variant: "destructive",
       });
       throw error;

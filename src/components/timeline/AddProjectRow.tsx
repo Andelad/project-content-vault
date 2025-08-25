@@ -13,10 +13,25 @@ interface AddProjectRowProps {
 }
 
 export function AddProjectRow({ groupId, dates = [] }: AddProjectRowProps) {
-  const { setCreatingNewProject } = useApp();
+  const { setCreatingNewProject, rows } = useApp();
 
+  // Check if there are any rows in this group
+  const groupRows = rows.filter(row => row.groupId === groupId);
+  
   const handleClick = () => {
-    setCreatingNewProject(groupId);
+    if (groupRows.length === 0) {
+      // Show helpful guidance instead of generic alert
+      alert('To add projects, you first need to create a row in this group.\n\nClick the "Add row" button in the sidebar under this group.');
+      return;
+    }
+    
+    console.log('🎯 AddProjectRow: Available rows in group:', groupRows);
+    
+    // Use the first available row in the group
+    const firstRowId = groupRows.sort((a, b) => a.order - b.order)[0].id;
+    console.log('🎯 AddProjectRow: Selected row ID:', firstRowId);
+    
+    setCreatingNewProject(groupId, undefined, firstRowId);
   };
 
   return (
@@ -46,12 +61,15 @@ interface TimelineAddProjectRowProps {
 }
 
 export function TimelineAddProjectRow({ groupId, dates, mode = 'days' }: TimelineAddProjectRowProps) {
-  const { setCreatingNewProject } = useApp();
+  const { setCreatingNewProject, rows } = useApp();
   const [hoverBar, setHoverBar] = useState<{ visible: boolean; left: number; dayIndex: number; dayCount: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragState, setDragState] = useState<{ startX: number; startDayIndex: number; currentDayCount: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Check if there are any rows in this group
+  const groupRows = rows.filter(row => row.groupId === groupId);
 
   // Get column width based on mode
   const columnWidth = mode === 'weeks' ? 72 : 40;
@@ -245,6 +263,15 @@ export function TimelineAddProjectRow({ groupId, dates, mode = 'days' }: Timelin
 
     const handleGlobalMouseUp = () => {
       if (hoverBar && dates.length > 0) {
+        // Check if there are any rows in this group
+        if (groupRows.length === 0) {
+          alert('To add projects, you first need to create a row in this group.\n\nClick the "Add row" button in the sidebar under this group.');
+          return;
+        }
+
+        // Use the first available row in the group
+        const firstRowId = groupRows.sort((a, b) => a.order - b.order)[0].id;
+
         // Calculate date range and open modal
         const startDate = new Date(dates[hoverBar.dayIndex]);
         let endDate: Date;
@@ -260,7 +287,7 @@ export function TimelineAddProjectRow({ groupId, dates, mode = 'days' }: Timelin
           endDate = new Date(dates[endDateIndex]);
         }
         
-        setCreatingNewProject(groupId, { startDate, endDate });
+        setCreatingNewProject(groupId, { startDate, endDate }, firstRowId);
       }
 
       // Clean up
@@ -279,9 +306,26 @@ export function TimelineAddProjectRow({ groupId, dates, mode = 'days' }: Timelin
     if (isDragging) return; // Don't handle click if we were dragging
 
     if (!hoverBar || dates.length === 0) {
-      setCreatingNewProject(groupId);
+      // Check if there are any rows in this group
+      if (groupRows.length === 0) {
+        alert('To add projects, you first need to create a row in this group.\n\nClick the "Add row" button in the sidebar under this group.');
+        return;
+      }
+
+      // Use the first available row in the group
+      const firstRowId = groupRows.sort((a, b) => a.order - b.order)[0].id;
+      setCreatingNewProject(groupId, undefined, firstRowId);
       return;
     }
+
+    // Check if there are any rows in this group
+    if (groupRows.length === 0) {
+      alert('To add projects, you first need to create a row in this group.\n\nClick the "Add row" button in the sidebar under this group.');
+      return;
+    }
+
+    // Use the first available row in the group
+    const firstRowId = groupRows.sort((a, b) => a.order - b.order)[0].id;
 
     // Calculate date range starting from hovered day
     const startDate = new Date(dates[hoverBar.dayIndex]);
@@ -298,7 +342,7 @@ export function TimelineAddProjectRow({ groupId, dates, mode = 'days' }: Timelin
       endDate = new Date(dates[endDateIndex]);
     }
 
-    setCreatingNewProject(groupId, { startDate, endDate });
+    setCreatingNewProject(groupId, { startDate, endDate }, firstRowId);
   };
 
   const dayWidth = columnWidth; // Column width based on mode

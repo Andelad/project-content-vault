@@ -181,10 +181,60 @@ interface ProjectDetailModalProps {
 }
 
 export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId }: ProjectDetailModalProps) {
-  const { projects, groups, updateProject, addProject, deleteProject, creatingNewProject, setCurrentView, events, holidays, settings, milestones, addMilestone } = useApp();
+  
+  // Debug: Identify which modal instance this is
+  const modalType = projectId ? 'EDIT' : 'CREATE';
+  console.log(`🔍 ${modalType} Modal render:`, { isOpen, projectId, groupId, rowId });
+  
+  const { projects, groups, rows, updateProject, addProject, deleteProject, creatingNewProject, setCurrentView, events, holidays, settings, milestones, addMilestone } = useApp();
   const project = (projectId && projectId !== '') ? projects.find(p => p.id === projectId) : null;
-  const isCreating = (!projectId || projectId === '') && (groupId && groupId !== '');
-  const group = groups.find(g => g.id === (project?.groupId || groupId));
+
+  // Persist creation context so it doesn't get lost if context re-renders
+  const [resolvedGroupId, setResolvedGroupId] = useState<string | undefined>(undefined);
+  const [resolvedRowId, setResolvedRowId] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    // Prefer values from creatingNewProject, fall back to props
+    const nextGroupId = creatingNewProject?.groupId ?? groupId;
+    const nextRowId = creatingNewProject?.rowId ?? rowId;
+    if (nextGroupId && nextGroupId !== resolvedGroupId) setResolvedGroupId(nextGroupId);
+    if (nextRowId && nextRowId !== resolvedRowId) setResolvedRowId(nextRowId);
+  }, [isOpen, creatingNewProject, groupId, rowId]);
+
+  // Creating mode is active when there's no projectId and we have a resolved group to create under
+  const isCreating = (!projectId || projectId === '') && !!resolvedGroupId;
+  const group = groups.find(g => g.id === (project?.groupId || resolvedGroupId || groupId));
+
+  // Debug logging
+  console.log('🔍 ProjectDetailModal props:', { 
+    isOpen, 
+    projectId, 
+    groupId: groupId,
+    groupIdType: typeof groupId,
+    groupIdValue: `"${groupId}"`,
+    groupIdExists: !!groupId,
+    rowId: rowId,
+    rowIdType: typeof rowId,
+    rowIdExists: !!rowId
+  });
+  console.log('🔍 ProjectDetailModal state:', { 
+    isCreating, 
+    project, 
+    group,
+    groupFound: !!group
+  });
+  
+  // Special log for creation mode
+  if (isOpen && isCreating) {
+    console.log('🆕 NEW PROJECT CREATION MODE ACTIVE');
+    console.log('🆕 Creation details:', {
+      groupId,
+      rowId,
+      groupExists: !!group,
+      groupName: group?.name
+    });
+  }
 
   const [editingTitle, setEditingTitle] = useState(false);
   const [editingProperty, setEditingProperty] = useState<string | null>(null);
@@ -284,16 +334,28 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
 
   // Handle creating the new project
   const handleCreateProject = async () => {
-    if (isCreating && groupId && groupId !== '') {
+    const gid = resolvedGroupId ?? groupId;
+    const rid = resolvedRowId ?? rowId;
+    console.log('🚀 handleCreateProject called - resolvedGroupId:', gid, 'resolvedRowId:', rid);
+    console.log('🚀 isCreating:', isCreating, 'resolved groupId exists:', !!gid, 'value:', gid);
+    
+    if (isCreating && gid && gid !== '') {
       try {
+        // Validate that we have a valid rowId
+        if (!rid) {
+          throw new Error('No row selected. Please select a row before creating a project.');
+        }
+
+        console.log('🚀 About to call addProject with groupId:', gid, 'rowId:', rid);
+
         const createdProject = await addProject({
           name: localValues.name.trim() || 'New Project', // Default to "New Project" if no name provided
           client: localValues.client.trim() || 'N/A', // Provide default if client is empty
           startDate: localValues.startDate,
           endDate: localValues.endDate,
           estimatedHours: localValues.estimatedHours,
-          groupId,
-          rowId: rowId || 'work-row-1', // Provide default rowId
+          groupId: gid,
+          rowId: rid, // Use the resolved rowId without fallback
           color: localValues.color || OKLCH_PROJECT_COLORS[0],
           notes: localValues.notes,
           icon: localValues.icon,
@@ -347,13 +409,29 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
 
   // Handle confirming changes
   const handleConfirm = useCallback(() => {
-    if (isCreating) {
-      handleCreateProject();
-    } else {
-      // For existing projects, changes are already saved via auto-save
-      handleClose();
+    console.log('🎯 handleConfirm clicked', {
+      isCreating,
+      projectId,
+      groupIdProp: groupId,
+      rowIdProp: rowId,
+      resolvedGroupId,
+      resolvedRowId
+    });
+
+    // Prefer explicit creation if we have no projectId and a resolved group
+    if ((!projectId || projectId === '') && resolvedGroupId) {
+      return handleCreateProject();
     }
-  }, [isCreating, handleCreateProject, handleClose]);
+
+    // Fallback to previous flag check
+    if (isCreating) {
+      return handleCreateProject();
+    }
+
+    // Otherwise treat as edit modal and just close
+    console.log('🎯 Not in create mode; closing modal');
+    handleClose();
+  }, [isCreating, handleCreateProject, handleClose, projectId, groupId, rowId, resolvedGroupId, resolvedRowId]);
 
   // Always render the AnimatePresence container, let it handle the conditional rendering
   if (!project && !isCreating && !isOpen) return null;
@@ -754,7 +832,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
     
     return (
       <div className="min-w-[100px]">
-        <Label className="text-xs text-muted-foreground mb-1 block">Budget</Label>
+        <Label className="text-xs text-muted-foreground mb-1 block">Time Budget</Label>
         {isEditing ? (
           <Input
             type="number"
