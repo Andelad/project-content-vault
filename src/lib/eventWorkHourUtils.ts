@@ -279,7 +279,14 @@ export const memoizedGetProjectTimeAllocation = memoizeExpensiveCalculation(
     
     const holidaysHash = holidays.map(h => `${h.id}`).join(',');
     
-    return `alloc-${projectId}-${date.getTime()}-${project.estimatedHours}-${project.startDate.getTime()}-${project.endDate.getTime()}-${settingsHash}-${holidaysHash}`;
+    // Include events in cache key - critical for planned time detection
+    const eventsHash = events
+      .filter(e => e.projectId === projectId) // Only consider events for this project
+      .map(e => `${e.id}-${e.startTime.getTime()}-${e.endTime.getTime()}`)
+      .sort() // Ensure consistent order
+      .join(',');
+    
+    return `alloc-${projectId}-${date.getTime()}-${project.estimatedHours}-${project.startDate.getTime()}-${project.endDate.getTime()}-${settingsHash}-${holidaysHash}-${eventsHash}`;
   }
 );
 

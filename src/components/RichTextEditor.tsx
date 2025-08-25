@@ -256,7 +256,6 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           onKeyDown={handleKeyDown}
-          data-placeholder={placeholder}
           suppressContentEditableWarning={true}
         />
         
@@ -341,12 +340,6 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
           border: none;
           border-top: 2px solid #e5e7eb;
           margin: 1.5rem 0;
-        }
-        
-        .rich-text-editor [contenteditable="true"]:empty:before {
-          content: attr(data-placeholder);
-          color: #9ca3af;
-          pointer-events: none;
         }
       `}} />
     </div>

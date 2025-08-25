@@ -93,11 +93,12 @@ interface AppContextType {
   setDefaultView: (defaultViewSetting: string) => void;
   // Milestone management
   milestones: Milestone[];
-  addMilestone: (milestone: Omit<Milestone, 'id'>) => void;
+  addMilestone: (milestone: Omit<Milestone, 'id'>, options?: { silent?: boolean }) => void;
   updateMilestone: (id: string, updates: Partial<Milestone>, options?: { silent?: boolean }) => void;
   deleteMilestone: (id: string) => void;
   reorderMilestones: (projectId: string, fromIndex: number, toIndex: number) => void;
   showMilestoneSuccessToast: (message?: string) => void;
+  normalizeMilestoneOrders: (projectId?: string, options?: { silent?: boolean }) => Promise<void>;
   // Time tracking state
   isTimeTracking: boolean;
   setIsTimeTracking: (isTracking: boolean) => void;
@@ -135,7 +136,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const { events: dbEvents, loading: eventsLoading, addEvent: dbAddEvent, updateEvent: dbUpdateEvent, deleteEvent: dbDeleteEvent } = useEvents();
   const { holidays: dbHolidays, loading: holidaysLoading, addHoliday: dbAddHoliday, updateHoliday: dbUpdateHoliday, deleteHoliday: dbDeleteHoliday } = useHolidays();
   const { settings: dbSettings, loading: settingsLoading, updateSettings: dbUpdateSettings } = useSettings();
-  const { milestones: dbMilestones, loading: milestonesLoading, addMilestone: dbAddMilestone, updateMilestone: dbUpdateMilestone, deleteMilestone: dbDeleteMilestone, reorderMilestones: dbReorderMilestones, showSuccessToast: showMilestoneSuccessToast } = useMilestones();
+  const { milestones: dbMilestones, loading: milestonesLoading, addMilestone: dbAddMilestone, updateMilestone: dbUpdateMilestone, deleteMilestone: dbDeleteMilestone, reorderMilestones: dbReorderMilestones, showSuccessToast: showMilestoneSuccessToast, normalizeMilestoneOrders: dbNormalizeMilestoneOrders } = useMilestones();
 
   const [currentView, setCurrentView] = useState('timeline');
   const [timelineMode, setTimelineMode] = useState<'days' | 'weeks'>('days');
@@ -235,14 +236,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     order: r.order_index
   })) || [], [dbRows]);
 
-  const processedMilestones = useMemo(() => dbMilestones?.map(m => ({
+  const processedMilestones = useMemo(() => (dbMilestones?.map(m => ({
     id: m.id,
     name: m.name,
     dueDate: new Date(m.due_date),
     timeAllocation: m.time_allocation,
     projectId: m.project_id,
     order: m.order_index
-  })) || [], [dbMilestones]);
+  })) || []).sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime()), [dbMilestones]);
 
   // Temporary local storage for defaultView until database migration is applied
   const [localDefaultView, setLocalDefaultView] = useState<string>(() => {
@@ -685,7 +686,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [dbDeleteHoliday]);
 
   // Milestone management functions
-  const addMilestone = useCallback(async (milestoneData: Omit<Milestone, 'id'>) => {
+  const addMilestone = useCallback(async (milestoneData: Omit<Milestone, 'id'>, options?: { silent?: boolean }) => {
     try {
       const dbMilestoneData = {
         name: milestoneData.name,
@@ -695,7 +696,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         order_index: milestoneData.order
       };
       
-      await dbAddMilestone(dbMilestoneData);
+      await dbAddMilestone(dbMilestoneData, options);
     } catch (error) {
       console.error('Failed to add milestone:', error);
     }
@@ -847,6 +848,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     updateMilestone,
     deleteMilestone,
     reorderMilestones,
+    normalizeMilestoneOrders: dbNormalizeMilestoneOrders,
     showProjectSuccessToast,
     showMilestoneSuccessToast,
     setIsTimeTracking
@@ -891,6 +893,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     updateMilestone,
     deleteMilestone,
     reorderMilestones,
+    dbNormalizeMilestoneOrders,
     showProjectSuccessToast,
     showMilestoneSuccessToast,
     setIsTimeTracking

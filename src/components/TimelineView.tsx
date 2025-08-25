@@ -434,7 +434,7 @@ export function TimelineView() {
     setIsDragging(true);
     setDragState(initialDragState);
     
-    const handleMouseMove = (e: MouseEvent) => {
+  const handleMouseMove = (e: MouseEvent) => {
       try {
         const daysDelta = calculateDaysDelta(e.clientX, initialDragState.startX, dates, true, timelineMode);
         
@@ -450,6 +450,30 @@ export function TimelineView() {
             const endDate = new Date(currentProject.endDate);
             const oneDayBefore = new Date(endDate);
             oneDayBefore.setDate(endDate.getDate() - 1);
+
+            // Milestone constraint: start date cannot be dragged past the first milestone (must be < first milestone)
+            const projectMilestones = milestones.filter(m => m.projectId === projectId);
+            let allowedLatestStart = oneDayBefore; // default constraint: before end date
+            if (projectMilestones.length > 0) {
+              const firstMilestoneDate = new Date(
+                projectMilestones.reduce((min: Date, m: any) => {
+                  const d = new Date(m.dueDate);
+                  return d < min ? d : min;
+                }, new Date(projectMilestones[0].dueDate))
+              );
+              // Max start is the day before first milestone
+              const dayBeforeFirst = new Date(firstMilestoneDate);
+              dayBeforeFirst.setHours(0,0,0,0);
+              dayBeforeFirst.setDate(dayBeforeFirst.getDate() - 1);
+              if (dayBeforeFirst.getTime() < allowedLatestStart.getTime()) {
+                allowedLatestStart = dayBeforeFirst;
+              }
+            }
+
+            // Clamp start date if it would violate constraints
+            if (newStartDate.getTime() > allowedLatestStart.getTime()) {
+              newStartDate.setTime(allowedLatestStart.getTime());
+            }
             
             // Simple validation - just ensure start date is before end date
             if (newStartDate <= oneDayBefore) {
@@ -500,6 +524,36 @@ export function TimelineView() {
             const startDate = new Date(currentProject.startDate);
             const oneDayAfter = new Date(startDate);
             oneDayAfter.setDate(startDate.getDate() + 1);
+
+            // Milestone constraint: end date cannot be dragged over a milestone.
+            // Minimum end = next date after the last milestone
+            const projectMilestones = milestones.filter(m => m.projectId === projectId);
+            let minEndByMilestone: Date | null = null;
+            if (projectMilestones.length > 0) {
+              const lastMilestoneDate = new Date(
+                projectMilestones.reduce((max: Date, m: any) => {
+                  const d = new Date(m.dueDate);
+                  return d > max ? d : max;
+                }, new Date(projectMilestones[0].dueDate))
+              );
+              const dayAfterLast = new Date(lastMilestoneDate);
+              dayAfterLast.setHours(0,0,0,0);
+              dayAfterLast.setDate(dayAfterLast.getDate() + 1);
+              minEndByMilestone = dayAfterLast;
+            }
+
+            // The earliest allowed end must satisfy both constraints: after start and after last milestone
+            const earliestAllowedEnd = new Date(
+              Math.max(
+                oneDayAfter.getTime(),
+                (minEndByMilestone ? minEndByMilestone.getTime() : -Infinity)
+              )
+            );
+
+            // Clamp end date if it would violate constraints
+            if (newEndDate.getTime() < earliestAllowedEnd.getTime()) {
+              newEndDate.setTime(earliestAllowedEnd.getTime());
+            }
             
             // Simple validation - just ensure end date is after start date
             if (newEndDate >= oneDayAfter) {

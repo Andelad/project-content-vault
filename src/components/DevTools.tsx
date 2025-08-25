@@ -26,6 +26,8 @@ export function DevTools() {
   });
 
   const { projects, groups, events, holidays } = useApp();
+  // Lazy import actions from context to avoid circular import top-level
+  const { normalizeMilestoneOrders } = (useApp() as any);
 
   // Toggle visibility with keyboard shortcut
   useEffect(() => {
@@ -205,6 +207,30 @@ export function DevTools() {
               <Trash2 className="w-3 h-3 mr-1" />
               Clear Cache
             </Button>
+          </div>
+
+          <Separator />
+
+          {/* Data Maintenance */}
+          <div>
+            <h4 className="font-medium mb-2">Data Maintenance</h4>
+            <Button
+              onClick={async () => {
+                try {
+                  await normalizeMilestoneOrders?.();
+                } catch (e) {
+                  console.error('Failed to normalize milestones', e);
+                }
+              }}
+              size="sm"
+              variant="outline"
+              className="w-full"
+            >
+              Normalize Milestone Orders
+            </Button>
+            <div className="text-xs text-muted-foreground mt-1">
+              Ensures milestones are ordered by due date and fixes order_index.
+            </div>
           </div>
 
           {/* Quick Actions */}

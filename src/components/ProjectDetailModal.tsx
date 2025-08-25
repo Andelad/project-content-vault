@@ -373,7 +373,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
                   timeAllocation: milestone.timeAllocation,
                   projectId: createdProject.id,
                   order: milestone.order
-                });
+                }, { silent: true }); // Silent mode to prevent individual milestone toasts
               } catch (error) {
                 console.error('Failed to save milestone:', error);
                 // Continue with other milestones even if one fails
@@ -736,6 +736,42 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
                      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       return `${months[date.getMonth()]} ${date.getDate()}`;
     };
+
+    // Get relevant milestones
+    const relevantMilestones = isCreating
+      ? localProjectMilestones
+      : milestones.filter(m => projectId && m.projectId === projectId);
+    
+    // Calculate disabled date ranges based on milestone constraints
+    const getDisabledDates = () => {
+      if (!relevantMilestones || relevantMilestones.length === 0) {
+        return (date: Date) => false; // No restrictions if no milestones
+      }
+
+      if (property === 'startDate') {
+        // Start date cannot be on or after any milestone
+        return (date: Date) => {
+          return relevantMilestones.some(m => {
+            const milestoneDate = new Date(m.dueDate);
+            milestoneDate.setHours(0, 0, 0, 0);
+            date.setHours(0, 0, 0, 0);
+            return date.getTime() >= milestoneDate.getTime();
+          });
+        };
+      } else if (property === 'endDate') {
+        // End date cannot be on or before any milestone
+        return (date: Date) => {
+          return relevantMilestones.some(m => {
+            const milestoneDate = new Date(m.dueDate);
+            milestoneDate.setHours(0, 0, 0, 0);
+            date.setHours(0, 0, 0, 0);
+            return date.getTime() <= milestoneDate.getTime();
+          });
+        };
+      }
+
+      return (date: Date) => false;
+    };
     
     return (
       <div className="min-w-[80px]">
@@ -750,6 +786,24 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
+            {relevantMilestones && relevantMilestones.length > 0 && (
+              <div className="p-3 border-b bg-gray-50">
+                <div className="text-sm font-medium text-gray-700 mb-1">
+                  {property === 'startDate' ? 'Start Date Constraints' : 'End Date Constraints'}
+                </div>
+                <div className="text-xs text-gray-600">
+                  {property === 'startDate' 
+                    ? 'Start date must be before all milestones'
+                    : 'End date must be after all milestones'
+                  }
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  Milestones: {relevantMilestones
+                    .map(m => formatDate(new Date(m.dueDate)))
+                    .join(', ')}
+                </div>
+              </div>
+            )}
             <Calendar
               mode="single"
               selected={value}
@@ -758,6 +812,21 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
                 if (selectedDate) {
                   handleSaveProperty(property, selectedDate);
                   setIsOpen(false);
+                }
+              }}
+              disabled={getDisabledDates()}
+              modifiers={{
+                // Mark milestone dates in red
+                milestone: (date) => relevantMilestones.some(m => {
+                  const mDate = new Date(m.dueDate);
+                  return mDate.toDateString() === date.toDateString();
+                })
+              }}
+              modifiersStyles={{
+                milestone: {
+                  backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                  color: 'rgb(239, 68, 68)',
+                  fontWeight: 'bold'
                 }
               }}
               initialFocus
@@ -1297,6 +1366,8 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
           <MilestoneManager
             projectId={!isCreating ? projectId : undefined}
             projectEstimatedHours={localValues.estimatedHours}
+            projectStartDate={localValues.startDate}
+            projectEndDate={localValues.endDate}
             onUpdateProjectBudget={(newBudget) => {
               setLocalValues(prev => ({ ...prev, estimatedHours: newBudget }));
               if (!isCreating && projectId && projectId !== '') {

@@ -43,7 +43,7 @@ export const ProjectMilestones = memo(function ProjectMilestones({
   const projectMilestones = useMemo(() => {
     return milestones
       .filter(m => m.projectId === project.id)
-      .sort((a, b) => a.order - b.order);
+      .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
   }, [milestones, project.id]);
 
   // Calculate positions for each milestone

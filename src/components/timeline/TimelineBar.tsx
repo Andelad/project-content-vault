@@ -121,6 +121,16 @@ export const TimelineBar = memo(function TimelineBar({
 
   // Memoize milestone segments calculation
   const milestoneSegments = useMemo(() => {
+    // Generate work hours for the project period to get accurate working day calculation
+    const workHoursForPeriod = [];
+    const projectStart = new Date(project.startDate);
+    const projectEnd = project.continuous ? new Date(viewportEnd) : new Date(project.endDate);
+    
+    for (let d = new Date(projectStart); d <= projectEnd; d.setDate(d.getDate() + 1)) {
+      const dayWorkHours = generateWorkHoursForDate(new Date(d), settings);
+      workHoursForPeriod.push(...dayWorkHours);
+    }
+    
     return calculateMilestoneSegments(
       project.id,
       project.startDate,
@@ -129,9 +139,11 @@ export const TimelineBar = memo(function TimelineBar({
       settings,
       holidays,
       isWorkingDay,
-      events
+      events,
+      project.estimatedHours, // Pass the project total budget
+      workHoursForPeriod // Pass work hours for accurate working day calculation
     );
-  }, [project.id, project.startDate, project.endDate, milestones, settings, holidays, isWorkingDay, events]);
+  }, [project.id, project.startDate, project.endDate, milestones, settings, holidays, isWorkingDay, events, project.estimatedHours, project.continuous, viewportEnd]);
 
   // Memoize project metrics calculation
   const projectMetrics = useMemo(() => {
@@ -258,7 +270,8 @@ export const TimelineBar = memo(function TimelineBar({
               
               return (
                 <div key={dateIndex} className="flex relative h-full items-end" style={{ minWidth: '72px', width: '72px' }}>
-                  <div className="flex w-full items-end" style={{ height: `${heightInPixels}px` }}>
+                  {/* Use a fixed cap height so inner day rectangles aren't clipped by project-level estimate */}
+                  <div className="flex w-full items-end" style={{ height: `28px` }}>
                     {dayWidths.map((dayWidth, dayOfWeek) => {
                       const currentDay = new Date(weekStart);
                       currentDay.setDate(weekStart.getDate() + dayOfWeek);
@@ -271,7 +284,11 @@ export const TimelineBar = memo(function TimelineBar({
                       normalizedProjectEnd.setHours(0, 0, 0, 0);
                       
                       const isDayInProject = currentDay >= normalizedProjectStart && currentDay <= normalizedProjectEnd;
-                      const isDayWorking = isWorkingDay(currentDay);
+                      // Determine if this specific date actually has work capacity (honors overrides + holidays)
+                      const dayWorkHours = generateWorkHoursForDate(currentDay, settings);
+                      const totalDayWork = Array.isArray(dayWorkHours) ? dayWorkHours.reduce((s, wh) => s + (wh.duration || 0), 0) : 0;
+                      const isHoliday = isHolidayDate(currentDay, holidays);
+                      const isDayWorking = !isHoliday && totalDayWork > 0;
                       
                       if (!isDayInProject || !isDayWorking) {
                         return <div key={dayOfWeek} style={{ width: `${dayWidth}px` }}></div>;
@@ -357,22 +374,22 @@ export const TimelineBar = memo(function TimelineBar({
                               }}
                             >
                               {/* Resize handles for first and last day segments */}
-                              {dayOfWeek === 0 && (
+          {dayOfWeek === 0 && (
                                 <div 
                                   className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-black/10 opacity-0 group-hover:opacity-100" 
                                   onMouseDown={(e) => { 
                                     e.stopPropagation(); 
-                                    handleMouseDown(e, project.id, 'resize-left'); 
+            handleMouseDown(e, project.id, 'resize-start-date'); 
                                   }} 
                                 />
                               )}
                               
-                              {dayOfWeek === 6 && (
+          {dayOfWeek === 6 && (
                                 <div 
                                   className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-black/10 opacity-0 group-hover:opacity-100" 
                                   onMouseDown={(e) => { 
                                     e.stopPropagation(); 
-                                    handleMouseDown(e, project.id, 'resize-right'); 
+            handleMouseDown(e, project.id, 'resize-end-date'); 
                                   }} 
                                 />
                               )}
@@ -380,7 +397,7 @@ export const TimelineBar = memo(function TimelineBar({
                           </TooltipTrigger>
                           <TooltipContent>
                             {(() => {
-                              // Use daily calculations like in day view
+                              // Reuse the same logic used to render the rectangle for consistent tooltip values
                               const timeAllocation = memoizedGetProjectTimeAllocation(
                                 project.id,
                                 currentDay,
@@ -389,69 +406,32 @@ export const TimelineBar = memo(function TimelineBar({
                                 settings,
                                 holidays
                               );
-
-                              // Generate work hours for this specific date to calculate capacity
-                              const workHours = generateWorkHoursForDate(currentDay, settings);
-                              
-                              // Use holiday-aware capacity calculation
-                              const capacity = isHolidayDate(currentDay, holidays) 
-                                ? { totalHours: 0, allocatedHours: 0, availableHours: 0, events: [] }
-                                : calculateWorkHourCapacity(workHours, events, currentDay);
-                              
-                              // Check if there's a milestone segment for this day for tooltip display
                               const milestoneSegmentForTooltip = getMilestoneSegmentForDate(currentDay, milestoneSegments);
-                              
-                              const tooltipType = timeAllocation.type === 'planned' ? 'planned time' : 'auto-estimate';
-                              
-                              // Use milestone segment hours if available and not planned time
-                              let tooltipHours: number;
-                              if (timeAllocation.type === 'planned') {
-                                tooltipHours = timeAllocation.hours;
-                              } else if (milestoneSegmentForTooltip) {
-                                tooltipHours = milestoneSegmentForTooltip.hoursPerDay;
-                              } else {
-                                tooltipHours = timeAllocation.hours;
-                              }
+                              const isPlanned = timeAllocation.type === 'planned';
+                              const tooltipType = isPlanned ? 'Planned time' : 'Auto-estimate';
+                              const tooltipHours = isPlanned
+                                ? timeAllocation.hours
+                                : (milestoneSegmentForTooltip ? milestoneSegmentForTooltip.hoursPerDay : timeAllocation.hours);
                               
                               const displayHours = Math.floor(tooltipHours);
                               const displayMinutes = Math.round((tooltipHours - displayHours) * 60);
                               
                               return (
                                 <div className="text-xs">
-                                  <div className="font-medium">{project.name}</div>
-                                  <div className="text-gray-500">
-                                    {currentDay.toLocaleDateString('en-US', { 
-                                      weekday: 'short', 
-                                      month: 'short', 
-                                      day: 'numeric' 
-                                    })}
+                                  <div className="font-medium">
+                                    {tooltipType}
                                   </div>
-                                  <div className="text-gray-500">
+                                  <div className="text-gray-600">
                                     {displayMinutes > 0 
-                                      ? `${displayHours}h ${displayMinutes}m/day ${tooltipType}`
-                                      : `${displayHours} hour${displayHours !== 1 ? 's' : ''}/day ${tooltipType}`
+                                      ? `${displayHours}h ${displayMinutes}m/day`
+                                      : `${displayHours} hour${displayHours !== 1 ? 's' : ''}/day`
                                     }
-                                    {milestoneSegmentForTooltip && timeAllocation.type !== 'planned' && (
-                                      <div className="text-blue-600 text-xs mt-1">
-                                        Target: {milestoneSegmentForTooltip.milestone?.name}
-                                      </div>
-                                    )}
                                   </div>
-                                  {capacity.totalHours > 0 && (
-                                    <>
-                                      {capacity.allocatedHours > 0 && (
-                                        <div className="text-orange-600 mt-1">
-                                          Events: {capacity.allocatedHours.toFixed(1)}h
-                                        </div>
-                                      )}
-                                      {capacity.allocatedHours > capacity.totalHours && (
-                                        <div className="text-red-600 font-medium">⚠ Overbooked</div>
-                                      )}
-                                    </>
+                                  {milestoneSegmentForTooltip?.milestone && (
+                                    <div className="text-gray-600 mt-1">
+                                      Target: {milestoneSegmentForTooltip.milestone.name} - {milestoneSegmentForTooltip.milestone.timeAllocation}h
+                                    </div>
                                   )}
-                                  <div className="text-gray-400 mt-1">
-                                    {workingDaysCount} working day{workingDaysCount !== 1 ? 's' : ''} total
-                                  </div>
                                 </div>
                               );
                             })()}
@@ -476,8 +456,11 @@ export const TimelineBar = memo(function TimelineBar({
                 return normalizedProjectDay.getTime() === normalizedTimelineDate.getTime();
               });
               
-              // Don't render rectangle if not a project day OR if it's a 0-hour day OR if it's a holiday
-              if (!isProjectDay || !isWorkingDay(date)) {
+              // Don't render rectangle if not a project day OR if it's a 0-hour day OR if it's a holiday (respect overrides)
+              const dayWorkHours = generateWorkHoursForDate(date, settings);
+              const totalDayWork = Array.isArray(dayWorkHours) ? dayWorkHours.reduce((s, wh) => s + (wh.duration || 0), 0) : 0;
+              const isHoliday = isHolidayDate(date, holidays);
+              if (!isProjectDay || isHoliday || totalDayWork === 0) {
                 return <div key={dateIndex} className="h-full" style={{ minWidth: '40px', width: '40px' }}></div>;
               }
 
@@ -514,7 +497,10 @@ export const TimelineBar = memo(function TimelineBar({
               // Find the position of this date among visible working project days
               const visibleWorkingDays = dates.filter((d, i) => {
                 const isInProject = projectDays.some(pd => pd.toDateString() === d.toDateString());
-                return isInProject && isWorkingDay(d);
+                const wh = generateWorkHoursForDate(d, settings);
+                const total = Array.isArray(wh) ? wh.reduce((s, x) => s + (x.duration || 0), 0) : 0;
+                const holiday = isHolidayDate(d, holidays);
+                return isInProject && !holiday && total > 0;
               });
               
               const workingDayIndex = visibleWorkingDays.findIndex(d => d.toDateString() === date.toDateString());
@@ -526,6 +512,17 @@ export const TimelineBar = memo(function TimelineBar({
 
               // Determine styling based on time allocation type and milestone segment
               const isPlannedTime = timeAllocation.type === 'planned';
+
+              // Debug logging for timeline display
+              if (project.id === '37a08232-fba1-4319-b1ab-02165efd3b12') {
+                console.log(`📅 Timeline day ${date.toDateString()} for problem project:`, {
+                  timeAllocationType: timeAllocation.type,
+                  timeAllocationHours: timeAllocation.hours,
+                  milestoneSegmentId: milestoneSegment?.id,
+                  milestoneSegmentHours: milestoneSegment?.hoursPerDay,
+                  isPlannedTime
+                });
+              }
 
               // Calculate daily height - use milestone segment if available, otherwise fallback to timeAllocation
               let dailyHours: number;
@@ -662,22 +659,22 @@ export const TimelineBar = memo(function TimelineBar({
                         )}
 
                         {/* Resize handles */}
-                        {isFirstWorkingDay && (
+        {isFirstWorkingDay && (
                           <div 
                             className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity" 
                             onMouseDown={(e) => { 
                               e.stopPropagation(); 
-                              handleMouseDown(e, project.id, 'resize-left'); 
+          handleMouseDown(e, project.id, 'resize-start-date'); 
                             }} 
                           />
                         )}
                         
-                        {isLastWorkingDay && (
+        {isLastWorkingDay && (
                           <div 
                             className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity" 
                             onMouseDown={(e) => { 
                               e.stopPropagation(); 
-                              handleMouseDown(e, project.id, 'resize-right'); 
+          handleMouseDown(e, project.id, 'resize-end-date'); 
                             }} 
                           />
                         )}
@@ -685,61 +682,32 @@ export const TimelineBar = memo(function TimelineBar({
                     </TooltipTrigger>
                     <TooltipContent>
                       {(() => {
-                        // Generate work hours for this specific date to calculate capacity
-                        const workHours = generateWorkHoursForDate(date, settings);
-                        
-                        // Use holiday-aware capacity calculation
-                        const capacity = isHolidayDate(date, holidays) 
-                          ? { totalHours: 0, allocatedHours: 0, availableHours: 0, events: [] }
-                          : calculateWorkHourCapacity(workHours, events, date);
-                        
-                        // Check if there's a milestone segment for this day for tooltip display
+                        // Keep tooltip values in sync with rectangle by reusing computed context
                         const milestoneSegmentForTooltip = getMilestoneSegmentForDate(date, milestoneSegments);
-                        
-                        const tooltipType = timeAllocation.type === 'planned' ? 'planned time' : 'auto-estimate';
-                        
-                        // Use milestone segment hours if available and not planned time
-                        let tooltipHours: number;
-                        if (timeAllocation.type === 'planned') {
-                          tooltipHours = timeAllocation.hours;
-                        } else if (milestoneSegmentForTooltip) {
-                          tooltipHours = milestoneSegmentForTooltip.hoursPerDay;
-                        } else {
-                          tooltipHours = timeAllocation.hours;
-                        }
+                        const tooltipType = isPlannedTime ? 'Planned time' : 'Auto-estimate';
+                        const tooltipHours = isPlannedTime
+                          ? timeAllocation.hours
+                          : (milestoneSegmentForTooltip ? milestoneSegmentForTooltip.hoursPerDay : timeAllocation.hours);
                         
                         const displayHours = Math.floor(tooltipHours);
                         const displayMinutes = Math.round((tooltipHours - displayHours) * 60);
                         
                         return (
                           <div className="text-xs">
-                            <div className="font-medium">{project.name}</div>
-                            <div className="text-gray-500">
+                            <div className="font-medium">
+                              {tooltipType}
+                            </div>
+                            <div className="text-gray-600">
                               {displayMinutes > 0 
-                                ? `${displayHours}h ${displayMinutes}m/day ${tooltipType}`
-                                : `${displayHours} hour${displayHours !== 1 ? 's' : ''}/day ${tooltipType}`
+                                ? `${displayHours}h ${displayMinutes}m/day`
+                                : `${displayHours} hour${displayHours !== 1 ? 's' : ''}/day`
                               }
-                              {milestoneSegmentForTooltip && timeAllocation.type !== 'planned' && (
-                                <div className="text-blue-600 text-xs mt-1">
-                                  Target: {milestoneSegmentForTooltip.milestone?.name}
-                                </div>
-                              )}
                             </div>
-                            {capacity.totalHours > 0 && (
-                              <>
-                                {capacity.allocatedHours > 0 && (
-                                  <div className="text-orange-600 mt-1">
-                                    Events: {capacity.allocatedHours.toFixed(1)}h
-                                  </div>
-                                )}
-                                {capacity.allocatedHours > capacity.totalHours && (
-                                  <div className="text-red-600 font-medium">⚠ Overbooked</div>
-                                )}
-                              </>
+                            {milestoneSegmentForTooltip?.milestone && (
+                              <div className="text-gray-600 mt-1">
+                                Target: {milestoneSegmentForTooltip.milestone.name} - {milestoneSegmentForTooltip.milestone.timeAllocation}h
+                              </div>
                             )}
-                            <div className="text-gray-400 mt-1">
-                              {workingDaysCount} working day{workingDaysCount !== 1 ? 's' : ''} total
-                            </div>
                           </div>
                         );
                       })()}

@@ -13,6 +13,8 @@ import { Milestone } from '@/types/core';
 interface MilestoneManagerProps {
   projectId?: string; // Made optional to support new projects
   projectEstimatedHours: number;
+  projectStartDate: Date;
+  projectEndDate: Date;
   onUpdateProjectBudget?: (newBudget: number) => void;
   // For new projects, we need local state management
   localMilestonesState?: {
@@ -30,6 +32,8 @@ interface LocalMilestone extends Omit<Milestone, 'id'> {
 export function MilestoneManager({ 
   projectId, 
   projectEstimatedHours, 
+  projectStartDate,
+  projectEndDate,
   onUpdateProjectBudget,
   localMilestonesState,
   isCreatingProject = false
@@ -237,29 +241,148 @@ export function MilestoneManager({
                      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       return `${months[date.getMonth()]} ${date.getDate()}`;
     };
-    
+
+    // Calculate the valid date range for this milestone
+    const getValidDateRange = () => {
+      // Start with project bounds, but exclude start and end dates
+      let minDate = new Date(projectStartDate);
+      minDate.setDate(minDate.getDate() + 1); // Day after project start
+      
+      let maxDate = new Date(projectEndDate);
+      maxDate.setDate(maxDate.getDate() - 1); // Day before project end
+
+      // Get all other milestones, sorted by date
+      const otherMilestones = projectMilestones
+        .filter(m => m.id !== milestone.id)
+        .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+
+      // Simple approach: find where this milestone fits in the sequence
+      // Allow it to be placed in any valid gap between existing milestones
+      
+      if (otherMilestones.length === 0) {
+        // No other milestones, can use full project range
+        return { minDate, maxDate };
+      }
+      
+      // Find the appropriate slot for this milestone
+      // If it's currently before all other milestones, allow it to be placed before the first one
+      const firstOtherMilestone = otherMilestones[0];
+      if (milestone.dueDate <= firstOtherMilestone.dueDate) {
+        const dayBefore = new Date(firstOtherMilestone.dueDate);
+        dayBefore.setDate(dayBefore.getDate() - 1);
+        maxDate = dayBefore;
+        return { minDate, maxDate };
+      }
+      
+      // Find the gap where this milestone currently belongs or should be placed
+      for (let i = 0; i < otherMilestones.length - 1; i++) {
+        const currentOther = otherMilestones[i];
+        const nextOther = otherMilestones[i + 1];
+        
+        if (milestone.dueDate > currentOther.dueDate && milestone.dueDate < nextOther.dueDate) {
+          // This milestone fits between currentOther and nextOther
+          const dayAfter = new Date(currentOther.dueDate);
+          dayAfter.setDate(dayAfter.getDate() + 1);
+          const dayBefore = new Date(nextOther.dueDate);
+          dayBefore.setDate(dayBefore.getDate() - 1);
+          
+          return { minDate: dayAfter, maxDate: dayBefore };
+        }
+      }
+      
+      // If we get here, this milestone is after all other milestones
+      const lastOtherMilestone = otherMilestones[otherMilestones.length - 1];
+      const dayAfter = new Date(lastOtherMilestone.dueDate);
+      dayAfter.setDate(dayAfter.getDate() + 1);
+      minDate = dayAfter;
+      
+      return { minDate, maxDate };
+    };
+
+    const { minDate, maxDate } = getValidDateRange();
+
+    // Check if current date is valid
+    const isCurrentDateValid = milestone.dueDate >= minDate && milestone.dueDate <= maxDate;
+
+    // Determine the appropriate month to display in the calendar
+    const getCalendarDefaultMonth = () => {
+      if (isCurrentDateValid) {
+        return milestone.dueDate;
+      }
+      
+      // If current date is before valid range, show the first valid month
+      if (milestone.dueDate < minDate) {
+        return minDate;
+      }
+      
+      // If current date is after valid range, show the last valid month
+      if (milestone.dueDate > maxDate) {
+        return maxDate;
+      }
+      
+      // Fallback to minDate
+      return minDate;
+    };
+
     return (
-      <div className="min-w-[80px]">
+      <div className="min-w-[140px]">
         <Label className="text-xs text-muted-foreground mb-1 block">Due Date</Label>
+        
         <Popover open={isOpen} onOpenChange={setIsOpen}>
           <PopoverTrigger asChild>
             <Button
               variant="outline"
-              className="h-10 text-sm justify-start text-left font-normal px-3"
+              className="h-10 text-sm justify-start text-left font-normal px-3 w-full"
             >
               <CalendarIcon className="mr-2 h-3 w-3" />
               {formatDate(milestone.dueDate)}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
+            <div className="p-3 border-b bg-gray-50">
+              <div className="text-sm font-medium text-gray-700 mb-1">
+                Milestone Date Range
+              </div>
+              <div className="text-xs text-gray-600">
+                Must be between {formatDate(minDate)} and {formatDate(maxDate)}
+              </div>
+              {projectMilestones.filter(m => m.id !== milestone.id).length > 0 && (
+                <div className="text-xs text-gray-500 mt-1">
+                  Other milestones: {projectMilestones
+                    .filter(m => m.id !== milestone.id)
+                    .map(m => formatDate(m.dueDate))
+                    .join(', ')}
+                </div>
+              )}
+            </div>
             <Calendar
               mode="single"
               selected={milestone.dueDate}
-              defaultMonth={milestone.dueDate}
+              defaultMonth={getCalendarDefaultMonth()}
               onSelect={(selectedDate) => {
                 if (selectedDate) {
                   handleSaveMilestoneProperty(milestone.id!, property, selectedDate);
                   setIsOpen(false);
+                }
+              }}
+              disabled={(date) => {
+                // Disable dates outside the valid range
+                return date < minDate || date > maxDate;
+              }}
+              modifiers={{
+                // Add custom styling for different date types
+                otherMilestone: (date) => projectMilestones
+                  .filter(m => m.id !== milestone.id)
+                  .some(m => {
+                    const mDate = new Date(m.dueDate);
+                    return mDate.toDateString() === date.toDateString();
+                  })
+              }}
+              modifiersStyles={{
+                otherMilestone: {
+                  backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                  color: 'rgb(239, 68, 68)',
+                  fontWeight: 'bold'
                 }
               }}
               initialFocus
@@ -300,10 +423,39 @@ export function MilestoneManager({
   }, [totalTimeAllocation, projectEstimatedHours]);
 
   const addNewMilestone = () => {
+    // Calculate the appropriate default date for the new milestone
+    const getDefaultMilestoneDate = () => {
+      // Start with the day after project start
+      let defaultDate = new Date(projectStartDate);
+      defaultDate.setDate(defaultDate.getDate() + 1);
+      
+      // If there are existing milestones, place this one after the last one
+      if (projectMilestones.length > 0) {
+        const sortedMilestones = [...projectMilestones].sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+        const lastMilestone = sortedMilestones[sortedMilestones.length - 1];
+        const dayAfterLast = new Date(lastMilestone.dueDate);
+        dayAfterLast.setDate(dayAfterLast.getDate() + 1);
+        
+        // Use the later of: day after project start, or day after last milestone
+        if (dayAfterLast > defaultDate) {
+          defaultDate = dayAfterLast;
+        }
+      }
+      
+      // Ensure it's not beyond project end date
+      const projectEnd = new Date(projectEndDate);
+      projectEnd.setDate(projectEnd.getDate() - 1); // Day before project end
+      if (defaultDate > projectEnd) {
+        defaultDate = projectEnd;
+      }
+      
+      return defaultDate;
+    };
+
     const newMilestone: LocalMilestone = {
       id: `temp-${Date.now()}`, // Generate temporary ID for editing
       name: 'New Milestone',
-      dueDate: new Date(),
+      dueDate: getDefaultMilestoneDate(),
       timeAllocation: 8, // Default to 8 hours (1 day)
       projectId: projectId || 'temp', // Use temp for new projects
       order: projectMilestones.length,
