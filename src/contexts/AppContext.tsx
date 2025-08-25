@@ -481,6 +481,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           recurring_interval: null,
           recurring_end_date: null,
           recurring_count: null
+          // Note: temporarily removing recurring_group_id until database is updated
         };
         
         const result = await dbAddEvent(dbEventData);
@@ -488,6 +489,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error('Failed to add event:', error);
+      console.error('Event data that caused the error:', eventData);
+      if (error.message) {
+        console.error('Error message:', error.message);
+      }
       throw error; // Re-throw so caller can handle
     }
   }, [dbAddEvent]);

@@ -61,10 +61,11 @@ export function useEvents() {
       return data;
     } catch (error) {
       console.error('Error adding event:', error);
+      console.error('Event data that failed:', eventData);
       if (!options?.silent) {
         toast({
           title: "Error",
-          description: "Failed to create event",
+          description: `Failed to create event: ${error.message || error}`,
           variant: "destructive",
         });
       }
