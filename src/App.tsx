@@ -27,7 +27,6 @@ const Auth = lazy(() => import('@/pages/Auth'));
 
 // Import the EventDetailModal
 import { EventDetailModal } from '@/components/EventDetailModal';
-import { DatabaseTestComponent } from '@/components/DatabaseTestComponent';
 
 const queryClient = new QueryClient();
 
@@ -159,9 +158,6 @@ function AuthenticatedContent() {
           holidayId={editingHolidayId || undefined}
         />
       </ErrorBoundary>
-
-      {/* Debug component for testing database connection */}
-      <DatabaseTestComponent />
     </div>
   );
 }
