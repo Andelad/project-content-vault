@@ -80,6 +80,7 @@ export type Database = {
           project_id: string | null
           recurring_count: number | null
           recurring_end_date: string | null
+          recurring_group_id: string | null
           recurring_interval: number | null
           recurring_type: string | null
           start_time: string
@@ -104,6 +105,7 @@ export type Database = {
           project_id?: string | null
           recurring_count?: number | null
           recurring_end_date?: string | null
+          recurring_group_id?: string | null
           recurring_interval?: number | null
           recurring_type?: string | null
           start_time: string
@@ -128,6 +130,7 @@ export type Database = {
           project_id?: string | null
           recurring_count?: number | null
           recurring_end_date?: string | null
+          recurring_group_id?: string | null
           recurring_interval?: number | null
           recurring_type?: string | null
           start_time?: string

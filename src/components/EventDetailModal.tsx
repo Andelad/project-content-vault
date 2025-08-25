@@ -12,6 +12,7 @@ import { Calendar as CalendarIcon, Clock, Repeat, Trash2, CheckCircle2 } from 'l
 import { Switch } from './ui/switch';
 import { cn } from '@/lib/utils';
 import { OKLCH_FALLBACK_GRAY } from '@/constants/colors';
+import { RecurringDeleteDialog } from './RecurringDeleteDialog';
 
 interface EventDetailModalProps {
   isOpen: boolean;
@@ -34,7 +35,10 @@ export function EventDetailModal({
     groups, 
     addEvent, 
     updateEvent,
-    deleteEvent 
+    deleteEvent,
+    getRecurringGroupEvents,
+    deleteRecurringSeriesFuture,
+    deleteRecurringSeriesAll
   } = useApp();
 
   const [formData, setFormData] = useState({
@@ -57,6 +61,8 @@ export function EventDetailModal({
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isRecurringEvent, setIsRecurringEvent] = useState(false);
 
   const isEditing = !!eventId;
   const existingEvent = isEditing ? events.find(e => e.id === eventId) : null;
@@ -128,6 +134,27 @@ export function EventDetailModal({
       setErrors({});
     }
   }, [isOpen, existingEvent, defaultStartTime, defaultEndTime]);
+
+  // Check if event is part of a recurring series
+  useEffect(() => {
+    const checkRecurringStatus = async () => {
+      if (existingEvent) {
+        try {
+          const groupEvents = await getRecurringGroupEvents(existingEvent.id);
+          setIsRecurringEvent(groupEvents.length > 1);
+        } catch (error) {
+          console.error('Failed to check recurring status:', error);
+          setIsRecurringEvent(false);
+        }
+      } else {
+        setIsRecurringEvent(false);
+      }
+    };
+
+    if (isOpen && isEditing) {
+      checkRecurringStatus();
+    }
+  }, [isOpen, isEditing, existingEvent, getRecurringGroupEvents]);
 
   // Update color when project changes
   useEffect(() => {
@@ -210,6 +237,9 @@ export function EventDetailModal({
           }),
           ...(formData.recurringEndType === 'count' && {
             count: formData.recurringCount
+          }),
+          ...(formData.recurringEndType === 'never' && {
+            count: 52 // Default to 52 occurrences for "never" ending events
           })
         };
       }
@@ -229,17 +259,47 @@ export function EventDetailModal({
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!existingEvent) return;
+    setShowDeleteDialog(true);
+  };
 
-    if (window.confirm('Are you sure you want to delete this event?')) {
-      try {
-        await deleteEvent(existingEvent.id);
-        onClose();
-      } catch (error) {
-        console.error('Failed to delete event:', error);
-        setErrors({ submit: 'Failed to delete event. Please try again.' });
-      }
+  const handleDeleteThis = async () => {
+    if (!existingEvent) return;
+    try {
+      await deleteEvent(existingEvent.id);
+      setShowDeleteDialog(false);
+      onClose();
+    } catch (error) {
+      console.error('Failed to delete event:', error);
+      setErrors({ submit: 'Failed to delete event. Please try again.' });
+      setShowDeleteDialog(false);
+    }
+  };
+
+  const handleDeleteFuture = async () => {
+    if (!existingEvent) return;
+    try {
+      await deleteRecurringSeriesFuture(existingEvent.id);
+      setShowDeleteDialog(false);
+      onClose();
+    } catch (error) {
+      console.error('Failed to delete recurring events:', error);
+      setErrors({ submit: 'Failed to delete recurring events. Please try again.' });
+      setShowDeleteDialog(false);
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    if (!existingEvent) return;
+    try {
+      await deleteRecurringSeriesAll(existingEvent.id);
+      setShowDeleteDialog(false);
+      onClose();
+    } catch (error) {
+      console.error('Failed to delete recurring events:', error);
+      setErrors({ submit: 'Failed to delete recurring events. Please try again.' });
+      setShowDeleteDialog(false);
     }
   };
 
@@ -258,8 +318,9 @@ export function EventDetailModal({
   }, {} as Record<string, typeof projects>);
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%]">
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CalendarIcon className="w-5 h-5" />
@@ -557,5 +618,17 @@ export function EventDetailModal({
         </form>
       </DialogContent>
     </Dialog>
+    
+    {/* Recurring Delete Dialog */}
+    <RecurringDeleteDialog
+      isOpen={showDeleteDialog}
+      onClose={() => setShowDeleteDialog(false)}
+      onDeleteThis={handleDeleteThis}
+      onDeleteFuture={handleDeleteFuture}
+      onDeleteAll={handleDeleteAll}
+      eventTitle={existingEvent?.title || ''}
+      isRecurring={isRecurringEvent}
+    />
+    </>
   );
 }

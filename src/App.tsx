@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useEffect } from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -56,13 +56,21 @@ function AuthenticatedContent() {
     setSelectedEventId,
     creatingNewEvent,
     setCreatingNewEvent,
-    isTimeTracking
+    isTimeTracking,
+    ensureRecurringEvents
   } = useApp();
 
   const { signOut, user } = useAuth();
   
   // Use the favicon hook to change favicon based on time tracking state
   useFavicon(isTimeTracking);
+
+  // Ensure recurring events are maintained when switching to calendar view
+  useEffect(() => {
+    if (currentView === 'calendar') {
+      ensureRecurringEvents();
+    }
+  }, [currentView, ensureRecurringEvents]);
 
   const renderView = () => {
     // Pass key directly instead of spreading to avoid React warnings

@@ -3,6 +3,7 @@ import { AppStateProvider, useAppState } from './AppStateContext';
 import { AppActionsProvider, useAppActions } from './AppActionsContext';
 import { getProjectColor, getGroupColor, PERFORMANCE_LIMITS } from '@/constants';
 import { checkProjectOverlap, datesOverlap } from '@/lib/projectOverlapUtils';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Project, 
   Group, 
@@ -68,6 +69,11 @@ interface AppContextType {
   addEvent: (event: Omit<CalendarEvent, 'id'>) => Promise<any>;
   updateEvent: (id: string, updates: Partial<CalendarEvent>, options?: { silent?: boolean }) => void;
   deleteEvent: (id: string) => void;
+  // Recurring event management
+  getRecurringGroupEvents: (eventId: string) => Promise<CalendarEvent[]>;
+  deleteRecurringSeriesFuture: (eventId: string) => Promise<void>;
+  deleteRecurringSeriesAll: (eventId: string) => Promise<void>;
+  ensureRecurringEvents: () => Promise<void>;
   selectedProjectId: string | null;
   setSelectedProjectId: (projectId: string | null) => void;
   creatingNewProject: { groupId: string; rowId?: string; startDate?: Date; endDate?: Date } | null;
@@ -412,24 +418,74 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const addEvent = useCallback(async (eventData: Omit<CalendarEvent, 'id'>) => {
     try {
-      const dbEventData = {
-        title: eventData.title,
-        description: eventData.description || '',
-        start_time: eventData.startTime.toISOString(),
-        end_time: eventData.endTime.toISOString(),
-        project_id: eventData.projectId || null,
-        color: eventData.color,
-        completed: eventData.completed || false,
-        duration: eventData.duration || 0,
-        event_type: eventData.type || 'planned', // Include event type
-        recurring_type: null,
-        recurring_interval: null,
-        recurring_end_date: null,
-        recurring_count: null
-      };
-      
-      const result = await dbAddEvent(dbEventData);
-      return result; // Return the created event
+      // Check if this is a recurring event
+      if (eventData.recurring) {
+        // Import the recurring events utility
+        const { generateRecurringEvents, validateRecurringConfig } = await import('../utils/recurringEvents');
+        
+        // Validate recurring configuration
+        const validationError = validateRecurringConfig(eventData.recurring);
+        if (validationError) {
+          throw new Error(validationError);
+        }
+        
+        // Generate all recurring events
+        const { events: recurringEvents, groupId } = generateRecurringEvents(eventData);
+        
+        // Create all events in the database
+        const results = [];
+        for (const [index, event] of recurringEvents.entries()) {
+          const dbEventData = {
+            title: event.title,
+            description: event.description || '',
+            start_time: event.startTime.toISOString(),
+            end_time: event.endTime.toISOString(),
+            project_id: event.projectId || null,
+            color: event.color,
+            completed: event.completed || false,
+            duration: event.duration || 0,
+            event_type: event.type || 'planned', // Include event type
+            recurring_type: null, // Individual instances don't store recurring metadata
+            recurring_interval: null,
+            recurring_end_date: null,
+            recurring_count: null,
+            recurring_group_id: groupId // Link all events in this recurring series
+          };
+          
+          // Use silent option for all but show a single toast at the end
+          const result = await dbAddEvent(dbEventData, { silent: true });
+          results.push(result);
+        }
+        
+        // Show a single success toast for all recurring events
+        const { toast } = await import('@/hooks/use-toast');
+        toast({
+          title: "Success",
+          description: `Created ${results.length} recurring events successfully`,
+        });
+        
+        return results; // Return all created events
+      } else {
+        // Non-recurring event - create single event
+        const dbEventData = {
+          title: eventData.title,
+          description: eventData.description || '',
+          start_time: eventData.startTime.toISOString(),
+          end_time: eventData.endTime.toISOString(),
+          project_id: eventData.projectId || null,
+          color: eventData.color,
+          completed: eventData.completed || false,
+          duration: eventData.duration || 0,
+          event_type: eventData.type || 'planned', // Include event type
+          recurring_type: null,
+          recurring_interval: null,
+          recurring_end_date: null,
+          recurring_count: null
+        };
+        
+        const result = await dbAddEvent(dbEventData);
+        return result; // Return the created event
+      }
     } catch (error) {
       console.error('Failed to add event:', error);
       throw error; // Re-throw so caller can handle
@@ -463,6 +519,129 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       console.error('Failed to delete event:', error);
     }
   }, [dbDeleteEvent]);
+
+  // Get all events in the same recurring group
+  const getRecurringGroupEvents = useCallback(async (eventId: string): Promise<CalendarEvent[]> => {
+    try {
+      // First get the event to find its group ID
+      const event = processedEvents.find(e => e.id === eventId);
+      if (!event) return [];
+
+      // Get the recurring group ID from the database
+      const { data: eventData, error } = await supabase
+        .from('calendar_events')
+        .select('recurring_group_id')
+        .eq('id', eventId)
+        .single();
+
+      if (error || !eventData?.recurring_group_id) return [event];
+
+      // Get all events in the same group
+      const { data: groupEvents, error: groupError } = await supabase
+        .from('calendar_events')
+        .select('*')
+        .eq('recurring_group_id', eventData.recurring_group_id)
+        .order('start_time', { ascending: true });
+
+      if (groupError) throw groupError;
+
+      // Convert to CalendarEvent format
+      return (groupEvents || []).map(e => ({
+        id: e.id,
+        title: e.title,
+        description: e.description || '',
+        startTime: new Date(e.start_time),
+        endTime: new Date(e.end_time),
+        projectId: e.project_id,
+        color: e.color,
+        completed: e.completed || false,
+        duration: e.duration || 0,
+        type: (e.event_type as 'planned' | 'tracked' | 'completed') || 'planned'
+      }));
+    } catch (error) {
+      console.error('Failed to get recurring group events:', error);
+      return [];
+    }
+  }, [processedEvents]);
+
+  // Delete all future events in a recurring series
+  const deleteRecurringSeriesFuture = useCallback(async (eventId: string) => {
+    try {
+      const groupEvents = await getRecurringGroupEvents(eventId);
+      const selectedEvent = groupEvents.find(e => e.id === eventId);
+      
+      if (!selectedEvent || groupEvents.length === 0) {
+        // Not part of a recurring series, delete just this event
+        await dbDeleteEvent(eventId);
+        return;
+      }
+
+      // Delete this event and all future ones
+      const eventsToDelete = groupEvents.filter(e => 
+        new Date(e.startTime) >= new Date(selectedEvent.startTime)
+      );
+
+      for (const event of eventsToDelete) {
+        await dbDeleteEvent(event.id);
+      }
+
+      const { toast } = await import('@/hooks/use-toast');
+      toast({
+        title: "Success",
+        description: `Deleted ${eventsToDelete.length} recurring events`,
+      });
+    } catch (error) {
+      console.error('Failed to delete recurring series:', error);
+      const { toast } = await import('@/hooks/use-toast');
+      toast({
+        title: "Error",
+        description: "Failed to delete recurring events",
+        variant: "destructive",
+      });
+    }
+  }, [getRecurringGroupEvents, dbDeleteEvent]);
+
+  // Delete all events in a recurring series
+  const deleteRecurringSeriesAll = useCallback(async (eventId: string) => {
+    try {
+      const groupEvents = await getRecurringGroupEvents(eventId);
+      
+      if (groupEvents.length === 0) {
+        // Not part of a recurring series, delete just this event
+        await dbDeleteEvent(eventId);
+        return;
+      }
+
+      // Delete all events in the series
+      for (const event of groupEvents) {
+        await dbDeleteEvent(event.id);
+      }
+
+      const { toast } = await import('@/hooks/use-toast');
+      toast({
+        title: "Success",
+        description: `Deleted ${groupEvents.length} recurring events`,
+      });
+    } catch (error) {
+      console.error('Failed to delete recurring series:', error);
+      const { toast } = await import('@/hooks/use-toast');
+      toast({
+        title: "Error",
+        description: "Failed to delete recurring events",
+        variant: "destructive",
+      });
+    }
+  }, [getRecurringGroupEvents, dbDeleteEvent]);
+
+  // Ensure recurring events are generated for all series
+  const ensureRecurringEvents = useCallback(async () => {
+    try {
+      const { ensureAllRecurringSeriesHaveEvents } = await import('@/utils/recurringEventsMaintenance');
+      await ensureAllRecurringSeriesHaveEvents();
+    } catch (error) {
+      console.error('Failed to ensure recurring events:', error);
+    }
+  }, []);
 
   const addHoliday = useCallback(async (holidayData: Omit<Holiday, 'id'>) => {
     try {
@@ -647,6 +826,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     addEvent,
     updateEvent,
     deleteEvent,
+    getRecurringGroupEvents,
+    deleteRecurringSeriesFuture,
+    deleteRecurringSeriesAll,
+    ensureRecurringEvents,
     setSelectedProjectId,
     setCreatingNewProject,
     addHoliday,
@@ -686,6 +869,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     addEvent,
     updateEvent,
     deleteEvent,
+    getRecurringGroupEvents,
+    deleteRecurringSeriesFuture,
+    deleteRecurringSeriesAll,
+    ensureRecurringEvents,
     setSelectedProjectId,
     setCreatingNewProject,
     addHoliday,

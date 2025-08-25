@@ -37,7 +37,7 @@ export function useEvents() {
     }
   };
 
-  const addEvent = async (eventData: Omit<CalendarEventInsert, 'user_id'>): Promise<CalendarEvent> => {
+  const addEvent = async (eventData: Omit<CalendarEventInsert, 'user_id'>, options?: { silent?: boolean }): Promise<CalendarEvent> => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
@@ -50,18 +50,24 @@ export function useEvents() {
 
       if (error) throw error;
       setEvents(prev => [...prev, data]);
-      toast({
-        title: "Success",
-        description: "Event created successfully",
-      });
+      
+      // Only show toast if not silent
+      if (!options?.silent) {
+        toast({
+          title: "Success",
+          description: "Event created successfully",
+        });
+      }
       return data;
     } catch (error) {
       console.error('Error adding event:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create event",
-        variant: "destructive",
-      });
+      if (!options?.silent) {
+        toast({
+          title: "Error",
+          description: "Failed to create event",
+          variant: "destructive",
+        });
+      }
       throw error;
     }
   };
