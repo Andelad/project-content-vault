@@ -68,6 +68,52 @@ const calculateWorkingDaysRemaining = (endDate: Date, settings: any, holidays: a
   return workingDays;
 };
 
+// Function to calculate total working days between start and end dates
+const calculateTotalWorkingDays = (startDate: Date, endDate: Date, settings: any, holidays: any[]): number => {
+  const start = new Date(startDate);
+  start.setHours(0, 0, 0, 0);
+  
+  const end = new Date(endDate);
+  end.setHours(0, 0, 0, 0);
+  
+  // If no settings, return 0
+  if (!settings?.weeklyWorkHours) {
+    return 0;
+  }
+  
+  let workingDays = 0;
+  const current = new Date(start);
+  
+  while (current <= end) {
+    // Check if it's a holiday
+    const isHoliday = holidays.some(holiday => {
+      const holidayStart = new Date(holiday.startDate);
+      const holidayEnd = new Date(holiday.endDate);
+      holidayStart.setHours(0, 0, 0, 0);
+      holidayEnd.setHours(0, 0, 0, 0);
+      return current >= holidayStart && current <= holidayEnd;
+    });
+    
+    if (!isHoliday) {
+      // Check if it's a day with work hours configured
+      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const dayName = dayNames[current.getDay()] as keyof typeof settings.weeklyWorkHours;
+      const workSlots = settings.weeklyWorkHours?.[dayName] || [];
+      
+      const hasWorkHours = Array.isArray(workSlots) && 
+        workSlots.reduce((sum, slot) => sum + slot.duration, 0) > 0;
+      
+      if (hasWorkHours) {
+        workingDays++;
+      }
+    }
+    
+    current.setDate(current.getDate() + 1);
+  }
+  
+  return workingDays;
+};
+
 // OKLCH color palette - matches the one defined in AppContext
 const OKLCH_PROJECT_COLORS = [
   'oklch(0.8 0.12 0)',      // Red
@@ -632,6 +678,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
     
     return (
       <div className="min-w-[80px]">
+        <Label className="text-xs text-muted-foreground mb-1 block">Client</Label>
         {isEditing ? (
           <Input
             type="text"
@@ -660,7 +707,6 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
             style={{ width: `${Math.max(displayValue.length * 8 + 40, 80)}px` }}
             onClick={() => setEditingProperty(property)}
           >
-            <User className="mr-2 h-3 w-3" />
             {displayValue}
           </Button>
         )}
@@ -677,10 +723,11 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
     property: string;
   }) => {
     const isEditing = editingProperty === property;
-    const displayValue = `${value}h budgeted`;
+    const displayValue = `${value}h`;
     
     return (
       <div className="min-w-[100px]">
+        <Label className="text-xs text-muted-foreground mb-1 block">Budget</Label>
         {isEditing ? (
           <Input
             type="number"
@@ -708,7 +755,6 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
             style={{ width: `${Math.max(displayValue.length * 8 + 40, 100)}px` }}
             onClick={() => setEditingProperty(property)}
           >
-            <Clock className="mr-2 h-3 w-3" />
             {displayValue}
           </Button>
         )}
@@ -731,6 +777,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
     
     return (
       <div className="min-w-[100px]">
+        <Label className="text-xs text-muted-foreground mb-1 block">Group</Label>
         <Select value={currentGroupId || ''} onValueChange={onGroupChange} disabled={disabled}>
           <SelectTrigger 
             className="h-8 text-sm"
@@ -914,26 +961,8 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
 
         {/* Header */}
         <div className="px-8 pt-6 pb-4 border-b border-gray-200 flex-shrink-0">
-          {/* First row: Group, Client, Budgeted Time */}
-          <div className="flex items-center gap-3 mb-2">
-            <HeaderGroupField
-              currentGroupId={project?.groupId || groupId}
-              onGroupChange={handleGroupChange}
-              disabled={isCreating} // Can't change group when creating
-            />
-            <HeaderClientField
-              value={localValues.client}
-              property="client"
-              placeholder="Client"
-            />
-            <HeaderBudgetedTimeField
-              value={localValues.estimatedHours}
-              property="estimatedHours"
-            />
-          </div>
-          
-          {/* Project Title and Dates */}
-          <div className="flex items-center justify-between">
+          {/* First row: Project Icon and Name */}
+          <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-4">
               <Popover open={stylePickerOpen} onOpenChange={setStylePickerOpen}>
                 <PopoverTrigger asChild>
@@ -1043,36 +1072,64 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
                 </h1>
               )}
             </div>
-            
-            {/* Date Range */}
-            <div className="flex items-end gap-2 text-sm">
-              <HeaderDateField
-                value={localValues.startDate}
-                property="startDate"
+          </div>
+          
+          {/* Second row: Group, Client, Budget (left) and Dates (right) */}
+          <div className="flex items-end justify-between">
+            <div className="flex items-end gap-3">
+              <HeaderGroupField
+                currentGroupId={project?.groupId || groupId}
+                onGroupChange={handleGroupChange}
+                disabled={isCreating} // Can't change group when creating
               />
+              <HeaderClientField
+                value={localValues.client}
+                property="client"
+                placeholder="Client"
+              />
+              <HeaderBudgetedTimeField
+                value={localValues.estimatedHours}
+                property="estimatedHours"
+              />
+            </div>
+            
+            {/* Date Range - aligned to the right */}
+            <div className="flex items-end gap-3 text-sm">
+              <div className="min-w-[80px]">
+                <Label className="text-xs text-muted-foreground mb-1 block">Start</Label>
+                <HeaderDateField
+                  value={localValues.startDate}
+                  property="startDate"
+                />
+              </div>
               <span className="text-muted-foreground mb-1">→</span>
               {localValues.continuous ? (
-                <div className="flex items-center gap-1 px-3 py-1 rounded border border-input bg-background text-muted-foreground">
-                  <Infinity className="w-3 h-3" />
-                  <span>Continuous</span>
+                <div className="min-w-[100px]">
+                  <Label className="text-xs text-muted-foreground mb-1 block">End</Label>
+                  <div className="flex items-center gap-1 px-3 py-1 h-8 rounded border border-input bg-background text-muted-foreground">
+                    <Infinity className="w-3 h-3" />
+                    <span className="text-sm">Continuous</span>
+                  </div>
                 </div>
               ) : (
-                <div className="relative">
-                  {/* Working days insight - positioned above, aligned to the right */}
-                  <div 
-                    className="absolute -top-5 right-0 text-xs whitespace-nowrap"
-                    style={{ color: localValues.color || OKLCH_PROJECT_COLORS[0] }}
-                  >
-                    {(() => {
-                      const workingDays = calculateWorkingDaysRemaining(localValues.endDate, settings, holidays);
-                      if (workingDays === 0) {
-                        return 'No working days to go';
-                      } else if (workingDays === 1) {
-                        return '1 working day to go';
-                      } else {
-                        return `${workingDays} working days to go`;
-                      }
-                    })()}
+                <div className="min-w-[80px]">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Label className="text-xs text-muted-foreground">End</Label>
+                    <div 
+                      className="text-xs text-muted-foreground"
+                      style={{ color: localValues.color || OKLCH_PROJECT_COLORS[0] }}
+                    >
+                      {(() => {
+                        const workingDays = calculateTotalWorkingDays(localValues.startDate, localValues.endDate, settings, holidays);
+                        if (workingDays === 0) {
+                          return '0 working days';
+                        } else if (workingDays === 1) {
+                          return '1 working day';
+                        } else {
+                          return `${workingDays} working days`;
+                        }
+                      })()}
+                    </div>
                   </div>
                   <HeaderDateField
                     value={localValues.endDate}
@@ -1086,7 +1143,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 w-8 p-0"
+                      className="h-8 w-8 p-0 mb-0"
                       onClick={handleContinuousToggle}
                     >
                       <Infinity className="w-4 h-4" />
