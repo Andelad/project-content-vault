@@ -50,21 +50,42 @@ export const ProjectMilestones = memo(function ProjectMilestones({
 
   // Calculate positions for each milestone relative to the project's baseline positioning
   const milestonePositions = useMemo(() => {
-    const projectStart = new Date(project.startDate);
-    projectStart.setHours(0, 0, 0, 0);
+    // For 'move' actions during drag, use original dates + daysDelta offset for consistent visuals
+    const effectiveProjectStart = (() => {
+      if (isDragging && dragState?.projectId === project.id && dragState?.action === 'move' && dragState?.originalStartDate) {
+        const startDate = new Date(dragState.originalStartDate);
+        const offset = typeof dragState.fractionalDaysDelta === 'number' ? dragState.fractionalDaysDelta : (dragState.daysDelta || 0);
+        startDate.setDate(startDate.getDate() + offset);
+        return startDate;
+      }
+      return new Date(project.startDate);
+    })();
+    effectiveProjectStart.setHours(0, 0, 0, 0);
     
     return projectMilestones.map(milestone => {
-      const milestoneDate = new Date(milestone.dueDate);
-      milestoneDate.setHours(0, 0, 0, 0);
+      // For 'move' actions during drag, use original milestone date + daysDelta offset
+      const effectiveMilestoneDate = (() => {
+        if (isDragging && dragState?.projectId === project.id && dragState?.action === 'move' && dragState?.originalMilestones) {
+          const originalMilestone = dragState.originalMilestones.find((m: any) => m.id === milestone.id);
+          if (originalMilestone) {
+            const milestoneDate = new Date(originalMilestone.originalDueDate);
+            const offset = typeof dragState.fractionalDaysDelta === 'number' ? dragState.fractionalDaysDelta : (dragState.daysDelta || 0);
+            milestoneDate.setDate(milestoneDate.getDate() + offset);
+            return milestoneDate;
+          }
+        }
+        return new Date(milestone.dueDate);
+      })();
+      effectiveMilestoneDate.setHours(0, 0, 0, 0);
 
       // Check if milestone is within viewport
-      if (milestoneDate < viewportStart || milestoneDate > viewportEnd) {
+      if (effectiveMilestoneDate < viewportStart || effectiveMilestoneDate > viewportEnd) {
         return { milestone, visible: false, position: 0 };
       }
 
       // Calculate milestone position relative to project start
       const msPerDay = 24 * 60 * 60 * 1000;
-      const daysFromProjectStart = Math.floor((milestoneDate.getTime() - projectStart.getTime()) / msPerDay);
+      const daysFromProjectStart = Math.floor((effectiveMilestoneDate.getTime() - effectiveProjectStart.getTime()) / msPerDay);
       
       // Use the project's positioning data directly (already includes drag offset if applicable)
       let milestonePosition: number;
@@ -112,40 +133,77 @@ export const ProjectMilestones = memo(function ProjectMilestones({
     const handleMouseMove = (moveEvent: MouseEvent) => {
       if (!onMilestoneDrag) return;
 
-      // Calculate days delta from original position - use fractional movement for responsiveness
+      // Calculate days delta from original position
       const deltaX = moveEvent.clientX - startX;
-      const daysDelta = deltaX / dayWidth; // Don't round yet - allow fractional movement
       
-      // Only round when we've moved at least 0.5 days worth of pixels
-      const roundedDaysDelta = Math.round(daysDelta);
+      // In weeks view: smooth movement, in days view: snap to day boundaries
+      const daysDelta = mode === 'weeks' 
+        ? deltaX / dayWidth  // Smooth movement in weeks
+        : Math.round(deltaX / dayWidth);  // Snap to days in days view
+      
+      // Only round when we've moved at least 0.5 days worth of pixels (for weeks view)
+      const roundedDaysDelta = mode === 'weeks' 
+        ? Math.round(daysDelta) 
+        : daysDelta; // Already rounded for days view
       
       // Calculate new date
       const newDate = new Date(originalDate);
       newDate.setDate(originalDate.getDate() + roundedDaysDelta);
       newDate.setHours(0, 0, 0, 0);
 
-      // Constrain milestone within project boundaries (with 1 day buffer)
-      const minDate = new Date(projectStart);
-      minDate.setDate(projectStart.getDate() + 1); // 1 day after start
-      const maxDate = new Date(projectEnd);
-      maxDate.setDate(projectEnd.getDate() - 1); // 1 day before end
-
-      if (newDate < minDate) {
-        newDate.setTime(minDate.getTime());
-      } else if (newDate > maxDate) {
-        newDate.setTime(maxDate.getTime());
+      // Constrain milestone within project boundaries and prevent overlaps
+      const projectStart = new Date(project.startDate);
+      projectStart.setHours(0, 0, 0, 0);
+      const projectEnd = new Date(project.endDate);
+      projectEnd.setHours(0, 0, 0, 0);
+      
+      // Get all other milestone dates and project boundaries
+      const otherMilestones = projectMilestones.filter(m => m.id !== milestoneId);
+      const blockingDates = [
+        projectStart,
+        projectEnd,
+        ...otherMilestones.map(m => {
+          const date = new Date(m.dueDate);
+          date.setHours(0, 0, 0, 0);
+          return date;
+        })
+      ];
+      
+      // Find the valid range for this milestone
+      let minAllowedDate = new Date(projectStart);
+      minAllowedDate.setDate(projectStart.getDate() + 1); // 1 day after start
+      
+      let maxAllowedDate = new Date(projectEnd);
+      maxAllowedDate.setDate(projectEnd.getDate() - 1); // 1 day before end
+      
+      // Narrow down the range based on other milestones
+      blockingDates.forEach(blockingDate => {
+        if (blockingDate < originalDate && blockingDate >= minAllowedDate) {
+          // This blocking date is before our original position, so update minimum
+          const dayAfterBlocking = new Date(blockingDate);
+          dayAfterBlocking.setDate(blockingDate.getDate() + 1);
+          if (dayAfterBlocking > minAllowedDate) {
+            minAllowedDate = dayAfterBlocking;
+          }
+        } else if (blockingDate > originalDate && blockingDate <= maxAllowedDate) {
+          // This blocking date is after our original position, so update maximum
+          const dayBeforeBlocking = new Date(blockingDate);
+          dayBeforeBlocking.setDate(blockingDate.getDate() - 1);
+          if (dayBeforeBlocking < maxAllowedDate) {
+            maxAllowedDate = dayBeforeBlocking;
+          }
+        }
+      });
+      
+      // Clamp the new date to the allowed range
+      if (newDate < minAllowedDate) {
+        newDate.setTime(minAllowedDate.getTime());
+      } else if (newDate > maxAllowedDate) {
+        newDate.setTime(maxAllowedDate.getTime());
       }
 
-      // Check if the new position would overlap with other milestones
-      const otherMilestones = projectMilestones.filter(m => m.id !== milestoneId);
-      const wouldOverlap = otherMilestones.some(m => {
-        const mDate = new Date(m.dueDate);
-        mDate.setHours(0, 0, 0, 0);
-        return Math.abs(mDate.getTime() - newDate.getTime()) < 24 * 60 * 60 * 1000; // Same day
-      });
-
-      // Only update if no overlap, within project boundaries, and we've moved at least half a day
-      if (!wouldOverlap && newDate >= minDate && newDate <= maxDate && Math.abs(daysDelta) >= 0.5) {
+      // Only update if we've moved at least half a day and the date is valid
+      if (Math.abs(daysDelta) >= 0.5 && newDate >= minAllowedDate && newDate <= maxAllowedDate) {
         onMilestoneDrag(milestoneId, newDate);
       }
     };

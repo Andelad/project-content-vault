@@ -28,6 +28,150 @@ interface TimelineBarProps {
   onMilestoneDragEnd?: () => void;
 }
 
+// Helper function to calculate baseline visual offsets
+function calculateBaselineVisualOffsets(positions: any, isDragging: boolean, dragState: any, projectId: string, mode: 'days' | 'weeks' = 'days') {
+  let adjustedPositions = { ...positions };
+  
+  if (isDragging && dragState?.projectId === projectId) {
+    // In days view: use snapped daysDelta for day boundary snapping
+    // In weeks view: use smooth pixelDeltaX for responsive movement
+    const dayWidth = mode === 'weeks' ? 11 : 40;
+    const dragOffsetPx = mode === 'days'
+      ? (dragState.daysDelta || 0) * dayWidth  // Snapped to day boundaries in days view
+      : (typeof dragState.pixelDeltaX === 'number' ? dragState.pixelDeltaX : (dragState.daysDelta || 0) * dayWidth);  // Smooth in weeks view
+
+    // DEBUG: Log visual positioning calculations
+    console.log('🎨 VISUAL POSITION DEBUG:', {
+      projectId,
+      mode,
+      dragStateDaysDelta: dragState.daysDelta,
+      pixelDeltaX: dragState.pixelDeltaX,
+      dragOffsetPx,
+      dayWidth,
+      action: dragState?.action
+    });
+
+    const action = dragState?.action;
+    
+    if (action === 'move') {
+      // Move everything together
+      adjustedPositions = {
+        ...positions,
+        baselineStartPx: positions.baselineStartPx + dragOffsetPx,
+        circleLeftPx: positions.circleLeftPx + dragOffsetPx,
+        triangleLeftPx: positions.triangleLeftPx + dragOffsetPx,
+        baselineWidthPx: positions.baselineWidthPx // width unchanged when moving
+      };
+    } else if (action === 'resize-start-date') {
+      // Only start date (and baseline left edge) should move visually
+      adjustedPositions = {
+        ...positions,
+        baselineStartPx: positions.baselineStartPx + dragOffsetPx,
+        circleLeftPx: positions.circleLeftPx + dragOffsetPx,
+        triangleLeftPx: positions.triangleLeftPx, // keep end fixed
+        // Width must shrink/grow opposite to left edge movement to keep right edge fixed
+        baselineWidthPx: positions.baselineWidthPx - dragOffsetPx
+      };
+    } else if (action === 'resize-end-date') {
+      // Only end date should move visually; keep baseline start and start circle fixed
+      adjustedPositions = {
+        ...positions,
+        baselineStartPx: positions.baselineStartPx,
+        circleLeftPx: positions.circleLeftPx,
+        triangleLeftPx: positions.triangleLeftPx + dragOffsetPx,
+        // Width grows/shrinks with right edge movement
+        baselineWidthPx: positions.baselineWidthPx + dragOffsetPx
+      };
+    }
+  }
+  
+  return adjustedPositions;
+}// Helper function to calculate visual project dates with consolidated offset logic
+function calculateVisualProjectDates(project: any, isDragging: boolean, dragState: any) {
+  let visualProjectStart = new Date(project.startDate);
+  let visualProjectEnd = new Date(project.endDate);
+  
+  // Apply drag offset based on action type for immediate visual feedback
+  if (isDragging && dragState?.projectId === project.id) {
+    // Use fractional daysDelta for smooth visual movement (like milestones)
+    const daysOffset = dragState.daysDelta || 0;
+    const action = dragState.action;
+    
+    if (action === 'move') {
+      // Move both start and end
+      visualProjectStart = new Date(project.startDate);
+      visualProjectStart.setDate(visualProjectStart.getDate() + daysOffset);
+      visualProjectEnd = new Date(project.endDate);
+      visualProjectEnd.setDate(visualProjectEnd.getDate() + daysOffset);
+    } else if (action === 'resize-start-date') {
+      // Only move start date
+      visualProjectStart = new Date(project.startDate);
+      visualProjectStart.setDate(visualProjectStart.getDate() + daysOffset);
+      // End date stays the same
+    } else if (action === 'resize-end-date') {
+      // Only move end date
+      visualProjectEnd = new Date(project.endDate);
+      visualProjectEnd.setDate(visualProjectEnd.getDate() + daysOffset);
+      // Start date stays the same
+    }
+  }
+  
+  return { visualProjectStart, visualProjectEnd };
+}
+
+// Reusable drag handle component
+interface DragHandleProps {
+  projectId: string;
+  action: string;
+  onMouseDown: (e: React.MouseEvent, projectId: string, action: string) => void;
+  className?: string;
+  style?: React.CSSProperties;
+  title?: string;
+  children?: React.ReactNode;
+}
+
+const DragHandle = memo(function DragHandle({ 
+  projectId, 
+  action, 
+  onMouseDown, 
+  className = "", 
+  style = {}, 
+  title = "", 
+  children 
+}: DragHandleProps) {
+  const handlePointerDown = (e: React.PointerEvent) => {
+    console.log('🖱️ DRAG HANDLE POINTER DOWN:', projectId, action, e.pointerId);
+    // Prefer pointer events for pen/tablet reliability
+    try {
+      (e.currentTarget as any).setPointerCapture?.(e.pointerId);
+    } catch {}
+    e.preventDefault();
+    e.stopPropagation();
+    onMouseDown(e as unknown as React.MouseEvent, projectId, action);
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    console.log('🖱️ DRAG HANDLE MOUSE DOWN:', projectId, action, e.button);
+    // Fallback for older devices
+    e.preventDefault();
+    e.stopPropagation();
+    onMouseDown(e, projectId, action);
+  };
+
+  return (
+    <div
+      className={`${className} pointer-events-auto`}
+      style={style}
+      draggable={false}
+      onPointerDown={handlePointerDown}
+      onMouseDown={handleMouseDown}
+      title={title}
+    >
+      {children}
+    </div>
+  );
+});
+
 // Helper function to get hover color
 function getHoverColor(oklchColor: string): string {
   // Increase both lightness and chroma slightly for hover effect
@@ -231,18 +375,10 @@ export const TimelineBar = memo(function TimelineBar({
           }}
         >
           {(() => {
-            // Calculate visually adjusted project dates for immediate drag response
-            let visualProjectStart = new Date(project.startDate);
-            let visualProjectEnd = new Date(project.endDate);
-            
-            // Apply drag offset to project dates for immediate visual feedback
-            if (isDragging && dragState?.projectId === project.id && dragState?.daysDelta) {
-              const daysOffset = dragState.daysDelta;
-              visualProjectStart = new Date(project.startDate);
-              visualProjectStart.setDate(visualProjectStart.getDate() + daysOffset);
-              visualProjectEnd = new Date(project.endDate);
-              visualProjectEnd.setDate(visualProjectEnd.getDate() + daysOffset);
-            }
+            // Calculate visually adjusted project dates using consolidated offset logic
+            const { visualProjectStart, visualProjectEnd } = calculateVisualProjectDates(
+              project, isDragging, dragState
+            );
             
             return dates.map((date, dateIndex) => {
             if (mode === 'weeks') {
@@ -361,28 +497,35 @@ export const TimelineBar = memo(function TimelineBar({
                                 };
                               })()}
                               onMouseDown={(e) => { 
+                                console.log('🔥 PARENT BAR MOUSE DOWN - SHOULD NOT HAPPEN FOR START DRAG');
                                 e.stopPropagation(); 
                                 handleMouseDown(e, project.id, 'move'); 
                               }}
                             >
                               {/* Resize handles for first and last day segments */}
-          {dayOfWeek === 0 && (
-                                <div 
-                                  className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-black/10 opacity-0 group-hover:opacity-100" 
-                                  onMouseDown={(e) => { 
-                                    e.stopPropagation(); 
-            handleMouseDown(e, project.id, 'resize-start-date'); 
-                                  }} 
+                              {dayOfWeek === 0 && (
+                                <div
+                                  className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-black/10 opacity-0 group-hover:opacity-100"
+                                  onMouseDown={(e) => {
+                                    console.log('🎯 WEEK DAY 0 RESIZE START:', project.id);
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleMouseDown(e, project.id, 'resize-start-date');
+                                  }}
+                                  title="Drag to change start date"
                                 />
                               )}
                               
-          {dayOfWeek === 6 && (
-                                <div 
-                                  className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-black/10 opacity-0 group-hover:opacity-100" 
-                                  onMouseDown={(e) => { 
-                                    e.stopPropagation(); 
-            handleMouseDown(e, project.id, 'resize-end-date'); 
-                                  }} 
+                              {dayOfWeek === 6 && (
+                                <div
+                                  className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-black/10 opacity-0 group-hover:opacity-100"
+                                  onMouseDown={(e) => {
+                                    console.log('🎯 WEEK DAY 6 RESIZE END:', project.id);
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleMouseDown(e, project.id, 'resize-end-date');
+                                  }}
+                                  title="Drag to change end date"
                                 />
                               )}
                             </div>
@@ -570,12 +713,17 @@ export const TimelineBar = memo(function TimelineBar({
                             : ''
                         }`}
                         style={rectangleStyle}
-                        onMouseDown={(e) => { 
-                          e.stopPropagation(); 
-                          handleMouseDown(e, project.id, 'move'); 
-                        }}
-
                       >
+                        <div
+                          className="absolute inset-0"
+                          onMouseDown={(e) => {
+                            console.log('🎯 RECTANGLE AREA MOVE:', project.id);
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleMouseDown(e, project.id, 'move');
+                          }}
+                          title="Drag to move project"
+                        />
                         {/* Overflow indicator for high hours (16+ hours) */}
                         {dailyHours > 16 && (
                           <div className="absolute bottom-0 left-1 right-1 flex justify-center">
@@ -620,23 +768,29 @@ export const TimelineBar = memo(function TimelineBar({
                         )}
 
                         {/* Resize handles */}
-        {isFirstWorkingDay && (
-                          <div 
-                            className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity" 
-                            onMouseDown={(e) => { 
-                              e.stopPropagation(); 
-          handleMouseDown(e, project.id, 'resize-start-date'); 
-                            }} 
+                        {isFirstWorkingDay && (
+                          <div
+                            className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-auto"
+                            onMouseDown={(e) => {
+                              console.log('🎯 FIRST WORKING DAY RESIZE START:', project.id);
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleMouseDown(e, project.id, 'resize-start-date');
+                            }}
+                            title="Drag to change start date"
                           />
                         )}
                         
-        {isLastWorkingDay && (
-                          <div 
-                            className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity" 
-                            onMouseDown={(e) => { 
-                              e.stopPropagation(); 
-          handleMouseDown(e, project.id, 'resize-end-date'); 
-                            }} 
+                        {isLastWorkingDay && (
+                          <div
+                            className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onMouseDown={(e) => {
+                              console.log('🎯 LAST WORKING DAY RESIZE END:', project.id);
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleMouseDown(e, project.id, 'resize-end-date');
+                            }}
+                            title="Drag to change end date"
                           />
                         )}
                       </div>
@@ -689,19 +843,10 @@ export const TimelineBar = memo(function TimelineBar({
             mode
           );
           
-          // Apply immediate drag offset to project bar positions for responsive UI
-          let adjustedPositions = { ...positions };
-          if (isDragging && dragState?.projectId === project.id && dragState?.daysDelta) {
-            const dragDayWidth = mode === 'weeks' ? 11 : 40;
-            const dragOffsetPx = dragState.daysDelta * dragDayWidth;
-            
-            adjustedPositions = {
-              ...positions,
-              baselineStartPx: positions.baselineStartPx + dragOffsetPx,
-              circleLeftPx: positions.circleLeftPx + dragOffsetPx,
-              triangleLeftPx: positions.triangleLeftPx + dragOffsetPx
-            };
-          }
+          // Apply immediate drag offset using consolidated visual offset logic
+          const adjustedPositions = calculateBaselineVisualOffsets(
+            positions, isDragging, dragState, project.id, mode
+          );
           
           // Check if project should be visible (continuous projects are always visible if started)
           const originalProjectEnd = new Date(project.endDate);
@@ -715,9 +860,8 @@ export const TimelineBar = memo(function TimelineBar({
           return (
             <div className="relative flex w-full h-[8px]" style={{ overflow: 'visible', zIndex: 20 }}>
               {/* Baseline line using absolute pixel positioning like HolidayOverlay */}
-              <div 
+              <div
                 className="absolute top-0 h-[3px] cursor-move hover:opacity-80 pointer-events-auto"
-                draggable={false} // 🚫 Disable browser drag-and-drop
                 style={project.continuous ? {
                   // For continuous projects, use hazard stripe pattern
                   background: `repeating-linear-gradient(
@@ -728,17 +872,18 @@ export const TimelineBar = memo(function TimelineBar({
                     ${project.color} 6px
                   )`,
                   left: `${adjustedPositions.baselineStartPx}px`,
-                  width: `${positions.baselineWidthPx}px`,
+                  width: `${(adjustedPositions as any).baselineWidthPx ?? positions.baselineWidthPx}px`,
                   zIndex: 25
                 } : {
                   // For regular projects, use solid background
                   backgroundColor: colorScheme.baseline,
                   left: `${adjustedPositions.baselineStartPx}px`,
-                  width: `${positions.baselineWidthPx}px`,
+                  width: `${(adjustedPositions as any).baselineWidthPx ?? positions.baselineWidthPx}px`,
                   zIndex: 25
                 }}
                 onMouseDown={(e) => {
-                  e.preventDefault(); // 🚫 Prevent browser drag-and-drop globe
+                  console.log('🎯 PROJECT BAR DIRECT MOUSE DOWN:', project.id);
+                  e.preventDefault();
                   e.stopPropagation();
                   handleMouseDown(e, project.id, 'move');
                 }}
@@ -746,9 +891,8 @@ export const TimelineBar = memo(function TimelineBar({
               />
               
               {/* Start date drag circle - center it at the left edge of start column */}
-              <div 
+              <div
                 className="absolute w-[11px] h-[11px] rounded-full shadow-sm cursor-ew-resize pointer-events-auto hover:scale-110 transition-transform"
-                draggable={false} // 🚫 Disable browser drag-and-drop
                 style={{ 
                   backgroundColor: colorScheme.baseline,
                   left: `${adjustedPositions.circleLeftPx - 5.5}px`, // Center circle at left edge of start column
@@ -756,7 +900,8 @@ export const TimelineBar = memo(function TimelineBar({
                   zIndex: 30
                 }}
                 onMouseDown={(e) => {
-                  e.preventDefault(); // 🚫 Prevent browser drag-and-drop globe
+                  console.log('🎯 START CIRCLE DIRECT MOUSE DOWN:', project.id);
+                  e.preventDefault();
                   e.stopPropagation();
                   handleMouseDown(e, project.id, 'resize-start-date');
                 }}
@@ -777,9 +922,8 @@ export const TimelineBar = memo(function TimelineBar({
               {/* End date drag triangle - align right edge with right edge of end column */}
               {/* Hide for continuous projects since they don't have an end date */}
               {!project.continuous && (
-                <div 
+                <div
                   className="absolute cursor-ew-resize z-30 pointer-events-auto"
-                  draggable={false} // 🚫 Disable browser drag-and-drop
                   style={{ 
                     left: `${adjustedPositions.triangleLeftPx - 7}px`, // Position triangle so right edge aligns with right edge of end column
                     top: '-4px', // Center 11px triangle on 3px baseline (5.5px above, 2.5px below)
@@ -789,11 +933,12 @@ export const TimelineBar = memo(function TimelineBar({
                     borderBottom: '5.5px solid transparent',
                     borderRight: `7px solid ${colorScheme.baseline}`
                   }}
-                onMouseDown={(e) => {
-                  e.preventDefault(); // 🚫 Prevent browser drag-and-drop globe
-                  e.stopPropagation();
-                  handleMouseDown(e, project.id, 'resize-end-date');
-                }}
+                  onMouseDown={(e) => {
+                    console.log('🎯 END TRIANGLE DIRECT MOUSE DOWN:', project.id);
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleMouseDown(e, project.id, 'resize-end-date');
+                  }}
                   title="Drag to change end date"
                 />
               )}
@@ -806,7 +951,12 @@ export const TimelineBar = memo(function TimelineBar({
                 viewportEnd={viewportEnd}
                 mode={mode}
                 colorScheme={colorScheme}
-                projectPositions={adjustedPositions}
+                projectPositions={
+                  // Only apply drag offset to milestones during 'move' action
+                  isDragging && dragState?.projectId === project.id && dragState?.action === 'move'
+                    ? adjustedPositions
+                    : positions
+                }
                 isDragging={isDragging}
                 dragState={dragState}
                 onMilestoneDrag={onMilestoneDrag}

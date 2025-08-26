@@ -158,7 +158,23 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   }, [dbAddMilestone]);
 
   const updateMilestone = useCallback(async (id: string, updates: any, options?: { silent?: boolean }): Promise<void> => {
-    await dbUpdateMilestone(id, updates);
+    // Map camelCase fields from UI to snake_case fields expected by the DB layer
+    const dbUpdates: any = {};
+    if (updates.name !== undefined) dbUpdates.name = updates.name;
+    if (updates.projectId !== undefined) dbUpdates.project_id = updates.projectId;
+    if (updates.order !== undefined) dbUpdates.order_index = updates.order;
+    if (updates.timeAllocation !== undefined) dbUpdates.time_allocation = updates.timeAllocation;
+
+    if (updates.dueDate !== undefined) {
+      // Accept Date | string; normalize to ISO string for DB consistency
+      if (updates.dueDate instanceof Date) {
+        dbUpdates.due_date = updates.dueDate.toISOString();
+      } else {
+        dbUpdates.due_date = updates.dueDate;
+      }
+    }
+
+    await dbUpdateMilestone(id, dbUpdates, options);
   }, [dbUpdateMilestone]);
 
   const deleteMilestone = useCallback(async (id: string): Promise<void> => {
