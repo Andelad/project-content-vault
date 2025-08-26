@@ -53,10 +53,13 @@ export class TimelineCalculationService {
     
     // Calculate offset from project start
     const offsetFromProjectStart = this.getDateOffset(milestoneDate, projectStart, mode);
-    const relativeLeft = offsetFromProjectStart * columnWidth;
     
-    // Position relative to project bar
-    const left = projectPosition.left + relativeLeft;
+    // Determine actual day width based on mode
+    const dayWidth = mode === 'weeks' ? 11 : columnWidth; // 11px per day in weeks, columnWidth in days
+    const relativeLeft = offsetFromProjectStart * dayWidth;
+    
+    // Position milestone at END of its day column (add day width)
+    const left = projectPosition.left + relativeLeft + dayWidth;
     const width = 16; // Diamond size
     const height = 16;
     

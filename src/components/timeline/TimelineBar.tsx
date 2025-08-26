@@ -8,6 +8,8 @@ import { getProjectTimeAllocation, memoizedGetProjectTimeAllocation, generateWor
 import { calculateMilestoneSegments, getMilestoneSegmentForDate } from '@/lib/milestoneSegmentUtils';
 import { ProjectIconIndicator } from './ProjectIconIndicator';
 import { ProjectMilestones } from './ProjectMilestones';
+import { TimeAllocationService } from '@/services/TimeAllocationService';
+import { HeightCalculationService } from '@/services/HeightCalculationService';
 
 interface TimelineBarProps {
   project: any;
@@ -177,7 +179,7 @@ export const TimelineBar = memo(function TimelineBar({
     
     // Calculate precise height in pixels (minimum 3px only if estimated hours > 0)
     const heightInPixels = project.estimatedHours > 0 
-      ? Math.max(3, Math.round(exactHoursPerDay * 2))
+      ? HeightCalculationService.calculateProjectHeight(exactHoursPerDay)
       : 0;
     // Cap the outer rectangle at 40px to stay within taller row height (52px - 12px padding)
     const cappedHeight = Math.min(heightInPixels, 40);
@@ -319,45 +321,19 @@ export const TimelineBar = memo(function TimelineBar({
                                   : ''
                               }`}
                               style={(() => {
-                                // Get time allocation info for this specific day
-                                const timeAllocation = memoizedGetProjectTimeAllocation(
+                                // Use centralized time allocation service
+                                const allocation = TimeAllocationService.getTimeAllocationForDate(
                                   project.id,
                                   currentDay,
-                                  events,
                                   project,
+                                  events,
                                   settings,
-                                  holidays
+                                  holidays,
+                                  milestoneSegments
                                 );
 
-                                // Check if there's a milestone segment for this day
-                                const milestoneSegment = getMilestoneSegmentForDate(currentDay, milestoneSegments);
-
-                                // Determine styling based on time allocation type and milestone segment
-                                const isPlannedTime = timeAllocation.type === 'planned';
-
-                                // Calculate daily height - use milestone segment if available, otherwise fallback to timeAllocation
-                                let dailyHours: number;
-                                let heightInPixels: number;
-                                
-                                if (isPlannedTime) {
-                                  // For planned time, use actual planned hours
-                                  dailyHours = timeAllocation.hours;
-                                  heightInPixels = timeAllocation.hours > 0 
-                                    ? Math.max(3, Math.round(dailyHours * 2))
-                                    : 0;
-                                } else if (milestoneSegment) {
-                                  // For auto-estimate with milestone segment, use segment hours per day
-                                  dailyHours = milestoneSegment.hoursPerDay;
-                                  heightInPixels = milestoneSegment.heightInPixels;
-                                } else {
-                                  // Fallback to project auto-estimate
-                                  dailyHours = timeAllocation.hours;
-                                  heightInPixels = timeAllocation.hours > 0 
-                                    ? Math.max(3, Math.round(dailyHours * 2))
-                                    : 0;
-                                }
-
-                                const dayRectangleHeight = Math.min(heightInPixels, 28);
+                                const isPlannedTime = allocation.type === 'planned';
+                                const dayRectangleHeight = allocation.heightInPixels;
 
                                 return {
                                   backgroundColor: isPlannedTime ? project.color : colorScheme.autoEstimate,
@@ -409,39 +385,30 @@ export const TimelineBar = memo(function TimelineBar({
                           </TooltipTrigger>
                           <TooltipContent>
                             {(() => {
-                              // Reuse the same logic used to render the rectangle for consistent tooltip values
-                              const timeAllocation = memoizedGetProjectTimeAllocation(
+                              // Use centralized service for consistent tooltip values
+                              const allocation = TimeAllocationService.getTimeAllocationForDate(
                                 project.id,
                                 currentDay,
-                                events,
                                 project,
+                                events,
                                 settings,
-                                holidays
+                                holidays,
+                                milestoneSegments
                               );
-                              const milestoneSegmentForTooltip = getMilestoneSegmentForDate(currentDay, milestoneSegments);
-                              const isPlanned = timeAllocation.type === 'planned';
-                              const tooltipType = isPlanned ? 'Planned time' : 'Auto-estimate';
-                              const tooltipHours = isPlanned
-                                ? timeAllocation.hours
-                                : (milestoneSegmentForTooltip ? milestoneSegmentForTooltip.hoursPerDay : timeAllocation.hours);
                               
-                              const displayHours = Math.floor(tooltipHours);
-                              const displayMinutes = Math.round((tooltipHours - displayHours) * 60);
+                              const tooltipInfo = TimeAllocationService.getTooltipInfo(allocation);
                               
                               return (
                                 <div className="text-xs">
                                   <div className="font-medium">
-                                    {tooltipType}
+                                    {tooltipInfo.type}
                                   </div>
                                   <div className="text-gray-600">
-                                    {displayMinutes > 0 
-                                      ? `${displayHours}h ${displayMinutes}m/day`
-                                      : `${displayHours} hour${displayHours !== 1 ? 's' : ''}/day`
-                                    }
+                                    {tooltipInfo.displayText}
                                   </div>
-                                  {milestoneSegmentForTooltip?.milestone && (
+                                  {allocation.milestoneSegment?.milestone && (
                                     <div className="text-gray-600 mt-1">
-                                      Target: {milestoneSegmentForTooltip.milestone.name} - {milestoneSegmentForTooltip.milestone.timeAllocation}h
+                                      Target: {allocation.milestoneSegment.milestone.name} - {allocation.milestoneSegment.milestone.timeAllocation}h
                                     </div>
                                   )}
                                 </div>
@@ -522,42 +489,20 @@ export const TimelineBar = memo(function TimelineBar({
               // Check if there's a milestone segment for this day
               const milestoneSegment = getMilestoneSegmentForDate(date, milestoneSegments);
 
-              // Determine styling based on time allocation type and milestone segment
-              const isPlannedTime = timeAllocation.type === 'planned';
+              // Use centralized time allocation service
+              const allocation = TimeAllocationService.getTimeAllocationForDate(
+                project.id,
+                date,
+                project,
+                events,
+                settings,
+                holidays,
+                milestoneSegments
+              );
 
-              // Debug logging for timeline display
-              if (project.id === '37a08232-fba1-4319-b1ab-02165efd3b12') {
-                console.log(`📅 Timeline day ${date.toDateString()} for problem project:`, {
-                  timeAllocationType: timeAllocation.type,
-                  timeAllocationHours: timeAllocation.hours,
-                  milestoneSegmentId: milestoneSegment?.id,
-                  milestoneSegmentHours: milestoneSegment?.hoursPerDay,
-                  isPlannedTime
-                });
-              }
-
-              // Calculate daily height - use milestone segment if available, otherwise fallback to timeAllocation
-              let dailyHours: number;
-              let calculatedHeight: number;
-              
-              if (isPlannedTime) {
-                // For planned time, use actual planned hours
-                dailyHours = timeAllocation.hours;
-                calculatedHeight = timeAllocation.hours > 0 
-                  ? Math.max(3, Math.round(dailyHours * 2))
-                  : 0;
-              } else if (milestoneSegment) {
-                // For auto-estimate with milestone segment, use segment hours per day
-                dailyHours = milestoneSegment.hoursPerDay;
-                calculatedHeight = milestoneSegment.heightInPixels;
-              } else {
-                // Fallback to project auto-estimate
-                dailyHours = timeAllocation.hours;
-                calculatedHeight = timeAllocation.hours > 0 
-                  ? Math.max(3, Math.round(dailyHours * 2))
-                  : 0;
-              }
-              const rectangleHeight = Math.min(calculatedHeight, 28);
+              const isPlannedTime = allocation.type === 'planned';
+              const dailyHours = allocation.hours;
+              const rectangleHeight = allocation.heightInPixels;
               
               // Determine border radius for this day rectangle based on working days
               // Always round upper corners by 3px, remove bottom rounding on last rectangles
@@ -694,30 +639,20 @@ export const TimelineBar = memo(function TimelineBar({
                     </TooltipTrigger>
                     <TooltipContent>
                       {(() => {
-                        // Keep tooltip values in sync with rectangle by reusing computed context
-                        const milestoneSegmentForTooltip = getMilestoneSegmentForDate(date, milestoneSegments);
-                        const tooltipType = isPlannedTime ? 'Planned time' : 'Auto-estimate';
-                        const tooltipHours = isPlannedTime
-                          ? timeAllocation.hours
-                          : (milestoneSegmentForTooltip ? milestoneSegmentForTooltip.hoursPerDay : timeAllocation.hours);
-                        
-                        const displayHours = Math.floor(tooltipHours);
-                        const displayMinutes = Math.round((tooltipHours - displayHours) * 60);
+                        // Use centralized service for consistent tooltip values
+                        const tooltipInfo = TimeAllocationService.getTooltipInfo(allocation);
                         
                         return (
                           <div className="text-xs">
                             <div className="font-medium">
-                              {tooltipType}
+                              {tooltipInfo.type}
                             </div>
                             <div className="text-gray-600">
-                              {displayMinutes > 0 
-                                ? `${displayHours}h ${displayMinutes}m/day`
-                                : `${displayHours} hour${displayHours !== 1 ? 's' : ''}/day`
-                              }
+                              {tooltipInfo.displayText}
                             </div>
-                            {milestoneSegmentForTooltip?.milestone && (
+                            {allocation.milestoneSegment?.milestone && (
                               <div className="text-gray-600 mt-1">
-                                Target: {milestoneSegmentForTooltip.milestone.name} - {milestoneSegmentForTooltip.milestone.timeAllocation}h
+                                Target: {allocation.milestoneSegment.milestone.name} - {allocation.milestoneSegment.milestone.timeAllocation}h
                               </div>
                             )}
                           </div>

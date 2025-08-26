@@ -1,5 +1,6 @@
 import { Milestone } from '@/types/core';
 import { calculateWorkHourCapacity } from './workHoursUtils';
+import { HeightCalculationService } from '@/services/HeightCalculationService';
 
 export interface MilestoneSegment {
   id: string;
@@ -47,10 +48,10 @@ export function calculateMilestoneSegments(
     const milestoneDate = new Date(milestone.dueDate);
     milestoneDate.setHours(0, 0, 0, 0);
 
-    // Segment end date is the milestone date itself (work happens up TO the milestone)
+    // Segment end date is the milestone date itself (work happens up TO and INCLUDING the milestone)
     const segmentEndDate = new Date(milestoneDate);
 
-    // Calculate working days in this segment (up to day before milestone)
+    // Calculate working days in this segment (including milestone day)
     const workingDays = calculateWorkingDaysInRange(
       currentStartDate,
       segmentEndDate,
@@ -72,7 +73,7 @@ export function calculateMilestoneSegments(
 
     // Calculate hours per day and visual height
     const hoursPerDay = workingDays > 0 ? remainingBudget / workingDays : 0;
-    const heightInPixels = calculateSegmentHeight(hoursPerDay);
+    const heightInPixels = HeightCalculationService.calculateSegmentHeight(hoursPerDay);
 
     // Debug logging
     console.log(`🎯 Milestone ${milestone.id} calculation for project ${projectId}:`, {
@@ -157,7 +158,7 @@ export function calculateMilestoneSegments(
 
         // Calculate hours per day and visual height for remaining time
         const remainingHoursPerDay = remainingWorkingDays > 0 ? remainingAutoEstimateBudget / remainingWorkingDays : 0;
-        const remainingHeightInPixels = calculateSegmentHeight(remainingHoursPerDay);
+        const remainingHeightInPixels = HeightCalculationService.calculateSegmentHeight(remainingHoursPerDay);
 
         console.log(`🏁 Remaining segment calculation for project ${projectId}:`, {
           remainingBudget,
@@ -239,17 +240,36 @@ function calculateWorkingDaysInRange(
     
     if (workHours) {
       // Use actual work hours to determine if this date has work time
-      const currentDateString = current.toISOString().split('T')[0];
+      // Use local date string to avoid timezone issues
+      const currentDateString = current.getFullYear() + '-' + 
+        String(current.getMonth() + 1).padStart(2, '0') + '-' + 
+        String(current.getDate()).padStart(2, '0');
+      
       const dayWorkHours = workHours.filter(wh => {
         // Handle both Date objects and ISO strings for startTime
         const whDate = wh.startTime instanceof Date ? wh.startTime : new Date(wh.startTime);
-        const whDateString = whDate.toISOString().split('T')[0];
+        // Use local date string for work hours too
+        const whDateString = whDate.getFullYear() + '-' + 
+          String(whDate.getMonth() + 1).padStart(2, '0') + '-' + 
+          String(whDate.getDate()).padStart(2, '0');
         return whDateString === currentDateString;
       });
       
       // Calculate total work hours for this specific date
       const totalWorkHours = dayWorkHours.reduce((sum, wh) => sum + (wh.duration || 0), 0);
       hasWorkHours = totalWorkHours > 0;
+      
+      // Debug logging for work hours filtering
+      console.log(`📅 Working day check for ${current.toDateString()}:`, {
+        currentDateString,
+        dayWorkHoursFound: dayWorkHours.length,
+        totalWorkHours,
+        hasWorkHours,
+        sampleWorkHour: dayWorkHours[0] ? {
+          startTime: dayWorkHours[0].startTime,
+          duration: dayWorkHours[0].duration
+        } : 'none'
+      });
     } else {
       // Fallback to general working day function
       hasWorkHours = isWorkingDay(current);
@@ -279,15 +299,10 @@ function calculateWorkingDaysInRange(
 
 /**
  * Calculate visual height for segment based on hours per day
+ * @deprecated Use HeightCalculationService.calculateSegmentHeight instead
  */
 function calculateSegmentHeight(hoursPerDay: number): number {
-  if (hoursPerDay === 0) return 0;
-  
-  // Similar logic to project auto-estimate: minimum 3px, scale by hours
-  const heightInPixels = Math.max(3, Math.round(hoursPerDay * 2));
-  
-  // Cap at 40px to stay within row height
-  return Math.min(heightInPixels, 40);
+  return HeightCalculationService.calculateSegmentHeight(hoursPerDay);
 }
 
 /**

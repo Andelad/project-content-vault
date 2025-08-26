@@ -72,11 +72,13 @@ export const ProjectMilestones = memo(function ProjectMilestones({
       if (mode === 'weeks') {
         // In weeks mode, use simple 11px per day calculation
         const dayWidth = 11; // Same as in timelinePositioning.ts
-        milestonePosition = projectPositions.circleLeftPx + (daysFromProjectStart * dayWidth);
+        // Position milestone at END of day column (start + offset days + current day width)
+        milestonePosition = projectPositions.circleLeftPx + (daysFromProjectStart * dayWidth) + dayWidth;
       } else {
         // In days mode, use column-based positioning
         const columnWidth = 40;
-        milestonePosition = projectPositions.circleLeftPx + (daysFromProjectStart * columnWidth);
+        // Position milestone at END of day column (start + offset days + current day width)
+        milestonePosition = projectPositions.circleLeftPx + (daysFromProjectStart * columnWidth) + columnWidth;
       }
 
       return {

@@ -1,4 +1,5 @@
 // Utility functions for date calculations to avoid repeated computations
+import { HeightCalculationService } from '@/services/HeightCalculationService';
 
 const dateCache = new Map<string, Date>();
 
@@ -22,7 +23,7 @@ export function calculateProjectMetrics(project: any) {
   const totalDays = Math.ceil((projectEnd.getTime() - projectStart.getTime()) / (24 * 60 * 60 * 1000)) + 1;
   const hoursPerDay = project.estimatedHours / totalDays;
   const roundedHoursPerDay = Math.ceil(hoursPerDay);
-  const heightInPixels = roundedHoursPerDay * 2;
+  const heightInPixels = HeightCalculationService.calculateProjectHeight(roundedHoursPerDay);
   
   return {
     dailyHours: roundedHoursPerDay,

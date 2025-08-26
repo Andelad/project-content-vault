@@ -1,4 +1,14 @@
 // timeline-calculations.worker.js
+// Import the centralized height calculation service
+// Note: In a real implementation, you'd need to set up proper module imports for web workers
+// For now, we'll inline the calculation function
+
+function calculateRectangleHeight(hoursPerDay, maxHeight = 28) {
+  if (hoursPerDay === 0) return 0;
+  const heightInPixels = Math.max(3, Math.round(hoursPerDay * 2));
+  return Math.min(heightInPixels, maxHeight);
+}
+
 self.addEventListener('message', function(e) {
   const { projects, dates, settings, holidays, mode } = e.data;
   
@@ -22,7 +32,7 @@ self.addEventListener('message', function(e) {
             day: currentDay.getTime(),
             timeAllocation,
             isWorking,
-            height: Math.max(3, Math.round(timeAllocation.hours * 2))
+            height: calculateRectangleHeight(timeAllocation.hours, 28)
           });
         }
         

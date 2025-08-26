@@ -1,4 +1,5 @@
 import { PERFORMANCE_LIMITS } from '../constants';
+import { HeightCalculationService } from '@/services/HeightCalculationService';
 
 // Memoization utilities for expensive calculations
 
@@ -141,7 +142,7 @@ export const memoizedProjectMetrics = memoizeExpensiveCalculation(
     const dailyHours = Math.floor(exactHoursPerDay);
     const dailyMinutes = Math.round((exactHoursPerDay - dailyHours) * 60);
     const heightInPixels = project.estimatedHours > 0 
-      ? Math.max(3, Math.min(32, Math.round(exactHoursPerDay * 2)))
+      ? HeightCalculationService.calculateProjectHeight(exactHoursPerDay)
       : 0;
     
     return {
