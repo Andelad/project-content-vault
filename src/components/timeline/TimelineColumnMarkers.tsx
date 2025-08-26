@@ -49,7 +49,7 @@ export const TimelineColumnMarkers = memo(function TimelineColumnMarkers({ dates
                   if (!isWeekendDay) return null;
 
                   const leftPx = (dayOffset / 7) * columnWidth;
-                  const dayWidthPx = columnWidth / 7;
+                  const dayWidthPx = 11; // Exact 11px per day (77px ÷ 7 days)
 
                   return (
                     <React.Fragment key={`week-${index}-day-${dayOffset}`}>

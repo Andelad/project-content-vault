@@ -91,34 +91,54 @@ export function TimelineAddProjectRow({ groupId, dates, mode = 'days' }: Timelin
     const rect = containerRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     
-    // Helper function to get column position accounting for gaps
-    const getColumnLeftPosition = (index: number) => {
-      return (index * columnWidth) + (index * gap); // Column width plus gaps
-    };
-    
-    // Find the day index based on x position (accounting for gaps)
     let dayIndex = 0;
-    for (let i = 0; i < dates.length; i++) {
-      const columnLeft = getColumnLeftPosition(i);
-      const columnRight = columnLeft + columnWidth;
-      if (x >= columnLeft && x < columnRight) {
-        dayIndex = i;
-        break;
-      } else if (x >= columnRight && i === dates.length - 1) {
-        dayIndex = i; // Last column
-        break;
-      } else if (x < columnLeft) {
-        dayIndex = Math.max(0, i - 1);
-        break;
+    
+    if (mode === 'weeks') {
+      // In weeks mode, calculate precise day-level index within the timeline
+      const dayWidth = 11; // Exact 11px per day (77px ÷ 7 days)
+      const totalDays = dates.length * 7; // Total number of days across all weeks
+      dayIndex = Math.floor(x / dayWidth);
+      dayIndex = Math.max(0, Math.min(dayIndex, totalDays - 1));
+    } else {
+      // Helper function to get column position accounting for gaps (days mode only)
+      const getColumnLeftPosition = (index: number) => {
+        return (index * columnWidth) + (index * gap); // Column width plus gaps
+      };
+      
+      // Find the day index based on x position (accounting for gaps) - days mode
+      for (let i = 0; i < dates.length; i++) {
+        const columnLeft = getColumnLeftPosition(i);
+        const columnRight = columnLeft + columnWidth;
+        if (x >= columnLeft && x < columnRight) {
+          dayIndex = i;
+          break;
+        } else if (x >= columnRight && i === dates.length - 1) {
+          dayIndex = i; // Last column
+          break;
+        } else if (x < columnLeft) {
+          dayIndex = Math.max(0, i - 1);
+          break;
+        }
       }
     }
     
     if (isDragging && dragState) {
       // Calculate end day based on current mouse position
-      const clampedEndDayIndex = Math.max(dragState.startDayIndex, Math.min(dayIndex, dates.length - 1));
+      const maxDayIndex = mode === 'weeks' ? (dates.length * 7 - 1) : (dates.length - 1);
+      const clampedEndDayIndex = Math.max(dragState.startDayIndex, Math.min(dayIndex, maxDayIndex));
       const newDayCount = clampedEndDayIndex - dragState.startDayIndex + 1;
       
-      const left = getColumnLeftPosition(dragState.startDayIndex);
+      // Calculate left position based on mode
+      let left: number;
+      if (mode === 'weeks') {
+        left = dragState.startDayIndex * 11; // 11px per day
+      } else {
+        const getColumnLeftPosition = (index: number) => {
+          return (index * columnWidth) + (index * gap);
+        };
+        left = getColumnLeftPosition(dragState.startDayIndex);
+      }
+      
       setHoverBar({ 
         visible: true, 
         left, 
@@ -142,8 +162,19 @@ export function TimelineAddProjectRow({ groupId, dates, mode = 'days' }: Timelin
       }
     } else {
       // Normal hover behavior
-      const clampedDayIndex = Math.max(0, Math.min(dayIndex, dates.length - defaultSpan));
-      const left = getColumnLeftPosition(clampedDayIndex);
+      const maxDayIndex = mode === 'weeks' ? (dates.length * 7 - 1) : (dates.length - 1);
+      const clampedDayIndex = Math.max(0, Math.min(dayIndex, maxDayIndex - defaultSpan + 1));
+      
+      // Calculate left position based on mode
+      let left: number;
+      if (mode === 'weeks') {
+        left = clampedDayIndex * 11; // 11px per day
+      } else {
+        const getColumnLeftPosition = (index: number) => {
+          return (index * columnWidth) + (index * gap);
+        };
+        left = getColumnLeftPosition(clampedDayIndex);
+      }
 
       setHoverBar({ visible: true, left, dayIndex: clampedDayIndex, dayCount: defaultSpan });
     }
@@ -161,34 +192,43 @@ export function TimelineAddProjectRow({ groupId, dates, mode = 'days' }: Timelin
     e.preventDefault();
     setIsDragging(true);
 
-    // Helper function to get column position accounting for gaps
-    const getColumnLeftPosition = (index: number) => {
-      return (index * 40) + (index * 1); // 40px per column + 1px gap per column before this one
-    };
-
-    // Add global mouse event listeners
     // Set the start date based on click position, not the hover bar position
     const rect = containerRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     
-    // Find the day index based on x position (accounting for gaps)
     let clickedDayIndex = 0;
-    for (let i = 0; i < dates.length; i++) {
-      const columnLeft = getColumnLeftPosition(i);
-      const columnRight = columnLeft + columnWidth;
-      if (x >= columnLeft && x < columnRight) {
-        clickedDayIndex = i;
-        break;
-      } else if (x >= columnRight && i === dates.length - 1) {
-        clickedDayIndex = i; // Last column
-        break;
-      } else if (x < columnLeft) {
-        clickedDayIndex = Math.max(0, i - 1);
-        break;
+    
+    if (mode === 'weeks') {
+      // In weeks mode, calculate precise day-level index
+      const dayWidth = 11; // Exact 11px per day (77px ÷ 7 days)
+      const totalDays = dates.length * 7;
+      clickedDayIndex = Math.floor(x / dayWidth);
+      clickedDayIndex = Math.max(0, Math.min(clickedDayIndex, totalDays - 1));
+    } else {
+      // Helper function for days mode gaps
+      const getColumnLeftPosition = (index: number) => {
+        return (index * columnWidth) + (index * gap);
+      };
+      
+      // Find the day index based on x position (accounting for gaps) - days mode
+      for (let i = 0; i < dates.length; i++) {
+        const columnLeft = getColumnLeftPosition(i);
+        const columnRight = columnLeft + columnWidth;
+        if (x >= columnLeft && x < columnRight) {
+          clickedDayIndex = i;
+          break;
+        } else if (x >= columnRight && i === dates.length - 1) {
+          clickedDayIndex = i; // Last column
+          break;
+        } else if (x < columnLeft) {
+          clickedDayIndex = Math.max(0, i - 1);
+          break;
+        }
       }
     }
     
-    const clampedStartDayIndex = Math.max(0, Math.min(clickedDayIndex, dates.length - 1));
+    const maxDayIndex = mode === 'weeks' ? (dates.length * 7 - 1) : (dates.length - 1);
+    const clampedStartDayIndex = Math.max(0, Math.min(clickedDayIndex, maxDayIndex));
     
     const currentDragState = {
       startX: e.clientX,
@@ -199,8 +239,18 @@ export function TimelineAddProjectRow({ groupId, dates, mode = 'days' }: Timelin
     setDragState(currentDragState);
 
     // Set initial bar position with default span from click position
-    const left = getColumnLeftPosition(clampedStartDayIndex);
-    const initialDayCount = Math.min(defaultSpan, dates.length - clampedStartDayIndex);
+    let left: number;
+    if (mode === 'weeks') {
+      left = clampedStartDayIndex * 11; // 11px per day
+    } else {
+      const getColumnLeftPosition = (index: number) => {
+        return (index * columnWidth) + (index * gap);
+      };
+      left = getColumnLeftPosition(clampedStartDayIndex);
+    }
+    
+    const maxAvailableDays = maxDayIndex - clampedStartDayIndex + 1;
+    const initialDayCount = Math.min(defaultSpan, maxAvailableDays);
     setHoverBar({ 
       visible: true, 
       left, 
@@ -214,28 +264,53 @@ export function TimelineAddProjectRow({ groupId, dates, mode = 'days' }: Timelin
       const rect = containerRef.current.getBoundingClientRect();
       const x = e.clientX - rect.left;
       
-      // Find the day index based on x position (accounting for gaps)
       let currentDayIndex = 0;
-      for (let i = 0; i < dates.length; i++) {
-        const columnLeft = getColumnLeftPosition(i);
-        const columnRight = columnLeft + columnWidth;
-        if (x >= columnLeft && x < columnRight) {
-          currentDayIndex = i;
-          break;
-        } else if (x >= columnRight && i === dates.length - 1) {
-          currentDayIndex = i; // Last column
-          break;
-        } else if (x < columnLeft) {
-          currentDayIndex = Math.max(0, i - 1);
-          break;
+      
+      if (mode === 'weeks') {
+        // In weeks mode, calculate precise day-level index
+        const dayWidth = 11; // Exact 11px per day (77px ÷ 7 days)
+        const totalDays = dates.length * 7;
+        currentDayIndex = Math.floor(x / dayWidth);
+        currentDayIndex = Math.max(0, Math.min(currentDayIndex, totalDays - 1));
+      } else {
+        // Helper function for days mode gaps
+        const getColumnLeftPosition = (index: number) => {
+          return (index * columnWidth) + (index * gap);
+        };
+        
+        // Find the day index based on x position (accounting for gaps) - days mode
+        for (let i = 0; i < dates.length; i++) {
+          const columnLeft = getColumnLeftPosition(i);
+          const columnRight = columnLeft + columnWidth;
+          if (x >= columnLeft && x < columnRight) {
+            currentDayIndex = i;
+            break;
+          } else if (x >= columnRight && i === dates.length - 1) {
+            currentDayIndex = i; // Last column
+            break;
+          } else if (x < columnLeft) {
+            currentDayIndex = Math.max(0, i - 1);
+            break;
+          }
         }
       }
       
       // Calculate end day based on current mouse position
-      const clampedEndDayIndex = Math.max(currentDragState.startDayIndex, Math.min(currentDayIndex, dates.length - 1));
+      const maxDayIndex = mode === 'weeks' ? (dates.length * 7 - 1) : (dates.length - 1);
+      const clampedEndDayIndex = Math.max(currentDragState.startDayIndex, Math.min(currentDayIndex, maxDayIndex));
       const newDayCount = clampedEndDayIndex - currentDragState.startDayIndex + 1;
       
-      const left = getColumnLeftPosition(currentDragState.startDayIndex);
+      // Calculate left position based on mode
+      let left: number;
+      if (mode === 'weeks') {
+        left = currentDragState.startDayIndex * 11; // 11px per day
+      } else {
+        const getColumnLeftPosition = (index: number) => {
+          return (index * columnWidth) + (index * gap);
+        };
+        left = getColumnLeftPosition(currentDragState.startDayIndex);
+      }
+      
       setHoverBar({ 
         visible: true, 
         left, 
@@ -273,16 +348,43 @@ export function TimelineAddProjectRow({ groupId, dates, mode = 'days' }: Timelin
         const firstRowId = groupRows.sort((a, b) => a.order - b.order)[0].id;
 
         // Calculate date range and open modal
-        const startDate = new Date(dates[hoverBar.dayIndex]);
+        let startDate: Date;
         let endDate: Date;
         
         if (mode === 'weeks') {
-          // For weeks mode, end date should be the end of the last week
-          const endWeekStart = new Date(dates[Math.min(hoverBar.dayIndex + hoverBar.dayCount - 1, dates.length - 1)]);
-          endDate = new Date(endWeekStart);
-          endDate.setDate(endWeekStart.getDate() + 6); // End of week
+          // In weeks mode, dayIndex is now a day-level index across all weeks
+          // Calculate which week and day within week
+          const weekIndex = Math.floor(hoverBar.dayIndex / 7);
+          const dayInWeek = hoverBar.dayIndex % 7;
+          
+          if (weekIndex < dates.length) {
+            const weekStart = new Date(dates[weekIndex]);
+            startDate = new Date(weekStart);
+            startDate.setDate(weekStart.getDate() + dayInWeek);
+            
+            // Calculate end date
+            const endDayIndex = hoverBar.dayIndex + hoverBar.dayCount - 1;
+            const endWeekIndex = Math.floor(endDayIndex / 7);
+            const endDayInWeek = endDayIndex % 7;
+            
+            if (endWeekIndex < dates.length) {
+              const endWeekStart = new Date(dates[endWeekIndex]);
+              endDate = new Date(endWeekStart);
+              endDate.setDate(endWeekStart.getDate() + endDayInWeek);
+            } else {
+              // Fallback to last available date
+              endDate = new Date(startDate);
+              endDate.setDate(startDate.getDate() + hoverBar.dayCount - 1);
+            }
+          } else {
+            // Fallback
+            startDate = new Date(dates[0]);
+            endDate = new Date(startDate);
+            endDate.setDate(startDate.getDate() + hoverBar.dayCount - 1);
+          }
         } else {
-          // Days mode - use the actual end date
+          // Days mode - use the actual date indices
+          startDate = new Date(dates[hoverBar.dayIndex]);
           const endDateIndex = Math.min(hoverBar.dayIndex + hoverBar.dayCount - 1, dates.length - 1);
           endDate = new Date(dates[endDateIndex]);
         }
@@ -328,16 +430,41 @@ export function TimelineAddProjectRow({ groupId, dates, mode = 'days' }: Timelin
     const firstRowId = groupRows.sort((a, b) => a.order - b.order)[0].id;
 
     // Calculate date range starting from hovered day
-    const startDate = new Date(dates[hoverBar.dayIndex]);
+    let startDate: Date;
     let endDate: Date;
     
     if (mode === 'weeks') {
-      // For weeks mode, end date should be the end of the last week
-      const endWeekStart = new Date(dates[Math.min(hoverBar.dayIndex + hoverBar.dayCount - 1, dates.length - 1)]);
-      endDate = new Date(endWeekStart);
-      endDate.setDate(endWeekStart.getDate() + 6); // End of week
+      // In weeks mode, dayIndex is now a day-level index across all weeks
+      const weekIndex = Math.floor(hoverBar.dayIndex / 7);
+      const dayInWeek = hoverBar.dayIndex % 7;
+      
+      if (weekIndex < dates.length) {
+        const weekStart = new Date(dates[weekIndex]);
+        startDate = new Date(weekStart);
+        startDate.setDate(weekStart.getDate() + dayInWeek);
+        
+        // Calculate end date
+        const endDayIndex = hoverBar.dayIndex + hoverBar.dayCount - 1;
+        const endWeekIndex = Math.floor(endDayIndex / 7);
+        const endDayInWeek = endDayIndex % 7;
+        
+        if (endWeekIndex < dates.length) {
+          const endWeekStart = new Date(dates[endWeekIndex]);
+          endDate = new Date(endWeekStart);
+          endDate.setDate(endWeekStart.getDate() + endDayInWeek);
+        } else {
+          endDate = new Date(startDate);
+          endDate.setDate(startDate.getDate() + hoverBar.dayCount - 1);
+        }
+      } else {
+        // Fallback
+        startDate = new Date(dates[0]);
+        endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + hoverBar.dayCount - 1);
+      }
     } else {
-      // Days mode - use the actual end date
+      // Days mode - use the actual date indices
+      startDate = new Date(dates[hoverBar.dayIndex]);
       const endDateIndex = Math.min(hoverBar.dayIndex + hoverBar.dayCount - 1, dates.length - 1);
       endDate = new Date(dates[endDateIndex]);
     }
@@ -345,10 +472,25 @@ export function TimelineAddProjectRow({ groupId, dates, mode = 'days' }: Timelin
     setCreatingNewProject(groupId, { startDate, endDate }, firstRowId);
   };
 
-  const dayWidth = columnWidth; // Column width based on mode
-  const barWidth = hoverBar 
-    ? (hoverBar.dayCount * columnWidth) + ((hoverBar.dayCount - 1) * gap) 
-    : (defaultSpan * columnWidth) + ((defaultSpan - 1) * gap); // Account for gaps
+  // Calculate bar width based on mode
+  let barWidth: number;
+  if (hoverBar) {
+    if (mode === 'weeks') {
+      // In weeks mode, each day is 11px wide
+      barWidth = hoverBar.dayCount * 11;
+    } else {
+      // Days mode - use column width and gaps
+      barWidth = (hoverBar.dayCount * columnWidth) + ((hoverBar.dayCount - 1) * gap);
+    }
+  } else {
+    if (mode === 'weeks') {
+      // Default span in weeks mode
+      barWidth = defaultSpan * 11;
+    } else {
+      // Default span in days mode
+      barWidth = (defaultSpan * columnWidth) + ((defaultSpan - 1) * gap);
+    }
+  }
 
   return (
     <div 
@@ -356,7 +498,7 @@ export function TimelineAddProjectRow({ groupId, dates, mode = 'days' }: Timelin
       className={`h-[52px] border-b border-gray-100 relative transition-colors ${ 
         isDragging ? 'cursor-grabbing' : 'cursor-pointer hover:bg-gray-50/30'
       }`}
-      style={{ minWidth: `${dates.length * columnWidth}px` }}
+      style={{ minWidth: mode === 'weeks' ? `${dates.length * 77}px` : `${dates.length * columnWidth}px` }}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       onMouseDown={handleMouseDown}
@@ -601,7 +743,7 @@ function HolidayBar({
   handleHolidayMouseDown,
   mode = 'days'
 }: HolidayBarProps) {
-  const columnWidth = mode === 'weeks' ? 72 : 40;
+  const columnWidth = mode === 'weeks' ? 77 : 40;
   const [mouseDownTime, setMouseDownTime] = useState<number | null>(null);
   const [mouseDownPos, setMouseDownPos] = useState<{ x: number; y: number } | null>(null);
   const [hasMoved, setHasMoved] = useState(false);
@@ -675,7 +817,7 @@ function HolidayBar({
           style={(() => {
             if (mode === 'weeks') {
               // For week mode, calculate the precise positioning within week columns
-              const dayWidth = columnWidth / 7; // ~10.3px per day
+              const dayWidth = 11; // Exact 11px per day (77px ÷ 7 days)
               
               // Use modulo to get position within the current week
               const holidayStartInCurrentWeek = holiday.startIndex % 7; // Day of week (0-6)

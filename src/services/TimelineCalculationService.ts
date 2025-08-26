@@ -156,6 +156,14 @@ export class TimelineCalculationService {
     viewport: ViewportConfig
   ): Date {
     const { startDate, columnWidth, mode } = viewport;
+    
+    if (mode === 'weeks') {
+      // In weeks mode, each day is exactly 11px (77px ÷ 7 days = 11px per day)
+      const dayWidth = 11;
+      const dayOffset = Math.round(pixelPosition / dayWidth);
+      return this.addDateOffset(startDate, dayOffset, 'days');
+    }
+    
     const offset = Math.round(pixelPosition / columnWidth);
     return this.addDateOffset(startDate, offset, mode);
   }
@@ -168,6 +176,14 @@ export class TimelineCalculationService {
     viewport: ViewportConfig
   ): number {
     const { startDate, columnWidth, mode } = viewport;
+    
+    if (mode === 'weeks') {
+      // In weeks mode, calculate exact day offset and multiply by 11px per day
+      const dayWidth = 11;
+      const dayOffset = this.getDateOffset(date, startDate, 'days');
+      return dayOffset * dayWidth;
+    }
+    
     const offset = this.getDateOffset(date, startDate, mode);
     return offset * columnWidth;
   }

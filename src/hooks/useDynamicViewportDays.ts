@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 
 const MIN_DAY_COLUMN_WIDTH = 40; // 40px minimum width per day column
-const MIN_WEEK_COLUMN_WIDTH = 72; // 72px minimum width per week column
+const MIN_WEEK_COLUMN_WIDTH = 77; // 77px minimum width per week column (7 days × 11px)
 const MIN_VIEWPORT_DAYS = 7; // Always show at least 7 days
 const MAX_VIEWPORT_DAYS = 60; // Reduced from 120 for better performance
 const MIN_VIEWPORT_WEEKS = 4; // Always show at least 4 weeks

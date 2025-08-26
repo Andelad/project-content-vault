@@ -77,14 +77,15 @@ export const SmartHoverAddHolidayBar: React.FC<SmartHoverAddHolidayBarProps> = (
     
     if (mode === 'weeks') {
       // In week mode, calculate precise day-level index within week columns
-      const columnWidth = 72;
-      const dayWidth = columnWidth / 7; // ~10.3px per day
+      const dayWidth = 11; // Exact 11px per day (77px ÷ 7 days)
       const totalDays = dates.length * 7; // Total number of days across all weeks
       const dayIndex = Math.floor(x / dayWidth);
       index = Math.max(0, Math.min(totalDays - 1, dayIndex));
     } else {
-      // Days mode uses the original calculation
-      index = Math.floor((x / rect.width) * dates.length);
+      // Days mode: use actual column width (40px) with no gaps
+      const columnWidth = 40;
+      index = Math.floor(x / columnWidth);
+      index = Math.max(0, Math.min(dates.length - 1, index));
     }
     
     if (index >= 0 && index < (mode === 'weeks' ? dates.length * 7 : dates.length) && !occupiedIndices.has(index)) {
@@ -113,8 +114,10 @@ export const SmartHoverAddHolidayBar: React.FC<SmartHoverAddHolidayBarProps> = (
       clickIndex = Math.floor(x / dayWidth);
       clickIndex = Math.max(0, Math.min(totalDays - 1, clickIndex));
     } else {
-      // Days mode uses the original calculation
-      clickIndex = Math.floor((x / rect.width) * dates.length);
+      // Days mode: use actual column width (40px) with no gaps
+      const columnWidth = 40;
+      clickIndex = Math.floor(x / columnWidth);
+      clickIndex = Math.max(0, Math.min(dates.length - 1, clickIndex));
     }
     
     if (clickIndex >= 0 && clickIndex < (mode === 'weeks' ? dates.length * 7 : dates.length) && occupiedIndices.has(clickIndex)) {
@@ -147,13 +150,14 @@ export const SmartHoverAddHolidayBar: React.FC<SmartHoverAddHolidayBarProps> = (
       
       if (mode === 'weeks') {
         // In week mode, calculate precise day-level index within week columns
-        const dayWidth = 72 / 7; // ~10.3px per day
+        const dayWidth = 11; // Exact 11px per day (77px ÷ 7 days)
         const totalDays = dates.length * 7; // Total number of days across all weeks
         index = Math.floor(x / dayWidth);
         index = Math.max(0, Math.min(totalDays - 1, index));
       } else {
-        // Days mode uses the original calculation
-        index = Math.floor((x / rect.width) * dates.length);
+        // Days mode: use actual column width (40px) with no gaps
+        const columnWidth = 40;
+        index = Math.floor(x / columnWidth);
         index = Math.max(0, Math.min(dates.length - 1, index));
       }
       
@@ -252,14 +256,14 @@ export const SmartHoverAddHolidayBar: React.FC<SmartHoverAddHolidayBarProps> = (
     
     if (mode === 'weeks') {
       // For week mode with day-level precision
-      const dayWidth = 72 / 7; // ~10.3px per day
-      const totalWidth = dates.length * 72; // Total timeline width
-      width = ((endIndex - startIndex + 1) * dayWidth / totalWidth) * 100;
-      left = (startIndex * dayWidth / totalWidth) * 100;
+      const dayWidth = 11; // Exact 11px per day (77px ÷ 7 days)
+      width = (endIndex - startIndex + 1) * dayWidth;
+      left = startIndex * dayWidth;
     } else {
-      // Days mode uses original calculation
-      width = ((endIndex - startIndex + 1) / dates.length) * 100;
-      left = (startIndex / dates.length) * 100;
+      // Days mode: use actual column width with no gaps
+      const columnWidth = 40;
+      width = (endIndex - startIndex + 1) * columnWidth;
+      left = startIndex * columnWidth;
     }
     
     return (
@@ -270,8 +274,8 @@ export const SmartHoverAddHolidayBar: React.FC<SmartHoverAddHolidayBarProps> = (
             : 'bg-red-100/50 border-red-400'
         }`}
         style={{
-          left: `${left}%`,
-          width: `${width}%`
+          left: `${left}px`,
+          width: `${width}px`
         }}
       >
         <span className="text-xs font-medium text-orange-800">
