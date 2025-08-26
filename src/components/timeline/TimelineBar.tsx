@@ -1,7 +1,9 @@
 import React, { memo, useMemo } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
-import { useAppDataOnly } from '../../contexts/AppContext';
+import { useProjectContext } from '../../contexts/ProjectContext';
+import { usePlannerContext } from '../../contexts/PlannerContext';
+import { useSettingsContext } from '../../contexts/SettingsContext';
 import { calculateTimelinePositions, getSafePosition } from '@/lib/timelinePositioning';
 import { calculateWorkHourCapacity, isHolidayDate } from '@/lib/workHoursUtils';
 import { getProjectTimeAllocation, memoizedGetProjectTimeAllocation, generateWorkHoursForDate } from '@/lib/eventWorkHourUtils';
@@ -64,7 +66,9 @@ export const TimelineBar = memo(function TimelineBar({
   onMilestoneDrag,
   onMilestoneDragEnd
 }: TimelineBarProps) {
-  const { settings, events, holidays, milestones } = useAppDataOnly();
+  const { milestones } = useProjectContext();
+  const { events, holidays } = usePlannerContext();
+  const { settings } = useSettingsContext();
   
   // Memoize project days calculation
   const projectDays = useMemo(() => {

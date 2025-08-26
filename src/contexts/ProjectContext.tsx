@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import { Project, Group, Row } from '@/types/core';
 import { useProjects as useProjectsHook } from '@/hooks/useProjects';
 import { useGroups } from '@/hooks/useGroups';
@@ -6,16 +6,18 @@ import { useRows } from '@/hooks/useRows';
 import { useMilestones } from '@/hooks/useMilestones';
 import { getProjectColor, getGroupColor } from '@/constants';
 import type { Database } from '@/integrations/supabase/types';
+import { Milestone } from '@/types/core';
 
-type Milestone = Database['public']['Tables']['milestones']['Row'];
+type DbMilestone = Database['public']['Tables']['milestones']['Row'];
 
 interface ProjectContextType {
   // Projects
   projects: any[]; // Using any[] for now to avoid type conflicts
   addProject: (project: any) => Promise<any>;
-  updateProject: (id: string, updates: any) => void;
+  updateProject: (id: string, updates: any, options?: { silent?: boolean }) => void;
   deleteProject: (id: string) => void;
   reorderProjects: (groupId: string, fromIndex: number, toIndex: number) => void;
+  showProjectSuccessToast: (message?: string) => void;
   
   // Groups
   groups: any[];
@@ -31,12 +33,14 @@ interface ProjectContextType {
   deleteRow: (id: string) => void;
   reorderRows: (groupId: string, fromIndex: number, toIndex: number) => void;
   
-  // Milestones
+    // Milestones
   milestones: Milestone[];
-  addMilestone: (milestone: any) => Promise<void>;
-  updateMilestone: (id: string, updates: any) => Promise<void>;
+  addMilestone: (milestone: any, options?: { silent?: boolean }) => Promise<void>;
+  updateMilestone: (id: string, updates: any, options?: { silent?: boolean }) => void;
   deleteMilestone: (id: string) => Promise<void>;
   getMilestonesForProject: (projectId: string) => Milestone[];
+  showMilestoneSuccessToast: (message?: string) => void;
+  normalizeMilestoneOrders: (projectId?: string, options?: { silent?: boolean }) => Promise<void>;
   
   // Selection state
   selectedProjectId: string | null;
@@ -72,7 +76,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     addProject: dbAddProject, 
     updateProject: dbUpdateProject, 
     deleteProject: dbDeleteProject, 
-    reorderProjects: dbReorderProjects 
+    reorderProjects: dbReorderProjects,
+    showSuccessToast: showProjectSuccessToast
   } = useProjectsHook();
   
   const { 
@@ -98,8 +103,20 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     loading: milestonesLoading,
     addMilestone: dbAddMilestone,
     updateMilestone: dbUpdateMilestone,
-    deleteMilestone: dbDeleteMilestone
+    deleteMilestone: dbDeleteMilestone,
+    showSuccessToast: showMilestoneSuccessToast,
+    normalizeMilestoneOrders: dbNormalizeMilestoneOrders
   } = useMilestones(); // Fetch all milestones
+
+  // Transform milestones to match app types (camelCase)
+  const processedMilestones = useMemo(() => (dbMilestones?.map(m => ({
+    id: m.id,
+    name: m.name,
+    dueDate: new Date(m.due_date),
+    timeAllocation: m.time_allocation,
+    projectId: m.project_id,
+    order: m.order_index
+  })) || []).sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime()), [dbMilestones]);
 
   // Local state
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
@@ -132,21 +149,49 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
   // Milestone utility function
   const getMilestonesForProject = useCallback((projectId: string): Milestone[] => {
-    return dbMilestones?.filter(milestone => milestone.project_id === projectId) || [];
-  }, [dbMilestones]);
+    return processedMilestones?.filter(milestone => milestone.projectId === projectId) || [];
+  }, [processedMilestones]);
 
   // Wrapped milestone functions to match expected signatures
-  const addMilestone = useCallback(async (milestone: any): Promise<void> => {
-    await dbAddMilestone(milestone);
+  const addMilestone = useCallback(async (milestone: any, options?: { silent?: boolean }): Promise<void> => {
+    await dbAddMilestone(milestone, options);
   }, [dbAddMilestone]);
 
-  const updateMilestone = useCallback(async (id: string, updates: any): Promise<void> => {
+  const updateMilestone = useCallback(async (id: string, updates: any, options?: { silent?: boolean }): Promise<void> => {
     await dbUpdateMilestone(id, updates);
   }, [dbUpdateMilestone]);
 
   const deleteMilestone = useCallback(async (id: string): Promise<void> => {
     await dbDeleteMilestone(id);
   }, [dbDeleteMilestone]);
+
+  // Transform rows to match app types (camelCase)
+  const processedRows = useMemo(() => (
+    (dbRows || []).map(r => ({
+      id: r.id,
+      groupId: (r as any).group_id ?? (r as any).groupId, // tolerate either shape
+      name: r.name,
+      order: (r as any).order_index ?? (r as any).order
+    }))
+  ), [dbRows]);
+
+  // Wrap row mutations to accept camelCase from UI and convert to DB shape
+  const addRow = useCallback((row: { groupId: string; name: string; order: number }) => {
+    return dbAddRow({
+      // DB expects snake_case
+      group_id: row.groupId,
+      name: row.name,
+      order_index: row.order
+    } as any);
+  }, [dbAddRow]);
+
+  const updateRow = useCallback((id: string, updates: { groupId?: string; name?: string; order?: number }) => {
+    const dbUpdates: any = {};
+    if (updates.groupId !== undefined) dbUpdates.group_id = updates.groupId;
+    if (updates.name !== undefined) dbUpdates.name = updates.name;
+    if (updates.order !== undefined) dbUpdates.order_index = updates.order;
+    return dbUpdateRow(id, dbUpdates);
+  }, [dbUpdateRow]);
 
   const isLoading = projectsLoading || groupsLoading || rowsLoading || milestonesLoading;
 
@@ -157,27 +202,30 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     updateProject: dbUpdateProject,
     deleteProject: dbDeleteProject,
     reorderProjects: dbReorderProjects,
+    showProjectSuccessToast,
     
-    // Groups
-    groups: dbGroups || [],
+  // Groups
+  groups: (dbGroups || []).map(g => ({ ...g })),
     addGroup,
     updateGroup: dbUpdateGroup,
     deleteGroup: dbDeleteGroup,
     reorderGroups: () => {}, // TODO: Implement if needed
     
-    // Rows
-    rows: dbRows || [],
-    addRow: dbAddRow,
-    updateRow: dbUpdateRow,
+  // Rows
+  rows: processedRows || [],
+  addRow,
+  updateRow,
     deleteRow: dbDeleteRow,
     reorderRows: dbReorderRows,
     
     // Milestones
-    milestones: dbMilestones || [],
+    milestones: processedMilestones || [],
     addMilestone,
     updateMilestone,
     deleteMilestone,
     getMilestonesForProject,
+    showMilestoneSuccessToast,
+    normalizeMilestoneOrders: dbNormalizeMilestoneOrders,
     
     // Selection state
     selectedProjectId,

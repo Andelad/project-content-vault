@@ -9,14 +9,14 @@ import { Separator } from './ui/separator';
 import { Badge } from './ui/badge';
 
 import { Save, Bell, Palette, Clock, Globe, Shield, Trash2, User, Plus, X, Calendar } from 'lucide-react';
-import { useApp } from '../contexts/AppContext';
-import { WorkSlot } from '../contexts/AppContext';
+import { useSettingsContext } from '../contexts/SettingsContext';
+import { WorkSlot } from '@/types/core';
 import { CalendarImport } from './CalendarImport';
 import { useToast } from '../hooks/use-toast';
 import { AppPageLayout } from './layouts/AppPageLayout';
 
 export function SettingsView() {
-  const { settings: appSettings, updateSettings, setDefaultView } = useApp();
+  const { settings: appSettings, updateSettings, setDefaultView } = useSettingsContext();
   const { toast } = useToast();
   const [localSettings, setLocalSettings] = useState({
     notifications: true,

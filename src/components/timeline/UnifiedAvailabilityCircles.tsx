@@ -1,6 +1,6 @@
 import React, { memo, useMemo } from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
-import { useApp } from '../../contexts/AppContext';
+import { usePlannerContext } from '../../contexts/PlannerContext';
 import { isHolidayDate } from '@/lib/workHoursUtils';
 import { 
   calculateAvailabilityReduction, 
@@ -36,7 +36,7 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
   mode = 'days',
   displayMode = 'circles'
 }: UnifiedAvailabilityCirclesProps) {
-  const { holidays, events } = useApp();
+  const { holidays, events } = usePlannerContext();
   const columnWidth = mode === 'weeks' ? 77 : 40;
   
   // Helper function to check if a day has working hours

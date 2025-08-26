@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 
 interface TimelineContextType {
   // Timeline View State
+  currentView: string;
+  setCurrentView: (view: string) => void;
   timelineMode: 'days' | 'weeks';
   setTimelineMode: (mode: 'days' | 'weeks') => void;
   currentDate: Date;
@@ -16,6 +18,10 @@ interface TimelineContextType {
   navigateByDays: (days: number) => void;
   navigateByWeeks: (weeks: number) => void;
   
+  // Group Collapse State
+  collapsedGroups: Set<string>;
+  toggleGroupCollapse: (groupId: string) => void;
+  
   // Timeline Utilities
   getVisibleDateRange: () => { start: Date; end: Date };
   isDateInView: (date: Date) => boolean;
@@ -25,9 +31,11 @@ const TimelineContext = createContext<TimelineContextType | undefined>(undefined
 
 export function TimelineProvider({ children }: { children: React.ReactNode }) {
   // Timeline view state
+  const [currentView, setCurrentView] = useState<string>('timeline');
   const [timelineMode, setTimelineMode] = useState<'days' | 'weeks'>('days');
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [timelineEntries, setTimelineEntries] = useState<any[]>([]);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
   // Timeline navigation functions
   const navigateToToday = useCallback(() => {
@@ -47,6 +55,19 @@ export function TimelineProvider({ children }: { children: React.ReactNode }) {
       const newDate = new Date(prev);
       newDate.setDate(newDate.getDate() + (weeks * 7));
       return newDate;
+    });
+  }, []);
+
+  // Group collapse functionality
+  const toggleGroupCollapse = useCallback((groupId: string) => {
+    setCollapsedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(groupId)) {
+        next.delete(groupId);
+      } else {
+        next.add(groupId);
+      }
+      return next;
     });
   }, []);
 
@@ -88,6 +109,8 @@ export function TimelineProvider({ children }: { children: React.ReactNode }) {
 
   const contextValue: TimelineContextType = {
     // Timeline View State
+    currentView,
+    setCurrentView,
     timelineMode,
     setTimelineMode,
     currentDate,
@@ -101,6 +124,10 @@ export function TimelineProvider({ children }: { children: React.ReactNode }) {
     navigateToToday,
     navigateByDays,
     navigateByWeeks,
+    
+    // Group Collapse State
+    collapsedGroups,
+    toggleGroupCollapse,
     
     // Timeline Utilities
     getVisibleDateRange,

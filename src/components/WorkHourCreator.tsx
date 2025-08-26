@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { Plus, AlertTriangle } from 'lucide-react';
-import { useApp } from '../contexts/AppContext';
+import { useSettingsContext } from '../contexts/SettingsContext';
 import { validateWorkSlotTimes } from '@/lib/workSlotOverlapUtils';
 
 interface WorkHourCreatorProps {
@@ -40,7 +40,7 @@ export function WorkHourCreator({
   });
   const [hasDragged, setHasDragged] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const { workHours, settings } = useApp();
+  const { workHours, settings } = useSettingsContext();
 
   const snapToTimeSlot = (date: Date) => {
     const snapped = new Date(date);

@@ -5,7 +5,8 @@ import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
 import { getCacheStats, cleanupMemoizationCaches } from '@/lib/memoization';
 import { performanceMonitor } from '@/lib/performanceUtils';
-import { useApp } from '../contexts/AppContext';
+import { useProjectContext } from '../contexts/ProjectContext';
+import { usePlannerContext } from '../contexts/PlannerContext';
 import { PERFORMANCE_LIMITS } from '@/constants';
 import { Eye, EyeOff, Trash2, Activity, Database } from 'lucide-react';
 
@@ -25,9 +26,8 @@ export function DevTools() {
     avgRenderTime: 0
   });
 
-  const { projects, groups, events, holidays } = useApp();
-  // Lazy import actions from context to avoid circular import top-level
-  const { normalizeMilestoneOrders } = (useApp() as any);
+  const { projects, groups, normalizeMilestoneOrders } = useProjectContext();
+  const { events, holidays } = usePlannerContext();
 
   // Toggle visibility with keyboard shortcut
   useEffect(() => {

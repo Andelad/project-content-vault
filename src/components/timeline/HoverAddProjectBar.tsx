@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { Plus } from 'lucide-react';
-import { useApp } from '../../contexts/AppContext';
+import { useProjectContext } from '../../contexts/ProjectContext';
 
 interface HoverAddProjectBarProps {
   rowId: string;

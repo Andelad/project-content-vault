@@ -13,8 +13,7 @@ This feature automatically changes the browser's favicon to a red record symbol 
 ### 2. Global State Management
 The time tracking state is managed globally through the app context:
 - **AppContext**: Added `isTimeTracking` state and `setIsTimeTracking` action
-- **AppStateContext**: Includes tracking state in the global state
-- **AppActionsContext**: Provides the setter function to components
+- **AppContext**: Includes tracking state in the global state and provides the setter function to components
 
 ### 3. TimeTracker Component Integration
 - Updated to use global `isTimeTracking` state instead of local state

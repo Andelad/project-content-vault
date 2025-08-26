@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useApp } from '../contexts/AppContext';
+import { useProjectContext } from '../contexts/ProjectContext';
+import { usePlannerContext } from '../contexts/PlannerContext';
 import { CalendarEvent } from '../types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Button } from './ui/button';
@@ -29,17 +30,16 @@ export function EventDetailModal({
   defaultStartTime,
   defaultEndTime
 }: EventDetailModalProps) {
+  const { projects, groups } = useProjectContext();
   const { 
     events, 
-    projects, 
-    groups, 
     addEvent, 
     updateEvent,
     deleteEvent,
     getRecurringGroupEvents,
     deleteRecurringSeriesFuture,
     deleteRecurringSeriesAll
-  } = useApp();
+  } = usePlannerContext();
 
   const [formData, setFormData] = useState({
     title: '',
@@ -463,7 +463,7 @@ export function EventDetailModal({
                     <div className="px-2 py-1 text-sm font-semibold text-muted-foreground">
                       {groupName}
                     </div>
-                    {groupProjects.map((project) => (
+                    {(groupProjects as any[]).map((project) => (
                       <SelectItem key={project.id} value={project.id}>
                         <div className="flex items-center gap-2">
                           <div 

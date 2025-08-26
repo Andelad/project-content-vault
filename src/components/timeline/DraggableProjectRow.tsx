@@ -3,7 +3,7 @@ import { useDrag, useDrop } from 'react-dnd';
 import { GripVertical, Edit3 } from 'lucide-react';
 import { Button } from '../ui/button';
 
-import { useApp } from '../../contexts/AppContext';
+import { useProjectContext } from '../../contexts/ProjectContext';
 
 const ItemTypes = { PROJECT: 'project' };
 
@@ -14,7 +14,7 @@ interface DraggableProjectRowProps {
 }
 
 export function DraggableProjectRow({ project, index, groupId }: DraggableProjectRowProps) {
-  const { reorderProjects, deleteProject, setSelectedProjectId } = useApp();
+  const { reorderProjects, deleteProject, setSelectedProjectId } = useProjectContext();
   const ref = useRef<HTMLDivElement>(null);
   
   const [{ isDragging }, drag] = useDrag({

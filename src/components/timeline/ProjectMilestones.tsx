@@ -1,7 +1,7 @@
 import React, { memo, useMemo, useState } from 'react';
 import { Flag } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
-import { useAppDataOnly } from '../../contexts/AppContext';
+import { useProjectContext } from '../../contexts/ProjectContext';
 import { PositionCalculation } from '@/lib/timelinePositioning';
 import { Milestone } from '@/types/core';
 
@@ -38,7 +38,7 @@ export const ProjectMilestones = memo(function ProjectMilestones({
   onMilestoneDrag,
   onMilestoneDragEnd
 }: ProjectMilestonesProps) {
-  const { milestones } = useAppDataOnly();
+  const { milestones } = useProjectContext();
   const [draggingMilestone, setDraggingMilestone] = useState<string | null>(null);
 
   // Get milestones for this project

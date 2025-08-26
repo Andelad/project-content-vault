@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useApp } from '../contexts/AppContext';
+import { useTimelineContext } from '../contexts/TimelineContext';
 import { useAuth } from '../contexts/AuthContext';
 import { Calendar, AlignLeft, Folders, Settings, ChevronLeft, ChevronRight, PieChart } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { GitVersionDisplay } from './GitVersionDisplay';
 
 export function Sidebar() {
-  const { currentView, setCurrentView } = useApp();
+  const { currentView, setCurrentView } = useTimelineContext();
   const { user } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [profile, setProfile] = useState<any>(null);

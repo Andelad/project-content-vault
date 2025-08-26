@@ -3,7 +3,9 @@ import { Play, Square, Search } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card, CardContent } from './ui/card';
-import { useAppDataOnly, useAppActionsOnly } from '../contexts/AppContext';
+import { useProjectContext } from '../contexts/ProjectContext';
+import { usePlannerContext } from '../contexts/PlannerContext';
+import { useSettingsContext } from '../contexts/SettingsContext';
 import { CalendarEvent } from '../types';
 
 interface TimeTrackerProps {
@@ -11,8 +13,9 @@ interface TimeTrackerProps {
 }
 
 export function TimeTracker({ className }: TimeTrackerProps) {
-  const { projects, events, isTimeTracking } = useAppDataOnly();
-  const { addEvent, updateEvent, deleteEvent, setIsTimeTracking } = useAppActionsOnly();
+  const { projects } = useProjectContext();
+  const { events, addEvent, updateEvent, deleteEvent } = usePlannerContext();
+  const { isTimeTracking, setIsTimeTracking } = useSettingsContext();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProject, setSelectedProject] = useState<any>(null);
@@ -127,7 +130,7 @@ export function TimeTracker({ className }: TimeTrackerProps) {
         updateEvent(event.id, {
           endTime: firstPartEnd,
           duration: firstPartDuration
-        }, { silent: true });
+        });
         
         // Create second part (after tracking) if there's enough time
         const secondPartStart = new Date(trackingEnd);

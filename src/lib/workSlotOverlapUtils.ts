@@ -1,4 +1,4 @@
-import { WorkSlot } from '../contexts/AppContext';
+import { WorkSlot } from '@/types/core';
 
 export interface TimeRange {
   startTime: string; // HH:MM format

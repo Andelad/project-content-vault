@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { useApp } from '../../contexts/AppContext';
+import { useProjectContext } from '../../contexts/ProjectContext';
 
 export function AddGroupRow() {
-  const { addGroup } = useApp();
+  const { addGroup } = useProjectContext();
   const [isAdding, setIsAdding] = useState(false);
   const [groupName, setGroupName] = useState('');
 

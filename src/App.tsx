@@ -4,7 +4,11 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
-import { AppProvider, useApp } from '@/contexts/AppContext';
+import { AppProviders } from '@/contexts/AppProviders';
+import { useProjectContext } from '@/contexts/ProjectContext';
+import { usePlannerContext } from '@/contexts/PlannerContext';
+import { useTimelineContext } from '@/contexts/TimelineContext';
+import { useSettingsContext } from '@/contexts/SettingsContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { LogOut } from 'lucide-react';
@@ -42,12 +46,15 @@ function LoadingFallback() {
 }
 
 function AuthenticatedContent() {
+  // Use specific contexts instead of monolithic useApp
+  const { currentView } = useTimelineContext();
   const { 
-    currentView, 
     selectedProjectId, 
     setSelectedProjectId, 
     creatingNewProject, 
-    setCreatingNewProject, 
+    setCreatingNewProject
+  } = useProjectContext();
+  const { 
     creatingNewHoliday, 
     setCreatingNewHoliday,
     editingHolidayId,
@@ -56,9 +63,9 @@ function AuthenticatedContent() {
     setSelectedEventId,
     creatingNewEvent,
     setCreatingNewEvent,
-    isTimeTracking,
     ensureRecurringEvents
-  } = useApp();
+  } = usePlannerContext();
+  const { isTimeTracking } = useSettingsContext();
 
   // Debug: Track creatingNewProject state changes
   console.log('🔍 App.tsx - creatingNewProject state:', creatingNewProject);
@@ -108,13 +115,16 @@ function AuthenticatedContent() {
       
       <div className="flex-1 bg-background light-scrollbar overflow-auto">
         
-        <ErrorBoundary fallback={
-          <div className="flex-1 flex items-center justify-center bg-background h-full">
-            <div className="text-center">
-              <p className="text-muted-foreground">Unable to load this view. Please try refreshing the page.</p>
+        <ErrorBoundary 
+          showDetails={true}
+          fallback={
+            <div className="flex-1 flex items-center justify-center bg-background h-full">
+              <div className="text-center">
+                <p className="text-muted-foreground">Unable to load this view. Please try refreshing the page.</p>
+              </div>
             </div>
-          </div>
-        }>
+          }
+        >
           <Suspense fallback={<LoadingFallback />}>
             {renderView()}
           </Suspense>
@@ -205,11 +215,11 @@ function AppContent() {
   // For app routes with authenticated user
   if (isAppRoute && user) {
     return (
-      <AppProvider>
+      <AppProviders>
         <DevToolsWrapper>
           <AuthenticatedContent />
         </DevToolsWrapper>
-      </AppProvider>
+      </AppProviders>
     );
   }
 

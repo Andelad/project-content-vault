@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Project } from '../types';
-import { useApp } from '../contexts/AppContext';
+import { usePlannerContext } from '../contexts/PlannerContext';
+import { useTimelineContext } from '../contexts/TimelineContext';
 
 interface ProjectTimelineProps {
   project: Project;
@@ -9,7 +10,8 @@ interface ProjectTimelineProps {
 }
 
 export function ProjectTimeline({ project, dates, currentDate }: ProjectTimelineProps) {
-  const { events, timelineEntries, updateTimelineEntry } = useApp();
+  const { events } = usePlannerContext();
+  const { timelineEntries, updateTimelineEntry } = useTimelineContext();
   const [draggedDay, setDraggedDay] = useState<string | null>(null);
 
   // Calculate if date is within project range

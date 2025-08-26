@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Folder, Edit3, Briefcase, Zap, Target, Lightbulb, Rocket, Star, Heart, Gift, Music, Camera, Code, Book, Gamepad2, Coffee, Home, Building, Car, Plane, Map, Globe } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
-import { useApp } from '../../contexts/AppContext';
+import { useProjectContext } from '../../contexts/ProjectContext';
 
 interface ProjectIconIndicatorProps {
   project: any;
@@ -35,7 +35,7 @@ const ICON_MAP: { [key: string]: any } = {
 
 export function ProjectIconIndicator({ project, mode = 'days' }: ProjectIconIndicatorProps) {
   const [isHovered, setIsHovered] = useState(false);
-  const { setSelectedProjectId } = useApp();
+  const { setSelectedProjectId } = useProjectContext();
   
   // Get the icon component
   const getIconComponent = (iconName?: string) => {

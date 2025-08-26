@@ -1,5 +1,6 @@
 import React from 'react';
-import { useAppDataOnly } from '../contexts/AppContext';
+import { useProjectContext } from '../contexts/ProjectContext';
+import { usePlannerContext } from '../contexts/PlannerContext';
 import { trackMemoryUsage } from '@/lib/performanceUtils';
 
 // Temporary inline constants to fix import issue
@@ -15,7 +16,8 @@ interface PerformanceStatusProps {
 }
 
 export function PerformanceStatus({ className = '' }: PerformanceStatusProps) {
-  const { projects, groups, events, holidays } = useAppDataOnly();
+  const { projects, groups } = useProjectContext();
+  const { events, holidays } = usePlannerContext();
   
   // Calculate current usage
   const currentUsage = {

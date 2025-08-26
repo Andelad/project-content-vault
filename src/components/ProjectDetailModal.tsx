@@ -13,7 +13,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { RichTextEditor } from './RichTextEditor';
 import { ProjectProgressGraph } from './ProjectProgressGraph';
 import { MilestoneManager } from './MilestoneManager';
-import { useApp } from '../contexts/AppContext';
+import { useProjectContext } from '../contexts/ProjectContext';
+import { usePlannerContext } from '../contexts/PlannerContext';
+import { useSettingsContext } from '../contexts/SettingsContext';
+import { useTimelineContext } from '../contexts/TimelineContext';
 import { calculateProjectTimeMetrics } from '@/lib/projectCalculations';
 
 // Function to calculate working days remaining until end date
@@ -186,7 +189,10 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
   const modalType = projectId ? 'EDIT' : 'CREATE';
   console.log(`🔍 ${modalType} Modal render:`, { isOpen, projectId, groupId, rowId });
   
-  const { projects, groups, rows, updateProject, addProject, deleteProject, creatingNewProject, setCurrentView, events, holidays, settings, milestones, addMilestone } = useApp();
+  const { projects, groups, rows, updateProject, addProject, deleteProject, creatingNewProject, milestones, addMilestone } = useProjectContext();
+  const { setCurrentView } = useTimelineContext();
+  const { events, holidays } = usePlannerContext();
+  const { settings } = useSettingsContext();
   const project = (projectId && projectId !== '') ? projects.find(p => p.id === projectId) : null;
 
   // Persist creation context so it doesn't get lost if context re-renders
@@ -382,6 +388,13 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
           }
         }
 
+        // Show success toast only after everything is complete
+        const { toast } = await import('@/hooks/use-toast');
+        toast({
+          title: "Success",
+          description: "Project created successfully",
+        });
+
         handleClose();
       } catch (error) {
         console.error('Failed to create project:', error);
@@ -400,15 +413,15 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
   // Handle canceling changes - restore original values for existing projects
   const handleCancel = useCallback(() => {
     if (!isCreating && project && projectId) {
-      // Restore all original values to the actual project
-      updateProject(projectId, originalValues);
+      // Restore all original values to the actual project - use silent mode to prevent toasts
+      updateProject(projectId, originalValues, { silent: true });
       setLocalValues(originalValues);
     }
     handleClose();
   }, [isCreating, project, projectId, originalValues, updateProject, handleClose]);
 
   // Handle confirming changes
-  const handleConfirm = useCallback(() => {
+  const handleConfirm = useCallback(async () => {
     console.log('🎯 handleConfirm clicked', {
       isCreating,
       projectId,
@@ -426,6 +439,15 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
     // Fallback to previous flag check
     if (isCreating) {
       return handleCreateProject();
+    }
+
+    // For existing projects, show a success toast when confirming
+    if (!isCreating && projectId) {
+      const { toast } = await import('@/hooks/use-toast');
+      toast({
+        title: "Success",
+        description: "Project updated successfully",
+      });
     }
 
     // Otherwise treat as edit modal and just close
@@ -618,17 +640,17 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
         setLocalValues(prev => ({ ...prev, [property]: value }));
       }
     } else if (projectId && projectId !== '') {
-      // Validate date ranges for existing projects
+      // Validate date ranges for existing projects - use silent mode to prevent toasts
       if (property === 'startDate' && localValues.endDate && value > localValues.endDate) {
         // If start date is after end date, adjust end date to match
-        updateProject(projectId, { [property]: value, endDate: value });
+        updateProject(projectId, { [property]: value, endDate: value }, { silent: true });
         setLocalValues(prev => ({ ...prev, [property]: value, endDate: value }));
       } else if (property === 'endDate' && localValues.startDate && value < localValues.startDate) {
         // If end date is before start date, adjust start date to match
-        updateProject(projectId, { [property]: value, startDate: value });
+        updateProject(projectId, { [property]: value, startDate: value }, { silent: true });
         setLocalValues(prev => ({ ...prev, [property]: value, startDate: value }));
       } else {
-        updateProject(projectId, { [property]: value });
+        updateProject(projectId, { [property]: value }, { silent: true });
         setLocalValues(prev => ({ ...prev, [property]: value }));
       }
     }
@@ -640,7 +662,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
       if (isCreating) {
         setLocalValues(prev => ({ ...prev, name: newTitle.trim() }));
       } else if (projectId && projectId !== '') {
-        updateProject(projectId, { name: newTitle.trim() });
+        updateProject(projectId, { name: newTitle.trim() }, { silent: true });
         setLocalValues(prev => ({ ...prev, name: newTitle.trim() }));
       }
     }
@@ -667,7 +689,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
     if (isCreating) {
       setLocalValues(prev => ({ ...prev, color: tempColor, icon: tempIcon }));
     } else if (projectId && projectId !== '') {
-      updateProject(projectId, { color: tempColor, icon: tempIcon });
+      updateProject(projectId, { color: tempColor, icon: tempIcon }, { silent: true });
     }
     setStylePickerOpen(false);
   };
@@ -681,9 +703,9 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
 
   const handleNotesChange = (value: string) => {
     setLocalValues(prev => ({ ...prev, notes: value }));
-    // Auto-save notes for existing projects only
+    // Auto-save notes for existing projects only - use silent mode to prevent toasts
     if (!isCreating && projectId && projectId !== '') {
-      updateProject(projectId, { notes: value });
+      updateProject(projectId, { notes: value }, { silent: true });
     }
   };
 
@@ -691,17 +713,16 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
     const newContinuous = !localValues.continuous;
     setLocalValues(prev => ({ ...prev, continuous: newContinuous }));
     
-    // Auto-save for existing projects
+    // Auto-save for existing projects - use silent mode to prevent toasts
     if (!isCreating && projectId && projectId !== '') {
-      // Ensure we pass the value as boolean (not null)
-      updateProject(projectId, { continuous: newContinuous });
+      updateProject(projectId, { continuous: newContinuous }, { silent: true });
     }
   };
 
   const handleGroupChange = (newGroupId: string) => {
     if (!isCreating && projectId && projectId !== '') {
-      // For existing projects, update the group
-      updateProject(projectId, { groupId: newGroupId });
+      // For existing projects, update the group - use silent mode to prevent toasts
+      updateProject(projectId, { groupId: newGroupId }, { silent: true });
     }
     // Note: For new projects, we can't change the group as it's determined by the creation context
   };
@@ -1371,7 +1392,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
             onUpdateProjectBudget={(newBudget) => {
               setLocalValues(prev => ({ ...prev, estimatedHours: newBudget }));
               if (!isCreating && projectId && projectId !== '') {
-                updateProject(projectId, { estimatedHours: newBudget });
+                updateProject(projectId, { estimatedHours: newBudget }, { silent: true });
               }
             }}
             localMilestonesState={isCreating ? {

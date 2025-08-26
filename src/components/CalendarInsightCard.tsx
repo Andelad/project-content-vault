@@ -2,7 +2,7 @@ import React, { useMemo, useEffect, useState } from 'react';
 import moment from 'moment';
 import { Card } from './ui/card';
 import { CalendarEvent } from '../types';
-import { useApp } from '../contexts/AppContext';
+import { useSettingsContext } from '../contexts/SettingsContext';
 
 interface CalendarInsightCardProps {
   dates: Date[];
@@ -11,7 +11,7 @@ interface CalendarInsightCardProps {
 }
 
 export function CalendarInsightCard({ dates, events, view }: CalendarInsightCardProps) {
-  const { isTimeTracking } = useApp();
+  const { isTimeTracking } = useSettingsContext();
   const [now, setNow] = useState(new Date());
 
   // Find currently tracking event

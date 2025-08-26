@@ -3,7 +3,10 @@ import { Calendar as BigCalendar, momentLocalizer, View, Views } from 'react-big
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
 import moment from 'moment';
 import 'moment/locale/en-gb'; // Import GB locale for Monday week start
-import { useApp } from '../contexts/AppContext';
+import { useProjectContext } from '../contexts/ProjectContext';
+import { usePlannerContext } from '../contexts/PlannerContext';
+import { useSettingsContext } from '../contexts/SettingsContext';
+import { useTimelineContext } from '../contexts/TimelineContext';
 import { CalendarEvent, WorkHour } from '../types';
 import { Button } from './ui/button';
 import { ChevronLeft, ChevronRight, CheckCircle2, Circle, Calendar as CalendarIcon, MapPin, CalendarSearch, Trash2 } from 'lucide-react';
@@ -53,9 +56,10 @@ interface CustomEventProps {
 }
 
 function CustomEvent({ event, layerMode, updateEventWithUndo }: CustomEventProps) {
-  const { projects } = useApp();
+  const { projects } = useProjectContext();
   const { deleteWorkHour } = useWorkHours();
-  const { updateEvent, isTimeTracking } = useApp();
+  const { updateEvent } = usePlannerContext();
+  const { isTimeTracking } = useSettingsContext();
   const resource = event.resource;
 
   const isCalendarEvent = (res: CalendarEvent | WorkHour): res is CalendarEvent => 'projectId' in res;
@@ -136,18 +140,17 @@ function CustomEvent({ event, layerMode, updateEventWithUndo }: CustomEventProps
 }
 
 export function PlannerView() {
+  const { projects } = useProjectContext();
+  const { currentDate, setCurrentDate } = useTimelineContext();
   const {
-    currentDate,
-    setCurrentDate,
     events,
     addEvent,
     updateEvent,
     deleteEvent,
-    projects,
     setSelectedEventId,
     selectedEventId,
     setCreatingNewEvent
-  } = useApp();
+  } = usePlannerContext();
   
   const { workHours, addWorkHour, updateWorkHour, deleteWorkHour, showScopeDialog, pendingWorkHourChange, confirmWorkHourChange, cancelWorkHourChange, setCurrentViewDate } = useWorkHours();
   

@@ -1,5 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useApp } from '../contexts/AppContext';
+import { useProjectContext } from '../contexts/ProjectContext';
+import { usePlannerContext } from '../contexts/PlannerContext';
+import { useSettingsContext } from '../contexts/SettingsContext';
 import { calculateWorkHourCapacity, getWorkHoursCapacityForPeriod } from '@/lib/workHoursUtils';
 import { 
   BarChart, 
@@ -72,7 +74,9 @@ const OverlaidBars = (props: any) => {
 
 
 export function ReportsView() {
-  const { projects, events, settings, groups } = useApp();
+  const { projects, groups } = useProjectContext();
+  const { events } = usePlannerContext();
+  const { settings } = useSettingsContext();
   const [timeAnalysisTimeFrame, setTimeAnalysisTimeFrame] = useState<TimeFrame>('month');
   const [showActiveProjects, setShowActiveProjects] = useState(true);
   const [animationKey, setAnimationKey] = useState(0);

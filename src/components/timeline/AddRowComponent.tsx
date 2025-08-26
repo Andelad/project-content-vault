@@ -1,6 +1,6 @@
 import React, { memo, useState } from 'react';
 import { Plus } from 'lucide-react';
-import { useApp } from '../../contexts/AppContext';
+import { useProjectContext } from '../../contexts/ProjectContext';
 
 interface AddRowComponentProps {
   groupId: string;
@@ -9,7 +9,7 @@ interface AddRowComponentProps {
 export const AddRowComponent = memo(function AddRowComponent({
   groupId
 }: AddRowComponentProps) {
-  const { addRow, rows } = useApp();
+  const { addRow, rows } = useProjectContext();
   const [isHovered, setIsHovered] = useState(false);
 
   const handleAddRow = () => {

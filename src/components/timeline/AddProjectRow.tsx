@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Plus } from 'lucide-react';
-import { useApp } from '../../contexts/AppContext';
+import { useProjectContext } from '../../contexts/ProjectContext';
+import { usePlannerContext } from '../../contexts/PlannerContext';
 import BeachAccess from '@/imports/BeachAccess';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import { Button } from '../ui/button';
@@ -13,7 +14,7 @@ interface AddProjectRowProps {
 }
 
 export function AddProjectRow({ groupId, dates = [] }: AddProjectRowProps) {
-  const { setCreatingNewProject, rows } = useApp();
+  const { setCreatingNewProject, rows } = useProjectContext();
 
   // Check if there are any rows in this group
   const groupRows = rows.filter(row => row.groupId === groupId);
@@ -61,7 +62,7 @@ interface TimelineAddProjectRowProps {
 }
 
 export function TimelineAddProjectRow({ groupId, dates, mode = 'days' }: TimelineAddProjectRowProps) {
-  const { setCreatingNewProject, rows } = useApp();
+  const { setCreatingNewProject, rows } = useProjectContext();
   const [hoverBar, setHoverBar] = useState<{ visible: boolean; left: number; dayIndex: number; dayCount: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragState, setDragState] = useState<{ startX: number; startDayIndex: number; currentDayCount: number } | null>(null);
@@ -532,7 +533,7 @@ interface AddHolidayRowProps {
 }
 
 export function AddHolidayRow({ dates, collapsed, isDragging, dragState, handleHolidayMouseDown, mode = 'days' }: AddHolidayRowProps) {
-  const { setCreatingNewHoliday, holidays: globalHolidays, setEditingHolidayId, addHoliday } = useApp();
+  const { setCreatingNewHoliday, holidays: globalHolidays, setEditingHolidayId, addHoliday } = usePlannerContext();
   
   // Convert global holidays to timeline format
   const timelineHolidays = globalHolidays.map(holiday => {

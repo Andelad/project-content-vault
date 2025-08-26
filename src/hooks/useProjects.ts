@@ -135,7 +135,7 @@ export function useProjects() {
     }
   };
 
-  const addProject = async (projectData: any) => {
+  const addProject = async (projectData: any, options: { silent?: boolean } = {}) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
@@ -168,10 +168,14 @@ export function useProjects() {
       // Transform the returned data to frontend format
       const transformedProject = transformDatabaseProject(data);
       setProjects(prev => [...prev, transformedProject]);
-      toast({
-        title: "Success",
-        description: "Project created successfully",
-      });
+      
+      // Only show toast if not in silent mode
+      if (!options.silent) {
+        toast({
+          title: "Success",
+          description: "Project created successfully",
+        });
+      }
       return transformedProject;
     } catch (error) {
       console.error('❌ Error adding project:', error);

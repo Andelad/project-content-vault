@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
-import { useApp } from '../contexts/AppContext';
+import { useProjectContext } from '../contexts/ProjectContext';
 import { Plus, Edit, Trash2, Calendar, Clock, Users, FolderPlus, Grid3X3, List, GripVertical, Archive, PlayCircle, Clock4, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
@@ -127,7 +127,7 @@ function DraggableProject({
 }
 
 export function ProjectsView() {
-  const { groups, projects, addGroup, updateGroup, deleteGroup, addProject, updateProject, deleteProject, reorderGroups, reorderProjects, setSelectedProjectId } = useApp();
+  const { groups, projects, addGroup, updateGroup, deleteGroup, addProject, updateProject, deleteProject, reorderGroups, reorderProjects, setSelectedProjectId } = useProjectContext();
 
   // View toggle state
   const [viewType, setViewType] = useState<ViewType>('list');

@@ -7,7 +7,7 @@ import { Label } from './ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
-import { useApp } from '../contexts/AppContext';
+import { useProjectContext } from '../contexts/ProjectContext';
 import { Milestone } from '@/types/core';
 
 interface MilestoneManagerProps {
@@ -38,7 +38,7 @@ export function MilestoneManager({
   localMilestonesState,
   isCreatingProject = false
 }: MilestoneManagerProps) {
-  const { milestones, addMilestone, updateMilestone, deleteMilestone, showMilestoneSuccessToast } = useApp();
+  const { milestones, addMilestone, updateMilestone, deleteMilestone, showMilestoneSuccessToast } = useProjectContext();
   const [isExpanded, setIsExpanded] = useState(false);
   const [localMilestones, setLocalMilestones] = useState<LocalMilestone[]>([]);
   const [editingProperty, setEditingProperty] = useState<string | null>(null);
@@ -114,9 +114,9 @@ export function MilestoneManager({
           return;
         }
       } else if (projectId) {
-        // For existing milestones, update in database
+        // For existing milestones, update in database - use silent mode to prevent toasts
         try {
-          await updateMilestone(milestoneId, { [property]: value });
+          await updateMilestone(milestoneId, { [property]: value }, { silent: true });
         } catch (error) {
           console.error('Failed to update milestone:', error);
           await showErrorToast('Failed to update milestone. Please try again.');
@@ -556,7 +556,7 @@ export function MilestoneManager({
     }
 
     try {
-      await updateMilestone(milestoneId, updates);
+      await updateMilestone(milestoneId, updates, { silent: true });
     } catch (error) {
       console.error('Failed to update milestone:', error);
       await showErrorToast('Failed to update milestone. Please try again.');

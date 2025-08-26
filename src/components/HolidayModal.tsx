@@ -7,7 +7,7 @@ import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
-import { useApp } from '../contexts/AppContext';
+import { usePlannerContext } from '../contexts/PlannerContext';
 
 interface HolidayModalProps {
   isOpen: boolean;
@@ -18,7 +18,7 @@ interface HolidayModalProps {
 }
 
 export function HolidayModal({ isOpen, onClose, holidayId, defaultStartDate, defaultEndDate }: HolidayModalProps) {
-  const { holidays, addHoliday, updateHoliday, deleteHoliday } = useApp();
+  const { holidays, addHoliday, updateHoliday, deleteHoliday } = usePlannerContext();
   
   // Find the holiday if editing
   const existingHoliday = holidayId ? holidays.find(h => h.id === holidayId) : null;

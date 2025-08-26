@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Calendar } from 'lucide-react';
-import { useApp } from '@/contexts/AppContext';
+import { useTimelineContext } from '@/contexts/TimelineContext';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface HoverableDateCellProps {
@@ -12,7 +12,7 @@ interface HoverableDateCellProps {
 
 export function HoverableDateCell({ date, mode, children, width }: HoverableDateCellProps) {
   const [isHovered, setIsHovered] = useState(false);
-  const { setCurrentView, setCurrentDate } = useApp();
+  const { setCurrentView, setCurrentDate } = useTimelineContext();
 
   const handleClick = () => {
     // Navigate to planner week view at the specified date

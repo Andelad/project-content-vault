@@ -3,7 +3,8 @@ import { useDrag, useDrop } from 'react-dnd';
 import { GripVertical, MoreHorizontal, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '../ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuItem } from '../ui/dropdown-menu';
-import { useApp } from '../../contexts/AppContext';
+import { useProjectContext } from '../../contexts/ProjectContext';
+import { useTimelineContext } from '../../contexts/TimelineContext';
 
 const ItemTypes = { GROUP: 'group' };
 
@@ -14,7 +15,8 @@ interface DraggableGroupRowProps {
 }
 
 export function DraggableGroupRow({ group, index, children }: DraggableGroupRowProps) {
-  const { reorderGroups, deleteGroup, collapsedGroups, toggleGroupCollapse } = useApp();
+  const { reorderGroups, deleteGroup } = useProjectContext();
+  const { collapsedGroups, toggleGroupCollapse } = useTimelineContext();
   const ref = useRef<HTMLDivElement>(null);
   const isCollapsed = collapsedGroups.has(group.id);
   

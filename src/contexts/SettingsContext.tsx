@@ -28,6 +28,10 @@ interface SettingsContextType {
   timelineEntries: any[];
   updateTimelineEntry: (entry: any) => void;
   
+  // Time tracking state
+  isTimeTracking: boolean;
+  setIsTimeTracking: (isTracking: boolean) => void;
+  
   // Loading states
   isLoading: boolean;
 }
@@ -46,6 +50,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [workHourOverrides, setWorkHourOverrides] = useState<WorkHourOverride[]>([]);
   const [workHours] = useState<any[]>([]);
   const [timelineEntries, setTimelineEntries] = useState<any[]>([]);
+  const [isTimeTracking, setIsTimeTracking] = useState<boolean>(false);
 
   // Default settings fallback if not loaded from database
   const defaultSettings: Settings = {
@@ -139,6 +144,10 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     // Timeline entries (legacy)
     timelineEntries,
     updateTimelineEntry,
+    
+    // Time tracking state
+    isTimeTracking,
+    setIsTimeTracking,
     
     // Loading states
     isLoading: settingsLoading,
