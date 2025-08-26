@@ -65,7 +65,14 @@ export function EventDetailModal({
   const [isRecurringEvent, setIsRecurringEvent] = useState(false);
 
   const isEditing = !!eventId;
-  const existingEvent = isEditing ? events.find(e => e.id === eventId) : null;
+  let existingEvent = isEditing ? events.find(e => e.id === eventId) : null;
+  
+  // Handle split events - if we can't find the event by ID, check if it's a split event
+  if (!existingEvent && eventId?.includes('-split-')) {
+    const originalEventId = eventId.split('-split-')[0];
+    existingEvent = events.find(e => e.id === originalEventId);
+    // If found, we'll track that this is a split event for special handling
+  }
 
   // Format date for date input (YYYY-MM-DD)
   const formatDate = (date: Date) => {
@@ -140,7 +147,12 @@ export function EventDetailModal({
     const checkRecurringStatus = async () => {
       if (existingEvent) {
         try {
-          const groupEvents = await getRecurringGroupEvents(existingEvent.id);
+          // Get the original event ID in case this is a split event
+          const originalEventId = eventId?.includes('-split-') 
+            ? eventId.split('-split-')[0] 
+            : existingEvent.id;
+            
+          const groupEvents = await getRecurringGroupEvents(originalEventId);
           setIsRecurringEvent(groupEvents.length > 1);
         } catch (error) {
           console.error('Failed to check recurring status:', error);
@@ -154,7 +166,7 @@ export function EventDetailModal({
     if (isOpen && isEditing) {
       checkRecurringStatus();
     }
-  }, [isOpen, isEditing, existingEvent, getRecurringGroupEvents]);
+  }, [isOpen, isEditing, existingEvent, getRecurringGroupEvents, eventId]);
 
   // Update color when project changes
   useEffect(() => {
@@ -245,7 +257,12 @@ export function EventDetailModal({
       }
 
       if (isEditing && existingEvent) {
-        await updateEvent(existingEvent.id, eventData);
+        // Get the original event ID in case this is a split event
+        const originalEventId = eventId?.includes('-split-') 
+          ? eventId.split('-split-')[0] 
+          : existingEvent.id;
+          
+        await updateEvent(originalEventId, eventData);
       } else {
         await addEvent(eventData);
       }
@@ -266,8 +283,14 @@ export function EventDetailModal({
 
   const handleDeleteThis = async () => {
     if (!existingEvent) return;
+    
     try {
-      await deleteEvent(existingEvent.id);
+      // Get the original event ID in case this is a split event
+      const originalEventId = eventId?.includes('-split-') 
+        ? eventId.split('-split-')[0] 
+        : existingEvent.id;
+        
+      await deleteEvent(originalEventId);
       setShowDeleteDialog(false);
       onClose();
     } catch (error) {
@@ -279,8 +302,14 @@ export function EventDetailModal({
 
   const handleDeleteFuture = async () => {
     if (!existingEvent) return;
+    
     try {
-      await deleteRecurringSeriesFuture(existingEvent.id);
+      // Get the original event ID in case this is a split event
+      const originalEventId = eventId?.includes('-split-') 
+        ? eventId.split('-split-')[0] 
+        : existingEvent.id;
+        
+      await deleteRecurringSeriesFuture(originalEventId);
       setShowDeleteDialog(false);
       onClose();
     } catch (error) {
@@ -292,8 +321,14 @@ export function EventDetailModal({
 
   const handleDeleteAll = async () => {
     if (!existingEvent) return;
+    
     try {
-      await deleteRecurringSeriesAll(existingEvent.id);
+      // Get the original event ID in case this is a split event
+      const originalEventId = eventId?.includes('-split-') 
+        ? eventId.split('-split-')[0] 
+        : existingEvent.id;
+        
+      await deleteRecurringSeriesAll(originalEventId);
       setShowDeleteDialog(false);
       onClose();
     } catch (error) {

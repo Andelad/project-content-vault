@@ -126,7 +126,7 @@ export const SmartHoverAddProjectBar: React.FC<SmartHoverAddProjectBarProps> = (
     
     if (mode === 'weeks') {
       // In week mode, calculate precise day-level index within week columns
-      const dayWidth = 72 / 7; // ~10.3px per day
+      const dayWidth = 11; // 11px per day (77px ÷ 7 days)
       const totalDays = dates.length * 7; // Total number of days across all weeks
       clickIndex = Math.floor(x / dayWidth);
       clickIndex = Math.max(0, Math.min(totalDays - 1, clickIndex));
@@ -160,7 +160,7 @@ export const SmartHoverAddProjectBar: React.FC<SmartHoverAddProjectBarProps> = (
       
       if (mode === 'weeks') {
         // In week mode, calculate precise day-level index within week columns
-        const dayWidth = 72 / 7; // ~10.3px per day
+        const dayWidth = 11; // 11px per day (77px ÷ 7 days)
         const totalDays = dates.length * 7; // Total number of days across all weeks
         index = Math.floor(x / dayWidth);
         index = Math.max(0, Math.min(totalDays - 1, index));
@@ -278,8 +278,8 @@ export const SmartHoverAddProjectBar: React.FC<SmartHoverAddProjectBarProps> = (
     
     if (mode === 'weeks') {
       // For week mode with day-level precision
-      const dayWidth = 72 / 7; // ~10.3px per day
-      const totalWidth = dates.length * 72; // Total timeline width
+      const dayWidth = 11; // 11px per day (77px ÷ 7 days)
+      const totalWidth = dates.length * 77; // Total timeline width (77px per week)
       width = ((endIndex - startIndex + 1) * dayWidth / totalWidth) * 100;
       left = (startIndex * dayWidth / totalWidth) * 100;
     } else {

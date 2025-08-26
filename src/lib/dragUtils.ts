@@ -41,16 +41,20 @@ export function debounce<T extends (...args: any[]) => void>(
 }
 
 /**
- * Throttle function for high-frequency events
+ * Throttle function for high-frequency events with mode-specific delays
  */
 export function throttle<T extends (...args: any[]) => void>(
   func: T,
-  delay: number
+  delay: number,
+  mode: 'days' | 'weeks' = 'days'
 ): T {
   let lastCall = 0;
+  // Use longer delay for weeks mode due to computational complexity
+  const effectiveDelay = mode === 'weeks' ? Math.max(delay, 50) : delay;
+  
   return ((...args: any[]) => {
     const now = Date.now();
-    if (now - lastCall >= delay) {
+    if (now - lastCall >= effectiveDelay) {
       lastCall = now;
       func(...args);
     }
@@ -71,12 +75,12 @@ export function calculateDaysDelta(
   
   if (isDynamicWidth) {
     // For projects - use mode-specific column width
-    const columnWidth = mode === 'weeks' ? 72 : 40;
+    const columnWidth = mode === 'weeks' ? 77 : 40;
     
     if (mode === 'weeks') {
-      // In weeks mode, use the actual visual day width so dragging follows mouse exactly
-      // Each day visually takes up 72px/7 ≈ 10.286px in the timeline
-      const dayWidth = columnWidth / 7; // ~10.286px per day
+      // In weeks mode, use the simplified 11px per day for consistency
+      // This matches the positioning system exactly (77px ÷ 7 = 11px per day)
+      const dayWidth = 11; // Consistent with timelinePositioning.ts
       return Math.round(deltaX / dayWidth);
     } else {
       // In days mode, each column is one day at 40px

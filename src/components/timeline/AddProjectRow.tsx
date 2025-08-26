@@ -72,7 +72,7 @@ export function TimelineAddProjectRow({ groupId, dates, mode = 'days' }: Timelin
   const groupRows = rows.filter(row => row.groupId === groupId);
 
   // Get column width based on mode
-  const columnWidth = mode === 'weeks' ? 72 : 40;
+  const columnWidth = mode === 'weeks' ? 77 : 40;
   const gap = mode === 'weeks' ? 0 : 1; // No gaps in weeks mode
   const defaultSpan = mode === 'weeks' ? 2 : 5; // 2 weeks or 5 days
 

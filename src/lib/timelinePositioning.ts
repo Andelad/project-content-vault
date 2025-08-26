@@ -16,7 +16,7 @@ export function calculateTimelinePositions(
   dates: Date[],
   mode: 'days' | 'weeks' = 'days'
 ): PositionCalculation {
-  const columnWidth = mode === 'weeks' ? 72 : 40;
+  const columnWidth = mode === 'weeks' ? 77 : 40; // 77px = 7 days × 11px per day
   
   if (mode === 'weeks') {
     // In weeks mode, calculate exact day positions within the timeline
@@ -32,8 +32,8 @@ export function calculateTimelinePositions(
     const daysFromStartToProjectStart = Math.floor((projectStart.getTime() - firstWeekStart.getTime()) / msPerDay);
     const daysFromStartToProjectEnd = Math.floor((projectEnd.getTime() - firstWeekStart.getTime()) / msPerDay);
     
-    // Each day is 72px/7 ≈ 10.3px wide in weeks mode
-    const dayWidth = columnWidth / 7;
+    // Each day is exactly 11px wide in weeks mode (77px ÷ 7 days = 11px per day)
+    const dayWidth = 11;
     
     // Calculate exact pixel positions based on day offsets
     // Allow negative positions for handles that extend outside viewport

@@ -1,5 +1,6 @@
 import { CalendarEvent, WorkHour } from '../types';
 import { memoizeExpensiveCalculation, timelineCalculationCache } from './memoization';
+import { calculateEventDurationOnDate } from './midnightEventUtils';
 
 // Debug counters
 let allocationCallCount = 0;
@@ -48,18 +49,12 @@ export function calculatePlannedTimeForDate(
   date: Date,
   events: CalendarEvent[]
 ): number {
-  const targetDateString = date.toDateString();
-  
   return events
-    .filter(event => 
-      event.projectId === projectId && 
-      event.startTime.toDateString() === targetDateString
-    )
+    .filter(event => event.projectId === projectId)
     .reduce((total, event) => {
-      // Calculate duration in hours from startTime and endTime
-      const durationMs = event.endTime.getTime() - event.startTime.getTime();
-      const durationHours = durationMs / (1000 * 60 * 60);
-      return total + durationHours;
+      // Use the new function to properly calculate duration for events that may cross midnight
+      const durationOnDate = calculateEventDurationOnDate(event, date);
+      return total + durationOnDate;
     }, 0);
 }
 
@@ -299,27 +294,28 @@ export function calculateOvertimePlannedHours(
   events: CalendarEvent[],
   workHours: WorkHour[]
 ): number {
-  const targetDateString = date.toDateString();
-  
-  // Get events for this date that have a projectId (attributed to projects)
+  // Get events that occur on this date and have a projectId (attributed to projects)
   const dayProjectEvents = events.filter(event => 
-    event.startTime.toDateString() === targetDateString && 
-    event.projectId
+    event.projectId && calculateEventDurationOnDate(event, date) > 0
   );
 
   let overtimeHours = 0;
 
   for (const event of dayProjectEvents) {
-    // Calculate total event duration
-    const eventDurationMs = event.endTime.getTime() - event.startTime.getTime();
-    const eventDurationHours = eventDurationMs / (1000 * 60 * 60);
+    // Calculate total event duration for this specific date
+    const eventDurationHours = calculateEventDurationOnDate(event, date);
     
-    // Calculate overlap with work hours
+    if (eventDurationHours === 0) continue;
+    
+    // Calculate overlap with work hours - only consider the portion of the event on this date
     const overlapMinutes = calculateEventWorkHourOverlap(event, workHours);
     const overlapHours = overlapMinutes / 60;
     
+    // For events that cross midnight, we need to limit the overlap to this date's portion
+    const dailyOverlapHours = Math.min(overlapHours, eventDurationHours);
+    
     // Overtime is the portion that doesn't overlap with work hours
-    const eventOvertimeHours = Math.max(0, eventDurationHours - overlapHours);
+    const eventOvertimeHours = Math.max(0, eventDurationHours - dailyOverlapHours);
     overtimeHours += eventOvertimeHours;
   }
 
@@ -334,17 +330,12 @@ export function calculateTotalPlannedHours(
   date: Date,
   events: CalendarEvent[]
 ): number {
-  const targetDateString = date.toDateString();
-  
   return events
-    .filter(event => 
-      event.startTime.toDateString() === targetDateString && 
-      event.projectId // Only events attributed to projects
-    )
+    .filter(event => event.projectId) // Only events attributed to projects
     .reduce((total, event) => {
-      const durationMs = event.endTime.getTime() - event.startTime.getTime();
-      const durationHours = durationMs / (1000 * 60 * 60);
-      return total + durationHours;
+      // Use the new function to properly calculate duration for events that may cross midnight
+      const durationOnDate = calculateEventDurationOnDate(event, date);
+      return total + durationOnDate;
     }, 0);
 }
 
@@ -356,16 +347,11 @@ export function calculateOtherTime(
   date: Date,
   events: CalendarEvent[]
 ): number {
-  const targetDateString = date.toDateString();
-  
   return events
-    .filter(event => 
-      event.startTime.toDateString() === targetDateString && 
-      !event.projectId // Only events NOT attributed to projects
-    )
+    .filter(event => !event.projectId) // Only events NOT attributed to projects
     .reduce((total, event) => {
-      const durationMs = event.endTime.getTime() - event.startTime.getTime();
-      const durationHours = durationMs / (1000 * 60 * 60);
-      return total + durationHours;
+      // Use the new function to properly calculate duration for events that may cross midnight
+      const durationOnDate = calculateEventDurationOnDate(event, date);
+      return total + durationOnDate;
     }, 0);
 }

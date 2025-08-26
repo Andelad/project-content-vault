@@ -18,6 +18,7 @@ import { TimeTracker } from './TimeTracker';
 import { WorkHourCreationModal } from './WorkHourCreationModal';
 import { WorkHourScopeDialog } from './WorkHourScopeDialog';
 import { PlannerInsightCard } from './PlannerInsightCard';
+import { splitMidnightCrossingEvents } from '../lib/midnightEventUtils';
 import { useWorkHours } from '../hooks/useWorkHours';
 import { getCalendarEventBackgroundColor, getCalendarEventTextColor, OKLCH_FALLBACK_GRAY } from '@/constants/colors';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
@@ -282,10 +283,22 @@ export function PlannerView() {
   const handleToggleCompletion = useCallback(() => {
     if (!selectedEventId || layerMode !== 'events') return;
 
-    const selectedEvent = events.find(e => e.id === selectedEventId);
+    let selectedEvent = events.find(e => e.id === selectedEventId);
+    
+    // Handle split events - if we can't find the event by ID, check if it's a split event
+    if (!selectedEvent && selectedEventId?.includes('-split-')) {
+      const originalEventId = selectedEventId.split('-split-')[0];
+      selectedEvent = events.find(e => e.id === originalEventId);
+    }
+    
     if (!selectedEvent) return;
 
-    updateEventWithUndo(selectedEventId, { completed: !selectedEvent.completed });
+    // Get the original event ID in case this is a split event
+    const originalEventId = selectedEventId?.includes('-split-') 
+      ? selectedEventId.split('-split-')[0] 
+      : selectedEvent.id;
+
+    updateEventWithUndo(originalEventId, { completed: !selectedEvent.completed });
   }, [selectedEventId, events, layerMode, updateEventWithUndo]);
 
   const handleDeleteSelected = useCallback(() => {
@@ -293,7 +306,14 @@ export function PlannerView() {
       return;
     }
 
-    const selectedEvent = events.find(e => e.id === selectedEventId);
+    let selectedEvent = events.find(e => e.id === selectedEventId);
+    
+    // Handle split events - if we can't find the event by ID, check if it's a split event
+    if (!selectedEvent && selectedEventId?.includes('-split-')) {
+      const originalEventId = selectedEventId.split('-split-')[0];
+      selectedEvent = events.find(e => e.id === originalEventId);
+    }
+    
     if (!selectedEvent) {
       return;
     }
@@ -306,16 +326,28 @@ export function PlannerView() {
   const handleConfirmDelete = useCallback(() => {
     if (!eventToDelete) return;
 
-    const selectedEvent = events.find(e => e.id === eventToDelete);
+    let selectedEvent = events.find(e => e.id === eventToDelete);
+    
+    // Handle split events - if we can't find the event by ID, check if it's a split event
+    if (!selectedEvent && eventToDelete?.includes('-split-')) {
+      const originalEventId = eventToDelete.split('-split-')[0];
+      selectedEvent = events.find(e => e.id === originalEventId);
+    }
+    
     if (selectedEvent) {
+      // Get the original event ID in case this is a split event
+      const originalEventId = eventToDelete?.includes('-split-') 
+        ? eventToDelete.split('-split-')[0] 
+        : selectedEvent.id;
+      
       // Store for undo
       setLastAction({
         type: 'delete',
-        eventId: eventToDelete,
+        eventId: originalEventId,
         event: selectedEvent
       });
 
-      deleteEvent(eventToDelete);
+      deleteEvent(originalEventId);
       setSelectedEventId(null);
     }
 
@@ -359,7 +391,10 @@ export function PlannerView() {
 
   // Convert our events to Big Calendar format
   const bigCalendarEvents: BigCalendarEvent[] = useMemo(() => {
-    const eventItems: BigCalendarEvent[] = events.map(event => ({
+    // Split events that cross midnight to ensure proper display across days
+    const splitEvents = splitMidnightCrossingEvents(events);
+    
+    const eventItems: BigCalendarEvent[] = splitEvents.map(event => ({
       id: event.id,
       title: event.title,
       start: new Date(event.startTime),
@@ -938,7 +973,7 @@ export function PlannerView() {
             }
             return [calendarDate];
           }, [view, calendarDate])}
-          events={events}
+          events={splitMidnightCrossingEvents(events)}
           view={view === Views.DAY ? 'day' : 'week'}
         />
       </div>

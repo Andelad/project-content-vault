@@ -3,6 +3,7 @@ import moment from 'moment';
 import { Card } from './ui/card';
 import { CalendarEvent } from '../types';
 import { useApp } from '../contexts/AppContext';
+import { calculateEventDurationOnDate } from '../lib/midnightEventUtils';
 
 interface CalendarInsightCardProps {
   dates: Date[];
@@ -41,26 +42,36 @@ export function PlannerInsightCard({ dates, events, view }: CalendarInsightCardP
       const dateKey = moment(date).format('YYYY-MM-DD');
       totals[dateKey] = 0;
       
-      // Add completed events for this day
+      // Add completed events for this day using proper midnight-crossing calculation
       events.forEach(event => {
-        const eventStart = moment(event.startTime);
-        const eventEnd = moment(event.endTime);
-        const eventDate = eventStart.format('YYYY-MM-DD');
-        
-        if (eventDate === dateKey && event.completed) {
-          const duration = eventEnd.diff(eventStart, 'minutes');
-          totals[dateKey] += duration;
+        if (event.completed) {
+          const durationHours = calculateEventDurationOnDate(event, date);
+          if (durationHours > 0) {
+            // Convert to minutes and round to avoid decimal minutes
+            const durationMinutes = Math.round(durationHours * 60);
+            totals[dateKey] += durationMinutes;
+          }
         }
       });
       
-      // Add currently tracking time if it's for today
+      // Add currently tracking time if it's for this date
       if (isTimeTracking && currentTrackingEvent) {
-        const trackingStart = moment(currentTrackingEvent.startTime);
-        const trackingDate = trackingStart.format('YYYY-MM-DD');
-        
-        if (trackingDate === dateKey) {
+        const trackingDurationHours = calculateEventDurationOnDate(currentTrackingEvent, date);
+        if (trackingDurationHours > 0) {
+          // For tracking events, add the live duration
+          const trackingStart = moment(currentTrackingEvent.startTime);
           const elapsedMinutes = moment(now).diff(trackingStart, 'minutes');
-          totals[dateKey] += elapsedMinutes;
+          
+          // Calculate how much of the elapsed time is on this specific date
+          const trackingDateStart = moment(date).startOf('day');
+          const trackingDateEnd = moment(date).endOf('day');
+          const effectiveStart = moment.max(trackingStart, trackingDateStart);
+          const effectiveEnd = moment.min(moment(now), trackingDateEnd);
+          
+          if (effectiveEnd.isAfter(effectiveStart)) {
+            const dailyElapsedMinutes = effectiveEnd.diff(effectiveStart, 'minutes');
+            totals[dateKey] += dailyElapsedMinutes;
+          }
         }
       }
     });
@@ -70,8 +81,10 @@ export function PlannerInsightCard({ dates, events, view }: CalendarInsightCardP
 
   // Format time for display
   const formatTime = (minutes: number) => {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
+    // Ensure we're working with whole minutes
+    const roundedMinutes = Math.round(minutes);
+    const hours = Math.floor(roundedMinutes / 60);
+    const mins = roundedMinutes % 60;
     if (hours === 0) {
       return `${mins}m`;
     }

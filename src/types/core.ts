@@ -59,6 +59,9 @@ export interface CalendarEvent {
     endDate?: Date; // When to stop recurring
     count?: number; // Or number of occurrences
   };
+  // Properties for handling midnight-crossing events
+  originalEventId?: string; // Reference to original event if this is a split
+  isSplitEvent?: boolean; // Whether this event is part of a split midnight-crossing event
 }
 
 export interface Holiday {

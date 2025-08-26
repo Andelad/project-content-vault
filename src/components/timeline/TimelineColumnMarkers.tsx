@@ -6,7 +6,7 @@ interface TimelineColumnMarkersProps {
 }
 
 export const TimelineColumnMarkers = memo(function TimelineColumnMarkers({ dates, mode = 'days' }: TimelineColumnMarkersProps) {
-  const columnWidth = mode === 'weeks' ? 72 : 40;
+  const columnWidth = mode === 'weeks' ? 77 : 40;
   const today = new Date();
   // Note: holiday overlays are rendered at row level in TimelineView so markers stay behind project bars
   

@@ -108,7 +108,7 @@ export const SmartHoverAddHolidayBar: React.FC<SmartHoverAddHolidayBarProps> = (
     
     if (mode === 'weeks') {
       // In week mode, calculate precise day-level index within week columns
-      const dayWidth = 72 / 7; // ~10.3px per day
+      const dayWidth = 11; // 11px per day (77px ÷ 7 days)
       const totalDays = dates.length * 7; // Total number of days across all weeks
       clickIndex = Math.floor(x / dayWidth);
       clickIndex = Math.max(0, Math.min(totalDays - 1, clickIndex));

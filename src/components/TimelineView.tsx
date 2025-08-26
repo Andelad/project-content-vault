@@ -15,6 +15,7 @@ import { useDynamicViewportDays } from '../hooks/useDynamicViewportDays';
 import { calculateDaysDelta, createSmoothAnimation, TIMELINE_CONSTANTS, debounce, throttle } from '@/lib/dragUtils';
 import { performanceMonitor } from '@/lib/performanceUtils';
 import { checkProjectOverlap, adjustProjectDatesForDrag } from '@/lib/projectOverlapUtils';
+import { throttledDragUpdate, clearDragQueue } from '@/lib/dragPerformance';
 
 // Import timeline components
 import { TimelineHeader } from './timeline/TimelineHeader';
@@ -418,6 +419,10 @@ export function TimelineView() {
 
   // Mouse handlers for timeline bar interactions
   const handleMouseDown = useCallback((e: React.MouseEvent, projectId: string, action: string) => {
+    // 🚫 PREVENT BROWSER DRAG-AND-DROP: Stop the globe/drag indicator
+    e.preventDefault();
+    e.stopPropagation();
+    
     const targetProject = projects.find(p => p.id === projectId);
     if (!targetProject) return;
     
@@ -436,205 +441,187 @@ export function TimelineView() {
     
   const handleMouseMove = (e: MouseEvent) => {
       try {
+        // 🚫 PREVENT BROWSER DRAG BEHAVIOR: Stop any default drag actions
+        e.preventDefault();
+        
         const daysDelta = calculateDaysDelta(e.clientX, initialDragState.startX, dates, true, timelineMode);
+        
+        // 🐛 DEBUG: Log drag calculations to identify over-responsiveness
+        const deltaX = e.clientX - initialDragState.startX;
+        const expectedDayWidth = timelineMode === 'weeks' ? 11 : 40;
+        const expectedDaysDelta = Math.round(deltaX / expectedDayWidth);
+        
+        if (Math.abs(deltaX) > 10) { // Only log significant movements
+          console.log('🎯 DRAG DEBUG:', {
+            mouseX: e.clientX,
+            startX: initialDragState.startX,
+            deltaX: deltaX,
+            calculatedDaysDelta: daysDelta,
+            expectedDaysDelta: expectedDaysDelta,
+            mode: timelineMode,
+            expectedDayWidth: expectedDayWidth,
+            ratio: deltaX / (daysDelta || 1)
+          });
+        }
+        
+        // IMMEDIATE visual update for responsive UI (no database operations)
+        setDragState(prev => ({ ...prev, daysDelta }));
         
         // Check for auto-scroll during drag
         checkAutoScroll(e.clientX);
         
-        if (action === 'resize-start-date' && daysDelta !== initialDragState.lastDaysDelta) {
-          const currentProject = projects.find(p => p.id === projectId);
-          if (currentProject) {
-            const newStartDate = new Date(initialDragState.originalStartDate);
-            newStartDate.setDate(newStartDate.getDate() + daysDelta);
+        // BACKGROUND persistence (throttled database updates)
+        if (daysDelta !== initialDragState.lastDaysDelta) {
+          // Schedule database update with longer throttle for better performance
+          const throttleMs = 300; // Increased from 75-150ms to reduce DB load
+          
+          throttledDragUpdate(async () => {
+            const currentProject = projects.find(p => p.id === projectId);
+            if (!currentProject) return;
             
-            const endDate = new Date(currentProject.endDate);
-            const oneDayBefore = new Date(endDate);
-            oneDayBefore.setDate(endDate.getDate() - 1);
-
-            // Milestone constraint: start date cannot be dragged past the first milestone (must be < first milestone)
-            const projectMilestones = milestones.filter(m => m.projectId === projectId);
-            let allowedLatestStart = oneDayBefore; // default constraint: before end date
-            if (projectMilestones.length > 0) {
-              const firstMilestoneDate = new Date(
-                projectMilestones.reduce((min: Date, m: any) => {
-                  const d = new Date(m.dueDate);
-                  return d < min ? d : min;
-                }, new Date(projectMilestones[0].dueDate))
-              );
-              // Max start is the day before first milestone
-              const dayBeforeFirst = new Date(firstMilestoneDate);
-              dayBeforeFirst.setHours(0,0,0,0);
-              dayBeforeFirst.setDate(dayBeforeFirst.getDate() - 1);
-              if (dayBeforeFirst.getTime() < allowedLatestStart.getTime()) {
-                allowedLatestStart = dayBeforeFirst;
+            if (action === 'resize-start-date') {
+              const newStartDate = new Date(initialDragState.originalStartDate);
+              newStartDate.setDate(newStartDate.getDate() + daysDelta);
+              
+              const endDate = new Date(currentProject.endDate);
+              const oneDayBefore = new Date(endDate);
+              oneDayBefore.setDate(endDate.getDate() - 1);
+              
+              // Simple validation - ensure start date is before end date
+              if (newStartDate <= oneDayBefore) {
+                await updateProject(projectId, { startDate: newStartDate }, { silent: true });
+                
+                // Update milestones to maintain their relative distance from start date
+                const projectMilestones = milestones.filter(m => m.projectId === projectId);
+                const originalStartDate = new Date(initialDragState.originalStartDate);
+                
+                const milestoneUpdates = projectMilestones.map(milestone => {
+                  const originalMilestoneDate = new Date(milestone.dueDate);
+                  const daysFromOriginalStart = Math.floor((originalMilestoneDate.getTime() - originalStartDate.getTime()) / (1000 * 60 * 60 * 24));
+                  
+                  const newMilestoneDate = new Date(newStartDate);
+                  newMilestoneDate.setDate(newStartDate.getDate() + daysFromOriginalStart);
+                  
+                  // Ensure milestone is within project bounds
+                  const minDate = new Date(newStartDate);
+                  minDate.setDate(newStartDate.getDate() + 1);
+                  const maxDate = new Date(currentProject.endDate);
+                  maxDate.setDate(maxDate.getDate() - 1);
+                  
+                  if (newMilestoneDate < minDate) {
+                    newMilestoneDate.setTime(minDate.getTime());
+                  } else if (newMilestoneDate > maxDate) {
+                    newMilestoneDate.setTime(maxDate.getTime());
+                  }
+                  
+                  return updateMilestone(milestone.id, { 
+                    dueDate: new Date(newMilestoneDate.toISOString().split('T')[0] + 'T00:00:00+00:00')
+                  }, { silent: true });
+                });
+                
+                await Promise.all(milestoneUpdates);
               }
-            }
-
-            // Clamp start date if it would violate constraints
-            if (newStartDate.getTime() > allowedLatestStart.getTime()) {
-              newStartDate.setTime(allowedLatestStart.getTime());
-            }
-            
-            // Simple validation - just ensure start date is before end date
-            if (newStartDate <= oneDayBefore) {
-              console.log('🔄 Updating project start date:', { projectId, newStartDate: newStartDate.toISOString() });
+            } else if (action === 'resize-end-date') {
+              const newEndDate = new Date(initialDragState.originalEndDate);
+              newEndDate.setDate(newEndDate.getDate() + daysDelta);
               
-              // Update project silently during drag
-              updateProject(projectId, { startDate: newStartDate }, { silent: true });
+              const startDate = new Date(currentProject.startDate);
+              const oneDayAfter = new Date(startDate);
+              oneDayAfter.setDate(startDate.getDate() + 1);
               
-              // Update milestones to maintain their relative distance from start date
+              // Simple validation - ensure end date is after start date
+              if (newEndDate >= oneDayAfter) {
+                await updateProject(projectId, { endDate: newEndDate }, { silent: true });
+                
+                // Update milestones that would be at or after the new end date
+                const projectMilestones = milestones.filter(m => m.projectId === projectId);
+                const maxMilestoneDate = new Date(newEndDate);
+                maxMilestoneDate.setDate(newEndDate.getDate() - 1);
+                
+                const milestoneUpdates = projectMilestones
+                  .filter(milestone => new Date(milestone.dueDate) >= newEndDate)
+                  .map(milestone => 
+                    updateMilestone(milestone.id, { 
+                      dueDate: new Date(maxMilestoneDate.toISOString().split('T')[0] + 'T00:00:00+00:00')
+                    }, { silent: true })
+                  );
+                
+                await Promise.all(milestoneUpdates);
+              }
+            } else if (action === 'move') {
+              const newStartDate = new Date(initialDragState.originalStartDate);
+              const newEndDate = new Date(initialDragState.originalEndDate);
+              
+              newStartDate.setDate(newStartDate.getDate() + daysDelta);
+              newEndDate.setDate(newEndDate.getDate() + daysDelta);
+              
+              // Update project and all milestones in parallel
+              const projectUpdate = updateProject(projectId, { 
+                startDate: newStartDate,
+                endDate: newEndDate 
+              }, { silent: true });
+              
               const projectMilestones = milestones.filter(m => m.projectId === projectId);
-              const originalStartDate = new Date(initialDragState.originalStartDate);
-              
-              projectMilestones.forEach(milestone => {
+              const milestoneUpdates = projectMilestones.map(milestone => {
                 const originalMilestoneDate = new Date(milestone.dueDate);
-                const daysFromOriginalStart = Math.floor((originalMilestoneDate.getTime() - originalStartDate.getTime()) / (1000 * 60 * 60 * 24));
+                const newMilestoneDate = new Date(originalMilestoneDate);
+                newMilestoneDate.setDate(originalMilestoneDate.getDate() + daysDelta);
                 
-                const newMilestoneDate = new Date(newStartDate);
-                newMilestoneDate.setDate(newStartDate.getDate() + daysFromOriginalStart);
-                
-                // Ensure milestone is at least one day after start date and at least one day before end date
-                const minDate = new Date(newStartDate);
-                minDate.setDate(newStartDate.getDate() + 1);
-                const maxDate = new Date(currentProject.endDate);
-                maxDate.setDate(maxDate.getDate() - 1);
-                
-                if (newMilestoneDate < minDate) {
-                  newMilestoneDate.setTime(minDate.getTime());
-                } else if (newMilestoneDate > maxDate) {
-                  newMilestoneDate.setTime(maxDate.getTime());
-                }
-                
-                updateMilestone(milestone.id, { 
+                return updateMilestone(milestone.id, { 
                   dueDate: new Date(newMilestoneDate.toISOString().split('T')[0] + 'T00:00:00+00:00')
                 }, { silent: true });
               });
               
-              initialDragState.lastDaysDelta = daysDelta;
-            } else {
-              console.log('❌ Start date would be after end date, skipping update');
+              await Promise.all([projectUpdate, ...milestoneUpdates]);
             }
-          }
-        } else if (action === 'resize-end-date' && daysDelta !== initialDragState.lastDaysDelta) {
-          const currentProject = projects.find(p => p.id === projectId);
-          if (currentProject) {
-            const newEndDate = new Date(initialDragState.originalEndDate);
-            newEndDate.setDate(newEndDate.getDate() + daysDelta);
-            
-            const startDate = new Date(currentProject.startDate);
-            const oneDayAfter = new Date(startDate);
-            oneDayAfter.setDate(startDate.getDate() + 1);
-
-            // Milestone constraint: end date cannot be dragged over a milestone.
-            // Minimum end = next date after the last milestone
-            const projectMilestones = milestones.filter(m => m.projectId === projectId);
-            let minEndByMilestone: Date | null = null;
-            if (projectMilestones.length > 0) {
-              const lastMilestoneDate = new Date(
-                projectMilestones.reduce((max: Date, m: any) => {
-                  const d = new Date(m.dueDate);
-                  return d > max ? d : max;
-                }, new Date(projectMilestones[0].dueDate))
-              );
-              const dayAfterLast = new Date(lastMilestoneDate);
-              dayAfterLast.setHours(0,0,0,0);
-              dayAfterLast.setDate(dayAfterLast.getDate() + 1);
-              minEndByMilestone = dayAfterLast;
-            }
-
-            // The earliest allowed end must satisfy both constraints: after start and after last milestone
-            const earliestAllowedEnd = new Date(
-              Math.max(
-                oneDayAfter.getTime(),
-                (minEndByMilestone ? minEndByMilestone.getTime() : -Infinity)
-              )
-            );
-
-            // Clamp end date if it would violate constraints
-            if (newEndDate.getTime() < earliestAllowedEnd.getTime()) {
-              newEndDate.setTime(earliestAllowedEnd.getTime());
-            }
-            
-            // Simple validation - just ensure end date is after start date
-            if (newEndDate >= oneDayAfter) {
-              console.log('🔄 Updating project end date:', { projectId, newEndDate: newEndDate.toISOString() });
-              
-              // Update project silently during drag
-              updateProject(projectId, { endDate: newEndDate }, { silent: true });
-              
-              // Update milestones that would be at or after the new end date
-              const projectMilestones = milestones.filter(m => m.projectId === projectId);
-              const maxMilestoneDate = new Date(newEndDate);
-              maxMilestoneDate.setDate(newEndDate.getDate() - 1); // One day before end date
-              
-              projectMilestones.forEach(milestone => {
-                const milestoneDate = new Date(milestone.dueDate);
-                if (milestoneDate >= newEndDate) {
-                  // Move milestone to one day before the new end date silently during drag
-                  updateMilestone(milestone.id, { 
-                    dueDate: new Date(maxMilestoneDate.toISOString().split('T')[0] + 'T00:00:00+00:00')
-                  }, { silent: true });
-                }
-              });
-              
-              initialDragState.lastDaysDelta = daysDelta;
-            } else {
-              console.log('❌ End date would be before start date, skipping update');
-            }
-          }
-        } else if (action === 'move' && daysDelta !== initialDragState.lastDaysDelta) {
-          const currentProject = projects.find(p => p.id === projectId);
-          if (currentProject) {
-            const newStartDate = new Date(initialDragState.originalStartDate);
-            const newEndDate = new Date(initialDragState.originalEndDate);
-            
-            newStartDate.setDate(newStartDate.getDate() + daysDelta);
-            newEndDate.setDate(newEndDate.getDate() + daysDelta);
-            
-            console.log('🔄 Moving project:', { projectId, newStartDate: newStartDate.toISOString(), newEndDate: newEndDate.toISOString() });
-            
-            // Update project silently during drag
-            updateProject(projectId, { 
-              startDate: newStartDate,
-              endDate: newEndDate 
-            }, { silent: true });
-            
-            // Move all milestones by the same delta to maintain their relative positions
-            const projectMilestones = milestones.filter(m => m.projectId === projectId);
-            
-            projectMilestones.forEach(milestone => {
-              const originalMilestoneDate = new Date(milestone.dueDate);
-              const newMilestoneDate = new Date(originalMilestoneDate);
-              newMilestoneDate.setDate(originalMilestoneDate.getDate() + daysDelta);
-              
-              updateMilestone(milestone.id, { 
-                dueDate: new Date(newMilestoneDate.toISOString().split('T')[0] + 'T00:00:00+00:00')
-              }, { silent: true });
-            });
-            
-            initialDragState.lastDaysDelta = daysDelta;
-          }
+          }, throttleMs);
+          
+          initialDragState.lastDaysDelta = daysDelta;
         }
       } catch (error) {
         console.error('🚨 PROJECT DRAG ERROR:', error);
-        // Don't show error toast for drag operations to avoid disrupting UX
       }
     };
     
     const handleMouseUp = () => {
+      console.log('🛑 PROJECT DRAG END - All events cleaned up');
       setIsDragging(false);
       setDragState(null);
       stopAutoScroll(); // Fix infinite scrolling
       
+      // Clear any pending drag updates for better performance
+      clearDragQueue();
+      
       // Show success toast when drag operation completes
       showProjectSuccessToast("Project updated successfully");
       
+      // Remove ALL possible event listeners for robust pen/tablet support
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('pointermove', handleMouseMove);
+      document.removeEventListener('pointerup', handleMouseUp);
+      document.removeEventListener('pointercancel', handleMouseUp);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleMouseUp);
+      document.removeEventListener('touchcancel', handleMouseUp);
     };
     
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length > 0) {
+        const touch = e.touches[0];
+        handleMouseMove({ clientX: touch.clientX } as MouseEvent);
+      }
+    };
+    
+    // Add comprehensive event listeners for all input types (mouse, pen, touch)
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener('pointermove', handleMouseMove);
+    document.addEventListener('pointerup', handleMouseUp);
+    document.addEventListener('pointercancel', handleMouseUp); // Critical for pen input
+    document.addEventListener('touchmove', handleTouchMove);
+    document.addEventListener('touchend', handleMouseUp);
+    document.addEventListener('touchcancel', handleMouseUp);
   }, [projects, dates, updateProject, checkAutoScroll, stopAutoScroll, timelineMode, milestones, updateMilestone, showProjectSuccessToast]);
 
   // COMPLETELY REWRITTEN HOLIDAY DRAG HANDLER - SIMPLE AND FAST
@@ -648,13 +635,16 @@ export function TimelineView() {
     console.log('🏖️ HOLIDAY DRAG START:', { action, holidayId });
     
     const startX = e.clientX;
-    const dayWidth = timelineMode === 'weeks' ? 72 : 40;
+    const dayWidth = timelineMode === 'weeks' ? 77 : 40;
     const originalStartDate = new Date(targetHoliday.startDate);
     const originalEndDate = new Date(targetHoliday.endDate);
     
     setIsDragging(true);
     
     const handleMouseMove = (e: MouseEvent) => {
+      // 🚫 PREVENT BROWSER DRAG BEHAVIOR: Stop any default drag actions
+      e.preventDefault();
+      
       const deltaX = e.clientX - startX;
       const daysDelta = Math.round(deltaX / dayWidth);
       
@@ -710,10 +700,16 @@ export function TimelineView() {
       setIsDragging(false);
       setDragState(null);
       stopAutoScroll();
+      
+      // Remove ALL possible event listeners for robust pen/tablet support
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('pointermove', handleMouseMove);
+      document.removeEventListener('pointerup', handleMouseUp);
+      document.removeEventListener('pointercancel', handleMouseUp);
       document.removeEventListener('touchmove', handleTouchMove);
       document.removeEventListener('touchend', handleMouseUp);
+      document.removeEventListener('touchcancel', handleMouseUp);
     };
     
     const handleTouchMove = (e: TouchEvent) => {
@@ -723,10 +719,15 @@ export function TimelineView() {
       }
     };
     
+    // Add comprehensive event listeners for all input types (mouse, pen, touch)
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener('pointermove', handleMouseMove);
+    document.addEventListener('pointerup', handleMouseUp);
+    document.addEventListener('pointercancel', handleMouseUp); // Critical for pen input
     document.addEventListener('touchmove', handleTouchMove, { passive: false });
     document.addEventListener('touchend', handleMouseUp);
+    document.addEventListener('touchcancel', handleMouseUp);
   }, [holidays, updateHoliday, checkAutoScroll, stopAutoScroll, timelineMode]);
 
   // Organize projects by groups for sidebar
@@ -883,8 +884,8 @@ export function TimelineView() {
                     {holidays && holidays.length > 0 && holidays.map(holiday => {
                       const holidayStart = new Date(holiday.startDate);
                       const holidayEnd = new Date(holiday.endDate);
-                      const columnWidth = mode === 'weeks' ? 72 : 40;
-                      const dayWidth = mode === 'weeks' ? columnWidth / 7 : columnWidth;
+                      const columnWidth = mode === 'weeks' ? 77 : 40;
+                      const dayWidth = mode === 'weeks' ? 11 : columnWidth; // 11px per day in weeks mode
                       const timelineStart = new Date(dates[0]);
                       timelineStart.setHours(0,0,0,0);
                       const msPerDay = 24 * 60 * 60 * 1000;
@@ -964,7 +965,7 @@ export function TimelineView() {
                     
                     {/* Date Headers */}
                     <div className="flex-1 bg-white" style={{ 
-                      minWidth: `${dates.length * (mode === 'weeks' ? 72 : 40)}px`
+                      minWidth: `${dates.length * (mode === 'weeks' ? 77 : 40)}px`
                     }}>
                       <TimelineDateHeaders dates={dates} mode={mode} />
                     </div>
@@ -1226,8 +1227,8 @@ export function TimelineView() {
                     {holidays && holidays.length > 0 && holidays.map(holiday => {
                       const holidayStart = new Date(holiday.startDate);
                       const holidayEnd = new Date(holiday.endDate);
-                      const columnWidth = mode === 'weeks' ? 72 : 40;
-                      const dayWidth = mode === 'weeks' ? columnWidth / 7 : columnWidth;
+                      const columnWidth = mode === 'weeks' ? 77 : 40;
+                      const dayWidth = mode === 'weeks' ? 11 : columnWidth; // 11px per day in weeks mode
                       const timelineStart = new Date(dates[0]);
                       timelineStart.setHours(0,0,0,0);
                       const msPerDay = 24 * 60 * 60 * 1000;
@@ -1275,7 +1276,7 @@ export function TimelineView() {
                   />
                   
                   {/* Availability Timeline Content */}
-                  <div className="flex-1 flex flex-col bg-white relative" style={{ minWidth: `${dates.length * (mode === 'weeks' ? 72 : 40)}px` }}>
+                  <div className="flex-1 flex flex-col bg-white relative" style={{ minWidth: `${dates.length * (mode === 'weeks' ? 77 : 40)}px` }}>
                     {/* Holiday Overlay */}
                     {/* <HolidayOverlay dates={dates} type="availability" mode={mode} /> */}
                     

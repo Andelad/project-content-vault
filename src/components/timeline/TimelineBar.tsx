@@ -220,12 +220,25 @@ export const TimelineBar = memo(function TimelineBar({
         <div 
           className="flex w-full relative z-20 flex-1 pointer-events-none" 
           style={{ 
-            minWidth: `${dates.length * (mode === 'weeks' ? 72 : 40)}px`,
+            minWidth: `${dates.length * (mode === 'weeks' ? 77 : 40)}px`,
             zIndex: 20
           }}
         >
-          
-          {dates.map((date, dateIndex) => {
+          {(() => {
+            // Calculate visually adjusted project dates for immediate drag response
+            let visualProjectStart = new Date(project.startDate);
+            let visualProjectEnd = new Date(project.endDate);
+            
+            // Apply drag offset to project dates for immediate visual feedback
+            if (isDragging && dragState?.projectId === project.id && dragState?.daysDelta) {
+              const daysOffset = dragState.daysDelta;
+              visualProjectStart = new Date(project.startDate);
+              visualProjectStart.setDate(visualProjectStart.getDate() + daysOffset);
+              visualProjectEnd = new Date(project.endDate);
+              visualProjectEnd.setDate(visualProjectEnd.getDate() + daysOffset);
+            }
+            
+            return dates.map((date, dateIndex) => {
             if (mode === 'weeks') {
               // Week mode logic
               const weekStart = new Date(date);
@@ -234,17 +247,17 @@ export const TimelineBar = memo(function TimelineBar({
               weekEnd.setDate(weekStart.getDate() + 6);
               weekEnd.setHours(23, 59, 59, 999);
               
-              // Normalize project dates
-              const projectStart = new Date(project.startDate);
+              // Normalize project dates (using visually adjusted dates for immediate drag response)
+              const projectStart = new Date(visualProjectStart);
               projectStart.setHours(0, 0, 0, 0);
-              const projectEnd = new Date(project.endDate);
+              const projectEnd = new Date(visualProjectEnd);
               projectEnd.setHours(23, 59, 59, 999);
               
               // Check if project intersects with this week
               const weekIntersectsProject = !(projectEnd < weekStart || projectStart > weekEnd);
               
               if (!weekIntersectsProject) {
-                return <div key={dateIndex} className="flex flex-col-reverse" style={{ minWidth: '72px', width: '72px' }}></div>;
+                return <div key={dateIndex} className="flex flex-col-reverse" style={{ minWidth: '77px', width: '77px' }}></div>;
               }
               
               // Calculate working days in this week that are part of the project
@@ -260,16 +273,15 @@ export const TimelineBar = memo(function TimelineBar({
               }
               
               if (workingDaysInWeek.length === 0) {
-                return <div key={dateIndex} className="flex flex-col-reverse" style={{ minWidth: '72px', width: '72px' }}></div>;
+                return <div key={dateIndex} className="flex flex-col-reverse" style={{ minWidth: '77px', width: '77px' }}></div>;
               }
               
-              // For weeks mode, create segments for each day of the week with fine-grained positioning
-              // Each week column is 72px, so each day gets approximately 10.3px (72/7)
-              // Use the specified increments: 5 x 10px and 2 x 11px = 72px total
-              const dayWidths = [10, 10, 10, 10, 10, 11, 11]; // Mon, Tue, Wed, Thu, Fri, Sat, Sun
+              // For weeks mode, create segments for each day of the week with simple 11px positioning
+              // Each week column is 77px, with each day getting exactly 11px
+              const dayWidths = [11, 11, 11, 11, 11, 11, 11]; // Mon, Tue, Wed, Thu, Fri, Sat, Sun - all 11px
               
               return (
-                <div key={dateIndex} className="flex relative h-full items-end" style={{ minWidth: '72px', width: '72px' }}>
+                <div key={dateIndex} className="flex relative h-full items-end" style={{ minWidth: '77px', width: '77px' }}>
                   {/* Use a fixed cap height so inner day rectangles aren't clipped by project-level estimate */}
                   <div className="flex w-full items-end" style={{ height: `28px` }}>
                     {dayWidths.map((dayWidth, dayOfWeek) => {
@@ -277,10 +289,10 @@ export const TimelineBar = memo(function TimelineBar({
                       currentDay.setDate(weekStart.getDate() + dayOfWeek);
                       currentDay.setHours(0, 0, 0, 0);
                       
-                      // Normalize project dates for comparison
-                      const normalizedProjectStart = new Date(project.startDate);
+                      // Normalize project dates for comparison (using visually adjusted dates)
+                      const normalizedProjectStart = new Date(visualProjectStart);
                       normalizedProjectStart.setHours(0, 0, 0, 0);
-                      const normalizedProjectEnd = new Date(project.endDate);
+                      const normalizedProjectEnd = new Date(visualProjectEnd);
                       normalizedProjectEnd.setHours(0, 0, 0, 0);
                       
                       const isDayInProject = currentDay >= normalizedProjectStart && currentDay <= normalizedProjectEnd;
@@ -479,10 +491,10 @@ export const TimelineBar = memo(function TimelineBar({
                 return <div key={dateIndex} className="h-full" style={{ minWidth: '40px', width: '40px' }}></div>;
               }
 
-              // Normalize project dates for comparison
-              const projectStart = new Date(project.startDate);
+              // Normalize project dates for comparison (using visually adjusted dates)
+              const projectStart = new Date(visualProjectStart);
               projectStart.setHours(0, 0, 0, 0);
-              const projectEnd = new Date(project.endDate);
+              const projectEnd = new Date(visualProjectEnd);
               projectEnd.setHours(0, 0, 0, 0);
               
               // Normalize viewport dates
@@ -716,7 +728,8 @@ export const TimelineBar = memo(function TimelineBar({
                 </div>
               );
             }
-          })}
+          });
+          })()}
         </div>
         
         {/* Project baseline - positioned below the rectangles */}
@@ -737,6 +750,20 @@ export const TimelineBar = memo(function TimelineBar({
             mode
           );
           
+          // Apply immediate drag offset to project bar positions for responsive UI
+          let adjustedPositions = { ...positions };
+          if (isDragging && dragState?.projectId === project.id && dragState?.daysDelta) {
+            const dragDayWidth = mode === 'weeks' ? 11 : 40;
+            const dragOffsetPx = dragState.daysDelta * dragDayWidth;
+            
+            adjustedPositions = {
+              ...positions,
+              baselineStartPx: positions.baselineStartPx + dragOffsetPx,
+              circleLeftPx: positions.circleLeftPx + dragOffsetPx,
+              triangleLeftPx: positions.triangleLeftPx + dragOffsetPx
+            };
+          }
+          
           // Check if project should be visible (continuous projects are always visible if started)
           const originalProjectEnd = new Date(project.endDate);
           if (!project.continuous && (originalProjectEnd < viewportStart || projectStart > viewportEnd)) {
@@ -751,6 +778,7 @@ export const TimelineBar = memo(function TimelineBar({
               {/* Baseline line using absolute pixel positioning like HolidayOverlay */}
               <div 
                 className="absolute top-0 h-[3px] cursor-move hover:opacity-80 pointer-events-auto"
+                draggable={false} // 🚫 Disable browser drag-and-drop
                 style={project.continuous ? {
                   // For continuous projects, use hazard stripe pattern
                   background: `repeating-linear-gradient(
@@ -760,17 +788,18 @@ export const TimelineBar = memo(function TimelineBar({
                     ${project.color} 3px,
                     ${project.color} 6px
                   )`,
-                  left: `${positions.baselineStartPx}px`,
+                  left: `${adjustedPositions.baselineStartPx}px`,
                   width: `${positions.baselineWidthPx}px`,
                   zIndex: 25
                 } : {
                   // For regular projects, use solid background
                   backgroundColor: colorScheme.baseline,
-                  left: `${positions.baselineStartPx}px`,
+                  left: `${adjustedPositions.baselineStartPx}px`,
                   width: `${positions.baselineWidthPx}px`,
                   zIndex: 25
                 }}
                 onMouseDown={(e) => {
+                  e.preventDefault(); // 🚫 Prevent browser drag-and-drop globe
                   e.stopPropagation();
                   handleMouseDown(e, project.id, 'move');
                 }}
@@ -780,14 +809,15 @@ export const TimelineBar = memo(function TimelineBar({
               {/* Start date drag circle - center it at the left edge of start column */}
               <div 
                 className="absolute w-[11px] h-[11px] rounded-full shadow-sm cursor-ew-resize pointer-events-auto hover:scale-110 transition-transform"
+                draggable={false} // 🚫 Disable browser drag-and-drop
                 style={{ 
                   backgroundColor: colorScheme.baseline,
-                  border: '1px solid rgba(255,255,255,0.8)',
-                  left: `${positions.circleLeftPx - 5.5}px`, // Center circle at left edge of start column
+                  left: `${adjustedPositions.circleLeftPx - 5.5}px`, // Center circle at left edge of start column
                   top: '-4px', // Center 11px circle on 3px baseline (5.5px above, 2.5px below)
                   zIndex: 30
                 }}
                 onMouseDown={(e) => {
+                  e.preventDefault(); // 🚫 Prevent browser drag-and-drop globe
                   e.stopPropagation();
                   handleMouseDown(e, project.id, 'resize-start-date');
                 }}
@@ -798,7 +828,7 @@ export const TimelineBar = memo(function TimelineBar({
               <div 
                 className="absolute z-40 pointer-events-auto"
                 style={{ 
-                  left: `${Math.max(positions.circleLeftPx - 12, 8)}px`, // Stick with 8px gap from left edge when scrolling off-screen
+                  left: `${Math.max(adjustedPositions.circleLeftPx - 12, 8)}px`, // Stick with 8px gap from left edge when scrolling off-screen
                   top: '-32px' // Position above the start circle
                 }}
               >
@@ -810,8 +840,9 @@ export const TimelineBar = memo(function TimelineBar({
               {!project.continuous && (
                 <div 
                   className="absolute cursor-ew-resize z-30 pointer-events-auto"
+                  draggable={false} // 🚫 Disable browser drag-and-drop
                   style={{ 
-                    left: `${positions.triangleLeftPx - 7}px`, // Position triangle so right edge aligns with right edge of end column
+                    left: `${adjustedPositions.triangleLeftPx - 7}px`, // Position triangle so right edge aligns with right edge of end column
                     top: '-4px', // Center 11px triangle on 3px baseline (5.5px above, 2.5px below)
                     width: '0',
                     height: '0',
@@ -820,6 +851,7 @@ export const TimelineBar = memo(function TimelineBar({
                     borderRight: `7px solid ${colorScheme.baseline}`
                   }}
                 onMouseDown={(e) => {
+                  e.preventDefault(); // 🚫 Prevent browser drag-and-drop globe
                   e.stopPropagation();
                   handleMouseDown(e, project.id, 'resize-end-date');
                 }}
@@ -835,10 +867,11 @@ export const TimelineBar = memo(function TimelineBar({
                 viewportEnd={viewportEnd}
                 mode={mode}
                 colorScheme={colorScheme}
-                onMilestoneDrag={onMilestoneDrag}
-                onMilestoneDragEnd={onMilestoneDragEnd}
+                projectPositions={adjustedPositions}
                 isDragging={isDragging}
                 dragState={dragState}
+                onMilestoneDrag={onMilestoneDrag}
+                onMilestoneDragEnd={onMilestoneDragEnd}
               />
             </div>
           );

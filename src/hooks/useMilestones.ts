@@ -164,10 +164,13 @@ export function useMilestones(projectId?: string) {
       }
       
       // After any potential due_date change, normalize order_index for this project
-      try {
-        await normalizeMilestoneOrders(data.project_id, { silent: true });
-      } catch (e) {
-        console.warn('Milestone order normalization deferred:', e);
+      // Skip normalization during silent updates (drag operations) for better performance
+      if (!options.silent) {
+        try {
+          await normalizeMilestoneOrders(data.project_id, { silent: true });
+        } catch (e) {
+          console.warn('Milestone order normalization deferred:', e);
+        }
       }
       return data;
     } catch (error) {

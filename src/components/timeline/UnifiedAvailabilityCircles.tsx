@@ -37,7 +37,7 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
   displayMode = 'circles'
 }: UnifiedAvailabilityCirclesProps) {
   const { holidays, events } = useApp();
-  const columnWidth = mode === 'weeks' ? 72 : 40;
+  const columnWidth = mode === 'weeks' ? 77 : 40;
   
   // Helper function to check if a day has working hours
   const isWorkingDay = (date: Date) => {

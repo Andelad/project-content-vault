@@ -2,7 +2,7 @@ import React, { memo, useMemo, useState } from 'react';
 import { Flag } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import { useAppDataOnly } from '../../contexts/AppContext';
-import { calculateTimelinePositions } from '@/lib/timelinePositioning';
+import { PositionCalculation } from '@/lib/timelinePositioning';
 import { Milestone } from '@/types/core';
 
 interface ProjectMilestonesProps {
@@ -18,10 +18,11 @@ interface ProjectMilestonesProps {
     autoEstimate: string;
     hover: string;
   };
+  projectPositions: PositionCalculation; // Add the project's calculated positions
+  isDragging?: boolean; // Re-add for immediate drag response
+  dragState?: any; // Re-add for immediate drag response
   onMilestoneDrag?: (milestoneId: string, newDate: Date) => void;
   onMilestoneDragEnd?: () => void;
-  isDragging?: boolean;
-  dragState?: any;
 }
 
 export const ProjectMilestones = memo(function ProjectMilestones({
@@ -31,10 +32,11 @@ export const ProjectMilestones = memo(function ProjectMilestones({
   viewportEnd,
   mode,
   colorScheme,
-  onMilestoneDrag,
-  onMilestoneDragEnd,
+  projectPositions,
   isDragging,
-  dragState
+  dragState,
+  onMilestoneDrag,
+  onMilestoneDragEnd
 }: ProjectMilestonesProps) {
   const { milestones } = useAppDataOnly();
   const [draggingMilestone, setDraggingMilestone] = useState<string | null>(null);
@@ -46,42 +48,44 @@ export const ProjectMilestones = memo(function ProjectMilestones({
       .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
   }, [milestones, project.id]);
 
-  // Calculate positions for each milestone
+  // Calculate positions for each milestone relative to the project's baseline positioning
   const milestonePositions = useMemo(() => {
+    const projectStart = new Date(project.startDate);
+    projectStart.setHours(0, 0, 0, 0);
+    
     return projectMilestones.map(milestone => {
       const milestoneDate = new Date(milestone.dueDate);
       milestoneDate.setHours(0, 0, 0, 0);
 
-      // If project is being dragged, adjust milestone date accordingly
-      let adjustedMilestoneDate = milestoneDate;
-      if (isDragging && dragState?.projectId === project.id && dragState?.action === 'move') {
-        adjustedMilestoneDate = new Date(milestoneDate);
-        const daysDelta = dragState.daysDelta || 0;
-        adjustedMilestoneDate.setDate(adjustedMilestoneDate.getDate() + daysDelta);
-      }
-
-      // Check if milestone is within viewport (use adjusted date for visibility check)
-      if (adjustedMilestoneDate < viewportStart || adjustedMilestoneDate > viewportEnd) {
+      // Check if milestone is within viewport
+      if (milestoneDate < viewportStart || milestoneDate > viewportEnd) {
         return { milestone, visible: false, position: 0 };
       }
 
-      // Calculate position using the adjusted date
-      const positions = calculateTimelinePositions(
-        adjustedMilestoneDate,
-        adjustedMilestoneDate,
-        viewportStart,
-        viewportEnd,
-        dates,
-        mode
-      );
+      // Calculate milestone position relative to project start
+      const msPerDay = 24 * 60 * 60 * 1000;
+      const daysFromProjectStart = Math.floor((milestoneDate.getTime() - projectStart.getTime()) / msPerDay);
+      
+      // Use the project's positioning data directly (already includes drag offset if applicable)
+      let milestonePosition: number;
+      
+      if (mode === 'weeks') {
+        // In weeks mode, use simple 11px per day calculation
+        const dayWidth = 11; // Same as in timelinePositioning.ts
+        milestonePosition = projectPositions.circleLeftPx + (daysFromProjectStart * dayWidth);
+      } else {
+        // In days mode, use column-based positioning
+        const columnWidth = 40;
+        milestonePosition = projectPositions.circleLeftPx + (daysFromProjectStart * columnWidth);
+      }
 
       return {
         milestone,
         visible: true,
-        position: positions.circleLeftPx
+        position: milestonePosition
       };
     });
-  }, [projectMilestones, viewportStart, viewportEnd, dates, mode, isDragging, dragState, project.id]);
+  }, [projectMilestones, viewportStart, viewportEnd, project.startDate, mode, projectPositions, isDragging, dragState]);
 
   // Handle milestone drag start
   const handleMilestoneMouseDown = (e: React.MouseEvent, milestoneId: string) => {
@@ -90,7 +94,7 @@ export const ProjectMilestones = memo(function ProjectMilestones({
 
     const startX = e.clientX;
     // Calculate actual day width based on mode
-    const dayWidth = mode === 'weeks' ? (72 / 7) : 40; // 10.3px for weeks, 40px for days
+    const dayWidth = mode === 'weeks' ? 11 : 40; // 11px for weeks, 40px for days
     const originalMilestone = projectMilestones.find(m => m.id === milestoneId);
     if (!originalMilestone) return;
 
@@ -165,7 +169,8 @@ export const ProjectMilestones = memo(function ProjectMilestones({
   }
 
   return (
-    <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 25 }}>
+    // Position milestones using the same coordinate system as the project baseline
+    <>
       {milestonePositions.map(({ milestone, visible, position }) => {
         if (!visible) return null;
 
@@ -224,6 +229,6 @@ export const ProjectMilestones = memo(function ProjectMilestones({
           </Tooltip>
         );
       })}
-    </div>
+    </>
   );
 });
