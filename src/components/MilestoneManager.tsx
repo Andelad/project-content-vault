@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Trash2, ChevronDown, ChevronRight, AlertTriangle, Calendar as CalendarIcon, RotateCcw, RefreshCw } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronRight, AlertTriangle, Calendar as CalendarIcon, RotateCcw, RefreshCw, X, Flag } from 'lucide-react';
+import { format } from 'date-fns';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
@@ -76,6 +77,10 @@ export function MilestoneManager({
     recurringType: 'weekly',
     recurringInterval: 1
   });
+  
+  // Recurring milestone editing state
+  const [editingRecurringLoad, setEditingRecurringLoad] = useState(false);
+  const [editingLoadValue, setEditingLoadValue] = useState(0);
 
   // Helper function to show error toast
   const showErrorToast = async (message: string) => {
@@ -84,6 +89,46 @@ export function MilestoneManager({
       title: "Error",
       description: message,
       variant: "destructive",
+    });
+  };
+
+  // Helper function to get ordinal numbers (1st, 2nd, 3rd, etc.)
+  const getOrdinalNumber = (num: number) => {
+    const j = num % 10;
+    const k = num % 100;
+    if (j === 1 && k !== 11) {
+      return num + "st";
+    }
+    if (j === 2 && k !== 12) {
+      return num + "nd";
+    }
+    if (j === 3 && k !== 13) {
+      return num + "rd";
+    }
+    return num + "th";
+  };
+
+  // Handle updating recurring milestone load
+  const handleUpdateRecurringLoad = async (direction: 'forward' | 'both') => {
+    if (!recurringMilestone) return;
+
+    const { toast } = await import('@/hooks/use-toast');
+    
+    // Update the recurring milestone configuration
+    const updatedMilestone = {
+      ...recurringMilestone,
+      timeAllocation: editingLoadValue
+    };
+    
+    setRecurringMilestone(updatedMilestone);
+    setEditingRecurringLoad(false);
+    
+    // Show success toast indicating the change
+    toast({
+      title: "Recurring Milestone Updated",
+      description: direction === 'forward' 
+        ? `Updated load to ${editingLoadValue}h going forward` 
+        : `Updated load to ${editingLoadValue}h for all occurrences`,
     });
   };
 
@@ -894,69 +939,99 @@ export function MilestoneManager({
 
               {/* Recurring Milestone Card */}
               {recurringMilestone && (
-                <div className="border border-blue-200 rounded-lg p-4 mb-3 bg-blue-50">
-                  <div className="flex items-end justify-between">
-                    {/* Left side: Name and Total Budget */}
-                    <div className="flex items-end gap-3">
-                      <div className="min-w-[120px]">
-                        <Label className="text-xs text-muted-foreground mb-1 block">Recurring Milestone</Label>
-                        <div className="flex items-center gap-2">
-                          <RefreshCw className="w-4 h-4 text-blue-600" />
-                          <span className="text-sm font-medium">{recurringMilestone.name}</span>
+                <div className="space-y-4">
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                          <Flag className="w-5 h-5 text-blue-600" />
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-gray-900">
+                            Recurring Milestone
+                          </h3>
+                          <div className="flex items-center gap-2 mt-1">
+                            <p className="text-sm text-gray-600">
+                              {recurringMilestone.recurringType === 'weekly' ? 'Weekly' : 'Monthly'}
+                            </p>
+                            <span className="text-gray-400">•</span>
+                            {editingRecurringLoad ? (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="number"
+                                  value={editingLoadValue}
+                                  onChange={(e) => setEditingLoadValue(Number(e.target.value))}
+                                  className="w-16 px-2 py-1 text-sm border border-gray-300 rounded"
+                                  min="0"
+                                  step="0.5"
+                                  autoFocus
+                                />
+                                <span className="text-sm text-gray-600">h</span>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => setEditingRecurringLoad(false)}
+                                  className="h-6 w-6 p-0"
+                                >
+                                  <X className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  setEditingRecurringLoad(true);
+                                  setEditingLoadValue(recurringMilestone.timeAllocation);
+                                }}
+                                className="text-sm text-gray-600 hover:text-gray-800 underline decoration-dotted"
+                              >
+                                {recurringMilestone.timeAllocation}h allocation
+                              </button>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {recurringMilestone.recurringType === 'weekly' 
+                              ? `Every ${format(projectStartDate, 'EEEE')} since ${format(projectStartDate, 'MMM d, yyyy')}`
+                              : `${getOrdinalNumber(projectStartDate.getDate())} of each month since ${format(projectStartDate, 'MMM yyyy')}`
+                            }
+                          </p>
                         </div>
                       </div>
-                      <div className="min-w-[80px]">
-                        <Label className="text-xs text-muted-foreground mb-1 block">Total Allocation</Label>
-                        <div className="flex items-center gap-1">
-                          <span className="text-sm font-medium text-blue-700">
-                            {totalRecurringAllocation}h
-                          </span>
-                          <span className="text-xs text-muted-foreground/60">
-                            ({calculateRecurringMilestoneCount(recurringMilestone)} × {recurringMilestone.timeAllocation}h)
-                          </span>
-                        </div>
-                      </div>
+                      
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setRecurringMilestone(null)}
+                        className="text-gray-400 hover:text-gray-600"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
                     </div>
                     
-                    {/* Right side: Configuration and Delete Button */}
-                    <div className="flex items-end gap-3">
-                      <div className="min-w-[180px]">
-                        <Label className="text-xs text-muted-foreground mb-1 block">Pattern</Label>
-                        <span className="text-sm text-blue-700">
-                          Every {recurringMilestone.recurringInterval} {recurringMilestone.recurringType}(s)
-                        </span>
-                      </div>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
+                    {editingRecurringLoad && (
+                      <div className="mt-4 pt-4 border-t border-blue-200">
+                        <p className="text-sm text-gray-700 mb-3">
+                          Update recurring milestone allocation from {recurringMilestone.timeAllocation}h to {editingLoadValue}h:
+                        </p>
+                        <div className="flex gap-2">
                           <Button
-                            variant="outline"
                             size="sm"
-                            className="h-10 w-10 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            variant="outline"
+                            onClick={() => handleUpdateRecurringLoad('forward')}
+                            className="flex-1"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            Going Forward Only
                           </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Recurring Milestones</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to delete the recurring milestone pattern? This will remove the configuration and any generated milestones. This action cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction 
-                              onClick={() => {
-                                handleDeleteRecurringMilestones();
-                              }}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            >
-                              Delete Recurring Milestones
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleUpdateRecurringLoad('both')}
+                            className="flex-1"
+                          >
+                            Going Forward & Back
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
