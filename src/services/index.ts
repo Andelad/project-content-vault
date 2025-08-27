@@ -13,7 +13,6 @@
  */
 
 // Business logic services
-export * from './recurringMilestoneService';
 export * from './cachePerformanceService';
 export * from './eventDurationService';
 export * from './eventOverlapService';
@@ -27,17 +26,21 @@ export * from './timelinePositionService';
 export * from './workHourCreationService';
 export * from './dragCalculationService';
 export * from './timelineViewportService';
-export * from './milestoneManagementService';
+export { 
+  type GeneratedMilestone,
+  type RecurringMilestonePreview,
+  MilestoneManagementService
+} from './milestoneManagementService';
 export * from './performanceMetricsService';
 export * from './projectProgressGraphService';
 export * from './settingsValidationService';
 export * from './eventWorkHourIntegrationService';
 export * from './workHourCapacityService';
-export { RecurringMilestoneConfig as ServiceRecurringMilestoneConfig } from './recurringMilestoneService';
+export * from './recurringMilestoneService';
 
 // Core calculation services
 export { DateCalculationService } from './DateCalculationService';
-export { ProjectCalculationService } from './projectCalculationService';
+export { ProjectCalculationService } from './ProjectCalculationService';
 export { TimelineCalculationService } from './TimelineCalculationService';
 export { CalculationCacheService } from './CalculationCacheService';
 

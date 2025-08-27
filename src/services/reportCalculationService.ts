@@ -52,13 +52,19 @@ export type AveragePeriod = 'week' | 'month' | '6months';
  * Calculate total weekly work capacity from settings
  */
 export function calculateWeeklyCapacity(weeklyWorkHours: WeeklyWorkHours): number {
-  return Object.values(weeklyWorkHours).reduce((sum: number, dayData: WorkSlot[] | number) => {
-    // Handle both old (number) and new (WorkSlot[]) formats
+  const values = Object.values(weeklyWorkHours);
+  let totalCapacity = 0;
+  
+  for (const dayData of values) {
     if (Array.isArray(dayData)) {
-      return sum + dayData.reduce((daySum: number, slot: WorkSlot) => daySum + (slot.duration || 0), 0);
+      const dayTotal = dayData.reduce((daySum: number, slot: WorkSlot) => daySum + (slot.duration || 0), 0);
+      totalCapacity += dayTotal;
+    } else if (typeof dayData === 'number') {
+      totalCapacity += dayData;
     }
-    return sum + (typeof dayData === 'number' ? dayData : 0);
-  }, 0);
+  }
+  
+  return totalCapacity;
 }
 
 /**
