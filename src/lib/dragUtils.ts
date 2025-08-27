@@ -12,7 +12,7 @@ import {
   validateDragDateRange,
   type DragState as ServiceDragState,
   type SmoothAnimationConfig
-} from '@/services/dragCalculationService';
+} from '@/services';
 
 export interface DragState {
   projectId?: string;

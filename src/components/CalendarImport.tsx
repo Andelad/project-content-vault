@@ -8,7 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Upload, Calendar, CheckCircle, XCircle, Clock, FileText } from 'lucide-react';
-import { CalendarIntegrationService, type ImportResult } from '@/services/calendarIntegration';
+import { CalendarIntegrationService, type ImportResult } from '@/services';
 import { useCalendarConnections } from '@/hooks/useCalendarConnections';
 import { useToast } from '@/hooks/use-toast';
 

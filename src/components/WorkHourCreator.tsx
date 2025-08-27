@@ -11,7 +11,7 @@ import {
   getWorkHourCreationCursor,
   shouldAllowWorkHourCreation,
   type WorkHourCreateState
-} from '@/services/workHourCreationService';
+} from '@/services';
 
 interface WorkHourCreatorProps {
   date: Date;

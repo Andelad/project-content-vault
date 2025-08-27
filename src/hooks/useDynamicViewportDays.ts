@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { TimelineViewportService } from '@/services/timelineViewportService';
+import { TimelineViewportService } from '@/services';
 
 export function useDynamicViewportDays(sidebarCollapsed: boolean, mode: 'days' | 'weeks' = 'days') {
   const [viewportDays, setViewportDays] = useState(30); // Default fallback

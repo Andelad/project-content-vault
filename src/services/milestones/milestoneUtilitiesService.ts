@@ -16,7 +16,7 @@
  */
 
 import type { Milestone } from '@/types/core';
-import { MilestoneManagementService } from '@/services/milestoneManagementService';
+import { MilestoneManagementService } from './milestoneManagementService';
 
 /**
  * Interface for milestone time distribution entry

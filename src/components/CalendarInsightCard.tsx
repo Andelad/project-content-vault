@@ -3,7 +3,7 @@ import moment from 'moment';
 import { Card } from './ui/card';
 import { CalendarEvent } from '../types';
 import { useSettingsContext } from '../contexts/SettingsContext';
-import { calculateDailyTotals } from '@/services/calendarInsightService';
+import { calculateDailyTotals } from '@/services';
 import { formatTimeMinutes } from '@/services';
 
 interface CalendarInsightCardProps {

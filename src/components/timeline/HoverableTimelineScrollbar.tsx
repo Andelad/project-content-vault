@@ -5,7 +5,7 @@ import {
   calculateScrollbarDragTarget,
   calculateScrollEasing,
   calculateAnimationDuration
-} from '@/services/timelinePositionService';
+} from '@/services';
 
 interface HoverableTimelineScrollbarProps {
   viewportStart: Date;

@@ -10,8 +10,8 @@ import { getProjectTimeAllocation, memoizedGetProjectTimeAllocation, generateWor
 import { calculateMilestoneSegments, getMilestoneSegmentForDate } from '@/lib/milestoneSegmentUtils';
 import { ProjectIconIndicator } from './ProjectIconIndicator';
 import { ProjectMilestones } from './ProjectMilestones';
-import { TimeAllocationService } from '@/services/TimeAllocationService';
-import { HeightCalculationService } from '@/services/HeightCalculationService';
+import { TimeAllocationService } from '@/services';
+import { HeightCalculationService } from '@/services';
 
 interface TimelineBarProps {
   project: any;

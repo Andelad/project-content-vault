@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { TimelineViewportService } from '@/services/timelineViewportService';
+import { TimelineViewportService } from '@/services';
 
 export function useTimelineData(projects: any[], viewportStart: Date, viewportDays: number, mode: 'days' | 'weeks' = 'days', collapsed: boolean = false) {
   return useMemo(() => {

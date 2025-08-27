@@ -127,7 +127,7 @@ import {
   analyzePerformance,
   type UsageMetrics,
   type PerformanceAnalysis
-} from '@/services/performanceMetricsService';
+} from '@/services';
 
 /**
  * @deprecated Use calculateUsageMetrics from performanceMetricsService instead

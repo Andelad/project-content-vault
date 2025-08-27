@@ -1,6 +1,6 @@
 import { Milestone } from '@/types/core';
 import { calculateWorkHourCapacity } from './workHoursUtils';
-import { HeightCalculationService } from '@/services/HeightCalculationService';
+import { HeightCalculationService } from '@/services';
 
 export interface MilestoneSegment {
   id: string;

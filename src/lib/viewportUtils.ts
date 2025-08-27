@@ -6,7 +6,7 @@
  * centralized TimelineViewportService.
  */
 
-import { TimelineViewportService } from '@/services/timelineViewportService';
+import { TimelineViewportService } from '@/services';
 
 /**
  * @deprecated Use TimelineViewportService.calculateNavigationTarget

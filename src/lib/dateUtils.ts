@@ -1,5 +1,5 @@
 // Utility functions for date calculations to avoid repeated computations
-import { HeightCalculationService } from '@/services/HeightCalculationService';
+import { HeightCalculationService } from '@/services';
 
 const dateCache = new Map<string, Date>();
 

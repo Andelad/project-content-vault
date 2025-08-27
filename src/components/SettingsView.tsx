@@ -23,7 +23,7 @@ import {
   generateDefaultWorkSchedule,
   validateWorkSchedule,
   analyzeWorkSchedule
-} from '@/services/settingsValidationService';
+} from '@/services';
 
 export function SettingsView() {
   const { settings: appSettings, updateSettings, setDefaultView } = useSettingsContext();

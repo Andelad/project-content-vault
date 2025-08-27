@@ -7,14 +7,14 @@ import { useProjectContext } from '../contexts/ProjectContext';
 import { usePlannerContext } from '../contexts/PlannerContext';
 import { useSettingsContext } from '../contexts/SettingsContext';
 import { CalendarEvent } from '../types';
-import { calculateOverlapActions, findOverlappingEvents } from '@/services/eventOverlapService';
-import { formatTimeSeconds } from '@/services/timeFormattingService';
+import { calculateOverlapActions, findOverlappingEvents } from '@/services';
+import { formatTimeSeconds } from '@/services';
 import { 
   processEventOverlaps, 
   calculateElapsedTime, 
   createTimeRange,
   type EventSplitResult 
-} from '@/services/eventSplittingService';
+} from '@/services';
 
 interface TimeTrackerProps {
   className?: string;

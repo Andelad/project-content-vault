@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { WorkHour, WorkSlot } from '../types/core';
 import { useSettings } from './useSettings';
-import { WorkHourCalculationService } from '@/services/WorkHourCalculationService';
+import { WorkHourCalculationService } from '@/services';
 
 interface UseWorkHoursReturn {
   workHours: WorkHour[];

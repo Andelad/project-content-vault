@@ -1,5 +1,5 @@
 import { Milestone } from '@/types/core';
-import { MilestoneManagementService } from '@/services/milestoneManagementService';
+import { MilestoneManagementService } from '@/services';
 
 /**
  * Calculate daily time allocation for milestones

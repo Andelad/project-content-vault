@@ -1,5 +1,5 @@
 import { PERFORMANCE_LIMITS } from '../constants';
-import { HeightCalculationService } from '@/services/HeightCalculationService';
+import { HeightCalculationService } from '@/services';
 
 // Memoization utilities for expensive calculations
 

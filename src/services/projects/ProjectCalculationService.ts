@@ -3,7 +3,7 @@
  * Handles all project duration, milestone, and resource calculations
  */
 
-import { DateCalculationService } from './DateCalculationService';
+import { DateCalculationService } from '../core/DateCalculationService';
 
 interface Project {
   id: string;
