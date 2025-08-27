@@ -43,6 +43,7 @@ export { DateCalculationService } from './DateCalculationService';
 export { ProjectCalculationService } from './ProjectCalculationService';
 export { TimelineCalculationService } from './TimelineCalculationService';
 export { CalculationCacheService } from './CalculationCacheService';
+export { WorkHourCalculationService } from './WorkHourCalculationService';
 
 // Memoized calculation factories
 import { CalculationCacheService } from './CalculationCacheService';

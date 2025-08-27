@@ -69,6 +69,185 @@ export interface ViewportBlockingState {
  */
 export class TimelineViewportService {
   
+  // Constants for viewport calculations
+  private static readonly MIN_DAY_COLUMN_WIDTH = 40; // 40px minimum width per day column
+  private static readonly MIN_WEEK_COLUMN_WIDTH = 77; // 77px minimum width per week column (7 days × 11px)
+  private static readonly MIN_VIEWPORT_DAYS = 7; // Always show at least 7 days
+  private static readonly MAX_VIEWPORT_DAYS = 60; // Reduced from 120 for better performance
+  private static readonly MIN_VIEWPORT_WEEKS = 4; // Always show at least 4 weeks
+  private static readonly MAX_VIEWPORT_WEEKS = 30; // Reasonable cap (210 days worth)
+  private static readonly SIDEBAR_WIDTH = 280; // Standard sidebar width
+  private static readonly COLLAPSED_SIDEBAR_WIDTH = 48; // Collapsed sidebar width
+  private static readonly VIEWPORT_MARGINS = 100; // Account for padding and margins
+
+  /**
+   * Calculate dynamic viewport size based on available screen space
+   */
+  static calculateDynamicViewportSize(params: {
+    sidebarCollapsed: boolean;
+    mode: 'days' | 'weeks';
+    availableWidth?: number;
+  }): number {
+    const { sidebarCollapsed, mode, availableWidth } = params;
+    
+    // Use provided width or calculate from window dimensions
+    const viewportWidth = availableWidth ?? window.innerWidth;
+    const sidebarWidth = sidebarCollapsed ? this.COLLAPSED_SIDEBAR_WIDTH : this.SIDEBAR_WIDTH;
+    const calculatedAvailableWidth = Math.max(600, viewportWidth - sidebarWidth - this.VIEWPORT_MARGINS);
+    
+    if (mode === 'weeks') {
+      // Calculate how many complete week columns can fit
+      const completeWeekColumns = Math.floor(calculatedAvailableWidth / this.MIN_WEEK_COLUMN_WIDTH);
+      
+      // Add modest buffer - enough to fill screen plus some scrolling
+      const weeksWithBuffer = completeWeekColumns + 8;
+      
+      // Clamp between min and max values, then convert to days
+      const weeks = Math.max(this.MIN_VIEWPORT_WEEKS, Math.min(this.MAX_VIEWPORT_WEEKS, weeksWithBuffer));
+      const days = weeks * 7;
+      
+      return days;
+    } else {
+      // Calculate how many complete day columns can fit
+      const completeColumns = Math.floor(calculatedAvailableWidth / this.MIN_DAY_COLUMN_WIDTH);
+      
+      // Add modest buffer for days mode - reduced for better performance
+      const daysWithBuffer = completeColumns + 7; // Reduced from 15
+      
+      // Clamp between min and max values
+      const days = Math.max(this.MIN_VIEWPORT_DAYS, Math.min(this.MAX_VIEWPORT_DAYS, daysWithBuffer));
+      
+      return days;
+    }
+  }
+
+  /**
+   * Calculate visible columns that can fit in the timeline display
+   */
+  static calculateVisibleColumns(params: {
+    sidebarCollapsed: boolean;
+    mode: 'days' | 'weeks';
+    availableWidth?: number;
+  }): number {
+    const { sidebarCollapsed, mode, availableWidth } = params;
+    
+    // Use provided width or calculate from window dimensions
+    const viewportWidth = availableWidth ?? window.innerWidth;
+    const sidebarWidth = sidebarCollapsed ? this.COLLAPSED_SIDEBAR_WIDTH : this.SIDEBAR_WIDTH;
+    const calculatedAvailableWidth = Math.max(600, viewportWidth - sidebarWidth - this.VIEWPORT_MARGINS);
+    
+    if (mode === 'weeks') {
+      const theoreticalColumns = Math.floor(calculatedAvailableWidth / 72);
+      return Math.max(1, theoreticalColumns - 2); // Subtract 2 weeks to match actual display
+    } else {
+      const theoreticalColumns = Math.floor(calculatedAvailableWidth / 40);
+      return Math.max(1, theoreticalColumns - 5); // Subtract 5 days to match actual display
+    }
+  }
+
+  /**
+   * Generate timeline data with optimized viewport calculations
+   */
+  static generateTimelineData(params: {
+    projects: any[];
+    viewportStart: Date;
+    viewportDays: number;
+    mode: 'days' | 'weeks';
+    sidebarCollapsed: boolean;
+    availableWidth?: number;
+  }): {
+    dates: Date[];
+    viewportEnd: Date;
+    filteredProjects: any[];
+    mode: 'days' | 'weeks';
+    actualViewportStart: Date;
+  } {
+    const { projects, viewportStart, mode, sidebarCollapsed, availableWidth } = params;
+    
+    const visibleColumns = this.calculateVisibleColumns({
+      sidebarCollapsed,
+      mode,
+      availableWidth
+    });
+    
+    if (mode === 'weeks') {
+      // For weeks mode, show only the visible week columns
+      const actualWeeks = visibleColumns;
+      
+      // Adjust viewportStart to start of week (Monday)
+      const weekStart = new Date(viewportStart);
+      const day = weekStart.getDay();
+      const daysToSubtract = day === 0 ? 6 : day - 1;
+      weekStart.setDate(weekStart.getDate() - daysToSubtract);
+      
+      // Generate array of week start dates for visible weeks only
+      const dates = [];
+      for (let w = 0; w < actualWeeks; w++) {
+        const weekDate = new Date(weekStart);
+        weekDate.setDate(weekStart.getDate() + (w * 7));
+        weekDate.setHours(0, 0, 0, 0);
+        dates.push(weekDate);
+      }
+      
+      // Calculate viewport end based on the last visible week
+      const lastWeekStart = dates[dates.length - 1];
+      const viewportEnd = new Date(lastWeekStart);
+      viewportEnd.setDate(lastWeekStart.getDate() + 6); // End of the last week (Sunday)
+      
+      // Filter projects that intersect with the current viewport - optimized for continuous projects
+      const filteredProjects = (projects || []).filter(project => {
+        const projectStart = new Date(project.startDate);
+        
+        // Optimization: For continuous projects, only check start date
+        if (project.continuous) {
+          return projectStart <= viewportEnd; // Only needs to have started before viewport ends
+        }
+        
+        // For regular projects, do full intersection check
+        const projectEnd = new Date(project.endDate);
+        return !(projectEnd < weekStart || projectStart > viewportEnd);
+      });
+      
+      return {
+        dates,
+        viewportEnd,
+        filteredProjects,
+        mode: 'weeks' as const,
+        actualViewportStart: weekStart
+      };
+    } else {
+      // For days mode, show only the visible day columns
+      const actualDays = visibleColumns;
+      
+      // Generate array of dates for visible days only
+      const dates = [];
+      for (let d = 0; d < actualDays; d++) {
+        const normalizedDate = new Date(viewportStart);
+        normalizedDate.setDate(viewportStart.getDate() + d);
+        normalizedDate.setHours(0, 0, 0, 0);
+        dates.push(normalizedDate);
+      }
+      
+      // Calculate viewport end based on the last visible day
+      const viewportEnd = new Date(dates[dates.length - 1]);
+      
+      // Filter projects that intersect with the current viewport
+      const filteredProjects = (projects || []).filter(project => {
+        const projectStart = new Date(project.startDate);
+        const projectEnd = new Date(project.endDate);
+        return !(projectEnd < viewportStart || projectStart > viewportEnd);
+      });
+      
+      return {
+        dates,
+        viewportEnd,
+        filteredProjects,
+        mode: 'days' as const,
+        actualViewportStart: viewportStart
+      };
+    }
+  }
+  
   /**
    * Calculate target viewport position for navigation (prev/next)
    */
