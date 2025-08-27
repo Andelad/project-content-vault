@@ -80,7 +80,9 @@ export function MilestoneManager({
     recurringInterval: 1
   });
   
-  // Recurring milestone editing state
+  const [editingRecurringPattern, setEditingRecurringPattern] = useState(false);
+  const [editingRecurringType, setEditingRecurringType] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
+  const [editingRecurringInterval, setEditingRecurringInterval] = useState(1);
   const [editingRecurringLoad, setEditingRecurringLoad] = useState(false);
   const [editingLoadValue, setEditingLoadValue] = useState(0);
 
@@ -112,26 +114,53 @@ export function MilestoneManager({
 
   // Handle updating recurring milestone load
   const handleUpdateRecurringLoad = async (direction: 'forward' | 'both') => {
-    if (!recurringMilestone) return;
+    if (!recurringMilestone || !projectId) return;
 
-    const { toast } = await import('@/hooks/use-toast');
-    
-    // Update the recurring milestone configuration
-    const updatedMilestone = {
-      ...recurringMilestone,
-      timeAllocation: editingLoadValue
-    };
-    
-    setRecurringMilestone(updatedMilestone);
-    setEditingRecurringLoad(false);
-    
-    // Show success toast indicating the change
-    toast({
-      title: "Recurring Milestone Updated",
-      description: direction === 'forward' 
-        ? `Updated load to ${editingLoadValue}h going forward` 
-        : `Updated load to ${editingLoadValue}h for all occurrences`,
-    });
+    try {
+      // Get all recurring milestones from the database
+      const recurringMilestones = projectMilestones.filter(m => 
+        m.name && /\s\d+$/.test(m.name) // Ends with space and number
+      );
+
+      console.log('🔄 Updating recurring milestones:', {
+        count: recurringMilestones.length,
+        newAllocation: editingLoadValue,
+        direction
+      });
+
+      // Update each recurring milestone in the database
+      for (const milestone of recurringMilestones) {
+        if (milestone.id && !milestone.id.startsWith('temp-')) {
+          await updateMilestone(milestone.id, {
+            time_allocation: editingLoadValue
+          }, { silent: true });
+        }
+      }
+      
+      // Update the recurring milestone configuration
+      const updatedMilestone = {
+        ...recurringMilestone,
+        timeAllocation: editingLoadValue
+      };
+      
+      setRecurringMilestone(updatedMilestone);
+      setEditingRecurringLoad(false);
+      
+      // Show success toast indicating the change
+      toast({
+        title: "Recurring Milestone Updated",
+        description: direction === 'forward' 
+          ? `Updated load to ${editingLoadValue}h going forward` 
+          : `Updated load to ${editingLoadValue}h for all occurrences`,
+      });
+    } catch (error) {
+      console.error('Error updating recurring milestones:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update recurring milestones",
+        variant: "destructive",
+      });
+    }
   };
 
   // Helper function to check if milestone allocation would exceed budget
@@ -748,6 +777,13 @@ export function MilestoneManager({
     const milestones: LocalMilestone[] = [];
     let currentDate = new Date(projectStartDate); // Start from project start date
     
+    console.log('📅 Generating recurring milestones:', {
+      projectStartDate: projectStartDate.toDateString(),
+      projectStartDay: format(projectStartDate, 'EEEE'),
+      recurringType: config.recurringType,
+      interval: config.recurringInterval
+    });
+    
     const endDate = projectContinuous ? 
       new Date(currentDate.getTime() + 365 * 24 * 60 * 60 * 1000) : // 1 year for continuous projects
       new Date(projectEndDate); // End at project end date
@@ -755,6 +791,11 @@ export function MilestoneManager({
     let order = 0;
     
     while (currentDate <= endDate) {
+      console.log(`📍 Creating recurring milestone ${order + 1} on:`, {
+        date: currentDate.toDateString(),
+        day: format(currentDate, 'EEEE')
+      });
+      
       milestones.push({
         id: `recurring-${order}`,
         name: `${config.name} ${order + 1}`,
@@ -1082,17 +1123,101 @@ export function MilestoneManager({
                     <div className="flex items-end gap-3">
                       <div className="min-w-[180px]">
                         <Label className="text-xs text-muted-foreground mb-1 block">Pattern</Label>
-                        <div className="text-sm text-gray-700">
-                          <div>
-                            {recurringMilestone.recurringType === 'weekly' 
-                              ? `Every ${format(projectStartDate, 'EEEE')}`
-                              : `${getOrdinalNumber(projectStartDate.getDate())} of each month`
-                            }
+                        {editingRecurringPattern ? (
+                          <div className="space-y-2">
+                            <Select 
+                              value={editingRecurringType} 
+                              onValueChange={(value: 'daily' | 'weekly' | 'monthly') => setEditingRecurringType(value)}
+                            >
+                              <SelectTrigger className="w-full h-8">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="daily">Daily</SelectItem>
+                                <SelectItem value="weekly">Weekly</SelectItem>
+                                <SelectItem value="monthly">Monthly</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <div className="flex gap-2">
+                              <Button 
+                                size="sm" 
+                                onClick={async () => {
+                                  // Update recurring pattern
+                                  if (recurringMilestone) {
+                                    const updatedMilestone = {
+                                      ...recurringMilestone,
+                                      recurringType: editingRecurringType,
+                                      recurringInterval: editingRecurringInterval
+                                    };
+                                    setRecurringMilestone(updatedMilestone);
+                                    
+                                    // Delete existing recurring milestones and recreate with new pattern
+                                    await handleDeleteRecurringMilestones();
+                                    
+                                    // Recreate with new pattern
+                                    const newConfig = {
+                                      name: recurringMilestone.name,
+                                      timeAllocation: recurringMilestone.timeAllocation,
+                                      recurringType: editingRecurringType,
+                                      recurringInterval: editingRecurringInterval
+                                    };
+                                    
+                                    const generatedMilestones = generateRecurringMilestones(newConfig);
+                                    
+                                    for (const milestone of generatedMilestones) {
+                                      await addMilestone({
+                                        name: milestone.name,
+                                        due_date: milestone.dueDate.toISOString(),
+                                        time_allocation: milestone.timeAllocation,
+                                        project_id: projectId!
+                                      }, { silent: true });
+                                    }
+                                    
+                                    setRecurringMilestone(updatedMilestone);
+                                    toast({
+                                      title: "Success",
+                                      description: "Recurring pattern updated",
+                                    });
+                                  }
+                                  setEditingRecurringPattern(false);
+                                }}
+                              >
+                                Save
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                onClick={() => setEditingRecurringPattern(false)}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
                           </div>
-                          <div className="text-xs text-muted-foreground">
-                            Since {format(projectStartDate, recurringMilestone.recurringType === 'weekly' ? 'MMM d, yyyy' : 'MMM yyyy')}
-                          </div>
-                        </div>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            className="h-8 text-sm justify-start text-left font-normal px-3 w-full"
+                            onClick={() => {
+                              setEditingRecurringPattern(true);
+                              setEditingRecurringType(recurringMilestone.recurringType);
+                              setEditingRecurringInterval(recurringMilestone.recurringInterval);
+                            }}
+                          >
+                            <div>
+                              <div>
+                                {recurringMilestone.recurringType === 'weekly' 
+                                  ? `Every ${format(projectStartDate, 'EEEE')}`
+                                  : recurringMilestone.recurringType === 'monthly'
+                                  ? `${getOrdinalNumber(projectStartDate.getDate())} of each month`
+                                  : 'Daily'
+                                }
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                Since {format(projectStartDate, recurringMilestone.recurringType === 'weekly' ? 'MMM d, yyyy' : 'MMM yyyy')}
+                              </div>
+                            </div>
+                          </Button>
+                        )}
                       </div>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
