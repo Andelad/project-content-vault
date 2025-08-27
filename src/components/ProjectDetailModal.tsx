@@ -962,34 +962,15 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
             autoFocus
           />
         ) : (
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              className={`h-10 text-sm justify-start text-left font-normal px-3 ${
-                isOverBudget ? 'border-orange-300 text-orange-700' : ''
-              }`}
-              style={{ width: `${Math.max(displayValue.length * 8 + 40, 100)}px` }}
-              onClick={() => !isContinuousWithRecurring && setEditingProperty(property)}
-              disabled={isContinuousWithRecurring}
-            >
-              {displayValue}
-            </Button>
-            {isOverBudget && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-8 px-2 text-xs border-orange-300 text-orange-700 hover:bg-orange-50"
-                onClick={() => {
-                  setLocalValues(prev => ({ ...prev, estimatedHours: recurringMilestoneInfo.totalAllocation }));
-                  if (!isCreating && projectId && projectId !== '') {
-                    updateProject(projectId, { estimatedHours: recurringMilestoneInfo.totalAllocation }, { silent: true });
-                  }
-                }}
-              >
-                Update to {recurringMilestoneInfo.totalAllocation}h
-              </Button>
-            )}
-          </div>
+          <Button
+            variant="outline"
+            className="h-10 text-sm justify-start text-left font-normal px-3"
+            style={{ width: `${Math.max(displayValue.length * 8 + 40, 100)}px` }}
+            onClick={() => !isContinuousWithRecurring && setEditingProperty(property)}
+            disabled={isContinuousWithRecurring}
+          >
+            {displayValue}
+          </Button>
         )}
       </div>
     );

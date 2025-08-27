@@ -807,16 +807,30 @@ export function MilestoneManager({
             className="overflow-hidden"
           >
             <div className="px-8 pb-6">
-              {isOverBudget && (
+              {isOverBudget && !projectContinuous && (
                 <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                  <div className="flex items-center gap-2 text-orange-800">
-                    <AlertTriangle className="w-4 h-4" />
-                    <span className="text-sm font-medium">
-                      Milestone allocations exceed project budget ({totalTimeAllocation}h / {projectEstimatedHours}h)
-                    </span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-orange-800">
+                      <AlertTriangle className="w-4 h-4" />
+                      <span className="text-sm font-medium">
+                        Milestone allocations exceed project budget ({totalTimeAllocation}h / {projectEstimatedHours}h)
+                      </span>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-orange-300 text-orange-700 hover:bg-orange-100"
+                      onClick={() => {
+                        if (onUpdateProjectBudget) {
+                          onUpdateProjectBudget(totalTimeAllocation);
+                        }
+                      }}
+                    >
+                      Update to {totalTimeAllocation}h
+                    </Button>
                   </div>
                   <p className="text-sm text-orange-700 mt-1">
-                    Consider updating the project budget to {suggestedBudgetFromMilestones}h or adjusting milestone allocations.
+                    Consider updating the project budget or adjusting milestone allocations.
                   </p>
                 </div>
               )}
