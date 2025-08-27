@@ -18,6 +18,7 @@ interface MilestoneManagerProps {
   projectEndDate: Date;
   projectContinuous?: boolean; // Whether the project is continuous
   onUpdateProjectBudget?: (newBudget: number) => void;
+  onRecurringMilestoneChange?: (info: { totalAllocation: number; hasRecurring: boolean }) => void;
   // For new projects, we need local state management
   localMilestonesState?: {
     milestones: LocalMilestone[];
@@ -55,6 +56,7 @@ export function MilestoneManager({
   projectEndDate,
   projectContinuous = false,
   onUpdateProjectBudget,
+  onRecurringMilestoneChange,
   localMilestonesState,
   isCreatingProject = false
 }: MilestoneManagerProps) {
@@ -755,6 +757,16 @@ export function MilestoneManager({
     addNewMilestone();
   };
 
+  // Notify parent of recurring milestone changes
+  React.useEffect(() => {
+    if (onRecurringMilestoneChange) {
+      onRecurringMilestoneChange({
+        totalAllocation: totalRecurringAllocation,
+        hasRecurring: !!recurringMilestone
+      });
+    }
+  }, [totalRecurringAllocation, recurringMilestone, onRecurringMilestoneChange]);
+
   return (
     <div className="border-b border-gray-200">
       <button
@@ -1084,14 +1096,19 @@ export function MilestoneManager({
               </AlertDialog>
 
               {/* Progress Summary */}
-              {projectMilestones.length > 0 && (
+              {(projectMilestones.length > 0 || recurringMilestone) && (
                 <div className="mt-4 p-3 bg-gray-50 rounded-lg">
                   <div className="flex justify-between items-center text-sm">
                     <span className="font-medium">Total Allocation:</span>
                     <span className={`font-medium ${isOverBudget ? 'text-orange-600' : 'text-gray-900'}`}>
-                      {totalTimeAllocation}h / {projectEstimatedHours}h
+                      {totalTimeAllocation}h / {projectContinuous && recurringMilestone ? 'N/A' : `${projectEstimatedHours}h`}
                     </span>
                   </div>
+                  {isOverBudget && !projectContinuous && (
+                    <div className="text-xs text-orange-600 mt-1">
+                      Milestone allocations exceed project budget. Consider updating the project budget.
+                    </div>
+                  )}
                 </div>
               )}
             </div>

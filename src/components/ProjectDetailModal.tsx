@@ -264,6 +264,12 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
     order: number;
     isNew?: boolean;
   }>>([]);
+
+  // State to track recurring milestone from MilestoneManager
+  const [recurringMilestoneInfo, setRecurringMilestoneInfo] = useState<{
+    totalAllocation: number;
+    hasRecurring: boolean;
+  }>({ totalAllocation: 0, hasRecurring: false });
   
   const [localValues, setLocalValues] = useState({
     name: '',
@@ -927,7 +933,10 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
     property: string;
   }) => {
     const isEditing = editingProperty === property;
-    const displayValue = `${value}h`;
+    const isContinuousWithRecurring = localValues.continuous && recurringMilestoneInfo.hasRecurring;
+    const displayValue = isContinuousWithRecurring ? 'N/A' : `${value}h`;
+    const isOverBudget = !localValues.continuous && recurringMilestoneInfo.hasRecurring && 
+                       recurringMilestoneInfo.totalAllocation > value;
     
     return (
       <div className="min-w-[100px]">
@@ -953,14 +962,34 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
             autoFocus
           />
         ) : (
-          <Button
-            variant="outline"
-            className="h-10 text-sm justify-start text-left font-normal px-3"
-            style={{ width: `${Math.max(displayValue.length * 8 + 40, 100)}px` }}
-            onClick={() => setEditingProperty(property)}
-          >
-            {displayValue}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              className={`h-10 text-sm justify-start text-left font-normal px-3 ${
+                isOverBudget ? 'border-orange-300 text-orange-700' : ''
+              }`}
+              style={{ width: `${Math.max(displayValue.length * 8 + 40, 100)}px` }}
+              onClick={() => !isContinuousWithRecurring && setEditingProperty(property)}
+              disabled={isContinuousWithRecurring}
+            >
+              {displayValue}
+            </Button>
+            {isOverBudget && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 px-2 text-xs border-orange-300 text-orange-700 hover:bg-orange-50"
+                onClick={() => {
+                  setLocalValues(prev => ({ ...prev, estimatedHours: recurringMilestoneInfo.totalAllocation }));
+                  if (!isCreating && projectId && projectId !== '') {
+                    updateProject(projectId, { estimatedHours: recurringMilestoneInfo.totalAllocation }, { silent: true });
+                  }
+                }}
+              >
+                Update to {recurringMilestoneInfo.totalAllocation}h
+              </Button>
+            )}
+          </div>
         )}
       </div>
     );
@@ -1404,6 +1433,9 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
               if (!isCreating && projectId && projectId !== '') {
                 updateProject(projectId, { estimatedHours: newBudget }, { silent: true });
               }
+            }}
+            onRecurringMilestoneChange={(info) => {
+              setRecurringMilestoneInfo(info);
             }}
             localMilestonesState={isCreating ? {
               milestones: localProjectMilestones,
