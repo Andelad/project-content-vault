@@ -496,44 +496,45 @@ export function MilestoneManager({
   React.useEffect(() => {
     if (recurringMilestone || !projectId) return;
     
-    // Look for recurring milestone pattern in existing milestones
+    // Look for recurring milestone pattern in existing milestones (but don't show them as individual cards)
     const recurringPattern = projectMilestones.filter(m => 
       m.name && /\s\d+$/.test(m.name) // Ends with space and number
     );
     
-    if (recurringPattern.length > 1) {
-      // Detect recurring pattern
+    if (recurringPattern.length >= 1) {
+      // Detect recurring pattern from existing milestones
       const sortedMilestones = recurringPattern.sort((a, b) => 
         new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
       );
       
-      // Calculate interval between milestones
-      const firstDate = new Date(sortedMilestones[0].dueDate);
-      const secondDate = new Date(sortedMilestones[1].dueDate);
-      const daysDifference = Math.round((secondDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24));
-      
-      // Determine recurring type and interval
       let recurringType: 'daily' | 'weekly' | 'monthly' = 'weekly';
       let interval = 1;
       
-      if (daysDifference === 1) {
-        recurringType = 'daily';
-        interval = 1;
-      } else if (daysDifference === 7) {
-        recurringType = 'weekly';
-        interval = 1;
-      } else if (daysDifference >= 28 && daysDifference <= 31) {
-        recurringType = 'monthly';
-        interval = 1;
-      } else if (daysDifference % 7 === 0) {
-        recurringType = 'weekly';
-        interval = daysDifference / 7;
+      if (recurringPattern.length > 1) {
+        // Calculate interval between milestones
+        const firstDate = new Date(sortedMilestones[0].dueDate);
+        const secondDate = new Date(sortedMilestones[1].dueDate);
+        const daysDifference = Math.round((secondDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (daysDifference === 1) {
+          recurringType = 'daily';
+          interval = 1;
+        } else if (daysDifference === 7) {
+          recurringType = 'weekly';
+          interval = 1;
+        } else if (daysDifference >= 28 && daysDifference <= 31) {
+          recurringType = 'monthly';
+          interval = 1;
+        } else if (daysDifference % 7 === 0) {
+          recurringType = 'weekly';
+          interval = daysDifference / 7;
+        }
       }
       
       // Extract base name (remove the number at the end)
       const baseName = sortedMilestones[0].name.replace(/\s\d+$/, '') || 'Recurring Milestone';
       
-      // Reconstruct the recurring milestone config
+      // Reconstruct the recurring milestone config (this will hide individual milestone cards)
       setRecurringMilestone({
         id: 'recurring-milestone',
         name: baseName,
@@ -745,13 +746,11 @@ export function MilestoneManager({
   // Generate recurring milestones based on configuration
   const generateRecurringMilestones = (config: RecurringMilestoneConfig) => {
     const milestones: LocalMilestone[] = [];
-    let currentDate = new Date(projectStartDate);
-    currentDate.setDate(currentDate.getDate() + 1); // Start day after project start
+    let currentDate = new Date(projectStartDate); // Start from project start date
     
     const endDate = projectContinuous ? 
       new Date(currentDate.getTime() + 365 * 24 * 60 * 60 * 1000) : // 1 year for continuous projects
-      new Date(projectEndDate);
-    endDate.setDate(endDate.getDate() - 1); // End day before project end
+      new Date(projectEndDate); // End at project end date
 
     let order = 0;
     
@@ -957,7 +956,13 @@ export function MilestoneManager({
               )}
 
               {/* All Milestones with Inline Editing */}
-              {projectMilestones.map((milestone, index) => (
+              {projectMilestones.filter(milestone => {
+                // If we have a recurring milestone config, filter out the individual recurring milestones
+                if (recurringMilestone && milestone.name && /\s\d+$/.test(milestone.name)) {
+                  return false; // Don't show individual recurring milestones as cards
+                }
+                return true; // Show regular milestones
+              }).map((milestone, index) => (
                 <div key={milestone.id || `milestone-${index}`} className="border border-gray-200 rounded-lg p-4 mb-3">
                   <div className="flex items-end justify-between">
                     {/* Left side: Name and Budget */}
