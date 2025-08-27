@@ -13,9 +13,11 @@ import { useProjectContext } from '../contexts/ProjectContext';
 import { useTimelineContext } from '../contexts/TimelineContext';
 import { usePlannerContext } from '../contexts/PlannerContext';
 import { useSettingsContext } from '../contexts/SettingsContext';
+import { expandHolidayDates, TimelineViewportService } from '@/services';
 import { useTimelineData } from '../hooks/useTimelineData';
 import { useDynamicViewportDays } from '../hooks/useDynamicViewportDays';
-import { calculateDaysDelta, createSmoothAnimation, TIMELINE_CONSTANTS, debounce, throttle } from '@/lib/dragUtils';
+import { calculateDaysDelta, createSmoothAnimation, debounce, throttle } from '@/lib/dragUtils';
+import { TIMELINE_CONSTANTS } from '@/constants';
 import { performanceMonitor } from '@/lib/performanceUtils';
 import { checkProjectOverlap, adjustProjectDatesForDrag } from '@/lib/projectOverlapUtils';
 import { throttledDragUpdate, clearDragQueue } from '@/lib/dragPerformance';
@@ -138,11 +140,11 @@ export function TimelineView() {
     return start;
   });
   
-  // Protected viewport setter that respects scrollbar blocking
+  // Protected viewport setter that respects scrollbar blocking using service
   const protectedSetViewportStart = useCallback((date: Date) => {
-    // Check if scrollbar is blocking updates
-    if ((window as any).__budgiScrollbarBlocking) {
-      console.log('🚫 TimelineView blocked from updating viewport - scrollbar is dragging');
+    const blockingState = TimelineViewportService.checkViewportBlocking();
+    if (blockingState.isBlocked) {
+      console.log(`🚫 TimelineView blocked from updating viewport - ${blockingState.reason}`);
       return;
     }
     setViewportStart(date);
@@ -175,81 +177,52 @@ export function TimelineView() {
 
   // Expand holiday ranges into individual Date objects for fast lookup by the markers
   const holidayDates = useMemo(() => {
-    if (!holidays || holidays.length === 0) return [] as Date[];
-    const result: Date[] = [];
-    for (const h of holidays) {
-      // h.startDate and h.endDate are Date objects in AppContext processing
-      const start = new Date(h.startDate);
-      const end = new Date(h.endDate);
-      start.setHours(0,0,0,0);
-      end.setHours(0,0,0,0);
-      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-        result.push(new Date(d));
-      }
-    }
-    return result;
+    return expandHolidayDates(holidays);
   }, [holidays]);
 
-  // Debug performance logging
+  // Debug performance logging using service
+  const performanceMetrics = useMemo(() => {
+    return TimelineViewportService.calculateViewportPerformanceMetrics({
+      timelineMode,
+      daysCount: dates.length,
+      projectsCount: filteredProjects.length
+    });
+  }, [timelineMode, dates.length, filteredProjects.length]);
+
   console.log(`🚀 Timeline performance:`, {
     mode: timelineMode,
     days: dates.length,
     projects: filteredProjects.length,
-    totalCalculations: dates.length * filteredProjects.length
+    ...performanceMetrics
   });
 
-  // Memoize date range formatting
+  // Memoize date range formatting using service
   const dateRangeText = useMemo(() => {
-    // Use the actual timeline start and end dates, not the requested viewport dates
-    const timelineStart = actualViewportStart;
-    const timelineEnd = viewportEnd;
-    
-    const sameMonth = timelineStart.getMonth() === timelineEnd.getMonth();
-    const sameYear = timelineStart.getFullYear() === timelineEnd.getFullYear();
-    
-    if (sameMonth && sameYear) {
-      return `${timelineStart.toLocaleDateString('en-US', { 
-        month: 'long',
-        day: 'numeric'
-      })} - ${timelineEnd.toLocaleDateString('en-US', { 
-        day: 'numeric',
-        year: 'numeric'
-      })}`;
-    } else if (sameYear) {
-      return `${timelineStart.toLocaleDateString('en-US', { 
-        month: 'short',
-        day: 'numeric'
-      })} - ${timelineEnd.toLocaleDateString('en-US', { 
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric'
-      })}`;
-    } else {
-      return `${timelineStart.toLocaleDateString('en-US', { 
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric'
-      })} - ${timelineEnd.toLocaleDateString('en-US', { 
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric'
-      })}`;
-    }
+    return TimelineViewportService.formatDateRange(actualViewportStart, viewportEnd);
   }, [actualViewportStart, viewportEnd]);
 
-  // Navigation handlers with smooth scrolling  
+  // Navigation handlers with smooth scrolling using service
   const handleNavigate = useCallback((direction: 'prev' | 'next') => {
     if (isAnimating) return;
     
-    const targetViewportStart = new Date(viewportStart);
-    const days = direction === 'prev' ? -VIEWPORT_DAYS : VIEWPORT_DAYS;
-    targetViewportStart.setDate(targetViewportStart.getDate() + days);
+    const targetViewport = TimelineViewportService.calculateNavigationTarget({
+      currentViewportStart: viewportStart,
+      viewportDays: VIEWPORT_DAYS,
+      direction,
+      timelineMode
+    });
+    
+    const animationDuration = TimelineViewportService.calculateAnimationDuration(
+      viewportStart.getTime(),
+      targetViewport.start.getTime(),
+      timelineMode
+    );
     
     setIsAnimating(true);
     createSmoothAnimation(
       viewportStart.getTime(),
-      targetViewportStart.getTime(),
-      TIMELINE_CONSTANTS.SCROLL_ANIMATION_DURATION,
+      targetViewport.start.getTime(),
+      animationDuration,
       (intermediateStart) => setViewportStart(intermediateStart),
       (targetStart) => {
         setViewportStart(targetStart);
@@ -257,56 +230,42 @@ export function TimelineView() {
         setIsAnimating(false);
       }
     );
-  }, [viewportStart, setCurrentDate, isAnimating, VIEWPORT_DAYS]);
+  }, [viewportStart, setCurrentDate, isAnimating, VIEWPORT_DAYS, timelineMode]);
 
   const handleGoToToday = useCallback(() => {
     if (isAnimating) return;
     
     const today = new Date();
-    const targetViewportStart = new Date(today);
+    today.setHours(0, 0, 0, 0);
     
-    // Position today based on timeline mode:
-    // - Days view: Today should be the 5th column (4 days from left)
-    // - Weeks view: Today's week should be the 3rd column (2 weeks from left)
-    if (timelineMode === 'weeks') {
-      // In weeks view, we need to position so today's week is the 3rd column
-      // First, find the start of today's week (Monday)
-      const dayOfWeek = today.getDay();
-      const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Convert Sunday=0 to Monday=0
-      const weekStart = new Date(today);
-      weekStart.setDate(today.getDate() - mondayOffset);
-      
-      // Position so this week is the 3rd column (2 weeks from left)
-      targetViewportStart.setTime(weekStart.getTime());
-      targetViewportStart.setDate(weekStart.getDate() - (2 * 7)); // Go back 2 weeks
-    } else {
-      // In days view, position so today is the 5th column (4 days from left)
-      targetViewportStart.setDate(today.getDate() - 4);
-    }
+    const targetViewport = TimelineViewportService.calculateTodayTarget({
+      selectedDate: today,
+      currentViewportStart: viewportStart,
+      viewportDays: VIEWPORT_DAYS,
+      timelineMode
+    });
     
-    const currentStart = viewportStart.getTime();
-    const targetStart = targetViewportStart.getTime();
-    const daysDifference = Math.abs((targetStart - currentStart) / (24 * 60 * 60 * 1000));
-    
-    if (daysDifference < 1) {
-      setViewportStart(targetViewportStart);
+    // Check if animation should be skipped
+    if (TimelineViewportService.shouldSkipAnimation(viewportStart.getTime(), targetViewport.start.getTime())) {
+      setViewportStart(targetViewport.start);
       setCurrentDate(today);
       return;
     }
     
-    setIsAnimating(true);
-    const animationDuration = Math.min(
-      TIMELINE_CONSTANTS.SCROLL_ANIMATION_MAX_DURATION, 
-      daysDifference * TIMELINE_CONSTANTS.SCROLL_ANIMATION_MS_PER_DAY
+    const animationDuration = TimelineViewportService.calculateAnimationDuration(
+      viewportStart.getTime(),
+      targetViewport.start.getTime(),
+      timelineMode
     );
     
+    setIsAnimating(true);
     createSmoothAnimation(
-      currentStart,
-      targetStart,
+      viewportStart.getTime(),
+      targetViewport.start.getTime(),
       animationDuration,
       (intermediateStart) => setViewportStart(intermediateStart),
       () => {
-        setViewportStart(targetViewportStart);
+        setViewportStart(targetViewport.start);
         setCurrentDate(today);
         setIsAnimating(false);
       }
@@ -360,44 +319,44 @@ export function TimelineView() {
     setCollapsed(prev => !prev);
   }, []);
 
-  // Scroll to project functionality - position project start as second visible date with smooth animation
+  // Scroll to project functionality using service
   const scrollToProject = useCallback((project: any) => {
     if (isAnimating) return;
     
-    const projectStart = new Date(project.startDate);
-    const targetViewportStart = new Date(projectStart);
-    targetViewportStart.setDate(targetViewportStart.getDate() - 1);
+    const targetViewport = TimelineViewportService.calculateProjectScrollTarget({
+      projectStartDate: new Date(project.startDate),
+      currentViewportStart: viewportStart,
+      timelineMode
+    });
     
-    const currentStart = viewportStart.getTime();
-    const targetStart = targetViewportStart.getTime();
-    const daysDifference = (targetStart - currentStart) / (24 * 60 * 60 * 1000);
-    
-    if (Math.abs(daysDifference) < 1) {
-      setViewportStart(targetViewportStart);
-      setCurrentDate(new Date(projectStart));
+    // Check if animation should be skipped
+    if (TimelineViewportService.shouldSkipAnimation(viewportStart.getTime(), targetViewport.start.getTime())) {
+      setViewportStart(targetViewport.start);
+      setCurrentDate(new Date(project.startDate));
       return;
     }
     
-    setIsAnimating(true);
-    const animationDuration = Math.min(
-      TIMELINE_CONSTANTS.SCROLL_ANIMATION_MAX_DURATION, 
-      Math.abs(daysDifference) * TIMELINE_CONSTANTS.SCROLL_ANIMATION_MS_PER_DAY
+    const animationDuration = TimelineViewportService.calculateAnimationDuration(
+      viewportStart.getTime(),
+      targetViewport.start.getTime(),
+      timelineMode
     );
     
+    setIsAnimating(true);
     createSmoothAnimation(
-      currentStart,
-      targetStart,
+      viewportStart.getTime(),
+      targetViewport.start.getTime(),
       animationDuration,
       (intermediateStart) => setViewportStart(intermediateStart),
       () => {
-        setViewportStart(targetViewportStart);
-        setCurrentDate(new Date(projectStart));
+        setViewportStart(targetViewport.start);
+        setCurrentDate(new Date(project.startDate));
         setIsAnimating(false);
       }
     );
-  }, [viewportStart, setCurrentDate, isAnimating]);
+  }, [viewportStart, setCurrentDate, isAnimating, timelineMode]);
 
-  // Auto-scroll functions for drag operations
+  // Auto-scroll functions for drag operations using service
   const startAutoScroll = useCallback((direction: 'left' | 'right') => {
     if (autoScrollState.isScrolling && autoScrollState.direction === direction) return;
     
@@ -406,24 +365,27 @@ export function TimelineView() {
       clearInterval(autoScrollState.intervalId);
     }
     
-    const scrollAmount = timelineMode === 'weeks' ? 7 : 3; // Days to scroll per interval
-    const intervalMs = 150; // Scroll every 150ms
+    const config = TimelineViewportService.calculateAutoScrollConfig(timelineMode);
+    config.direction = direction;
     
     const intervalId = setInterval(() => {
       setViewportStart(prevStart => {
-        // Check if scrollbar is blocking updates
-        if ((window as any).__budgiScrollbarBlocking) {
-          console.log('🚫 Auto-scroll blocked from updating viewport - scrollbar is dragging');
-          return prevStart; // Return unchanged
+        // Check if viewport updates are blocked
+        const blockingState = TimelineViewportService.checkViewportBlocking();
+        if (blockingState.isBlocked) {
+          console.log(`🚫 Auto-scroll blocked from updating viewport - ${blockingState.reason}`);
+          return prevStart;
         }
         
-        const newStart = new Date(prevStart);
-        const days = direction === 'left' ? -scrollAmount : scrollAmount;
-        newStart.setDate(prevStart.getDate() + days);
+        const newStart = TimelineViewportService.calculateAutoScrollPosition(
+          prevStart, 
+          direction, 
+          config.scrollAmount
+        );
         setCurrentDate(new Date(newStart));
         return newStart;
       });
-    }, intervalMs);
+    }, config.intervalMs);
     
     setAutoScrollState({
       isScrolling: true,
@@ -451,19 +413,14 @@ export function TimelineView() {
     if (!timelineContent) return;
     
     const rect = timelineContent.getBoundingClientRect();
-    const scrollThreshold = 80; // Pixels from edge to trigger scroll
+    const trigger = TimelineViewportService.calculateAutoScrollTrigger({
+      mouseX: clientX,
+      timelineContentRect: rect
+    });
     
-    const distanceFromLeft = clientX - rect.left;
-    const distanceFromRight = rect.right - clientX;
-    
-    if (distanceFromLeft < scrollThreshold && distanceFromLeft >= 0) {
-      // Near left edge - scroll left
-      startAutoScroll('left');
-    } else if (distanceFromRight < scrollThreshold && distanceFromRight >= 0) {
-      // Near right edge - scroll right
-      startAutoScroll('right');
+    if (trigger.shouldScroll && trigger.direction) {
+      startAutoScroll(trigger.direction);
     } else {
-      // Not near edges - stop auto scroll
       stopAutoScroll();
     }
   }, [isDragging, startAutoScroll, stopAutoScroll]);
@@ -959,20 +916,18 @@ export function TimelineView() {
                   {/* Full-column holiday overlays that span the full scroll window */}
                   <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }}>
                     {holidays && holidays.length > 0 && holidays.map(holiday => {
-                      const holidayStart = new Date(holiday.startDate);
-                      const holidayEnd = new Date(holiday.endDate);
+                      const expandedDates = expandHolidayDates([holiday]);
                       const columnWidth = mode === 'weeks' ? 77 : 40;
                       const dayWidth = mode === 'weeks' ? 11 : columnWidth; // 11px per day in weeks mode
+                      const totalDays = mode === 'weeks' ? dates.length * 7 : dates.length;
+
+                      // Calculate day positions for the holiday
                       const timelineStart = new Date(dates[0]);
                       timelineStart.setHours(0,0,0,0);
                       const msPerDay = 24 * 60 * 60 * 1000;
 
-                      holidayStart.setHours(0,0,0,0);
-                      holidayEnd.setHours(0,0,0,0);
-
-                      const startDay = Math.floor((holidayStart.getTime() - timelineStart.getTime()) / msPerDay);
-                      const holidayDays = Math.round((holidayEnd.getTime() - holidayStart.getTime()) / msPerDay) + 1;
-                      const totalDays = mode === 'weeks' ? dates.length * 7 : dates.length;
+                      const startDay = Math.floor((expandedDates[0].getTime() - timelineStart.getTime()) / msPerDay);
+                      const holidayDays = expandedDates.length;
 
                       const startDayIndex = Math.max(0, startDay);
                       const endDayIndex = Math.min(totalDays - 1, startDay + holidayDays - 1);
@@ -1298,20 +1253,18 @@ export function TimelineView() {
                   {/* Full-column holiday overlays for availability card */}
                   <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }}>
                     {holidays && holidays.length > 0 && holidays.map(holiday => {
-                      const holidayStart = new Date(holiday.startDate);
-                      const holidayEnd = new Date(holiday.endDate);
+                      const expandedDates = expandHolidayDates([holiday]);
                       const columnWidth = mode === 'weeks' ? 77 : 40;
                       const dayWidth = mode === 'weeks' ? 11 : columnWidth; // 11px per day in weeks mode
+                      const totalDays = mode === 'weeks' ? dates.length * 7 : dates.length;
+
+                      // Calculate day positions for the holiday
                       const timelineStart = new Date(dates[0]);
                       timelineStart.setHours(0,0,0,0);
                       const msPerDay = 24 * 60 * 60 * 1000;
 
-                      holidayStart.setHours(0,0,0,0);
-                      holidayEnd.setHours(0,0,0,0);
-
-                      const startDay = Math.floor((holidayStart.getTime() - timelineStart.getTime()) / msPerDay);
-                      const holidayDays = Math.round((holidayEnd.getTime() - holidayStart.getTime()) / msPerDay) + 1;
-                      const totalDays = mode === 'weeks' ? dates.length * 7 : dates.length;
+                      const startDay = Math.floor((expandedDates[0].getTime() - timelineStart.getTime()) / msPerDay);
+                      const holidayDays = expandedDates.length;
 
                       const startDayIndex = Math.max(0, startDay);
                       const endDayIndex = Math.min(totalDays - 1, startDay + holidayDays - 1);

@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Project, CalendarEvent, Milestone } from '@/types/core';
 import { ProjectTimeMetrics } from '@/lib/projectCalculations';
+import { analyzeProjectProgress } from '@/services/projectProgressGraphService';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 interface ProjectProgressGraphProps {
@@ -10,331 +11,20 @@ interface ProjectProgressGraphProps {
   milestones?: Milestone[];
 }
 
-interface DataPoint {
-  date: Date;
-  estimatedProgress: number;
-  completedTime: number;
-  plannedTime: number;
-}
-
 export function ProjectProgressGraph({ project, metrics, events, milestones = [] }: ProjectProgressGraphProps) {
-  const graphData = useMemo(() => {
-    const startDate = new Date(project.startDate);
-    const endDate = new Date(project.endDate);
-    const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-    
-    if (totalDays <= 0) return [];
-    
-    const projectEvents = events.filter(event => event.projectId === project.id);
-    const data: DataPoint[] = [];
-    
-    if (milestones.length > 0) {
-      // Milestone-based estimated progress calculation (ORIGINAL LOGIC)
-      const relevantMilestones = milestones
-        .filter(m => {
-          const milestoneDate = new Date(m.dueDate);
-          return milestoneDate >= startDate && milestoneDate <= endDate;
-        })
-        .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
-      
-      let cumulativeEstimatedHours = 0;
-      
-      // Calculate planned time step function separately
-      let cumulativePlannedTime = 0;
-      const plannedTimeByDate = new Map<string, number>();
-      
-      // Build planned time map: only increase on actual event dates
-      projectEvents.forEach(event => {
-        const eventDate = new Date(event.startTime);
-        eventDate.setHours(0, 0, 0, 0);
-        const dateString = eventDate.toISOString().split('T')[0];
-        
-        if (!plannedTimeByDate.has(dateString)) {
-          plannedTimeByDate.set(dateString, 0);
-        }
-        
-        const durationMs = event.endTime.getTime() - event.startTime.getTime();
-        const durationHours = durationMs / (1000 * 60 * 60);
-        plannedTimeByDate.set(dateString, plannedTimeByDate.get(dateString)! + durationHours);
-      });
-      
-      // Helper function to get planned time up to any date
-      const getPlannedTimeUpToDate = (targetDate: Date): number => {
-        let plannedTime = 0;
-        const targetDateString = targetDate.toISOString().split('T')[0];
-        
-        for (const [dateString, hours] of plannedTimeByDate.entries()) {
-          if (dateString <= targetDateString) {
-            plannedTime += hours;
-          }
-        }
-        
-        return plannedTime;
-      };
-      
-      // Helper function to calculate linear interpolated estimated progress for any date
-      const getEstimatedProgressForDate = (targetDate: Date): number => {
-        // Find the milestone segment this date falls into
-        let prevDate = startDate;
-        let prevHours = 0;
-        
-        for (const milestone of relevantMilestones) {
-          const milestoneDate = new Date(milestone.dueDate);
-          
-          if (targetDate <= milestoneDate) {
-            // Target date is within this segment, interpolate
-            const segmentDays = Math.ceil((milestoneDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
-            const targetDays = Math.ceil((targetDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
-            
-            if (segmentDays === 0) return prevHours + milestone.timeAllocation;
-            
-            const progressRatio = targetDays / segmentDays;
-            return prevHours + (milestone.timeAllocation * progressRatio);
-          }
-          
-          // Move to next segment
-          prevDate = milestoneDate;
-          prevHours += milestone.timeAllocation;
-        }
-        
-        // Target date is after all milestones, interpolate to end date
-        const segmentDays = Math.ceil((endDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
-        const targetDays = Math.ceil((targetDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
-        
-        if (segmentDays === 0) return project.estimatedHours;
-        
-        const remainingHours = project.estimatedHours - prevHours;
-        const progressRatio = Math.min(1, targetDays / segmentDays);
-        return prevHours + (remainingHours * progressRatio);
-      };
-      
-      // Add starting point
-      const completedTimeAtStart = projectEvents
-        .filter(event => {
-          const eventDate = new Date(event.startTime);
-          eventDate.setHours(0, 0, 0, 0);
-          const targetDate = new Date(startDate);
-          targetDate.setHours(0, 0, 0, 0);
-          return event.completed && eventDate <= targetDate;
-        })
-        .reduce((total, event) => {
-          const durationMs = event.endTime.getTime() - event.startTime.getTime();
-          return total + (durationMs / (1000 * 60 * 60));
-        }, 0);
-      
-      data.push({
-        date: new Date(startDate),
-        estimatedProgress: 0,
-        completedTime: completedTimeAtStart,
-        plannedTime: getPlannedTimeUpToDate(startDate)
-      });
-      
-      // Add milestone points (ORIGINAL MILESTONE LOGIC)
-      relevantMilestones.forEach((milestone) => {
-        const milestoneDate = new Date(milestone.dueDate);
-        cumulativeEstimatedHours += milestone.timeAllocation;
-        
-        // Calculate completed time up to milestone date
-        const completedTimeAtMilestone = projectEvents
-          .filter(event => {
-            const eventDate = new Date(event.startTime);
-            eventDate.setHours(0, 0, 0, 0);
-            const targetDate = new Date(milestoneDate);
-            targetDate.setHours(0, 0, 0, 0);
-            return event.completed && eventDate <= targetDate;
-          })
-          .reduce((total, event) => {
-            const durationMs = event.endTime.getTime() - event.startTime.getTime();
-            return total + (durationMs / (1000 * 60 * 60));
-          }, 0);
-        
-        data.push({
-          date: new Date(milestoneDate),
-          estimatedProgress: cumulativeEstimatedHours,
-          completedTime: completedTimeAtMilestone,
-          plannedTime: getPlannedTimeUpToDate(milestoneDate)
-        });
-      });
-      
-      // Add end point if last milestone doesn't reach the end
-      const lastMilestone = relevantMilestones[relevantMilestones.length - 1];
-      if (!lastMilestone || new Date(lastMilestone.dueDate) < endDate) {
-        const completedTimeAtEnd = projectEvents
-          .filter(event => {
-            const eventDate = new Date(event.startTime);
-            eventDate.setHours(0, 0, 0, 0);
-            const targetDate = new Date(endDate);
-            targetDate.setHours(0, 0, 0, 0);
-            return event.completed && eventDate <= targetDate;
-          })
-          .reduce((total, event) => {
-            const durationMs = event.endTime.getTime() - event.startTime.getTime();
-            return total + (durationMs / (1000 * 60 * 60));
-          }, 0);
-        
-        data.push({
-          date: new Date(endDate),
-          estimatedProgress: project.estimatedHours,
-          completedTime: completedTimeAtEnd,
-          plannedTime: getPlannedTimeUpToDate(endDate)
-        });
-      }
-      
-      // NOW add additional data points ONLY for event dates to create planned time steps
-      // but keep estimated progress interpolated between milestone points
-      const existingDates = new Set(data.map(d => d.date.toISOString().split('T')[0]));
-      const eventDates = Array.from(plannedTimeByDate.keys())
-        .map(dateString => new Date(dateString + 'T00:00:00.000Z'))
-        .filter(date => 
-          date >= startDate && 
-          date <= endDate && 
-          !existingDates.has(date.toISOString().split('T')[0])
-        )
-        .sort((a, b) => a.getTime() - b.getTime());
-      
-      eventDates.forEach(eventDate => {
-        // Use the interpolation function for estimated progress
-        const estimatedProgress = getEstimatedProgressForDate(eventDate);
-        
-        // Calculate completed time up to event date
-        const completedTime = projectEvents
-          .filter(event => {
-            const ed = new Date(event.startTime);
-            ed.setHours(0, 0, 0, 0);
-            return event.completed && ed <= eventDate;
-          })
-          .reduce((total, event) => {
-            const durationMs = event.endTime.getTime() - event.startTime.getTime();
-            return total + (durationMs / (1000 * 60 * 60));
-          }, 0);
-        
-        data.push({
-          date: new Date(eventDate),
-          estimatedProgress,
-          completedTime,
-          plannedTime: getPlannedTimeUpToDate(eventDate)
-        });
-      });
-      
-      // Sort all data points by date
-      data.sort((a, b) => a.date.getTime() - b.date.getTime());
-    } else {
-      // Linear progression fallback (no milestones)
-      const dailyEstimatedRate = project.estimatedHours / Math.max(1, totalDays);
-      
-      // Calculate planned time step function
-      const plannedTimeByDate = new Map<string, number>();
-      
-      // Build planned time map: only increase on actual event dates
-      projectEvents.forEach(event => {
-        const eventDate = new Date(event.startTime);
-        eventDate.setHours(0, 0, 0, 0);
-        const dateString = eventDate.toISOString().split('T')[0];
-        
-        if (!plannedTimeByDate.has(dateString)) {
-          plannedTimeByDate.set(dateString, 0);
-        }
-        
-        const durationMs = event.endTime.getTime() - event.startTime.getTime();
-        const durationHours = durationMs / (1000 * 60 * 60);
-        plannedTimeByDate.set(dateString, plannedTimeByDate.get(dateString)! + durationHours);
-      });
-      
-      // Helper function to get planned time up to any date
-      const getPlannedTimeUpToDate = (targetDate: Date): number => {
-        let plannedTime = 0;
-        const targetDateString = targetDate.toISOString().split('T')[0];
-        
-        for (const [dateString, hours] of plannedTimeByDate.entries()) {
-          if (dateString <= targetDateString) {
-            plannedTime += hours;
-          }
-        }
-        
-        return plannedTime;
-      };
-      
-      // Generate data points for key dates in the project range (ORIGINAL LOGIC)
-      const samplePoints = Math.min(20, totalDays);
-      for (let i = 0; i <= samplePoints; i++) {
-        const dayIndex = Math.floor((i / samplePoints) * totalDays);
-        const currentDate = new Date(startDate);
-        currentDate.setDate(startDate.getDate() + dayIndex);
-        
-        // Linear estimated progress based on project timeline
-        const estimatedProgress = Math.min(project.estimatedHours, dailyEstimatedRate * dayIndex);
-        
-        // Calculate completed time up to this date
-        const completedTime = projectEvents
-          .filter(event => {
-            const eventDate = new Date(event.startTime);
-            eventDate.setHours(0, 0, 0, 0);
-            const targetDate = new Date(currentDate);
-            targetDate.setHours(0, 0, 0, 0);
-            return event.completed && eventDate <= targetDate;
-          })
-          .reduce((total, event) => {
-            const durationMs = event.endTime.getTime() - event.startTime.getTime();
-            return total + (durationMs / (1000 * 60 * 60));
-          }, 0);
-        
-        data.push({
-          date: currentDate,
-          estimatedProgress,
-          completedTime,
-          plannedTime: getPlannedTimeUpToDate(currentDate)
-        });
-      }
-      
-      // Add additional data points for event dates to create planned time steps
-      const existingDates = new Set(data.map(d => d.date.toISOString().split('T')[0]));
-      const eventDates = Array.from(plannedTimeByDate.keys())
-        .map(dateString => new Date(dateString + 'T00:00:00.000Z'))
-        .filter(date => 
-          date >= startDate && 
-          date <= endDate && 
-          !existingDates.has(date.toISOString().split('T')[0])
-        )
-        .sort((a, b) => a.getTime() - b.getTime());
-      
-      eventDates.forEach(eventDate => {
-        // For linear progression, calculate estimated progress based on days from start
-        const dayIndex = Math.ceil((eventDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-        const estimatedProgress = Math.min(project.estimatedHours, dailyEstimatedRate * dayIndex);
-        
-        // Calculate completed time up to event date
-        const completedTime = projectEvents
-          .filter(event => {
-            const ed = new Date(event.startTime);
-            ed.setHours(0, 0, 0, 0);
-            return event.completed && ed <= eventDate;
-          })
-          .reduce((total, event) => {
-            const durationMs = event.endTime.getTime() - event.startTime.getTime();
-            return total + (durationMs / (1000 * 60 * 60));
-          }, 0);
-        
-        data.push({
-          date: new Date(eventDate),
-          estimatedProgress,
-          completedTime,
-          plannedTime: getPlannedTimeUpToDate(eventDate)
-        });
-      });
-      
-      // Sort all data points by date
-      data.sort((a, b) => a.date.getTime() - b.date.getTime());
-    }
-    
-    return data;
+  // Use the comprehensive progress analysis service
+  const analysis = useMemo(() => {
+    return analyzeProjectProgress({
+      project,
+      events,
+      milestones,
+      includeEventDatePoints: true,
+      maxDataPoints: 20
+    });
   }, [project, events, milestones]);
 
-  const maxHours = Math.max(
-    project.estimatedHours, 
-    metrics.completedTime, 
-    Math.max(...graphData.map(d => d.plannedTime), 0),
-    1
-  );
+  const { progressData: graphData, maxHours } = analysis;
+
   const svgWidth = 800;
   const svgHeight = 240;
   const padding = { top: 20, right: 60, bottom: 60, left: 80 };
@@ -481,24 +171,9 @@ export function ProjectProgressGraph({ project, metrics, events, milestones = []
                     return `${x},${y}`;
                   }).join(' ')}
                   fill="none"
-                  stroke="#10b981"
+                  stroke="#3b82f6"
                   strokeWidth="2"
                   strokeDasharray="5,5"
-                  opacity="0.8"
-                />
-                
-                {/* Planned progress line */}
-                <polyline
-                  points={graphData.map((point, index) => {
-                    const x = padding.left + (index / Math.max(1, graphData.length - 1)) * chartWidth;
-                    const y = padding.top + chartHeight - (point.plannedTime / maxHours) * chartHeight;
-                    return `${x},${y}`;
-                  }).join(' ')}
-                  fill="none"
-                  stroke="#f59e0b"
-                  strokeWidth="2"
-                  strokeDasharray="3,3"
-                  opacity="0.9"
                 />
                 
                 {/* Completed time line */}
@@ -509,137 +184,164 @@ export function ProjectProgressGraph({ project, metrics, events, milestones = []
                     return `${x},${y}`;
                   }).join(' ')}
                   fill="none"
-                  stroke="#3b82f6"
+                  stroke="#10b981"
                   strokeWidth="3"
                 />
                 
-                {/* Milestone diamonds on estimated progress line */}
-                {milestones.length > 0 && milestones
-                  .filter(m => {
-                    const milestoneDate = new Date(m.dueDate);
-                    const startDate = new Date(project.startDate);
-                    const endDate = new Date(project.endDate);
-                    return milestoneDate >= startDate && milestoneDate <= endDate;
-                  })
-                  .map((milestone, index) => {
-                    // Find the data point that corresponds to this milestone
-                    const milestoneDate = new Date(milestone.dueDate);
-                    const dataPointIndex = graphData.findIndex(point => {
-                      const pointDate = new Date(point.date);
-                      return pointDate.toDateString() === milestoneDate.toDateString();
-                    });
-                    
-                    if (dataPointIndex === -1) return null;
-                    
-                    const dataPoint = graphData[dataPointIndex];
-                    const x = padding.left + (dataPointIndex / Math.max(1, graphData.length - 1)) * chartWidth;
-                    const y = padding.top + chartHeight - (dataPoint.estimatedProgress / maxHours) * chartHeight;
-                    
-                    return (
-                      <g key={`milestone-${milestone.id}`}>
-                        {/* Milestone diamond */}
-                        <rect
-                          x={x - 4}
-                          y={y - 4}
-                          width="8"
-                          height="8"
-                          fill="#10b981"
-                          stroke="#059669"
-                          strokeWidth="1"
-                          transform={`rotate(45 ${x} ${y})`}
-                          className="cursor-pointer hover:fill-emerald-600 transition-colors"
+                {/* Planned time step line */}
+                {graphData.map((point, index) => {
+                  if (index === 0) return null;
+                  
+                  const prevPoint = graphData[index - 1];
+                  const x1 = padding.left + ((index - 1) / Math.max(1, graphData.length - 1)) * chartWidth;
+                  const x2 = padding.left + (index / Math.max(1, graphData.length - 1)) * chartWidth;
+                  const y = padding.top + chartHeight - (prevPoint.plannedTime / maxHours) * chartHeight;
+                  
+                  return (
+                    <g key={`planned-step-${index}`}>
+                      {/* Horizontal line (step) */}
+                      <line
+                        x1={x1}
+                        y1={y}
+                        x2={x2}
+                        y2={y}
+                        stroke="#f59e0b"
+                        strokeWidth="2"
+                      />
+                      {/* Vertical line (jump) */}
+                      {point.plannedTime !== prevPoint.plannedTime && (
+                        <line
+                          x1={x2}
+                          y1={y}
+                          x2={x2}
+                          y2={padding.top + chartHeight - (point.plannedTime / maxHours) * chartHeight}
+                          stroke="#f59e0b"
+                          strokeWidth="2"
                         />
-                      </g>
-                    );
-                  })}
+                      )}
+                    </g>
+                  );
+                })}
               </>
             )}
-          </svg>
-          
-          {/* Milestone diamond tooltips positioned absolutely over the SVG */}
-          {milestones.length > 0 && milestones
-            .filter(m => {
-              const milestoneDate = new Date(m.dueDate);
-              const startDate = new Date(project.startDate);
-              const endDate = new Date(project.endDate);
-              return milestoneDate >= startDate && milestoneDate <= endDate;
-            })
-            .map((milestone) => {
-              // Find the data point that corresponds to this milestone
-              const milestoneDate = new Date(milestone.dueDate);
-              const dataPointIndex = graphData.findIndex(point => {
-                const pointDate = new Date(point.date);
-                return pointDate.toDateString() === milestoneDate.toDateString();
-              });
-              
-              if (dataPointIndex === -1) return null;
-              
-              const dataPoint = graphData[dataPointIndex];
-              
-              // Calculate position as percentage of the SVG viewBox
-              const xPercent = ((padding.left + (dataPointIndex / Math.max(1, graphData.length - 1)) * chartWidth) / svgWidth) * 100;
-              const yPercent = ((padding.top + chartHeight - (dataPoint.estimatedProgress / maxHours) * chartHeight) / svgHeight) * 100;
+            
+            {/* Data points with tooltips */}
+            {graphData.map((point, index) => {
+              const x = padding.left + (index / Math.max(1, graphData.length - 1)) * chartWidth;
+              const estimatedY = padding.top + chartHeight - (point.estimatedProgress / maxHours) * chartHeight;
+              const completedY = padding.top + chartHeight - (point.completedTime / maxHours) * chartHeight;
+              const plannedY = padding.top + chartHeight - (point.plannedTime / maxHours) * chartHeight;
               
               return (
-                <Tooltip key={`milestone-tooltip-${milestone.id}`}>
-                  <TooltipTrigger asChild>
-                    <div
-                      className="absolute w-4 h-4 cursor-pointer"
-                      style={{
-                        left: `${xPercent}%`,
-                        top: `${yPercent}%`,
-                        transform: 'translate(-50%, -50%)',
-                        zIndex: 10
-                      }}
-                    />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <div className="text-sm">
-                      <div className="font-medium">{milestone.name}</div>
-                      <div className="text-gray-600">
-                        {new Date(milestone.dueDate).toLocaleDateString('en-US', { 
-                          month: 'short', 
-                          day: 'numeric',
-                          year: 'numeric'
-                        })}
+                <g key={`point-${index}`}>
+                  {/* Estimated progress point */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <circle
+                        cx={x}
+                        cy={estimatedY}
+                        r="4"
+                        fill="#3b82f6"
+                        stroke="white"
+                        strokeWidth="2"
+                        className="cursor-pointer hover:r-6"
+                      />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <div className="text-sm">
+                        <div className="font-medium">{point.date.toLocaleDateString()}</div>
+                        <div className="text-blue-600">Estimated: {point.estimatedProgress.toFixed(1)}h</div>
                       </div>
-                      <div className="text-gray-600">{milestone.timeAllocation}h allocated</div>
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
+                    </TooltipContent>
+                  </Tooltip>
+                  
+                  {/* Completed time point */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <circle
+                        cx={x}
+                        cy={completedY}
+                        r="4"
+                        fill="#10b981"
+                        stroke="white"
+                        strokeWidth="2"
+                        className="cursor-pointer hover:r-6"
+                      />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <div className="text-sm">
+                        <div className="font-medium">{point.date.toLocaleDateString()}</div>
+                        <div className="text-green-600">Completed: {point.completedTime.toFixed(1)}h</div>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                  
+                  {/* Planned time point */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <circle
+                        cx={x}
+                        cy={plannedY}
+                        r="3"
+                        fill="#f59e0b"
+                        stroke="white"
+                        strokeWidth="2"
+                        className="cursor-pointer hover:r-5"
+                      />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <div className="text-sm">
+                        <div className="font-medium">{point.date.toLocaleDateString()}</div>
+                        <div className="text-yellow-600">Planned: {point.plannedTime.toFixed(1)}h</div>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </g>
               );
             })}
-          
+          </svg>
+
           {/* Legend */}
-          <div className="flex justify-center gap-6 mt-4">
+          <div className="flex gap-6 justify-center mt-4 text-sm">
             <div className="flex items-center gap-2">
-              <svg width="20" height="2">
-                <line x1="0" y1="1" x2="20" y2="1" stroke="#10b981" strokeWidth="2" strokeDasharray="5,5" opacity="0.8" />
-              </svg>
-              <span className="text-sm text-gray-700">Estimated Progress</span>
+              <div className="w-4 h-0.5 bg-blue-500 border-dashed border border-blue-500"></div>
+              <span className="text-gray-700">Estimated Progress</span>
             </div>
             <div className="flex items-center gap-2">
-              <svg width="20" height="2">
-                <line x1="0" y1="1" x2="20" y2="1" stroke="#f59e0b" strokeWidth="2" strokeDasharray="3,3" opacity="0.9" />
-              </svg>
-              <span className="text-sm text-gray-700">Planned Progress</span>
+              <div className="w-4 h-0.5 bg-green-500"></div>
+              <span className="text-gray-700">Completed Time</span>
             </div>
             <div className="flex items-center gap-2">
-              <svg width="20" height="2">
-                <line x1="0" y1="1" x2="20" y2="1" stroke="#3b82f6" strokeWidth="3" />
-              </svg>
-              <span className="text-sm text-gray-700">Completed Time</span>
+              <div className="w-4 h-0.5 bg-yellow-500"></div>
+              <span className="text-gray-700">Planned Time</span>
+            </div>
+          </div>
+
+          {/* Progress insights */}
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div className="bg-blue-50 p-3 rounded-lg">
+              <div className="font-medium text-blue-900">Progress Method</div>
+              <div className="text-blue-700 capitalize">{analysis.progressMethod}-based</div>
+            </div>
+            <div className="bg-green-50 p-3 rounded-lg">
+              <div className="font-medium text-green-900">Completion Rate</div>
+              <div className="text-green-700">{analysis.completionRate.toFixed(1)}%</div>
+            </div>
+            <div className={`p-3 rounded-lg ${analysis.isOnTrack ? 'bg-green-50' : 'bg-red-50'}`}>
+              <div className={`font-medium ${analysis.isOnTrack ? 'text-green-900' : 'text-red-900'}`}>
+                On Track
+              </div>
+              <div className={analysis.isOnTrack ? 'text-green-700' : 'text-red-700'}>
+                {analysis.isOnTrack ? 'Yes' : 'Behind Schedule'}
+              </div>
             </div>
           </div>
         </div>
-      ) : (
-        <div className="flex items-center justify-center h-32 text-gray-500 bg-gray-50 rounded-lg border border-dashed border-gray-300">
-          <div className="text-center">
-            <p className="text-sm">Not enough data to display progress graph</p>
-            <p className="text-xs mt-1">Project needs at least 2 days to show progress</p>
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            No progress data available for this project.
           </div>
-        </div>
-      )}
+        )}
       </div>
     </TooltipProvider>
   );

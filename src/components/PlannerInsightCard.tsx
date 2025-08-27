@@ -3,7 +3,9 @@ import moment from 'moment';
 import { Card } from './ui/card';
 import { CalendarEvent } from '../types';
 import { useSettingsContext } from '../contexts/SettingsContext';
-import { calculateEventDurationOnDate } from '../lib/midnightEventUtils';
+import { calculateEventDurationOnDate, aggregateEventDurationsByDate, formatDuration } from '@/services';
+// Keep the original import for now to avoid breaking changes
+import { calculateEventDurationOnDate as originalCalculateEventDurationOnDate } from '../lib/midnightEventUtils';
 
 interface CalendarInsightCardProps {
   dates: Date[];
@@ -45,7 +47,7 @@ export function PlannerInsightCard({ dates, events, view }: CalendarInsightCardP
       // Add completed events for this day using proper midnight-crossing calculation
       events.forEach(event => {
         if (event.completed) {
-          const durationHours = calculateEventDurationOnDate(event, date);
+          const durationHours = originalCalculateEventDurationOnDate(event, date);
           if (durationHours > 0) {
             // Convert to minutes and round to avoid decimal minutes
             const durationMinutes = Math.round(durationHours * 60);
@@ -56,7 +58,7 @@ export function PlannerInsightCard({ dates, events, view }: CalendarInsightCardP
       
       // Add currently tracking time if it's for this date
       if (isTimeTracking && currentTrackingEvent) {
-        const trackingDurationHours = calculateEventDurationOnDate(currentTrackingEvent, date);
+        const trackingDurationHours = originalCalculateEventDurationOnDate(currentTrackingEvent, date);
         if (trackingDurationHours > 0) {
           // For tracking events, add the live duration
           const trackingStart = moment(currentTrackingEvent.startTime);

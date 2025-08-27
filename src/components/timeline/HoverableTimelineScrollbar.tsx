@@ -1,4 +1,11 @@
 import React, { useState, useRef, useEffect, memo, useCallback } from 'react';
+import { 
+  calculateScrollbarPosition, 
+  calculateScrollbarClickTarget,
+  calculateScrollbarDragTarget,
+  calculateScrollEasing,
+  calculateAnimationDuration
+} from '@/services/timelinePositionService';
 
 interface HoverableTimelineScrollbarProps {
   viewportStart: Date;
@@ -45,22 +52,26 @@ export const HoverableTimelineScrollbar = memo(function HoverableTimelineScrollb
   const [smoothThumbPosition, setSmoothThumbPosition] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
   
-  // Use a year-based timeline but adapt to content length
+  // Use service for scrollbar calculations with adaptive total days
   const TOTAL_DAYS = Math.max(365, VIEWPORT_DAYS * 2); // At least a year, or double the viewport
+  const scrollbarCalc = calculateScrollbarPosition(viewportStart, VIEWPORT_DAYS);
   
-  // Calculate full timeline start (January 1st of current year)
-  const fullTimelineStart = new Date(viewportStart.getFullYear(), 0, 1);
+  // Override total days calculation for weeks mode adaptation
+  const adaptedCalc = {
+    ...scrollbarCalc,
+    thumbWidth: VIEWPORT_DAYS > 200 ? 
+      (Math.min(VIEWPORT_DAYS / 8, 30) / TOTAL_DAYS) * 100 : 
+      scrollbarCalc.thumbWidth,
+    maxOffset: TOTAL_DAYS - VIEWPORT_DAYS
+  };
   
-  // Calculate current day offset from start of year
-  const currentDayOffset = Math.round((viewportStart.getTime() - fullTimelineStart.getTime()) / (24 * 60 * 60 * 1000));
-  
-  // Calculate thumb position and size as percentages
-  const maxOffset = TOTAL_DAYS - VIEWPORT_DAYS;
-  const calculatedThumbPosition = maxOffset > 0 ? (currentDayOffset / maxOffset) * 100 : 0;
-  
-  // Make thumb much smaller for weeks mode - represent actual visible content better
-  const effectiveViewportDays = VIEWPORT_DAYS > 200 ? Math.min(VIEWPORT_DAYS / 8, 30) : VIEWPORT_DAYS;
-  const thumbWidth = (effectiveViewportDays / TOTAL_DAYS) * 100;
+  const { 
+    fullTimelineStart, 
+    currentDayOffset, 
+    thumbPosition: calculatedThumbPosition, 
+    thumbWidth,
+    maxOffset 
+  } = adaptedCalc;
   
   // Use smooth position during animations, but NOT during dragging
   const thumbPosition = (isAnimating && !isDraggingThumb) ? smoothThumbPosition : calculatedThumbPosition;
@@ -241,11 +252,14 @@ export const HoverableTimelineScrollbar = memo(function HoverableTimelineScrollb
     
     const rect = scrollbarRef.current.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
-    const clickRatio = clickX / rect.width;
-    const targetDayOffset = Math.round(clickRatio * maxOffset);
     
-    const targetViewportStart = new Date(fullTimelineStart);
-    targetViewportStart.setDate(fullTimelineStart.getDate() + targetDayOffset);
+    // Use service to calculate target viewport
+    const targetViewportStart = calculateScrollbarClickTarget(
+      clickX, 
+      rect.width, 
+      fullTimelineStart, 
+      maxOffset
+    );
     
     // Calculate the difference in days for smooth animation
     const currentStart = viewportStart.getTime();
@@ -259,15 +273,14 @@ export const HoverableTimelineScrollbar = memo(function HoverableTimelineScrollb
       return;
     }
     
-    // Dynamic animation duration based on distance
-    const baseDuration = 500;
-    const distanceMultiplier = Math.min(daysDifference * 40, 1200);
-    const animationDuration = baseDuration + distanceMultiplier;
+    // Use service for animation duration calculation
+    const animationDuration = calculateAnimationDuration(currentStart, targetStart);
     const startTime = performance.now();
     
     setIsAnimating(true);
     
     // Calculate target thumb position for smooth scrollbar animation
+    const targetDayOffset = Math.round((targetViewportStart.getTime() - fullTimelineStart.getTime()) / (24 * 60 * 60 * 1000));
     const targetThumbPosition = maxOffset > 0 ? (targetDayOffset / maxOffset) * 100 : 0;
     const startThumbPosition = smoothThumbPosition;
     
@@ -275,25 +288,8 @@ export const HoverableTimelineScrollbar = memo(function HoverableTimelineScrollb
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / animationDuration, 1);
       
-      // Three-phase airplane-like easing
-      let easedProgress;
-      
-      if (progress < 0.25) {
-        // Takeoff phase (0-25%): Gentle acceleration
-        const phaseProgress = progress / 0.25;
-        easedProgress = 0.25 * phaseProgress * phaseProgress;
-      } else if (progress < 0.65) {
-        // Flight phase (25-65%): Sustained high speed
-        const phaseProgress = (progress - 0.25) / 0.4;
-        easedProgress = 0.25 + 0.55 * phaseProgress;
-      } else {
-        // Extended landing phase (65-100%): Long, gentle approach
-        const phaseProgress = (progress - 0.65) / 0.35;
-        const quinticsEase = 1 - Math.pow(1 - phaseProgress, 5);
-        const expSmoothing = 1 - Math.exp(-3 * phaseProgress);
-        const ultraGentleDecel = (quinticsEase * 0.3) + (expSmoothing * 0.7);
-        easedProgress = 0.8 + 0.2 * ultraGentleDecel;
-      }
+      // Use service for easing calculation
+      const easedProgress = calculateScrollEasing(progress);
       
       // Calculate intermediate viewport start
       const currentOffset = currentStart + (targetStart - currentStart) * easedProgress;

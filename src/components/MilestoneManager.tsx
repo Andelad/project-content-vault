@@ -12,6 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useProjectContext } from '../contexts/ProjectContext';
 import { Milestone } from '@/types/core';
 import { useToast } from '@/hooks/use-toast';
+import { calculateRecurringMilestoneCount, calculateRecurringTotalAllocation, detectRecurringPattern, MilestoneManagementService } from '@/services';
 
 interface MilestoneManagerProps {
   projectId?: string; // Made optional to support new projects
@@ -88,20 +89,9 @@ export function MilestoneManager({
 
   // Helper functions can be removed since we're using toast directly
 
-  // Helper function to get ordinal numbers (1st, 2nd, 3rd, etc.)
+  // Helper function to get ordinal numbers using service
   const getOrdinalNumber = (num: number) => {
-    const j = num % 10;
-    const k = num % 100;
-    if (j === 1 && k !== 11) {
-      return num + "st";
-    }
-    if (j === 2 && k !== 12) {
-      return num + "nd";
-    }
-    if (j === 3 && k !== 13) {
-      return num + "rd";
-    }
-    return num + "th";
+    return MilestoneManagementService.generateOrdinalNumber(num);
   };
 
   // Handle updating recurring milestone load
@@ -357,61 +347,19 @@ export function MilestoneManager({
       return `${months[date.getMonth()]} ${date.getDate()}`;
     };
 
-    // Calculate the valid date range for this milestone
+    // Calculate the valid date range for this milestone using service
     const getValidDateRange = () => {
-      // Start with project bounds, but exclude start and end dates
-      let minDate = new Date(projectStartDate);
-      minDate.setDate(minDate.getDate() + 1); // Day after project start
+      const result = MilestoneManagementService.calculateMilestoneDateRange({
+        projectStartDate,
+        projectEndDate,
+        existingMilestones: projectMilestones,
+        currentMilestone: milestone
+      });
       
-      let maxDate = new Date(projectEndDate);
-      maxDate.setDate(maxDate.getDate() - 1); // Day before project end
-
-      // Get all other milestones, sorted by date
-      const otherMilestones = projectMilestones
-        .filter(m => m.id !== milestone.id)
-        .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
-
-      // Simple approach: find where this milestone fits in the sequence
-      // Allow it to be placed in any valid gap between existing milestones
-      
-      if (otherMilestones.length === 0) {
-        // No other milestones, can use full project range
-        return { minDate, maxDate };
-      }
-      
-      // Find the appropriate slot for this milestone
-      // If it's currently before all other milestones, allow it to be placed before the first one
-      const firstOtherMilestone = otherMilestones[0];
-      if (milestone.dueDate <= firstOtherMilestone.dueDate) {
-        const dayBefore = new Date(firstOtherMilestone.dueDate);
-        dayBefore.setDate(dayBefore.getDate() - 1);
-        maxDate = dayBefore;
-        return { minDate, maxDate };
-      }
-      
-      // Find the gap where this milestone currently belongs or should be placed
-      for (let i = 0; i < otherMilestones.length - 1; i++) {
-        const currentOther = otherMilestones[i];
-        const nextOther = otherMilestones[i + 1];
-        
-        if (milestone.dueDate > currentOther.dueDate && milestone.dueDate < nextOther.dueDate) {
-          // This milestone fits between currentOther and nextOther
-          const dayAfter = new Date(currentOther.dueDate);
-          dayAfter.setDate(dayAfter.getDate() + 1);
-          const dayBefore = new Date(nextOther.dueDate);
-          dayBefore.setDate(dayBefore.getDate() - 1);
-          
-          return { minDate: dayAfter, maxDate: dayBefore };
-        }
-      }
-      
-      // If we get here, this milestone is after all other milestones
-      const lastOtherMilestone = otherMilestones[otherMilestones.length - 1];
-      const dayAfter = new Date(lastOtherMilestone.dueDate);
-      dayAfter.setDate(dayAfter.getDate() + 1);
-      minDate = dayAfter;
-      
-      return { minDate, maxDate };
+      return {
+        minDate: result.minDate,
+        maxDate: result.maxDate
+      };
     };
 
     const { minDate, maxDate } = getValidDateRange();
@@ -579,87 +527,46 @@ export function MilestoneManager({
     }
   }, [projectMilestones, recurringMilestone, projectId]);
 
-  // Calculate how many milestones the recurring config would generate
-  const calculateRecurringMilestoneCount = (config: RecurringMilestone) => {
-    let count = 0;
-    let currentDate = new Date(projectStartDate);
-    currentDate.setDate(currentDate.getDate() + 1);
-    
-    const endDate = projectContinuous ? 
-      new Date(currentDate.getTime() + 365 * 24 * 60 * 60 * 1000) :
-      new Date(projectEndDate);
-    endDate.setDate(endDate.getDate() - 1);
-
-    while (currentDate <= endDate && count < 100) {
-      count++;
-      
-      switch (config.recurringType) {
-        case 'daily':
-          currentDate.setDate(currentDate.getDate() + config.recurringInterval);
-          break;
-        case 'weekly':
-          currentDate.setDate(currentDate.getDate() + (7 * config.recurringInterval));
-          break;
-        case 'monthly':
-          currentDate.setMonth(currentDate.getMonth() + config.recurringInterval);
-          break;
-      }
-    }
-    
-    return count;
-  };
-
   // Calculate total time allocation including recurring milestone
   const totalRecurringAllocation = useMemo(() => {
     if (recurringMilestone) {
-      const count = calculateRecurringMilestoneCount(recurringMilestone);
-      return count * recurringMilestone.timeAllocation;
+      return calculateRecurringTotalAllocation({
+        config: {
+          recurringType: recurringMilestone.recurringType,
+          recurringInterval: recurringMilestone.recurringInterval,
+          timeAllocation: recurringMilestone.timeAllocation
+        },
+        projectStartDate,
+        projectEndDate,
+        projectContinuous
+      });
     }
     return 0;
   }, [recurringMilestone, projectStartDate, projectEndDate, projectContinuous]);
 
-  // Calculate total time allocation in hours
-  const totalTimeAllocation = useMemo(() => {
-    const regularMilestoneAllocation = projectMilestones.reduce((total, milestone) => total + milestone.timeAllocation, 0);
-    return regularMilestoneAllocation + totalRecurringAllocation;
-  }, [projectMilestones, totalRecurringAllocation]);
+  // Calculate budget analysis using service
+  const budgetAnalysis = useMemo(() => {
+    return MilestoneManagementService.analyzeMilestoneBudget(
+      projectMilestones,
+      projectEstimatedHours,
+      totalRecurringAllocation
+    );
+  }, [projectMilestones, projectEstimatedHours, totalRecurringAllocation]);
 
-  // Calculate suggested budget based on milestones
-  const suggestedBudgetFromMilestones = useMemo(() => {
-    if (totalTimeAllocation > projectEstimatedHours) {
-      return Math.ceil(totalTimeAllocation);
-    }
-    return projectEstimatedHours;
-  }, [totalTimeAllocation, projectEstimatedHours]);
+  // Calculate total time allocation in hours (for backward compatibility)
+  const totalTimeAllocation = budgetAnalysis.totalAllocation;
+
+  // Calculate suggested budget based on milestones (for backward compatibility)
+  const suggestedBudgetFromMilestones = budgetAnalysis.suggestedBudget;
 
   const addNewMilestone = () => {
-    // Calculate the appropriate default date for the new milestone
+    // Calculate the appropriate default date for the new milestone using service
     const getDefaultMilestoneDate = () => {
-      // Start with the day after project start
-      let defaultDate = new Date(projectStartDate);
-      defaultDate.setDate(defaultDate.getDate() + 1);
-      
-      // If there are existing milestones, place this one after the last one
-      if (projectMilestones.length > 0) {
-        const sortedMilestones = [...projectMilestones].sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
-        const lastMilestone = sortedMilestones[sortedMilestones.length - 1];
-        const dayAfterLast = new Date(lastMilestone.dueDate);
-        dayAfterLast.setDate(dayAfterLast.getDate() + 1);
-        
-        // Use the later of: day after project start, or day after last milestone
-        if (dayAfterLast > defaultDate) {
-          defaultDate = dayAfterLast;
-        }
-      }
-      
-      // Ensure it's not beyond project end date
-      const projectEnd = new Date(projectEndDate);
-      projectEnd.setDate(projectEnd.getDate() - 1); // Day before project end
-      if (defaultDate > projectEnd) {
-        defaultDate = projectEnd;
-      }
-      
-      return defaultDate;
+      return MilestoneManagementService.calculateDefaultMilestoneDate({
+        projectStartDate,
+        projectEndDate,
+        existingMilestones: projectMilestones
+      });
     };
 
     const newMilestone: LocalMilestone = {
@@ -796,62 +703,27 @@ export function MilestoneManager({
     }
   };
 
-  const isOverBudget = totalTimeAllocation > projectEstimatedHours;
+  const isOverBudget = budgetAnalysis.isOverBudget;
 
-  // Generate recurring milestones based on configuration
+  // Generate recurring milestones based on configuration using service
   const generateRecurringMilestones = (config: RecurringMilestoneConfig) => {
-    const milestones: LocalMilestone[] = [];
-    let currentDate = new Date(projectStartDate); // Start from project start date
-    
-    console.log('📅 Generating recurring milestones:', {
+    console.log('📅 Generating recurring milestones using service:', {
       projectStartDate: projectStartDate.toDateString(),
       projectStartDay: format(projectStartDate, 'EEEE'),
       recurringType: config.recurringType,
       interval: config.recurringInterval
     });
     
-    const endDate = projectContinuous ? 
-      new Date(currentDate.getTime() + 365 * 24 * 60 * 60 * 1000) : // 1 year for continuous projects
-      new Date(projectEndDate); // End at project end date
-
-    let order = 0;
-    
-    while (currentDate <= endDate) {
-      console.log(`📍 Creating recurring milestone ${order + 1} on:`, {
-        date: currentDate.toDateString(),
-        day: format(currentDate, 'EEEE')
-      });
-      
-      milestones.push({
-        id: `recurring-${order}`,
-        name: `${config.name} ${order + 1}`,
-        dueDate: new Date(currentDate),
-        timeAllocation: config.timeAllocation,
-        projectId: projectId || 'temp',
-        order: order,
-        isNew: true
-      });
-      
-      // Calculate next occurrence
-      switch (config.recurringType) {
-        case 'daily':
-          currentDate.setDate(currentDate.getDate() + config.recurringInterval);
-          break;
-        case 'weekly':
-          currentDate.setDate(currentDate.getDate() + (7 * config.recurringInterval));
-          break;
-        case 'monthly':
-          currentDate.setMonth(currentDate.getMonth() + config.recurringInterval);
-          break;
-      }
-      
-      order++;
-      
-      // Safety check to prevent infinite loops
-      if (order > 100) break;
-    }
-    
-    return milestones;
+    return MilestoneManagementService.generateRecurringMilestones(
+      config,
+      projectStartDate,
+      projectEndDate,
+      projectContinuous,
+      projectId || 'temp'
+    ).map(generated => ({
+      ...generated,
+      isNew: true
+    }));
   };
 
   // Handle creating recurring milestone

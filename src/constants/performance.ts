@@ -36,8 +36,10 @@ export const TIMELINE_CONSTANTS = {
   
   // Visual constants
   DAY_WIDTH: 40, // pixels
+  DAY_GAP: 1, // pixels
   WEEK_WIDTH: 72, // pixels
   ROW_HEIGHT: 52, // pixels
+  GROUP_HEADER_HEIGHT: 32, // pixels
 } as const;
 
 export const CALENDAR_CONSTANTS = {

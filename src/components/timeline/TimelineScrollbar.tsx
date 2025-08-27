@@ -1,4 +1,11 @@
-import React, { useState, useRef, useEffect, memo } from 'react';
+import React, { useRef, useState, useEffect, memo } from 'react';
+import { 
+  calculateScrollbarPosition, 
+  calculateScrollbarClickTarget,
+  calculateScrollbarDragTarget,
+  calculateScrollEasing,
+  calculateAnimationDuration
+} from '@/services/timelinePositionService';
 
 interface TimelineScrollbarProps {
   viewportStart: Date;
@@ -24,18 +31,15 @@ export const TimelineScrollbar = memo(function TimelineScrollbar({
   const [dragStartOffset, setDragStartOffset] = useState(0);
   const [smoothThumbPosition, setSmoothThumbPosition] = useState(0);
   
-  const TOTAL_DAYS = 365; // Full year
-  
-  // Calculate full timeline start (January 1st of current year)
-  const fullTimelineStart = new Date(viewportStart.getFullYear(), 0, 1);
-  
-  // Calculate current day offset from start of year
-  const currentDayOffset = Math.round((viewportStart.getTime() - fullTimelineStart.getTime()) / (24 * 60 * 60 * 1000));
-  
-  // Calculate thumb position and size as percentages
-  const maxOffset = TOTAL_DAYS - VIEWPORT_DAYS;
-  const calculatedThumbPosition = maxOffset > 0 ? (currentDayOffset / maxOffset) * 100 : 0;
-  const thumbWidth = (VIEWPORT_DAYS / TOTAL_DAYS) * 100;
+  // Use service for scrollbar calculations
+  const scrollbarCalc = calculateScrollbarPosition(viewportStart, VIEWPORT_DAYS);
+  const { 
+    fullTimelineStart, 
+    currentDayOffset, 
+    thumbPosition: calculatedThumbPosition, 
+    thumbWidth, 
+    maxOffset 
+  } = scrollbarCalc;
   
   // Use smooth position during animations, otherwise use calculated position
   const thumbPosition = isAnimating ? smoothThumbPosition : calculatedThumbPosition;
@@ -52,11 +56,14 @@ export const TimelineScrollbar = memo(function TimelineScrollbar({
     
     const rect = scrollbarRef.current.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
-    const clickRatio = clickX / rect.width;
-    const targetDayOffset = Math.round(clickRatio * maxOffset);
     
-    const targetViewportStart = new Date(fullTimelineStart);
-    targetViewportStart.setDate(fullTimelineStart.getDate() + targetDayOffset);
+    // Use service to calculate target viewport
+    const targetViewportStart = calculateScrollbarClickTarget(
+      clickX, 
+      rect.width, 
+      fullTimelineStart, 
+      maxOffset
+    );
     
     // Calculate the difference in days for smooth animation
     const currentStart = viewportStart.getTime();
@@ -70,49 +77,23 @@ export const TimelineScrollbar = memo(function TimelineScrollbar({
       return;
     }
     
-    // Dynamic animation duration based on distance - extended for smooth landing approach
-    const baseDuration = 500;
-    const distanceMultiplier = Math.min(daysDifference * 40, 1200); // Up to 1200ms extra for long distances
-    const animationDuration = baseDuration + distanceMultiplier;
+    // Use service for animation duration calculation
+    const animationDuration = calculateAnimationDuration(currentStart, targetStart);
     const startTime = performance.now();
     
     setIsAnimating(true);
     
     // Calculate target thumb position for smooth scrollbar animation
-    const targetThumbPosition = maxOffset > 0 ? (targetDayOffset / maxOffset) * 100 : 0;
+    const targetThumbPosition = maxOffset > 0 ? 
+      ((targetViewportStart.getTime() - fullTimelineStart.getTime()) / (24 * 60 * 60 * 1000) / maxOffset) * 100 : 0;
     const startThumbPosition = smoothThumbPosition;
     
     const animate = (currentTime: number) => {
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / animationDuration, 1);
       
-      // Three-phase airplane-like easing with extended landing approach
-      let easedProgress;
-      
-      if (progress < 0.25) {
-        // Takeoff phase (0-25%): Gentle acceleration
-        const phaseProgress = progress / 0.25;
-        easedProgress = 0.25 * phaseProgress * phaseProgress; // Quadratic ease-in, reaches 25% distance at 25% time
-      } else if (progress < 0.65) {
-        // Flight phase (25-65%): Sustained high speed
-        const phaseProgress = (progress - 0.25) / 0.4;
-        easedProgress = 0.25 + 0.55 * phaseProgress; // Linear from 25% to 80% distance
-      } else {
-        // Extended landing phase (65-100%): Long, gentle approach covering 20% of distance
-        const phaseProgress = (progress - 0.65) / 0.35;
-        
-        // Super gentle quintic ease-out for extended gliding
-        // Quintic provides even gentler deceleration than quartic
-        const quinticsEase = 1 - Math.pow(1 - phaseProgress, 5);
-        
-        // Additional exponential smoothing for ultra-gentle final approach
-        const expSmoothing = 1 - Math.exp(-3 * phaseProgress);
-        
-        // Combine both for maximum smoothness, weighted toward exponential for gentleness
-        const ultraGentleDecel = (quinticsEase * 0.3) + (expSmoothing * 0.7);
-        
-        easedProgress = 0.8 + 0.2 * ultraGentleDecel; // From 80% to 100% distance over 35% time
-      }
+      // Use service for easing calculation
+      const easedProgress = calculateScrollEasing(progress);
       
       // Calculate intermediate viewport start
       const currentOffset = currentStart + (targetStart - currentStart) * easedProgress;
@@ -150,13 +131,16 @@ export const TimelineScrollbar = memo(function TimelineScrollbar({
     
     const rect = scrollbarRef.current.getBoundingClientRect();
     const deltaX = e.clientX - dragStartX;
-    const deltaRatio = deltaX / rect.width;
-    const deltaDays = Math.round(deltaRatio * maxOffset);
     
-    const newDayOffset = Math.max(0, Math.min(maxOffset, dragStartOffset + deltaDays));
+    // Use service to calculate new viewport position
+    const newViewportStart = calculateScrollbarDragTarget(
+      deltaX,
+      rect.width,
+      dragStartOffset,
+      maxOffset,
+      fullTimelineStart
+    );
     
-    const newViewportStart = new Date(fullTimelineStart);
-    newViewportStart.setDate(fullTimelineStart.getDate() + newDayOffset);
     setViewportStart(newViewportStart);
     setCurrentDate(new Date(newViewportStart));
   };

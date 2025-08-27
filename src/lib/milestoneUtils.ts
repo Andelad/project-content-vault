@@ -1,4 +1,5 @@
 import { Milestone } from '@/types/core';
+import { MilestoneManagementService } from '@/services/milestoneManagementService';
 
 /**
  * Calculate daily time allocation for milestones
@@ -86,3 +87,51 @@ export function getMilestoneForDate(
     return milestoneDate.getTime() === targetDate.getTime();
   });
 }
+
+// Backward compatibility functions for milestone management
+// @deprecated Use MilestoneManagementService instead
+
+/**
+ * @deprecated Use MilestoneManagementService.calculateMilestoneDateRange
+ */
+export function calculateMilestoneDateRange(
+  projectStartDate: Date,
+  projectEndDate: Date,
+  existingMilestones: Milestone[],
+  currentMilestone?: Milestone
+) {
+  console.warn('calculateMilestoneDateRange is deprecated. Use MilestoneManagementService.calculateMilestoneDateRange instead.');
+  return MilestoneManagementService.calculateMilestoneDateRange({
+    projectStartDate,
+    projectEndDate,
+    existingMilestones,
+    currentMilestone
+  });
+}
+
+/**
+ * @deprecated Use MilestoneManagementService.calculateDefaultMilestoneDate
+ */
+export function calculateDefaultMilestoneDate(
+  projectStartDate: Date,
+  projectEndDate: Date,
+  existingMilestones: Milestone[]
+) {
+  console.warn('calculateDefaultMilestoneDate is deprecated. Use MilestoneManagementService.calculateDefaultMilestoneDate instead.');
+  return MilestoneManagementService.calculateDefaultMilestoneDate({
+    projectStartDate,
+    projectEndDate,
+    existingMilestones
+  });
+}
+
+/**
+ * @deprecated Use MilestoneManagementService.generateOrdinalNumber
+ */
+export function getOrdinalNumber(num: number): string {
+  console.warn('getOrdinalNumber is deprecated. Use MilestoneManagementService.generateOrdinalNumber instead.');
+  return MilestoneManagementService.generateOrdinalNumber(num);
+}
+
+// Re-export the service for convenience
+export { MilestoneManagementService };

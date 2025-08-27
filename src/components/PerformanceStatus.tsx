@@ -1,15 +1,11 @@
 import React from 'react';
 import { useProjectContext } from '../contexts/ProjectContext';
 import { usePlannerContext } from '../contexts/PlannerContext';
-import { trackMemoryUsage } from '@/lib/performanceUtils';
-
-// Temporary inline constants to fix import issue
-const PERFORMANCE_LIMITS = {
-  MAX_PROJECTS_PER_GROUP: 50,
-  MAX_GROUPS: 20,
-  MAX_EVENTS: 1000,
-  MAX_HOLIDAYS: 100
-} as const;
+import { 
+  analyzePerformance, 
+  getPerformanceLimits,
+  type PerformanceAnalysis 
+} from '@/services/performanceMetricsService';
 
 interface PerformanceStatusProps {
   className?: string;
@@ -19,51 +15,40 @@ export function PerformanceStatus({ className = '' }: PerformanceStatusProps) {
   const { projects, groups } = useProjectContext();
   const { events, holidays } = usePlannerContext();
   
-  // Calculate current usage
-  const currentUsage = {
-    projects: projects.length,
-    groups: groups.length,
-    events: events.length,
-    holidays: holidays.length
-  };
-
-  // Calculate max projects in any group
-  const maxProjectsInGroup = Math.max(
-    ...groups.map(group => 
-      projects.filter(p => p.groupId === group.id).length
-    ),
-    0
+  // Get comprehensive performance analysis
+  const analysis: PerformanceAnalysis = analyzePerformance(
+    projects, 
+    groups, 
+    events, 
+    holidays
   );
+  
+  const limits = getPerformanceLimits();
 
-  const memoryUsage = trackMemoryUsage();
-
-  // Only show if approaching limits or in development
-  const shouldShow = process.env.NODE_ENV === 'development' || 
-    maxProjectsInGroup > PERFORMANCE_LIMITS.MAX_PROJECTS_PER_GROUP * 0.8 ||
-    currentUsage.groups > PERFORMANCE_LIMITS.MAX_GROUPS * 0.8;
-
-  if (!shouldShow) return null;
+  // Don't show if no performance concerns
+  if (!analysis.shouldShowStatus) return null;
 
   return (
     <div className={`text-xs text-muted-foreground space-y-1 ${className}`}>
       <div className="flex gap-4">
         <span>
-          Projects: {maxProjectsInGroup}/{PERFORMANCE_LIMITS.MAX_PROJECTS_PER_GROUP} per group
+          Projects: {analysis.maxProjectsInGroup}/{limits.maxProjectsPerGroup} per group
         </span>
         <span>
-          Groups: {currentUsage.groups}/{PERFORMANCE_LIMITS.MAX_GROUPS}
+          Groups: {analysis.usage.groups}/{limits.maxGroups}
         </span>
-        {memoryUsage && (
+        {analysis.memoryUsage && (
           <span>
-            Memory: {memoryUsage.used}MB/{memoryUsage.limit}MB
+            Memory: {analysis.memoryUsage.used}MB/{analysis.memoryUsage.limit}MB
           </span>
         )}
       </div>
-      {maxProjectsInGroup > PERFORMANCE_LIMITS.MAX_PROJECTS_PER_GROUP * 0.9 && (
-        <div className="text-amber-600">
-          ⚠ Approaching project limit - consider organizing into more groups
+      {/* Show performance warnings */}
+      {analysis.warnings.map((warning, index) => (
+        <div key={index} className="text-amber-600">
+          {warning.message}
         </div>
-      )}
+      ))}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 /**
- * Centralized Calculation Services Index
+ * Central Calculation Services Index
  * Single import point for all mathematical operations
  * 
  * 🚨 ARCHITECTURAL RULE: ALL CALCULATIONS MUST USE THESE SERVICES
@@ -8,17 +8,33 @@
  *    - Components (render logic only)
  *    - Hooks (state management only) 
  *    - Utils (use these services instead)
- *    - Contexts (state, not calculations)
- * 
- * ✅ DO import these memoized functions:
- *    import { calculateProjectMetrics, calculateMilestoneMetrics } from '@/services';
- * 
- * Before adding new calculations, check if they belong in:
- * - DateCalculationService (date/time math)
- * - ProjectCalculationService (project/milestone logic)
- * - TimelineCalculationService (UI positioning)
- * - CalculationCacheService (performance)
+ *
+ * ✅ Extracted business logic services:
  */
+
+// Business logic services
+export * from './recurringMilestoneService';
+export * from './cachePerformanceService';
+export * from './eventDurationService';
+export * from './eventOverlapService';
+export * from './timeFormattingService';
+export * from './dateRangeService';
+export * from './calendarInsightService';
+export * from './projectProgressService';
+export * from './eventSplittingService';
+export * from './reportCalculationService';
+export * from './timelinePositionService';
+export * from './workHourCreationService';
+export * from './dragCalculationService';
+export * from './timelineViewportService';
+export * from './milestoneManagementService';
+export * from './performanceMetricsService';
+export * from './projectProgressGraphService';
+export * from './settingsValidationService';
+export * from './eventWorkHourIntegrationService';
+export * from './workHourCapacityService';
+export * from './projectCalculationService';
+export * from './milestoneUtilitiesService';
 
 // Core calculation services
 export { DateCalculationService } from './DateCalculationService';

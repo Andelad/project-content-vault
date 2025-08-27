@@ -118,3 +118,33 @@ export const trackMemoryUsage = () => {
   }
   return null;
 };
+
+// Backward compatibility functions - delegate to service layer
+import { 
+  calculateUsageMetrics,
+  calculateMaxProjectsInGroup,
+  shouldShowPerformanceStatus,
+  analyzePerformance,
+  type UsageMetrics,
+  type PerformanceAnalysis
+} from '@/services/performanceMetricsService';
+
+/**
+ * @deprecated Use calculateUsageMetrics from performanceMetricsService instead
+ */
+export const getUsageMetrics = calculateUsageMetrics;
+
+/**
+ * @deprecated Use calculateMaxProjectsInGroup from performanceMetricsService instead
+ */
+export const getMaxProjectsInGroup = calculateMaxProjectsInGroup;
+
+/**
+ * @deprecated Use shouldShowPerformanceStatus from performanceMetricsService instead
+ */
+export const shouldShowStatus = shouldShowPerformanceStatus;
+
+/**
+ * @deprecated Use analyzePerformance from performanceMetricsService instead
+ */
+export const getPerformanceAnalysis = analyzePerformance;

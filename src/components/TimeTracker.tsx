@@ -7,6 +7,14 @@ import { useProjectContext } from '../contexts/ProjectContext';
 import { usePlannerContext } from '../contexts/PlannerContext';
 import { useSettingsContext } from '../contexts/SettingsContext';
 import { CalendarEvent } from '../types';
+import { calculateOverlapActions, findOverlappingEvents } from '@/services/eventOverlapService';
+import { formatTimeSeconds } from '@/services/timeFormattingService';
+import { 
+  processEventOverlaps, 
+  calculateElapsedTime, 
+  createTimeRange,
+  type EventSplitResult 
+} from '@/services/eventSplittingService';
 
 interface TimeTrackerProps {
   className?: string;
@@ -51,8 +59,7 @@ export function TimeTracker({ className }: TimeTrackerProps) {
 
       if (savedIsTracking && savedStartTime && savedEventId) {
         const startTime = new Date(savedStartTime);
-        const now = new Date();
-        const elapsedSeconds = Math.floor((now.getTime() - startTime.getTime()) / 1000);
+        const { totalSeconds: elapsedSeconds } = calculateElapsedTime(startTime);
         
         setIsTimeTracking(true);
         setSeconds(elapsedSeconds);
@@ -94,88 +101,41 @@ export function TimeTracker({ className }: TimeTrackerProps) {
 
   // Check for overlapping planned events and adjust them
   const handlePlannedEventOverlaps = (trackingStart: Date, trackingEnd: Date) => {
-    const overlappingEvents = events.filter(event => 
-      event.type === 'planned' && 
-      event.id !== currentEventId &&
-      (
-        // Event starts during tracking period
-        (event.startTime >= trackingStart && event.startTime < trackingEnd) ||
-        // Event ends during tracking period  
-        (event.endTime > trackingStart && event.endTime <= trackingEnd) ||
-        // Event completely contains tracking period
-        (event.startTime <= trackingStart && event.endTime >= trackingEnd) ||
-        // Tracking period completely contains event
-        (trackingStart <= event.startTime && trackingEnd >= event.endTime)
-      )
-    );
-
+    const trackingRange = createTimeRange(trackingStart, trackingEnd);
+    const eventsToProcess = events.filter(event => event.id !== currentEventId);
+    const splitResults = processEventOverlaps(eventsToProcess, trackingRange);
+    
     const newAffectedEvents: string[] = [];
     
-    overlappingEvents.forEach(event => {
-      const eventStart = new Date(event.startTime);
-      const eventEnd = new Date(event.endTime);
-      
-      if (trackingStart <= eventStart && trackingEnd >= eventEnd) {
-        // Tracking completely overlaps the planned event - delete it
-        deleteEvent(event.id);
-      } else if (trackingStart > eventStart && trackingEnd < eventEnd) {
-        // Tracking is in the middle of planned event - split it
-        const originalDuration = event.duration || 
-          (eventEnd.getTime() - eventStart.getTime()) / (1000 * 60 * 60);
-        
-        // Create first part (before tracking)
-        const firstPartEnd = new Date(trackingStart);
-        const firstPartDuration = (firstPartEnd.getTime() - eventStart.getTime()) / (1000 * 60 * 60);
-        
-        updateEvent(event.id, {
-          endTime: firstPartEnd,
-          duration: firstPartDuration
-        });
-        
-        // Create second part (after tracking) if there's enough time
-        const secondPartStart = new Date(trackingEnd);
-        const secondPartDuration = (eventEnd.getTime() - secondPartStart.getTime()) / (1000 * 60 * 60);
-        
-        if (secondPartDuration > 0.1) { // Only create if > 6 minutes
-          addEvent({
-            title: event.title,
-            startTime: secondPartStart,
-            endTime: eventEnd,
-            projectId: event.projectId,
-            color: event.color,
-            description: event.description,
-            duration: secondPartDuration,
-            type: 'planned'
-          });
-        }
-      } else if (trackingStart <= eventStart && trackingEnd > eventStart) {
-        // Tracking overlaps start of planned event - trim the start
-        const newStart = new Date(trackingEnd);
-        const newDuration = (eventEnd.getTime() - newStart.getTime()) / (1000 * 60 * 60);
-        
-        if (newDuration > 0.1) { // Only keep if > 6 minutes
-          updateEvent(event.id, {
-            startTime: newStart,
-            duration: newDuration
-          }, { silent: true });
-          newAffectedEvents.push(event.id);
-        } else {
-          deleteEvent(event.id);
-        }
-      } else if (trackingStart < eventEnd && trackingEnd >= eventEnd) {
-        // Tracking overlaps end of planned event - trim the end
-        const newEnd = new Date(trackingStart);
-        const newDuration = (newEnd.getTime() - eventStart.getTime()) / (1000 * 60 * 60);
-        
-        if (newDuration > 0.1) { // Only keep if > 6 minutes
-          updateEvent(event.id, {
-            endTime: newEnd,
-            duration: newDuration
-          }, { silent: true });
-          newAffectedEvents.push(event.id);
-        } else {
-          deleteEvent(event.id);
-        }
+    splitResults.forEach((result: EventSplitResult) => {
+      switch (result.action) {
+        case 'delete':
+          deleteEvent(result.originalEvent.id);
+          break;
+          
+        case 'split':
+          // Update the first part
+          if (result.updatedEvent) {
+            updateEvent(result.originalEvent.id, result.updatedEvent);
+          }
+          
+          // Create the second part if needed
+          if (result.newEvent) {
+            addEvent({
+              ...result.newEvent,
+              color: result.newEvent.color || '#3b82f6', // Default blue color
+              type: 'planned'
+            });
+          }
+          break;
+          
+        case 'trim-start':
+        case 'trim-end':
+          if (result.updatedEvent) {
+            updateEvent(result.originalEvent.id, result.updatedEvent, { silent: true });
+            newAffectedEvents.push(result.originalEvent.id);
+          }
+          break;
       }
     });
 
@@ -277,13 +237,8 @@ export function TimeTracker({ className }: TimeTrackerProps) {
     return results.slice(0, 8); // Limit to 8 results
   }, [searchQuery, projects]);
 
-  // Format time display
-  const formatTime = (totalSeconds: number) => {
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const secs = totalSeconds % 60;
-    return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
+  // Format time display using extracted service
+  const formatTime = formatTimeSeconds;
 
   // Handle search selection
   const handleSelectItem = async (item: any) => {

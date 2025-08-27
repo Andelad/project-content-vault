@@ -1,0 +1,451 @@
+/**
+ * Milestone Utilities Service
+ * 
+ * This service handles milestone time distribution calculations and utilities
+ * extracted from the milestoneUtils library. It provides milestone-specific
+ * calculations for project timeline management and time allocation.
+ * 
+ * Key Features:
+ * - Milestone time distribution across project timeline
+ * - Daily time allocation based on milestone scheduling
+ * - Milestone date calculations and validation
+ * - Timeline integration for milestone-based projects
+ * - Backward compatibility with deprecated functions
+ * 
+ * @module MilestoneUtilitiesService
+ */
+
+import type { Milestone } from '@/types/core';
+import { MilestoneManagementService } from '@/services/milestoneManagementService';
+
+/**
+ * Interface for milestone time distribution entry
+ */
+export interface MilestoneTimeDistributionEntry {
+  date: Date;
+  estimatedHours: number;
+  milestone?: Milestone;
+  dayIndex: number;
+  isDeadlineDay: boolean;
+}
+
+/**
+ * Interface for milestone distribution analysis
+ */
+export interface MilestoneDistributionAnalysis {
+  totalHours: number;
+  averageHoursPerDay: number;
+  peakDays: Date[];
+  lightDays: Date[];
+  milestoneCount: number;
+  distributionEfficiency: number;
+  recommendations: string[];
+}
+
+/**
+ * Interface for milestone scheduling result
+ */
+export interface MilestoneSchedulingResult {
+  distribution: MilestoneTimeDistributionEntry[];
+  analysis: MilestoneDistributionAnalysis;
+  conflicts: Array<{
+    date: Date;
+    conflictingMilestones: Milestone[];
+    totalHours: number;
+  }>;
+}
+
+/**
+ * Configuration constants for milestone calculations
+ */
+export const MILESTONE_CALCULATION_CONFIG = {
+  MAX_DAILY_MILESTONE_HOURS: 12,
+  RECOMMENDED_DAILY_MILESTONE_HOURS: 8,
+  MIN_DAYS_BETWEEN_MILESTONES: 1,
+  DISTRIBUTION_EFFICIENCY_THRESHOLD: 0.8,
+  WORKLOAD_WARNING_THRESHOLD: 10 // hours per day
+} as const;
+
+/**
+ * Calculate daily time allocation for milestones
+ * Distributes milestone hours across the days between milestones
+ * 
+ * @param milestones - Array of milestones to distribute
+ * @param projectStartDate - Project start date
+ * @param projectEndDate - Project end date
+ * @returns Array of daily time distribution entries
+ */
+export function calculateMilestoneTimeDistribution(
+  milestones: Milestone[],
+  projectStartDate: Date,
+  projectEndDate: Date
+): MilestoneTimeDistributionEntry[] {
+  if (milestones.length === 0) {
+    return [];
+  }
+
+  // Sort milestones by due date
+  const sortedMilestones = [...milestones].sort((a, b) => 
+    new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+  );
+
+  const result: MilestoneTimeDistributionEntry[] = [];
+  let currentDate = new Date(projectStartDate);
+  currentDate.setHours(0, 0, 0, 0);
+
+  for (let i = 0; i < sortedMilestones.length; i++) {
+    const milestone = sortedMilestones[i];
+    const milestoneDate = new Date(milestone.dueDate);
+    milestoneDate.setHours(0, 0, 0, 0);
+
+    // Calculate days between current date and milestone
+    const timeDiff = milestoneDate.getTime() - currentDate.getTime();
+    const daysDiff = Math.max(1, Math.ceil(timeDiff / (1000 * 60 * 60 * 24)));
+
+    // Distribute milestone hours across the days
+    const hoursPerDay = milestone.timeAllocation / daysDiff;
+
+    // Add entries for each day leading up to the milestone
+    for (let day = 0; day < daysDiff; day++) {
+      const dayDate = new Date(currentDate.getTime() + (day * 24 * 60 * 60 * 1000));
+      const isLastDay = day === daysDiff - 1;
+      
+      result.push({
+        date: dayDate,
+        estimatedHours: hoursPerDay,
+        milestone: isLastDay ? milestone : undefined,
+        dayIndex: day,
+        isDeadlineDay: isLastDay
+      });
+    }
+
+    // Move current date to the day after this milestone
+    currentDate = new Date(milestoneDate.getTime() + (24 * 60 * 60 * 1000));
+  }
+
+  return result;
+}
+
+/**
+ * Calculate enhanced milestone time distribution with workload analysis
+ * 
+ * @param milestones - Array of milestones
+ * @param projectStartDate - Project start date
+ * @param projectEndDate - Project end date
+ * @returns Comprehensive milestone scheduling result
+ */
+export function calculateAdvancedMilestoneDistribution(
+  milestones: Milestone[],
+  projectStartDate: Date,
+  projectEndDate: Date
+): MilestoneSchedulingResult {
+  const distribution = calculateMilestoneTimeDistribution(milestones, projectStartDate, projectEndDate);
+  
+  // Analyze distribution
+  let totalHours = 0;
+  const dailyHours = new Map<string, number>();
+  const peakDays: Date[] = [];
+  const lightDays: Date[] = [];
+  
+  distribution.forEach(entry => {
+    totalHours += entry.estimatedHours;
+    const dateKey = entry.date.toISOString().split('T')[0];
+    const currentHours = dailyHours.get(dateKey) || 0;
+    dailyHours.set(dateKey, currentHours + entry.estimatedHours);
+  });
+  
+  // Identify peak and light days
+  dailyHours.forEach((hours, dateKey) => {
+    const date = new Date(dateKey);
+    if (hours > MILESTONE_CALCULATION_CONFIG.WORKLOAD_WARNING_THRESHOLD) {
+      peakDays.push(date);
+    } else if (hours < MILESTONE_CALCULATION_CONFIG.RECOMMENDED_DAILY_MILESTONE_HOURS / 2) {
+      lightDays.push(date);
+    }
+  });
+  
+  const averageHoursPerDay = distribution.length > 0 ? totalHours / distribution.length : 0;
+  const maxDailyHours = Math.max(...Array.from(dailyHours.values()));
+  const distributionEfficiency = maxDailyHours > 0 ? 
+    (averageHoursPerDay / maxDailyHours) : 1;
+  
+  // Detect conflicts (multiple milestones on same day)
+  const conflicts: MilestoneSchedulingResult['conflicts'] = [];
+  const milestonesByDate = new Map<string, Milestone[]>();
+  
+  distribution.forEach(entry => {
+    if (entry.milestone) {
+      const dateKey = entry.date.toISOString().split('T')[0];
+      const existing = milestonesByDate.get(dateKey) || [];
+      existing.push(entry.milestone);
+      milestonesByDate.set(dateKey, existing);
+    }
+  });
+  
+  milestonesByDate.forEach((milestones, dateKey) => {
+    if (milestones.length > 1) {
+      const date = new Date(dateKey);
+      const totalHours = milestones.reduce((sum, m) => sum + m.timeAllocation, 0);
+      conflicts.push({
+        date,
+        conflictingMilestones: milestones,
+        totalHours
+      });
+    }
+  });
+  
+  // Generate recommendations
+  const recommendations: string[] = [];
+  
+  if (peakDays.length > 0) {
+    recommendations.push(`${peakDays.length} day(s) with high workload (>${MILESTONE_CALCULATION_CONFIG.WORKLOAD_WARNING_THRESHOLD}h). Consider redistributing milestones.`);
+  }
+  
+  if (conflicts.length > 0) {
+    recommendations.push(`${conflicts.length} milestone conflict(s) detected. Stagger milestone deadlines for better workload distribution.`);
+  }
+  
+  if (distributionEfficiency < MILESTONE_CALCULATION_CONFIG.DISTRIBUTION_EFFICIENCY_THRESHOLD) {
+    recommendations.push('Uneven milestone distribution detected. Consider adjusting milestone timing for smoother workload.');
+  }
+  
+  if (lightDays.length > distribution.length * 0.3) {
+    recommendations.push('Many light workload days detected. Consider consolidating milestones or adding buffer time.');
+  }
+  
+  const analysis: MilestoneDistributionAnalysis = {
+    totalHours,
+    averageHoursPerDay,
+    peakDays,
+    lightDays,
+    milestoneCount: milestones.length,
+    distributionEfficiency,
+    recommendations
+  };
+  
+  return {
+    distribution,
+    analysis,
+    conflicts
+  };
+}
+
+/**
+ * Get total estimated hours for a specific date based on milestone distribution
+ * 
+ * @param date - Date to calculate for
+ * @param milestones - Array of milestones
+ * @param projectStartDate - Project start date
+ * @param projectEndDate - Project end date
+ * @returns Estimated hours for the date
+ */
+export function getEstimatedHoursForDate(
+  date: Date,
+  milestones: Milestone[],
+  projectStartDate: Date,
+  projectEndDate: Date
+): number {
+  const distribution = calculateMilestoneTimeDistribution(milestones, projectStartDate, projectEndDate);
+  const targetDate = new Date(date);
+  targetDate.setHours(0, 0, 0, 0);
+
+  return distribution
+    .filter(entry => entry.date.getTime() === targetDate.getTime())
+    .reduce((total, entry) => total + entry.estimatedHours, 0);
+}
+
+/**
+ * Get milestone that is due on a specific date
+ * 
+ * @param date - Date to check
+ * @param milestones - Array of milestones
+ * @returns Milestone due on the date, if any
+ */
+export function getMilestoneForDate(
+  date: Date,
+  milestones: Milestone[]
+): Milestone | undefined {
+  const targetDate = new Date(date);
+  targetDate.setHours(0, 0, 0, 0);
+
+  return milestones.find(milestone => {
+    const milestoneDate = new Date(milestone.dueDate);
+    milestoneDate.setHours(0, 0, 0, 0);
+    return milestoneDate.getTime() === targetDate.getTime();
+  });
+}
+
+/**
+ * Get all milestones due within a date range
+ * 
+ * @param startDate - Range start date
+ * @param endDate - Range end date
+ * @param milestones - Array of milestones
+ * @returns Milestones due within the range
+ */
+export function getMilestonesInDateRange(
+  startDate: Date,
+  endDate: Date,
+  milestones: Milestone[]
+): Milestone[] {
+  const start = new Date(startDate);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(endDate);
+  end.setHours(23, 59, 59, 999);
+
+  return milestones.filter(milestone => {
+    const milestoneDate = new Date(milestone.dueDate);
+    return milestoneDate >= start && milestoneDate <= end;
+  });
+}
+
+/**
+ * Calculate optimal milestone spacing for even workload distribution
+ * 
+ * @param totalHours - Total project hours
+ * @param projectStartDate - Project start date
+ * @param projectEndDate - Project end date
+ * @param targetMilestones - Number of milestones desired
+ * @returns Suggested milestone dates and allocations
+ */
+export function calculateOptimalMilestoneSpacing(
+  totalHours: number,
+  projectStartDate: Date,
+  projectEndDate: Date,
+  targetMilestones: number
+): Array<{ suggestedDate: Date; suggestedHours: number; reason: string }> {
+  const projectDuration = projectEndDate.getTime() - projectStartDate.getTime();
+  const dayDuration = 24 * 60 * 60 * 1000;
+  const totalDays = Math.ceil(projectDuration / dayDuration);
+  
+  const hoursPerMilestone = totalHours / targetMilestones;
+  const daysPerMilestone = totalDays / targetMilestones;
+  
+  const suggestions = [];
+  
+  for (let i = 1; i <= targetMilestones; i++) {
+    const dayOffset = Math.round(daysPerMilestone * i);
+    const suggestedDate = new Date(projectStartDate.getTime() + (dayOffset * dayDuration));
+    
+    suggestions.push({
+      suggestedDate,
+      suggestedHours: hoursPerMilestone,
+      reason: `Milestone ${i} of ${targetMilestones} - even distribution`
+    });
+  }
+  
+  return suggestions;
+}
+
+/**
+ * Validate milestone scheduling for conflicts and feasibility
+ * 
+ * @param milestones - Array of milestones to validate
+ * @param projectStartDate - Project start date
+ * @param projectEndDate - Project end date
+ * @returns Validation results with issues and recommendations
+ */
+export function validateMilestoneScheduling(
+  milestones: Milestone[],
+  projectStartDate: Date,
+  projectEndDate: Date
+): {
+  isValid: boolean;
+  issues: string[];
+  warnings: string[];
+  recommendations: string[];
+} {
+  const issues: string[] = [];
+  const warnings: string[] = [];
+  const recommendations: string[] = [];
+  
+  // Check for milestones outside project timeframe
+  milestones.forEach((milestone, index) => {
+    const milestoneDate = new Date(milestone.dueDate);
+    if (milestoneDate < projectStartDate) {
+      issues.push(`Milestone ${index + 1} is scheduled before project start date.`);
+    }
+    if (milestoneDate > projectEndDate) {
+      issues.push(`Milestone ${index + 1} is scheduled after project end date.`);
+    }
+  });
+  
+  // Check for chronological order
+  const sortedMilestones = [...milestones].sort((a, b) => 
+    new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+  );
+  
+  for (let i = 1; i < sortedMilestones.length; i++) {
+    const prevDate = new Date(sortedMilestones[i - 1].dueDate);
+    const currDate = new Date(sortedMilestones[i].dueDate);
+    const daysDiff = (currDate.getTime() - prevDate.getTime()) / (24 * 60 * 60 * 1000);
+    
+    if (daysDiff < MILESTONE_CALCULATION_CONFIG.MIN_DAYS_BETWEEN_MILESTONES) {
+      warnings.push(`Milestones too close together (${daysDiff.toFixed(1)} days). Consider spacing them out.`);
+    }
+  }
+  
+  // Analyze distribution
+  const distributionResult = calculateAdvancedMilestoneDistribution(milestones, projectStartDate, projectEndDate);
+  
+  if (distributionResult.conflicts.length > 0) {
+    issues.push(`${distributionResult.conflicts.length} milestone scheduling conflicts detected.`);
+  }
+  
+  recommendations.push(...distributionResult.analysis.recommendations);
+  
+  return {
+    isValid: issues.length === 0,
+    issues,
+    warnings,
+    recommendations
+  };
+}
+
+// Backward compatibility functions for milestone management
+// @deprecated Use MilestoneManagementService instead
+
+/**
+ * @deprecated Use MilestoneManagementService.calculateMilestoneDateRange
+ */
+export function calculateMilestoneDateRange(
+  projectStartDate: Date,
+  projectEndDate: Date,
+  existingMilestones: Milestone[],
+  currentMilestone?: Milestone
+) {
+  console.warn('calculateMilestoneDateRange is deprecated. Use MilestoneManagementService.calculateMilestoneDateRange instead.');
+  return MilestoneManagementService.calculateMilestoneDateRange({
+    projectStartDate,
+    projectEndDate,
+    existingMilestones,
+    currentMilestone
+  });
+}
+
+/**
+ * @deprecated Use MilestoneManagementService.calculateDefaultMilestoneDate
+ */
+export function calculateDefaultMilestoneDate(
+  projectStartDate: Date,
+  projectEndDate: Date,
+  existingMilestones: Milestone[]
+) {
+  console.warn('calculateDefaultMilestoneDate is deprecated. Use MilestoneManagementService.calculateDefaultMilestoneDate instead.');
+  return MilestoneManagementService.calculateDefaultMilestoneDate({
+    projectStartDate,
+    projectEndDate,
+    existingMilestones
+  });
+}
+
+/**
+ * @deprecated Use MilestoneManagementService.generateOrdinalNumber
+ */
+export function getOrdinalNumber(num: number): string {
+  console.warn('getOrdinalNumber is deprecated. Use MilestoneManagementService.generateOrdinalNumber instead.');
+  return MilestoneManagementService.generateOrdinalNumber(num);
+}
+
+// Re-export the service for convenience
+export { MilestoneManagementService };

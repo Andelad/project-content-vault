@@ -14,6 +14,16 @@ import { WorkSlot } from '@/types/core';
 import { CalendarImport } from './CalendarImport';
 import { useToast } from '../hooks/use-toast';
 import { AppPageLayout } from './layouts/AppPageLayout';
+import {
+  generateTimeOptions,
+  calculateDayTotalHours,
+  calculateWeekTotalHours,
+  createNewWorkSlot,
+  updateWorkSlot,
+  generateDefaultWorkSchedule,
+  validateWorkSchedule,
+  analyzeWorkSchedule
+} from '@/services/settingsValidationService';
 
 export function SettingsView() {
   const { settings: appSettings, updateSettings, setDefaultView } = useSettingsContext();
@@ -67,69 +77,43 @@ export function SettingsView() {
     }
   };
 
-  // Helper functions for work slots
-  const calculateDuration = (startTime: string, endTime: string): number => {
-    const [startHour, startMin] = startTime.split(':').map(Number);
-    const [endHour, endMin] = endTime.split(':').map(Number);
-    
-    const startMinutes = startHour * 60 + startMin;
-    const endMinutes = endHour * 60 + endMin;
-    
-    return Math.max(0, (endMinutes - startMinutes) / 60);
-  };
-
-  const generateTimeOptions = (): string[] => {
-    const options = [];
-    for (let hour = 0; hour < 24; hour++) {
-      for (let minute = 0; minute < 60; minute += 15) {
-        const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-        options.push(timeString);
-      }
-    }
-    return options;
-  };
-
-  const timeOptions = generateTimeOptions();
+  // Helper functions for work slots using the service
+  const timeOptions = generateTimeOptions(true); // Use 24-hour format
 
   const getDayTotal = (slots: WorkSlot[]): number => {
-    return slots.reduce((total, slot) => total + slot.duration, 0);
+    return calculateDayTotalHours(slots);
   };
 
   const getWeekTotal = (): number => {
-    return Object.values(appSettings.weeklyWorkHours).reduce((total, daySlots) => {
-      return total + getDayTotal(daySlots);
-    }, 0);
+    return calculateWeekTotalHours(appSettings.weeklyWorkHours);
   };
 
   const addWorkSlot = (day: string) => {
     const daySlots = appSettings.weeklyWorkHours[day as keyof typeof appSettings.weeklyWorkHours] || [];
-    if (daySlots.length >= 6) return; // Max 6 slots per day
-
-    const newSlot: WorkSlot = {
-      id: Date.now().toString(),
-      startTime: '09:00',
-      endTime: '10:00',
-      duration: 1
-    };
+    
+    const result = createNewWorkSlot(day, daySlots);
+    if (!result.success) {
+      toast({
+        title: "Cannot add work slot",
+        description: result.error,
+        variant: "destructive",
+      });
+      return;
+    }
 
     updateSettings({
       weeklyWorkHours: {
         ...appSettings.weeklyWorkHours,
-        [day]: [...daySlots, newSlot]
+        [day]: [...daySlots, result.slot!]
       }
     });
   };
 
-  const updateWorkSlot = (day: string, slotId: string, updates: Partial<WorkSlot>) => {
+  const updateWorkSlotHandler = (day: string, slotId: string, updates: Partial<WorkSlot>) => {
     const daySlots = appSettings.weeklyWorkHours[day as keyof typeof appSettings.weeklyWorkHours] || [];
     const updatedSlots = daySlots.map(slot => {
       if (slot.id === slotId) {
-        const updatedSlot = { ...slot, ...updates };
-        // Recalculate duration if start or end time changed
-        if (updates.startTime || updates.endTime) {
-          updatedSlot.duration = calculateDuration(updatedSlot.startTime, updatedSlot.endTime);
-        }
-        return updatedSlot;
+        return updateWorkSlot(slot, updates);
       }
       return slot;
     });
@@ -187,20 +171,9 @@ export function SettingsView() {
       autoSave: true,
       defaultView: 'projects'
     });
-    updateSettings({
-      weeklyWorkHours: {
-        monday: [{ id: '1', startTime: '09:00', endTime: '17:00', duration: 8 }],
-        tuesday: [{ id: '2', startTime: '09:00', endTime: '17:00', duration: 8 }],
-        wednesday: [
-          { id: '3a', startTime: '09:00', endTime: '13:00', duration: 4 },
-          { id: '3b', startTime: '14:00', endTime: '18:00', duration: 4 }
-        ],
-        thursday: [{ id: '4', startTime: '09:00', endTime: '17:00', duration: 8 }],
-        friday: [{ id: '5', startTime: '09:00', endTime: '17:00', duration: 8 }],
-        saturday: [],
-        sunday: []
-      }
-    });
+    // Use service to generate default work schedule
+    const defaultWeek = generateDefaultWorkSchedule('standard');
+    updateSettings({ weeklyWorkHours: defaultWeek });
   };
 
   const handleClearData = () => {
@@ -386,7 +359,7 @@ export function SettingsView() {
                                 <div className="flex items-center gap-2 flex-1">
                                   <Select
                                     value={slot.startTime}
-                                    onValueChange={(value) => updateWorkSlot(key, slot.id, { startTime: value })}
+                                    onValueChange={(value) => updateWorkSlotHandler(key, slot.id, { startTime: value })}
                                   >
                                     <SelectTrigger className="w-20 h-8 text-xs">
                                       <SelectValue />
@@ -404,7 +377,7 @@ export function SettingsView() {
                                   
                                   <Select
                                     value={slot.endTime}
-                                    onValueChange={(value) => updateWorkSlot(key, slot.id, { endTime: value })}
+                                    onValueChange={(value) => updateWorkSlotHandler(key, slot.id, { endTime: value })}
                                   >
                                     <SelectTrigger className="w-20 h-8 text-xs">
                                       <SelectValue />
@@ -451,15 +424,7 @@ export function SettingsView() {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      const standardWeek = {
-                        monday: [{ id: 'm1', startTime: '09:00', endTime: '17:00', duration: 8 }],
-                        tuesday: [{ id: 't1', startTime: '09:00', endTime: '17:00', duration: 8 }],
-                        wednesday: [{ id: 'w1', startTime: '09:00', endTime: '17:00', duration: 8 }],
-                        thursday: [{ id: 'th1', startTime: '09:00', endTime: '17:00', duration: 8 }],
-                        friday: [{ id: 'f1', startTime: '09:00', endTime: '17:00', duration: 8 }],
-                        saturday: [],
-                        sunday: []
-                      };
+                      const standardWeek = generateDefaultWorkSchedule('standard');
                       updateSettings({ weeklyWorkHours: standardWeek });
                     }}
                   >
@@ -469,31 +434,8 @@ export function SettingsView() {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      const splitWeek = {
-                        monday: [
-                          { id: 'm1', startTime: '09:00', endTime: '13:00', duration: 4 },
-                          { id: 'm2', startTime: '14:00', endTime: '18:00', duration: 4 }
-                        ],
-                        tuesday: [
-                          { id: 't1', startTime: '09:00', endTime: '13:00', duration: 4 },
-                          { id: 't2', startTime: '14:00', endTime: '18:00', duration: 4 }
-                        ],
-                        wednesday: [
-                          { id: 'w1', startTime: '09:00', endTime: '13:00', duration: 4 },
-                          { id: 'w2', startTime: '14:00', endTime: '18:00', duration: 4 }
-                        ],
-                        thursday: [
-                          { id: 'th1', startTime: '09:00', endTime: '13:00', duration: 4 },
-                          { id: 'th2', startTime: '14:00', endTime: '18:00', duration: 4 }
-                        ],
-                        friday: [
-                          { id: 'f1', startTime: '09:00', endTime: '13:00', duration: 4 },
-                          { id: 'f2', startTime: '14:00', endTime: '18:00', duration: 4 }
-                        ],
-                        saturday: [],
-                        sunday: []
-                      };
-                      updateSettings({ weeklyWorkHours: splitWeek });
+                      const flexibleWeek = generateDefaultWorkSchedule('flexible');
+                      updateSettings({ weeklyWorkHours: flexibleWeek });
                     }}
                   >
                     Split Schedule (AM/PM)
@@ -502,11 +444,13 @@ export function SettingsView() {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      const clearWeek = {
+                      const clearWeek = generateDefaultWorkSchedule('minimal');
+                      // Clear all by creating empty schedule
+                      const emptyWeek = {
                         monday: [], tuesday: [], wednesday: [], thursday: [], 
                         friday: [], saturday: [], sunday: []
                       };
-                      updateSettings({ weeklyWorkHours: clearWeek });
+                      updateSettings({ weeklyWorkHours: emptyWeek });
                     }}
                   >
                     Clear All

@@ -9,6 +9,7 @@ import { useProjectContext } from '../contexts/ProjectContext';
 import { usePlannerContext } from '../contexts/PlannerContext';
 import { PERFORMANCE_LIMITS } from '@/constants';
 import { Eye, EyeOff, Trash2, Activity, Database } from 'lucide-react';
+import { calculateCacheHitRate, analyzeCachePerformance, generateCacheRecommendations } from '@/services';
 
 interface PerformanceMetrics {
   renderCount: number;
@@ -59,12 +60,6 @@ export function DevTools() {
 
     return () => clearInterval(interval);
   }, [isVisible]);
-
-  const calculateCacheHitRate = (stats: any) => {
-    const total = stats.timeline.size + stats.dates.size + stats.projectMetrics.size;
-    const max = stats.timeline.maxSize + stats.dates.maxSize + stats.projectMetrics.maxSize;
-    return total > 0 ? (total / max) * 100 : 0;
-  };
 
   const handleClearCache = () => {
     cleanupMemoizationCaches();
