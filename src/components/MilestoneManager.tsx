@@ -31,6 +31,16 @@ interface LocalMilestone extends Omit<Milestone, 'id'> {
   isNew?: boolean;
 }
 
+interface RecurringMilestone {
+  id: string;
+  name: string;
+  timeAllocation: number;
+  recurringType: 'daily' | 'weekly' | 'monthly';
+  recurringInterval: number;
+  projectId: string;
+  isRecurring: true;
+}
+
 interface RecurringMilestoneConfig {
   name: string;
   timeAllocation: number;
@@ -54,7 +64,7 @@ export function MilestoneManager({
   const [editingProperty, setEditingProperty] = useState<string | null>(null);
   
   // Recurring milestone state
-  const [hasRecurringMilestone, setHasRecurringMilestone] = useState(false);
+  const [recurringMilestone, setRecurringMilestone] = useState<RecurringMilestone | null>(null);
   const [showRecurringConfig, setShowRecurringConfig] = useState(false);
   const [showRegularMilestoneWarning, setShowRegularMilestoneWarning] = useState(false);
   const [showRecurringWarning, setShowRecurringWarning] = useState(false);
@@ -433,17 +443,69 @@ export function MilestoneManager({
 
   // Check if project has recurring milestones
   React.useEffect(() => {
-    const hasRecurring = projectMilestones.some(m => 
+    const hasRecurring = !!recurringMilestone;
+    // Also check for existing recurring milestones in the project
+    if (!hasRecurring && projectMilestones.some(m => 
       m.id?.startsWith('recurring-') || 
-      (m.name && /\s\d+$/.test(m.name)) // Matches names ending with a number like "Milestone 1"
-    );
-    setHasRecurringMilestone(hasRecurring);
-  }, [projectMilestones]);
+      (m.name && /\s\d+$/.test(m.name))
+    )) {
+      // If we find recurring milestones but don't have the config, create a default one
+      setRecurringMilestone({
+        id: 'recurring-milestone',
+        name: 'Recurring Milestone',
+        timeAllocation: 8,
+        recurringType: 'weekly',
+        recurringInterval: 1,
+        projectId: projectId || 'temp',
+        isRecurring: true
+      });
+    }
+  }, [projectMilestones, recurringMilestone, projectId]);
+
+  // Calculate how many milestones the recurring config would generate
+  const calculateRecurringMilestoneCount = (config: RecurringMilestone) => {
+    let count = 0;
+    let currentDate = new Date(projectStartDate);
+    currentDate.setDate(currentDate.getDate() + 1);
+    
+    const endDate = projectContinuous ? 
+      new Date(currentDate.getTime() + 365 * 24 * 60 * 60 * 1000) :
+      new Date(projectEndDate);
+    endDate.setDate(endDate.getDate() - 1);
+
+    while (currentDate <= endDate && count < 100) {
+      count++;
+      
+      switch (config.recurringType) {
+        case 'daily':
+          currentDate.setDate(currentDate.getDate() + config.recurringInterval);
+          break;
+        case 'weekly':
+          currentDate.setDate(currentDate.getDate() + (7 * config.recurringInterval));
+          break;
+        case 'monthly':
+          currentDate.setMonth(currentDate.getMonth() + config.recurringInterval);
+          break;
+      }
+    }
+    
+    return count;
+  };
+
+  // Calculate total time allocation including recurring milestone
+  const totalRecurringAllocation = useMemo(() => {
+    if (recurringMilestone) {
+      const count = calculateRecurringMilestoneCount(recurringMilestone);
+      return count * recurringMilestone.timeAllocation;
+    }
+    return 0;
+  }, [recurringMilestone, projectStartDate, projectEndDate, projectContinuous]);
 
   // Calculate total time allocation in hours
   const totalTimeAllocation = useMemo(() => {
-    return projectMilestones.reduce((total, milestone) => total + milestone.timeAllocation, 0);
-  }, [projectMilestones]);
+    const regularMilestoneAllocation = projectMilestones.reduce((total, milestone) => total + milestone.timeAllocation, 0);
+    return regularMilestoneAllocation + totalRecurringAllocation;
+  }, [projectMilestones, totalRecurringAllocation]);
 
   // Calculate suggested budget based on milestones
   const suggestedBudgetFromMilestones = useMemo(() => {
@@ -653,15 +715,16 @@ export function MilestoneManager({
 
   // Handle confirming recurring milestone creation
   const handleConfirmRecurringMilestone = () => {
-    const generatedMilestones = generateRecurringMilestones(recurringConfig);
+    setRecurringMilestone({
+      id: 'recurring-milestone',
+      name: recurringConfig.name,
+      timeAllocation: recurringConfig.timeAllocation,
+      recurringType: recurringConfig.recurringType,
+      recurringInterval: recurringConfig.recurringInterval,
+      projectId: projectId || 'temp',
+      isRecurring: true
+    });
     
-    if (isCreatingProject && localMilestonesState) {
-      localMilestonesState.setMilestones(generatedMilestones);
-    } else {
-      setLocalMilestones(generatedMilestones);
-    }
-    
-    setHasRecurringMilestone(true);
     setShowRecurringConfig(false);
     setShowRecurringWarning(false);
   };
@@ -680,12 +743,12 @@ export function MilestoneManager({
       setLocalMilestones([]);
     }
     
-    setHasRecurringMilestone(false);
+    setRecurringMilestone(null);
   };
 
   // Handle adding regular milestone when recurring exists
   const handleAddMilestoneWithWarning = () => {
-    if (hasRecurringMilestone || projectMilestones.some(m => m.id?.startsWith('recurring-'))) {
+    if (recurringMilestone || projectMilestones.some(m => m.id?.startsWith('recurring-'))) {
       setShowRegularMilestoneWarning(true);
       return;
     }
@@ -802,6 +865,75 @@ export function MilestoneManager({
                   </div>
                 </div>
               ))}
+
+              {/* Recurring Milestone Card */}
+              {recurringMilestone && (
+                <div className="border border-blue-200 rounded-lg p-4 mb-3 bg-blue-50">
+                  <div className="flex items-end justify-between">
+                    {/* Left side: Name and Total Budget */}
+                    <div className="flex items-end gap-3">
+                      <div className="min-w-[120px]">
+                        <Label className="text-xs text-muted-foreground mb-1 block">Recurring Milestone</Label>
+                        <div className="flex items-center gap-2">
+                          <RefreshCw className="w-4 h-4 text-blue-600" />
+                          <span className="text-sm font-medium">{recurringMilestone.name}</span>
+                        </div>
+                      </div>
+                      <div className="min-w-[80px]">
+                        <Label className="text-xs text-muted-foreground mb-1 block">Total Allocation</Label>
+                        <div className="flex items-center gap-1">
+                          <span className="text-sm font-medium text-blue-700">
+                            {totalRecurringAllocation}h
+                          </span>
+                          <span className="text-xs text-muted-foreground/60">
+                            ({calculateRecurringMilestoneCount(recurringMilestone)} × {recurringMilestone.timeAllocation}h)
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Right side: Configuration and Delete Button */}
+                    <div className="flex items-end gap-3">
+                      <div className="min-w-[180px]">
+                        <Label className="text-xs text-muted-foreground mb-1 block">Pattern</Label>
+                        <span className="text-sm text-blue-700">
+                          Every {recurringMilestone.recurringInterval} {recurringMilestone.recurringType}(s)
+                        </span>
+                      </div>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-10 w-10 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Recurring Milestones</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete the recurring milestone pattern? This will remove the configuration and any generated milestones. This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction 
+                              onClick={() => {
+                                handleDeleteRecurringMilestones();
+                              }}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Delete Recurring Milestones
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Add Milestone Button */}
               <div className="mt-4 flex gap-2">
