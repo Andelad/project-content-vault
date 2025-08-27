@@ -8,7 +8,7 @@ interface PlannerContextType {
   // Calendar Events
   events: CalendarEvent[];
   isEventsLoading: boolean;
-  addEvent: (event: Omit<CalendarEvent, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  addEvent: (event: Omit<CalendarEvent, 'id' | 'created_at' | 'updated_at'>) => Promise<CalendarEvent>;
   updateEvent: (id: string, updates: Partial<CalendarEvent>, options?: { silent?: boolean }) => Promise<void>;
   deleteEvent: (id: string) => Promise<void>;
   
@@ -99,7 +99,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
   })) || [], [dbHolidays]);
 
   // Wrapped functions to match expected signatures and handle type transformations
-  const addEvent = useCallback(async (event: Omit<CalendarEvent, 'id' | 'created_at' | 'updated_at'>): Promise<void> => {
+  const addEvent = useCallback(async (event: Omit<CalendarEvent, 'id' | 'created_at' | 'updated_at'>): Promise<CalendarEvent> => {
     // Transform camelCase to snake_case for database
     const dbEvent = {
       title: event.title,
@@ -116,7 +116,27 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
       recurring_end_date: event.recurring?.endDate?.toISOString(),
       recurring_count: event.recurring?.count
     };
-    await dbAddEvent(dbEvent);
+    const createdEvent = await dbAddEvent(dbEvent);
+    
+    // Transform the created event back to frontend format
+    return {
+      id: createdEvent.id,
+      title: createdEvent.title,
+      description: createdEvent.description || '',
+      startTime: new Date(createdEvent.start_time),
+      endTime: new Date(createdEvent.end_time),
+      projectId: createdEvent.project_id,
+      color: createdEvent.color,
+      completed: createdEvent.completed || false,
+      duration: createdEvent.duration || 0,
+      type: (createdEvent.event_type as 'planned' | 'tracked' | 'completed') || 'planned',
+      recurring: createdEvent.recurring_type ? {
+        type: createdEvent.recurring_type as 'daily' | 'weekly' | 'monthly' | 'yearly',
+        interval: createdEvent.recurring_interval || 1,
+        endDate: createdEvent.recurring_end_date ? new Date(createdEvent.recurring_end_date) : undefined,
+        count: createdEvent.recurring_count || undefined
+      } : undefined
+    };
   }, [dbAddEvent]);
 
   const updateEvent = useCallback(async (id: string, updates: Partial<CalendarEvent>, options?: { silent?: boolean }): Promise<void> => {

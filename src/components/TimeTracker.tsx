@@ -324,7 +324,7 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       
       try {
         // Create the tracking event
-        const createdEvent = await addEvent(eventData) as unknown as CalendarEvent;
+        const createdEvent = await addEvent(eventData);
         
         // Use the actual event ID from the database
         setCurrentEventId(createdEvent.id);
@@ -387,7 +387,7 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       
       try {
         // Create the tracking event
-        const createdEvent = await addEvent(eventData) as unknown as CalendarEvent;
+        const createdEvent = await addEvent(eventData);
         
         // Use the actual event ID from the database
         setCurrentEventId(createdEvent.id);

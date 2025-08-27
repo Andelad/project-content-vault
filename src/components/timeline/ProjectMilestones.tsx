@@ -4,6 +4,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { PositionCalculation } from '@/lib/timelinePositioning';
 import { Milestone } from '@/types/core';
+import { useToast } from '@/hooks/use-toast';
 
 interface ProjectMilestonesProps {
   project: any;
@@ -40,6 +41,12 @@ export const ProjectMilestones = memo(function ProjectMilestones({
 }: ProjectMilestonesProps) {
   const { milestones } = useProjectContext();
   const [draggingMilestone, setDraggingMilestone] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  // Helper function to check if a milestone is part of a recurring pattern
+  const isRecurringMilestone = (milestone: Milestone) => {
+    return milestone.name && /\s\d+$/.test(milestone.name);
+  };
 
   // Get milestones for this project
   const projectMilestones = useMemo(() => {
@@ -113,13 +120,25 @@ export const ProjectMilestones = memo(function ProjectMilestones({
   // Handle milestone drag start
   const handleMilestoneMouseDown = (e: React.MouseEvent, milestoneId: string) => {
     e.stopPropagation();
+    
+    const originalMilestone = projectMilestones.find(m => m.id === milestoneId);
+    if (!originalMilestone) return;
+
+    // Check if this is a recurring milestone and prevent dragging
+    if (isRecurringMilestone(originalMilestone)) {
+      toast({
+        title: "Recurring milestone",
+        description: "Go to project modal to change.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setDraggingMilestone(milestoneId);
 
     const startX = e.clientX;
     // Calculate actual day width based on mode
     const dayWidth = mode === 'weeks' ? 11 : 40; // 11px for weeks, 40px for days
-    const originalMilestone = projectMilestones.find(m => m.id === milestoneId);
-    if (!originalMilestone) return;
 
     const originalDate = new Date(originalMilestone.dueDate);
     originalDate.setHours(0, 0, 0, 0);
@@ -235,13 +254,18 @@ export const ProjectMilestones = memo(function ProjectMilestones({
         if (!visible) return null;
 
         const estimatedHours = milestone.timeAllocation;
+        const isRecurring = isRecurringMilestone(milestone);
 
         return (
           <Tooltip key={milestone.id} delayDuration={100}>
             <TooltipTrigger asChild>
               <div
-                className={`absolute pointer-events-auto cursor-ew-resize transform -translate-x-1/2 transition-all duration-150 ${
-                  draggingMilestone === milestone.id ? 'scale-110 z-40' : 'hover:scale-105 hover:z-30'
+                className={`absolute pointer-events-auto transform -translate-x-1/2 transition-all duration-150 ${
+                  isRecurring 
+                    ? 'cursor-not-allowed opacity-75' 
+                    : 'cursor-ew-resize hover:scale-105 hover:z-30'
+                } ${
+                  draggingMilestone === milestone.id ? 'scale-110 z-40' : ''
                 }`}
                 style={{
                   left: `${position}px`,
@@ -249,7 +273,7 @@ export const ProjectMilestones = memo(function ProjectMilestones({
                   zIndex: 25
                 }}
                 onMouseDown={(e) => onMilestoneDrag && handleMilestoneMouseDown(e, milestone.id!)}
-                title="Drag to change milestone date"
+                title={isRecurring ? "Recurring milestone - use project modal to change" : "Drag to change milestone date"}
               >
                 {/* Diamond shape */}
                 <div
@@ -273,6 +297,9 @@ export const ProjectMilestones = memo(function ProjectMilestones({
                 <div className="flex items-center gap-1 font-medium">
                   <Flag className="w-3 h-3" />
                   {milestone.name}
+                  {isRecurring && (
+                    <span className="text-orange-500 text-xs font-normal">(Recurring)</span>
+                  )}
                 </div>
                 <div className="text-gray-500">
                   Due: {milestone.dueDate.toLocaleDateString('en-US', {
@@ -284,6 +311,11 @@ export const ProjectMilestones = memo(function ProjectMilestones({
                 <div className="text-gray-500">
                   {estimatedHours}h
                 </div>
+                {isRecurring && (
+                  <div className="text-orange-500 text-xs mt-1">
+                    Use project modal to modify recurring milestones
+                  </div>
+                )}
               </div>
             </TooltipContent>
           </Tooltip>
