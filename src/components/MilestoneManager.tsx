@@ -86,15 +86,7 @@ export function MilestoneManager({
   const [editingRecurringLoad, setEditingRecurringLoad] = useState(false);
   const [editingLoadValue, setEditingLoadValue] = useState(0);
 
-  // Helper function to show error toast
-  const showErrorToast = async (message: string) => {
-    const { toast } = await import('@/hooks/use-toast');
-    toast({
-      title: "Error",
-      description: message,
-      variant: "destructive",
-    });
-  };
+  // Helper functions can be removed since we're using toast directly
 
   // Helper function to get ordinal numbers (1st, 2nd, 3rd, etc.)
   const getOrdinalNumber = (num: number) => {
@@ -128,7 +120,7 @@ export function MilestoneManager({
         direction
       });
 
-      // Update each recurring milestone in the database
+      // Update each recurring milestone in the database silently
       for (const milestone of recurringMilestones) {
         if (milestone.id && !milestone.id.startsWith('temp-')) {
           await updateMilestone(milestone.id, {
@@ -146,15 +138,10 @@ export function MilestoneManager({
       setRecurringMilestone(updatedMilestone);
       setEditingRecurringLoad(false);
       
-      // Show success toast indicating the change
-      toast({
-        title: "Recurring Milestone Updated",
-        description: direction === 'forward' 
-          ? `Updated load to ${editingLoadValue}h going forward` 
-          : `Updated load to ${editingLoadValue}h for all occurrences`,
-      });
+      // No toast - will be handled by modal confirmation
     } catch (error) {
       console.error('Error updating recurring milestones:', error);
+      // Only show error toasts
       toast({
         title: "Error",
         description: "Failed to update recurring milestones",
@@ -178,7 +165,11 @@ export function MilestoneManager({
     // Check if this is a time allocation update that would exceed budget
     if (property === 'timeAllocation') {
       if (wouldExceedBudget(milestoneId, value)) {
-        await showErrorToast(`Cannot save milestone: Total milestone allocation (${Math.ceil(projectMilestones.reduce((total, m) => total + (m.id === milestoneId ? value : m.timeAllocation), 0))}h) would exceed project budget (${projectEstimatedHours}h).`);
+        toast({
+          title: "Error",
+          description: `Cannot save milestone: Total milestone allocation (${Math.ceil(projectMilestones.reduce((total, m) => total + (m.id === milestoneId ? value : m.timeAllocation), 0))}h) would exceed project budget (${projectEstimatedHours}h).`,
+          variant: "destructive",
+        });
         setEditingProperty(null);
         return;
       }
@@ -199,7 +190,11 @@ export function MilestoneManager({
           (property === 'timeAllocation' ? value : localMilestone.timeAllocation);
         
         if (totalWithNewMilestone > projectEstimatedHours) {
-          await showErrorToast(`Cannot save milestone: Total milestone allocation (${Math.ceil(totalWithNewMilestone)}h) would exceed project budget (${projectEstimatedHours}h).`);
+          toast({
+            title: "Error",
+            description: `Cannot save milestone: Total milestone allocation (${Math.ceil(totalWithNewMilestone)}h) would exceed project budget (${projectEstimatedHours}h).`,
+            variant: "destructive",
+          });
           setEditingProperty(null);
           return;
         }
@@ -219,7 +214,11 @@ export function MilestoneManager({
           setLocalMilestones(prev => prev.filter(m => m.id !== milestoneId));
         } catch (error) {
           console.error('Failed to save new milestone:', error);
-          await showErrorToast('Failed to save milestone. Please try again.');
+          toast({
+            title: "Error",
+            description: "Failed to save milestone. Please try again.",
+            variant: "destructive",
+          });
           setEditingProperty(null);
           return;
         }
@@ -229,7 +228,11 @@ export function MilestoneManager({
           await updateMilestone(milestoneId, { [property]: value }, { silent: true });
         } catch (error) {
           console.error('Failed to update milestone:', error);
-          await showErrorToast('Failed to update milestone. Please try again.');
+          toast({
+            title: "Error",
+            description: "Failed to update milestone. Please try again.", 
+            variant: "destructive",
+          });
           setEditingProperty(null);
           return;
         }
@@ -703,7 +706,11 @@ export function MilestoneManager({
     // Check if total allocation exceeds project budget
     const newTotal = totalTimeAllocation;
     if (newTotal > projectEstimatedHours) {
-      await showErrorToast(`Cannot save milestone: Total milestone allocation (${Math.ceil(newTotal)}h) would exceed project budget (${projectEstimatedHours}h).`);
+      toast({
+        title: "Error",
+        description: `Cannot save milestone: Total milestone allocation (${Math.ceil(newTotal)}h) would exceed project budget (${projectEstimatedHours}h).`,
+        variant: "destructive",
+      });
       return;
     }
 
@@ -730,7 +737,11 @@ export function MilestoneManager({
         setLocalMilestones(prev => prev.filter((_, i) => i !== index));
       } catch (error) {
         console.error('Failed to save milestone:', error);
-        await showErrorToast('Failed to save milestone. Please try again.');
+        toast({
+          title: "Error",
+          description: "Failed to save milestone. Please try again.",
+          variant: "destructive",
+        });
       }
     }
   };
@@ -749,24 +760,39 @@ export function MilestoneManager({
   const handleDeleteMilestone = async (milestoneId: string) => {
     try {
       await deleteMilestone(milestoneId);
+      // No toast - will be handled by modal confirmation
     } catch (error) {
       console.error('Failed to delete milestone:', error);
-      await showErrorToast('Failed to delete milestone. Please try again.');
+      // Only show error toasts
+      toast({
+        title: "Error",
+        description: "Failed to delete milestone. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
   const handleUpdateMilestone = async (milestoneId: string, updates: Partial<Milestone>) => {
     // Check if this update would exceed budget
     if (updates.timeAllocation !== undefined && wouldExceedBudget(milestoneId, updates.timeAllocation)) {
-      await showErrorToast(`Cannot update milestone: Total milestone allocation would exceed project budget (${projectEstimatedHours}h).`);
+      toast({
+        title: "Error",
+        description: `Cannot update milestone: Total milestone allocation would exceed project budget (${projectEstimatedHours}h).`,
+        variant: "destructive",
+      });
       return;
     }
 
     try {
       await updateMilestone(milestoneId, updates, { silent: true });
+      // No success toast - will be handled by modal confirmation
     } catch (error) {
       console.error('Failed to update milestone:', error);
-      await showErrorToast('Failed to update milestone. Please try again.');
+      toast({
+        title: "Error",
+        description: "Failed to update milestone. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -869,10 +895,7 @@ export function MilestoneManager({
       setShowRecurringConfig(false);
       setShowRecurringWarning(false);
       
-      toast({
-        title: "Success",
-        description: `${generatedMilestones.length} recurring milestones created`,
-      });
+      // No toast - will be handled by modal confirmation
     } catch (error) {
       console.error('Error creating recurring milestones:', error);
       toast({
@@ -1174,10 +1197,7 @@ export function MilestoneManager({
                                     }
                                     
                                     setRecurringMilestone(updatedMilestone);
-                                    toast({
-                                      title: "Success",
-                                      description: "Recurring pattern updated",
-                                    });
+                                    // No toast - will be handled by modal confirmation
                                   }
                                   setEditingRecurringPattern(false);
                                 }}
