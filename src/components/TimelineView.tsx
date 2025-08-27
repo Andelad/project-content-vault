@@ -8,7 +8,7 @@ import { Button } from './ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { Input } from './ui/input';
-import { ChevronLeft, ChevronRight, MapPin, CalendarSearch, Folders, Hash, Circle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MapPin, CalendarSearch, Folders, Hash, Circle, PanelLeft } from 'lucide-react';
 import { useProjectContext } from '../contexts/ProjectContext';
 import { useTimelineContext } from '../contexts/TimelineContext';
 import { usePlannerContext } from '../contexts/PlannerContext';
@@ -1030,13 +1030,9 @@ export function TimelineView() {
                       {/* Collapse Toggle Button */}
                       <button
                         onClick={handleToggleCollapse}
-                        className="absolute top-3 -right-3 w-6 h-6 bg-white border border-border rounded-md flex items-center justify-center text-[#595956] hover:bg-gray-50 transition-colors duration-200 z-20"
+                        className="absolute top-3 -right-3 w-6 h-6 bg-white border border-border rounded-md flex items-center justify-center text-gray-500 hover:text-gray-600 hover:bg-gray-50 transition-colors duration-200 z-20"
                       >
-                        {collapsed ? (
-                          <ChevronRight className="w-4 h-4" />
-                        ) : (
-                          <ChevronLeft className="w-4 h-4" />
-                        )}
+                        <PanelLeft className="w-4 h-4" />
                       </button>
                     </div>
                     
