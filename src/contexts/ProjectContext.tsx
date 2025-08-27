@@ -37,7 +37,7 @@ interface ProjectContextType {
   milestones: Milestone[];
   addMilestone: (milestone: any, options?: { silent?: boolean }) => Promise<void>;
   updateMilestone: (id: string, updates: any, options?: { silent?: boolean }) => void;
-  deleteMilestone: (id: string) => Promise<void>;
+  deleteMilestone: (id: string, options?: { silent?: boolean }) => Promise<void>;
   getMilestonesForProject: (projectId: string) => Milestone[];
   showMilestoneSuccessToast: (message?: string) => void;
   normalizeMilestoneOrders: (projectId?: string, options?: { silent?: boolean }) => Promise<void>;
@@ -177,8 +177,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     await dbUpdateMilestone(id, dbUpdates, options);
   }, [dbUpdateMilestone]);
 
-  const deleteMilestone = useCallback(async (id: string): Promise<void> => {
-    await dbDeleteMilestone(id);
+  const deleteMilestone = useCallback(async (id: string, options?: { silent?: boolean }): Promise<void> => {
+    await dbDeleteMilestone(id, options);
   }, [dbDeleteMilestone]);
 
   // Transform rows to match app types (camelCase)

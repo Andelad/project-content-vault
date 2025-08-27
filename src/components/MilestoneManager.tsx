@@ -759,7 +759,7 @@ export function MilestoneManager({
 
   const handleDeleteMilestone = async (milestoneId: string) => {
     try {
-      await deleteMilestone(milestoneId);
+      await deleteMilestone(milestoneId, { silent: true });
       // No toast - will be handled by modal confirmation
     } catch (error) {
       console.error('Failed to delete milestone:', error);
@@ -916,11 +916,11 @@ export function MilestoneManager({
         m.name && /\s\d+$/.test(m.name) // Ends with space and number
       );
       
-      // Delete each recurring milestone from database
+      // Delete each recurring milestone from database silently
       for (const milestone of recurringMilestones) {
         if (milestone.id && !milestone.id.startsWith('temp-')) {
           try {
-            await deleteMilestone(milestone.id);
+            await deleteMilestone(milestone.id, { silent: true });
           } catch (error) {
             console.error('Error deleting milestone:', error);
           }
@@ -1065,8 +1065,8 @@ export function MilestoneManager({
                                     const filtered = localMilestonesState.milestones.filter(m => m.id !== milestone.id);
                                     localMilestonesState.setMilestones(filtered);
                                   } else {
-                                    // Delete from database for existing projects
-                                    handleDeleteMilestone(milestone.id);
+                                     // Delete from database for existing projects
+                                     handleDeleteMilestone(milestone.id);
                                   }
                                 }
                               }}

@@ -192,7 +192,7 @@ export function useMilestones(projectId?: string) {
     });
   };
 
-  const deleteMilestone = async (id: string) => {
+  const deleteMilestone = async (id: string, options: { silent?: boolean } = {}) => {
     try {
       const { error } = await supabase
         .from('milestones')
@@ -201,12 +201,17 @@ export function useMilestones(projectId?: string) {
 
       if (error) throw error;
       setMilestones(prev => prev.filter(milestone => milestone.id !== id));
-      toast({
-        title: "Success",
-        description: "Milestone deleted successfully",
-      });
+      
+      // Only show toast if not in silent mode
+      if (!options.silent) {
+        toast({
+          title: "Success",
+          description: "Milestone deleted successfully",
+        });
+      }
     } catch (error) {
       console.error('Error deleting milestone:', error);
+      // Always show error toasts
       toast({
         title: "Error",
         description: "Failed to delete milestone",
