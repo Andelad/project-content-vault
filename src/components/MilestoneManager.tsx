@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { useProjectContext } from '../contexts/ProjectContext';
 import { Milestone } from '@/types/core';
+import { useToast } from '@/hooks/use-toast';
 
 interface MilestoneManagerProps {
   projectId?: string; // Made optional to support new projects
@@ -62,6 +63,7 @@ export function MilestoneManager({
   isCreatingProject = false
 }: MilestoneManagerProps) {
   const { milestones, addMilestone, updateMilestone, deleteMilestone, showMilestoneSuccessToast } = useProjectContext();
+  const { toast } = useToast();
   const [isExpanded, setIsExpanded] = useState(false);
   const [localMilestones, setLocalMilestones] = useState<LocalMilestone[]>([]);
   const [editingProperty, setEditingProperty] = useState<string | null>(null);
@@ -490,22 +492,55 @@ export function MilestoneManager({
     }
   }, [milestones, projectId, localMilestones, isCreatingProject, localMilestonesState]);
 
-  // Check if project has recurring milestones
+  // Check if project has recurring milestones and reconstruct config
   React.useEffect(() => {
-    const hasRecurring = !!recurringMilestone;
-    // Also check for existing recurring milestones in the project
-    if (!hasRecurring && projectMilestones.some(m => 
-      m.id?.startsWith('recurring-') || 
-      (m.name && /\s\d+$/.test(m.name))
-    )) {
-      // If we find recurring milestones but don't have the config, create a default one
+    if (recurringMilestone || !projectId) return;
+    
+    // Look for recurring milestone pattern in existing milestones
+    const recurringPattern = projectMilestones.filter(m => 
+      m.name && /\s\d+$/.test(m.name) // Ends with space and number
+    );
+    
+    if (recurringPattern.length > 1) {
+      // Detect recurring pattern
+      const sortedMilestones = recurringPattern.sort((a, b) => 
+        new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+      );
+      
+      // Calculate interval between milestones
+      const firstDate = new Date(sortedMilestones[0].dueDate);
+      const secondDate = new Date(sortedMilestones[1].dueDate);
+      const daysDifference = Math.round((secondDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      // Determine recurring type and interval
+      let recurringType: 'daily' | 'weekly' | 'monthly' = 'weekly';
+      let interval = 1;
+      
+      if (daysDifference === 1) {
+        recurringType = 'daily';
+        interval = 1;
+      } else if (daysDifference === 7) {
+        recurringType = 'weekly';
+        interval = 1;
+      } else if (daysDifference >= 28 && daysDifference <= 31) {
+        recurringType = 'monthly';
+        interval = 1;
+      } else if (daysDifference % 7 === 0) {
+        recurringType = 'weekly';
+        interval = daysDifference / 7;
+      }
+      
+      // Extract base name (remove the number at the end)
+      const baseName = sortedMilestones[0].name.replace(/\s\d+$/, '') || 'Recurring Milestone';
+      
+      // Reconstruct the recurring milestone config
       setRecurringMilestone({
         id: 'recurring-milestone',
-        name: 'Recurring Milestone',
-        timeAllocation: 8,
-        recurringType: 'weekly',
-        recurringInterval: 1,
-        projectId: projectId || 'temp',
+        name: baseName,
+        timeAllocation: sortedMilestones[0].timeAllocation,
+        recurringType,
+        recurringInterval: interval,
+        projectId,
         isRecurring: true
       });
     }
@@ -763,32 +798,71 @@ export function MilestoneManager({
   };
 
   // Handle confirming recurring milestone creation
-  const handleConfirmRecurringMilestone = () => {
-    setRecurringMilestone({
-      id: 'recurring-milestone',
-      name: recurringConfig.name,
-      timeAllocation: recurringConfig.timeAllocation,
-      recurringType: recurringConfig.recurringType,
-      recurringInterval: recurringConfig.recurringInterval,
-      projectId: projectId || 'temp',
-      isRecurring: true
-    });
+  const handleConfirmRecurringMilestone = async () => {
+    if (!projectId) return;
     
-    setShowRecurringConfig(false);
-    setShowRecurringWarning(false);
+    try {
+      // Generate the milestone entries
+      const generatedMilestones = generateRecurringMilestones(recurringConfig);
+      
+      // Save each milestone to the database
+      for (const milestone of generatedMilestones) {
+        await addMilestone({
+          name: milestone.name,
+          due_date: milestone.dueDate.toISOString(),
+          time_allocation: milestone.timeAllocation,
+          project_id: projectId
+        }, { silent: true });
+      }
+      
+      // Set the recurring milestone configuration for UI display
+      setRecurringMilestone({
+        id: 'recurring-milestone',
+        name: recurringConfig.name,
+        timeAllocation: recurringConfig.timeAllocation,
+        recurringType: recurringConfig.recurringType,
+        recurringInterval: recurringConfig.recurringInterval,
+        projectId: projectId,
+        isRecurring: true
+      });
+      
+      setShowRecurringConfig(false);
+      setShowRecurringWarning(false);
+      
+      toast({
+        title: "Success",
+        description: `${generatedMilestones.length} recurring milestones created`,
+      });
+    } catch (error) {
+      console.error('Error creating recurring milestones:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create recurring milestones",
+        variant: "destructive",
+      });
+    }
   };
 
   // Handle deleting recurring milestones
-  const handleDeleteRecurringMilestones = () => {
+  const handleDeleteRecurringMilestones = async () => {
     if (isCreatingProject && localMilestonesState) {
       localMilestonesState.setMilestones([]);
     } else {
-      // For existing projects, delete all milestones
-      projectMilestones.forEach(milestone => {
+      // For existing projects, delete recurring milestone pattern
+      const recurringMilestones = projectMilestones.filter(m => 
+        m.name && /\s\d+$/.test(m.name) // Ends with space and number
+      );
+      
+      // Delete each recurring milestone from database
+      for (const milestone of recurringMilestones) {
         if (milestone.id && !milestone.id.startsWith('temp-')) {
-          handleDeleteMilestone(milestone.id);
+          try {
+            await deleteMilestone(milestone.id);
+          } catch (error) {
+            console.error('Error deleting milestone:', error);
+          }
         }
-      });
+      }
       setLocalMilestones([]);
     }
     
