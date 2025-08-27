@@ -57,7 +57,7 @@ export function calculateWeeklyCapacity(weeklyWorkHours: WeeklyWorkHours): numbe
     if (Array.isArray(dayData)) {
       return sum + dayData.reduce((daySum: number, slot: WorkSlot) => daySum + (slot.duration || 0), 0);
     }
-    return sum + (dayData || 0);
+    return sum + (typeof dayData === 'number' ? dayData : 0);
   }, 0);
 }
 

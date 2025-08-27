@@ -3,7 +3,8 @@ import moment from 'moment';
 import { Card } from './ui/card';
 import { CalendarEvent } from '../types';
 import { useSettingsContext } from '../contexts/SettingsContext';
-import { calculateDailyTotals, formatTimeMinutes } from '@/services';
+import { calculateDailyTotals } from '@/services/calendarInsightService';
+import { formatTimeMinutes } from '@/services';
 
 interface CalendarInsightCardProps {
   dates: Date[];
@@ -36,9 +37,16 @@ export function CalendarInsightCard({ dates, events, view }: CalendarInsightCard
 
   // Calculate total time for each day
   const dailyTotals = useMemo(() => {
-    return calculateDailyTotals(dates, events, {
+    const eventsWithCompleted = events.map(event => ({
+      ...event,
+      completed: event.completed ?? false
+    }));
+    return calculateDailyTotals(dates, eventsWithCompleted, {
       isTimeTracking,
-      currentTrackingEvent,
+      currentTrackingEvent: currentTrackingEvent ? {
+        ...currentTrackingEvent,
+        completed: currentTrackingEvent.completed ?? false
+      } : null,
       currentTime: now
     });
   }, [dates, events, isTimeTracking, currentTrackingEvent, now]);

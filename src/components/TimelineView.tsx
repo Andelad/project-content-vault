@@ -177,7 +177,8 @@ export function TimelineView() {
 
   // Expand holiday ranges into individual Date objects for fast lookup by the markers
   const holidayDates = useMemo(() => {
-    return expandHolidayDates(holidays);
+    const holidaysWithName = holidays.map(h => ({ ...h, name: h.title || 'Holiday' }));
+    return expandHolidayDates(holidaysWithName);
   }, [holidays]);
 
   // Debug performance logging using service
@@ -916,7 +917,7 @@ export function TimelineView() {
                   {/* Full-column holiday overlays that span the full scroll window */}
                   <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }}>
                     {holidays && holidays.length > 0 && holidays.map(holiday => {
-                      const expandedDates = expandHolidayDates([holiday]);
+                      const expandedDates = expandHolidayDates([{ ...holiday, name: holiday.title || 'Holiday' }]);
                       const columnWidth = mode === 'weeks' ? 77 : 40;
                       const dayWidth = mode === 'weeks' ? 11 : columnWidth; // 11px per day in weeks mode
                       const totalDays = mode === 'weeks' ? dates.length * 7 : dates.length;
@@ -1253,7 +1254,7 @@ export function TimelineView() {
                   {/* Full-column holiday overlays for availability card */}
                   <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }}>
                     {holidays && holidays.length > 0 && holidays.map(holiday => {
-                      const expandedDates = expandHolidayDates([holiday]);
+                      const expandedDates = expandHolidayDates([{ ...holiday, name: holiday.title || 'Holiday' }]);
                       const columnWidth = mode === 'weeks' ? 77 : 40;
                       const dayWidth = mode === 'weeks' ? 11 : columnWidth; // 11px per day in weeks mode
                       const totalDays = mode === 'weeks' ? dates.length * 7 : dates.length;

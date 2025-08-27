@@ -19,9 +19,9 @@ export * from './eventDurationService';
 export * from './eventOverlapService';
 export * from './timeFormattingService';
 export * from './dateRangeService';
-export * from './calendarInsightService';
-export * from './projectProgressService';
-export * from './eventSplittingService';
+export { calculateDailyTotals as calculateInsightDailyTotals } from './calendarInsightService';
+export { calculateEventDurationHours as calculateProgressEventDurationHours } from './projectProgressService';
+export { calculateDurationHours as calculateSplitDurationHours } from './eventSplittingService';
 export * from './reportCalculationService';
 export * from './timelinePositionService';
 export * from './workHourCreationService';
@@ -33,12 +33,11 @@ export * from './projectProgressGraphService';
 export * from './settingsValidationService';
 export * from './eventWorkHourIntegrationService';
 export * from './workHourCapacityService';
-export * from './projectCalculationService';
-export * from './milestoneUtilitiesService';
+export { RecurringMilestoneConfig as ServiceRecurringMilestoneConfig } from './recurringMilestoneService';
 
 // Core calculation services
 export { DateCalculationService } from './DateCalculationService';
-export { ProjectCalculationService } from './ProjectCalculationService';
+export { ProjectCalculationService } from './projectCalculationService';
 export { TimelineCalculationService } from './TimelineCalculationService';
 export { CalculationCacheService } from './CalculationCacheService';
 
