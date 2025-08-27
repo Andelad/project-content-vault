@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Trash2, ChevronDown, ChevronRight, AlertTriangle, Calendar as CalendarIcon } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronRight, AlertTriangle, Calendar as CalendarIcon, RotateCcw, RefreshCw } from 'lucide-react';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { useProjectContext } from '../contexts/ProjectContext';
 import { Milestone } from '@/types/core';
@@ -15,6 +16,7 @@ interface MilestoneManagerProps {
   projectEstimatedHours: number;
   projectStartDate: Date;
   projectEndDate: Date;
+  projectContinuous?: boolean; // Whether the project is continuous
   onUpdateProjectBudget?: (newBudget: number) => void;
   // For new projects, we need local state management
   localMilestonesState?: {
@@ -29,11 +31,19 @@ interface LocalMilestone extends Omit<Milestone, 'id'> {
   isNew?: boolean;
 }
 
+interface RecurringMilestoneConfig {
+  name: string;
+  timeAllocation: number;
+  recurringType: 'daily' | 'weekly' | 'monthly';
+  recurringInterval: number; // Every X days/weeks/months
+}
+
 export function MilestoneManager({ 
   projectId, 
   projectEstimatedHours, 
   projectStartDate,
   projectEndDate,
+  projectContinuous = false,
   onUpdateProjectBudget,
   localMilestonesState,
   isCreatingProject = false
@@ -42,6 +52,18 @@ export function MilestoneManager({
   const [isExpanded, setIsExpanded] = useState(false);
   const [localMilestones, setLocalMilestones] = useState<LocalMilestone[]>([]);
   const [editingProperty, setEditingProperty] = useState<string | null>(null);
+  
+  // Recurring milestone state
+  const [hasRecurringMilestone, setHasRecurringMilestone] = useState(false);
+  const [showRecurringConfig, setShowRecurringConfig] = useState(false);
+  const [showRegularMilestoneWarning, setShowRegularMilestoneWarning] = useState(false);
+  const [showRecurringWarning, setShowRecurringWarning] = useState(false);
+  const [recurringConfig, setRecurringConfig] = useState<RecurringMilestoneConfig>({
+    name: 'Milestone',
+    timeAllocation: 8,
+    recurringType: 'weekly',
+    recurringInterval: 1
+  });
 
   // Helper function to show error toast
   const showErrorToast = async (message: string) => {
@@ -409,6 +431,15 @@ export function MilestoneManager({
     }
   }, [milestones, projectId, localMilestones, isCreatingProject, localMilestonesState]);
 
+  // Check if project has recurring milestones
+  React.useEffect(() => {
+    const hasRecurring = projectMilestones.some(m => 
+      m.id?.startsWith('recurring-') || 
+      (m.name && /\s\d+$/.test(m.name)) // Matches names ending with a number like "Milestone 1"
+    );
+    setHasRecurringMilestone(hasRecurring);
+  }, [projectMilestones]);
+
   // Calculate total time allocation in hours
   const totalTimeAllocation = useMemo(() => {
     return projectMilestones.reduce((total, milestone) => total + milestone.timeAllocation, 0);
@@ -565,6 +596,102 @@ export function MilestoneManager({
 
   const isOverBudget = totalTimeAllocation > projectEstimatedHours;
 
+  // Generate recurring milestones based on configuration
+  const generateRecurringMilestones = (config: RecurringMilestoneConfig) => {
+    const milestones: LocalMilestone[] = [];
+    let currentDate = new Date(projectStartDate);
+    currentDate.setDate(currentDate.getDate() + 1); // Start day after project start
+    
+    const endDate = projectContinuous ? 
+      new Date(currentDate.getTime() + 365 * 24 * 60 * 60 * 1000) : // 1 year for continuous projects
+      new Date(projectEndDate);
+    endDate.setDate(endDate.getDate() - 1); // End day before project end
+
+    let order = 0;
+    
+    while (currentDate <= endDate) {
+      milestones.push({
+        id: `recurring-${order}`,
+        name: `${config.name} ${order + 1}`,
+        dueDate: new Date(currentDate),
+        timeAllocation: config.timeAllocation,
+        projectId: projectId || 'temp',
+        order: order,
+        isNew: true
+      });
+      
+      // Calculate next occurrence
+      switch (config.recurringType) {
+        case 'daily':
+          currentDate.setDate(currentDate.getDate() + config.recurringInterval);
+          break;
+        case 'weekly':
+          currentDate.setDate(currentDate.getDate() + (7 * config.recurringInterval));
+          break;
+        case 'monthly':
+          currentDate.setMonth(currentDate.getMonth() + config.recurringInterval);
+          break;
+      }
+      
+      order++;
+      
+      // Safety check to prevent infinite loops
+      if (order > 100) break;
+    }
+    
+    return milestones;
+  };
+
+  // Handle creating recurring milestone
+  const handleCreateRecurringMilestone = () => {
+    if (projectMilestones.length > 0) {
+      setShowRecurringWarning(true);
+      return;
+    }
+    setShowRecurringConfig(true);
+  };
+
+  // Handle confirming recurring milestone creation
+  const handleConfirmRecurringMilestone = () => {
+    const generatedMilestones = generateRecurringMilestones(recurringConfig);
+    
+    if (isCreatingProject && localMilestonesState) {
+      localMilestonesState.setMilestones(generatedMilestones);
+    } else {
+      setLocalMilestones(generatedMilestones);
+    }
+    
+    setHasRecurringMilestone(true);
+    setShowRecurringConfig(false);
+    setShowRecurringWarning(false);
+  };
+
+  // Handle deleting recurring milestones
+  const handleDeleteRecurringMilestones = () => {
+    if (isCreatingProject && localMilestonesState) {
+      localMilestonesState.setMilestones([]);
+    } else {
+      // For existing projects, delete all milestones
+      projectMilestones.forEach(milestone => {
+        if (milestone.id && !milestone.id.startsWith('temp-')) {
+          handleDeleteMilestone(milestone.id);
+        }
+      });
+      setLocalMilestones([]);
+    }
+    
+    setHasRecurringMilestone(false);
+  };
+
+  // Handle adding regular milestone when recurring exists
+  const handleAddMilestoneWithWarning = () => {
+    if (hasRecurringMilestone || projectMilestones.some(m => m.id?.startsWith('recurring-'))) {
+      setShowRegularMilestoneWarning(true);
+      return;
+    }
+    addNewMilestone();
+  };
+
   return (
     <div className="border-b border-gray-200">
       <button
@@ -677,16 +804,152 @@ export function MilestoneManager({
               ))}
 
               {/* Add Milestone Button */}
-              <div className="mt-4">
+              <div className="mt-4 flex gap-2">
                 <Button
                   variant="outline"
-                  onClick={addNewMilestone}
+                  onClick={handleAddMilestoneWithWarning}
                   className="flex items-center gap-2"
                 >
                   <Plus className="w-4 h-4" />
                   Add Milestone
                 </Button>
+
+                <Button
+                  variant="outline"
+                  onClick={handleCreateRecurringMilestone}
+                  className="flex items-center gap-2"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Add Recurring Milestone
+                </Button>
               </div>
+
+              {/* Warning: Regular milestone when recurring exists */}
+              <AlertDialog open={showRegularMilestoneWarning} onOpenChange={setShowRegularMilestoneWarning}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Recurring Milestones?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This project currently has recurring milestones. To add a regular milestone, you must first delete all recurring milestones. This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={() => {
+                        handleDeleteRecurringMilestones();
+                        addNewMilestone();
+                        setShowRegularMilestoneWarning(false);
+                      }}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Delete Recurring & Add Regular
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
+              {/* Warning: Recurring milestone when regular exists */}
+              <AlertDialog open={showRecurringWarning} onOpenChange={setShowRecurringWarning}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Existing Milestones?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This project currently has {projectMilestones.length} milestone{projectMilestones.length !== 1 ? 's' : ''}. Creating recurring milestones will delete all existing milestones. This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={() => {
+                        handleDeleteRecurringMilestones();
+                        setShowRecurringConfig(true);
+                        setShowRecurringWarning(false);
+                      }}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Delete & Continue
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
+              {/* Recurring Milestone Configuration Dialog */}
+              <AlertDialog open={showRecurringConfig} onOpenChange={setShowRecurringConfig}>
+                <AlertDialogContent className="max-w-md">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Configure Recurring Milestone</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Set up milestones that repeat at regular intervals throughout your project timeline.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="milestone-name">Milestone Name</Label>
+                      <Input
+                        id="milestone-name"
+                        value={recurringConfig.name}
+                        onChange={(e) => setRecurringConfig(prev => ({ ...prev, name: e.target.value }))}
+                        placeholder="e.g., Weekly Review"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="time-allocation">Time Allocation (hours)</Label>
+                      <Input
+                        id="time-allocation"
+                        type="number"
+                        min="1"
+                        value={recurringConfig.timeAllocation}
+                        onChange={(e) => setRecurringConfig(prev => ({ ...prev, timeAllocation: parseInt(e.target.value) || 1 }))}
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="recurring-type">Repeat</Label>
+                      <Select value={recurringConfig.recurringType} onValueChange={(value: any) => setRecurringConfig(prev => ({ ...prev, recurringType: value }))}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="daily">Daily</SelectItem>
+                          <SelectItem value="weekly">Weekly</SelectItem>
+                          <SelectItem value="monthly">Monthly</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="recurring-interval">Every</Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          id="recurring-interval"
+                          type="number"
+                          min="1"
+                          value={recurringConfig.recurringInterval}
+                          onChange={(e) => setRecurringConfig(prev => ({ ...prev, recurringInterval: parseInt(e.target.value) || 1 }))}
+                          className="w-20"
+                        />
+                        <span className="text-sm text-muted-foreground">
+                          {recurringConfig.recurringType}(s)
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="text-sm text-muted-foreground p-3 bg-muted rounded">
+                      <strong>Preview:</strong> {recurringConfig.name} milestones will be created every {recurringConfig.recurringInterval} {recurringConfig.recurringType}(s) from the project start date{projectContinuous ? ' (continues indefinitely for continuous projects)' : ' until the project end date'}.
+                    </div>
+                  </div>
+
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleConfirmRecurringMilestone}>
+                      Create Recurring Milestones
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
 
               {/* Progress Summary */}
               {projectMilestones.length > 0 && (

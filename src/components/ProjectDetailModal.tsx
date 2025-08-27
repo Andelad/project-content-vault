@@ -1389,6 +1389,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
             projectEstimatedHours={localValues.estimatedHours}
             projectStartDate={localValues.startDate}
             projectEndDate={localValues.endDate}
+            projectContinuous={localValues.continuous}
             onUpdateProjectBudget={(newBudget) => {
               setLocalValues(prev => ({ ...prev, estimatedHours: newBudget }));
               if (!isCreating && projectId && projectId !== '') {
