@@ -1,22 +1,22 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar as CalendarIcon, Clock, User, Palette, X, Trash2, Info, Folder, Briefcase, Zap, Target, Lightbulb, Rocket, Star, Heart, Gift, Music, Camera, Code, Book, Gamepad2, Coffee, Home, Building, Car, Plane, Map, Globe, Infinity, ChevronDown, ChevronRight } from 'lucide-react';
-import { Input } from './ui/input';
-import { Button } from './ui/button';
-import { Label } from './ui/label';
-import { Badge } from './ui/badge';
-import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { Calendar } from './ui/calendar';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
-import { RichTextEditor } from './RichTextEditor';
+import { Input } from '../ui/input';
+import { Button } from '../ui/button';
+import { Label } from '../ui/label';
+import { Badge } from '../ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { Calendar } from '../ui/calendar';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
+import { RichTextEditor } from '../RichTextEditor';
 import { ProjectProgressGraph } from './ProjectProgressGraph';
-import { MilestoneManager } from './MilestoneManager';
-import { useProjectContext } from '../contexts/ProjectContext';
-import { usePlannerContext } from '../contexts/PlannerContext';
-import { useSettingsContext } from '../contexts/SettingsContext';
-import { useTimelineContext } from '../contexts/TimelineContext';
+import { MilestoneManager } from '../MilestoneManager';
+import { useProjectContext } from '../../contexts/ProjectContext';
+import { usePlannerContext } from '../../contexts/PlannerContext';
+import { useSettingsContext } from '../../contexts/SettingsContext';
+import { useTimelineContext } from '../../contexts/TimelineContext';
 import { calculateProjectTimeMetrics } from '@/lib/projectCalculations';
 
 // Function to calculate working days remaining until end date

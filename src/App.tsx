@@ -13,7 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { LogOut } from 'lucide-react';
 import { Sidebar } from '@/components/Sidebar';
-import { ProjectDetailModal } from '@/components/ProjectDetailModal';
+import { ProjectDetailModal } from '@/components';
 import { HolidayModal } from '@/components/HolidayModal';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { DevToolsWrapper } from '@/components/DevTools';
@@ -21,10 +21,10 @@ import { useFavicon } from '@/hooks/useFavicon';
 import LandingPage from '@/pages/LandingPage';
 
 // Lazy load view components for better performance
-const TimelineView = lazy(() => import('@/components/TimelineView').then(module => ({ default: module.TimelineView })));
+const TimelineView = lazy(() => import('@/components').then(module => ({ default: module.TimelineView })));
 const PlannerView = lazy(() => import('@/components/PlannerView').then(module => ({ default: module.PlannerView })));
-const ProjectsView = lazy(() => import('@/components/ProjectsView').then(module => ({ default: module.ProjectsView })));
-const ReportsView = lazy(() => import('@/components/ReportsView').then(module => ({ default: module.ReportsView })));
+const ProjectsView = lazy(() => import('@/components').then(module => ({ default: module.ProjectsView })));
+const InsightsView = lazy(() => import('@/components').then(module => ({ default: module.InsightsView })));
 const SettingsView = lazy(() => import('@/components').then(module => ({ default: module.SettingsView })));
 const ProfileView = lazy(() => import('@/components/ProfileView').then(module => ({ default: module.ProfileView })));
 const Auth = lazy(() => import('@/pages/Auth'));
@@ -96,8 +96,8 @@ function AuthenticatedContent() {
         return <TimelineView key={currentView} />;
       case 'calendar':
         return <PlannerView key={currentView} />;
-      case 'reports':
-        return <ReportsView key={currentView} />;
+      case 'insights':
+        return <InsightsView key={currentView} />;
       case 'settings':
         return <SettingsView key={currentView} />;
       case 'profile':

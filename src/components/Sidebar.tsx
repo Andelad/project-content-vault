@@ -64,7 +64,7 @@ export function Sidebar() {
       icon: Calendar,
     },
     {
-      id: 'reports' as const,
+      id: 'insights' as const,
       label: 'Insights',
       icon: PieChart,
     },

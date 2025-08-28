@@ -5,6 +5,9 @@
 
 // Feature-specific components
 export * from './settings';
+export * from './timeline';
+export * from './projects';
+export * from './insights';
 
 // Known working individual components
 export { CalendarImport } from './CalendarImport';
@@ -17,17 +20,11 @@ export { PerformanceStatus } from './PerformanceStatus';
 export { PlannerInsightCard } from './PlannerInsightCard';
 export { PlannerView } from './PlannerView';
 export { ProfileView } from './ProfileView';
-export { ProjectDetailModal } from './ProjectDetailModal';
-export { ProjectProgressGraph } from './ProjectProgressGraph';
-export { ProjectTimeline } from './ProjectTimeline';
-export { ProjectsView } from './ProjectsView';
 export { RecurringDeleteDialog } from './RecurringDeleteDialog';
-export { ReportsView } from './ReportsView';
 export { RichTextEditor } from './RichTextEditor';
 export { Sidebar } from './Sidebar';
 export { TextFormattingToolbar } from './TextFormattingToolbar';
 export { TimeTracker } from './TimeTracker';
-export { TimelineView } from './TimelineView';
 export { ViewErrorFallback } from './ViewErrorFallback';
 export { WorkHourChangeModal } from './WorkHourChangeModal';
 export { WorkHourCreationModal } from './WorkHourCreationModal';

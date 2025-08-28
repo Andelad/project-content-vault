@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { Project, CalendarEvent, Milestone } from '@/types/core';
 import { ProjectTimeMetrics } from '@/lib/projectCalculations';
 import { analyzeProjectProgress } from '@/services';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 
 interface ProjectProgressGraphProps {
   project: Project;

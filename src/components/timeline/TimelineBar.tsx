@@ -8,8 +8,8 @@ import { calculateTimelinePositions, getSafePosition } from '@/lib/timelinePosit
 import { calculateWorkHourCapacity, isHolidayDate } from '@/lib/workHoursUtils';
 import { getProjectTimeAllocation, memoizedGetProjectTimeAllocation, generateWorkHoursForDate } from '@/lib/eventWorkHourUtils';
 import { calculateMilestoneSegments, getMilestoneSegmentForDate } from '@/lib/milestoneSegmentUtils';
-import { ProjectIconIndicator } from './ProjectIconIndicator';
-import { ProjectMilestones } from './ProjectMilestones';
+import { ProjectIconIndicator } from '../projects/ProjectIconIndicator';
+import { ProjectMilestones } from '../projects/ProjectMilestones';
 import { TimeAllocationService } from '@/services';
 import { HeightCalculationService } from '@/services';
 

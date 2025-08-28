@@ -1,21 +1,21 @@
 import React, { useState } from 'react';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
-import { useProjectContext } from '../contexts/ProjectContext';
+import { useProjectContext } from '../../contexts/ProjectContext';
 import { Plus, Edit, Trash2, Calendar, Clock, Users, FolderPlus, Grid3X3, List, GripVertical, Archive, PlayCircle, Clock4, ChevronDown, ChevronRight } from 'lucide-react';
-import { Button } from './ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Textarea } from './ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Badge } from './ui/badge';
-import { Separator } from './ui/separator';
-import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
-import { Group, Project, ProjectStatus } from '../types';
-import { AppPageLayout } from './layouts/AppPageLayout';
-import { getEffectiveProjectStatus, organizeProjectsByStatus } from '../lib/projectUtils';
+import { Button } from '../ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { Textarea } from '../ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Badge } from '../ui/badge';
+import { Separator } from '../ui/separator';
+import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group';
+import { Group, Project, ProjectStatus } from '../../types';
+import { AppPageLayout } from '../layouts/AppPageLayout';
+import { getEffectiveProjectStatus, organizeProjectsByStatus } from '../../lib/projectUtils';
 
 type ViewType = 'grid' | 'list';
 
