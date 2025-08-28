@@ -4,3 +4,4 @@ export { HolidayModal } from './HolidayModal';
 export { RecurringDeleteDialog } from './RecurringDeleteDialog';
 export { ProjectDetailModal } from './ProjectDetailModal';
 export { StandardModal, ConfirmationModal } from './StandardModal';
+export { WorkHourCreationModal } from './WorkHourCreationModal';

@@ -3,6 +3,7 @@ export { DevTools, DevToolsWrapper } from './DevTools';
 export { DatabaseTestComponent } from './DatabaseTestComponent';
 export { ErrorBoundary } from './ErrorBoundary';
 export { ViewErrorFallback } from './ViewErrorFallback';
+export { PerformanceStatus } from './PerformanceStatus';
 
 // Default exports (need special handling)
 export { default as DebugView } from './DebugView';

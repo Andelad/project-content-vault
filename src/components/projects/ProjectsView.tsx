@@ -14,7 +14,7 @@ import { Separator } from '../ui/separator';
 import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group';
 import { StandardModal } from '../modals/StandardModal';
 import { Group, Project, ProjectStatus } from '../../types';
-import { AppPageLayout } from '../layouts/AppPageLayout';
+import { AppPageLayout } from '../layout/AppPageLayout';
 import { getEffectiveProjectStatus, organizeProjectsByStatus } from '../../lib/projectUtils';
 
 type ViewType = 'grid' | 'list';

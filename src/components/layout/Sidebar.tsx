@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useTimelineContext } from '../contexts/TimelineContext';
-import { useAuth } from '../contexts/AuthContext';
+import { useTimelineContext } from '../../contexts/TimelineContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { Calendar, AlignLeft, Folders, Settings, ChevronLeft, ChevronRight, PieChart } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 

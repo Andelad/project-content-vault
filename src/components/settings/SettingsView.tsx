@@ -13,7 +13,7 @@ import { useSettingsContext } from '../../contexts/SettingsContext';
 import { WorkSlot } from '@/types/core';
 import { CalendarImport } from '../planner/CalendarImport';
 import { useToast } from '../../hooks/use-toast';
-import { AppPageLayout } from '../layouts/AppPageLayout';
+import { AppPageLayout } from '../layout/AppPageLayout';
 import {
   generateTimeOptions,
   calculateDayTotalHours,

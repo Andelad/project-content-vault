@@ -13,9 +13,9 @@ export * from './planner';
 export * from './modals';
 export * from './debug';
 export * from './views';
+export * from './layout';
 
 // Known working individual components
-export { PerformanceStatus } from './PerformanceStatus';
-export { Sidebar } from './Sidebar';
+// (Now exported through their respective feature directories)
 
 // Default exports (need special handling)

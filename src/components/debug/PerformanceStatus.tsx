@@ -1,6 +1,6 @@
 import React from 'react';
-import { useProjectContext } from '../contexts/ProjectContext';
-import { usePlannerContext } from '../contexts/PlannerContext';
+import { useProjectContext } from '../../contexts/ProjectContext';
+import { usePlannerContext } from '../../contexts/PlannerContext';
 import { 
   analyzePerformance, 
   getPerformanceLimits,

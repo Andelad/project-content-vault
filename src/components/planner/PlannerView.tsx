@@ -18,7 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Calendar as DatePicker } from '../ui/calendar';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../ui/alert-dialog';
 import { TimeTracker } from '../work-hours/TimeTracker';
-import { WorkHourCreationModal } from '../work-hours/WorkHourCreationModal';
+import { WorkHourCreationModal } from '../modals/WorkHourCreationModal';
 import { WorkHourScopeDialog } from '../work-hours/WorkHourScopeDialog';
 import { PlannerInsightCard } from './PlannerInsightCard';
 import { splitMidnightCrossingEvents } from '../../lib/midnightEventUtils';

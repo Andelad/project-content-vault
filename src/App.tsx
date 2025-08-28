@@ -12,7 +12,7 @@ import { useSettingsContext } from '@/contexts/SettingsContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { LogOut } from 'lucide-react';
-import { Sidebar } from '@/components/Sidebar';
+import { Sidebar } from '@/components/layout';
 import { ProjectDetailModal } from '@/components';
 import { HolidayModal } from '@/components/modals/HolidayModal';
 import { ErrorBoundary } from '@/components/debug/ErrorBoundary';
@@ -21,8 +21,8 @@ import { useFavicon } from '@/hooks/useFavicon';
 import LandingPage from '@/pages/LandingPage';
 
 // Lazy load view components for better performance
-const TimelineView = lazy(() => import('@/components').then(module => ({ default: module.TimelineView })));
-const PlannerView = lazy(() => import('@/components/planner').then(module => ({ default: module.PlannerView })));
+const TimelineView = lazy(() => import('@/components/views').then(module => ({ default: module.TimelineView })));
+const PlannerView = lazy(() => import('@/components/views').then(module => ({ default: module.PlannerView })));
 const ProjectsView = lazy(() => import('@/components').then(module => ({ default: module.ProjectsView })));
 const InsightsView = lazy(() => import('@/components').then(module => ({ default: module.InsightsView })));
 const SettingsView = lazy(() => import('@/components').then(module => ({ default: module.SettingsView })));

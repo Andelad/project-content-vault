@@ -34,12 +34,12 @@ import { TimelineScrollbar } from './timeline/TimelineScrollbar';
 import { HoverableTimelineScrollbar } from './timeline/HoverableTimelineScrollbar';
 import { TimelineAddProjectRow, AddHolidayRow } from './timeline/AddProjectRow';
 import { SmartHoverAddProjectBar } from './projects/SmartHoverAddProjectBar';
-import { PerformanceStatus } from './PerformanceStatus';
+import { PerformanceStatus } from './debug/PerformanceStatus';
 import { DraggableRowComponent } from './timeline/DraggableRowComponent';
 import { AddRowComponent } from './timeline/AddRowComponent';
 import { DraggableGroupRow } from './timeline/DraggableGroupRow';
 import { AddGroupRow } from './timeline/AddGroupRow';
-import { AppPageLayout } from './layouts/AppPageLayout';
+import { AppPageLayout } from './layout/AppPageLayout';
 
 export function TimelineView() {
   // Get data from specific contexts
