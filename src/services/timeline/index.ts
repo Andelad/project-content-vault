@@ -4,3 +4,4 @@ export * from './timelineViewportService';
 export * from './HeightCalculationService';
 export * from './TimelineCalculationService';
 export * from './TimeAllocationService';
+export * from './HolidayCalculationService';
