@@ -6,3 +6,4 @@ export {
 } from './milestoneManagementService';
 export * from './milestoneUtilitiesService';
 export * from './recurringMilestoneService';
+export * from './milestoneCalculationService';

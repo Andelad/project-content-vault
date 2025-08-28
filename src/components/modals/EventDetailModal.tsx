@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { CalendarEvent } from '../../types';
+import { calculateDurationHours } from '../../services/work-hours';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -224,11 +225,9 @@ export function EventDetailModal({
     setIsSubmitting(true);
 
     try {
-      const startDateTime = getStartDateTime();
-      const endDateTime = getEndDateTime();
-      const duration = (endDateTime.getTime() - startDateTime.getTime()) / (1000 * 60 * 60);
-      
-      const eventData: Omit<CalendarEvent, 'id'> = {
+    const startDateTime = getStartDateTime();
+    const endDateTime = getEndDateTime();
+    const duration = calculateDurationHours(startDateTime, endDateTime);      const eventData: Omit<CalendarEvent, 'id'> = {
         title: formData.title.trim(),
         description: formData.description.trim() || undefined,
         startTime: startDateTime,
@@ -461,7 +460,7 @@ export function EventDetailModal({
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Clock className="w-4 h-4" />
               <span>
-                Duration: {((getEndDateTime().getTime() - getStartDateTime().getTime()) / (1000 * 60 * 60)).toFixed(1)} hours
+                Duration: {calculateDurationHours(getStartDateTime(), getEndDateTime()).toFixed(1)} hours
               </span>
             </div>
           )}

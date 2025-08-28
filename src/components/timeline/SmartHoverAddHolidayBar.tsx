@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { Holiday } from '../../types';
+import { calculateOccupiedHolidayIndices, convertMousePositionToIndex, convertIndicesToDates } from '../../services/timeline';
 
 interface SmartHoverAddHolidayBarProps {
   dates: Date[];
@@ -26,74 +27,27 @@ export const SmartHoverAddHolidayBar: React.FC<SmartHoverAddHolidayBarProps> = (
 
   // Calculate which date indices are occupied by existing holidays
   const occupiedIndices = useMemo(() => {
-    const occupied = new Set<number>();
-    
-    holidays.forEach(holiday => {
-      const holidayStart = new Date(holiday.startDate);
-      const holidayEnd = new Date(holiday.endDate);
-      
-      if (mode === 'weeks') {
-        // For weeks mode with day-level precision, calculate which day indices are occupied
-        dates.forEach((weekStartDate, weekIndex) => {
-          for (let dayOfWeek = 0; dayOfWeek < 7; dayOfWeek++) {
-            const dayDate = new Date(weekStartDate);
-            dayDate.setDate(weekStartDate.getDate() + dayOfWeek);
-            dayDate.setHours(0, 0, 0, 0);
-            
-            const dayEnd = new Date(dayDate);
-            dayEnd.setHours(23, 59, 59, 999);
-            
-            // Check if this day falls within holiday range
-            if (!(holidayEnd < dayDate || holidayStart > dayEnd)) {
-              const dayIndex = weekIndex * 7 + dayOfWeek;
-              occupied.add(dayIndex);
-            }
-          }
-        });
-      } else {
-        // Original days mode logic
-        dates.forEach((date, index) => {
-          const dayStart = new Date(date);
-          dayStart.setHours(0, 0, 0, 0);
-          const dayEnd = new Date(date);
-          dayEnd.setHours(23, 59, 59, 999);
-          
-          if (!(holidayEnd < dayStart || holidayStart > dayEnd)) {
-            occupied.add(index);
-          }
-        });
-      }
-    });
-    
-    return occupied;
+    return calculateOccupiedHolidayIndices(holidays, dates, mode);
   }, [holidays, dates, mode]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (dragStart !== null || globalIsDragging) return; // Don't update hover during any drag operation
-    
+
     const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    let index: number;
-    
-    if (mode === 'weeks') {
-      // In week mode, calculate precise day-level index within week columns
-      const dayWidth = 11; // Exact 11px per day (77px ÷ 7 days)
-      const totalDays = dates.length * 7; // Total number of days across all weeks
-      const dayIndex = Math.floor(x / dayWidth);
-      index = Math.max(0, Math.min(totalDays - 1, dayIndex));
-    } else {
-      // Days mode: use actual column width (40px) with no gaps
-      const columnWidth = 40;
-      index = Math.floor(x / columnWidth);
-      index = Math.max(0, Math.min(dates.length - 1, index));
-    }
-    
-    if (index >= 0 && index < (mode === 'weeks' ? dates.length * 7 : dates.length) && !occupiedIndices.has(index)) {
+    const { index, isValid } = convertMousePositionToIndex(
+      e.clientX,
+      rect,
+      dates,
+      mode,
+      occupiedIndices
+    );
+
+    if (isValid) {
       setHoveredIndex(index);
     } else {
       setHoveredIndex(null);
     }
-  }, [dates.length, occupiedIndices, dragStart, globalIsDragging, mode]);
+  }, [dates, occupiedIndices, dragStart, globalIsDragging, mode]);
 
   const handleMouseLeave = useCallback(() => {
     if (dragStart === null && !globalIsDragging) {
@@ -104,23 +58,15 @@ export const SmartHoverAddHolidayBar: React.FC<SmartHoverAddHolidayBarProps> = (
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     // Don't handle mouse down if we're over an occupied area (existing holiday)
     const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    let clickIndex: number;
-    
-    if (mode === 'weeks') {
-      // In week mode, calculate precise day-level index within week columns
-      const dayWidth = 11; // 11px per day (77px ÷ 7 days)
-      const totalDays = dates.length * 7; // Total number of days across all weeks
-      clickIndex = Math.floor(x / dayWidth);
-      clickIndex = Math.max(0, Math.min(totalDays - 1, clickIndex));
-    } else {
-      // Days mode: use actual column width (40px) with no gaps
-      const columnWidth = 40;
-      clickIndex = Math.floor(x / columnWidth);
-      clickIndex = Math.max(0, Math.min(dates.length - 1, clickIndex));
-    }
-    
-    if (clickIndex >= 0 && clickIndex < (mode === 'weeks' ? dates.length * 7 : dates.length) && occupiedIndices.has(clickIndex)) {
+    const { index: clickIndex, isValid: clickIsValid } = convertMousePositionToIndex(
+      e.clientX,
+      rect,
+      dates,
+      mode,
+      occupiedIndices
+    );
+
+    if (!clickIsValid) {
       // Let the event bubble up to the holiday bar handlers
       return;
     }
@@ -143,24 +89,16 @@ export const SmartHoverAddHolidayBar: React.FC<SmartHoverAddHolidayBarProps> = (
     const handleMouseMove = (e: MouseEvent) => {
       const container = document.querySelector('.holiday-drag-container');
       if (!container) return;
-      
+
       const rect = container.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      let index: number;
-      
-      if (mode === 'weeks') {
-        // In week mode, calculate precise day-level index within week columns
-        const dayWidth = 11; // Exact 11px per day (77px ÷ 7 days)
-        const totalDays = dates.length * 7; // Total number of days across all weeks
-        index = Math.floor(x / dayWidth);
-        index = Math.max(0, Math.min(totalDays - 1, index));
-      } else {
-        // Days mode: use actual column width (40px) with no gaps
-        const columnWidth = 40;
-        index = Math.floor(x / columnWidth);
-        index = Math.max(0, Math.min(dates.length - 1, index));
-      }
-      
+      const { index } = convertMousePositionToIndex(
+        e.clientX,
+        rect,
+        dates,
+        mode,
+        occupiedIndices
+      );
+
       setDragEnd(index);
       dragEndRef.current = index; // Update ref immediately
     };
@@ -184,31 +122,13 @@ export const SmartHoverAddHolidayBar: React.FC<SmartHoverAddHolidayBarProps> = (
         }
         
         if (canCreate) {
-          let startDate: Date, endDate: Date;
-          
-          if (mode === 'weeks') {
-            // Convert day-level indices back to actual dates
-            const startWeekIndex = Math.floor(startIndex / 7);
-            const startDayOfWeek = startIndex % 7;
-            const endWeekIndex = Math.floor(endIndex / 7);
-            const endDayOfWeek = endIndex % 7;
-            
-            // Calculate start date
-            startDate = new Date(dates[startWeekIndex]);
-            startDate.setDate(startDate.getDate() + startDayOfWeek);
-            startDate.setHours(0, 0, 0, 0);
-            
-            // Calculate end date
-            endDate = new Date(dates[endWeekIndex]);
-            endDate.setDate(endDate.getDate() + endDayOfWeek);
-            endDate.setHours(23, 59, 59, 999);
-          } else {
-            // Days mode: use existing logic
-            startDate = new Date(dates[startIndex]);
-            endDate = new Date(dates[endIndex]);
-            endDate.setHours(23, 59, 59, 999);
-          }
-          
+          const { startDate, endDate } = convertIndicesToDates(
+            startIndex,
+            endIndex,
+            dates,
+            mode
+          );
+
           onCreateHoliday(startDate, endDate);
         }
       }

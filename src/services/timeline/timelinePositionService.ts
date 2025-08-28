@@ -435,3 +435,207 @@ export function getSafePosition(position: number): number {
   // Allow some overflow for better UX, but prevent extreme values
   return Math.max(-20, Math.min(120, position));
 }
+
+// ============================================================================
+// HOLIDAY POSITIONING CALCULATIONS
+// ============================================================================
+
+/**
+ * Holiday position calculation interface
+ */
+export interface HolidayPositionCalculation {
+  leftPx: number;
+  widthPx: number;
+  startDayIndex: number;
+  endDayIndex: number;
+}
+
+/**
+ * Mouse position to timeline index conversion interface
+ */
+export interface MouseToIndexConversion {
+  index: number;
+  isValid: boolean;
+}
+
+/**
+ * Calculate which date indices are occupied by existing holidays
+ */
+export function calculateOccupiedHolidayIndices(
+  holidays: Array<{ startDate: Date; endDate: Date }>,
+  dates: Date[],
+  mode: 'days' | 'weeks' = 'days'
+): Set<number> {
+  const occupied = new Set<number>();
+
+  holidays.forEach(holiday => {
+    const holidayStart = new Date(holiday.startDate);
+    const holidayEnd = new Date(holiday.endDate);
+
+    if (mode === 'weeks') {
+      // For weeks mode with day-level precision, calculate which day indices are occupied
+      dates.forEach((weekStartDate, weekIndex) => {
+        for (let dayOfWeek = 0; dayOfWeek < 7; dayOfWeek++) {
+          const dayDate = new Date(weekStartDate);
+          dayDate.setDate(weekStartDate.getDate() + dayOfWeek);
+          dayDate.setHours(0, 0, 0, 0);
+
+          const dayEnd = new Date(dayDate);
+          dayEnd.setHours(23, 59, 59, 999);
+
+          // Check if this day falls within holiday range
+          if (!(holidayEnd < dayDate || holidayStart > dayEnd)) {
+            const dayIndex = weekIndex * 7 + dayOfWeek;
+            occupied.add(dayIndex);
+          }
+        }
+      });
+    } else {
+      // Original days mode logic
+      dates.forEach((date, index) => {
+        const dayStart = new Date(date);
+        dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(date);
+        dayEnd.setHours(23, 59, 59, 999);
+
+        if (!(holidayEnd < dayStart || holidayStart > dayEnd)) {
+          occupied.add(index);
+        }
+      });
+    }
+  });
+
+  return occupied;
+}
+
+/**
+ * Convert mouse position to timeline index
+ */
+export function convertMousePositionToIndex(
+  clientX: number,
+  containerRect: DOMRect,
+  dates: Date[],
+  mode: 'days' | 'weeks' = 'days',
+  occupiedIndices: Set<number>
+): MouseToIndexConversion {
+  const x = clientX - containerRect.left;
+  let index: number;
+
+  if (mode === 'weeks') {
+    // In week mode, calculate precise day-level index within week columns
+    const dayWidth = 11; // Exact 11px per day (77px ÷ 7 days)
+    const totalDays = dates.length * 7; // Total number of days across all weeks
+    const dayIndex = Math.floor(x / dayWidth);
+    index = Math.max(0, Math.min(totalDays - 1, dayIndex));
+  } else {
+    // Days mode: use actual column width (40px) with no gaps
+    const columnWidth = 40;
+    index = Math.floor(x / columnWidth);
+    index = Math.max(0, Math.min(dates.length - 1, index));
+  }
+
+  const maxIndex = mode === 'weeks' ? dates.length * 7 : dates.length;
+  const isValid = index >= 0 && index < maxIndex && !occupiedIndices.has(index);
+
+  return { index, isValid };
+}
+
+/**
+ * Calculate holiday overlay position
+ */
+export function calculateHolidayOverlayPosition(
+  holiday: { startDate: Date; endDate: Date },
+  dates: Date[],
+  mode: 'days' | 'weeks' = 'days'
+): HolidayPositionCalculation | null {
+  const expandedDates = expandHolidayDates([holiday]);
+  const columnWidth = mode === 'weeks' ? 77 : 40;
+  const dayWidth = mode === 'weeks' ? 11 : columnWidth; // 11px per day in weeks mode
+  const totalDays = mode === 'weeks' ? dates.length * 7 : dates.length;
+
+  // Calculate day positions for the holiday
+  const timelineStart = new Date(dates[0]);
+  timelineStart.setHours(0, 0, 0, 0);
+  const msPerDay = 24 * 60 * 60 * 1000;
+
+  const startDay = Math.floor((expandedDates[0].getTime() - timelineStart.getTime()) / msPerDay);
+  const holidayDays = expandedDates.length;
+
+  const startDayIndex = Math.max(0, startDay);
+  const endDayIndex = Math.min(totalDays - 1, startDay + holidayDays - 1);
+
+  if (endDayIndex < 0 || startDayIndex > totalDays - 1) {
+    return null;
+  }
+
+  const leftPx = startDayIndex * dayWidth;
+  const widthPx = (endDayIndex - startDayIndex + 1) * dayWidth;
+
+  return {
+    leftPx,
+    widthPx,
+    startDayIndex,
+    endDayIndex
+  };
+}
+
+/**
+ * Convert timeline indices back to actual dates
+ */
+export function convertIndicesToDates(
+  startIndex: number,
+  endIndex: number,
+  dates: Date[],
+  mode: 'days' | 'weeks' = 'days'
+): { startDate: Date; endDate: Date } {
+  if (mode === 'weeks') {
+    // Convert day-level indices back to actual dates
+    const startWeekIndex = Math.floor(startIndex / 7);
+    const startDayOfWeek = startIndex % 7;
+    const endWeekIndex = Math.floor(endIndex / 7);
+    const endDayOfWeek = endIndex % 7;
+
+    // Calculate start date
+    const startDate = new Date(dates[startWeekIndex]);
+    startDate.setDate(startDate.getDate() + startDayOfWeek);
+    startDate.setHours(0, 0, 0, 0);
+
+    // Calculate end date
+    const endDate = new Date(dates[endWeekIndex]);
+    endDate.setDate(endDate.getDate() + endDayOfWeek);
+    endDate.setHours(23, 59, 59, 999);
+
+    return { startDate, endDate };
+  } else {
+    // Days mode: use existing logic
+    const startDate = new Date(dates[startIndex]);
+    const endDate = new Date(dates[endIndex]);
+    endDate.setHours(23, 59, 59, 999);
+
+    return { startDate, endDate };
+  }
+}
+
+/**
+ * Expand holiday dates to include all days in the range
+ */
+function expandHolidayDates(holidays: Array<{ startDate: Date; endDate: Date }>): Date[] {
+  const expandedDates: Date[] = [];
+
+  holidays.forEach(holiday => {
+    const start = new Date(holiday.startDate);
+    const end = new Date(holiday.endDate);
+
+    // Normalize to start of day
+    start.setHours(0, 0, 0, 0);
+    end.setHours(0, 0, 0, 0);
+
+    const current = new Date(start);
+    while (current <= end) {
+      expandedDates.push(new Date(current));
+      current.setDate(current.getDate() + 1);
+    }
+  });
+
+  return expandedDates;
+}

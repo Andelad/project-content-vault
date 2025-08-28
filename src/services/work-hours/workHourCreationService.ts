@@ -188,6 +188,19 @@ export function formatTimeForValidation(date: Date): string {
 }
 
 /**
+ * Formats work slot duration for display
+ */
+export function formatWorkSlotDurationDisplay(hours: number): string {
+  if (hours < 1) {
+    return `${Math.round(hours * 60)} min`;
+  } else if (hours === 1) {
+    return '1 hour';
+  } else {
+    return `${hours.toFixed(2)} hours`;
+  }
+}
+
+/**
  * Validates work hour creation against existing slots
  */
 export function validateWorkHourCreation(

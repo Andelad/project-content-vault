@@ -5,6 +5,7 @@ import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { StandardModal } from '../modals/StandardModal';
 import { WorkHour } from '../../types/core';
+import { calculateDurationHours } from '../../services/work-hours';
 
 interface WorkHourCreationModalProps {
   isOpen: boolean;
@@ -38,7 +39,7 @@ export function WorkHourCreationModal({
       description: description.trim(),
       startTime: new Date(startTime),
       endTime: new Date(endTime),
-      duration: (new Date(endTime).getTime() - new Date(startTime).getTime()) / (1000 * 60 * 60),
+      duration: calculateDurationHours(new Date(startTime), new Date(endTime)),
       type: 'work'
     };
 

@@ -1,110 +1,208 @@
-import { Settings, Holiday } from '@/types/core';
-
 /**
- * Calculate working days remaining until project end date
+ * Project Working Days Calculation Service
+ * 
+ * Handles calculations related to working days for projects, including
+ * remaining working days, total working days between dates, and validation
+ * against holidays and work hour settings.
  */
-export const calculateWorkingDaysRemaining = (endDate: Date, settings: Settings, holidays: Holiday[]): number => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
 
-  const targetEndDate = new Date(endDate);
-  targetEndDate.setHours(0, 0, 0, 0);
+export interface ProjectWorkSlot {
+  startTime: string;
+  endTime: string;
+  duration: number;
+}
 
-  // If end date is in the past or today, return 0
-  if (targetEndDate <= today) {
-    return 0;
+export interface ProjectWeeklyWorkHours {
+  sunday: ProjectWorkSlot[];
+  monday: ProjectWorkSlot[];
+  tuesday: ProjectWorkSlot[];
+  wednesday: ProjectWorkSlot[];
+  thursday: ProjectWorkSlot[];
+  friday: ProjectWorkSlot[];
+  saturday: ProjectWorkSlot[];
+}
+
+export interface ProjectHoliday {
+  startDate: string | Date;
+  endDate: string | Date;
+  title: string;
+}
+
+export interface ProjectWorkingDaysSettings {
+  weeklyWorkHours?: ProjectWeeklyWorkHours;
+}
+
+export class ProjectWorkingDaysService {
+  private static readonly DAY_NAMES: (keyof ProjectWeeklyWorkHours)[] = [
+    'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'
+  ];
+
+  /**
+   * Calculate working days remaining until end date
+   */
+  static calculateWorkingDaysRemaining(
+    endDate: Date, 
+    settings: ProjectWorkingDaysSettings, 
+    holidays: ProjectHoliday[] = []
+  ): number {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const targetEndDate = new Date(endDate);
+    targetEndDate.setHours(0, 0, 0, 0);
+    
+    // If end date is in the past or today, return 0
+    if (targetEndDate <= today) {
+      return 0;
+    }
+    
+    // If no settings, return 0
+    if (!settings?.weeklyWorkHours) {
+      return 0;
+    }
+    
+    let workingDays = 0;
+    const current = new Date(today);
+    current.setDate(current.getDate() + 1); // Start from tomorrow
+    
+    while (current <= targetEndDate) {
+      if (this.isWorkingDay(current, settings, holidays)) {
+        workingDays++;
+      }
+      current.setDate(current.getDate() + 1);
+    }
+    
+    return workingDays;
   }
 
-  // If no settings, return 0
-  if (!settings?.weeklyWorkHours) {
-    return 0;
+  /**
+   * Calculate total working days between start and end dates
+   */
+  static calculateTotalWorkingDays(
+    startDate: Date, 
+    endDate: Date, 
+    settings: ProjectWorkingDaysSettings, 
+    holidays: ProjectHoliday[] = []
+  ): number {
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    
+    const end = new Date(endDate);
+    end.setHours(0, 0, 0, 0);
+    
+    // If no settings, return 0
+    if (!settings?.weeklyWorkHours) {
+      return 0;
+    }
+    
+    let workingDays = 0;
+    const current = new Date(start);
+    
+    while (current <= end) {
+      if (this.isWorkingDay(current, settings, holidays)) {
+        workingDays++;
+      }
+      current.setDate(current.getDate() + 1);
+    }
+    
+    return workingDays;
   }
 
-  let workingDays = 0;
-  const current = new Date(today);
-  current.setDate(current.getDate() + 1); // Start from tomorrow
+  /**
+   * Calculate valid days in a period based on included days filter
+   */
+  static calculateValidDaysInPeriod(
+    startDate: Date,
+    endDate: Date,
+    includedDays: Record<keyof ProjectWeeklyWorkHours, boolean>
+  ): number {
+    let count = 0;
+    const current = new Date(startDate);
+    
+    while (current <= endDate) {
+      const dayName = this.DAY_NAMES[current.getDay()];
+      
+      if (includedDays[dayName]) {
+        count++;
+      }
+      
+      current.setDate(current.getDate() + 1);
+    }
+    
+    return count;
+  }
 
-  while (current <= targetEndDate) {
+  /**
+   * Check if a specific date is a working day
+   */
+  private static isWorkingDay(
+    date: Date, 
+    settings: ProjectWorkingDaysSettings, 
+    holidays: ProjectHoliday[] = []
+  ): boolean {
     // Check if it's a holiday
     const isHoliday = holidays.some(holiday => {
       const holidayStart = new Date(holiday.startDate);
       const holidayEnd = new Date(holiday.endDate);
       holidayStart.setHours(0, 0, 0, 0);
       holidayEnd.setHours(0, 0, 0, 0);
-      return current >= holidayStart && current <= holidayEnd;
+      return date >= holidayStart && date <= holidayEnd;
     });
+    
+    if (isHoliday) {
+      return false;
+    }
+    
+    // Check if it's a day with work hours configured
+    const dayName = this.DAY_NAMES[date.getDay()];
+    const workSlots = settings.weeklyWorkHours?.[dayName] || [];
+    
+    const hasWorkHours = Array.isArray(workSlots) && 
+      workSlots.reduce((sum, slot) => sum + slot.duration, 0) > 0;
+    
+    return hasWorkHours;
+  }
 
-    if (!isHoliday) {
-      // Check if it's a day with work hours configured
-      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-      const dayName = dayNames[current.getDay()] as keyof typeof settings.weeklyWorkHours;
-      const workSlots = settings.weeklyWorkHours?.[dayName] || [];
-
-      const hasWorkHours = Array.isArray(workSlots) &&
-        workSlots.reduce((sum, slot) => sum + slot.duration, 0) > 0;
-
-      if (hasWorkHours) {
-        workingDays++;
-      }
+  /**
+   * Calculate total work hours for a specific day
+   */
+  static calculateDayWorkHours(
+    date: Date,
+    settings: ProjectWorkingDaysSettings
+  ): number {
+    if (!settings?.weeklyWorkHours) {
+      return 0;
     }
 
-    current.setDate(current.getDate() + 1);
+    const dayName = this.DAY_NAMES[date.getDay()];
+    const workSlots = settings.weeklyWorkHours[dayName] || [];
+    
+    return workSlots.reduce((sum, slot) => sum + slot.duration, 0);
   }
 
-  return workingDays;
-};
-
-/**
- * Calculate total working days in a date range
- */
-export const calculateTotalWorkingDays = (startDate: Date, endDate: Date, settings: Settings, holidays: Holiday[]): number => {
-  const start = new Date(startDate);
-  start.setHours(0, 0, 0, 0);
-
-  const end = new Date(endDate);
-  end.setHours(0, 0, 0, 0);
-
-  // If no settings, return 0
-  if (!settings?.weeklyWorkHours) {
-    return 0;
-  }
-
-  let workingDays = 0;
-  const current = new Date(start);
-
-  while (current <= end) {
-    // Check if it's a holiday
-    const isHoliday = holidays.some(holiday => {
-      const holidayStart = new Date(holiday.startDate);
-      const holidayEnd = new Date(holiday.endDate);
-      holidayStart.setHours(0, 0, 0, 0);
-      holidayEnd.setHours(0, 0, 0, 0);
-      return current >= holidayStart && current <= holidayEnd;
-    });
-
-    if (!isHoliday) {
-      // Check if it's a day with work hours configured
-      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-      const dayName = dayNames[current.getDay()] as keyof typeof settings.weeklyWorkHours;
-      const workSlots = settings.weeklyWorkHours?.[dayName] || [];
-
-      const hasWorkHours = Array.isArray(workSlots) &&
-        workSlots.reduce((sum, slot) => sum + slot.duration, 0) > 0;
-
-      if (hasWorkHours) {
-        workingDays++;
+  /**
+   * Get all working days between two dates
+   */
+  static getWorkingDaysBetween(
+    startDate: Date,
+    endDate: Date,
+    settings: ProjectWorkingDaysSettings,
+    holidays: ProjectHoliday[] = []
+  ): Date[] {
+    const workingDays: Date[] = [];
+    const current = new Date(startDate);
+    current.setHours(0, 0, 0, 0);
+    
+    const end = new Date(endDate);
+    end.setHours(0, 0, 0, 0);
+    
+    while (current <= end) {
+      if (this.isWorkingDay(current, settings, holidays)) {
+        workingDays.push(new Date(current));
       }
+      current.setDate(current.getDate() + 1);
     }
-
-    current.setDate(current.getDate() + 1);
+    
+    return workingDays;
   }
-
-  return workingDays;
-};
-
-/**
- * Get working days in a date range (helper function)
- */
-export const getWorkingDaysInRange = (startDate: Date, endDate: Date, holidays: Holiday[], settings: Settings): number => {
-  return calculateTotalWorkingDays(startDate, endDate, settings, holidays);
-};
+}

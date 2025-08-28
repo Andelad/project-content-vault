@@ -14,6 +14,7 @@ import { useTimelineContext } from '../contexts/TimelineContext';
 import { usePlannerContext } from '../contexts/PlannerContext';
 import { useSettingsContext } from '../contexts/SettingsContext';
 import { expandHolidayDates, TimelineViewportService } from '@/services';
+import { calculateHolidayOverlayPosition } from '@/services/timeline';
 import { TimelineDragCoordinatorService, DragState } from '@/services/events';
 import { useTimelineData } from '../hooks/useTimelineData';
 import { useDynamicViewportDays } from '../hooks/useDynamicViewportDays';
@@ -642,26 +643,11 @@ export function TimelineView() {
                   {/* Full-column holiday overlays that span the full scroll window */}
                   <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }}>
                     {holidays && holidays.length > 0 && holidays.map(holiday => {
-                      const expandedDates = expandHolidayDates([{ ...holiday, name: holiday.title || 'Holiday' }]);
-                      const columnWidth = mode === 'weeks' ? 77 : 40;
-                      const dayWidth = mode === 'weeks' ? 11 : columnWidth; // 11px per day in weeks mode
-                      const totalDays = mode === 'weeks' ? dates.length * 7 : dates.length;
+                      const position = calculateHolidayOverlayPosition(holiday, dates, mode);
 
-                      // Calculate day positions for the holiday
-                      const timelineStart = new Date(dates[0]);
-                      timelineStart.setHours(0,0,0,0);
-                      const msPerDay = 24 * 60 * 60 * 1000;
+                      if (!position) return null;
 
-                      const startDay = Math.floor((expandedDates[0].getTime() - timelineStart.getTime()) / msPerDay);
-                      const holidayDays = expandedDates.length;
-
-                      const startDayIndex = Math.max(0, startDay);
-                      const endDayIndex = Math.min(totalDays - 1, startDay + holidayDays - 1);
-
-                      if (endDayIndex < 0 || startDayIndex > totalDays - 1) return null;
-
-                      const leftPx = startDayIndex * dayWidth;
-                      const widthPx = (endDayIndex - startDayIndex + 1) * dayWidth;
+                      const { leftPx, widthPx } = position;
 
                       // More condensed pattern for weeks view (thinner lines, smaller gaps)
                       const backgroundPattern = mode === 'weeks' 

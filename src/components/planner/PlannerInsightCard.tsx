@@ -6,6 +6,7 @@ import { useSettingsContext } from '../../contexts/SettingsContext';
 import { calculateEventDurationOnDate, aggregateEventDurationsByDate, formatDuration } from '@/services';
 // Keep the original import for now to avoid breaking changes
 import { calculateEventDurationOnDate as originalCalculateEventDurationOnDate } from '../../lib/midnightEventUtils';
+import { calculateDurationMinutes } from '../../services/work-hours';
 
 interface CalendarInsightCardProps {
   dates: Date[];
@@ -50,7 +51,10 @@ export function PlannerInsightCard({ dates, events, view }: CalendarInsightCardP
           const durationHours = originalCalculateEventDurationOnDate(event, date);
           if (durationHours > 0) {
             // Convert to minutes and round to avoid decimal minutes
-            const durationMinutes = Math.round(durationHours * 60);
+            const durationMinutes = Math.round(calculateDurationMinutes(
+              new Date(event.startTime),
+              new Date(event.endTime)
+            ));
             totals[dateKey] += durationMinutes;
           }
         }
@@ -83,14 +87,7 @@ export function PlannerInsightCard({ dates, events, view }: CalendarInsightCardP
 
   // Format time for display
   const formatTime = (minutes: number) => {
-    // Ensure we're working with whole minutes
-    const roundedMinutes = Math.round(minutes);
-    const hours = Math.floor(roundedMinutes / 60);
-    const mins = roundedMinutes % 60;
-    if (hours === 0) {
-      return `${mins}m`;
-    }
-    return mins === 0 ? `${hours}h` : `${hours}h ${mins}m`;
+    return formatDuration(minutes / 60);
   };
 
   return (

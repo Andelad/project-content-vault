@@ -1,3 +1,6 @@
 // Timeline services
 export * from './timelinePositionService';
 export * from './timelineViewportService';
+export * from './HeightCalculationService';
+export * from './TimelineCalculationService';
+export * from './TimeAllocationService';

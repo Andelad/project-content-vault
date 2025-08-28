@@ -14,6 +14,7 @@ import { WorkSlot } from '@/types/core';
 import { CalendarImport } from '../planner/CalendarImport';
 import { useToast } from '../../hooks/use-toast';
 import { AppPageLayout } from '../layout/AppPageLayout';
+import { formatWorkSlotDurationDisplay } from '../../services/work-hours';
 import {
   generateTimeOptions,
   calculateDayTotalHours,
@@ -392,12 +393,7 @@ export function SettingsView() {
                                   </Select>
                                   
                                   <Badge variant="outline" className="text-xs">
-                                    {slot.duration < 1 
-                                      ? `${Math.round(slot.duration * 60)} min`
-                                      : slot.duration === 1 
-                                      ? '1 hour' 
-                                      : `${slot.duration.toFixed(2)} hours`
-                                    }
+                                    {formatWorkSlotDurationDisplay(slot.duration)}
                                   </Badge>
                                 </div>
                                 

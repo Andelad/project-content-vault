@@ -9,10 +9,10 @@
 
 import * as DragCalculationService from './dragCalculationService';
 import { DragState, DragPositionResult } from './dragCalculationService';
-import * as ProjectOverlapService from '../projectOverlapService';
-import { ConflictDetectionResult, DateAdjustmentResult } from '../projectOverlapService';
+import * as ProjectOverlapService from '../projects/projectOverlapService';
+import { ConflictDetectionResult, DateAdjustmentResult } from '../projects/projectOverlapService';
 import { TimelineViewportService } from '../timeline/timelineViewportService';
-import { Project } from '../projectOverlapService';
+import { Project } from '../projects/projectOverlapService';
 
 export interface TimelineContext {
   projects: Project[];

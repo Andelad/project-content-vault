@@ -8,6 +8,7 @@ import { usePlannerContext } from '../contexts/PlannerContext';
 import { useSettingsContext } from '../contexts/SettingsContext';
 import { useTimelineContext } from '../contexts/TimelineContext';
 import { CalendarEvent, WorkHour } from '../types';
+import { calculateDurationHours } from '../services/work-hours';
 import { Button } from './ui/button';
 import { ChevronLeft, ChevronRight, CheckCircle2, Circle, Calendar as CalendarIcon, MapPin, CalendarSearch, Trash2 } from 'lucide-react';
 import { EventDetailModal } from './modals/EventDetailModal';
@@ -608,7 +609,7 @@ export function PlannerView() {
       });
     } else if (!event.isWorkHour && layerMode === 'events') {
       // Update regular event
-      const duration = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+      const duration = calculateDurationHours(start, end);
       updateEventWithUndo(event.id, {
         startTime: start,
         endTime: end,
@@ -633,7 +634,7 @@ export function PlannerView() {
       });
     } else if (!event.isWorkHour && layerMode === 'events') {
       // Update regular event
-      const duration = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+      const duration = calculateDurationHours(start, end);
       updateEventWithUndo(event.id, {
         startTime: start,
         endTime: end,

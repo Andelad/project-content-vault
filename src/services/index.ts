@@ -22,14 +22,15 @@ export * from './settings';
 export * from './timeline';
 export * from './work-hours';
 
+// Core cross-cutting services
+export * from './core';
+
 // Project overlap service
-export * from './projectOverlapService';
+export * from './projects/projectOverlapService';
 
 // Explicit exports for missing services
 export { CalendarIntegrationService, type ImportResult } from './calendar/calendarIntegration';
-export { TimeAllocationService } from './core/TimeAllocationService';
-export { HeightCalculationService } from './core/HeightCalculationService';
-export { WorkHourCalculationService } from './core/WorkHourCalculationService';
+export { TimeAllocationService } from './timeline/TimeAllocationService';
 export { expandHolidayDates } from './calendar/dateRangeService';
 export { calculateDailyTotals } from './calendar/calendarInsightService';
 
