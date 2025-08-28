@@ -13,7 +13,7 @@ import { useProjectContext } from '../../contexts/ProjectContext';
 import { useTimelineContext } from '../../contexts/TimelineContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
-import { TimelineViewportService, HolidayCalculationService } from '@/services';
+import { TimelineViewportService, HolidayCalculationService, ProjectValidationService } from '@/services';
 import { useTimelineData } from '../../hooks/useTimelineData';
 import { useDynamicViewportDays } from '../../hooks/useDynamicViewportDays';
 import { calculateDaysDelta, createSmoothAnimation, debounce, throttle } from '@/lib/dragUtils';
@@ -75,61 +75,20 @@ export function TimelineView() {
     settings 
   } = useSettingsContext();
   
-  // Debug: Log the data structures  
+  // Debug: Log the data structures
   console.log('🔍 TimelineView - Available rows:', rows.length);
   console.log('🔍 TimelineView - Available groups:', groups.length);
   console.log('🔍 TimelineView - Available projects:', projects.length);
-  
-  // Check for orphaned projects (projects without proper rowId or groupId)
-  const orphanedProjects = projects.filter(p => !p.rowId || !p.groupId);
-  if (orphanedProjects.length > 0) {
-    console.warn('� ORPHANED PROJECTS (missing rowId or groupId):', orphanedProjects.map(p => ({ 
-      id: p.id, 
-      name: p.name, 
-      rowId: p.rowId, 
-      groupId: p.groupId 
-    })));
-  }
-  
-  // Check for projects that have rowId/groupId but don't match existing rows
-  const mismatchedProjects = projects.filter(p => {
-    if (!p.rowId || !p.groupId) return false;
-    const matchingRow = rows.find(r => r.id === p.rowId && r.groupId === p.groupId);
-    return !matchingRow;
-  });
-  if (mismatchedProjects.length > 0) {
-    console.warn('🚨 MISMATCHED PROJECTS (invalid rowId/groupId):', mismatchedProjects.map(p => ({ 
-      id: p.id, 
-      name: p.name, 
-      rowId: p.rowId, 
-      groupId: p.groupId 
-    })));
-  }
-  
-  // Auto-fix orphaned projects - assign them to the first available row in their group
+
+  // Validate and auto-fix project relationships using the validation service
   React.useEffect(() => {
-    const orphanedProjects = projects.filter(p => !p.rowId || !p.groupId);
-    
-    if (orphanedProjects.length > 0 && groups.length > 0 && rows.length > 0) {
-      console.log('🔧 Auto-fixing orphaned projects...');
-      
-      orphanedProjects.forEach(project => {
-        // If project has no groupId, assign to first available group
-        const targetGroupId = project.groupId || groups[0].id;
-        
-        // Find first row in this group
-        const groupRows = rows.filter(r => r.groupId === targetGroupId);
-        const targetRowId = project.rowId || (groupRows.length > 0 ? groupRows[0].id : null);
-        
-        if (targetRowId && (!project.rowId || !project.groupId)) {
-          console.log(`🔧 Auto-fixing project ${project.name}: assigning to groupId=${targetGroupId}, rowId=${targetRowId}`);
-          updateProject(project.id, { 
-            groupId: targetGroupId,
-            rowId: targetRowId
-          }, { silent: true });
-        }
-      });
-    }
+    ProjectValidationService.validateAndAutoFix(
+      projects,
+      groups,
+      rows,
+      updateProject,
+      { logResults: true }
+    );
   }, [projects, groups, rows, updateProject]);
   
   // Timeline state management

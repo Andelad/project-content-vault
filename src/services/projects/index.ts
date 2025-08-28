@@ -6,3 +6,4 @@ export { calculateEventDurationHours as calculateProgressEventDurationHours } fr
 export * from './projectStatusService';
 export * from './projectWorkingDaysService';
 export * from './projectOverlapService';
+export * from './ProjectValidationService';
