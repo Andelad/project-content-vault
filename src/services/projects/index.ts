@@ -1,4 +1,5 @@
 // Projects services
+export * from './DurationFormattingService';
 export * from './ProjectCalculationService';
 export * from './projectProgressCalculationService';
 export { analyzeProjectProgress } from './projectProgressGraphService';

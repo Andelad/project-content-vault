@@ -16,6 +16,7 @@ import { StandardModal } from '../modals/StandardModal';
 import { Group, Project, ProjectStatus } from '../../types';
 import { AppPageLayout } from '../layout/AppPageLayout';
 import { getEffectiveProjectStatus, organizeProjectsByStatus } from '../../lib/projectUtils';
+import { DurationFormattingService } from '../../services/projects';
 
 type ViewType = 'grid' | 'list';
 
@@ -280,16 +281,7 @@ export function ProjectsView() {
     });
   };
 
-  const getDuration = (startDate: Date, endDate: Date) => {
-    const diffTime = endDate.getTime() - startDate.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    const weeks = Math.floor(diffDays / 7);
-    const days = diffDays % 7;
-    
-    if (weeks === 0) return `${diffDays} days`;
-    if (days === 0) return `${weeks} weeks`;
-    return `${weeks}w ${days}d`;
-  };
+  // Duration formatting is now handled by DurationFormattingService
 
   const getProjectsByGroup = (groupId: string) => {
     return projects.filter(project => project.groupId === groupId);
@@ -436,7 +428,7 @@ export function ProjectsView() {
               </div>
               
               <div className="text-xs text-gray-500">
-                <span>{getDuration(project.startDate, project.endDate)}</span>
+                <span>{DurationFormattingService.formatDuration(project.startDate, project.endDate)}</span>
               </div>
             </div>
 

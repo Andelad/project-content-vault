@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar as CalendarIcon, Clock, User, Palette, X, Trash2, Info, Folder, Briefcase, Zap, Target, Lightbulb, Rocket, Star, Heart, Gift, Music, Camera, Code, Book, Gamepad2, Coffee, Home, Building, Car, Plane, Map, Globe, Infinity, ChevronDown, ChevronRight } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, User, Palette, Trash2, Info, Folder, Briefcase, Zap, Target, Lightbulb, Rocket, Star, Heart, Gift, Music, Camera, Code, Book, Gamepad2, Coffee, Home, Building, Car, Plane, Map, Globe, Infinity, ChevronDown, ChevronRight } from 'lucide-react';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { Label } from '../ui/label';
@@ -183,10 +183,13 @@ interface ProjectDetailModalProps {
 }
 
 export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId }: ProjectDetailModalProps) {
+  // Debug toggle
+  const DEBUG = false;
+  const dlog = (...args: any[]) => { if (DEBUG) console.log(...args); };
   
   // Debug: Identify which modal instance this is
   const modalType = projectId ? 'EDIT' : 'CREATE';
-  console.log(`🔍 ${modalType} Modal render:`, { isOpen, projectId, groupId, rowId });
+  dlog(`🔍 ${modalType} Modal render:`, { isOpen, projectId, groupId, rowId });
   
   const { projects, groups, rows, updateProject, addProject, deleteProject, creatingNewProject, milestones, addMilestone } = useProjectContext();
   const { setCurrentView } = useTimelineContext();
@@ -203,8 +206,12 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
     // Prefer values from creatingNewProject, fall back to props
     const nextGroupId = creatingNewProject?.groupId ?? groupId;
     const nextRowId = creatingNewProject?.rowId ?? rowId;
-    if (nextGroupId && nextGroupId !== resolvedGroupId) setResolvedGroupId(nextGroupId);
-    if (nextRowId && nextRowId !== resolvedRowId) setResolvedRowId(nextRowId);
+    if (nextGroupId) {
+      setResolvedGroupId(prev => (prev === nextGroupId ? prev : nextGroupId));
+    }
+    if (nextRowId) {
+      setResolvedRowId(prev => (prev === nextRowId ? prev : nextRowId));
+    }
   }, [isOpen, creatingNewProject, groupId, rowId]);
 
   // Creating mode is active when there's no projectId and we have a resolved group to create under
@@ -212,7 +219,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
   const group = groups.find(g => g.id === (project?.groupId || resolvedGroupId || groupId));
 
   // Debug logging
-  console.log('🔍 ProjectDetailModal props:', { 
+  dlog('🔍 ProjectDetailModal props:', { 
     isOpen, 
     projectId, 
     groupId: groupId,
@@ -223,7 +230,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
     rowIdType: typeof rowId,
     rowIdExists: !!rowId
   });
-  console.log('🔍 ProjectDetailModal state:', { 
+  dlog('🔍 ProjectDetailModal state:', { 
     isCreating, 
     project, 
     group,
@@ -231,7 +238,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
   });
   
   // Special log for creation mode
-  if (isOpen && isCreating) {
+  if (DEBUG && isOpen && isCreating) {
     console.log('🆕 NEW PROJECT CREATION MODE ACTIVE');
     console.log('🆕 Creation details:', {
       groupId,
@@ -281,6 +288,31 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
     icon: 'folder',
     continuous: false
   });
+
+  // Stable callbacks/objects for MilestoneManager (avoid render loops)
+  const handleUpdateProjectBudget = useCallback((newBudget: number) => {
+    setLocalValues(prev => {
+      if (prev.estimatedHours === newBudget) return prev;
+      return { ...prev, estimatedHours: newBudget };
+    });
+    if (!isCreating && projectId && projectId !== '') {
+      updateProject(projectId, { estimatedHours: newBudget }, { silent: true });
+    }
+  }, [isCreating, projectId, updateProject]);
+
+  const handleRecurringMilestoneChange = useCallback((info: { totalAllocation: number; hasRecurring: boolean; }) => {
+    setRecurringMilestoneInfo(prev => {
+      if (prev.totalAllocation === info.totalAllocation && prev.hasRecurring === info.hasRecurring) return prev;
+      return info;
+    });
+  }, []);
+
+  const localMilestonesStateMemo = useMemo(() => (
+    isCreating ? {
+      milestones: localProjectMilestones,
+      setMilestones: setLocalProjectMilestones
+    } : undefined
+  ), [isCreating, localProjectMilestones]);
 
   // Store original values to restore on cancel
   const [originalValues, setOriginalValues] = useState({
@@ -347,8 +379,8 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
   const handleCreateProject = async () => {
     const gid = resolvedGroupId ?? groupId;
     const rid = resolvedRowId ?? rowId;
-    console.log('🚀 handleCreateProject called - resolvedGroupId:', gid, 'resolvedRowId:', rid);
-    console.log('🚀 isCreating:', isCreating, 'resolved groupId exists:', !!gid, 'value:', gid);
+  dlog('🚀 handleCreateProject called - resolvedGroupId:', gid, 'resolvedRowId:', rid);
+  dlog('🚀 isCreating:', isCreating, 'resolved groupId exists:', !!gid, 'value:', gid);
     
     if (isCreating && gid && gid !== '') {
       try {
@@ -357,7 +389,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
           throw new Error('No row selected. Please select a row before creating a project.');
         }
 
-        console.log('🚀 About to call addProject with groupId:', gid, 'rowId:', rid);
+  dlog('🚀 About to call addProject with groupId:', gid, 'rowId:', rid);
 
         const createdProject = await addProject({
           name: localValues.name.trim() || 'New Project', // Default to "New Project" if no name provided
@@ -436,7 +468,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
 
   // Handle confirming changes
   const handleConfirm = useCallback(async () => {
-    console.log('🎯 handleConfirm clicked', {
+  dlog('🎯 handleConfirm clicked', {
       isCreating,
       projectId,
       groupIdProp: groupId,
@@ -465,12 +497,11 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
     }
 
     // Otherwise treat as edit modal and just close
-    console.log('🎯 Not in create mode; closing modal');
+  dlog('🎯 Not in create mode; closing modal');
     handleClose();
   }, [isCreating, handleCreateProject, handleClose, projectId, groupId, rowId, resolvedGroupId, resolvedRowId]);
 
-  // Always render the AnimatePresence container, let it handle the conditional rendering
-  if (!project && !isCreating && !isOpen) return null;
+  // Avoid early returns here to keep hook order consistent across renders
 
   // Calculate project time metrics using real data
   const currentProject = project || {
@@ -487,7 +518,19 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
     icon: localValues.icon
   };
 
-  const metrics = calculateProjectTimeMetrics(currentProject, events, holidays, settings);
+  const metrics = useMemo(() => (
+    calculateProjectTimeMetrics(currentProject, events, holidays, settings)
+  ), [
+    currentProject.id,
+    currentProject.startDate?.toString?.() ?? '',
+    currentProject.endDate?.toString?.() ?? '',
+    currentProject.estimatedHours,
+    currentProject.continuous as any,
+    events.length,
+    holidays.length,
+    // Minimal settings fingerprint that changes when work hours change
+    JSON.stringify(settings?.weeklyWorkHours ?? {})
+  ]);
 
   // Special TimeMetric component for auto-estimate that shows daily breakdown
   const AutoEstimateTimeMetric = ({ 
@@ -888,13 +931,12 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
     return (
       <div className="min-w-[80px]">
         <Label className="text-xs text-muted-foreground mb-1 block">Client</Label>
-        {isEditing ? (
+  {isEditing ? (
           <Input
             type="text"
             defaultValue={value}
             placeholder={placeholder}
-            className="h-10 text-sm border-border bg-background"
-            style={{ width: `${Math.max(displayValue.length * 8 + 40, 80)}px` }}
+            className="h-10 text-sm border-border bg-background min-w-[80px] max-w-[200px]"
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 const newValue = (e.target as HTMLInputElement).value;
@@ -910,14 +952,15 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
             autoFocus
           />
         ) : (
-          <Button
-            variant="outline"
-            className="h-10 text-sm justify-start text-left font-normal px-3"
-            style={{ width: `${Math.max(displayValue.length * 8 + 40, 80)}px` }}
-            onClick={() => setEditingProperty(property)}
+          <div
+            className="h-10 text-sm justify-start text-left font-normal px-3 border border-input rounded-md bg-background hover:bg-accent hover:text-accent-foreground cursor-pointer flex items-center min-w-[80px] max-w-[200px] relative z-20 pointer-events-auto"
+            role="button"
+            tabIndex={0}
+            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setEditingProperty(property); }}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setEditingProperty(property); } }}
           >
-            {displayValue}
-          </Button>
+            <span className="truncate">{displayValue}</span>
+          </div>
         )}
       </div>
     );
@@ -940,12 +983,11 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
     return (
       <div className="min-w-[100px]">
         <Label className="text-xs text-muted-foreground mb-1 block">Time Budget</Label>
-        {isEditing ? (
+  {isEditing ? (
           <Input
             type="number"
             defaultValue={value}
-            className="h-10 text-sm border-border bg-background"
-            style={{ width: `${Math.max(value.toString().length * 12 + 60, 100)}px` }}
+            className="h-10 text-sm border-border bg-background min-w-[100px] max-w-[200px]"
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 const newValue = parseInt((e.target as HTMLInputElement).value) || 0;
@@ -961,15 +1003,15 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
             autoFocus
           />
         ) : (
-          <Button
-            variant="outline"
-            className="h-10 text-sm justify-start text-left font-normal px-3"
-            style={{ width: `${Math.max(displayValue.length * 8 + 40, 100)}px` }}
-            onClick={() => !isContinuousWithRecurring && setEditingProperty(property)}
-            disabled={isContinuousWithRecurring}
+          <div
+            className="h-10 text-sm justify-start text-left font-normal px-3 border border-input rounded-md bg-background hover:bg-accent hover:text-accent-foreground cursor-pointer flex items-center min-w-[100px] max-w-[200px] relative z-20 pointer-events-auto"
+            role="button"
+            tabIndex={0}
+            onMouseDown={(e) => { if (!isContinuousWithRecurring) { e.preventDefault(); e.stopPropagation(); setEditingProperty(property); } }}
+            onKeyDown={(e) => { if (!isContinuousWithRecurring && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setEditingProperty(property); } }}
           >
-            {displayValue}
-          </Button>
+            <span className="truncate">{displayValue}</span>
+          </div>
         )}
       </div>
     );
@@ -993,8 +1035,8 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
         <Label className="text-xs text-muted-foreground mb-1 block">Group</Label>
         <Select value={currentGroupId || ''} onValueChange={onGroupChange} disabled={disabled}>
           <SelectTrigger 
-            className="h-10 text-sm"
-            style={{ width: `${Math.max(displayValue.length * 8 + 40, 100)}px` }}
+            className="h-10 text-sm min-w-[100px] max-w-[200px] relative z-10 pointer-events-auto"
+            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
           >
             <SelectValue placeholder="Select group">
               {displayValue}
@@ -1105,62 +1147,20 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
   const modalKey = projectId || (isCreating ? `create-${groupId}` : 'modal');
 
   return (
-    <AnimatePresence>
-      {(isOpen && (project || isCreating)) && (
-        <div key={modalKey}>
-          {/* Backdrop */}
-          <motion.div 
-            className="fixed inset-0 bg-black/50 z-40"
-            onClick={handleClose}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15, ease: "easeOut" }}
-          />
-          
-          {/* Modal */}
-          <motion.div 
-            className="fixed max-w-[840px] w-[90vw] h-[95vh] bg-white rounded-lg overflow-hidden shadow-2xl z-50 flex flex-col"
-            style={{
-              left: '50%',
-              top: '2.5vh'
-            }}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="project-title"
-            aria-describedby="project-description"
-            initial={{ 
-              opacity: 0, 
-              x: '-50%',
-              y: 20
-            }}
-            animate={{ 
-              opacity: 1, 
-              x: '-50%',
-              y: 0
-            }}
-            exit={{ 
-              opacity: 0, 
-              x: '-50%',
-              y: 20
-            }}
-            transition={{ 
-              duration: 0.2, 
-              ease: [0.16, 1, 0.3, 1],  // Custom easing for smooth feel
-              opacity: { duration: 0.2 },
-              y: { duration: 0.2 },
-              x: { duration: 0 }  // No transition on x to maintain centering
-            }}
-          >
-        {/* Close button */}
-        <button
-          onClick={handleClose}
-          className="absolute top-4 right-4 p-2 rounded-lg hover:bg-gray-100 transition-colors z-10"
-          aria-label="Close modal"
-        >
-          <X className="w-5 h-5 text-gray-500" />
-        </button>
-
+    <StandardModal
+      isOpen={isOpen && (project || isCreating)}
+      onClose={handleClose}
+      title={isCreating ? 'Create New Project' : (project?.name || 'Project Details')}
+      description={isCreating 
+        ? `Create a new project ${group ? `in the ${group.name} group` : ''}.`
+        : `View and edit project information, properties, and notes for ${project?.name} ${group ? `in the ${group.name} group` : ''}.`
+      }
+      size="project"
+      fixedHeight={true}
+      height="95vh"
+    >
+      {/* Modal content starts here */}
+      <div className="flex flex-col h-full">
         {/* Hidden accessibility elements */}
         <h2 id="project-title" className="sr-only">
           {isCreating ? 'Create New Project' : `Project Details: ${project?.name}`}
@@ -1190,7 +1190,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
                       return <IconComponent className="w-4 h-4 text-foreground absolute inset-0 m-auto" />;
                     })()}
                     {/* Style picker overlay on hover */}
-                    <div className="absolute inset-0 rounded-lg bg-black/0 group-hover:bg-black/20 transition-all duration-200 flex items-center justify-center">
+                    <div className="absolute inset-0 rounded-lg bg-black/0 group-hover:bg-black/20 transition-all duration-200 flex items-center justify-center pointer-events-none">
                       <Palette className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
                     </div>
                   </div>
@@ -1288,7 +1288,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
             
             {/* Insights positioned to align above end date field */}
             {!localValues.continuous && (
-              <div className="flex items-end gap-3 mr-12">
+              <div className="flex items-end gap-3 mr-12 pointer-events-none">
                 <div className="min-w-[80px]">
                   <div className="text-xs text-muted-foreground mb-1 block opacity-0">Start</div>
                 </div>
@@ -1333,7 +1333,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
           
           {/* Second row: Group, Client, Budget (left) and Dates (right) */}
           <div className="flex items-end justify-between">
-            <div className="flex items-end gap-3">
+            <div className="flex items-end gap-3 relative z-10 pointer-events-auto">
               <HeaderGroupField
                 currentGroupId={project?.groupId || groupId}
                 onGroupChange={handleGroupChange}
@@ -1408,19 +1408,9 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
             projectStartDate={localValues.startDate}
             projectEndDate={localValues.endDate}
             projectContinuous={localValues.continuous}
-            onUpdateProjectBudget={(newBudget) => {
-              setLocalValues(prev => ({ ...prev, estimatedHours: newBudget }));
-              if (!isCreating && projectId && projectId !== '') {
-                updateProject(projectId, { estimatedHours: newBudget }, { silent: true });
-              }
-            }}
-            onRecurringMilestoneChange={(info) => {
-              setRecurringMilestoneInfo(info);
-            }}
-            localMilestonesState={isCreating ? {
-              milestones: localProjectMilestones,
-              setMilestones: setLocalProjectMilestones
-            } : undefined}
+            onUpdateProjectBudget={handleUpdateProjectBudget}
+            onRecurringMilestoneChange={handleRecurringMilestoneChange}
+            localMilestonesState={localMilestonesStateMemo}
             isCreatingProject={isCreating}
           />
 
@@ -1620,9 +1610,7 @@ Start typing to capture all your project information in one place."
             )}
           </div>
         </div>
-          </motion.div>
-        </div>
-      )}
-    </AnimatePresence>
+      </div>
+    </StandardModal>
   );
 }

@@ -22,6 +22,10 @@ export function calculateProjectTimeMetrics(
   holidays: Holiday[],
   settings: Settings
 ): ProjectTimeMetrics {
+  // Defensive defaults for safety during early renders or partial context
+  const safeHolidays: Holiday[] = Array.isArray(holidays) ? holidays : [];
+  const safeEvents: CalendarEvent[] = Array.isArray(events) ? events : [];
+  const safeSettings: Settings = (settings as any) || ({ weeklyWorkHours: {} } as Settings);
   const projectStart = new Date(project.startDate);
   projectStart.setHours(0, 0, 0, 0);
   
@@ -43,18 +47,18 @@ export function calculateProjectTimeMetrics(
   }
   
   // Calculate total working days in project timeframe
-  const allWorkDays = getWorkingDaysInRange(projectStart, projectEnd, holidays, settings);
+  const allWorkDays = getWorkingDaysInRange(projectStart, projectEnd, safeHolidays, safeSettings);
   
   // Calculate remaining working days (from today to project end, only if project hasn't ended)
   // For continuous projects, this will be the remaining days in the calculation period
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Start of today
   const remainingWorkDays = (project.continuous || projectEnd >= today)
-    ? getWorkingDaysInRange(today > projectStart ? today : projectStart, projectEnd, holidays, settings)
+    ? getWorkingDaysInRange(today > projectStart ? today : projectStart, projectEnd, safeHolidays, safeSettings)
     : 0;
 
   // Calculate planned time from events connected to this project
-  const projectEvents = events.filter(event => event.projectId === project.id);
+  const projectEvents = safeEvents.filter(event => event.projectId === project.id);
   const plannedTime = projectEvents.reduce((total, event) => {
     const durationMs = event.endTime.getTime() - event.startTime.getTime();
     return total + (durationMs / (1000 * 60 * 60)); // Convert to hours
@@ -106,6 +110,8 @@ function getWorkingDaysInRange(
   holidays: Holiday[], 
   settings: Settings
 ): number {
+  if (!settings || !(settings as any).weeklyWorkHours) return 0;
+  const safeHolidays: Holiday[] = Array.isArray(holidays) ? holidays : [];
   let workingDays = 0;
   const current = new Date(startDate);
   
@@ -113,7 +119,7 @@ function getWorkingDaysInRange(
   // Only adjust when calculating remaining work days
   
   while (current <= endDate) {
-    if (isWorkingDay(current, holidays, settings)) {
+  if (isWorkingDay(current, safeHolidays, settings)) {
       workingDays++;
     }
     current.setDate(current.getDate() + 1);
@@ -126,8 +132,11 @@ function getWorkingDaysInRange(
  * Checks if a given date is a working day
  */
 function isWorkingDay(date: Date, holidays: Holiday[], settings: Settings): boolean {
+  if (!settings || !(settings as any).weeklyWorkHours) return false;
+  const weekly = (settings as any).weeklyWorkHours as Record<string, any[]>;
+  const safeHolidays: Holiday[] = Array.isArray(holidays) ? holidays : [];
   // Check if it's a holiday
-  const isHoliday = holidays.some(holiday => 
+  const isHoliday = safeHolidays.some(holiday => 
     date >= new Date(holiday.startDate) && date <= new Date(holiday.endDate)
   );
   
@@ -137,8 +146,8 @@ function isWorkingDay(date: Date, holidays: Holiday[], settings: Settings): bool
 
   // Check if it's a day with work hours configured
   const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-  const dayName = dayNames[date.getDay()] as keyof typeof settings.weeklyWorkHours;
-  const workSlots = settings.weeklyWorkHours[dayName] || [];
+  const dayName = dayNames[date.getDay()] as keyof typeof weekly;
+  const workSlots = weekly?.[dayName] || [];
   
   return Array.isArray(workSlots) && 
     workSlots.reduce((sum, slot) => sum + slot.duration, 0) > 0;
