@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Button } from './ui/button';
-import { Card } from './ui/card';
-import { Badge } from './ui/badge';
-import { Separator } from './ui/separator';
+import { Button } from '../ui/button';
+import { Card } from '../ui/card';
+import { Badge } from '../ui/badge';
+import { Separator } from '../ui/separator';
 import { getCacheStats, cleanupMemoizationCaches } from '@/lib/memoization';
 import { performanceMonitor } from '@/lib/performanceUtils';
-import { useProjectContext } from '../contexts/ProjectContext';
-import { usePlannerContext } from '../contexts/PlannerContext';
+import { useProjectContext } from '../../contexts/ProjectContext';
+import { usePlannerContext } from '../../contexts/PlannerContext';
 import { PERFORMANCE_LIMITS } from '@/constants';
 import { Eye, EyeOff, Trash2, Activity, Database } from 'lucide-react';
 import { calculateCacheHitRate, analyzeCachePerformance, generateCacheRecommendations } from '@/services';

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ProjectProvider } from '../contexts/ProjectContext';
+import { ProjectProvider } from '../../contexts/ProjectContext';
 
 function TestProjectContext() {
   return (

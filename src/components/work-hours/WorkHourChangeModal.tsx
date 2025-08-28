@@ -6,10 +6,10 @@ import {
   DialogHeader, 
   DialogTitle, 
   DialogFooter 
-} from './ui/dialog';
-import { Button } from './ui/button';
+} from '../ui/dialog';
+import { Button } from '../ui/button';
 import { Clock, Calendar, Settings, AlertTriangle } from 'lucide-react';
-import { Alert, AlertDescription } from './ui/alert';
+import { Alert, AlertDescription } from '../ui/alert';
 
 interface WorkHourChangeModalProps {
   isOpen: boolean;

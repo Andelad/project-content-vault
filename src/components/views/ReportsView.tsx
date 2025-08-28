@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useProjectContext } from '../contexts/ProjectContext';
-import { usePlannerContext } from '../contexts/PlannerContext';
-import { useSettingsContext } from '../contexts/SettingsContext';
+import { useProjectContext } from '../../contexts/ProjectContext';
+import { usePlannerContext } from '../../contexts/PlannerContext';
+import { useSettingsContext } from '../../contexts/SettingsContext';
 import { calculateWorkHourCapacity, getWorkHoursCapacityForPeriod } from '@/lib/workHoursUtils';
 import { 
   BarChart, 
@@ -22,11 +22,11 @@ import {
   ChevronRight,
   Sun
 } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Button } from './ui/button';
-import { Badge } from './ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Checkbox } from './ui/checkbox';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { Button } from '../ui/button';
+import { Badge } from '../ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Checkbox } from '../ui/checkbox';
 
 type TimeFrame = 'week' | 'month' | 'year';
 type AveragePeriod = 'week' | 'month' | '6months';

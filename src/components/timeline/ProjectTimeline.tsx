@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Project } from '../types';
-import { usePlannerContext } from '../contexts/PlannerContext';
-import { useTimelineContext } from '../contexts/TimelineContext';
+import { Project } from '../../types';
+import { usePlannerContext } from '../../contexts/PlannerContext';
+import { useTimelineContext } from '../../contexts/TimelineContext';
 
 interface ProjectTimelineProps {
   project: Project;

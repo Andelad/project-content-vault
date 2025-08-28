@@ -1,5 +1,5 @@
 import React from 'react';
-import { AppProviders } from '../contexts/AppProviders';
+import { AppProviders } from '../../contexts/AppProviders';
 
 function TestContexts() {
   try {

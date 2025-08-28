@@ -1,7 +1,7 @@
 import React, { memo, useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '../ui/button';
-import { TimeTracker } from '../TimeTracker';
+import { TimeTracker } from '../work-hours/TimeTracker';
 
 interface TimelineHeaderProps {
   currentDate: Date;

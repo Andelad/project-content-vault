@@ -14,23 +14,23 @@ import { Button } from '@/components/ui/button';
 import { LogOut } from 'lucide-react';
 import { Sidebar } from '@/components/Sidebar';
 import { ProjectDetailModal } from '@/components';
-import { HolidayModal } from '@/components/HolidayModal';
-import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { DevToolsWrapper } from '@/components/DevTools';
+import { HolidayModal } from '@/components/modals/HolidayModal';
+import { ErrorBoundary } from '@/components/debug/ErrorBoundary';
+import { DevToolsWrapper } from '@/components/debug/DevTools';
 import { useFavicon } from '@/hooks/useFavicon';
 import LandingPage from '@/pages/LandingPage';
 
 // Lazy load view components for better performance
 const TimelineView = lazy(() => import('@/components').then(module => ({ default: module.TimelineView })));
-const PlannerView = lazy(() => import('@/components/PlannerView').then(module => ({ default: module.PlannerView })));
+const PlannerView = lazy(() => import('@/components/planner').then(module => ({ default: module.PlannerView })));
 const ProjectsView = lazy(() => import('@/components').then(module => ({ default: module.ProjectsView })));
 const InsightsView = lazy(() => import('@/components').then(module => ({ default: module.InsightsView })));
 const SettingsView = lazy(() => import('@/components').then(module => ({ default: module.SettingsView })));
-const ProfileView = lazy(() => import('@/components/ProfileView').then(module => ({ default: module.ProfileView })));
+const ProfileView = lazy(() => import('@/components/views').then(module => ({ default: module.ProfileView })));
 const Auth = lazy(() => import('@/pages/Auth'));
 
 // Import the EventDetailModal
-import { EventDetailModal } from '@/components/EventDetailModal';
+import { EventDetailModal } from '@/components/modals/EventDetailModal';
 
 const queryClient = new QueryClient();
 

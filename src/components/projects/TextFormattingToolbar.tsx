@@ -13,8 +13,8 @@ import {
   Quote,
   Minus
 } from 'lucide-react';
-import { Button } from './ui/button';
-import { Separator } from './ui/separator';
+import { Button } from '../ui/button';
+import { Separator } from '../ui/separator';
 
 interface TextFormattingToolbarProps {
   onFormat: (type: string, value?: string) => void;

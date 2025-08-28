@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { Plus, AlertTriangle } from 'lucide-react';
-import { useSettingsContext } from '../contexts/SettingsContext';
+import { useSettingsContext } from '../../contexts/SettingsContext';
 import { 
   handleWorkHourCreationStart,
   handleWorkHourCreationMove,

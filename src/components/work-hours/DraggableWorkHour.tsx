@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Clock, Move, GripVertical } from 'lucide-react';
-import { WorkHour } from '../types';
+import { WorkHour } from '../../types';
 
 interface DraggableWorkHourProps {
   workHour: WorkHour;

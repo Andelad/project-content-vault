@@ -1,6 +1,6 @@
 import React from 'react';
-import { AppProviders } from '../contexts/AppProviders';
-import { useProjectContext } from '../contexts/ProjectContext';
+import { AppProviders } from '../../contexts/AppProviders';
+import { useProjectContext } from '../../contexts/ProjectContext';
 
 function TestComponent() {
   try {

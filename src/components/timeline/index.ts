@@ -1,7 +1,7 @@
 // Timeline feature components
 // Main timeline components
 export { TimelineView } from '../TimelineView';
-export { ProjectTimeline } from '../ProjectTimeline';
+export { ProjectTimeline } from './ProjectTimeline';
 
 // Timeline sub-components
 export { AddGroupRow } from './AddGroupRow';

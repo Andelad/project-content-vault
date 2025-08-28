@@ -11,7 +11,7 @@ import { Badge } from '../ui/badge';
 import { Save, Bell, Palette, Clock, Globe, Shield, Trash2, User, Plus, X, Calendar } from 'lucide-react';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 import { WorkSlot } from '@/types/core';
-import { CalendarImport } from '../CalendarImport';
+import { CalendarImport } from '../planner/CalendarImport';
 import { useToast } from '../../hooks/use-toast';
 import { AppPageLayout } from '../layouts/AppPageLayout';
 import {

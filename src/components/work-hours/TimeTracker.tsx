@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Play, Square, Search } from 'lucide-react';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Card, CardContent } from './ui/card';
-import { useProjectContext } from '../contexts/ProjectContext';
-import { usePlannerContext } from '../contexts/PlannerContext';
-import { useSettingsContext } from '../contexts/SettingsContext';
-import { CalendarEvent } from '../types';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Card, CardContent } from '../ui/card';
+import { useProjectContext } from '../../contexts/ProjectContext';
+import { usePlannerContext } from '../../contexts/PlannerContext';
+import { useSettingsContext } from '../../contexts/SettingsContext';
+import { CalendarEvent } from '../../types';
 import { calculateOverlapActions, findOverlappingEvents } from '@/services';
 import { formatTimeSeconds } from '@/services';
 import { 

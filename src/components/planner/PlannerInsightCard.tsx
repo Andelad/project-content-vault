@@ -1,11 +1,11 @@
 import React, { useMemo, useEffect, useState } from 'react';
 import moment from 'moment';
-import { Card } from './ui/card';
-import { CalendarEvent } from '../types';
-import { useSettingsContext } from '../contexts/SettingsContext';
+import { Card } from '../ui/card';
+import { CalendarEvent } from '../../types';
+import { useSettingsContext } from '../../contexts/SettingsContext';
 import { calculateEventDurationOnDate, aggregateEventDurationsByDate, formatDuration } from '@/services';
 // Keep the original import for now to avoid breaking changes
-import { calculateEventDurationOnDate as originalCalculateEventDurationOnDate } from '../lib/midnightEventUtils';
+import { calculateEventDurationOnDate as originalCalculateEventDurationOnDate } from '../../lib/midnightEventUtils';
 
 interface CalendarInsightCardProps {
   dates: Date[];
