@@ -22,6 +22,9 @@ export * from './settings';
 export * from './timeline';
 export * from './work-hours';
 
+// Project overlap service
+export * from './projectOverlapService';
+
 // Explicit exports for missing services
 export { CalendarIntegrationService, type ImportResult } from './calendar/calendarIntegration';
 export { TimeAllocationService } from './core/TimeAllocationService';

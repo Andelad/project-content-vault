@@ -10,3 +10,4 @@ export {
   type EventSplitResult
 } from './eventSplittingService';
 export * from './eventWorkHourIntegrationService';
+export * from './timelineDragCoordinatorService';

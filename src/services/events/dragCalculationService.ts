@@ -578,3 +578,148 @@ export function calculateDragPerformanceMetrics(
     efficiency
   };
 }
+
+/**
+ * Drag position update result interface
+ */
+export interface DragPositionResult {
+  daysDelta: number;
+  visualDelta: number;
+  pixelDeltaX: number;
+  shouldUpdate: boolean;
+  snappedDelta?: number;
+}
+
+/**
+ * Drag bounds validation result interface
+ */
+export interface DragBoundsValidationResult {
+  isValid: boolean;
+  reason?: string;
+  adjustedStartDate?: Date;
+  adjustedEndDate?: Date;
+}
+
+/**
+ * Throttled update function type
+ */
+export type ThrottledFunction = (callback: () => void | Promise<void>) => void;
+
+/**
+ * Calculate drag position update from mouse movement
+ * Extracts mouse position → timeline position conversion logic
+ */
+export function calculateDragPositionUpdate(
+  currentMouseX: number,
+  currentMouseY: number,
+  dragState: DragState,
+  dates: Date[],
+  mode: 'days' | 'weeks'
+): DragPositionResult {
+  // Calculate incremental delta from last mouse position
+  const incrementalDeltaX = currentMouseX - dragState.startX;
+  const totalDeltaX = currentMouseX - dragState.startX;
+  const dayWidth = mode === 'weeks' ? DRAG_CONSTANTS.WEEKS_MODE_DAY_WIDTH : DRAG_CONSTANTS.DAYS_MODE_COLUMN_WIDTH;
+
+  // Always accumulate smooth movement for responsive pen/mouse following
+  const currentPixelDeltaX = (dragState as any).pixelDeltaX || 0 + incrementalDeltaX;
+  const smoothVisualDelta = currentPixelDeltaX / dayWidth;
+
+  // For visual display: snap to day boundaries in days view, smooth in weeks view
+  let visualDelta: number;
+  let snappedDelta: number | undefined;
+
+  if (mode === 'weeks') {
+    visualDelta = smoothVisualDelta;  // Smooth movement in weeks
+  } else {
+    // In days view: snap to nearest day boundary but prevent jumping
+    snappedDelta = Math.round(smoothVisualDelta);
+    const currentSnapped = (dragState as any).lastSnappedDelta || 0;
+    const minMovement = 0.3; // Require 30% of day width movement to snap
+
+    if (Math.abs(snappedDelta - currentSnapped) >= 1 && Math.abs(smoothVisualDelta - currentSnapped) > minMovement) {
+      visualDelta = snappedDelta;
+      (dragState as any).lastSnappedDelta = snappedDelta;
+    } else {
+      visualDelta = currentSnapped; // Stay at current snapped position until boundary crossed
+    }
+  }
+
+  // Calculate rounded delta for database updates
+  const daysDelta = calculateDaysDelta(currentMouseX, dragState.startX, dates, true, mode);
+
+  // Determine if update is needed
+  const shouldUpdate = daysDelta !== dragState.lastDaysDelta;
+
+  return {
+    daysDelta,
+    visualDelta,
+    pixelDeltaX: currentPixelDeltaX,
+    shouldUpdate,
+    snappedDelta
+  };
+}
+
+/**
+ * Validate drag bounds against viewport constraints
+ * Extracts date range validation during drag operations
+ */
+export function validateDragBounds(
+  newStartDate: Date,
+  newEndDate: Date,
+  viewportStart: Date,
+  viewportEnd: Date
+): DragBoundsValidationResult {
+  // Check if dates are within viewport bounds
+  if (newStartDate < viewportStart || newEndDate > viewportEnd) {
+    return {
+      isValid: false,
+      reason: 'Drag operation would move project outside viewport bounds'
+    };
+  }
+
+  // Basic date validation
+  if (newStartDate > newEndDate) {
+    return {
+      isValid: false,
+      reason: 'Start date cannot be after end date',
+      adjustedStartDate: newStartDate,
+      adjustedEndDate: new Date(newStartDate.getTime() + 24 * 60 * 60 * 1000) // Add one day
+    };
+  }
+
+  // Minimum duration check
+  const duration = Math.ceil((newEndDate.getTime() - newStartDate.getTime()) / (24 * 60 * 60 * 1000));
+  if (duration < DRAG_CONSTANTS.MIN_PROJECT_DURATION_DAYS) {
+    const adjustedEndDate = new Date(newStartDate);
+    adjustedEndDate.setDate(adjustedEndDate.getDate() + DRAG_CONSTANTS.MIN_PROJECT_DURATION_DAYS - 1);
+
+    return {
+      isValid: false,
+      reason: `Minimum project duration is ${DRAG_CONSTANTS.MIN_PROJECT_DURATION_DAYS} day(s)`,
+      adjustedStartDate: newStartDate,
+      adjustedEndDate: adjustedEndDate
+    };
+  }
+
+  return {
+    isValid: true,
+    adjustedStartDate: newStartDate,
+    adjustedEndDate: newEndDate
+  };
+}
+
+/**
+ * Create throttled update function for drag operations
+ * Extracts performance optimization logic for drag updates
+ */
+export function createDragThrottledUpdate(
+  updateFunction: (callback: () => void | Promise<void>) => void,
+  mode: 'days' | 'weeks'
+): ThrottledFunction {
+  const throttleDelay = mode === 'weeks'
+    ? DRAG_CONSTANTS.THROTTLE_DELAY_WEEKS_MS
+    : DRAG_CONSTANTS.THROTTLE_DELAY_DAYS_MS;
+
+  return throttleDragUpdate(updateFunction, mode, throttleDelay);
+}
