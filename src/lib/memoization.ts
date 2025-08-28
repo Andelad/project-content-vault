@@ -105,12 +105,12 @@ export function memoizeExpensiveCalculation<T extends (...args: any[]) => any>(
 // Specific memoized functions for common calculations
 export const memoizedTimelinePositions = memoizeExpensiveCalculation(
   (startDate: Date, endDate: Date, viewportStart: Date, viewportEnd: Date, dates: Date[], mode: string) => {
-    // Import and use the actual calculation function
-    const { calculateTimelinePositions } = require('./timelinePositioning');
-    return calculateTimelinePositions(startDate, endDate, viewportStart, viewportEnd, dates, mode);
+    // Import and use the actual calculation function from the consolidated service
+    const { TimelinePositioningService } = require('../services');
+    return TimelinePositioningService.calculateTimelinePositions(startDate, endDate, viewportStart, viewportEnd, dates, mode);
   },
   timelineCalculationCache,
-  (startDate, endDate, viewportStart, viewportEnd, dates, mode) => 
+  (startDate, endDate, viewportStart, viewportEnd, dates, mode) =>
     `timeline-pos-${startDate.getTime()}-${endDate.getTime()}-${viewportStart.getTime()}-${viewportEnd.getTime()}-${dates.length}-${mode}`
 );
 

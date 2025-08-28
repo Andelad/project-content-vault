@@ -21,6 +21,7 @@ export * from './reports';
 export * from './settings';
 export * from './timeline';
 export * from './work-hours';
+export * from './tracker';
 
 // Core cross-cutting services
 export * from './core';
