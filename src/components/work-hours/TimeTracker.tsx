@@ -15,6 +15,7 @@ import {
   createTimeRange,
   type EventSplitResult 
 } from '@/services';
+import { TimeTrackerCalculationService } from '@/services/tracker';
 
 interface TimeTrackerProps {
   className?: string;
@@ -37,53 +38,32 @@ export function TimeTracker({ className }: TimeTrackerProps) {
   const liveUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
 
-  // Storage keys for persistence
-  const STORAGE_KEYS = {
-    isTracking: 'timeTracker_isTracking',
-    startTime: 'timeTracker_startTime',
-    eventId: 'timeTracker_eventId',
-    selectedProject: 'timeTracker_selectedProject',
-    searchQuery: 'timeTracker_searchQuery',
-    affectedEvents: 'timeTracker_affectedEvents'
-  };
+  // Storage keys from service
+  const STORAGE_KEYS = TimeTrackerCalculationService.getStorageKeys();
 
   // Load tracking state from localStorage on mount
   useEffect(() => {
     const loadTrackingState = () => {
-      const savedIsTracking = localStorage.getItem(STORAGE_KEYS.isTracking) === 'true';
-      const savedStartTime = localStorage.getItem(STORAGE_KEYS.startTime);
-      const savedEventId = localStorage.getItem(STORAGE_KEYS.eventId);
-      const savedProject = localStorage.getItem(STORAGE_KEYS.selectedProject);
-      const savedQuery = localStorage.getItem(STORAGE_KEYS.searchQuery);
-      const savedAffectedEvents = localStorage.getItem(STORAGE_KEYS.affectedEvents);
-
-      if (savedIsTracking && savedStartTime && savedEventId) {
-        const startTime = new Date(savedStartTime);
-        const { totalSeconds: elapsedSeconds } = calculateElapsedTime(startTime);
+      const trackingState = TimeTrackerCalculationService.loadTrackingState();
+      
+      if (trackingState && trackingState.startTime && trackingState.eventId) {
+        const { totalSeconds: elapsedSeconds } = TimeTrackerCalculationService.calculateElapsedTime(trackingState.startTime);
         
         setIsTimeTracking(true);
         setSeconds(elapsedSeconds);
-        setCurrentEventId(savedEventId);
-        startTimeRef.current = startTime;
+        setCurrentEventId(trackingState.eventId);
+        startTimeRef.current = trackingState.startTime;
         
-        if (savedProject) {
-          try {
-            setSelectedProject(JSON.parse(savedProject));
-          } catch (e) {
-            console.error('Failed to parse saved project:', e);
-          }
+        if (trackingState.selectedProject) {
+          setSelectedProject(trackingState.selectedProject);
         }
         
-        if (savedQuery) {
-          setSearchQuery(savedQuery);
+        if (trackingState.searchQuery) {
+          setSearchQuery(trackingState.searchQuery);
         }
 
-        if (savedAffectedEvents) {
-          try {
-            setAffectedPlannedEvents(JSON.parse(savedAffectedEvents));
-          } catch (e) {
-            console.error('Failed to parse saved affected events:', e);
-          }
+        if (trackingState.affectedEvents) {
+          setAffectedPlannedEvents(trackingState.affectedEvents);
         }
         
         // Start the timer interval
@@ -92,7 +72,7 @@ export function TimeTracker({ className }: TimeTrackerProps) {
         }, 1000);
 
         // Start live update interval
-        startLiveUpdates(savedEventId, startTime);
+        startLiveUpdates(trackingState.eventId, trackingState.startTime);
       }
     };
 
@@ -101,46 +81,18 @@ export function TimeTracker({ className }: TimeTrackerProps) {
 
   // Check for overlapping planned events and adjust them
   const handlePlannedEventOverlaps = (trackingStart: Date, trackingEnd: Date) => {
-    const trackingRange = createTimeRange(trackingStart, trackingEnd);
-    const eventsToProcess = events.filter(event => event.id !== currentEventId);
-    const splitResults = processEventOverlaps(eventsToProcess, trackingRange);
+    const affectedEvents = TimeTrackerCalculationService.handlePlannedEventOverlaps(
+      events,
+      trackingStart,
+      trackingEnd,
+      currentEventId,
+      deleteEvent,
+      updateEvent,
+      addEvent
+    );
     
-    const newAffectedEvents: string[] = [];
-    
-    splitResults.forEach((result: EventSplitResult) => {
-      switch (result.action) {
-        case 'delete':
-          deleteEvent(result.originalEvent.id);
-          break;
-          
-        case 'split':
-          // Update the first part
-          if (result.updatedEvent) {
-            updateEvent(result.originalEvent.id, result.updatedEvent);
-          }
-          
-          // Create the second part if needed
-          if (result.newEvent) {
-            addEvent({
-              ...result.newEvent,
-              color: result.newEvent.color || '#3b82f6', // Default blue color
-              type: 'planned'
-            });
-          }
-          break;
-          
-        case 'trim-start':
-        case 'trim-end':
-          if (result.updatedEvent) {
-            updateEvent(result.originalEvent.id, result.updatedEvent, { silent: true });
-            newAffectedEvents.push(result.originalEvent.id);
-          }
-          break;
-      }
-    });
-
-    setAffectedPlannedEvents(newAffectedEvents);
-    return newAffectedEvents;
+    setAffectedPlannedEvents(affectedEvents);
+    return affectedEvents;
   };
 
   // Start live updates for the tracking event
@@ -150,17 +102,16 @@ export function TimeTracker({ className }: TimeTrackerProps) {
     }
 
     liveUpdateIntervalRef.current = setInterval(() => {
-      const now = new Date();
-      const duration = (now.getTime() - startTime.getTime()) / (1000 * 60 * 60);
+      const { duration } = TimeTrackerCalculationService.calculateElapsedTime(startTime);
       
       // Update the tracking event silently (no toast notifications)
       updateEvent(eventId, {
-        endTime: now,
+        endTime: new Date(),
         duration
       }, { silent: true });
 
       // Check for new overlaps as the event grows
-      const affected = handlePlannedEventOverlaps(startTime, now);
+      const affected = handlePlannedEventOverlaps(startTime, new Date());
       
       // Save affected events to localStorage
       localStorage.setItem(STORAGE_KEYS.affectedEvents, JSON.stringify(affected));
@@ -176,65 +127,12 @@ export function TimeTracker({ className }: TimeTrackerProps) {
     searchQuery?: string;
     affectedEvents?: string[];
   }) => {
-    if (trackingData.isTracking) {
-      localStorage.setItem(STORAGE_KEYS.isTracking, 'true');
-      if (trackingData.startTime) {
-        localStorage.setItem(STORAGE_KEYS.startTime, trackingData.startTime.toISOString());
-      }
-      if (trackingData.eventId) {
-        localStorage.setItem(STORAGE_KEYS.eventId, trackingData.eventId);
-      }
-      if (trackingData.selectedProject) {
-        localStorage.setItem(STORAGE_KEYS.selectedProject, JSON.stringify(trackingData.selectedProject));
-      }
-      if (trackingData.searchQuery) {
-        localStorage.setItem(STORAGE_KEYS.searchQuery, trackingData.searchQuery);
-      }
-      if (trackingData.affectedEvents) {
-        localStorage.setItem(STORAGE_KEYS.affectedEvents, JSON.stringify(trackingData.affectedEvents));
-      }
-    } else {
-      // Clear all tracking data
-      Object.values(STORAGE_KEYS).forEach(key => {
-        localStorage.removeItem(key);
-      });
-    }
+    TimeTrackerCalculationService.saveTrackingState(trackingData);
   };
 
   // Filter projects and clients based on search query
   const searchResults = useMemo(() => {
-    if (!searchQuery.trim()) return [];
-    
-    const query = searchQuery.toLowerCase();
-    const results: Array<{type: 'project' | 'client', id: string, name: string, client?: string}> = [];
-    
-    // Search projects
-    projects.forEach(project => {
-      if (project.name.toLowerCase().includes(query) || 
-          project.client.toLowerCase().includes(query)) {
-        results.push({
-          type: 'project',
-          id: project.id,
-          name: project.name,
-          client: project.client
-        });
-      }
-    });
-    
-    // Search unique clients
-    const uniqueClients = [...new Set(projects.map(p => p.client))];
-    uniqueClients.forEach(client => {
-      if (client.toLowerCase().includes(query) && 
-          !results.some(r => r.type === 'client' && r.name === client)) {
-        results.push({
-          type: 'client',
-          id: client,
-          name: client
-        });
-      }
-    });
-    
-    return results.slice(0, 8); // Limit to 8 results
+    return TimeTrackerCalculationService.filterSearchResults(projects, searchQuery);
   }, [searchQuery, projects]);
 
   // Format time display using extracted service
@@ -266,16 +164,11 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       setIsTimeTracking(true);
       
       // Create tracking event with distinctive styling
-      const eventData: Omit<CalendarEvent, 'id'> = {
-        title: `🔴 ${selectedProjectData?.name || item.name || 'Time Tracking'}`,
-        startTime: now,
-        endTime: new Date(now.getTime() + 60000), // Start with 1 minute
-        projectId: selectedProjectData?.id,
-        color: selectedProjectData?.color || '#DC2626', // Red color for tracking
-        description: `Active time tracking${selectedProjectData ? ` for ${selectedProjectData.name}` : ''}`,
-        duration: 0.0167, // 1 minute in hours
-        type: 'tracked'
-      };
+      const eventData = TimeTrackerCalculationService.createTrackingEventData(
+        selectedProjectData,
+        item.name,
+        now
+      );
       
       try {
         // Create the tracking event
@@ -329,16 +222,11 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       setIsTimeTracking(true);
       
       // Create tracking event with distinctive styling
-      const eventData: Omit<CalendarEvent, 'id'> = {
-        title: `🔴 ${selectedProject?.name || searchQuery || 'Time Tracking'}`,
-        startTime: now,
-        endTime: new Date(now.getTime() + 60000), // Start with 1 minute
-        projectId: selectedProject?.id,
-        color: selectedProject?.color || '#DC2626', // Red color for tracking
-        description: `Active time tracking${selectedProject ? ` for ${selectedProject.name}` : ''}`,
-        duration: 0.0167, // 1 minute in hours
-        type: 'tracked'
-      };
+      const eventData = TimeTrackerCalculationService.createTrackingEventData(
+        selectedProject,
+        searchQuery,
+        now
+      );
       
       try {
         // Create the tracking event
@@ -387,18 +275,21 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       
       if (currentEventId && startTimeRef.current) {
         const endTime = new Date();
-        const duration = (endTime.getTime() - startTimeRef.current.getTime()) / (1000 * 60 * 60); // hours
+        const duration = TimeTrackerCalculationService.calculateDurationInHours(startTimeRef.current, endTime);
         
         try {
           // Final update to the tracking event - mark as completed
-          await updateEvent(currentEventId, {
+          const completedEventData = TimeTrackerCalculationService.createCompletedEventData(
+            selectedProject,
+            searchQuery,
+            startTimeRef.current,
             endTime,
             duration,
-            title: (selectedProject?.name || searchQuery || 'Time Tracking'), // Clean title
-            description: `Completed time tracking${selectedProject ? ` for ${selectedProject.name}` : ''} - ${formatTime(seconds)}`,
-            completed: true, // Mark as completed
-            type: 'completed' // Change type to completed
-          });
+            seconds,
+            formatTime
+          );
+          
+          await updateEvent(currentEventId, completedEventData);
           
           // Handle any final overlaps
           handlePlannedEventOverlaps(startTimeRef.current, endTime);
