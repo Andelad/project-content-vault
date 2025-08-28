@@ -13,8 +13,6 @@
  */
 
 // Feature-based service exports
-export * from './calendar';
-export * from './core';
 export * from './events';
 export * from './milestones';
 export * from './performance';
