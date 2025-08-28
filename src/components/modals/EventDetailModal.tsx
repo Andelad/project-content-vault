@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { CalendarEvent } from '../../types';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -14,6 +13,7 @@ import { Switch } from '../ui/switch';
 import { cn } from '@/lib/utils';
 import { OKLCH_FALLBACK_GRAY } from '@/constants/colors';
 import { RecurringDeleteDialog } from './RecurringDeleteDialog';
+import { StandardModal } from './StandardModal';
 
 interface EventDetailModalProps {
   isOpen: boolean;
@@ -354,17 +354,34 @@ export function EventDetailModal({
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <CalendarIcon className="w-5 h-5" />
-            {isEditing ? 'Edit Event' : 'Create Event'}
-          </DialogTitle>
-          <DialogDescription>
-            {isEditing ? 'Edit the details of the event' : 'Create a new event'}
-          </DialogDescription>
-        </DialogHeader>
+      <StandardModal
+        isOpen={isOpen}
+        onClose={onClose}
+        title={isEditing ? 'Edit Event' : 'Create Event'}
+        description={isEditing ? 'Edit the details of the event' : 'Create a new event'}
+        size="md"
+        primaryAction={{
+          label: isSubmitting ? 'Saving...' : (isEditing ? 'Update Event' : 'Create Event'),
+          onClick: () => {
+            const form = document.querySelector('form');
+            if (form) {
+              const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+              form.dispatchEvent(submitEvent);
+            }
+          },
+          loading: isSubmitting,
+          disabled: isSubmitting
+        }}
+        secondaryAction={{
+          label: "Cancel",
+          onClick: onClose
+        }}
+        destructiveAction={isEditing ? {
+          label: "Delete Event",
+          onClick: handleDelete,
+          icon: <Trash2 className="w-4 h-4" />
+        } : undefined}
+      >
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Title */}
@@ -617,53 +634,19 @@ export function EventDetailModal({
               {errors.submit}
             </div>
           )}
-
-          {/* Action Buttons */}
-          <div className="flex justify-between">
-            <div>
-              {isEditing && (
-                <Button
-                  type="button"
-                  variant="destructive"
-                  onClick={handleDelete}
-                  className="gap-2"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Delete Event
-                </Button>
-              )}
-            </div>
-            
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onClose}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? 'Saving...' : (isEditing ? 'Update Event' : 'Create Event')}
-              </Button>
-            </div>
-          </div>
         </form>
-      </DialogContent>
-    </Dialog>
-    
-    {/* Recurring Delete Dialog */}
-    <RecurringDeleteDialog
-      isOpen={showDeleteDialog}
-      onClose={() => setShowDeleteDialog(false)}
-      onDeleteThis={handleDeleteThis}
-      onDeleteFuture={handleDeleteFuture}
-      onDeleteAll={handleDeleteAll}
-      eventTitle={existingEvent?.title || ''}
-      isRecurring={isRecurringEvent}
-    />
+      </StandardModal>
+
+      {/* Recurring Delete Dialog */}
+      <RecurringDeleteDialog
+        isOpen={showDeleteDialog}
+        onClose={() => setShowDeleteDialog(false)}
+        onDeleteThis={handleDeleteThis}
+        onDeleteFuture={handleDeleteFuture}
+        onDeleteAll={handleDeleteAll}
+        eventTitle={existingEvent?.title || ''}
+        isRecurring={isRecurringEvent}
+      />
     </>
   );
 }

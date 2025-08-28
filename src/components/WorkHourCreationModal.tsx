@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Textarea } from '../ui/textarea';
-import { StandardModal } from '../modals/StandardModal';
-import { WorkHour } from '../../types/core';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { Textarea } from './ui/textarea';
+import { WorkHour } from '../types/core';
+import { StandardModal } from './modals/StandardModal';
 
 interface WorkHourCreationModalProps {
   isOpen: boolean;
@@ -65,14 +65,14 @@ export function WorkHourCreationModal({
       isOpen={isOpen}
       onClose={handleClose}
       title="Create Work Hour Block"
-      size="md"
+      size="sm"
       primaryAction={{
-        label: 'Create Work Hour',
+        label: "Create Work Hour",
         onClick: handleSave,
         disabled: !title.trim()
       }}
       secondaryAction={{
-        label: 'Cancel',
+        label: "Cancel",
         onClick: handleClose
       }}
     >
@@ -87,7 +87,7 @@ export function WorkHourCreationModal({
             className="w-full"
           />
         </div>
-        
+
         <div className="grid gap-2">
           <Label htmlFor="description">Description</Label>
           <Textarea
@@ -99,7 +99,7 @@ export function WorkHourCreationModal({
             rows={3}
           />
         </div>
-        
+
         <div className="grid grid-cols-2 gap-4">
           <div className="grid gap-2">
             <Label htmlFor="start">Start Time</Label>
@@ -111,7 +111,7 @@ export function WorkHourCreationModal({
               className="w-full"
             />
           </div>
-          
+
           <div className="grid gap-2">
             <Label htmlFor="end">End Time</Label>
             <Input

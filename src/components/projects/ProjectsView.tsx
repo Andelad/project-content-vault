@@ -5,7 +5,6 @@ import { useProjectContext } from '../../contexts/ProjectContext';
 import { Plus, Edit, Trash2, Calendar, Clock, Users, FolderPlus, Grid3X3, List, GripVertical, Archive, PlayCircle, Clock4, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
@@ -13,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Badge } from '../ui/badge';
 import { Separator } from '../ui/separator';
 import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group';
+import { StandardModal } from '../modals/StandardModal';
 import { Group, Project, ProjectStatus } from '../../types';
 import { AppPageLayout } from '../layouts/AppPageLayout';
 import { getEffectiveProjectStatus, organizeProjectsByStatus } from '../../lib/projectUtils';
@@ -485,27 +485,25 @@ export function ProjectsView() {
               </ToggleGroupItem>
             </ToggleGroup>
 
-            <Dialog open={isGroupDialogOpen} onOpenChange={setIsGroupDialogOpen}>
-              <DialogTrigger asChild>
-                <div style={{ display: 'none' }}>
-                  <Button variant="outline" onClick={handleAddGroup}>
-                    <FolderPlus className="w-4 h-4 mr-2" />
-                    New Group
-                  </Button>
-                </div>
-              </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>
-                  {editingGroup ? 'Edit Group' : 'Create New Group'}
-                </DialogTitle>
-                <DialogDescription>
-                  {editingGroup 
-                    ? 'Modify the details of your project group.' 
-                    : 'Create a new group to organize your projects.'
-                  }
-                </DialogDescription>
-              </DialogHeader>
+            <StandardModal
+              isOpen={isGroupDialogOpen}
+              onClose={() => setIsGroupDialogOpen(false)}
+              title={editingGroup ? 'Edit Group' : 'Create New Group'}
+              description={editingGroup 
+                ? 'Modify the details of your project group.' 
+                : 'Create a new group to organize your projects.'
+              }
+              size="md"
+              primaryAction={{
+                label: editingGroup ? 'Update Group' : 'Create Group',
+                onClick: handleSaveGroup,
+                disabled: !groupName.trim()
+              }}
+              secondaryAction={{
+                label: 'Cancel',
+                onClick: () => setIsGroupDialogOpen(false)
+              }}
+            >
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="group-name">Group Name</Label>
@@ -544,47 +542,28 @@ export function ProjectsView() {
                     ))}
                   </div>
                 </div>
-                
-                <div className="flex gap-3 pt-4">
-                  <Button 
-                    onClick={handleSaveGroup} 
-                    className="flex-1"
-                    disabled={!groupName.trim()}
-                  >
-                    {editingGroup ? 'Update Group' : 'Create Group'}
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => setIsGroupDialogOpen(false)}
-                  >
-                    Cancel
-                  </Button>
-                </div>
               </div>
-            </DialogContent>
-          </Dialog>
+            </StandardModal>
 
-          <Dialog open={isProjectDialogOpen} onOpenChange={setIsProjectDialogOpen}>
-            <DialogTrigger asChild>
-              <div style={{ display: 'none' }}>
-                <Button className="bg-[#02c0b7] hover:bg-[#02a09a] text-white" onClick={() => handleAddProject()}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  New Project
-                </Button>
-              </div>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-lg">
-              <DialogHeader>
-                <DialogTitle>
-                  {editingProject ? 'Edit Project' : 'Create New Project'}
-                </DialogTitle>
-                <DialogDescription>
-                  {editingProject 
-                    ? 'Modify the details of your project.' 
-                    : 'Add a new project with timeline and budget information.'
-                  }
-                </DialogDescription>
-              </DialogHeader>
+          <StandardModal
+            isOpen={isProjectDialogOpen}
+            onClose={() => setIsProjectDialogOpen(false)}
+            title={editingProject ? 'Edit Project' : 'Create New Project'}
+            description={editingProject 
+              ? 'Modify the details of your project.' 
+              : 'Add a new project with timeline and budget information.'
+            }
+            size="lg"
+            primaryAction={{
+              label: editingProject ? 'Update Project' : 'Create Project',
+              onClick: handleSaveProject,
+              disabled: !projectName.trim() || !projectClient.trim() || !projectStartDate || !projectEndDate || !projectEstimatedHours
+            }}
+            secondaryAction={{
+              label: 'Cancel',
+              onClick: () => setIsProjectDialogOpen(false)
+            }}
+          >
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -694,9 +673,8 @@ export function ProjectsView() {
                     Cancel
                   </Button>
                 </div>
-              </div>
-            </DialogContent>
-          </Dialog>
+            </div>
+          </StandardModal>
         </div>
       </AppPageLayout.Header>
 

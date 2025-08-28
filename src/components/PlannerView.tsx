@@ -10,7 +10,7 @@ import { useTimelineContext } from '../contexts/TimelineContext';
 import { CalendarEvent, WorkHour } from '../types';
 import { Button } from './ui/button';
 import { ChevronLeft, ChevronRight, CheckCircle2, Circle, Calendar as CalendarIcon, MapPin, CalendarSearch, Trash2 } from 'lucide-react';
-import { EventDetailModal } from './EventDetailModal';
+import { EventDetailModal } from './modals/EventDetailModal';
 import { Checkbox } from './ui/checkbox';
 import { Badge } from './ui/badge';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
@@ -20,7 +20,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { TimeTracker } from './work-hours/TimeTracker';
 import { WorkHourCreationModal } from './work-hours/WorkHourCreationModal';
 import { WorkHourScopeDialog } from './work-hours/WorkHourScopeDialog';
-import { PlannerInsightCard } from './PlannerInsightCard';
+import { PlannerInsightCard } from './planner/PlannerInsightCard';
 import { splitMidnightCrossingEvents } from '../lib/midnightEventUtils';
 import { useWorkHours } from '../hooks/useWorkHours';
 import { getCalendarEventBackgroundColor, getCalendarEventTextColor, OKLCH_FALLBACK_GRAY } from '@/constants/colors';

@@ -1105,29 +1105,73 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
   const modalKey = projectId || (isCreating ? `create-${groupId}` : 'modal');
 
   return (
-    <StandardModal
-      isOpen={isOpen && (project || isCreating)}
-      onClose={handleClose}
-      title={isCreating ? 'Create New Project' : 'Project Details'}
-      size="project"
-      fixedHeight={true}
-      height="h-[95vh]"
-      primaryAction={{
-        label: "Save changes",
-        onClick: handleConfirm
-      }}
-      secondaryAction={{
-        label: "Cancel",
-        onClick: handleCancel
-      }}
-      destructiveAction={!isCreating ? {
-        label: "Delete project",
-        onClick: () => setShowDeleteConfirm(true),
-        icon: <Trash2 className="w-4 h-4" />
-      } : undefined}
-    >
-      {/* Modal Content */}
-      <div className="flex flex-col h-full">
+    <AnimatePresence>
+      {(isOpen && (project || isCreating)) && (
+        <div key={modalKey}>
+          {/* Backdrop */}
+          <motion.div 
+            className="fixed inset-0 bg-black/50 z-40"
+            onClick={handleClose}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15, ease: "easeOut" }}
+          />
+          
+          {/* Modal */}
+          <motion.div 
+            className="fixed max-w-[840px] w-[90vw] h-[95vh] bg-white rounded-lg overflow-hidden shadow-2xl z-50 flex flex-col"
+            style={{
+              left: '50%',
+              top: '2.5vh'
+            }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="project-title"
+            aria-describedby="project-description"
+            initial={{ 
+              opacity: 0, 
+              x: '-50%',
+              y: 20
+            }}
+            animate={{ 
+              opacity: 1, 
+              x: '-50%',
+              y: 0
+            }}
+            exit={{ 
+              opacity: 0, 
+              x: '-50%',
+              y: 20
+            }}
+            transition={{ 
+              duration: 0.2, 
+              ease: [0.16, 1, 0.3, 1],  // Custom easing for smooth feel
+              opacity: { duration: 0.2 },
+              y: { duration: 0.2 },
+              x: { duration: 0 }  // No transition on x to maintain centering
+            }}
+          >
+        {/* Close button */}
+        <button
+          onClick={handleClose}
+          className="absolute top-4 right-4 p-2 rounded-lg hover:bg-gray-100 transition-colors z-10"
+          aria-label="Close modal"
+        >
+          <X className="w-5 h-5 text-gray-500" />
+        </button>
+
+        {/* Hidden accessibility elements */}
+        <h2 id="project-title" className="sr-only">
+          {isCreating ? 'Create New Project' : `Project Details: ${project?.name}`}
+        </h2>
+        <div id="project-description" className="sr-only">
+          {isCreating 
+            ? `Create a new project ${group ? `in the ${group.name} group` : ''}.`
+            : `View and edit project information, properties, and notes for ${project?.name} ${group ? `in the ${group.name} group` : ''}.`
+          }
+        </div>
+
         {/* Header */}
         <div className="px-8 pt-6 pb-2 border-b border-gray-200 flex-shrink-0">
           {/* First row: Project Icon and Name */}
@@ -1135,7 +1179,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
             <div className="flex items-center gap-4">
               <Popover open={stylePickerOpen} onOpenChange={setStylePickerOpen}>
                 <PopoverTrigger asChild>
-                  <div
+                  <div 
                     className="w-8 h-8 rounded-lg flex-shrink-0 cursor-pointer relative group transition-all duration-200 hover:scale-105 hover:shadow-md ring-2 ring-transparent hover:ring-primary/20"
                     style={{ backgroundColor: project?.color || localValues.color || OKLCH_PROJECT_COLORS[0] }}
                     onClick={handleStylePickerOpen}
@@ -1153,7 +1197,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
                 </PopoverTrigger>
                 <PopoverContent className="w-64 p-4">
                   <h4 className="text-sm font-medium mb-3">Choose color & icon</h4>
-
+                  
                   {/* Colors section */}
                   <div className="mb-4">
                     <p className="text-xs text-muted-foreground mb-2">Colors</p>
@@ -1162,8 +1206,8 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
                         <button
                           key={color}
                           className={`w-8 h-8 rounded border-2 transition-all duration-200 hover:scale-110 ${
-                            tempColor === color
-                              ? 'border-primary ring-2 ring-primary/20'
+                            tempColor === color 
+                              ? 'border-primary ring-2 ring-primary/20' 
                               : 'border-border hover:border-primary/50'
                           }`}
                           style={{ backgroundColor: color }}
@@ -1182,8 +1226,8 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
                         <button
                           key={icon.name}
                           className={`w-8 h-8 rounded border-2 transition-all duration-200 hover:scale-110 flex items-center justify-center ${
-                            tempIcon === icon.name
-                              ? 'border-primary ring-2 ring-primary/20'
+                            tempIcon === icon.name 
+                              ? 'border-primary ring-2 ring-primary/20' 
                               : 'border-border hover:border-primary/50'
                           }`}
                           style={{ backgroundColor: tempColor || project?.color || localValues.color || OKLCH_PROJECT_COLORS[0] }}
@@ -1198,16 +1242,16 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
 
                   {/* Action buttons */}
                   <div className="flex gap-2 pt-2 border-t border-border">
-                    <Button
-                      size="sm"
+                    <Button 
+                      size="sm" 
                       onClick={handleStyleSave}
                       className="flex-1"
                     >
                       Save
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
                       onClick={handleStyleCancel}
                       className="flex-1"
                     >
@@ -1233,7 +1277,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
                   autoFocus
                 />
               ) : (
-                <h1
+                <h1 
                   className="cursor-pointer hover:text-muted-foreground transition-colors text-2xl font-semibold leading-tight"
                   onClick={() => setEditingTitle(true)}
                 >
@@ -1241,7 +1285,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
                 </h1>
               )}
             </div>
-
+            
             {/* Insights positioned to align above end date field */}
             {!localValues.continuous && (
               <div className="flex items-end gap-3 mr-12">
@@ -1251,7 +1295,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
                 <span className="mb-1 opacity-0">→</span>
                 <div className="min-w-[80px] flex flex-col items-start">
                   {/* Average time per day insight */}
-                  <div
+                  <div 
                     className="text-xs text-muted-foreground mb-0.5"
                     style={{ color: localValues.color || OKLCH_PROJECT_COLORS[0] }}
                   >
@@ -1265,9 +1309,9 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
                       }
                     })()}
                   </div>
-
+                  
                   {/* Working days insight */}
-                  <div
+                  <div 
                     className="text-xs text-muted-foreground"
                     style={{ color: localValues.color || OKLCH_PROJECT_COLORS[0] }}
                   >
@@ -1286,7 +1330,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
               </div>
             )}
           </div>
-
+          
           {/* Second row: Group, Client, Budget (left) and Dates (right) */}
           <div className="flex items-end justify-between">
             <div className="flex items-end gap-3">
@@ -1305,7 +1349,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
                 property="estimatedHours"
               />
             </div>
-
+            
             {/* Date Range - aligned to the right */}
             <div className="flex items-end gap-3 text-sm">
               <div className="min-w-[80px]">
@@ -1356,9 +1400,8 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
           </div>
         </div>
 
-        {/* Scrollable Content Area */}
+        {/* Milestone Manager */}
         <div className="flex-1 overflow-y-auto">
-          {/* Milestone Manager */}
           <MilestoneManager
             projectId={!isCreating ? projectId : undefined}
             projectEstimatedHours={localValues.estimatedHours}
@@ -1396,7 +1439,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
                 <h3 className="text-lg font-medium text-gray-900">Project Insights</h3>
               </div>
             </button>
-
+            
             <AnimatePresence>
               {isInsightsExpanded && (
                 <motion.div
@@ -1409,7 +1452,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
                   {/* Project Progress Graph */}
                   {!isCreating && (
                     <div className="px-8 py-6 border-b border-gray-200">
-                      <ProjectProgressGraph
+                      <ProjectProgressGraph 
                         project={project || {
                           ...localValues,
                           id: projectId || '',
@@ -1438,7 +1481,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
                         }}
                         formatAsTime={true}
                       />
-
+                      
                       <TimeMetric
                         label="Completed Time"
                         value={metrics.completedTime}
@@ -1446,14 +1489,14 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
                         tooltip="Completed time is time connected to this project that is ticked as done on your calendar"
                         formatAsTime={true}
                       />
-
+                      
                       <AutoEstimateTimeMetric
                         label="Auto-Estimate Time"
                         dailyTime={metrics.originalDailyEstimateFormatted}
                         showInfo={true}
                         tooltip="Auto-estimated time is the total budgeted hours divided by total working days in the project timeframe"
                       />
-
+                      
                       <TimeMetric
                         label="Work Days Left"
                         value={metrics.workDaysLeft}
@@ -1491,7 +1534,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
                 <h3 className="text-lg font-medium text-gray-900">Notes</h3>
               </div>
             </button>
-
+            
             <AnimatePresence>
               {isNotesExpanded && (
                 <motion.div
@@ -1523,27 +1566,63 @@ Start typing to capture all your project information in one place."
             </AnimatePresence>
           </div>
         </div>
-      </div>
 
-      {/* Delete Confirmation Dialog */}
-      {!isCreating && project && (
-        <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete Project</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to delete "{project.name}"? This action cannot be undone and will also remove all associated calendar events.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteProject} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                Delete Project
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        {/* Bottom Confirmation Row - Fixed Footer */}
+        <div className="border-t border-gray-200 px-8 py-4 flex-shrink-0 bg-white">
+          <div className="flex items-center justify-end gap-3">
+            {/* Right-aligned buttons */}
+            <Button 
+              onClick={handleConfirm}
+              className="h-9 px-6 border border-primary"
+              style={{ 
+                backgroundColor: 'oklch(0.488 0.243 264.376)', 
+                color: 'white',
+                borderColor: 'oklch(0.488 0.243 264.376)'
+              }}
+            >
+              CONFIRM
+            </Button>
+            <Button 
+              variant="outline"
+              onClick={handleCancel}
+              className="h-9 px-6 border border-border"
+            >
+              CANCEL
+            </Button>
+
+            {/* Delete button (only for existing projects) */}
+            {!isCreating && project && (
+              <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+                <AlertDialogTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="icon"
+                    className="h-9 w-9 border border-border text-destructive hover:text-destructive hover:bg-destructive/10"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Project</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete "{project.name}"? This action cannot be undone and will also remove all associated calendar events.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteProject} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                      Delete Project
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+          </div>
+        </div>
+          </motion.div>
+        </div>
       )}
-    </StandardModal>
+    </AnimatePresence>
   );
 }

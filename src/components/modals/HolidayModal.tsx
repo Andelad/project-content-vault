@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar as CalendarIcon } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -8,6 +7,7 @@ import { Textarea } from '../ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Calendar } from '../ui/calendar';
 import { usePlannerContext } from '../../contexts/PlannerContext';
+import { StandardModal } from './StandardModal';
 
 interface HolidayModalProps {
   isOpen: boolean;
@@ -187,27 +187,35 @@ export function HolidayModal({ isOpen, onClose, holidayId, defaultStartDate, def
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px] p-0">
-        <div className="p-[21px]">
-          <DialogHeader className="mb-[21px]">
-            <DialogTitle className="text-xl">
-              {isEditing ? 'Edit Holiday' : 'Add Holiday'}
-            </DialogTitle>
-            <DialogDescription>
-              {isEditing ? 'Update your holiday details below.' : 'Create a new holiday with a title, date range, and optional notes.'}
-            </DialogDescription>
-          </DialogHeader>
+    <StandardModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={isEditing ? 'Edit Holiday' : 'Add Holiday'}
+      description={isEditing ? 'Update your holiday details below.' : 'Create a new holiday with a title, date range, and optional notes.'}
+      size="md"
+      primaryAction={{
+        label: isEditing ? 'Update Holiday' : 'Add Holiday',
+        onClick: handleSave,
+        disabled: !title.trim() || !startDate || !endDate
+      }}
+      secondaryAction={{
+        label: "Cancel",
+        onClick: handleCancel
+      }}
+      destructiveAction={isEditing ? {
+        label: "Delete Holiday",
+        onClick: handleDelete
+      } : undefined}
+    >
+      {/* Yay message */}
+      <div className="mb-[21px] text-center">
+        <p className="text-base text-gray-600">🎉 Yay, let's take a break! 🏖️</p>
+      </div>
 
-          {/* Yay message */}
-          <div className="mb-[21px] text-center">
-            <p className="text-base text-gray-600">🎉 Yay, let's take a break! 🏖️</p>
-          </div>
-
-          <div className="space-y-[21px]">
-            {/* Title Field */}
-            <div className="space-y-2">
-              <Label htmlFor="holiday-title">Title</Label>
+      <div className="space-y-[21px]">
+        {/* Title Field */}
+        <div className="space-y-2">
+          <Label htmlFor="holiday-title">Title</Label>
               <Input
                 id="holiday-title"
                 value={title}
@@ -253,38 +261,6 @@ export function HolidayModal({ isOpen, onClose, holidayId, defaultStartDate, def
               />
             </div>
           </div>
-        </div>
-
-        {/* Bottom Action Buttons */}
-        <div className="border-t bg-gray-50 px-6 py-4 flex justify-between">
-          <div>
-            {isEditing && (
-              <Button
-                variant="outline"
-                onClick={handleDelete}
-                className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
-              >
-                Delete Holiday
-              </Button>
-            )}
-          </div>
-          <div className="flex gap-3">
-            <Button
-              variant="outline"
-              onClick={handleCancel}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={!title.trim() || !startDate || !endDate}
-              className="bg-[#02c0b7] hover:bg-[#02c0b7]/90 text-white"
-            >
-              {isEditing ? 'Update Holiday' : 'Add Holiday'}
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+    </StandardModal>
   );
 }
