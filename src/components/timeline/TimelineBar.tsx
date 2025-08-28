@@ -9,8 +9,7 @@ import { calculateWorkHourCapacity, isHolidayDate } from '@/lib/workHoursUtils';
 import { getProjectTimeAllocation, memoizedGetProjectTimeAllocation, generateWorkHoursForDate } from '@/lib/eventWorkHourUtils';
 import { calculateMilestoneSegments, getMilestoneSegmentForDate } from '@/lib/milestoneSegmentUtils';
 import { ProjectIconIndicator, ProjectMilestones } from '@/components';
-import { TimeAllocationService } from '@/services';
-import { HeightCalculationService } from '@/services';
+import { TimeAllocationService, HeightCalculationService, ColorCalculationService } from '@/services';
 
 interface TimelineBarProps {
   project: any;
@@ -171,29 +170,7 @@ const DragHandle = memo(function DragHandle({
   );
 });
 
-// Helper function to get hover color
-function getHoverColor(oklchColor: string): string {
-  // Increase both lightness and chroma slightly for hover effect
-  return oklchColor.replace('0.8 0.12', '0.86 0.16');
-}
-
-// Helper function to get baseline color (darker version for the line)
-function getBaselineColor(oklchColor: string): string {
-  // Convert from 0.8 lightness to 0.5 lightness for the baseline
-  return oklchColor.replace('0.8 0.12', '0.5 0.12');
-}
-
-// Helper function to get mid-tone color (between baseline and outer rectangle)
-function getMidToneColor(oklchColor: string): string {
-  // Convert from 0.8 lightness to 0.65 lightness (halfway between 0.5 and 0.8)
-  return oklchColor.replace('0.8 0.12', '0.65 0.12');
-}
-
-// Helper function to get auto-estimate color (slightly lighter)
-function getAutoEstimateColor(oklchColor: string): string {
-  // Increase lightness from 0.8 to 0.85 for auto-estimate rectangles
-  return oklchColor.replace('0.8 0.12', '0.85 0.12');
-}
+// Color calculation functions are now centralized in ColorCalculationService
 
 export const TimelineBar = memo(function TimelineBar({ 
   project, 
@@ -342,10 +319,10 @@ export const TimelineBar = memo(function TimelineBar({
   
   // Memoize color calculations to avoid repeated parsing
   const colorScheme = useMemo(() => {
-    const baselineColor = getBaselineColor(project.color);
-    const midToneColor = getMidToneColor(project.color);
-    const hoverColor = getHoverColor(project.color);
-    const autoEstimateColor = getAutoEstimateColor(project.color);
+    const baselineColor = ColorCalculationService.getBaselineColor(project.color);
+    const midToneColor = ColorCalculationService.getMidToneColor(project.color);
+    const hoverColor = ColorCalculationService.getHoverColor(project.color);
+    const autoEstimateColor = ColorCalculationService.getAutoEstimateColor(project.color);
     
     return {
       baseline: baselineColor,

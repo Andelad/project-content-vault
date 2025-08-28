@@ -1,5 +1,6 @@
 // OKLCH color palette - consistent lightness and chroma for harmony
 import { OKLCH_PROJECT_COLORS } from './projectModalConstants';
+import { ColorCalculationService } from '@/services/core';
 
 export const OKLCH_GROUP_COLORS = [
   'oklch(0.75 0.15 240)',   // Blue (slightly more saturated for groups)
@@ -10,66 +11,41 @@ export const OKLCH_GROUP_COLORS = [
   'oklch(0.75 0.15 180)',   // Cyan
 ] as const;
 
-// Color utility functions
-export function getProjectColor(index: number): string {
+// Color utility functions - re-exported from ColorCalculationService for convenience
+export const getProjectColor = (index: number): string => {
   return OKLCH_PROJECT_COLORS[index % OKLCH_PROJECT_COLORS.length];
-}
+};
 
-export function getGroupColor(index: number): string {
+export const getGroupColor = (index: number): string => {
   return OKLCH_GROUP_COLORS[index % OKLCH_GROUP_COLORS.length];
-}
+};
 
-export function getHoverColor(oklchColor: string): string {
-  return oklchColor.replace('0.8 0.12', '0.86 0.16');
-}
-
-export function getBaselineColor(oklchColor: string): string {
-  return oklchColor.replace('0.8 0.12', '0.5 0.12');
-}
-
-export function getMidToneColor(oklchColor: string): string {
-  return oklchColor.replace('0.8 0.12', '0.65 0.12');
-}
-
-export function getDarkerColor(oklchColor: string, lightnessReduction: number = 0.2): string {
-  const match = oklchColor.match(/oklch\(([0-9.]+) ([0-9.]+) ([0-9.]+)\)/);
-  if (!match) return oklchColor;
-  
-  const [, lightness, chroma, hue] = match;
-  const newLightness = Math.max(0, parseFloat(lightness) - lightnessReduction);
-  
-  return `oklch(${newLightness} ${chroma} ${hue})`;
-}
-
-export function getLighterColor(oklchColor: string, lightnessIncrease: number = 0.1): string {
-  const match = oklchColor.match(/oklch\(([0-9.]+) ([0-9.]+) ([0-9.]+)\)/);
-  if (!match) return oklchColor;
-  
-  const [, lightness, chroma, hue] = match;
-  const newLightness = Math.min(1, parseFloat(lightness) + lightnessIncrease);
-  
-  return `oklch(${newLightness} ${chroma} ${hue})`;
-}
+export const getHoverColor = ColorCalculationService.getHoverColor.bind(ColorCalculationService);
+export const getBaselineColor = ColorCalculationService.getBaselineColor.bind(ColorCalculationService);
+export const getMidToneColor = ColorCalculationService.getMidToneColor.bind(ColorCalculationService);
+export const getAutoEstimateColor = ColorCalculationService.getAutoEstimateColor.bind(ColorCalculationService);
+export const getDarkerColor = ColorCalculationService.getDarkerColor.bind(ColorCalculationService);
+export const getLighterColor = ColorCalculationService.getLighterColor.bind(ColorCalculationService);
 
 // Calendar-specific color functions
-export function getCalendarEventBackgroundColor(oklchColor: string): string {
+export const getCalendarEventBackgroundColor = (oklchColor: string): string => {
   // Convert to a light version for calendar event backgrounds
   // Target lightness 0.92-0.95 for very light backgrounds that work well with dark text
-  return getLighterColor(oklchColor, 0.12); // Increase lightness by 0.12 (from 0.8 to 0.92)
-}
+  return ColorCalculationService.getLighterColor(oklchColor, 0.12); // Increase lightness by 0.12 (from 0.8 to 0.92)
+};
 
-export function getCalendarEventTextColor(oklchColor: string): string {
+export const getCalendarEventTextColor = (oklchColor: string): string => {
   // Convert to a darker version for accessible text
   const match = oklchColor.match(/oklch\(([0-9.]+) ([0-9.]+) ([0-9.]+)\)/);
   if (!match) return oklchColor;
-  
+
   const [, lightness, chroma, hue] = match;
   // For accessible text on light backgrounds, we need dark text
   // Target lightness 0.25-0.3 provides good contrast against light backgrounds (0.9+)
   const targetLightness = 0.28;
-  
+
   return `oklch(${targetLightness} ${chroma} ${hue})`;
-}
+};
 
 // OKLCH equivalent of the fallback gray (#6b7280) with equivalent lightness to project colors
 export const OKLCH_FALLBACK_GRAY = 'oklch(0.8 0.02 280)'; // Low chroma gray with same lightness as project colors
