@@ -1,19 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Switch } from './ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Separator } from './ui/separator';
-import { Badge } from './ui/badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { Switch } from '../ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Separator } from '../ui/separator';
+import { Badge } from '../ui/badge';
 
 import { Save, Bell, Palette, Clock, Globe, Shield, Trash2, User, Plus, X, Calendar } from 'lucide-react';
-import { useSettingsContext } from '../contexts/SettingsContext';
+import { useSettingsContext } from '../../contexts/SettingsContext';
 import { WorkSlot } from '@/types/core';
-import { CalendarImport } from './CalendarImport';
-import { useToast } from '../hooks/use-toast';
-import { AppPageLayout } from './layouts/AppPageLayout';
+import { CalendarImport } from '../CalendarImport';
+import { useToast } from '../../hooks/use-toast';
+import { AppPageLayout } from '../layouts/AppPageLayout';
 import {
   generateTimeOptions,
   calculateDayTotalHours,

@@ -25,7 +25,7 @@ const TimelineView = lazy(() => import('@/components/TimelineView').then(module 
 const PlannerView = lazy(() => import('@/components/PlannerView').then(module => ({ default: module.PlannerView })));
 const ProjectsView = lazy(() => import('@/components/ProjectsView').then(module => ({ default: module.ProjectsView })));
 const ReportsView = lazy(() => import('@/components/ReportsView').then(module => ({ default: module.ReportsView })));
-const SettingsView = lazy(() => import('@/components/SettingsView').then(module => ({ default: module.SettingsView })));
+const SettingsView = lazy(() => import('@/components').then(module => ({ default: module.SettingsView })));
 const ProfileView = lazy(() => import('@/components/ProfileView').then(module => ({ default: module.ProfileView })));
 const Auth = lazy(() => import('@/pages/Auth'));
 
