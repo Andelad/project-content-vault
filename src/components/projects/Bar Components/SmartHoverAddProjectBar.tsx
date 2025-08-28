@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useRef } from 'react';
-import { Project } from '../../types';
+import { Project } from '../../../types';
 
 interface SmartHoverAddProjectBarProps {
   dates: Date[];

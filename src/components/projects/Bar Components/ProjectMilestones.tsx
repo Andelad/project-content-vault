@@ -1,7 +1,7 @@
 import React, { memo, useMemo, useState } from 'react';
 import { Flag } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
-import { useProjectContext } from '../../contexts/ProjectContext';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../../ui/tooltip';
+import { useProjectContext } from '../../../contexts/ProjectContext';
 import { PositionCalculation } from '@/lib/timelinePositioning';
 import { Milestone } from '@/types/core';
 import { useToast } from '@/hooks/use-toast';

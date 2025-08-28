@@ -1,17 +1,14 @@
 // Projects feature barrel exports
+
 // Main project components
 export { ProjectsView } from './ProjectsView';
-export { ProjectProgressGraph } from './ProjectProgressGraph';
 
-// Project timeline components
-export { DraggableProjectRow } from './DraggableProjectRow';
-export { ProjectIconIndicator } from './ProjectIconIndicator';
-export { ProjectMilestones } from './ProjectMilestones';
-export { SmartHoverAddProjectBar } from './SmartHoverAddProjectBar';
-export { HoverAddProjectBar } from './HoverAddProjectBar';
-export { StickyRightProjectIndicator } from './StickyRightProjectIndicator';
+// Modal Components
+export * from './Modal Components';
 
-// Project management components
-export { MilestoneManager } from './MilestoneManager';
-export { RichTextEditor } from './RichTextEditor';
-export { TextFormattingToolbar } from './TextFormattingToolbar';
+// Bar Components
+export * from './Bar Components';
+
+// UI Components (shared)
+export { RichTextEditor } from '@/components/ui/rich-text-editor';
+export { TextFormattingToolbar } from '@/components/ui/text-formatting-toolbar';

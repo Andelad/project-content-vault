@@ -33,7 +33,7 @@ import { UnifiedAvailabilityCircles } from './timeline/UnifiedAvailabilityCircle
 import { TimelineScrollbar } from './timeline/TimelineScrollbar';
 import { HoverableTimelineScrollbar } from './timeline/HoverableTimelineScrollbar';
 import { TimelineAddProjectRow, AddHolidayRow } from './timeline/AddProjectRow';
-import { SmartHoverAddProjectBar } from './projects/SmartHoverAddProjectBar';
+import { SmartHoverAddProjectBar } from '@/components';
 import { PerformanceStatus } from './debug/PerformanceStatus';
 import { DraggableRowComponent } from './timeline/DraggableRowComponent';
 import { AddRowComponent } from './timeline/AddRowComponent';

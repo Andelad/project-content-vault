@@ -1,9 +1,9 @@
 import React, { useRef } from 'react';
 import { useDrag, useDrop } from 'react-dnd';
 import { GripVertical, Edit3 } from 'lucide-react';
-import { Button } from '../ui/button';
+import { Button } from '../../ui/button';
 
-import { useProjectContext } from '../../contexts/ProjectContext';
+import { useProjectContext } from '../../../contexts/ProjectContext';
 
 const ItemTypes = { PROJECT: 'project' };
 

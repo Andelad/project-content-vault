@@ -1,18 +1,5 @@
 // OKLCH color palette - consistent lightness and chroma for harmony
-export const OKLCH_PROJECT_COLORS = [
-  'oklch(0.8 0.12 0)',      // Red
-  'oklch(0.8 0.12 30)',     // Orange
-  'oklch(0.8 0.12 60)',     // Yellow-Orange
-  'oklch(0.8 0.12 90)',     // Yellow
-  'oklch(0.8 0.12 120)',    // Yellow-Green
-  'oklch(0.8 0.12 150)',    // Green
-  'oklch(0.8 0.12 180)',    // Cyan-Green
-  'oklch(0.8 0.12 210)',    // Cyan
-  'oklch(0.8 0.12 240)',    // Blue
-  'oklch(0.8 0.12 270)',    // Purple
-  'oklch(0.8 0.12 300)',    // Magenta
-  'oklch(0.8 0.12 330)',    // Pink
-] as const;
+import { OKLCH_PROJECT_COLORS } from './projectModalConstants';
 
 export const OKLCH_GROUP_COLORS = [
   'oklch(0.75 0.15 240)',   // Blue (slightly more saturated for groups)

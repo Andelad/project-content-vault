@@ -14,8 +14,8 @@ import {
   Quote,
   Minus
 } from 'lucide-react';
-import { Button } from '../ui/button';
-import { Separator } from '../ui/separator';
+import { Button } from './button';
+import { Separator } from './separator';
 
 interface RichTextEditorProps {
   value: string;

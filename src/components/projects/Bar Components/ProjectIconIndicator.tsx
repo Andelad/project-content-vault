@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Folder, Edit3, Briefcase, Zap, Target, Lightbulb, Rocket, Star, Heart, Gift, Music, Camera, Code, Book, Gamepad2, Coffee, Home, Building, Car, Plane, Map, Globe } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
-import { useProjectContext } from '../../contexts/ProjectContext';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../../ui/tooltip';
+import { useProjectContext } from '../../../contexts/ProjectContext';
 
 interface ProjectIconIndicatorProps {
   project: any;
