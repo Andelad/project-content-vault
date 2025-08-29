@@ -295,27 +295,50 @@ export const TimelineBar = memo(function TimelineBar({
                                 );
 
                                 const isPlannedTime = allocation.type === 'planned';
+                                const isPlannedAndCompleted = allocation.isPlannedAndCompleted;
                                 const dayRectangleHeight = allocation.heightInPixels;
 
+                                // Determine background color and border based on completion status
+                                let backgroundColor: string;
+                                let borderStyle: any;
+
+                                if (isPlannedAndCompleted) {
+                                  // Completed planned time: use baseline color, no dashed border
+                                  backgroundColor = colorScheme.baseline;
+                                  borderStyle = {
+                                    borderRight: dayOfWeek === 6 ? 'none' : '1px solid rgba(255, 255, 255, 0.2)',
+                                    borderLeft: 'none',
+                                    borderTop: 'none',
+                                    borderBottom: 'none'
+                                  };
+                                } else if (isPlannedTime) {
+                                  // Planned but not completed: use project color with dashed border
+                                  backgroundColor = project.color;
+                                  borderStyle = {
+                                    borderLeft: `2px dashed ${colorScheme.baseline}`,
+                                    borderRight: `2px dashed ${colorScheme.baseline}`,
+                                    borderTop: `2px dashed ${colorScheme.baseline}`,
+                                    borderBottom: 'none'
+                                  };
+                                } else {
+                                  // Auto-estimate: use auto-estimate color
+                                  backgroundColor = colorScheme.autoEstimate;
+                                  borderStyle = {
+                                    borderRight: dayOfWeek === 6 ? 'none' : '1px solid rgba(255, 255, 255, 0.2)',
+                                    borderLeft: 'none',
+                                    borderTop: 'none',
+                                    borderBottom: 'none'
+                                  };
+                                }
+
                                 return {
-                                  backgroundColor: isPlannedTime ? project.color : colorScheme.autoEstimate,
+                                  backgroundColor,
                                   height: `${dayRectangleHeight}px`,
                                   width: `${dayWidth}px`,
                                   borderTopLeftRadius: '2px',
                                   borderTopRightRadius: '2px',
                                   // Remove all animations and transitions
-                                  // Handle borders based on planned time like in day view
-                                  ...(isPlannedTime ? {
-                                    borderLeft: `2px dashed ${colorScheme.baseline}`,
-                                    borderRight: `2px dashed ${colorScheme.baseline}`,
-                                    borderTop: `2px dashed ${colorScheme.baseline}`,
-                                    borderBottom: 'none'
-                                  } : {
-                                    borderRight: dayOfWeek === 6 ? 'none' : '1px solid rgba(255, 255, 255, 0.2)',
-                                    borderLeft: 'none',
-                                    borderTop: 'none',
-                                    borderBottom: 'none'
-                                  })
+                                  ...borderStyle
                                 };
                               })()}
                               onMouseDown={(e) => { 
@@ -498,27 +521,50 @@ export const TimelineBar = memo(function TimelineBar({
                 }
               }
 
-              // Determine styling based on time allocation type
+              // Determine styling based on time allocation type and completion
+              const isPlannedAndCompleted = allocation.isPlannedAndCompleted;
+              
+              let backgroundColor: string;
+              let borderStyle: any;
+
+              if (isPlannedAndCompleted) {
+                // Completed planned time: use baseline color, no dashed border  
+                backgroundColor = colorScheme.baseline;
+                borderStyle = {
+                  borderRight: isLastWorkingDay ? 'none' : '1px solid rgba(255, 255, 255, 0.3)',
+                  borderLeft: 'none',
+                  borderTop: 'none',
+                  borderBottom: 'none'
+                };
+              } else if (isPlannedTime) {
+                // Planned but not completed: use project color with dashed border
+                backgroundColor = project.color;
+                borderStyle = {
+                  borderLeft: `2px dashed ${colorScheme.baseline}`,
+                  borderRight: `2px dashed ${colorScheme.baseline}`,
+                  borderTop: `2px dashed ${colorScheme.baseline}`,
+                  borderBottom: 'none'
+                };
+              } else {
+                // Auto-estimate: use auto-estimate color
+                backgroundColor = colorScheme.autoEstimate;
+                borderStyle = {
+                  borderRight: isLastWorkingDay ? 'none' : '1px solid rgba(255, 255, 255, 0.3)',
+                  borderLeft: 'none',
+                  borderTop: 'none',
+                  borderBottom: 'none'
+                };
+              }
+
               const rectangleStyle = {
-                backgroundColor: isPlannedTime ? project.color : colorScheme.autoEstimate,
+                backgroundColor,
                 borderTopLeftRadius: borderTopLeftRadius,
                 borderTopRightRadius: borderTopRightRadius,
                 borderBottomLeftRadius: borderBottomLeftRadius,
                 borderBottomRightRadius: borderBottomRightRadius,
                 height: `${rectangleHeight}px`,
                 width: isLastWorkingDay ? '40px' : '39px',
-                // Handle borders based on planned time and position
-                ...(isPlannedTime ? {
-                  borderLeft: `2px dashed ${colorScheme.baseline}`,
-                  borderRight: `2px dashed ${colorScheme.baseline}`,
-                  borderTop: `2px dashed ${colorScheme.baseline}`,
-                  borderBottom: 'none'
-                } : {
-                  borderRight: isLastWorkingDay ? 'none' : '1px solid rgba(255, 255, 255, 0.3)',
-                  borderLeft: 'none',
-                  borderTop: 'none',
-                  borderBottom: 'none'
-                })
+                ...borderStyle
               };
               
               return (

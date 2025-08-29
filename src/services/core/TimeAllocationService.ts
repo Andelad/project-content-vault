@@ -7,6 +7,7 @@ import { CalendarEvent, Milestone } from '@/types/core';
 import { memoizedGetProjectTimeAllocation } from '@/services/events/eventWorkHourIntegrationService';
 import { getMilestoneSegmentForDate, type MilestoneSegment } from '@/services/milestones/milestoneUtilitiesService';
 import { HeightCalculationService } from '../timeline/HeightCalculationService';
+import { isPlannedTimeCompleted } from '@/services/events/plannedTimeCompletionService';
 
 export interface TimeAllocationResult {
   type: 'planned' | 'auto-estimate' | 'none';
@@ -14,6 +15,7 @@ export interface TimeAllocationResult {
   heightInPixels: number;
   source: 'planned-events' | 'milestone-segment' | 'project-estimate' | 'none';
   milestoneSegment?: MilestoneSegment;
+  isPlannedAndCompleted?: boolean; // Whether this is planned time that has been completed
 }
 
 export class TimeAllocationService {
@@ -65,6 +67,10 @@ export class TimeAllocationService {
       source = 'none';
     }
 
+    // Check if planned time is completed
+    const isPlannedAndCompleted = timeAllocation.type === 'planned' && 
+      isPlannedTimeCompleted(projectId, date, events);
+
     // Calculate height using centralized service
     const heightInPixels = HeightCalculationService.calculateDayHeight(finalHours);
 
@@ -73,7 +79,8 @@ export class TimeAllocationService {
       hours: finalHours,
       heightInPixels,
       source,
-      milestoneSegment: milestoneSegment || undefined
+      milestoneSegment: milestoneSegment || undefined,
+      isPlannedAndCompleted
     };
   }
 
