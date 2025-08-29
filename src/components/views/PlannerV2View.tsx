@@ -1,12 +1,15 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import { Calendar, EventClickArg, EventDropArg, DateSelectArg } from '@fullcalendar/core';
+import moment from 'moment';
 import { usePlannerV2Context } from '@/contexts/PlannerV2Context';
+import { usePlannerContext } from '@/contexts/PlannerContext';
 import { useProjectContext } from '@/contexts/ProjectContext';
 import { useTimelineContext } from '@/contexts/TimelineContext';
+import { useSettingsContext } from '@/contexts/SettingsContext';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { ChevronLeft, ChevronRight, MapPin, CalendarSearch } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MapPin, CalendarSearch, CheckCircle2, Circle } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as DatePicker } from '@/components/ui/calendar';
 import { TimeTracker } from '@/components/work-hours/TimeTracker';
@@ -46,8 +49,16 @@ export function PlannerV2View() {
     getEventsInDateRange
   } = usePlannerV2Context();
   
+  // Get the global selectedEventId state that the modal uses
+  const { 
+    selectedEventId: globalSelectedEventId, 
+    setSelectedEventId: setGlobalSelectedEventId,
+    setCreatingNewEvent: setGlobalCreatingNewEvent
+  } = usePlannerContext();
+  
   const { projects } = useProjectContext();
   const { currentDate, setCurrentDate } = useTimelineContext();
+  const { isTimeTracking } = useSettingsContext();
   const { toast } = useToast();
   
   const calendarRef = useRef<FullCalendar>(null);
@@ -55,16 +66,9 @@ export function PlannerV2View() {
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
   // FullCalendar event handlers
-  const handleEventClick = useCallback((clickInfo: EventClickArg) => {
-    const eventId = clickInfo.event.id;
-    if (eventId.startsWith('work-')) {
-      // Handle work hour selection
-      console.log('Work hour clicked:', eventId);
-    } else {
-      // Handle calendar event selection
-      setSelectedEventId(eventId);
-    }
-  }, [setSelectedEventId]);
+    const handleEventClick = (info: any) => {
+    setGlobalSelectedEventId(info.event.id);
+  };
 
   const handleEventDrop = useCallback(async (dropInfo: EventDropArg) => {
     const eventId = dropInfo.event.id;
@@ -129,15 +133,15 @@ export function PlannerV2View() {
   }, [updateEventWithUndo]);
 
   const handleDateSelect = useCallback((selectInfo: DateSelectArg) => {
-    // Create new event
-    setCreatingNewEvent({
+    // Create new event using global context so the modal opens
+    setGlobalCreatingNewEvent({
       startTime: selectInfo.start,
       endTime: selectInfo.end
     });
     
     // Clear the selection
     selectInfo.view.calendar.unselect();
-  }, [setCreatingNewEvent]);
+  }, [setGlobalCreatingNewEvent]);
 
   // Navigation handlers
   const handleNavigate = useCallback((direction: 'prev' | 'next' | 'today') => {
@@ -315,6 +319,103 @@ export function PlannerV2View() {
     setLayerMode
   ]);
 
+  // Custom event content renderer
+  const renderEventContent = useCallback((eventInfo: any) => {
+    const event = eventInfo.event;
+    const extendedProps = event.extendedProps;
+    
+    // Skip custom rendering for work hours - let them use default display
+    if (extendedProps.isWorkHour) {
+      return { html: '' }; // Use default FullCalendar rendering
+    }
+    
+    // Get project info
+    const projectId = extendedProps.projectId;
+    const project = projectId ? projects.find(p => p.id === projectId) : null;
+    
+    // Format time
+    const start = moment(event.start).format('HH:mm');
+    const end = moment(event.end).format('HH:mm');
+    
+    // Get event description or title
+    const eventType = extendedProps.type;
+    const description = (eventType === 'tracked' || eventType === 'completed') 
+      ? 'Tracked Time' 
+      : (extendedProps.description || event.title);
+    
+    // Create project/client line
+    const projectLine = project 
+      ? `${project.name}${project.client ? ` • ${project.client}` : ''}`
+      : 'No Project';
+    
+    // Check if this is a currently tracking event
+    const isCurrentlyTracking = eventType === 'tracked' && isTimeTracking;
+    const isCompleted = extendedProps.completed;
+    
+    // Create the icon HTML
+    let iconHtml = '';
+    if (isCurrentlyTracking) {
+      iconHtml = '<div style="width: 8px; height: 8px; border-radius: 50%; background-color: #ef4444; animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;" title="Currently recording"></div>';
+    } else {
+      // Use check icons for completion status - improved centering
+      const checkIconSvg = isCompleted 
+        ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><path d="m9 12 2 2 4-4"></path><circle cx="12" cy="12" r="10"></circle></svg>'
+        : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><circle cx="12" cy="12" r="10"></circle></svg>';
+      
+      iconHtml = `<button type="button" style="cursor: pointer; transition: transform 0.2s; background: none; border: none; color: inherit; padding: 0; margin: 0; display: flex; align-items: center; justify-content: center;" 
+                    onmouseover="this.style.transform='scale(1.1)'" 
+                    onmouseout="this.style.transform='scale(1)'"
+                    onclick="window.plannerV2ToggleCompletion && window.plannerV2ToggleCompletion('${event.id}')"
+                    title="${isCompleted ? 'Mark as not completed' : 'Mark as completed'}">${checkIconSvg}</button>`;
+    }
+    
+    return {
+      html: `
+        <div style="height: 100%; display: flex; flex-direction: column; gap: 2px; padding: 2px;">
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div style="font-size: 11px; font-weight: 500; line-height: 1;">${start} - ${end}</div>
+            <div style="display: flex; align-items: center; color: inherit;">
+              ${iconHtml}
+            </div>
+          </div>
+          <div style="font-size: 12px; font-weight: 600; line-height: 1.2; word-wrap: break-word;">${description}</div>
+          <div style="font-size: 11px; opacity: 0.75; line-height: 1; word-wrap: break-word;">${projectLine}</div>
+        </div>
+      `
+    };
+  }, [projects, isTimeTracking]);
+
+  // Handle completion toggle for events
+  const handleCompletionToggle = useCallback(async (eventId: string) => {
+    const event = events.find(e => e.id === eventId);
+    if (!event) return;
+    
+    // Don't allow toggling completion for currently tracking events
+    if (event.type === 'tracked' && isTimeTracking) {
+      return;
+    }
+    
+    try {
+      await updateEventWithUndo(eventId, { completed: !event.completed });
+    } catch (error) {
+      console.error('Failed to toggle completion:', error);
+      toast({
+        title: "Failed to update event",
+        description: "Please try again",
+        variant: "destructive",
+      });
+    }
+  }, [events, isTimeTracking, updateEventWithUndo, toast]);
+
+  // Set up global completion toggle function for HTML onclick events
+  useEffect(() => {
+    (window as any).plannerV2ToggleCompletion = handleCompletionToggle;
+    
+    return () => {
+      delete (window as any).plannerV2ToggleCompletion;
+    };
+  }, [handleCompletionToggle]);
+
   // Prepare FullCalendar configuration
   const calendarConfig = {
     ...getBaseFullCalendarConfig(),
@@ -322,6 +423,9 @@ export function PlannerV2View() {
     events: fullCalendarEvents,
     initialView: currentView === 'week' ? 'timeGridWeek' : 'timeGridDay',
     initialDate: calendarDate,
+    
+    // Custom event content renderer
+    eventContent: renderEventContent,
     
     // Event handlers
     eventClick: handleEventClick,

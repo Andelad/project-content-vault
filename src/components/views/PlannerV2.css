@@ -50,7 +50,16 @@
 
 .planner-v2-event.completed {
   opacity: 0.7;
-  text-decoration: line-through;
+}
+
+/* Pulse animation for tracking indicator */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: .5;
+  }
 }
 
 .planner-v2-event.work-hour {

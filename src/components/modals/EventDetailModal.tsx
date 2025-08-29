@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
+import { usePlannerV2Context } from '../../contexts/PlannerV2Context';
 import { CalendarEvent } from '../../types';
 import { calculateDurationHours } from '../../services/work-hours';
 import { Button } from '../ui/button';
@@ -32,19 +33,27 @@ export function EventDetailModal({
   defaultEndTime
 }: EventDetailModalProps) {
   const { projects, groups } = useProjectContext();
+  
+  // Use PlannerV2Context as the primary context since PlannerV2 will replace Planner
   const { 
     events, 
     addEvent, 
     updateEvent,
-    deleteEvent,
+    deleteEvent
+  } = usePlannerV2Context();
+  
+  // Use PlannerContext for recurring operations (since PlannerV2 doesn't have them yet)
+  const plannerContext = usePlannerContext();
+  const {
     getRecurringGroupEvents,
     deleteRecurringSeriesFuture,
     deleteRecurringSeriesAll
-  } = usePlannerContext();
+  } = plannerContext;
 
   const [formData, setFormData] = useState({
-    title: '',
     description: '',
+    notes: '',
+    groupId: '',
     startDate: '',
     startTime: '',
     endDate: '',
@@ -100,9 +109,13 @@ export function EventDetailModal({
   useEffect(() => {
     if (isOpen) {
       if (existingEvent) {
+        const existingProject = projects.find(p => p.id === existingEvent.projectId);
+        const groupId = existingProject ? existingProject.groupId : '';
+        
         setFormData({
-          title: existingEvent.title,
-          description: existingEvent.description || '',
+          description: existingEvent.title,
+          notes: existingEvent.description || '',
+          groupId,
           startDate: formatDate(new Date(existingEvent.startTime)),
           startTime: formatTime(new Date(existingEvent.startTime)),
           endDate: formatDate(new Date(existingEvent.endTime)),
@@ -122,8 +135,9 @@ export function EventDetailModal({
         const startDate = defaultStartTime || new Date();
         const endDate = defaultEndTime || new Date(startDate.getTime() + 60 * 60 * 1000);
         setFormData({
-          title: '',
           description: '',
+          notes: '',
+          groupId: '',
           startDate: formatDate(startDate),
           startTime: formatTime(startDate),
           endDate: formatDate(endDate),
@@ -182,8 +196,8 @@ export function EventDetailModal({
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.title.trim()) {
-      newErrors.title = 'Title is required';
+    if (!formData.description.trim()) {
+      newErrors.description = 'Description is required';
     }
 
     if (!formData.startDate || !formData.startTime) {
@@ -227,9 +241,24 @@ export function EventDetailModal({
     try {
     const startDateTime = getStartDateTime();
     const endDateTime = getEndDateTime();
-    const duration = calculateDurationHours(startDateTime, endDateTime);      const eventData: Omit<CalendarEvent, 'id'> = {
-        title: formData.title.trim(),
-        description: formData.description.trim() || undefined,
+    const duration = calculateDurationHours(startDateTime, endDateTime);
+    
+    // Determine the title: Description always takes precedence, fallback to 'Tracked Time' only if no description
+    let title;
+    if (formData.description.trim()) {
+      // If user provided a description, always use it (overrides 'Tracked Time')
+      title = formData.description.trim();
+    } else if (existingEvent?.title === 'Tracked Time' || existingEvent?.title?.includes('Tracked Time')) {
+      // Only use 'Tracked Time' if no description provided and this was originally a tracked time event
+      title = 'Tracked Time';
+    } else {
+      // Fallback for other cases
+      title = formData.description.trim() || 'Untitled Event';
+    }
+    
+    const eventData: Omit<CalendarEvent, 'id'> = {
+        title,
+        description: formData.notes.trim() || undefined,
         startTime: startDateTime,
         endTime: endDateTime,
         duration,
@@ -381,26 +410,119 @@ export function EventDetailModal({
         } : undefined}
       >
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Title */}
-          <div className="space-y-2">
-            <Label htmlFor="title">Title *</Label>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Description */}
+          <div className="space-y-1.5 relative">
+            {/* Completion toggle positioned in top right, moved up into header gap */}
+            <div className="absolute -top-3 right-0 z-10">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="completed"
+                  checked={formData.completed}
+                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, completed: !!checked }))}
+                />
+                <Label htmlFor="completed" className="flex items-center gap-2 cursor-pointer text-sm">
+                  <CheckCircle2 className="w-4 h-4" />
+                  Mark as completed
+                </Label>
+              </div>
+            </div>
+            
+            <Label htmlFor="description">Description *</Label>
             <Input
-              id="title"
-              value={formData.title}
-              onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-              placeholder="Enter event title"
-              className={errors.title ? 'border-destructive' : ''}
+              id="description"
+              value={formData.description}
+              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              placeholder="Enter event description"
+              className={errors.description ? 'border-destructive' : ''}
             />
-            {errors.title && (
-              <p className="text-sm text-destructive">{errors.title}</p>
+            {errors.description && (
+              <p className="text-sm text-destructive">{errors.description}</p>
+            )}
+          </div>
+
+          {/* Allocate to Project */}
+          <div className="space-y-2">
+            <Label>Allocate to Project</Label>
+            
+            {/* Group Selection */}
+            <div className="space-y-1.5">
+              <Select value={formData.groupId || "none"} onValueChange={(value) => {
+                const newGroupId = value === "none" ? "" : value;
+                
+                // When group changes, reset project and set to first project if group is selected
+                let newProjectId = "";
+                if (newGroupId) {
+                  const groupProjects = projects.filter(project => project.groupId === newGroupId);
+                  if (groupProjects.length > 0) {
+                    newProjectId = groupProjects[0].id;
+                  }
+                }
+                
+                setFormData(prev => ({ 
+                  ...prev, 
+                  groupId: newGroupId,
+                  projectId: newProjectId
+                }));
+              }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a group" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {groups.map((group) => (
+                    <SelectItem key={group.id} value={group.id}>
+                      {group.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Project Selection - Only show when group is selected */}
+            {formData.groupId && (
+              <div className="space-y-1.5">
+                <Select 
+                  value={formData.projectId || ""} 
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, projectId: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a project" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projects
+                      .filter(project => project.groupId === formData.groupId)
+                      .map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="w-3 h-3 rounded-full border border-gray-300"
+                            style={{ backgroundColor: project.color }}
+                          />
+                          <span>{project.name}</span>
+                          <span className="text-xs text-muted-foreground">({project.client})</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedProject && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <div 
+                      className="w-3 h-3 rounded-full border border-gray-300"
+                      style={{ backgroundColor: selectedProject.color }}
+                    />
+                    <span>Event will use project color: {selectedProject.name}</span>
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
           {/* Date and Time Range */}
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
                 <Label htmlFor="startDate">Start Date *</Label>
                 <Input
                   id="startDate"
@@ -411,7 +533,7 @@ export function EventDetailModal({
                 />
               </div>
               
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label htmlFor="startTime">Start Time *</Label>
                 <Input
                   id="startTime"
@@ -423,8 +545,8 @@ export function EventDetailModal({
               </div>
             </div>
             
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
                 <Label htmlFor="endDate">End Date *</Label>
                 <Input
                   id="endDate"
@@ -435,7 +557,7 @@ export function EventDetailModal({
                 />
               </div>
               
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label htmlFor="endTime">End Time *</Label>
                 <Input
                   id="endTime"
@@ -464,62 +586,8 @@ export function EventDetailModal({
             </div>
           )}
 
-          {/* Project Selection */}
-          <div className="space-y-2">
-            <Label htmlFor="project">Project (Optional)</Label>
-            <Select value={formData.projectId || "none"} onValueChange={(value) => setFormData(prev => ({ ...prev, projectId: value === "none" ? "" : value }))}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a project (optional)" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">No project</SelectItem>
-                {Object.entries(projectsByGroup).map(([groupName, groupProjects]) => (
-                  <div key={groupName}>
-                    <div className="px-2 py-1 text-sm font-semibold text-muted-foreground">
-                      {groupName}
-                    </div>
-                    {(groupProjects as any[]).map((project) => (
-                      <SelectItem key={project.id} value={project.id}>
-                        <div className="flex items-center gap-2">
-                          <div 
-                            className="w-3 h-3 rounded-full border border-gray-300"
-                            style={{ backgroundColor: project.color }}
-                          />
-                          <span>{project.name}</span>
-                          <span className="text-xs text-muted-foreground">({project.client})</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </div>
-                ))}
-              </SelectContent>
-            </Select>
-            {selectedProject && formData.projectId !== "none" && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <div 
-                  className="w-3 h-3 rounded-full border border-gray-300"
-                  style={{ backgroundColor: selectedProject.color }}
-                />
-                <span>Event will use project color: {selectedProject.name}</span>
-              </div>
-            )}
-          </div>
-
-          {/* Completed Status */}
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="completed"
-              checked={formData.completed}
-              onCheckedChange={(checked) => setFormData(prev => ({ ...prev, completed: !!checked }))}
-            />
-            <Label htmlFor="completed" className="flex items-center gap-2 cursor-pointer">
-              <CheckCircle2 className="w-4 h-4" />
-              Mark as completed
-            </Label>
-          </div>
-
           {/* Recurring Options */}
-          <div className="space-y-4">
+          <div className="space-y-3">
             <div className="flex items-center space-x-2">
               <Switch
                 id="recurring"
@@ -533,9 +601,9 @@ export function EventDetailModal({
             </div>
 
             {formData.isRecurring && (
-              <div className="pl-6 space-y-4 border-l-2 border-muted">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
+              <div className="pl-6 space-y-3 border-l-2 border-muted">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
                     <Label htmlFor="recurringType">Repeat</Label>
                     <Select value={formData.recurringType} onValueChange={(value: any) => setFormData(prev => ({ ...prev, recurringType: value }))}>
                       <SelectTrigger>
@@ -550,7 +618,7 @@ export function EventDetailModal({
                     </Select>
                   </div>
                   
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <Label htmlFor="recurringInterval">Every</Label>
                     <div className="flex items-center gap-2">
                       <Input
@@ -568,7 +636,7 @@ export function EventDetailModal({
                   </div>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <Label>End recurring</Label>
                   <Select value={formData.recurringEndType} onValueChange={(value: any) => setFormData(prev => ({ ...prev, recurringEndType: value }))}>
                     <SelectTrigger>
@@ -583,7 +651,7 @@ export function EventDetailModal({
                 </div>
 
                 {formData.recurringEndType === 'date' && (
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <Label htmlFor="recurringEndDate">End date</Label>
                     <Input
                       id="recurringEndDate"
@@ -599,7 +667,7 @@ export function EventDetailModal({
                 )}
 
                 {formData.recurringEndType === 'count' && (
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <Label htmlFor="recurringCount">Number of occurrences</Label>
                     <Input
                       id="recurringCount"
@@ -614,15 +682,15 @@ export function EventDetailModal({
             )}
           </div>
 
-          {/* Description */}
-          <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+          {/* Notes */}
+          <div className="space-y-1.5">
+            <Label htmlFor="notes">Notes</Label>
             <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              placeholder="Enter event description (optional)"
-              rows={4}
+              id="notes"
+              value={formData.notes}
+              onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+              placeholder="Add additional notes (optional)"
+              rows={3}
             />
           </div>
 

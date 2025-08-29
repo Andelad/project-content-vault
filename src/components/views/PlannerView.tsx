@@ -5,6 +5,7 @@ import moment from 'moment';
 import 'moment/locale/en-gb'; // Import GB locale for Monday week start
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
+import { usePlannerV2Context } from '../../contexts/PlannerV2Context';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 import { useTimelineContext } from '../../contexts/TimelineContext';
 import { CalendarEvent, WorkHour } from '../../types';
@@ -60,7 +61,7 @@ interface CustomEventProps {
 function CustomEvent({ event, layerMode, updateEventWithUndo }: CustomEventProps) {
   const { projects } = useProjectContext();
   const { deleteWorkHour } = useWorkHours();
-  const { updateEvent } = usePlannerContext();
+  const { updateEvent } = usePlannerV2Context();
   const { isTimeTracking } = useSettingsContext();
   const resource = event.resource;
 
@@ -115,9 +116,9 @@ function CustomEvent({ event, layerMode, updateEventWithUndo }: CustomEventProps
     };
 
     return (
-  <div className="h-full flex flex-col gap-0.5">
+      <div className="h-full flex flex-col gap-0.5">
         <div className="flex items-center justify-between">
-          <div className="text-[11px] leading-none opacity-80 font-medium">{start} - {end}</div>
+          <div className="text-[11px] leading-none font-medium">{start} - {end}</div>
           <div className="text-current">
             {isCurrentlyTracking ? (
               <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" title="Currently recording" />
@@ -132,8 +133,12 @@ function CustomEvent({ event, layerMode, updateEventWithUndo }: CustomEventProps
             )}
           </div>
         </div>
-        {project?.client && <div className="text-xs opacity-75 truncate leading-tight">{project.client}</div>}
-        {project && <div className="text-xs opacity-75 truncate leading-tight">{project.name}</div>}
+        <div className="text-xs font-semibold truncate leading-tight">
+          {calendarEvent.type === 'tracked' || calendarEvent.type === 'completed' ? 'Tracked Time' : (calendarEvent.description || calendarEvent.title)}
+        </div>
+        <div className="text-xs opacity-75 truncate leading-tight">
+          {project ? `${project.name}${project.client ? ` • ${project.client}` : ''}` : 'No Project'}
+        </div>
       </div>
     );
   }
@@ -144,11 +149,17 @@ function CustomEvent({ event, layerMode, updateEventWithUndo }: CustomEventProps
 export function PlannerView() {
   const { projects } = useProjectContext();
   const { currentDate, setCurrentDate } = useTimelineContext();
+  
+  // Use PlannerV2Context for events since PlannerV2 will replace this view
   const {
     events,
     addEvent,
     updateEvent,
-    deleteEvent,
+    deleteEvent
+  } = usePlannerV2Context();
+  
+  // Keep PlannerContext for global modal state management
+  const {
     setSelectedEventId,
     selectedEventId,
     setCreatingNewEvent
