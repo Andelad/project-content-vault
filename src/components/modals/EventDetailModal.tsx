@@ -357,7 +357,6 @@ export function EventDetailModal({
         isOpen={isOpen}
         onClose={onClose}
         title={isEditing ? 'Edit Event' : 'Create Event'}
-        description={isEditing ? 'Edit the details of the event' : 'Create a new event'}
         size="md"
         primaryAction={{
           label: isSubmitting ? 'Saving...' : (isEditing ? 'Update Event' : 'Create Event'),

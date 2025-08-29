@@ -8,7 +8,7 @@ interface ProjectIconIndicatorProps {
   mode?: 'days' | 'weeks';
 }
 
-// Icon mapping - matches the icons from ProjectDetailModal
+// Icon mapping - matches the icons from ProjectModal
 const ICON_MAP: { [key: string]: any } = {
   'folder': Folder,
   'briefcase': Briefcase,

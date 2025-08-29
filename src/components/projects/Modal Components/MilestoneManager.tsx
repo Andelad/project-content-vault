@@ -234,7 +234,7 @@ export function MilestoneManager({
     setEditingProperty(null);
   };
 
-  // Inline editing components similar to ProjectDetailModal
+  // Inline editing components similar to ProjectModal
   const MilestoneNameField = ({ 
     milestone, 
     property = 'name' 

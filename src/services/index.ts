@@ -76,3 +76,16 @@ export { TimeAllocationService } from './timeline/TimeAllocationService';
 export { expandHolidayDates } from './calendar/dateRangeService';
 export { calculateDailyTotals } from './calendar/calendarInsightService';
 
+// Time formatting utilities
+export {
+  formatTimeSeconds,
+  formatTimeMinutes, 
+  formatTimeHours,
+  formatTimeHoursMinutes,
+  formatTimeRange,
+  formatRelativeTime,
+  parseTimeToSeconds,
+  convertMilliseconds,
+  TIME_FORMAT_CONSTANTS
+} from './settings/timeFormattingService';
+

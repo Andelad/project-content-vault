@@ -2,6 +2,6 @@
 // Main insights component
 export { InsightsView } from './InsightsView';
 
-// Sub-components
+// Individual insight cards
 export { TimeAnalysisChart } from './TimeAnalysisChart';
-export { ProjectsDetailView } from './ProjectsDetailView';
+export { InsightsActiveProjectsCard } from './InsightsActiveProjectsCard';

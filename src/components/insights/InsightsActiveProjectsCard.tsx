@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Target, Clock, Calendar } from 'lucide-react';
 import { Project } from '../../types';
 
-interface ProjectsDetailViewProps {
+interface InsightsActiveProjectsCardProps {
   showActiveProjects: boolean;
   setShowActiveProjects: (show: boolean) => void;
   currentProjects: Project[];
@@ -13,7 +13,7 @@ interface ProjectsDetailViewProps {
   today: Date;
 }
 
-export const ProjectsDetailView: React.FC<ProjectsDetailViewProps> = ({
+export const InsightsActiveProjectsCard: React.FC<InsightsActiveProjectsCardProps> = ({
   showActiveProjects,
   setShowActiveProjects,
   currentProjects,

@@ -191,7 +191,6 @@ export function HolidayModal({ isOpen, onClose, holidayId, defaultStartDate, def
       isOpen={isOpen}
       onClose={onClose}
       title={isEditing ? 'Edit Holiday' : 'Add Holiday'}
-      description={isEditing ? 'Update your holiday details below.' : 'Create a new holiday with a title, date range, and optional notes.'}
       size="md"
       primaryAction={{
         label: isEditing ? 'Update Holiday' : 'Add Holiday',

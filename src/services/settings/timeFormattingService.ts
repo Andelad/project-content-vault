@@ -47,6 +47,25 @@ export function formatTimeHours(totalHours: number, precision: number = 1): stri
 }
 
 /**
+ * Format decimal hours into hours and minutes format (e.g., 2.5 -> "2h 30m")
+ * Used primarily for project time allocation displays
+ */
+export function formatTimeHoursMinutes(hours: number): string {
+  const wholeHours = Math.floor(hours);
+  const minutes = Math.round((hours - wholeHours) * 60);
+
+  if (wholeHours === 0 && minutes === 0) {
+    return '0h';
+  } else if (wholeHours === 0) {
+    return `${minutes}m`;
+  } else if (minutes === 0) {
+    return `${wholeHours}h`;
+  } else {
+    return `${wholeHours}h ${minutes}m`;
+  }
+}
+
+/**
  * Parse time string (HH:MM or HH:MM:SS) into total seconds
  */
 export function parseTimeToSeconds(timeString: string): number {

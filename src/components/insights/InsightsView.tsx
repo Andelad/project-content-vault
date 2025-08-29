@@ -25,7 +25,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Checkbox } from '../ui/checkbox';
 import { TimeAnalysisChart } from './TimeAnalysisChart';
-import { ProjectsDetailView } from './ProjectsDetailView';
+import { InsightsActiveProjectsCard } from './InsightsActiveProjectsCard';
 
 type TimeFrame = 'week' | 'month' | 'year';
 type AveragePeriod = 'week' | 'month' | '6months';
@@ -327,7 +327,7 @@ export function InsightsView() {
           {/* Projects and Commitments Row */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-[21px]">
             {/* Projects Detail */}
-            <ProjectsDetailView
+            <InsightsActiveProjectsCard
               showActiveProjects={showActiveProjects}
               setShowActiveProjects={setShowActiveProjects}
               currentProjects={currentProjects}

@@ -8,7 +8,7 @@ export * from './useGroups';
 export * from './useHolidays';
 export * from './useMilestones';
 export * from './usePerformance';
-export * from './useProjectDetailModalState';
+export * from './useProjectModalState';
 export * from './useProjectModalState';
 export * from './useProjects';
 export * from './useRows';

@@ -13,7 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { LogOut } from 'lucide-react';
 import { Sidebar } from '@/components/layout';
-import { ProjectDetailModal } from '@/components';
+import { ProjectModal } from '@/components';
 import { HolidayModal } from '@/components/modals/HolidayModal';
 import { ErrorBoundary } from '@/components/debug/ErrorBoundary';
 import { DevToolsWrapper } from '@/components/debug/DevTools';
@@ -128,14 +128,14 @@ function AuthenticatedContent() {
 
       {/* Global Modals with Error Boundaries */}
       <ErrorBoundary>
-        <ProjectDetailModal
+        <ProjectModal
           key="edit-modal"
           isOpen={!!selectedProjectId}
           onClose={() => setSelectedProjectId(null)}
           projectId={selectedProjectId || ''}
         />
 
-        <ProjectDetailModal
+        <ProjectModal
           key="create-modal"
           isOpen={!!creatingNewProject}
           onClose={() => setCreatingNewProject(null)}
