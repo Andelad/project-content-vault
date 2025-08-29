@@ -419,6 +419,33 @@ export function TimelineView() {
     };
   }, [autoScrollState.intervalId]);
 
+  // Handle external currentDate changes (e.g., from planner navigation)
+  React.useEffect(() => {
+    // Check if currentDate is outside current viewport
+    const currentStart = viewportStart;
+    const currentEnd = new Date(currentStart);
+    currentEnd.setDate(currentStart.getDate() + VIEWPORT_DAYS - 1);
+    
+    // If currentDate is outside viewport, navigate to include it
+    if (currentDate < currentStart || currentDate > currentEnd) {
+      // Center the viewport around the currentDate
+      const newViewportStart = new Date(currentDate);
+      
+      if (timelineMode === 'weeks') {
+        // In weeks mode, align to week boundary  
+        const dayOfWeek = newViewportStart.getDay();
+        const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Monday = 1
+        newViewportStart.setDate(newViewportStart.getDate() + mondayOffset);
+      } else {
+        // In days mode, go back by half viewport to center the date
+        newViewportStart.setDate(newViewportStart.getDate() - Math.floor(VIEWPORT_DAYS / 2));
+      }
+      
+      newViewportStart.setHours(0, 0, 0, 0);
+      setViewportStart(newViewportStart);
+    }
+  }, [currentDate, viewportStart, VIEWPORT_DAYS, timelineMode]);
+
   // Mouse handlers for timeline bar interactions
   const handleMouseDown = useCallback((e: React.MouseEvent, projectId: string, action: string) => {
     // 🚫 PREVENT BROWSER DRAG-AND-DROP: Stop the globe/drag indicator

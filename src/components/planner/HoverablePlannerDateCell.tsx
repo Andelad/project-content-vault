@@ -15,8 +15,12 @@ export function HoverablePlannerDateCell({ date, children, className = '' }: Hov
 
   const handleClick = () => {
     // Navigate to timeline at the specified date
+    // Set date first, then view to ensure timeline loads at the correct date
     setCurrentDate(new Date(date));
-    setCurrentView('timeline');
+    // Use setTimeout to ensure date is set before view change
+    setTimeout(() => {
+      setCurrentView('timeline');
+    }, 0);
   };
 
   return (
