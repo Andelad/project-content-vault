@@ -91,3 +91,147 @@ export function generateCacheRecommendations(stats: CacheStats): string[] {
   
   return recommendations;
 }
+
+// =====================================================================================
+// MEMOIZATION UTILITIES
+// =====================================================================================
+
+/**
+ * Interface for memo cache entries
+ */
+interface MemoCache<T> {
+  value: T;
+  timestamp: number;
+  accessCount: number;
+}
+
+/**
+ * Memoization cache class with LRU eviction and TTL
+ */
+class MemoizationCache<T> {
+  private cache = new Map<string, MemoCache<T>>();
+  private maxSize: number;
+  private ttl: number; // Time to live in milliseconds
+
+  constructor(maxSize: number = 500, ttl: number = 30000) {
+    this.maxSize = maxSize;
+    this.ttl = ttl;
+  }
+
+  get(key: string): T | undefined {
+    const cached = this.cache.get(key);
+    if (!cached) return undefined;
+
+    // Check if expired
+    if (Date.now() - cached.timestamp > this.ttl) {
+      this.cache.delete(key);
+      return undefined;
+    }
+
+    // Update access count for LRU
+    cached.accessCount += 1;
+    return cached.value;
+  }
+
+  set(key: string, value: T): void {
+    // Clean up if cache is full
+    if (this.cache.size >= this.maxSize) {
+      // Remove least recently used item
+      let lruKey = '';
+      let lruCount = Infinity;
+
+      for (const [k, v] of this.cache.entries()) {
+        if (v.accessCount < lruCount) {
+          lruCount = v.accessCount;
+          lruKey = k;
+        }
+      }
+
+      if (lruKey) {
+        this.cache.delete(lruKey);
+      }
+    }
+
+    this.cache.set(key, {
+      value,
+      timestamp: Date.now(),
+      accessCount: 0
+    });
+  }
+
+  clear(): void {
+    this.cache.clear();
+  }
+
+  size(): number {
+    return this.cache.size;
+  }
+
+  getMaxSize(): number {
+    return this.maxSize;
+  }
+}
+
+// Global caches for different types of calculations
+export const timelineCalculationCache = new MemoizationCache<any>(500, 30000);
+export const dateCalculationCache = new MemoizationCache<any>(200, 30000);
+export const projectMetricsCache = new MemoizationCache<any>(300, 30000);
+
+/**
+ * Memoization decorator for expensive calculations
+ */
+export function memoizeExpensiveCalculation<T extends (...args: any[]) => any>(
+  fn: T,
+  cache: MemoizationCache<ReturnType<T>>,
+  keyGenerator?: (...args: Parameters<T>) => string
+): T {
+  let hitCount = 0;
+  let missCount = 0;
+
+  return ((...args: Parameters<T>) => {
+    const key = keyGenerator ? keyGenerator(...args) : JSON.stringify(args);
+
+    const cached = cache.get(key);
+    if (cached !== undefined) {
+      hitCount++;
+      if (process.env.NODE_ENV === 'development' && (hitCount + missCount) % 100 === 0) {
+        console.log(`📈 Cache stats - Hits: ${hitCount}, Misses: ${missCount}, Hit rate: ${(hitCount / (hitCount + missCount) * 100).toFixed(1)}%`);
+      }
+      return cached;
+    }
+
+    missCount++;
+    const result = fn(...args);
+    cache.set(key, result);
+    return result;
+  }) as T;
+}
+
+/**
+ * Cache cleanup utility
+ */
+export function cleanupMemoizationCaches(): void {
+  timelineCalculationCache.clear();
+  dateCalculationCache.clear();
+  projectMetricsCache.clear();
+}
+
+/**
+ * Get comprehensive cache statistics
+ */
+export function getCacheStats(): CacheStats {
+  return {
+    timeline: {
+      size: timelineCalculationCache.size(),
+      maxSize: timelineCalculationCache.getMaxSize()
+    },
+    dates: {
+      size: dateCalculationCache.size(),
+      maxSize: dateCalculationCache.getMaxSize()
+    },
+    projectMetrics: {
+      size: projectMetricsCache.size(),
+      maxSize: projectMetricsCache.getMaxSize()
+    }
+  };
+}

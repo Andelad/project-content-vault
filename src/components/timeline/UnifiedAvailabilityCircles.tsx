@@ -1,16 +1,16 @@
 import React, { memo, useMemo } from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import { usePlannerContext } from '../../contexts/PlannerContext';
-import { isHolidayDate } from '@/lib/workHoursUtils';
+import { isHolidayDateCapacity as isHolidayDate } from '@/services/work-hours/workHourCapacityService';
 import { 
   calculateAvailabilityReduction, 
   generateWorkHoursForDate,
-  memoizedGetProjectTimeAllocation,
-  memoizedProjectWorkingDays,
   calculateOvertimePlannedHours,
   calculateTotalPlannedHours,
-  calculateOtherTime
-} from '@/lib/eventWorkHourUtils';
+  calculateOtherTime,
+  calculateProjectWorkingDays,
+  getProjectTimeAllocation
+} from '@/services/work-hours';
 
 type AvailabilityType = 
   | 'available' 
@@ -81,7 +81,7 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
         const projectEnd = new Date(project.endDate);
         
         if (date >= projectStart && date <= projectEnd) {
-          const workingDays = memoizedProjectWorkingDays(projectStart, projectEnd, settings, holidays);
+          const workingDays = calculateProjectWorkingDays(projectStart, projectEnd, settings, holidays);
           const totalWorkingDays = workingDays.length;
           
           if (totalWorkingDays > 0) {
@@ -102,7 +102,7 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
           const oneYearLater = new Date(projectStart);
           oneYearLater.setFullYear(projectStart.getFullYear() + 1);
           
-          const workingDays = memoizedProjectWorkingDays(projectStart, oneYearLater, settings, holidays);
+          const workingDays = calculateProjectWorkingDays(projectStart, oneYearLater, settings, holidays);
           const totalWorkingDays = workingDays.length;
           
           if (totalWorkingDays > 0) {

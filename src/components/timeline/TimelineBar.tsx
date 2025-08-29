@@ -4,12 +4,13 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
-import { calculateTimelinePositions, getSafePosition } from '@/lib/timelinePositioning';
-import { calculateWorkHourCapacity, isHolidayDate } from '@/lib/workHoursUtils';
-import { getProjectTimeAllocation, memoizedGetProjectTimeAllocation, generateWorkHoursForDate } from '@/lib/eventWorkHourUtils';
-import { calculateMilestoneSegments, getMilestoneSegmentForDate } from '@/lib/milestoneSegmentUtils';
+import { TimelinePositioningService } from '@/services/timeline/TimelinePositioningService';
+import { calculateWorkHourCapacity, isHolidayDateCapacity as isHolidayDate } from '@/services/work-hours/workHourCapacityService';
+import { getProjectTimeAllocation, memoizedGetProjectTimeAllocation, generateWorkHoursForDate } from '@/services/events/eventWorkHourIntegrationService';
+import { calculateMilestoneSegments, getMilestoneSegmentForDate } from '@/services/milestones/milestoneUtilitiesService';
 import { ProjectIconIndicator, ProjectMilestones } from '@/components';
 import { TimeAllocationService, HeightCalculationService, ColorCalculationService } from '@/services';
+import { useCachedWorkingDayChecker } from '@/lib/workingDayCache';
 
 interface TimelineBarProps {
   project: any;
@@ -226,24 +227,8 @@ export const TimelineBar = memo(function TimelineBar({
     return projectDays;
   }, [project.startDate, project.endDate, project.continuous, viewportStart, viewportEnd]);
   
-  // Memoize working day checker
-  const isWorkingDay = useMemo(() => {
-    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    return (date: Date) => {
-      // First check if it's a holiday - holidays have 0 work hours
-      if (isHolidayDate(date, holidays)) {
-        return false;
-      }
-      
-      const dayName = dayNames[date.getDay()] as keyof typeof settings.weeklyWorkHours;
-      const workSlots = settings.weeklyWorkHours[dayName];
-      // Sum up all work slot durations for this day
-      const totalHours = Array.isArray(workSlots) 
-        ? workSlots.reduce((sum, slot) => sum + slot.duration, 0)
-        : 0;
-      return totalHours > 0;
-    };
-  }, [settings.weeklyWorkHours, holidays]);
+  // Cached working day checker - eliminates duplicate calculations
+  const isWorkingDay = useCachedWorkingDayChecker(settings.weeklyWorkHours, holidays);
 
   // Memoize milestone segments calculation
   const milestoneSegments = useMemo(() => {
@@ -810,7 +795,7 @@ export const TimelineBar = memo(function TimelineBar({
             : new Date(project.endDate);
           
           // Use utility function for consistent positioning calculations
-          const positions = calculateTimelinePositions(
+          const positions = TimelinePositioningService.calculateTimelinePositions(
             projectStart,
             projectEnd,
             viewportStart,

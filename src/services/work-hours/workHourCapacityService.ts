@@ -515,3 +515,324 @@ export function generateCapacityRecommendations(planningResult: CapacityPlanning
   
   return recommendations;
 }
+
+/**
+ * Calculates total availability reduction for a date due to events
+ */
+export function calculateAvailabilityReduction(
+  date: Date,
+  events: CalendarEvent[],
+  workHours: WorkHour[]
+): number {
+  const targetDateString = date.toDateString();
+
+  // Get events for this date
+  const dayEvents = events.filter(event =>
+    event.startTime.toDateString() === targetDateString
+  );
+
+  let totalReductionHours = 0;
+
+  for (const event of dayEvents) {
+    const overlapMinutes = calculateEventWorkHourOverlap(event, workHours);
+    totalReductionHours += overlapMinutes / 60;
+  }
+
+  return totalReductionHours;
+}
+
+/**
+ * Calculate overlap between an event and work hours in minutes
+ */
+function calculateEventWorkHourOverlap(event: CalendarEvent, workHours: WorkHour[]): number {
+  let totalOverlapMinutes = 0;
+
+  for (const workHour of workHours) {
+    const overlap = calculateTimeOverlap(
+      event.startTime,
+      event.endTime,
+      workHour.startTime,
+      workHour.endTime
+    );
+
+    if (overlap > 0) {
+      totalOverlapMinutes += overlap * 60; // Convert hours to minutes
+    }
+  }
+
+  return totalOverlapMinutes;
+}
+
+/**
+ * Shows time that is planned AND attributed to a project outside of work hours
+ */
+export function calculateOvertimePlannedHours(
+  date: Date,
+  events: CalendarEvent[],
+  workHours: WorkHour[]
+): number {
+  // Get events that occur on this date and have a projectId (attributed to projects)
+  const dayProjectEvents = events.filter(event =>
+    event.projectId && calculateEventDurationOnDate(event, date) > 0
+  );
+
+  let overtimeHours = 0;
+
+  for (const event of dayProjectEvents) {
+    // Calculate total event duration for this specific date
+    const eventDurationHours = calculateEventDurationOnDate(event, date);
+
+    if (eventDurationHours === 0) continue;
+
+    // Calculate overlap with work hours - only consider the portion of the event on this date
+    const overlapMinutes = calculateEventWorkHourOverlap(event, workHours);
+    const overlapHours = overlapMinutes / 60;
+
+    // For events that cross midnight, we need to limit the overlap to this date's portion
+    const dailyOverlapHours = Math.min(overlapHours, eventDurationHours);
+
+    // Overtime is the portion that doesn't overlap with work hours
+    const eventOvertimeHours = Math.max(0, eventDurationHours - dailyOverlapHours);
+    overtimeHours += eventOvertimeHours;
+  }
+
+  return overtimeHours;
+}
+
+/**
+ * Calculates total planned/completed hours for a specific date
+ * Shows all work that has been planned in the calendar AND attributed to a project
+ */
+export function calculateTotalPlannedHours(
+  date: Date,
+  events: CalendarEvent[]
+): number {
+  return events
+    .filter(event => event.projectId) // Only events attributed to projects
+    .reduce((total, event) => {
+      // Use the new function to properly calculate duration for events that may cross midnight
+      const durationOnDate = calculateEventDurationOnDate(event, date);
+      return total + durationOnDate;
+    }, 0);
+}
+
+/**
+ * Calculates other time for a specific date
+ * Shows any event not attributed to a project
+ */
+export function calculateOtherTime(
+  date: Date,
+  events: CalendarEvent[]
+): number {
+  return events
+    .filter(event => !event.projectId) // Events not attributed to projects
+    .reduce((total, event) => {
+      const durationOnDate = calculateEventDurationOnDate(event, date);
+      return total + durationOnDate;
+    }, 0);
+}
+
+/**
+ * Calculate event duration on a specific date (handles midnight crossing)
+ */
+function calculateEventDurationOnDate(event: CalendarEvent, date: Date): number {
+  const targetDateString = date.toDateString();
+  const eventStartDateString = event.startTime.toDateString();
+  const eventEndDateString = event.endTime.toDateString();
+
+  // If event doesn't span this date, return 0
+  if (eventStartDateString !== targetDateString && eventEndDateString !== targetDateString) {
+    return 0;
+  }
+
+  // If event is entirely within this date
+  if (eventStartDateString === targetDateString && eventEndDateString === targetDateString) {
+    return event.duration;
+  }
+
+  // Handle midnight crossing events
+  if (eventStartDateString === targetDateString) {
+    // Event starts on this date, calculate time until midnight
+    const midnight = new Date(date);
+    midnight.setHours(23, 59, 59, 999);
+    const timeUntilMidnight = (midnight.getTime() - event.startTime.getTime()) / (1000 * 60 * 60);
+    return Math.min(timeUntilMidnight, event.duration);
+  }
+
+  if (eventEndDateString === targetDateString) {
+    // Event ends on this date, calculate time from midnight
+    const midnight = new Date(date);
+    midnight.setHours(0, 0, 0, 0);
+    const timeFromMidnight = (event.endTime.getTime() - midnight.getTime()) / (1000 * 60 * 60);
+    return Math.min(timeFromMidnight, event.duration);
+  }
+
+  return 0;
+}
+
+/**
+ * Generates work hours for a specific date based on settings
+ */
+export function generateWorkHoursForDate(
+  date: Date,
+  settings: any
+): WorkHour[] {
+  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const dayName = dayNames[date.getDay()] as keyof typeof settings.weeklyWorkHours;
+  const workSlots = settings.weeklyWorkHours[dayName] || [];
+
+  if (!Array.isArray(workSlots)) {
+    return [];
+  }
+
+  return workSlots.map((slot, index) => {
+    const startTime = new Date(date);
+    const [startHour, startMin] = slot.startTime.split(':').map(Number);
+    startTime.setHours(startHour, startMin, 0, 0);
+
+    const endTime = new Date(date);
+    const [endHour, endMin] = slot.endTime.split(':').map(Number);
+    endTime.setHours(endHour, endMin, 0, 0);
+
+    return {
+      id: `work-${String(dayName)}-${index}`,
+      title: 'Work Hours',
+      startTime,
+      endTime,
+      duration: Number(slot.duration),
+      type: 'work' as const
+    };
+  });
+}
+
+/**
+ * Calculate working days for a project (non-memoized version)
+ */
+export function calculateProjectWorkingDays(
+  projectStart: Date,
+  projectEnd: Date,
+  settings: any,
+  holidays: any[]
+): Date[] {
+  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const projectWorkingDays = [];
+
+  for (let d = new Date(projectStart); d <= projectEnd; d.setDate(d.getDate() + 1)) {
+    const checkDate = new Date(d);
+    const checkDayName = dayNames[checkDate.getDay()] as keyof typeof settings.weeklyWorkHours;
+    const checkWorkSlots = settings.weeklyWorkHours[checkDayName] || [];
+    const checkIsHoliday = holidays.some(holiday =>
+      checkDate >= new Date(holiday.startDate) && checkDate <= new Date(holiday.endDate)
+    );
+
+    if (!checkIsHoliday && Array.isArray(checkWorkSlots) &&
+        checkWorkSlots.reduce((sum, slot) => sum + slot.duration, 0) > 0) {
+      projectWorkingDays.push(new Date(checkDate));
+    }
+  }
+
+  return projectWorkingDays;
+}
+
+/**
+ * Get project time allocation for a specific date (non-memoized version)
+ */
+export function getProjectTimeAllocation(
+  projectId: string,
+  date: Date,
+  events: CalendarEvent[],
+  project: any,
+  settings: any,
+  holidays: any[]
+): {
+  type: 'planned' | 'auto-estimate' | 'none';
+  hours: number;
+  isWorkingDay: boolean;
+} {
+  // Check if it's a working day
+  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const dayName = dayNames[date.getDay()] as keyof typeof settings.weeklyWorkHours;
+  const workSlots = settings.weeklyWorkHours[dayName] || [];
+
+  // Check if it's a holiday
+  const isHoliday = holidays.some(holiday =>
+    date >= new Date(holiday.startDate) && date <= new Date(holiday.endDate)
+  );
+
+  const isWorkingDay = !isHoliday && Array.isArray(workSlots) &&
+    workSlots.reduce((sum, slot) => sum + slot.duration, 0) > 0;
+
+  if (!isWorkingDay) {
+    return { type: 'none', hours: 0, isWorkingDay: false };
+  }
+
+  // Check for planned time (events connected to this project)
+  const plannedHours = calculatePlannedTimeForDate(projectId, date, events);
+
+  if (plannedHours > 0) {
+    return { type: 'planned', hours: plannedHours, isWorkingDay: true };
+  }
+
+  // Check if this date is within the project timeframe
+  // Normalize dates to remove time components for accurate comparison
+  const normalizedDate = new Date(date);
+  normalizedDate.setHours(0, 0, 0, 0);
+
+  const projectStart = new Date(project.startDate);
+  projectStart.setHours(0, 0, 0, 0);
+
+  // For continuous projects, only check start date
+  if (project.continuous) {
+    if (normalizedDate < projectStart) {
+      return { type: 'none', hours: 0, isWorkingDay: true };
+    }
+  } else {
+    const projectEnd = new Date(project.endDate);
+    projectEnd.setHours(0, 0, 0, 0);
+
+    if (normalizedDate < projectStart || normalizedDate > projectEnd) {
+      return { type: 'none', hours: 0, isWorkingDay: true };
+    }
+  }
+
+  // For continuous projects, calculate working days using a reasonable time frame
+  let effectiveProjectEnd: Date;
+  if (project.continuous) {
+    // Use a reasonable calculation window for continuous projects (1 year from start or today)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const oneYearFromStart = new Date(projectStart);
+    oneYearFromStart.setFullYear(oneYearFromStart.getFullYear() + 1);
+    const oneYearFromToday = new Date(today);
+    oneYearFromToday.setFullYear(oneYearFromToday.getFullYear() + 1);
+
+    effectiveProjectEnd = oneYearFromStart > oneYearFromToday ? oneYearFromStart : oneYearFromToday;
+  } else {
+    effectiveProjectEnd = new Date(project.endDate);
+    effectiveProjectEnd.setHours(0, 0, 0, 0);
+  }
+
+  // Calculate project working days
+  const projectWorkingDays = calculateProjectWorkingDays(projectStart, effectiveProjectEnd, settings, holidays);
+
+  if (projectWorkingDays.length === 0) {
+    return { type: 'none', hours: 0, isWorkingDay: true };
+  }
+
+  const autoEstimateHours = project.estimatedHours / projectWorkingDays.length;
+
+  return { type: 'auto-estimate', hours: autoEstimateHours, isWorkingDay: true };
+}
+
+/**
+ * Calculate planned time for a specific date and project
+ */
+function calculatePlannedTimeForDate(projectId: string, date: Date, events: CalendarEvent[]): number {
+  const dateKey = date.toISOString().split('T')[0];
+  return events
+    .filter(event => {
+      const eventDate = event.startTime.toISOString().split('T')[0];
+      return eventDate === dateKey && event.projectId === projectId;
+    })
+    .reduce((total, event) => total + event.duration, 0);
+}

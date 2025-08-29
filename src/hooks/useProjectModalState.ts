@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { useProjectContext } from '../contexts/ProjectContext';
 import { useSettingsContext } from '../contexts/SettingsContext';
 import { useHolidays } from '../hooks/useHolidays';
-import { calculateProjectTimeMetrics } from '@/lib/projectCalculations';
+import { calculateProjectTimeMetrics } from '@/services/projects';
 import { OKLCH_PROJECT_COLORS } from '../constants/projectModalConstants';
 
 interface UseProjectModalStateProps {

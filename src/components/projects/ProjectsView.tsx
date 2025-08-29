@@ -15,7 +15,7 @@ import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group';
 import { StandardModal } from '../modals/StandardModal';
 import { Group, Project, ProjectStatus } from '../../types';
 import { AppPageLayout } from '../layout/AppPageLayout';
-import { getEffectiveProjectStatus, organizeProjectsByStatus } from '../../lib/projectUtils';
+import { getEffectiveProjectStatus, organizeProjectsByStatus } from '@/services/projects/projectStatusService';
 import { DurationFormattingService } from '../../services/projects';
 
 type ViewType = 'grid' | 'list';

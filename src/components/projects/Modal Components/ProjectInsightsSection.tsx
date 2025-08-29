@@ -2,7 +2,7 @@ import React from 'react';
 import { Clock, TrendingUp, Calendar, Target } from 'lucide-react';
 import { ProjectProgressGraph } from './ProjectProgressGraph';
 import { formatTimeHoursMinutes } from '../../../utils/timeFormatUtils';
-import { calculateProjectTimeMetrics } from '@/lib/projectCalculations';
+import { calculateProjectTimeMetrics } from '@/services/projects';
 import { useSettingsContext } from '../../../contexts/SettingsContext';
 
 interface ProjectInsightsSectionProps {

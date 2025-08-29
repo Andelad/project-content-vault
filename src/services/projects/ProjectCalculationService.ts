@@ -4,13 +4,8 @@
  */
 
 import { DateCalculationService } from '../core/DateCalculationService';
-
-interface Project {
-  id: string;
-  startDate: string;
-  endDate: string;
-  estimated_hours: number;
-}
+import { calculateProjectDuration } from './projectProgressService';
+import { Project } from '@/types';
 
 interface Milestone {
   id: string;
@@ -68,7 +63,7 @@ export class ProjectCalculationService {
     const weeklyWorkCapacity = this.calculateWeeklyWorkCapacity(settings);
     
     // Project load calculations
-    const dailyHours = project.estimated_hours / businessDays;
+    const dailyHours = project.estimatedHours / businessDays;
     const weeklyHours = dailyHours * 5; // Assuming 5 business days per week
     
     // Utilization analysis
@@ -78,7 +73,7 @@ export class ProjectCalculationService {
     // End date projection based on work capacity
     const endDateProjection = this.calculateProjectEndDate(
       startDate, 
-      project.estimated_hours, 
+      project.estimatedHours, 
       settings, 
       holidays
     );
@@ -263,14 +258,44 @@ export class ProjectCalculationService {
     }
     
     // Check budget allocation
-    const milestoneMetrics = this.calculateMilestoneMetrics(milestones, project.estimated_hours);
+    const milestoneMetrics = this.calculateMilestoneMetrics(milestones, project.estimatedHours);
     if (milestoneMetrics.isOverBudget) {
-      issues.push(`Total milestone allocation (${milestoneMetrics.totalAllocated}h) exceeds project budget (${project.estimated_hours}h)`);
+      issues.push(`Total milestone allocation (${milestoneMetrics.totalAllocated}h) exceeds project budget (${project.estimatedHours}h)`);
     }
     
     return {
       isValid: issues.length === 0,
       issues
     };
+  }
+
+  /**
+   * Calculate default hours per day for a project
+   */
+  static getDefaultHoursPerDay(project: Project): number {
+    const duration = calculateProjectDuration(project);
+    return duration > 0 ? project.estimatedHours / duration : 0;
+  }
+
+  /**
+   * Get project days that are visible in the current viewport
+   */
+  static getProjectDaysInViewport(project: Project, viewportStart: Date, viewportEnd: Date): Date[] {
+    const projectStart = new Date(project.startDate);
+    const projectEnd = new Date(project.endDate);
+
+    if (projectEnd < viewportStart || projectStart > viewportEnd) {
+      return [];
+    }
+
+    const projectDays = [];
+    const visibleStart = projectStart < viewportStart ? viewportStart : projectStart;
+    const visibleEnd = projectEnd > viewportEnd ? viewportEnd : projectEnd;
+
+    for (let d = new Date(visibleStart); d <= visibleEnd; d.setDate(d.getDate() + 1)) {
+      projectDays.push(new Date(d));
+    }
+
+    return projectDays;
   }
 }

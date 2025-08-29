@@ -3,6 +3,8 @@
  * Extracted from TimeTracker component for reusability and testing
  */
 
+import type { CalendarEvent } from '@/types';
+
 export interface Event {
   id: string;
   title: string;
@@ -226,4 +228,63 @@ export function getTimeRangeIntersection(range1: TimeRange, range2: TimeRange): 
   const end = new Date(Math.min(range1.end.getTime(), range2.end.getTime()));
   
   return { start, end };
+}
+
+// =====================================================================================
+// MIDNIGHT CROSSING EVENT UTILITIES
+// =====================================================================================
+
+/**
+ * Split events that cross midnight into separate events for each day
+ * This ensures events are properly displayed and calculated across day boundaries
+ */
+export function splitMidnightCrossingEvents(events: CalendarEvent[]): CalendarEvent[] {
+  const splitEvents: CalendarEvent[] = [];
+
+  events.forEach(event => {
+    const startDate = new Date(event.startTime);
+    const endDate = new Date(event.endTime);
+    
+    // Check if event crosses midnight (end date is different from start date)
+    if (startDate.toDateString() !== endDate.toDateString()) {
+      // Split into multiple single-day events
+      const currentDate = new Date(startDate);
+      let dayCounter = 1;
+      
+      while (currentDate < endDate) {
+        const dayStart = new Date(currentDate);
+        const dayEnd = new Date(currentDate);
+        dayEnd.setHours(23, 59, 59, 999); // End of current day
+        
+        // If this is the last segment, use the actual end time
+        const segmentEnd = dayEnd > endDate ? endDate : dayEnd;
+        
+        // Only create segment if it has meaningful duration (> 1 minute)
+        const segmentDuration = (segmentEnd.getTime() - dayStart.getTime()) / (1000 * 60);
+        if (segmentDuration > 1) {
+          splitEvents.push({
+            ...event,
+            id: `${event.id}-split-${currentDate.toISOString().split('T')[0]}`,
+            startTime: currentDate.getTime() === startDate.getTime() ? startDate : 
+                       new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), 0, 0, 0),
+            endTime: segmentEnd,
+            duration: segmentDuration / 60, // Convert to hours
+            title: event.title + (dayCounter > 1 || segmentEnd < endDate ? ` (Day ${dayCounter})` : ''),
+            originalEventId: event.id, // Track original event for reference
+            isSplitEvent: true
+          } as CalendarEvent);
+        }
+        
+        // Move to next day
+        dayCounter++;
+        currentDate.setDate(currentDate.getDate() + 1);
+        currentDate.setHours(0, 0, 0, 0);
+      }
+    } else {
+      // Event doesn't cross midnight, add as-is
+      splitEvents.push(event);
+    }
+  });
+
+  return splitEvents;
 }

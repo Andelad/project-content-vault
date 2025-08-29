@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { TooltipProvider } from '../ui/tooltip';
@@ -16,11 +16,19 @@ import { useSettingsContext } from '../../contexts/SettingsContext';
 import { TimelineViewportService, HolidayCalculationService, ProjectValidationService } from '@/services';
 import { useTimelineData } from '../../hooks/useTimelineData';
 import { useDynamicViewportDays } from '../../hooks/useDynamicViewportDays';
-import { calculateDaysDelta, createSmoothAnimation, debounce, throttle } from '@/lib/dragUtils';
+import { 
+  calculateDaysDelta, 
+  createSmoothDragAnimation, 
+  debounceDragUpdate, 
+  throttleDragUpdate,
+  type SmoothAnimationConfig 
+} from '@/services';
 import { TIMELINE_CONSTANTS } from '@/constants';
-import { performanceMonitor } from '@/lib/performanceUtils';
-import { checkProjectOverlap, adjustProjectDatesForDrag } from '@/lib/projectOverlapUtils';
-import { throttledDragUpdate, clearDragQueue } from '@/lib/dragPerformance';
+import { performanceMonitor } from '@/services/performance/performanceMetricsService';
+import { checkProjectOverlap, adjustProjectDatesForDrag } from '@/services/projects/projectOverlapService';
+import { throttledDragUpdate, clearDragQueue } from '@/services/performance/dragPerformanceService';
+import { workingDayStats } from '@/lib/workingDayCache';
+import { milestoneStats } from '@/lib/milestoneCache';
 
 // Import timeline components
 import { TimelineHeader } from '../timeline/TimelineHeader';
@@ -90,6 +98,18 @@ export function TimelineView() {
       { logResults: true }
     );
   }, [projects, groups, rows, updateProject]);
+
+  // Monitor working day cache performance
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      const interval = setInterval(() => {
+        workingDayStats.logStats();
+        milestoneStats.logStats();
+      }, 10000); // Log every 10 seconds in development
+
+      return () => clearInterval(interval);
+    }
+  }, []);
   
   // Timeline state management
   const [viewportStart, setViewportStart] = useState(() => {
@@ -179,10 +199,13 @@ export function TimelineView() {
     );
     
     setIsAnimating(true);
-    createSmoothAnimation(
-      viewportStart.getTime(),
-      targetViewport.start.getTime(),
-      animationDuration,
+    const animationConfig: SmoothAnimationConfig = {
+      currentStart: viewportStart.getTime(),
+      targetStart: targetViewport.start.getTime(),
+      duration: animationDuration
+    };
+    createSmoothDragAnimation(
+      animationConfig,
       (intermediateStart) => setViewportStart(intermediateStart),
       (targetStart) => {
         setViewportStart(targetStart);
@@ -219,10 +242,13 @@ export function TimelineView() {
     );
     
     setIsAnimating(true);
-    createSmoothAnimation(
-      viewportStart.getTime(),
-      targetViewport.start.getTime(),
-      animationDuration,
+    const animationConfig: SmoothAnimationConfig = {
+      currentStart: viewportStart.getTime(),
+      targetStart: targetViewport.start.getTime(),
+      duration: animationDuration
+    };
+    createSmoothDragAnimation(
+      animationConfig,
       (intermediateStart) => setViewportStart(intermediateStart),
       () => {
         setViewportStart(targetViewport.start);
@@ -262,10 +288,13 @@ export function TimelineView() {
       daysDifference * TIMELINE_CONSTANTS.SCROLL_ANIMATION_MS_PER_DAY
     );
     
-    createSmoothAnimation(
+    const animationConfig: SmoothAnimationConfig = {
       currentStart,
       targetStart,
-      animationDuration,
+      duration: animationDuration
+    };
+    createSmoothDragAnimation(
+      animationConfig,
       (intermediateStart) => setViewportStart(intermediateStart),
       () => {
         setViewportStart(targetViewportStart);
@@ -303,10 +332,13 @@ export function TimelineView() {
     );
     
     setIsAnimating(true);
-    createSmoothAnimation(
-      viewportStart.getTime(),
-      targetViewport.start.getTime(),
-      animationDuration,
+    const animationConfig: SmoothAnimationConfig = {
+      currentStart: viewportStart.getTime(),
+      targetStart: targetViewport.start.getTime(),
+      duration: animationDuration
+    };
+    createSmoothDragAnimation(
+      animationConfig,
       (intermediateStart) => setViewportStart(intermediateStart),
       () => {
         setViewportStart(targetViewport.start);

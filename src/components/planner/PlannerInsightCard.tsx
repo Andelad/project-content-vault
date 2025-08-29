@@ -5,7 +5,7 @@ import { CalendarEvent } from '../../types';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 import { calculateEventDurationOnDate, aggregateEventDurationsByDate, formatDuration } from '@/services';
 // Keep the original import for now to avoid breaking changes
-import { calculateEventDurationOnDate as originalCalculateEventDurationOnDate } from '../../lib/midnightEventUtils';
+import { calculateEventDurationOnDateLegacy as originalCalculateEventDurationOnDate } from '@/services/events/eventDurationService';
 import { calculateDurationMinutes } from '../../services/work-hours';
 
 interface CalendarInsightCardProps {

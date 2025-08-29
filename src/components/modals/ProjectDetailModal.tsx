@@ -15,7 +15,7 @@ import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 import { useTimelineContext } from '../../contexts/TimelineContext';
-import { calculateProjectTimeMetrics } from '@/lib/projectCalculations';
+import { calculateProjectTimeMetrics } from '@/services/projects';
 import { StandardModal } from './StandardModal';
 
 // Function to calculate working days remaining until end date

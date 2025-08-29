@@ -277,3 +277,153 @@ export function isProjectOnTrack(
   const tolerance = expectedProgress * 0.1;
   return actualProgress >= (expectedProgress - tolerance);
 }
+
+// =====================================================================================
+// COMPREHENSIVE PROJECT TIME METRICS
+// =====================================================================================
+
+import { CalendarEvent, Holiday, Settings } from '@/types/core';
+
+export interface ComprehensiveProjectTimeMetrics {
+  totalBudgetedTime: number; // hours
+  plannedTime: number; // hours from calendar events
+  completedTime: number; // hours from completed events
+  autoEstimatedTime: number; // remaining hours to be allocated
+  autoEstimatedDailyTime: string; // formatted as "3h 30m per day"
+  workDaysLeft: number; // working days between now and project end
+  totalWorkDays: number; // total working days in project timeframe
+  // Add fields to match timeline bar calculations
+  originalDailyEstimate: number; // total hours divided by total work days (like timeline)
+  originalDailyEstimateFormatted: string; // formatted original daily estimate
+}
+
+/**
+ * Calculates all project time metrics in one place to ensure consistency
+ * Extracted from lib/projectCalculations.ts
+ */
+export function calculateProjectTimeMetrics(
+  project: Project,
+  events: CalendarEvent[],
+  holidays: Holiday[],
+  settings: Settings
+): ComprehensiveProjectTimeMetrics {
+  // Defensive defaults for safety during early renders or partial context
+  const safeHolidays: Holiday[] = Array.isArray(holidays) ? holidays : [];
+  const safeEvents: CalendarEvent[] = Array.isArray(events) ? events : [];
+  const safeSettings: Settings = (settings as any) || ({ weeklyWorkHours: {} } as Settings);
+  const projectStart = new Date(project.startDate);
+  projectStart.setHours(0, 0, 0, 0);
+  
+  // For continuous projects, use a reasonable calculation end date (1 year from start or today, whichever is later)
+  let projectEnd: Date;
+  if ((project as any).continuous) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const oneYearFromStart = new Date(projectStart);
+    oneYearFromStart.setFullYear(oneYearFromStart.getFullYear() + 1);
+    const oneYearFromToday = new Date(today);
+    oneYearFromToday.setFullYear(oneYearFromToday.getFullYear() + 1);
+    
+    // Use the later of one year from start or one year from today
+    projectEnd = oneYearFromStart > oneYearFromToday ? oneYearFromStart : oneYearFromToday;
+  } else {
+    projectEnd = new Date(project.endDate);
+    projectEnd.setHours(0, 0, 0, 0);
+  }
+  
+  // Calculate total working days in project timeframe
+  const allWorkDays = getWorkingDaysInRange(projectStart, projectEnd, safeHolidays, safeSettings);
+  const totalWorkDays = allWorkDays.length;
+  
+  // Calculate total budgeted time (estimated hours)
+  const totalBudgetedTime = project.estimatedHours || 0;
+  
+  // Calculate original daily estimate
+  const originalDailyEstimate = totalWorkDays > 0 ? totalBudgetedTime / totalWorkDays : 0;
+  const originalDailyEstimateFormatted = formatDailyTime(originalDailyEstimate);
+  
+  // Filter events for this project
+  const projectEvents = safeEvents.filter(event => event.projectId === project.id);
+  
+  // Calculate planned time from events
+  const plannedTime = projectEvents.reduce((total, event) => {
+    if (event.endTime) {
+      const duration = (new Date(event.endTime).getTime() - new Date(event.startTime).getTime()) / (1000 * 60 * 60);
+      return total + duration;
+    }
+    return total;
+  }, 0);
+  
+  // Calculate completed time from completed events
+  const completedTime = projectEvents
+    .filter(event => event.completed)
+    .reduce((total, event) => {
+      if (event.endTime) {
+        const duration = (new Date(event.endTime).getTime() - new Date(event.startTime).getTime()) / (1000 * 60 * 60);
+        return total + duration;
+      }
+      return total;
+    }, 0);
+  
+  // Calculate work days left
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const remainingWorkDays = allWorkDays.filter(day => day >= today);
+  const workDaysLeft = remainingWorkDays.length;
+  
+  // Calculate auto-estimated time (remaining budgeted time to be allocated)
+  const autoEstimatedTime = Math.max(0, totalBudgetedTime - plannedTime);
+  const autoEstimatedDailyTime = workDaysLeft > 0 ? formatDailyTime(autoEstimatedTime / workDaysLeft) : '0h 0m';
+  
+  return {
+    totalBudgetedTime,
+    plannedTime,
+    completedTime,
+    autoEstimatedTime,
+    autoEstimatedDailyTime,
+    workDaysLeft,
+    totalWorkDays,
+    originalDailyEstimate,
+    originalDailyEstimateFormatted
+  };
+}
+
+/**
+ * Get working days in a date range, excluding weekends and holidays
+ */
+function getWorkingDaysInRange(startDate: Date, endDate: Date, holidays: Holiday[], settings: Settings): Date[] {
+  const workingDays: Date[] = [];
+  const currentDate = new Date(startDate);
+  
+  while (currentDate <= endDate) {
+    const dayOfWeek = currentDate.getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6; // Sunday = 0, Saturday = 6
+    const isHoliday = holidays.some(holiday => {
+      const holidayStart = new Date(holiday.startDate);
+      const holidayEnd = new Date(holiday.endDate);
+      return currentDate >= holidayStart && currentDate <= holidayEnd;
+    });
+    
+    if (!isWeekend && !isHoliday) {
+      workingDays.push(new Date(currentDate));
+    }
+    
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+  
+  return workingDays;
+}
+
+/**
+ * Format daily time as "Xh Ym"
+ */
+function formatDailyTime(hours: number): string {
+  const wholeHours = Math.floor(hours);
+  const minutes = Math.round((hours - wholeHours) * 60);
+  
+  if (wholeHours === 0 && minutes === 0) {
+    return '0h 0m';
+  }
+  
+  return `${wholeHours}h ${minutes}m`;
+}

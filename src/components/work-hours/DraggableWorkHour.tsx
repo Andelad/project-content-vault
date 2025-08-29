@@ -1,6 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Clock, Move, GripVertical } from 'lucide-react';
 import { WorkHour } from '../../types';
+import {
+  snapToTimeSlot,
+  calculateTimeFromPosition as calculateTimeFromPositionService,
+  formatDurationFromHours,
+  formatTimeForDisplay
+} from '@/services/work-hours';
 
 interface DraggableWorkHourProps {
   workHour: WorkHour;
@@ -68,48 +74,25 @@ export function DraggableWorkHour({
   }, [pendingModalData, onShowChangeModal]);
 
   const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
+    return formatTimeForDisplay(date);
   };
 
   const formatDuration = (duration: number) => {
-    const hours = Math.floor(duration);
-    const minutes = Math.round((duration - hours) * 60);
-    return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+    return formatDurationFromHours(duration);
   };
 
   const snapToTimeSlot = (date: Date) => {
-    const snapped = new Date(date);
-    const minutes = snapped.getMinutes();
-    const roundedMinutes = Math.round(minutes / 15) * 15; // Changed from 30 to 15
-    snapped.setMinutes(roundedMinutes, 0, 0);
-    return snapped;
+    return snapToTimeSlot(date);
   };
 
   const calculateTimeFromPosition = (clientY: number) => {
     if (!workHourRef.current) return new Date();
     
-    // Get the calendar grid container
-    const calendarGrid = workHourRef.current.closest('[data-calendar-grid]');
-    if (!calendarGrid) return new Date();
-    
-    const gridRect = calendarGrid.getBoundingClientRect();
-    const relativeY = clientY - gridRect.top; // Removed the -48 offset
-    
-    // Each hour is 60px, each 15-min slot is 15px (changed from 30px)
-    const slotHeight = 15;
-    const slotIndex = Math.max(0, Math.floor(relativeY / slotHeight));
-    const hour = Math.floor(slotIndex / 4); // 4 slots per hour now (was 2)
-    const minute = (slotIndex % 4) * 15; // 15min increments (was 30)
-    
-    const workHourDate = new Date(workHour.startTime);
-    const newTime = new Date(workHourDate);
-    newTime.setHours(Math.min(23, Math.max(0, hour)), minute, 0, 0);
-    
-    return snapToTimeSlot(newTime);
+    return calculateTimeFromPositionService({
+      clientY,
+      containerElement: workHourRef.current,
+      date: workHour.startTime
+    });
   };
 
   const handleMouseDown = (e: React.MouseEvent, dragType: 'move' | 'resize-top' | 'resize-bottom') => {

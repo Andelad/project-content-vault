@@ -4,8 +4,8 @@
  */
 
 import { CalendarEvent, Milestone } from '@/types/core';
-import { memoizedGetProjectTimeAllocation } from '@/lib/eventWorkHourUtils';
-import { getMilestoneSegmentForDate, MilestoneSegment } from '@/lib/milestoneSegmentUtils';
+import { memoizedGetProjectTimeAllocation } from '@/services/events/eventWorkHourIntegrationService';
+import { getMilestoneSegmentForDate, type MilestoneSegment } from '@/services/milestones/milestoneUtilitiesService';
 import { HeightCalculationService } from './HeightCalculationService';
 
 export interface TimeAllocationResult {

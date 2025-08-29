@@ -21,9 +21,10 @@ import { TimeTracker } from '../work-hours/TimeTracker';
 import { WorkHourCreationModal } from '../modals/WorkHourCreationModal';
 import { WorkHourScopeDialog } from '../work-hours/WorkHourScopeDialog';
 import { PlannerInsightCard } from '../planner/PlannerInsightCard';
-import { splitMidnightCrossingEvents } from '../../lib/midnightEventUtils';
+import { splitMidnightCrossingEvents } from '@/services/events/eventSplittingService';
 import { useWorkHours } from '../../hooks/useWorkHours';
 import { getCalendarEventBackgroundColor, getCalendarEventTextColor, OKLCH_FALLBACK_GRAY } from '@/constants/colors';
+import { calculateEventStyle, type EventStyleConfig } from '@/services/events/eventWorkHourIntegrationService';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
 import '../planner/planner-overrides.css';
@@ -474,64 +475,15 @@ export function PlannerView() {
       // Get the base color (project color or fallback)
       const baseColor = calendarEvent.color || (project ? project.color : OKLCH_FALLBACK_GRAY);
       
-      // Create light background and project-colored text versions
-      let backgroundColor = getCalendarEventBackgroundColor(baseColor);
+      // Calculate event styling using service
+      const styleConfig: EventStyleConfig = {
+        isSelected,
+        isFutureEvent,
+        isActiveLayer,
+        isCompleted: calendarEvent.completed
+      };
       
-      // Calculate text color in the project color family instead of gray
-      let textColor: string;
-      const match = baseColor.match(/oklch\(([0-9.]+) ([0-9.]+) ([0-9.]+)\)/);
-      if (match) {
-        const [, lightness, chroma, hue] = match;
-        // Create a darker version of the project color for text (good contrast but still in color family)
-        const textLightness = 0.35; // Dark enough for good contrast
-        // Use the same chroma as the original project color (0.12) - don't reduce it at this dark lightness
-        const textChroma = Math.max(0.12, parseFloat(chroma)); // Keep full project color chroma for visibility
-        textColor = `oklch(${textLightness} ${textChroma} ${hue})`;
-      } else {
-        // Fallback to the original function if color parsing fails
-        textColor = getCalendarEventTextColor(baseColor);
-      }
-      
-      // Handle selected state - make it darker
-      if (isSelected) {
-        // For selected events, use a very slightly darker version of the background color
-        // Work with the already-lightened background color for a more subtle effect
-        const match = backgroundColor.match(/oklch\(([0-9.]+) ([0-9.]+) ([0-9.]+)\)/);
-        if (match) {
-          const [, lightness, chroma, hue] = match;
-          // Very subtle changes: reduce lightness by only 0.02 and reduce chroma significantly for muted effect
-          const selectedLightness = Math.max(0.3, parseFloat(lightness) - 0.02);
-          const selectedChroma = Math.max(0.01, parseFloat(chroma) * 0.5); // Reduce chroma by half
-          backgroundColor = `oklch(${selectedLightness} ${selectedChroma} ${hue})`;
-        }
-      } else if (isFutureEvent) {
-        // For future events, set lightness very high and reduce chroma for almost white appearance
-        const match = backgroundColor.match(/oklch\(([0-9.]+) ([0-9.]+) ([0-9.]+)\)/);
-        if (match) {
-          const [, lightness, chroma, hue] = match;
-          // Set to very high lightness (0.98) and very low chroma (0.02) for almost white appearance
-          const newLightness = 0.98;
-          const newChroma = 0.02; // Much lower chroma for subtle tint
-          backgroundColor = `oklch(${newLightness} ${newChroma} ${hue})`;
-        }
-      }
-      
-      // Apply fading and interaction based on active layer
-      const baseOpacity = calendarEvent.completed ? 0.6 : 1;
-      const finalOpacity = isActiveLayer ? baseOpacity : (baseOpacity * 0.3); // Faded when not active layer
-      
-      // Create a subtle border color for selected events
-      let borderColor = 'transparent';
-      if (isSelected) {
-        const match = baseColor.match(/oklch\(([0-9.]+) ([0-9.]+) ([0-9.]+)\)/);
-        if (match) {
-          const [, lightness, chroma, hue] = match;
-          // Use a darker version of the project color with full chroma for visible project color
-          const borderLightness = Math.max(0.4, parseFloat(lightness) - 0.15);
-          const borderChroma = Math.max(0.08, parseFloat(chroma)); // Keep full chroma for visible color
-          borderColor = `oklch(${borderLightness} ${borderChroma} ${hue})`;
-        }
-      }
+      const { backgroundColor, textColor, borderColor, opacity: finalOpacity } = calculateEventStyle(baseColor, styleConfig);
       
       return {
         style: {

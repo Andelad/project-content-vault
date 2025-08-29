@@ -1,12 +1,12 @@
 import React, { useMemo } from 'react';
 import { Project, CalendarEvent, Milestone } from '@/types/core';
-import { ProjectTimeMetrics } from '@/lib/projectCalculations';
+import { ComprehensiveProjectTimeMetrics } from '@/services/projects';
 import { analyzeProjectProgress } from '@/services';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../ui/tooltip';
 
 interface ProjectProgressGraphProps {
   project: Project;
-  metrics: ProjectTimeMetrics;
+  metrics: ComprehensiveProjectTimeMetrics;
   events: CalendarEvent[];
   milestones?: Milestone[];
 }

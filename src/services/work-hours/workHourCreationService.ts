@@ -1,8 +1,6 @@
 // Work hour creation service - extracted from WorkHourCreator component
 // Handles all work hour calculation, validation, and creation logic
 
-import { validateWorkSlotTimes } from '@/lib/workSlotOverlapUtils';
-
 /**
  * Time calculation parameters for work hour creation
  */
@@ -198,6 +196,26 @@ export function formatWorkSlotDurationDisplay(hours: number): string {
   } else {
     return `${hours.toFixed(2)} hours`;
   }
+}
+
+/**
+ * Formats duration from decimal hours to human-readable string
+ */
+export function formatDurationFromHours(duration: number): string {
+  const hours = Math.floor(duration);
+  const minutes = Math.round((duration - hours) * 60);
+  return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+}
+
+/**
+ * Formats time for display (12-hour format)
+ */
+export function formatTimeForDisplay(date: Date): string {
+  return date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
 }
 
 /**
@@ -498,4 +516,113 @@ export function shouldAllowWorkHourCreation(target: HTMLElement): boolean {
   if (interactiveElements.includes(target.tagName.toLowerCase())) return false;
   
   return true;
+}
+
+// =====================================================================================
+// WORK SLOT VALIDATION UTILITIES
+// =====================================================================================
+
+import type { WorkSlot } from '@/types/core';
+
+export interface TimeRange {
+  startTime: string; // HH:MM format
+  endTime: string;   // HH:MM format
+  duration: number;
+}
+
+/**
+ * Parse time string to hours and minutes
+ */
+function parseTime(timeStr: string): { hours: number; minutes: number } {
+  const [hours, minutes] = timeStr.split(':').map(Number);
+  return { hours, minutes };
+}
+
+/**
+ * Convert time string to total minutes
+ */
+function timeToMinutes(timeStr: string): number {
+  const { hours, minutes } = parseTime(timeStr);
+  return hours * 60 + minutes;
+}
+
+/**
+ * Check if two time ranges overlap
+ */
+function checkTimeRangeOverlap(range1: TimeRange, range2: TimeRange): boolean {
+  const start1 = timeToMinutes(range1.startTime);
+  const end1 = timeToMinutes(range1.endTime);
+  const start2 = timeToMinutes(range2.startTime);
+  const end2 = timeToMinutes(range2.endTime);
+  
+  // Two ranges overlap if one starts before the other ends
+  return start1 < end2 && start2 < end1;
+}
+
+/**
+ * Find overlapping work slots
+ */
+function findOverlappingSlots(
+  newSlot: TimeRange, 
+  existingSlots: WorkSlot[], 
+  excludeSlotId?: string
+): WorkSlot[] {
+  return existingSlots.filter(slot => {
+    // Don't check against the slot being modified
+    if (excludeSlotId && (slot.id === excludeSlotId || 
+        // Also handle numeric string IDs for compatibility
+        slot.id === excludeSlotId.toString() ||
+        // Handle array index matching for generated work hour IDs
+        existingSlots.findIndex(s => s.id === slot.id).toString() === excludeSlotId)) {
+      return false;
+    }
+    
+    return checkTimeRangeOverlap(newSlot, {
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      duration: slot.duration
+    });
+  });
+}
+
+/**
+ * Validate work slot times for overlaps and constraints
+ */
+export function validateWorkSlotTimes(
+  startTime: string,
+  endTime: string,
+  existingSlots: WorkSlot[],
+  excludeSlotId?: string
+): {
+  isValid: boolean;
+  overlaps: WorkSlot[];
+  duration: number;
+} {
+  // Calculate duration
+  const startMinutes = timeToMinutes(startTime);
+  const endMinutes = timeToMinutes(endTime);
+  const duration = (endMinutes - startMinutes) / 60;
+  
+  // Check for minimum duration (15 minutes)
+  if (duration < 0.25) {
+    return {
+      isValid: false,
+      overlaps: [],
+      duration
+    };
+  }
+  
+  const newSlot: TimeRange = {
+    startTime,
+    endTime,
+    duration
+  };
+  
+  const overlaps = findOverlappingSlots(newSlot, existingSlots, excludeSlotId);
+  
+  return {
+    isValid: overlaps.length === 0 && duration >= 0.25,
+    overlaps,
+    duration
+  };
 }

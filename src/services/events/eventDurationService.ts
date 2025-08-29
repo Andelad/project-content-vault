@@ -3,6 +3,8 @@
  * Extracted from PlannerInsightCard for reusability and testing
  */
 
+import type { CalendarEvent } from '@/types';
+
 export interface EventDurationParams {
   event: {
     startTime: Date;
@@ -145,3 +147,14 @@ export const DURATION_CONSTANTS = {
   MINUTES_PER_HOUR: 60,
   HOURS_PER_DAY: 24
 } as const;
+
+/**
+ * Legacy wrapper for calculateEventDurationOnDate that matches the old lib function signature
+ * @deprecated Use calculateEventDurationOnDate with params object instead
+ */
+export function calculateEventDurationOnDateLegacy(
+  event: CalendarEvent,
+  targetDate: Date
+): number {
+  return calculateEventDurationOnDate({ event, targetDate });
+}

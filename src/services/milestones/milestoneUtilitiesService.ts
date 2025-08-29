@@ -17,6 +17,7 @@
 
 import type { Milestone } from '@/types/core';
 import { MilestoneManagementService } from './milestoneManagementService';
+import { cachedMilestoneCalculation } from '@/lib/milestoneCache';
 
 /**
  * Interface for milestone time distribution entry
@@ -449,3 +450,222 @@ export function getOrdinalNumber(num: number): string {
 
 // Re-export the service for convenience
 export { MilestoneManagementService };
+
+// =====================================================================================
+// MILESTONE SEGMENT CALCULATIONS
+// =====================================================================================
+
+import type { Holiday, WorkHour } from '@/types/core';
+import { calculateWorkHourCapacity } from '@/services/work-hours/workHourCapacityService';
+import { HeightCalculationService } from '@/services/timeline/HeightCalculationService';
+
+export interface MilestoneSegment {
+  id: string;
+  startDate: Date;
+  endDate: Date;
+  milestone?: Milestone;
+  allocatedHours: number;
+  workingDays: number;
+  hoursPerDay: number;
+  heightInPixels: number;
+}
+
+/**
+ * Calculate milestone segments with auto-estimate data
+ * Divides project timeline into segments between milestones
+ */
+export function calculateMilestoneSegments(
+  projectId: string,
+  projectStartDate: Date,
+  projectEndDate: Date,
+  milestones: Milestone[],
+  settings: any,
+  holidays: Holiday[],
+  isWorkingDay: (date: Date) => boolean,
+  events: any[] = [],
+  projectTotalBudget?: number,
+  workHours?: WorkHour[]
+): MilestoneSegment[] {
+  // Create a unique identifier for this calculation
+  const milestoneIds = milestones.map(m => m.id).sort().join(',');
+  const calculationId = `segments-${projectId}-${milestoneIds}`;
+
+  return cachedMilestoneCalculation(
+    calculationId,
+    projectId,
+    null, // No single milestone for segment calculations
+    { id: projectId, startDate: projectStartDate, endDate: projectEndDate, estimatedHours: projectTotalBudget },
+    settings,
+    holidays,
+    workHours || [],
+    events,
+    () => {
+      // Original calculation logic moved inside the cache wrapper
+      // Filter and sort milestones for this project
+      const projectMilestones = milestones
+        .filter(m => m.projectId === projectId)
+        .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+
+      if (projectMilestones.length === 0) {
+        return [];
+      }
+
+      const segments: MilestoneSegment[] = [];
+      let currentStartDate = new Date(projectStartDate);
+      currentStartDate.setHours(0, 0, 0, 0);
+
+      // Create segments between milestones
+      for (let i = 0; i < projectMilestones.length; i++) {
+        const milestone = projectMilestones[i];
+        const milestoneDate = new Date(milestone.dueDate);
+        milestoneDate.setHours(0, 0, 0, 0);
+
+        // Segment end date is the milestone date itself (work happens up TO and INCLUDING the milestone)
+        const segmentEndDate = new Date(milestoneDate);
+
+        // Calculate working days in this segment (including milestone day)
+        const workingDays = calculateWorkingDaysInRange(
+          currentStartDate,
+          segmentEndDate,
+          isWorkingDay,
+          holidays,
+          workHours
+        );
+
+        // Calculate total planned time in this segment
+        const plannedTimeInSegment = calculatePlannedTimeInSegment(
+          projectId,
+          currentStartDate,
+          segmentEndDate,
+          events
+        );
+
+        // Subtract planned time from milestone budget for auto-estimate
+        const remainingBudget = Math.max(0, milestone.timeAllocation - plannedTimeInSegment);
+
+        // Calculate hours per day and visual height
+        const hoursPerDay = workingDays > 0 ? remainingBudget / workingDays : 0;
+        const heightInPixels = HeightCalculationService.calculateSegmentHeight(hoursPerDay);
+
+        // Debug logging
+        console.log(`🎯 Milestone ${milestone.id} calculation for project ${projectId}:`, {
+          milestoneAllocation: milestone.timeAllocation,
+          plannedTimeInSegment,
+          remainingBudget,
+          workingDays,
+          hoursPerDay: hoursPerDay.toFixed(2),
+          expectedHoursPerDay: workingDays > 0 ? (milestone.timeAllocation / workingDays).toFixed(2) : '0',
+          startDate: currentStartDate.toDateString(),
+          endDate: segmentEndDate.toDateString(),
+          milestoneDate: milestoneDate.toDateString()
+        });
+
+        segments.push({
+          id: `segment-${milestone.id}`,
+          startDate: new Date(currentStartDate),
+          endDate: new Date(segmentEndDate),
+          milestone,
+          allocatedHours: milestone.timeAllocation,
+          workingDays,
+          hoursPerDay,
+          heightInPixels
+        });
+
+        // Move to next segment start (day after current milestone)
+        currentStartDate = new Date(milestoneDate);
+        currentStartDate.setDate(currentStartDate.getDate() + 1);
+        currentStartDate.setHours(0, 0, 0, 0);
+      }
+
+      return segments;
+    }
+  );
+}
+
+/**
+ * Get milestone segment for a specific date
+ */
+export function getMilestoneSegmentForDate(
+  date: Date,
+  segments: MilestoneSegment[]
+): MilestoneSegment | null {
+  const targetDate = new Date(date);
+  targetDate.setHours(0, 0, 0, 0);
+
+  for (const segment of segments) {
+    const segmentStart = new Date(segment.startDate);
+    segmentStart.setHours(0, 0, 0, 0);
+    
+    const segmentEnd = new Date(segment.endDate);
+    segmentEnd.setHours(0, 0, 0, 0);
+
+    if (targetDate >= segmentStart && targetDate <= segmentEnd) {
+      return segment;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Calculate working days in a date range
+ */
+function calculateWorkingDaysInRange(
+  startDate: Date,
+  endDate: Date,
+  isWorkingDay: (date: Date) => boolean,
+  holidays: Holiday[],
+  workHours?: WorkHour[]
+): number {
+  let workingDays = 0;
+  const currentDate = new Date(startDate);
+
+  while (currentDate <= endDate) {
+    const isWorking = isWorkingDay(currentDate);
+    const isHoliday = holidays.some(holiday => {
+      const holidayDate = new Date(holiday.startDate);
+      return holidayDate.toDateString() === currentDate.toDateString();
+    });
+
+    if (isWorking && !isHoliday) {
+      // Check if there are work hours for this day
+      const hasWorkHours = workHours ? workHours.some(wh => {
+        const whDate = new Date(wh.startTime);
+        return whDate.toDateString() === currentDate.toDateString();
+      }) : true;
+
+      if (hasWorkHours) {
+        workingDays++;
+      }
+    }
+
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+
+  return workingDays;
+}
+
+/**
+ * Calculate planned time in a segment from events
+ */
+function calculatePlannedTimeInSegment(
+  projectId: string,
+  startDate: Date,
+  endDate: Date,
+  events: any[]
+): number {
+  const segmentEvents = events.filter(event => {
+    if (event.projectId !== projectId) return false;
+    
+    const eventDate = new Date(event.startTime);
+    return eventDate >= startDate && eventDate <= endDate;
+  });
+
+  return segmentEvents.reduce((total, event) => {
+    if (event.endTime) {
+      const duration = (new Date(event.endTime).getTime() - new Date(event.startTime).getTime()) / (1000 * 60 * 60);
+      return total + duration;
+    }
+    return total;
+  }, 0);
+}

@@ -5,7 +5,7 @@ import { usePlannerContext } from '../../contexts/PlannerContext';
 import BeachAccess from '@/imports/BeachAccess';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import { Button } from '../ui/button';
-import { wouldOverlapHolidays } from '@/lib/workHoursUtils';
+import { wouldOverlapHolidays } from '@/services/work-hours/workHourCapacityService';
 import { SmartHoverAddHolidayBar } from './SmartHoverAddHolidayBar';
 
 interface AddProjectRowProps {

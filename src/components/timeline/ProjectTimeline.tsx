@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { Project } from '../../types';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useTimelineContext } from '../../contexts/TimelineContext';
+import { calculateProjectDuration } from '@/services/projects/projectProgressService';
+import { ProjectCalculationService } from '@/services/projects';
+import { HeightCalculationService } from '@/services/timeline';
 
 interface ProjectTimelineProps {
   project: Project;
@@ -21,14 +24,12 @@ export function ProjectTimeline({ project, dates, currentDate }: ProjectTimeline
 
   // Calculate project duration in days
   const getProjectDuration = () => {
-    const timeDiff = project.endDate.getTime() - project.startDate.getTime();
-    return Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
+    return calculateProjectDuration(project);
   };
 
   // Calculate default hours per day
   const getDefaultHoursPerDay = () => {
-    const duration = getProjectDuration();
-    return duration > 0 ? project.estimatedHours / duration : 0;
+    return ProjectCalculationService.getDefaultHoursPerDay(project);
   };
 
   // Get allocated hours for a specific date from timeline entries
@@ -63,9 +64,7 @@ export function ProjectTimeline({ project, dates, currentDate }: ProjectTimeline
 
   // Calculate bar height based on hours (max 8 hours = full height)
   const getBarHeight = (hours: number) => {
-    const maxHours = 8;
-    const maxHeight = 40; // pixels
-    return Math.min((hours / maxHours) * maxHeight, maxHeight);
+    return HeightCalculationService.calculateProjectHeight(hours);
   };
 
   // Handle time allocation adjustment

@@ -32,13 +32,77 @@ const totalHours = milestones.reduce((sum, m) => sum + m.hours, 0);
    - ✅ **Review related domain services (e.g., work-hours for time calculations)**
    - ❌ **NEVER create duplicate functionality**
 
-2. **📁 Add to Existing Files Efficiently**
-   - ✅ **Add to existing service files in the same domain**
-   - ✅ **Keep related calculations together (e.g., all duration functions in work-hours)**
-   - ✅ **Only create new files when domain doesn't exist**
-   - ✅ **Consider file size: split when >500 lines**
-   - ❌ **Don't create single-function files**
-   - ❌ **Don't duplicate across multiple services**
+2. **📁 Service File Organization Strategy**
+   
+   **Decision Framework for Service Files:**
+   
+   **Step 1: Determine Calculation Scope**
+   - **Global Calculation** → Used across multiple features/pages, core business logic
+   - **Feature-Specific Calculation** → Used by specific page/feature for quick access
+   
+   **Step 2: Choose Appropriate Folder**
+   - **Global** → `services/core/` (shared utilities, common calculations)
+   - **Feature-Specific** → `services/{feature}/` (timeline, projects, events, etc.)
+   
+   **Step 3: File Placement Decision**
+   Consider these factors when deciding whether to add to existing file or create new:
+   - **Ease of Access**: Can developers easily find and import this function?
+   - **Performance**: Does grouping improve caching/memoization opportunities?
+   - **Separation of Concerns**: Does this fit the existing file's purpose?
+   - **File Size**: Is the existing file becoming too large (>500 lines)?
+   - **Related Functionality**: Are there other similar functions in the same file?
+   
+   **Step 4: Create New File When Best**
+   - ✅ **Create new file** when it improves organization and discoverability
+   - ✅ **Create new file** when existing files are too large or unfocused
+   - ✅ **Create new file** for distinct calculation domains within a feature
+   - ❌ **Don't create** single-function files unless highly specialized
+   - ❌ **Don't create** files that duplicate existing functionality
+
+   **Examples:**
+   ```typescript
+   // ✅ GOOD - Global calculation in core
+   // services/core/dateCalculationService.ts
+   export function calculateBusinessDays(start: Date, end: Date): number
+   
+   // ✅ GOOD - Feature-specific in appropriate folder
+   // services/timeline/timelinePositionService.ts  
+   export function calculateViewportPosition(dates: Date[], width: number): Position
+   
+   // ✅ GOOD - New file for distinct domain
+   // services/projects/projectProgressService.ts
+   export function calculateProjectCompletion(project: Project): number
+   
+   // ❌ AVOID - Single function file
+   // services/singleCalculation.ts (unless highly specialized)
+   ```
+
+   **File Naming Convention:**
+   - `{Domain}{Purpose}Service.ts` (e.g., `ProjectProgressService.ts`)
+   - `{Feature}{Calculation}Service.ts` (e.g., `TimelineViewportService.ts`)
+   - Use descriptive names that clearly indicate the calculation domain
+
+### **📋 When to Create New Service Files**
+
+**✅ CREATE NEW FILE when:**
+- **New Calculation Domain**: Distinct functionality not covered by existing files
+- **File Size Management**: Existing file > 500 lines and new function is unrelated
+- **Better Organization**: Grouping improves discoverability and reduces cognitive load
+- **Performance Isolation**: Function needs separate caching/memoization strategy
+- **Team Collaboration**: Multiple developers working on different aspects
+
+**✅ ADD TO EXISTING FILE when:**
+- **Related Functionality**: Function fits existing file's purpose and domain
+- **File Size OK**: Current file < 500 lines with room for growth
+- **Shared Dependencies**: Uses same utilities/types as existing functions
+- **Performance Benefits**: Grouping enables better caching opportunities
+- **Simple Addition**: Straightforward function that doesn't complicate the file
+
+**❌ AVOID creating:**
+- Single-function files (unless highly specialized and performance-critical)
+- Files that duplicate existing functionality
+- Files that ignore established domain boundaries
+- Files created for organizational reasons that hurt discoverability
 
 3. **🏗️ Use Correct Feature Folders**
    - `services/calendar/` → Calendar positioning, date calculations, time slots
@@ -77,12 +141,15 @@ export function calculateHolidayOverlayPosition(holiday: Holiday, viewport: View
 ```
 
 **Verification Steps:**
-- [ ] Searched existing services for similar functionality
-- [ ] Confirmed no duplicates exist
-- [ ] Added to correct feature folder
-- [ ] Updated service index.ts exports
-- [ ] Tested build passes
-- [ ] No linting errors introduced
+- [ ] **Scope Analysis**: Is this global or feature-specific calculation?
+- [ ] **Folder Selection**: `core/` for global, `{feature}/` for specific
+- [ ] **File Placement**: Searched existing files for best fit?
+- [ ] **Organization Check**: Does placement improve ease of access and performance?
+- [ ] **Size Consideration**: Is existing file too large (>500 lines)?
+- [ ] **No Duplicates**: Confirmed no similar functionality exists
+- [ ] **Updated Exports**: Added to service index.ts if needed
+- [ ] **Build Verification**: TypeScript compilation passes
+- [ ] **No Linting Errors**: Code follows established patterns
 
 ### **🔄 State Management**
 - ✅ **Use specialized contexts**: ProjectContext, TimelineContext, SettingsContext
@@ -101,15 +168,46 @@ export function calculateHolidayOverlayPosition(holiday: Holiday, viewport: View
 
 ## 🎯 **Quick Decision Guide**
 
-**Is this a calculation?** → Use `/src/services/`  
-**Is this UI state?** → Use appropriate context  
-**Is this rendering?** → Component only  
-**Is this business logic?** → Services, not components  
+**Adding a new calculation to services?**
 
----
+1. **📊 Analyze Scope**
+   - Multiple features use it? → `services/core/`
+   - Specific feature only? → `services/{feature}/`
 
-*Follow these rules to maintain clean, performant, and maintainable architecture.*
-5. **Does this need state?** → Which specialized context?
+2. **🔍 Check Existing Files**
+   - Search for similar functions: `grep -r "calculate.*" src/services/`
+   - Review related services in target folder
+   - Consider file size and organization
+
+3. **📁 Choose File Strategy**
+   - **Add to existing** if related and file size < 500 lines
+   - **Create new file** if improves organization and discoverability
+   - **Split existing** if file is too large or unfocused
+
+4. **✅ Verify Placement**
+   - Easy to find and import?
+   - Improves performance/caching?
+   - Clear separation of concerns?
+   - Follows naming conventions?
+
+**Example Decision Flow:**
+```typescript
+// New timeline calculation function
+// 1. Scope: Feature-specific (timeline only) → services/timeline/
+// 2. Search: Found timelinePositionService.ts with related functions
+// 3. Decision: Add to existing (file size OK, related functionality)
+// 4. Result: services/timeline/timelinePositionService.ts
+```
+
+**Need to calculate something?**
+```typescript
+import { 
+  calculateProjectMetrics,
+  calculateMilestoneMetrics,
+  calculateProjectPosition,
+  getBusinessDaysBetween 
+} from '@/services';
+```
 
 ## 🚨 **VIOLATIONS TO WATCH FOR:**
 
@@ -140,12 +238,17 @@ const position = { left: offset * width, width: duration * width };
 
 ## ✅ **ENFORCEMENT CHECKLIST**
 
-Before any code change:
-- [ ] Am I adding calculation logic? → Use services
-- [ ] Am I duplicating existing functionality? → Check services first
-- [ ] Am I putting business logic in components? → Move to services
-- [ ] Am I creating new contexts? → Do specialized ones exist?
-- [ ] Am I ignoring existing architecture? → Follow the patterns
+Before adding any calculation to services:
+- [ ] **Scope Analysis**: Global calculation (core) or feature-specific?
+- [ ] **Existing Search**: Thoroughly searched existing services for similar functionality?
+- [ ] **File Strategy**: Add to existing file or create new based on organization factors?
+- [ ] **Placement Decision**: Does placement improve ease of access and performance?
+- [ ] **Size Check**: Is target file size appropriate (< 500 lines preferred)?
+- [ ] **No Duplication**: Confirmed no similar functionality exists elsewhere?
+- [ ] **Domain Fit**: Does calculation belong in chosen service domain?
+- [ ] **Export Updates**: Added to service index.ts exports if needed
+- [ ] **Build Verification**: TypeScript compilation passes without errors
+- [ ] **Pattern Compliance**: Follows established naming and organization patterns
 
 ## 🎯 **QUICK REFERENCE**
 
