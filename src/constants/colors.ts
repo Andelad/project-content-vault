@@ -22,6 +22,7 @@ export const getGroupColor = (index: number): string => {
 
 export const getHoverColor = ColorCalculationService.getHoverColor.bind(ColorCalculationService);
 export const getBaselineColor = ColorCalculationService.getBaselineColor.bind(ColorCalculationService);
+export const getCompletedPlannedColor = ColorCalculationService.getCompletedPlannedColor.bind(ColorCalculationService);
 export const getMidToneColor = ColorCalculationService.getMidToneColor.bind(ColorCalculationService);
 export const getAutoEstimateColor = ColorCalculationService.getAutoEstimateColor.bind(ColorCalculationService);
 export const getDarkerColor = ColorCalculationService.getDarkerColor.bind(ColorCalculationService);

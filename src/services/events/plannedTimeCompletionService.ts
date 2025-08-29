@@ -4,6 +4,7 @@
  */
 
 import { CalendarEvent } from '@/types/core';
+import { calculateEventDurationOnDate } from './eventDurationService';
 
 /**
  * Check if all planned time for a project on a specific date is completed
@@ -18,14 +19,14 @@ export function isPlannedTimeCompleted(
   date: Date,
   events: CalendarEvent[]
 ): boolean {
-  // Get all events for this project on this date
-  const dateKey = date.toISOString().split('T')[0];
-  
+  // Get all events for this project that have duration on this date
+  // This properly handles midnight-crossing events
   const projectEventsOnDate = events.filter(event => {
     if (event.projectId !== projectId) return false;
     
-    const eventDateKey = new Date(event.startTime).toISOString().split('T')[0];
-    return eventDateKey === dateKey;
+    // Use the same logic as calculatePlannedTimeForDate to check if event has duration on this date
+    const durationOnDate = calculateEventDurationOnDate({ event, targetDate: date });
+    return durationOnDate > 0;
   });
 
   // If there are no events for this project on this date, it's not planned time
@@ -55,26 +56,26 @@ export function getPlannedTimeCompletionStats(
   isFullyCompleted: boolean;
   completionPercentage: number;
 } {
-  const dateKey = date.toISOString().split('T')[0];
-  
+  // Get all events for this project that have duration on this date
+  // This properly handles midnight-crossing events
   const projectEventsOnDate = events.filter(event => {
     if (event.projectId !== projectId) return false;
     
-    const eventDateKey = new Date(event.startTime).toISOString().split('T')[0];
-    return eventDateKey === dateKey;
+    const durationOnDate = calculateEventDurationOnDate({ event, targetDate: date });
+    return durationOnDate > 0;
   });
 
   let totalHours = 0;
   let completedHours = 0;
 
   projectEventsOnDate.forEach(event => {
-    const eventDuration = event.duration || 
-      ((event.endTime.getTime() - event.startTime.getTime()) / (1000 * 60 * 60));
+    // Use the actual duration on this specific date (for midnight-crossing events)
+    const eventDurationOnDate = calculateEventDurationOnDate({ event, targetDate: date });
     
-    totalHours += eventDuration;
+    totalHours += eventDurationOnDate;
     
     if (event.completed) {
-      completedHours += eventDuration;
+      completedHours += eventDurationOnDate;
     }
   });
 

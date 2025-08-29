@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { Holiday } from '../../types';
-import { calculateOccupiedHolidayIndices, convertMousePositionToIndex, convertIndicesToDates } from '../../services/timeline';
+import { calculateOccupiedHolidayIndices, convertMousePositionToIndex, convertIndicesToDates, calculateMinimumHoverOverlaySize } from '../../services/timeline';
 
 interface SmartHoverAddHolidayBarProps {
   dates: Date[];
@@ -166,8 +166,21 @@ export const SmartHoverAddHolidayBar: React.FC<SmartHoverAddHolidayBarProps> = (
         }
       }
     } else if (hoveredIndex !== null) {
-      // Just hovering - show single day preview
-      startIndex = endIndex = hoveredIndex;
+      // Just hovering - use minimum size calculation from service
+      const { startIndex: minStartIndex, endIndex: minEndIndex } = calculateMinimumHoverOverlaySize(
+        hoveredIndex,
+        mode,
+        occupiedIndices,
+        dates
+      );
+      
+      // Check if service returned valid range
+      if (minStartIndex === -1 || minEndIndex === -1) {
+        return null; // No valid range available
+      }
+      
+      startIndex = minStartIndex;
+      endIndex = minEndIndex;
     } else {
       return null;
     }

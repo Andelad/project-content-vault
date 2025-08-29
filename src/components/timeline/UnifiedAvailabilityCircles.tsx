@@ -12,6 +12,7 @@ import {
   getProjectTimeAllocation
 } from '@/services/work-hours';
 import { WeeklyCapacityCalculationService, WorkHoursCalculationService } from '@/services/timeline/TimelineBusinessLogicService';
+import { calculateAvailabilityCircleSize, getMinimumCircleDimensions } from '@/services';
 
 type AvailabilityType = 
   | 'available' 
@@ -282,12 +283,8 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
                       <>
                         {/* Split hours: first 8 hours (main circle), then up to 7 more hours (inner circle) */}
                         {(() => {
-                          const mainHours = Math.min(targetHours, 8);
-                          const extraHours = Math.max(0, Math.min(targetHours - 8, 7));
-                          
-                          // Convert to pixels (3px = 1 hour)
-                          const outerDiameter = mainHours * 3;
-                          const innerDiameter = extraHours * 3;
+                          // Use service for circle sizing calculation
+                          const { outerDiameter, innerDiameter } = calculateAvailabilityCircleSize(targetHours, mode || 'days');
                           
                           return (
                             <>
@@ -302,7 +299,7 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
                                 }}
                               >
                                 {/* Inner circle for additional hours */}
-                                {extraHours > 0 && (
+                                {innerDiameter > 0 && (
                                   <div 
                                     className={`${darkColorClass} rounded-full`}
                                     style={{

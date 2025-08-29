@@ -617,6 +617,64 @@ export function convertIndicesToDates(
 }
 
 /**
+ * Calculate minimum hover overlay size for add project/holiday bars
+ * @param hoveredIndex - The index where user is hovering
+ * @param mode - Timeline view mode ('days' or 'weeks')
+ * @param occupiedIndices - Set of indices that are already occupied
+ * @param dates - Array of dates in the timeline
+ * @returns Object with startIndex and endIndex for the minimum overlay size
+ */
+export function calculateMinimumHoverOverlaySize(
+  hoveredIndex: number,
+  mode: 'days' | 'weeks',
+  occupiedIndices: Set<number>,
+  dates: Date[]
+): { startIndex: number; endIndex: number } {
+  // Determine minimum size based on view mode
+  const minimumDays = mode === 'weeks' ? 7 : 3; // 7 days for week view, 3 days for day view
+  const totalIndices = mode === 'weeks' ? dates.length * 7 : dates.length;
+
+  // Calculate the ideal start and end indices for minimum size
+  const halfMinimum = Math.floor(minimumDays / 2);
+  let idealStartIndex = hoveredIndex - halfMinimum;
+  let idealEndIndex = hoveredIndex + (minimumDays - 1 - halfMinimum);
+
+  // Adjust for boundaries
+  if (idealStartIndex < 0) {
+    const adjustment = -idealStartIndex;
+    idealStartIndex = 0;
+    idealEndIndex = Math.min(totalIndices - 1, idealEndIndex + adjustment);
+  }
+  
+  if (idealEndIndex >= totalIndices) {
+    const adjustment = idealEndIndex - (totalIndices - 1);
+    idealEndIndex = totalIndices - 1;
+    idealStartIndex = Math.max(0, idealStartIndex - adjustment);
+  }
+
+  // Check if the ideal range is available
+  let canUseIdealRange = true;
+  for (let i = idealStartIndex; i <= idealEndIndex; i++) {
+    if (occupiedIndices.has(i)) {
+      canUseIdealRange = false;
+      break;
+    }
+  }
+
+  if (canUseIdealRange) {
+    return { startIndex: idealStartIndex, endIndex: idealEndIndex };
+  }
+
+  // If ideal range is not available, fall back to single day/index
+  if (!occupiedIndices.has(hoveredIndex)) {
+    return { startIndex: hoveredIndex, endIndex: hoveredIndex };
+  }
+
+  // If even single day is occupied, return null range (caller should handle this)
+  return { startIndex: -1, endIndex: -1 };
+}
+
+/**
  * Expand holiday dates to include all days in the range
  */
 function expandHolidayDates(holidays: Array<{ startDate: Date; endDate: Date }>): Date[] {

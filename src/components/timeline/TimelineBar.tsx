@@ -166,12 +166,14 @@ export const TimelineBar = memo(function TimelineBar({
   // Memoize color calculations to avoid repeated parsing
   const colorScheme = useMemo(() => {
     const baselineColor = ColorCalculationService.getBaselineColor(project.color);
+    const completedPlannedColor = ColorCalculationService.getCompletedPlannedColor(project.color);
     const midToneColor = ColorCalculationService.getMidToneColor(project.color);
     const hoverColor = ColorCalculationService.getHoverColor(project.color);
     const autoEstimateColor = ColorCalculationService.getAutoEstimateColor(project.color);
     
     return {
       baseline: baselineColor,
+      completedPlanned: completedPlannedColor,
       main: project.color,
       midTone: midToneColor,
       hover: hoverColor,
@@ -245,9 +247,9 @@ export const TimelineBar = memo(function TimelineBar({
               const dayWidths = [11, 11, 11, 11, 11, 11, 11]; // Mon, Tue, Wed, Thu, Fri, Sat, Sun - all 11px
               
               return (
-                <div key={dateIndex} className="flex relative h-full items-end" style={{ minWidth: '77px', width: '77px' }}>
-                  {/* Use a fixed cap height so inner day rectangles aren't clipped by project-level estimate */}
-                  <div className="flex w-full items-end" style={{ height: `28px` }}>
+                <div key={dateIndex} className="relative h-full items-end" style={{ minWidth: '77px', width: '77px' }}>
+                  {/* Flexbox container to align rectangles to baseline */}
+                  <div className="flex w-full items-end gap-px h-full">
                     {dayWidths.map((dayWidth, dayOfWeek) => {
                       const currentDay = new Date(weekStart);
                       currentDay.setDate(weekStart.getDate() + dayOfWeek);
@@ -269,9 +271,6 @@ export const TimelineBar = memo(function TimelineBar({
                       if (!isDayInProject || !isDayWorking) {
                         return <div key={dayOfWeek} style={{ width: `${dayWidth}px` }}></div>;
                       }
-                      
-                      // Calculate position for visual continuity
-                      const leftPosition = TimelineCalculationService.calculateDayWidthPosition(dayWidths, dayOfWeek);
                       
                       return (
                         <Tooltip key={dayOfWeek} delayDuration={100}>
@@ -303,10 +302,10 @@ export const TimelineBar = memo(function TimelineBar({
                                 let borderStyle: any;
 
                                 if (isPlannedAndCompleted) {
-                                  // Completed planned time: use baseline color, no dashed border
-                                  backgroundColor = colorScheme.baseline;
+                                  // Completed planned time: use lighter completed planned color, no borders
+                                  backgroundColor = colorScheme.completedPlanned;
                                   borderStyle = {
-                                    borderRight: dayOfWeek === 6 ? 'none' : '1px solid rgba(255, 255, 255, 0.2)',
+                                    borderRight: 'none',
                                     borderLeft: 'none',
                                     borderTop: 'none',
                                     borderBottom: 'none'
@@ -321,10 +320,10 @@ export const TimelineBar = memo(function TimelineBar({
                                     borderBottom: 'none'
                                   };
                                 } else {
-                                  // Auto-estimate: use auto-estimate color
+                                  // Auto-estimate: use auto-estimate color, no borders
                                   backgroundColor = colorScheme.autoEstimate;
                                   borderStyle = {
-                                    borderRight: dayOfWeek === 6 ? 'none' : '1px solid rgba(255, 255, 255, 0.2)',
+                                    borderRight: 'none',
                                     borderLeft: 'none',
                                     borderTop: 'none',
                                     borderBottom: 'none'
@@ -334,7 +333,7 @@ export const TimelineBar = memo(function TimelineBar({
                                 return {
                                   backgroundColor,
                                   height: `${dayRectangleHeight}px`,
-                                  width: `${dayWidth}px`,
+                                  width: `${dayWidth}px`, // Full width since gap-px handles spacing
                                   borderTopLeftRadius: '2px',
                                   borderTopRightRadius: '2px',
                                   // Remove all animations and transitions
@@ -528,10 +527,10 @@ export const TimelineBar = memo(function TimelineBar({
               let borderStyle: any;
 
               if (isPlannedAndCompleted) {
-                // Completed planned time: use baseline color, no dashed border  
-                backgroundColor = colorScheme.baseline;
+                // Completed planned time: use lighter completed planned color, no borders
+                backgroundColor = colorScheme.completedPlanned;
                 borderStyle = {
-                  borderRight: isLastWorkingDay ? 'none' : '1px solid rgba(255, 255, 255, 0.3)',
+                  borderRight: 'none',
                   borderLeft: 'none',
                   borderTop: 'none',
                   borderBottom: 'none'

@@ -43,3 +43,8 @@ export const calculateMinuteFromSlotIndex = (slotIndex: number, slotsPerHour: nu
   const slotInHour = slotIndex % slotsPerHour;
   return slotInHour * (60 / slotsPerHour);
 };
+
+/**
+ * Calculate availability circle diameter based on hours and view mode
+ * In weeks view, the hours required for full size circles is 5x the hours needed for day view
+ */

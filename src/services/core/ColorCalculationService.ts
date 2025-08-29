@@ -20,6 +20,13 @@ export class ColorCalculationService {
   }
 
   /**
+   * Get completed planned time color variant (lighter than baseline for better visibility)
+   */
+  static getCompletedPlannedColor(oklchColor: string): string {
+    return oklchColor.replace('0.8 0.12', '0.6 0.12');
+  }
+
+  /**
    * Get mid-tone color variant (between baseline and main color)
    */
   static getMidToneColor(oklchColor: string): string {

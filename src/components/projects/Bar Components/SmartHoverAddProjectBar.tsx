@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { Project } from '../../../types';
+import { calculateMinimumHoverOverlaySize } from '../../../services/timeline';
 
 interface SmartHoverAddProjectBarProps {
   dates: Date[];
@@ -259,8 +260,21 @@ export const SmartHoverAddProjectBar: React.FC<SmartHoverAddProjectBarProps> = (
         }
       }
     } else if (hoveredIndex !== null) {
-      // Just hovering
-      startIndex = endIndex = hoveredIndex;
+      // Just hovering - use minimum size calculation from service
+      const { startIndex: minStartIndex, endIndex: minEndIndex } = calculateMinimumHoverOverlaySize(
+        hoveredIndex,
+        mode,
+        occupiedIndices,
+        dates
+      );
+      
+      // Check if service returned valid range
+      if (minStartIndex === -1 || minEndIndex === -1) {
+        return null; // No valid range available
+      }
+      
+      startIndex = minStartIndex;
+      endIndex = minEndIndex;
     } else {
       return null;
     }
