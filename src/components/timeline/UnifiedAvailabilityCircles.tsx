@@ -195,7 +195,7 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
         return {
           colorClass: 'bg-green-500',
           darkColorClass: 'bg-green-700',
-          label: 'Work Hours'
+          label: 'Available Work Slots'
         };
       case 'busy':
         return {
@@ -213,7 +213,7 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
         return {
           colorClass: 'bg-gray-500',
           darkColorClass: 'bg-gray-700',
-          label: 'Total Project Planned'
+          label: 'Total Project Time'
         };
       case 'other-time':
         return {

@@ -21,6 +21,7 @@ import { TimeTracker } from '../work-hours/TimeTracker';
 import { WorkHourCreationModal } from '../modals/WorkHourCreationModal';
 import { WorkHourScopeDialog } from '../work-hours/WorkHourScopeDialog';
 import { PlannerInsightCard } from '../planner/PlannerInsightCard';
+import { CustomWeekHeader, CustomDayHeader } from '../planner/CustomCalendarHeaders';
 import { splitMidnightCrossingEvents } from '@/services/events/eventSplittingService';
 import { useWorkHours } from '../../hooks/useWorkHours';
 import { getCalendarEventBackgroundColor, getCalendarEventTextColor, OKLCH_FALLBACK_GRAY } from '@/constants/colors';
@@ -878,7 +879,13 @@ export function PlannerView() {
             eventPropGetter={eventStyleGetter}
             components={{
               event: (props: any) => <CustomEvent {...props} layerMode={layerMode} updateEventWithUndo={updateEventWithUndo} />,
-              toolbar: () => null
+              toolbar: () => null,
+              week: {
+                header: CustomWeekHeader,
+              },
+              day: {
+                header: CustomDayHeader,
+              }
             }}
             formats={{
               dayFormat: 'ddd DD', // Day abbreviation followed by date (e.g., "Mon 23")

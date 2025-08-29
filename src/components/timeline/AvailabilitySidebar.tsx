@@ -20,9 +20,8 @@ const InfoButton = ({ title, description }: InfoButtonProps) => {
           <Info className="h-3 w-3" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80">
+      <PopoverContent className="w-80" side="top">
         <div className="space-y-2">
-          <h4 className="font-medium">{title}</h4>
           <p className="text-sm text-gray-600">{description}</p>
         </div>
       </PopoverContent>
@@ -59,10 +58,10 @@ export const AvailabilitySidebar = memo(function AvailabilitySidebar({
             <div className="flex items-center justify-between w-full">
               <div className="flex items-center gap-3">
                 <div className="w-3 h-3 rounded-full bg-green-500" />
-                <span className="text-sm font-medium text-gray-800">Work Hours</span>
+                <span className="text-sm font-medium text-gray-800">Available Work Slots</span>
               </div>
               <InfoButton
-                title="Work Hours"
+                title="Available Work Slots"
                 description="The number of work hours still available in this time period."
               />
             </div>
@@ -99,7 +98,7 @@ export const AvailabilitySidebar = memo(function AvailabilitySidebar({
               </div>
               <InfoButton
                 title="Overtime"
-                description="The number of hours planned outside work hours."
+                description="Project time completed or planned outside work hours."
               />
             </div>
           )}
@@ -113,10 +112,10 @@ export const AvailabilitySidebar = memo(function AvailabilitySidebar({
             <div className="flex items-center justify-between w-full">
               <div className="flex items-center gap-3">
                 <div className="w-3 h-3 rounded-full bg-gray-500" />
-                <span className="text-sm font-medium text-gray-800">Total Project Planned</span>
+                <span className="text-sm font-medium text-gray-800">Total Project Time</span>
               </div>
               <InfoButton
-                title="Total Project Planned"
+                title="Total Project Time"
                 description="The number of planned project events in total."
               />
             </div>
