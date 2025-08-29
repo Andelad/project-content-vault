@@ -90,15 +90,15 @@ export const AvailabilitySidebar = memo(function AvailabilitySidebar({
         {/* Overtime Planned/Completed Row */}
         <div className={`h-12 border-b border-gray-100 flex items-center ${collapsed ? 'px-0 justify-center' : 'px-4'}`}>
           {collapsed ? (
-            <div className="w-3 h-3 rounded-full bg-gray-400" />
+            <div className="w-3 h-3 rounded-full bg-orange-500" />
           ) : (
             <div className="flex items-center justify-between w-full">
               <div className="flex items-center gap-3">
-                <div className="w-3 h-3 rounded-full bg-gray-400" />
-                <span className="text-sm font-medium text-gray-800">Overtime Planned</span>
+                <div className="w-3 h-3 rounded-full bg-orange-500" />
+                <span className="text-sm font-medium text-gray-800">Overtime</span>
               </div>
               <InfoButton
-                title="Overtime Planned"
+                title="Overtime"
                 description="The number of hours planned outside work hours."
               />
             </div>

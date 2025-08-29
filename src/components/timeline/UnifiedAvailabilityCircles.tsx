@@ -205,9 +205,9 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
         };
       case 'overtime-planned':
         return {
-          colorClass: 'bg-gray-400',
-          darkColorClass: 'bg-gray-600',
-          label: 'Overtime Planned'
+          colorClass: 'bg-orange-500',
+          darkColorClass: 'bg-orange-600',
+          label: 'Overtime'
         };
       case 'total-planned':
         return {
