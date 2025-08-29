@@ -1,4 +1,5 @@
 import { CalendarEvent, Project, Group } from '../../types';
+import { calculateValidDays } from '../insights/insightsCalculationService';
 
 export class ProjectCalculationService {
   /**
@@ -60,7 +61,18 @@ export class ProjectCalculationService {
     validDays: number;
   } {
     // Determine included days from settings (days with work hours)
-    const includedDays = this.getIncludedDaysFromSettings(settings);
+    const includedDaysArray = this.getIncludedDaysFromSettings(settings);
+    
+    // Convert number[] to IncludedDays boolean object
+    const includedDays: { [key: string]: boolean } = {
+      sunday: false, monday: false, tuesday: false, wednesday: false,
+      thursday: false, friday: false, saturday: false
+    };
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    includedDaysArray.forEach(dayIndex => {
+      includedDays[dayNames[dayIndex]] = true;
+    });
+    
     // Filter events within the average period
     const periodEvents = events.filter(event => {
       const eventDate = new Date(event.startTime);
@@ -68,7 +80,7 @@ export class ProjectCalculationService {
     });
 
     // Calculate valid days (days in period that are included in work week)
-    const totalValidDays = this.calculateValidDaysInPeriod(averagePeriod.start, averagePeriod.end, includedDays);
+    const totalValidDays = calculateValidDays(averagePeriod.start, averagePeriod.end, includedDays as any);
 
     // Initialize hourly data structure
     const hourlyData: { [hour: number]: { [groupId: string]: number } } = {};
@@ -86,7 +98,9 @@ export class ProjectCalculationService {
         const endTime = new Date(event.endTime);
 
         // Skip if event is on excluded day
-        if (!includedDays.includes(startTime.getDay())) {
+        const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const eventDayName = dayNames[startTime.getDay()];
+        if (!includedDays[eventDayName]) {
           return;
         }
 

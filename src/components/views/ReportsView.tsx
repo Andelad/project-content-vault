@@ -33,7 +33,7 @@ import {
   calculateValidDays,
   calculateAverageDayData,
   calculateWeeklyCapacity
-} from '../../services/reports/reportCalculationService';
+} from '../../services/insights/insightsCalculationService';
 
 type TimeFrame = 'week' | 'month' | 'year';
 type AveragePeriod = 'week' | 'month' | '6months';

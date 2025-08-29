@@ -10,7 +10,7 @@ import { Calendar } from '../ui/calendar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
-import { RichTextEditor, MilestoneManager, ProjectProgressGraph } from '../projects';
+import { RichTextEditor, MilestoneManager, ProjectProgressGraph, ProjectNotesSection } from '../projects';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
@@ -1533,23 +1533,11 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
                   transition={{ duration: 0.2 }}
                   className="overflow-hidden"
                 >
-                  <div className="p-8">
-                    <RichTextEditor
-                      value={localValues.notes}
-                      onChange={handleNotesChange}
-                      placeholder="Add your project notes here...
-
-You can format text using the toolbar above:
-• Bold, italic, and underline text
-• Create headings for organization
-• Add bullet points and numbered lists
-• Insert links and quotes
-• Create code blocks
-
-Start typing to capture all your project information in one place."
-                      className="h-64 overflow-auto"
-                    />
-                  </div>
+                  <ProjectNotesSection
+                    projectId={projectId || ''}
+                    notes={localValues.notes}
+                    onNotesChange={handleNotesChange}
+                  />
                 </motion.div>
               )}
             </AnimatePresence>
