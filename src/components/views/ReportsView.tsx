@@ -27,6 +27,13 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Checkbox } from '../ui/checkbox';
+import { ProjectCalculationService } from '../../services/core';
+import { 
+  calculateFutureCommitments,
+  calculateValidDays,
+  calculateAverageDayData,
+  calculateWeeklyCapacity
+} from '../../services/reports/reportCalculationService';
 
 type TimeFrame = 'week' | 'month' | 'year';
 type AveragePeriod = 'week' | 'month' | '6months';
@@ -140,13 +147,7 @@ export function ReportsView() {
 
   // Calculate weekly work hours total
   const weeklyCapacity = useMemo(() => {
-    return Object.values(settings.weeklyWorkHours).reduce((sum, dayData) => {
-      // Handle both old (number) and new (WorkSlot[]) formats
-      if (Array.isArray(dayData)) {
-        return sum + dayData.reduce((daySum: number, slot: any) => daySum + (slot.duration || 0), 0);
-      }
-      return sum + (dayData || 0);
-    }, 0);
+    return ProjectCalculationService.calculateWeeklyCapacity(settings);
   }, [settings.weeklyWorkHours]);
 
   // Current projects (active today)
@@ -158,145 +159,15 @@ export function ReportsView() {
     });
   }, [projects, today]);
 
-
-
-  // Future committed hours
+  // Future committed hours using service
   const futureCommitments = useMemo(() => {
-    return projects
-      .filter(project => new Date(project.startDate) > today)
-      .reduce((sum, project) => sum + project.estimatedHours, 0);
+    return calculateFutureCommitments(projects, today);
   }, [projects, today]);
 
-  // Helper function to calculate valid days in period
-  const calculateValidDays = (startDate: Date, endDate: Date) => {
-    let count = 0;
-    const current = new Date(startDate);
-    
-    while (current <= endDate) {
-      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-      const dayName = dayNames[current.getDay()] as keyof typeof includedDays;
-      
-      if (includedDays[dayName]) {
-        count++;
-      }
-      
-      current.setDate(current.getDate() + 1);
-    }
-    
-    return count;
-  };
-
-  // Average Day calculation
+  // Average Day calculation using service
   const averageDayData = useMemo(() => {
-    // Early return if groups is not available yet
-    if (!groups || !Array.isArray(groups)) {
-      return {
-        timeline: [],
-        totalAverageHours: 0,
-        validDays: 0
-      };
-    }
-
-    // Calculate date range based on selected period
-    const endDate = new Date();
-    const startDate = new Date();
-    
-    switch (averagePeriod) {
-      case 'week':
-        startDate.setDate(endDate.getDate() - 7);
-        break;
-      case 'month':
-        startDate.setMonth(endDate.getMonth() - 1);
-        break;
-      case '6months':
-        startDate.setMonth(endDate.getMonth() - 6);
-        break;
-    }
-
-    // Get events within the date range that are completed or tracked
-    const relevantEvents = events.filter(event => {
-      try {
-        const eventDate = new Date(event.startTime);
-        const isInRange = eventDate >= startDate && eventDate <= endDate;
-        const isCompleted = event.completed === true || event.type === 'tracked';
-        
-        // Check if the event's day of week is included
-        const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-        const dayName = dayNames[eventDate.getDay()] as keyof typeof includedDays;
-        const isDayIncluded = includedDays[dayName];
-        
-        return isInRange && isCompleted && isDayIncluded;
-      } catch (error) {
-        console.warn('Error processing event:', event, error);
-        return false;
-      }
-    });
-
-    // Group events by hour of day and group
-    const hourlyData: { [hour: number]: { [groupId: string]: number } } = {};
-    const totalValidDays = calculateValidDays(startDate, endDate);
-
-    relevantEvents.forEach(event => {
-      try {
-        const startTime = new Date(event.startTime);
-        const endTime = new Date(event.endTime);
-        
-        // Find the project group for this event
-        const project = event.projectId ? projects.find(p => p.id === event.projectId) : null;
-        const groupId = project?.groupId || 'ungrouped';
-
-        const startHour = startTime.getHours();
-        const endHour = endTime.getHours();
-        
-        // Handle events that span multiple hours
-        for (let hour = startHour; hour <= endHour; hour++) {
-          if (!hourlyData[hour]) hourlyData[hour] = {};
-          if (!hourlyData[hour][groupId]) hourlyData[hour][groupId] = 0;
-          
-          // Create hour boundaries
-          const hourStart = new Date(startTime);
-          hourStart.setHours(hour, 0, 0, 0);
-          const hourEnd = new Date(startTime);
-          hourEnd.setHours(hour + 1, 0, 0, 0);
-          
-          // Find overlap between event and this hour
-          const overlapStart = new Date(Math.max(startTime.getTime(), hourStart.getTime()));
-          const overlapEnd = new Date(Math.min(endTime.getTime(), hourEnd.getTime()));
-          
-          if (overlapEnd > overlapStart) {
-            const hourPortion = (overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60);
-            hourlyData[hour][groupId] += hourPortion;
-          }
-        }
-      } catch (error) {
-        console.warn('Error processing event times:', event, error);
-      }
-    });
-
-    // Calculate averages and create 24-hour timeline
-    const timelineData = [];
-    for (let hour = 0; hour < 24; hour++) {
-      const hourData = hourlyData[hour] || {};
-      const groupTotals: { [groupId: string]: number } = {};
-      
-      Object.keys(hourData).forEach(groupId => {
-        groupTotals[groupId] = totalValidDays > 0 ? hourData[groupId] / totalValidDays : 0;
-      });
-
-      timelineData.push({
-        hour,
-        time: `${hour.toString().padStart(2, '0')}:00`,
-        groups: groupTotals,
-        totalHours: Object.values(groupTotals).reduce((sum, hours) => sum + hours, 0)
-      });
-    }
-
-    return {
-      timeline: timelineData,
-      totalAverageHours: timelineData.reduce((sum, hour) => sum + hour.totalHours, 0),
-      validDays: totalValidDays
-    };
-  }, [events, projects, groups, averagePeriod, includedDays]);
+    return calculateAverageDayData(events, averagePeriod, includedDays, groups, today);
+  }, [events, averagePeriod, includedDays, groups, today]);
 
   // Generate time analysis data based on selected timeframe
   const { timeAnalysisData, headerData } = useMemo(() => {

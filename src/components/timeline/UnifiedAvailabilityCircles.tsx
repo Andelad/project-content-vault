@@ -11,6 +11,7 @@ import {
   calculateProjectWorkingDays,
   getProjectTimeAllocation
 } from '@/services/work-hours';
+import { WeeklyCapacityCalculationService, WorkHoursCalculationService } from '@/services/timeline/TimelineBusinessLogicService';
 
 type AvailabilityType = 
   | 'available' 
@@ -128,9 +129,7 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
     const dayData = settings.weeklyWorkHours[dayName];
     
     if (Array.isArray(dayData)) {
-      return dayData.reduce((total: number, slot: any) => {
-        return total + (typeof slot.duration === 'number' ? slot.duration : 0);
-      }, 0);
+      return WorkHoursCalculationService.calculateWorkHoursTotal(dayData);
     }
     
     return typeof dayData === 'number' ? dayData : 0;

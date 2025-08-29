@@ -11,6 +11,8 @@ import { calculateMilestoneSegments, getMilestoneSegmentForDate } from '@/servic
 import { ProjectIconIndicator, ProjectMilestones } from '@/components';
 import { TimeAllocationService, HeightCalculationService, ColorCalculationService } from '@/services';
 import { useCachedWorkingDayChecker } from '@/lib/workingDayCache';
+import { TimelineCalculationService } from '@/services/timeline/TimelineCalculationService';
+import { ProjectDaysCalculationService, ProjectMetricsCalculationService } from '@/services/timeline/TimelineBusinessLogicService';
 
 interface TimelineBarProps {
   project: any;
@@ -29,93 +31,10 @@ interface TimelineBarProps {
 
 // Helper function to calculate baseline visual offsets
 function calculateBaselineVisualOffsets(positions: any, isDragging: boolean, dragState: any, projectId: string, mode: 'days' | 'weeks' = 'days') {
-  let adjustedPositions = { ...positions };
-  
-  if (isDragging && dragState?.projectId === projectId) {
-    // In days view: use snapped daysDelta for day boundary snapping
-    // In weeks view: use smooth pixelDeltaX for responsive movement
-    const dayWidth = mode === 'weeks' ? 11 : 40;
-    const dragOffsetPx = mode === 'days'
-      ? (dragState.daysDelta || 0) * dayWidth  // Snapped to day boundaries in days view
-      : (typeof dragState.pixelDeltaX === 'number' ? dragState.pixelDeltaX : (dragState.daysDelta || 0) * dayWidth);  // Smooth in weeks view
-
-    // DEBUG: Log visual positioning calculations
-    console.log('🎨 VISUAL POSITION DEBUG:', {
-      projectId,
-      mode,
-      dragStateDaysDelta: dragState.daysDelta,
-      pixelDeltaX: dragState.pixelDeltaX,
-      dragOffsetPx,
-      dayWidth,
-      action: dragState?.action
-    });
-
-    const action = dragState?.action;
-    
-    if (action === 'move') {
-      // Move everything together
-      adjustedPositions = {
-        ...positions,
-        baselineStartPx: positions.baselineStartPx + dragOffsetPx,
-        circleLeftPx: positions.circleLeftPx + dragOffsetPx,
-        triangleLeftPx: positions.triangleLeftPx + dragOffsetPx,
-        baselineWidthPx: positions.baselineWidthPx // width unchanged when moving
-      };
-    } else if (action === 'resize-start-date') {
-      // Only start date (and baseline left edge) should move visually
-      adjustedPositions = {
-        ...positions,
-        baselineStartPx: positions.baselineStartPx + dragOffsetPx,
-        circleLeftPx: positions.circleLeftPx + dragOffsetPx,
-        triangleLeftPx: positions.triangleLeftPx, // keep end fixed
-        // Width must shrink/grow opposite to left edge movement to keep right edge fixed
-        baselineWidthPx: positions.baselineWidthPx - dragOffsetPx
-      };
-    } else if (action === 'resize-end-date') {
-      // Only end date should move visually; keep baseline start and start circle fixed
-      adjustedPositions = {
-        ...positions,
-        baselineStartPx: positions.baselineStartPx,
-        circleLeftPx: positions.circleLeftPx,
-        triangleLeftPx: positions.triangleLeftPx + dragOffsetPx,
-        // Width grows/shrinks with right edge movement
-        baselineWidthPx: positions.baselineWidthPx + dragOffsetPx
-      };
-    }
-  }
-  
-  return adjustedPositions;
+  return TimelineCalculationService.calculateBaselineVisualOffsets(positions, isDragging, dragState, projectId, mode);
 }// Helper function to calculate visual project dates with consolidated offset logic
 function calculateVisualProjectDates(project: any, isDragging: boolean, dragState: any) {
-  let visualProjectStart = new Date(project.startDate);
-  let visualProjectEnd = new Date(project.endDate);
-  
-  // Apply drag offset based on action type for immediate visual feedback
-  if (isDragging && dragState?.projectId === project.id) {
-    // Use fractional daysDelta for smooth visual movement (like milestones)
-    const daysOffset = dragState.daysDelta || 0;
-    const action = dragState.action;
-    
-    if (action === 'move') {
-      // Move both start and end
-      visualProjectStart = new Date(project.startDate);
-      visualProjectStart.setDate(visualProjectStart.getDate() + daysOffset);
-      visualProjectEnd = new Date(project.endDate);
-      visualProjectEnd.setDate(visualProjectEnd.getDate() + daysOffset);
-    } else if (action === 'resize-start-date') {
-      // Only move start date
-      visualProjectStart = new Date(project.startDate);
-      visualProjectStart.setDate(visualProjectStart.getDate() + daysOffset);
-      // End date stays the same
-    } else if (action === 'resize-end-date') {
-      // Only move end date
-      visualProjectEnd = new Date(project.endDate);
-      visualProjectEnd.setDate(visualProjectEnd.getDate() + daysOffset);
-      // Start date stays the same
-    }
-  }
-  
-  return { visualProjectStart, visualProjectEnd };
+  return TimelineCalculationService.calculateVisualProjectDates(project, isDragging, dragState);
 }
 
 // Reusable drag handle component
@@ -191,57 +110,36 @@ export const TimelineBar = memo(function TimelineBar({
   const { events, holidays } = usePlannerContext();
   const { settings } = useSettingsContext();
   
-  // Memoize project days calculation
+  // Memoize project days calculation using service
   const projectDays = useMemo(() => {
-    // Normalize project dates to remove time components
-    const projectStart = new Date(project.startDate);
-    projectStart.setHours(0, 0, 0, 0);
-    
-    // For continuous projects, use viewport end as the effective end date
-    // This prevents infinite rendering while still showing the project as ongoing
-    const projectEnd = project.continuous 
-      ? new Date(viewportEnd)
-      : new Date(project.endDate);
-    projectEnd.setHours(0, 0, 0, 0);
-    
-    // Normalize viewport dates
-    const normalizedViewportStart = new Date(viewportStart);
-    normalizedViewportStart.setHours(0, 0, 0, 0);
-    const normalizedViewportEnd = new Date(viewportEnd);
-    normalizedViewportEnd.setHours(0, 0, 0, 0);
-    
-    if (projectEnd < normalizedViewportStart || projectStart > normalizedViewportEnd) {
-      return [];
-    }
-    
-    const projectDays = [];
-    const visibleStart = projectStart < normalizedViewportStart ? normalizedViewportStart : projectStart;
-    const visibleEnd = projectEnd > normalizedViewportEnd ? normalizedViewportEnd : projectEnd;
-    
-    for (let d = new Date(visibleStart); d <= visibleEnd; d.setDate(d.getDate() + 1)) {
-      const dayToAdd = new Date(d);
-      dayToAdd.setHours(0, 0, 0, 0); // Normalize time component
-      projectDays.push(dayToAdd);
-    }
-    
-    return projectDays;
+    return ProjectDaysCalculationService.calculateProjectDays(
+      project.startDate,
+      project.endDate,
+      project.continuous,
+      viewportStart,
+      viewportEnd
+    );
   }, [project.startDate, project.endDate, project.continuous, viewportStart, viewportEnd]);
   
   // Cached working day checker - eliminates duplicate calculations
   const isWorkingDay = useCachedWorkingDayChecker(settings.weeklyWorkHours, holidays);
 
-  // Memoize milestone segments calculation
-  const milestoneSegments = useMemo(() => {
-    // Generate work hours for the project period to get accurate working day calculation
-    const workHoursForPeriod = [];
+  // Memoize work hours for the project period
+  const workHoursForPeriod = useMemo(() => {
+    const workHours = [];
     const projectStart = new Date(project.startDate);
     const projectEnd = project.continuous ? new Date(viewportEnd) : new Date(project.endDate);
     
     for (let d = new Date(projectStart); d <= projectEnd; d.setDate(d.getDate() + 1)) {
       const dayWorkHours = generateWorkHoursForDate(new Date(d), settings);
-      workHoursForPeriod.push(...dayWorkHours);
+      workHours.push(...dayWorkHours);
     }
     
+    return workHours;
+  }, [project.startDate, project.endDate, project.continuous, viewportEnd, settings]);
+
+  // Memoize milestone segments calculation
+  const milestoneSegments = useMemo(() => {
     return calculateMilestoneSegments(
       project.id,
       project.startDate,
@@ -254,52 +152,17 @@ export const TimelineBar = memo(function TimelineBar({
       project.estimatedHours, // Pass the project total budget
       workHoursForPeriod // Pass work hours for accurate working day calculation
     );
-  }, [project.id, project.startDate, project.endDate, milestones, settings, holidays, isWorkingDay, events, project.estimatedHours, project.continuous, viewportEnd]);
+  }, [project.id, project.startDate, project.endDate, milestones, settings, holidays, isWorkingDay, events, project.estimatedHours, workHoursForPeriod]);
 
-  // Memoize project metrics calculation
+  // Memoize project metrics calculation using service
   const projectMetrics = useMemo(() => {
-    const projectStart = new Date(project.startDate);
-    const projectEnd = new Date(project.endDate);
-    
-    // Count only working days (days with > 0 hours in settings and not holidays)
-    const workingDays = [];
-    for (let d = new Date(projectStart); d <= projectEnd; d.setDate(d.getDate() + 1)) {
-      if (isWorkingDay(new Date(d))) {
-        workingDays.push(new Date(d));
-      }
-    }
-    
-    const totalWorkingDays = workingDays.length;
-    
-    // If no working days, don't divide by zero
-    if (totalWorkingDays === 0) {
-      return {
-        exactDailyHours: 0,
-        dailyHours: 0,
-        dailyMinutes: 0,
-        heightInPixels: 0,
-        workingDaysCount: 0
-      };
-    }
-    
-    const exactHoursPerDay = project.estimatedHours / totalWorkingDays;
-    const dailyHours = Math.floor(exactHoursPerDay);
-    const dailyMinutes = Math.round((exactHoursPerDay - dailyHours) * 60);
-    
-    // Calculate precise height in pixels (minimum 3px only if estimated hours > 0)
-    const heightInPixels = project.estimatedHours > 0 
-      ? HeightCalculationService.calculateProjectHeight(exactHoursPerDay)
-      : 0;
-    // Cap the outer rectangle at 40px to stay within taller row height (52px - 12px padding)
-    const cappedHeight = Math.min(heightInPixels, 40);
-    
-    return {
-      exactDailyHours: exactHoursPerDay,
-      dailyHours,
-      dailyMinutes,
-      heightInPixels: cappedHeight,
-      workingDaysCount: totalWorkingDays
-    };
+    return ProjectMetricsCalculationService.calculateProjectMetrics(
+      project.startDate,
+      project.endDate,
+      project.estimatedHours,
+      isWorkingDay,
+      HeightCalculationService
+    );
   }, [project.startDate, project.endDate, project.estimatedHours, isWorkingDay]);
   
   // Memoize color calculations to avoid repeated parsing
@@ -401,7 +264,7 @@ export const TimelineBar = memo(function TimelineBar({
                       const isDayInProject = currentDay >= normalizedProjectStart && currentDay <= normalizedProjectEnd;
                       // Determine if this specific date actually has work capacity (honors overrides + holidays)
                       const dayWorkHours = generateWorkHoursForDate(currentDay, settings);
-                      const totalDayWork = Array.isArray(dayWorkHours) ? dayWorkHours.reduce((s, wh) => s + (wh.duration || 0), 0) : 0;
+                      const totalDayWork = TimelineCalculationService.calculateWorkHoursTotal(dayWorkHours);
                       const isHoliday = isHolidayDate(currentDay, holidays);
                       const isDayWorking = !isHoliday && totalDayWork > 0;
                       
@@ -410,7 +273,7 @@ export const TimelineBar = memo(function TimelineBar({
                       }
                       
                       // Calculate position for visual continuity
-                      const leftPosition = dayWidths.slice(0, dayOfWeek).reduce((sum, w) => sum + w, 0);
+                      const leftPosition = TimelineCalculationService.calculateDayWidthPosition(dayWidths, dayOfWeek);
                       
                       return (
                         <Tooltip key={dayOfWeek} delayDuration={100}>
@@ -545,7 +408,7 @@ export const TimelineBar = memo(function TimelineBar({
               
               // Don't render rectangle if not a project day OR if it's a 0-hour day OR if it's a holiday (respect overrides)
               const dayWorkHours = generateWorkHoursForDate(date, settings);
-              const totalDayWork = Array.isArray(dayWorkHours) ? dayWorkHours.reduce((s, wh) => s + (wh.duration || 0), 0) : 0;
+              const totalDayWork = TimelineCalculationService.calculateWorkHoursTotal(dayWorkHours);
               const isHoliday = isHolidayDate(date, holidays);
               if (!isProjectDay || isHoliday || totalDayWork === 0) {
                 return <div key={dateIndex} className="h-full" style={{ minWidth: '40px', width: '40px' }}></div>;
@@ -585,7 +448,7 @@ export const TimelineBar = memo(function TimelineBar({
               const visibleWorkingDays = dates.filter((d, i) => {
                 const isInProject = projectDays.some(pd => pd.toDateString() === d.toDateString());
                 const wh = generateWorkHoursForDate(d, settings);
-                const total = Array.isArray(wh) ? wh.reduce((s, x) => s + (x.duration || 0), 0) : 0;
+                const total = TimelineCalculationService.calculateWorkHoursTotal(wh);
                 const holiday = isHolidayDate(d, holidays);
                 return isInProject && !holiday && total > 0;
               });

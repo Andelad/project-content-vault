@@ -17,6 +17,7 @@ import { useSettingsContext } from '../../contexts/SettingsContext';
 import { useTimelineContext } from '../../contexts/TimelineContext';
 import { calculateProjectTimeMetrics } from '@/services/projects';
 import { StandardModal } from './StandardModal';
+import { WorkHoursValidationService } from '@/services/timeline/TimelineBusinessLogicService';
 
 // Function to calculate working days remaining until end date
 const calculateWorkingDaysRemaining = (endDate: Date, settings: any, holidays: any[]): number => {
@@ -56,8 +57,7 @@ const calculateWorkingDaysRemaining = (endDate: Date, settings: any, holidays: a
       const dayName = dayNames[current.getDay()] as keyof typeof settings.weeklyWorkHours;
       const workSlots = settings.weeklyWorkHours?.[dayName] || [];
       
-      const hasWorkHours = Array.isArray(workSlots) && 
-        workSlots.reduce((sum, slot) => sum + slot.duration, 0) > 0;
+      const hasWorkHours = WorkHoursValidationService.hasWorkHoursConfigured(workSlots);
       
       if (hasWorkHours) {
         workingDays++;
@@ -102,8 +102,7 @@ const calculateTotalWorkingDays = (startDate: Date, endDate: Date, settings: any
       const dayName = dayNames[current.getDay()] as keyof typeof settings.weeklyWorkHours;
       const workSlots = settings.weeklyWorkHours?.[dayName] || [];
       
-      const hasWorkHours = Array.isArray(workSlots) && 
-        workSlots.reduce((sum, slot) => sum + slot.duration, 0) > 0;
+      const hasWorkHours = WorkHoursValidationService.hasWorkHoursConfigured(workSlots);
       
       if (hasWorkHours) {
         workingDays++;

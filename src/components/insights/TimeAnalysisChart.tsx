@@ -3,6 +3,7 @@ import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 import { calculateWorkHourCapacity, getWorkHoursCapacityForPeriod } from '@/services/work-hours/workHourCapacityService';
+import { WeeklyCapacityCalculationService } from '@/services/timeline/TimelineBusinessLogicService';
 import {
   BarChart,
   Bar,
@@ -89,13 +90,7 @@ export function TimeAnalysisChart({
 
   // Calculate weekly work hours total
   const weeklyCapacity = useMemo(() => {
-    return Object.values(settings.weeklyWorkHours).reduce((sum: number, dayData: any) => {
-      // Handle both old (number) and new (WorkSlot[]) formats
-      if (Array.isArray(dayData)) {
-        return sum + dayData.reduce((daySum: number, slot: any) => daySum + (slot.duration || 0), 0);
-      }
-      return sum + (dayData || 0);
-    }, 0);
+    return WeeklyCapacityCalculationService.calculateWeeklyCapacity(settings.weeklyWorkHours);
   }, [settings.weeklyWorkHours]);
 
   // Format timeframe for display

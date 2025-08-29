@@ -298,4 +298,114 @@ export class ProjectCalculationService {
 
     return projectDays;
   }
+
+  /**
+   * Calculate weekly work hours capacity (for reports)
+   */
+  static calculateWeeklyCapacity(settings: Settings): number {
+    return Object.values(settings.weeklyWorkHours).reduce((sum, dayData) => {
+      // Handle both old (number) and new (WorkSlot[]) formats
+      if (Array.isArray(dayData)) {
+        return sum + dayData.reduce((daySum, slot: any) => daySum + (slot.duration || 0), 0);
+      }
+      return sum + (dayData || 0);
+    }, 0);
+  }
+
+  /**
+   * Calculate project hours summary for reports
+   */
+  static calculateProjectHoursSummary(projects: Project[]): {
+    totalEstimatedHours: number;
+    totalCurrentProjects: number;
+    totalFutureCommitments: number;
+  } {
+    const today = new Date();
+
+    const currentProjects = projects.filter(project => {
+      const start = new Date(project.startDate);
+      const end = new Date(project.endDate);
+      return start <= today && end >= today;
+    });
+
+    const futureCommitments = projects
+      .filter(project => new Date(project.startDate) > today)
+      .reduce((sum, project) => sum + project.estimatedHours, 0);
+
+    const totalEstimatedHours = projects.reduce((sum, project) => sum + project.estimatedHours, 0);
+
+    return {
+      totalEstimatedHours,
+      totalCurrentProjects: currentProjects.length,
+      totalFutureCommitments: futureCommitments
+    };
+  }
+
+  /**
+   * Calculate average hours per day for reports
+   */
+  static calculateAverageHoursPerDay(
+    projects: Project[],
+    period: 'week' | 'month' | '6months',
+    includedDays: Record<string, boolean>
+  ): {
+    timeline: Array<{ date: string; totalHours: number; projectCount: number }>;
+    totalAverageHours: number;
+    validDays: number;
+  } {
+    const today = new Date();
+    const periodStart = new Date(today);
+
+    // Calculate period start date
+    switch (period) {
+      case 'week':
+        periodStart.setDate(today.getDate() - 7);
+        break;
+      case 'month':
+        periodStart.setMonth(today.getMonth() - 1);
+        break;
+      case '6months':
+        periodStart.setMonth(today.getMonth() - 6);
+        break;
+    }
+
+    // Generate date range
+    const dates: Date[] = [];
+    for (let d = new Date(periodStart); d <= today; d.setDate(d.getDate() + 1)) {
+      dates.push(new Date(d));
+    }
+
+    // Calculate valid days in period
+    const validDays = dates.filter(date => {
+      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const dayName = dayNames[date.getDay()] as keyof typeof includedDays;
+      return includedDays[dayName];
+    }).length;
+
+    // Calculate daily totals
+    const timeline = dates.map(date => {
+      const dayProjects = projects.filter(project => {
+        const start = new Date(project.startDate);
+        const end = new Date(project.endDate);
+        return start <= date && end >= date;
+      });
+
+      const totalHours = dayProjects.reduce((sum, project) => sum + project.estimatedHours, 0);
+      const projectCount = dayProjects.length;
+
+      return {
+        date: date.toISOString().split('T')[0],
+        totalHours: projectCount > 0 ? totalHours / projectCount : 0, // Average per project
+        projectCount
+      };
+    });
+
+    const totalAverageHours = timeline.reduce((sum, day) => sum + day.totalHours, 0);
+
+    return {
+      timeline,
+      totalAverageHours,
+      validDays
+    };
+  }
 }

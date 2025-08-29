@@ -5,6 +5,8 @@ import { useTimelineContext } from '../../contexts/TimelineContext';
 import { calculateProjectDuration } from '@/services/projects/projectProgressService';
 import { ProjectCalculationService } from '@/services/projects';
 import { HeightCalculationService } from '@/services/timeline';
+import { TimelineCalculationService } from '@/services/timeline/TimelineCalculationService';
+import { CommittedHoursCalculationService } from '@/services/timeline/TimelineBusinessLogicService';
 
 interface ProjectTimelineProps {
   project: Project;
@@ -51,15 +53,13 @@ export function ProjectTimeline({ project, dates, currentDate }: ProjectTimeline
     return 0;
   };
 
-  // Get committed hours from calendar events
+  // Get committed hours from calendar events using service
   const getCommittedHours = (date: Date) => {
-    const dateKey = date.toISOString().split('T')[0];
-    return events
-      .filter(event => {
-        const eventDate = event.startTime.toISOString().split('T')[0];
-        return eventDate === dateKey && event.projectId === project.id;
-      })
-      .reduce((total, event) => total + event.duration, 0);
+    return CommittedHoursCalculationService.calculateCommittedHoursForDate(
+      date,
+      project.id,
+      events
+    );
   };
 
   // Calculate bar height based on hours (max 8 hours = full height)
@@ -113,21 +113,7 @@ export function ProjectTimeline({ project, dates, currentDate }: ProjectTimeline
   );
 
   // Find the start and end positions for the timeline bar
-  const getTimelineBarPosition = () => {
-    const startIndex = dates.findIndex(date => 
-      date.toDateString() === project.startDate.toDateString()
-    );
-    const endIndex = dates.findIndex(date => 
-      date.toDateString() === project.endDate.toDateString()
-    );
-    
-    return {
-      startIndex: Math.max(0, startIndex),
-      width: endIndex >= 0 ? (endIndex - Math.max(0, startIndex) + 1) * 48 : 0
-    };
-  };
-
-  const timelinePosition = getTimelineBarPosition();
+  const timelinePosition = TimelineCalculationService.calculateTimelineBarPosition(dates, project);
 
   return (
     <div className="relative">

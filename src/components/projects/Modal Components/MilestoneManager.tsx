@@ -13,6 +13,7 @@ import { useProjectContext } from '../../../contexts/ProjectContext';
 import { Milestone } from '@/types/core';
 import { useToast } from '@/hooks/use-toast';
 import { calculateRecurringMilestoneCount, calculateRecurringTotalAllocation, detectRecurringPattern, MilestoneManagementService } from '@/services';
+import { MilestoneCalculationService } from '@/services/milestones/milestoneCalculationService';
 
 interface MilestoneManagerProps {
   projectId?: string; // Made optional to support new projects
@@ -140,14 +141,16 @@ export function MilestoneManager({
     }
   };
 
-  // Helper function to check if milestone allocation would exceed budget
+  // Helper function to check if milestone allocation would exceed budget using service
   const wouldExceedBudget = (milestoneId: string, newTimeAllocation: number) => {
-    const currentMilestone = projectMilestones.find(m => m.id === milestoneId);
-    const otherMilestonesTotal = projectMilestones
-      .filter(m => m.id !== milestoneId)
-      .reduce((total, m) => total + m.timeAllocation, 0);
-    
-    return (otherMilestonesTotal + newTimeAllocation) > projectEstimatedHours;
+    const validMilestones = projectMilestones.filter(m => m.id) as Milestone[];
+    const validation = MilestoneCalculationService.validateMilestoneUpdate(
+      validMilestones,
+      milestoneId,
+      newTimeAllocation,
+      projectEstimatedHours
+    );
+    return !validation.isValid;
   };
 
   // Helper function to handle property saving for milestones
@@ -155,9 +158,13 @@ export function MilestoneManager({
     // Check if this is a time allocation update that would exceed budget
     if (property === 'timeAllocation') {
       if (wouldExceedBudget(milestoneId, value)) {
+        const validMilestones = projectMilestones.filter(m => m.id) as Milestone[];
+        const updatedTotal = MilestoneCalculationService.calculateTotalAllocation(
+          validMilestones.map(m => m.id === milestoneId ? { ...m, timeAllocation: value } : m)
+        );
         toast({
           title: "Error",
-          description: `Cannot save milestone: Total milestone allocation (${Math.ceil(projectMilestones.reduce((total, m) => total + (m.id === milestoneId ? value : m.timeAllocation), 0))}h) would exceed project budget (${projectEstimatedHours}h).`,
+          description: `Cannot save milestone: Total milestone allocation (${Math.ceil(updatedTotal)}h) would exceed project budget (${projectEstimatedHours}h).`,
           variant: "destructive",
         });
         setEditingProperty(null);
@@ -176,7 +183,9 @@ export function MilestoneManager({
       const localMilestone = localMilestones.find(m => m.id === milestoneId);
       if (localMilestone && localMilestone.isNew && projectId) {
         // Check budget before saving new milestone
-        const totalWithNewMilestone = projectMilestones.reduce((total, m) => total + m.timeAllocation, 0) + 
+        const validMilestones = projectMilestones.filter(m => m.id) as Milestone[];
+        const currentTotal = MilestoneCalculationService.calculateTotalAllocation(validMilestones);
+        const totalWithNewMilestone = currentTotal + 
           (property === 'timeAllocation' ? value : localMilestone.timeAllocation);
         
         if (totalWithNewMilestone > projectEstimatedHours) {

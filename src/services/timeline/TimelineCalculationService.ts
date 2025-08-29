@@ -273,4 +273,140 @@ export class TimelineCalculationService {
     
     return { minZoom, maxZoom };
   }
+
+  /**
+   * Calculate total work hours for a day
+   */
+  static calculateWorkHoursTotal(workHours: any[]): number {
+    if (!Array.isArray(workHours)) {
+      return 0;
+    }
+    return workHours.reduce((sum, workHour) => sum + (workHour.duration || 0), 0);
+  }
+
+  /**
+   * Calculate left position for a day within a week
+   */
+  static calculateDayWidthPosition(dayWidths: number[], dayOfWeek: number): number {
+    if (!Array.isArray(dayWidths) || dayOfWeek <= 0) {
+      return 0;
+    }
+    return dayWidths.slice(0, dayOfWeek).reduce((sum, width) => sum + width, 0);
+  }
+
+  /**
+   * Calculate baseline visual offsets for drag operations
+   */
+  static calculateBaselineVisualOffsets(
+    positions: any,
+    isDragging: boolean,
+    dragState: any,
+    projectId: string,
+    mode: 'days' | 'weeks' = 'days'
+  ): any {
+    let adjustedPositions = { ...positions };
+
+    if (isDragging && dragState?.projectId === projectId) {
+      // In days view: use snapped daysDelta for day boundary snapping
+      // In weeks view: use smooth pixelDeltaX for responsive movement
+      const dayWidth = mode === 'weeks' ? 11 : 40;
+      const dragOffsetPx = mode === 'days'
+        ? (dragState.daysDelta || 0) * dayWidth  // Snapped to day boundaries in days view
+        : (typeof dragState.pixelDeltaX === 'number' ? dragState.pixelDeltaX : (dragState.daysDelta || 0) * dayWidth);  // Smooth in weeks view
+
+      const action = dragState?.action;
+
+      if (action === 'move') {
+        // Move everything together
+        adjustedPositions = {
+          ...positions,
+          baselineStartPx: positions.baselineStartPx + dragOffsetPx,
+          circleLeftPx: positions.circleLeftPx + dragOffsetPx,
+          triangleLeftPx: positions.triangleLeftPx + dragOffsetPx,
+          baselineWidthPx: positions.baselineWidthPx // width unchanged when moving
+        };
+      } else if (action === 'resize-start-date') {
+        // Only start date (and baseline left edge) should move visually
+        adjustedPositions = {
+          ...positions,
+          baselineStartPx: positions.baselineStartPx + dragOffsetPx,
+          circleLeftPx: positions.circleLeftPx + dragOffsetPx,
+          triangleLeftPx: positions.triangleLeftPx, // keep end fixed
+          // Width must shrink/grow opposite to left edge movement to keep right edge fixed
+          baselineWidthPx: positions.baselineWidthPx - dragOffsetPx
+        };
+      } else if (action === 'resize-end-date') {
+        // Only end date should move visually; keep baseline start and start circle fixed
+        adjustedPositions = {
+          ...positions,
+          baselineStartPx: positions.baselineStartPx,
+          circleLeftPx: positions.circleLeftPx,
+          triangleLeftPx: positions.triangleLeftPx + dragOffsetPx,
+          // Width grows/shrinks with right edge movement
+          baselineWidthPx: positions.baselineWidthPx + dragOffsetPx
+        };
+      }
+    }
+
+    return adjustedPositions;
+  }
+
+  /**
+   * Calculate visual project dates with consolidated offset logic
+   */
+  static calculateVisualProjectDates(
+    project: any,
+    isDragging: boolean,
+    dragState: any
+  ): { visualProjectStart: Date; visualProjectEnd: Date } {
+    let visualProjectStart = new Date(project.startDate);
+    let visualProjectEnd = new Date(project.endDate);
+
+    // Apply drag offset based on action type for immediate visual feedback
+    if (isDragging && dragState?.projectId === project.id) {
+      // Use fractional daysDelta for smooth visual movement (like milestones)
+      const daysOffset = dragState.daysDelta || 0;
+      const action = dragState.action;
+
+      if (action === 'move') {
+        // Move both start and end
+        visualProjectStart = new Date(project.startDate);
+        visualProjectStart.setDate(visualProjectStart.getDate() + daysOffset);
+        visualProjectEnd = new Date(project.endDate);
+        visualProjectEnd.setDate(visualProjectEnd.getDate() + daysOffset);
+      } else if (action === 'resize-start-date') {
+        // Only move start date
+        visualProjectStart = new Date(project.startDate);
+        visualProjectStart.setDate(visualProjectStart.getDate() + daysOffset);
+        // End date stays the same
+      } else if (action === 'resize-end-date') {
+        // Only move end date
+        visualProjectEnd = new Date(project.endDate);
+        visualProjectEnd.setDate(visualProjectEnd.getDate() + daysOffset);
+        // Start date stays the same
+      }
+    }
+
+    return { visualProjectStart, visualProjectEnd };
+  }
+
+  /**
+   * Calculate timeline bar position for a project
+   */
+  static calculateTimelineBarPosition(
+    dates: Date[],
+    project: { startDate: Date; endDate: Date }
+  ): { startIndex: number; width: number } {
+    const startIndex = dates.findIndex(date =>
+      date.toDateString() === project.startDate.toDateString()
+    );
+    const endIndex = dates.findIndex(date =>
+      date.toDateString() === project.endDate.toDateString()
+    );
+
+    return {
+      startIndex: Math.max(0, startIndex),
+      width: endIndex >= 0 ? (endIndex - Math.max(0, startIndex) + 1) * 48 : 0
+    };
+  }
 }
