@@ -17,6 +17,7 @@ export * from './events';
 export * from './insights';
 export * from './milestones';
 export * from './performance';
+export * from './plannerV2';
 export * from './projects';
 export * from './settings';
 export * from './timeline';

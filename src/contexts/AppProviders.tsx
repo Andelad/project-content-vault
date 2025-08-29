@@ -1,6 +1,7 @@
 import React from 'react';
 import { ProjectProvider } from './ProjectContext';
 import { PlannerProvider } from './PlannerContext';
+import { PlannerV2Provider } from './PlannerV2Context';
 import { TimelineProvider } from './TimelineContext';
 import { SettingsProvider } from './SettingsContext';
 
@@ -17,9 +18,11 @@ export function AppProviders({ children }: AppProvidersProps) {
     <SettingsProvider>
       <TimelineProvider>
         <PlannerProvider>
-          <ProjectProvider>
-            {children}
-          </ProjectProvider>
+          <PlannerV2Provider>
+            <ProjectProvider>
+              {children}
+            </ProjectProvider>
+          </PlannerV2Provider>
         </PlannerProvider>
       </TimelineProvider>
     </SettingsProvider>
