@@ -67,14 +67,6 @@ function AuthenticatedContent() {
   } = usePlannerContext();
   const { isTimeTracking } = useSettingsContext();
 
-  // Debug: Track creatingNewProject state changes
-  console.log('🔍 App.tsx - creatingNewProject state:', creatingNewProject);
-  console.log('🔍 App.tsx - creatingNewProject groupId:', creatingNewProject?.groupId);
-  console.log('🔍 App.tsx - creatingNewProject rowId:', creatingNewProject?.rowId);
-  console.log('🔍 App.tsx - selectedProjectId:', selectedProjectId);
-  console.log('🔍 App.tsx - Edit modal isOpen:', !!selectedProjectId);
-  console.log('🔍 App.tsx - Create modal isOpen:', !!creatingNewProject);
-
   const { signOut, user } = useAuth();
   
   // Use the favicon hook to change favicon based on time tracking state

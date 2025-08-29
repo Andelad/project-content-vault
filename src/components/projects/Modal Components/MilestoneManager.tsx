@@ -105,12 +105,6 @@ export function MilestoneManager({
         m.name && /\s\d+$/.test(m.name) // Ends with space and number
       );
 
-      console.log('🔄 Updating recurring milestones:', {
-        count: recurringMilestones.length,
-        newAllocation: editingLoadValue,
-        direction
-      });
-
       // Update each recurring milestone in the database silently
       for (const milestone of recurringMilestones) {
         if (milestone.id && !milestone.id.startsWith('temp-')) {
@@ -716,13 +710,6 @@ export function MilestoneManager({
 
   // Generate recurring milestones based on configuration using service
   const generateRecurringMilestones = (config: RecurringMilestoneConfig) => {
-    console.log('📅 Generating recurring milestones using service:', {
-      projectStartDate: projectStartDate.toDateString(),
-      projectStartDay: format(projectStartDate, 'EEEE'),
-      recurringType: config.recurringType,
-      interval: config.recurringInterval
-    });
-    
     return MilestoneManagementService.generateRecurringMilestones(
       config,
       projectStartDate,

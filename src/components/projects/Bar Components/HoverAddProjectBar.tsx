@@ -82,7 +82,7 @@ export function HoverAddProjectBar({ rowId, dates, onCreateProject }: HoverAddPr
 
     return (
       <div
-        className="absolute top-0 h-full bg-blue-200 border border-blue-400 rounded opacity-70 pointer-events-none z-10"
+        className="absolute top-1/2 -translate-y-1/2 h-10 bg-blue-200 border border-blue-400 border-solid rounded-md opacity-70 pointer-events-none z-10"
         style={{
           left: `${left}%`,
           width: `${width}%`

@@ -238,13 +238,7 @@ export function ProjectDetailModal({ isOpen, onClose, projectId, groupId, rowId 
   
   // Special log for creation mode
   if (DEBUG && isOpen && isCreating) {
-    console.log('🆕 NEW PROJECT CREATION MODE ACTIVE');
-    console.log('🆕 Creation details:', {
-      groupId,
-      rowId,
-      groupExists: !!group,
-      groupName: group?.name
-    });
+    // Debug logging for project creation mode
   }
 
   const [editingTitle, setEditingTitle] = useState(false);

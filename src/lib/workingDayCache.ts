@@ -99,7 +99,7 @@ export const workingDayStats = {
   logStats: () => {
     if (cacheStats.checks > 0) {
       const stats = workingDayStats.getStats();
-      console.log(`🗓️ Working Day Cache: ${stats.totalChecks} checks, ${stats.hitRate}% hit rate, ${stats.cacheSize} entries`);
+      // Cache stats available for debugging if needed
     }
   },
 

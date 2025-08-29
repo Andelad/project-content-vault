@@ -84,14 +84,12 @@ export function cachedMilestoneCalculation<T>(
   if (cached !== undefined) {
     cacheStats.hits++;
     const hitRate = cacheStats.checks > 0 ? (cacheStats.hits / cacheStats.checks * 100).toFixed(1) : '0';
-    console.log(`🎯 Milestone Cache HIT: ${milestoneId} for project ${projectId} (${hitRate}% hit rate)`);
     return cached;
   }
 
   // Cache miss - perform original calculation
   cacheStats.misses++;
   const hitRate = cacheStats.checks > 0 ? (cacheStats.hits / cacheStats.checks * 100).toFixed(1) : '0';
-  console.log(`🎯 Milestone Cache MISS: ${milestoneId} for project ${projectId} (${hitRate}% hit rate)`);
   const result = originalCalculation();
 
   // Store result and manage cache size
@@ -124,16 +122,15 @@ export const milestoneStats = {
   logStats: () => {
     if (cacheStats.checks > 0) {
       const stats = milestoneStats.getStats();
-      console.log(`🎯 Milestone Cache Stats: ${stats.totalChecks} calculations, ${stats.hitRate}% hit rate, ${stats.cacheSize} entries`);
+      // Cache stats available for debugging if needed
     } else {
-      console.log(`🎯 Milestone Cache: No calculations performed yet`);
+      // No calculations performed yet
     }
   },
 
   clear: () => {
     milestoneCache.clear();
     cacheStats = { hits: 0, misses: 0, checks: 0 };
-    console.log('🎯 Milestone Cache cleared');
   },
 
   /**
@@ -147,7 +144,6 @@ export const milestoneStats = {
       }
     }
     keysToDelete.forEach(key => milestoneCache.delete(key));
-    console.log(`🎯 Milestone Cache: Invalidated ${keysToDelete.length} entries for project ${projectId}`);
   }
 };
 

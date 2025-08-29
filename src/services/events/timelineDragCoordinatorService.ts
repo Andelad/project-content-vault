@@ -209,11 +209,6 @@ export class TimelineDragCoordinatorService {
 
     // If restoreToOriginal is true, the component should handle restoring
     // the visual state to the original dates
-    console.log('🛑 DRAG CANCELLED:', {
-      projectId: dragState.projectId,
-      action: dragState.action,
-      restoreToOriginal
-    });
   }
 
   /**

@@ -9,6 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Calendar } from '../ui/calendar';
 import { Input } from '../ui/input';
 import { ChevronLeft, ChevronRight, MapPin, CalendarSearch, Folders, Hash, Circle, PanelLeft } from 'lucide-react';
+import { toast } from '../../hooks/use-toast';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { useTimelineContext } from '../../contexts/TimelineContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
@@ -83,11 +84,6 @@ export function TimelineView() {
     settings 
   } = useSettingsContext();
   
-  // Debug: Log the data structures
-  console.log('🔍 TimelineView - Available rows:', rows.length);
-  console.log('🔍 TimelineView - Available groups:', groups.length);
-  console.log('🔍 TimelineView - Available projects:', projects.length);
-
   // Validate and auto-fix project relationships using the validation service
   React.useEffect(() => {
     ProjectValidationService.validateAndAutoFix(
@@ -123,7 +119,6 @@ export function TimelineView() {
   const protectedSetViewportStart = useCallback((date: Date) => {
     const blockingState = TimelineViewportService.checkViewportBlocking();
     if (blockingState.isBlocked) {
-      console.log(`🚫 TimelineView blocked from updating viewport - ${blockingState.reason}`);
       return;
     }
     setViewportStart(date);
@@ -168,13 +163,6 @@ export function TimelineView() {
       projectsCount: filteredProjects.length
     });
   }, [timelineMode, dates.length, filteredProjects.length]);
-
-  console.log(`🚀 Timeline performance:`, {
-    mode: timelineMode,
-    days: dates.length,
-    projects: filteredProjects.length,
-    ...performanceMetrics
-  });
 
   // Memoize date range formatting using service
   const dateRangeText = useMemo(() => {
@@ -365,7 +353,6 @@ export function TimelineView() {
         // Check if viewport updates are blocked
         const blockingState = TimelineViewportService.checkViewportBlocking();
         if (blockingState.isBlocked) {
-          console.log(`🚫 Auto-scroll blocked from updating viewport - ${blockingState.reason}`);
           return prevStart;
         }
         
@@ -438,9 +425,6 @@ export function TimelineView() {
     e.preventDefault();
     e.stopPropagation();
     
-    // DEBUG: Alert to confirm drag is starting
-    console.log('🎯 DRAG START:', { projectId, action, clientX: e.clientX, clientY: e.clientY });
-    
     const targetProject = projects.find(p => p.id === projectId);
     if (!targetProject) return;
     
@@ -467,11 +451,7 @@ export function TimelineView() {
 
         // DEBUG: Confirm drag handler is being called
         if (Math.abs(e.clientX - initialDragState.lastMouseX) > 1) {
-          console.log('🔥 DRAG HANDLER CALLED:', {
-            clientX: e.clientX,
-            lastMouseX: initialDragState.lastMouseX,
-            delta: e.clientX - initialDragState.lastMouseX
-          });
+          // Drag handler called - processing movement
         }
 
         // Calculate incremental delta from last mouse position (prevents overshoot)
@@ -505,18 +485,7 @@ export function TimelineView() {
         const daysDelta = calculateDaysDelta(e.clientX, initialDragState.startX, dates, true, timelineMode);
 
         // DEBUG: Always log drag events to see if handler is being called
-        console.log('🎯 DRAG MOVE EVENT:', {
-          eventType: e.type,
-          pointerType: (e as any).pointerType || 'mouse',
-          clientX: e.clientX,
-          clientY: e.clientY,
-          incrementalDeltaX,
-          currentPixelDeltaX,
-          smoothVisualDelta,
-          visualDelta,
-          mode: timelineMode,
-          dayWidth
-        });
+        // Drag move event processed
 
         // IMMEDIATE visual update for responsive UI (incremental movement)
         setDragState(prev => ({ 
@@ -595,7 +564,6 @@ export function TimelineView() {
             };
     
     const handleMouseUp = () => {
-      console.log('🛑 PROJECT DRAG END - All events cleaned up');
       setIsDragging(false);
       setDragState(null);
       stopAutoScroll(); // Fix infinite scrolling
@@ -650,8 +618,6 @@ export function TimelineView() {
     const targetHoliday = holidays.find(h => h.id === holidayId);
     if (!targetHoliday) return;
     
-    console.log('🏖️ HOLIDAY DRAG START:', { action, holidayId });
-    
     const startX = e.clientX;
     const dayWidth = timelineMode === 'weeks' ? 77 : 40;
     const originalStartDate = new Date(targetHoliday.startDate);
@@ -674,7 +640,7 @@ export function TimelineView() {
       // Calculate rounded delta for database updates only
       const daysDelta = Math.round(exactVisualDelta);
       
-      console.log(`🏖️ ${action.toUpperCase()}:`, { totalDeltaX, exactVisualDelta, daysDelta });
+      // Holiday drag operation processed
       
       try {
         if (action === 'resize-start-date') {
@@ -683,10 +649,9 @@ export function TimelineView() {
           
           // Allow start date to equal end date (single day holiday)
           if (newStartDate <= originalEndDate) {
-            console.log('✅ START DATE UPDATE:', newStartDate.toDateString());
-            updateHoliday(holidayId, { startDate: newStartDate });
+            updateHoliday(holidayId, { startDate: newStartDate }, { silent: true });
           } else {
-            console.log('❌ START DATE BLOCKED');
+            // Start date update blocked - would make holiday invalid
           }
           
         } else if (action === 'resize-end-date') {
@@ -695,10 +660,9 @@ export function TimelineView() {
           
           // Allow end date to equal start date (single day holiday)
           if (newEndDate >= originalStartDate) {
-            console.log('✅ END DATE UPDATE:', newEndDate.toDateString());
-            updateHoliday(holidayId, { endDate: newEndDate });
+            updateHoliday(holidayId, { endDate: newEndDate }, { silent: true });
           } else {
-            console.log('❌ END DATE BLOCKED');
+            // End date update blocked - would make holiday invalid
           }
           
         } else if (action === 'move') {
@@ -708,11 +672,10 @@ export function TimelineView() {
           newStartDate.setDate(originalStartDate.getDate() + daysDelta);
           newEndDate.setDate(originalEndDate.getDate() + daysDelta);
           
-          console.log('✅ MOVE UPDATE:', newStartDate.toDateString(), 'to', newEndDate.toDateString());
           updateHoliday(holidayId, { 
             startDate: newStartDate,
             endDate: newEndDate 
-          });
+          }, { silent: true });
         }
       } catch (error) {
         console.error('🚨 HOLIDAY UPDATE ERROR:', error);
@@ -722,10 +685,15 @@ export function TimelineView() {
     };
     
     const handleMouseUp = () => {
-      console.log('🏖️ DRAG END');
       setIsDragging(false);
       setDragState(null);
       stopAutoScroll();
+      
+      // Show success toast when holiday drag operation completes
+      toast({
+        title: "Success",
+        description: "Holiday updated successfully",
+      });
       
       // Remove ALL possible event listeners for robust pen/tablet support
       document.removeEventListener('mousemove', handleMouseMove);
@@ -766,9 +734,6 @@ export function TimelineView() {
 
   // Handle creating projects from hover drag - opens modal for confirmation
   const handleCreateProject = useCallback((rowId: string, startDate: Date, endDate: Date) => {
-  console.log('🎯 TimelineView.handleCreateProject called with rowId:', rowId, 'startDate:', startDate, 'endDate:', endDate);
-  console.log('🎯 DETAILED: startDate ISO:', startDate.toISOString(), 'endDate ISO:', endDate.toISOString());
-  console.log('🎯 Available rows:', rows.map(r => ({ id: r.id, groupId: r.groupId, name: r.name })));
     const row = rows.find(r => r.id === rowId);
     if (!row) {
       console.error('❌ Row not found for rowId:', rowId);
@@ -776,15 +741,9 @@ export function TimelineView() {
       return;
     }
 
-  console.log('✅ Found row:', row, 'groupId:', row.groupId);
-  console.log('✅ Row object keys:', Object.keys(row));
-  console.log('✅ Row groupId type:', typeof row.groupId, 'value:', JSON.stringify(row.groupId));
-
     // REMOVED: Competing overlap check - SmartHoverAddProjectBar already validated this is safe
     // SmartHoverAddProjectBar prevents creation in occupied spaces, so we trust its validation
 
-  console.log('🚀 Opening project creation modal with rowId:', rowId, 'groupId:', row.groupId, 'dates:', { startDate, endDate });
-  console.log('🚀 DETAILED: About to call setCreatingNewProject with startDate ISO:', startDate.toISOString(), 'endDate ISO:', endDate.toISOString());
     // Open the project creation modal with the selected dates and row
     setCreatingNewProject(row.groupId, { startDate, endDate }, rowId);
   }, [rows, setCreatingNewProject, projects]);

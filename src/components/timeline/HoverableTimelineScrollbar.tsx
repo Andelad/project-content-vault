@@ -90,7 +90,6 @@ export const HoverableTimelineScrollbar = memo(function HoverableTimelineScrollb
       // Create a blocking wrapper
       const blockingWrapper = (date: Date) => {
         blockedUpdateCount.current++;
-        console.log(`🚫 BLOCKED external viewport update #${blockedUpdateCount.current} during drag`);
         // Don't call the original function - just block it
       };
       
@@ -142,8 +141,6 @@ export const HoverableTimelineScrollbar = memo(function HoverableTimelineScrollb
     
     if (!scrollbarRef.current) return;
     
-    console.log('🎯 SCROLLBAR DRAG START');
-    
     // Stop any timeline auto-scrolling
     if (stopAutoScroll) {
       stopAutoScroll();
@@ -186,8 +183,6 @@ export const HoverableTimelineScrollbar = memo(function HoverableTimelineScrollb
   
   const handleMouseUp = useCallback((e?: MouseEvent) => {
     if (!isDragging.current) return;
-    
-    console.log('🏁 SCROLLBAR DRAG END - Position locked at:', finalDragPosition.current);
     
     if (e) {
       e.preventDefault();
@@ -242,7 +237,6 @@ export const HoverableTimelineScrollbar = memo(function HoverableTimelineScrollb
   const handleScrollbarClick = useCallback((e: React.MouseEvent) => {
     // BLOCK clicks immediately after drag operation
     if (justFinishedDrag.current) {
-      console.log('🚫 BLOCKED click after drag - preventing jump');
       e.preventDefault();
       e.stopPropagation();
       return;

@@ -59,14 +59,11 @@ export function useProjects() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   
-  console.log('🚀 useProjects hook initialized');
-  
   // Debouncing for update success toasts
   const updateToastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastUpdatedProjectRef = useRef<string | null>(null);
 
   useEffect(() => {
-    console.log('🔥 useProjects useEffect triggered');
     fetchProjects();
     
     // Cleanup timeout on unmount
@@ -79,20 +76,15 @@ export function useProjects() {
 
   const fetchProjects = async () => {
     try {
-      console.log('🔍 fetchProjects: Starting to fetch projects...');
-      
       // Test the connection first
       const { data: testData, error: testError } = await supabase
         .from('projects')
         .select('count')
         .limit(1);
-      console.log('🔍 Database connection test:', { testData, testError });
       
       const { data: { user } } = await supabase.auth.getUser();
-      console.log('🔍 fetchProjects: Current user:', user?.id);
       
       if (!user) {
-        console.log('❌ No authenticated user found');
         setProjects([]);
         return;
       }
@@ -104,24 +96,17 @@ export function useProjects() {
         .eq('user_id', user.id)
         .order('created_at', { ascending: true });
 
-      console.log('🔍 fetchProjects: Raw query result:', { data, error, userFiltered: true });
-      
       if (error) {
         console.error('❌ Supabase query error:', error);
         throw error;
       }
       
-      console.log('🔍 fetchProjects: Raw data count:', data?.length || 0);
-      
       // Transform database projects to frontend format
       const transformedProjects = (data || []).map((dbProject, index) => {
-        console.log(`🔍 Transforming project ${index}:`, dbProject);
         const transformed = transformDatabaseProject(dbProject);
-        console.log(`🔍 Transformed project ${index}:`, transformed);
         return transformed;
       });
       
-      console.log('🔍 fetchProjects: Setting projects:', transformedProjects.length, 'projects');
       setProjects(transformedProjects);
     } catch (error) {
       console.error('❌ Error fetching projects:', error);
@@ -140,22 +125,16 @@ export function useProjects() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      console.log('🚀 addProject called with data:', projectData);
-
       // Transform frontend data to database format
       const dbData = transformToDatabase(projectData);
-      console.log('🔍 Transformed database data:', dbData);
 
       const finalData = { ...dbData, user_id: user.id };
-      console.log('🔍 Final data to insert:', finalData);
 
       const { data, error } = await supabase
         .from('projects')
         .insert([finalData as any])
         .select()
         .single();
-
-      console.log('🔍 Supabase response:', { data, error });
 
       if (error) {
         console.error('❌ Supabase error details:', error);

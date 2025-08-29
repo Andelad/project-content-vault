@@ -174,24 +174,14 @@ export const SmartHoverAddProjectBar: React.FC<SmartHoverAddProjectBarProps> = (
         index = Math.max(0, Math.min(dates.length - 1, index));
       }
       
-      console.log('🔍 DRAG MOVE: index:', index, 'clampedIndex:', index);
       setDragEnd(index);
       dragEndRef.current = index; // Update ref immediately
     };
 
     const handleMouseUp = () => {
-      console.log('🔍 DRAG DEBUG: handleMouseUp called');
-      console.log('🔍 dragStart state:', dragStart);
-      console.log('🔍 dragEnd state:', dragEnd);
-      console.log('🔍 dragStartRef.current:', dragStartRef.current);
-      console.log('🔍 dragEndRef.current:', dragEndRef.current);
-      console.log('🔍 targetIndex:', targetIndex);
-      
       // Use refs for immediate access to current values
       const currentDragStart = dragStartRef.current;
       const currentDragEnd = dragEndRef.current;
-      
-      console.log('🔍 Using currentDragStart:', currentDragStart, 'currentDragEnd:', currentDragEnd);
       
       if (currentDragStart !== null && currentDragEnd !== null) {
         const startIndex = Math.min(currentDragStart, currentDragEnd);
@@ -232,9 +222,6 @@ export const SmartHoverAddProjectBar: React.FC<SmartHoverAddProjectBarProps> = (
             endDate.setHours(23, 59, 59, 999);
           }
           
-          console.log('🎯 Creating project with dates:', startDate, 'to', endDate);
-          console.log('🎯 DETAILED: startDate ISO:', startDate.toISOString(), 'endDate ISO:', endDate.toISOString());
-          console.log('🎯 DETAILED: rowId being passed:', rowId);
           onCreateProject(rowId, startDate, endDate);
         }
       }
@@ -294,7 +281,7 @@ export const SmartHoverAddProjectBar: React.FC<SmartHoverAddProjectBarProps> = (
     
     return (
       <div
-        className={`absolute top-1 bottom-1 border-2 border-dashed rounded pointer-events-none z-30 flex items-center justify-center ${
+        className={`absolute top-1/2 -translate-y-1/2 h-10 border border-solid rounded-md pointer-events-none z-30 flex items-center justify-center ${
           isValid 
             ? 'bg-blue-100/50 border-blue-400' 
             : 'bg-red-100/50 border-red-400'

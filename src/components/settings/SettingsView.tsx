@@ -157,8 +157,6 @@ export function SettingsView() {
         description: "Changes applied in current session (database save pending).",
       });
     }
-    
-    console.log('Settings saved:', localSettings, 'App settings:', appSettings);
   };
 
   const handleResetSettings = () => {
@@ -180,7 +178,7 @@ export function SettingsView() {
   const handleClearData = () => {
     // Implementation for clearing app data
     if (confirm('Are you sure you want to clear all app data? This action cannot be undone.')) {
-      console.log('Clearing app data...');
+      // Data clearing logic would go here
     }
   };
 

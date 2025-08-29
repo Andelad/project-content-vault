@@ -77,7 +77,7 @@ export function useHolidays() {
     }
   };
 
-  const updateHoliday = async (id: string, updates: HolidayUpdate) => {
+  const updateHoliday = async (id: string, updates: HolidayUpdate, options: { silent?: boolean } = {}) => {
     try {
       const { data, error } = await supabase
         .from('holidays')
@@ -89,21 +89,24 @@ export function useHolidays() {
       if (error) throw error;
       setHolidays(prev => prev.map(holiday => holiday.id === id ? data : holiday));
       
-      // Debounce success toast to prevent spam during drag operations
-      lastUpdatedHolidayRef.current = id;
-      if (updateToastTimeoutRef.current) {
-        clearTimeout(updateToastTimeoutRef.current);
-      }
-      
-      updateToastTimeoutRef.current = setTimeout(() => {
-        // Only show toast if this was the last holiday updated
-        if (lastUpdatedHolidayRef.current === id) {
-          toast({
-            title: "Success",
-            description: "Holiday updated successfully",
-          });
+      // Only show toast if not in silent mode
+      if (!options.silent) {
+        // Debounce success toast to prevent spam during drag operations
+        lastUpdatedHolidayRef.current = id;
+        if (updateToastTimeoutRef.current) {
+          clearTimeout(updateToastTimeoutRef.current);
         }
-      }, 500); // 500ms debounce delay
+        
+        updateToastTimeoutRef.current = setTimeout(() => {
+          // Only show toast if this was the last holiday updated
+          if (lastUpdatedHolidayRef.current === id) {
+            toast({
+              title: "Success",
+              description: "Holiday updated successfully",
+            });
+          }
+        }, 500); // 500ms debounce delay
+      }
       
       return data;
     } catch (error) {
@@ -113,7 +116,7 @@ export function useHolidays() {
         clearTimeout(updateToastTimeoutRef.current);
         updateToastTimeoutRef.current = null;
       }
-      // Show error toast immediately
+      // Always show error toasts
       toast({
         title: "Error",
         description: "Failed to update holiday",

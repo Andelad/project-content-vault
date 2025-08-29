@@ -38,15 +38,7 @@ export function DragPerformanceMonitor({
         ? ((metrics.throttledCount / metrics.updateCount) * 100).toFixed(1)
         : '0';
       
-      console.log(`🎯 Drag Performance Report:`, {
-        mode: timelineMode,
-        projects: projectCount,
-        totalTime: `${totalTime.toFixed(2)}ms`,
-        updates: metrics.updateCount,
-        throttled: metrics.throttledCount,
-        efficiency: `${efficiency}% throttled`,
-        performance: totalTime < 1000 ? '✅ SMOOTH' : '⚠️ SLOW'
-      });
+      // Performance metrics calculated but not logged in production
     }
   }, [isDragging, timelineMode, projectCount, metrics.dragStartTime, metrics.updateCount, metrics.throttledCount]);
 

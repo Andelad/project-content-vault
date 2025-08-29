@@ -547,19 +547,6 @@ export function calculateMilestoneSegments(
         const hoursPerDay = workingDays > 0 ? remainingBudget / workingDays : 0;
         const heightInPixels = HeightCalculationService.calculateSegmentHeight(hoursPerDay);
 
-        // Debug logging
-        console.log(`🎯 Milestone ${milestone.id} calculation for project ${projectId}:`, {
-          milestoneAllocation: milestone.timeAllocation,
-          plannedTimeInSegment,
-          remainingBudget,
-          workingDays,
-          hoursPerDay: hoursPerDay.toFixed(2),
-          expectedHoursPerDay: workingDays > 0 ? (milestone.timeAllocation / workingDays).toFixed(2) : '0',
-          startDate: currentStartDate.toDateString(),
-          endDate: segmentEndDate.toDateString(),
-          milestoneDate: milestoneDate.toDateString()
-        });
-
         segments.push({
           id: `segment-${milestone.id}`,
           startDate: new Date(currentStartDate),

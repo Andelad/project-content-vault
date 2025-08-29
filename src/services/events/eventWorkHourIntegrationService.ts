@@ -287,7 +287,7 @@ export function getProjectTimeAllocation(
   const startTime = performance.now();
   
   if (allocationCallCount % WORK_HOUR_CALCULATION_LIMITS.CACHE_BATCH_SIZE === 0) {
-    console.log(`📊 getProjectTimeAllocation called ${allocationCallCount} times`);
+    // Performance tracking - call count reached batch size
   }
   
   // Check if it's a working day
@@ -363,7 +363,7 @@ export function getProjectTimeAllocation(
   
   const endTime = performance.now();
   if (endTime - startTime > WORK_HOUR_CALCULATION_LIMITS.PERFORMANCE_WARNING_THRESHOLD) {
-    console.log(`⚠️ Slow getProjectTimeAllocation: ${(endTime - startTime).toFixed(2)}ms for project ${projectId} on ${date.toDateString()}`);
+    // Performance warning - slow calculation detected
   }
   
   return { type: 'auto-estimate', hours: autoEstimateHours, isWorkingDay: true };

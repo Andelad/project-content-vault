@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Move } from 'lucide-react';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import BeachAccess from '@/imports/BeachAccess';
@@ -26,11 +26,8 @@ export function AddProjectRow({ groupId, dates = [] }: AddProjectRowProps) {
       return;
     }
     
-    console.log('🎯 AddProjectRow: Available rows in group:', groupRows);
-    
     // Use the first available row in the group
     const firstRowId = groupRows.sort((a, b) => a.order - b.order)[0].id;
-    console.log('🎯 AddProjectRow: Selected row ID:', firstRowId);
     
     setCreatingNewProject(groupId, undefined, firstRowId);
   };
@@ -655,7 +652,12 @@ export function AddHolidayRow({ dates, collapsed, isDragging, dragState, handleH
           </button>
         ) : (
           <button 
-            onClick={() => setCreatingNewHoliday(null)}
+            onClick={() => {
+              const today = new Date();
+              const endDate = new Date(today);
+              endDate.setDate(today.getDate() + 2); // 2 days from today
+              setCreatingNewHoliday({ startDate: today, endDate });
+            }}
             className="flex items-center gap-3 hover:bg-gray-50 transition-colors px-2 py-1 rounded-md -mx-2 -my-1"
           >
             <div 
@@ -750,7 +752,6 @@ function HolidayBar({
   const [hasMoved, setHasMoved] = useState(false);
   
   const handleHolidayMouseDownWithClickDetection = (e: React.MouseEvent, holidayId: string, action: string) => {
-    console.log('🏖️ Holiday mouse down:', holidayId, action);
     e.stopPropagation(); // Prevent event bubbling
     setMouseDownTime(Date.now());
     setMouseDownPos({ x: e.clientX, y: e.clientY });
@@ -762,23 +763,18 @@ function HolidayBar({
   };
 
   const handleHolidayMouseUp = (e: React.MouseEvent, holidayId: string) => {
-    // Don't stop propagation if we're in a drag operation - let the global handler clean up
-    if (!isDragging) {
-      e.stopPropagation(); // Only prevent bubbling for click detection, not during drag
-    }
-    
     const currentTime = Date.now();
     const timeDiff = mouseDownTime ? currentTime - mouseDownTime : 0;
     
-    // If it was a quick click (less than 200ms) and didn't move much, treat as a click
+    // Quick click detection - if it was fast and didn't move much, treat as click
     if (timeDiff < 200 && !hasMoved && mouseDownPos) {
       const moveDist = Math.sqrt(
         Math.pow(e.clientX - mouseDownPos.x, 2) + Math.pow(e.clientY - mouseDownPos.y, 2)
       );
       
-      // If moved less than 5 pixels, consider it a click
-      if (moveDist < 5) {
-        console.log('🏖️ Holiday click detected:', holidayId);
+      // If moved less than 3 pixels, consider it a click
+      if (moveDist < 3) {
+        e.stopPropagation();
         onHolidayClick(holidayId);
       }
     }
@@ -789,12 +785,12 @@ function HolidayBar({
   };
 
   const handleHolidayMouseMove = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent event bubbling
     if (mouseDownPos) {
       const moveDist = Math.sqrt(
         Math.pow(e.clientX - mouseDownPos.x, 2) + Math.pow(e.clientY - mouseDownPos.y, 2)
       );
-      if (moveDist > 5) {
+      // Mark as moved if moved more than 3 pixels
+      if (moveDist > 3) {
         setHasMoved(true);
       }
     }
@@ -838,34 +834,28 @@ function HolidayBar({
               };
             }
           })()}
-          title={`${holiday.title} - Click handles to resize, drag center to move`}
+          title={`${holiday.title} - Click to edit, drag sides to resize, drag center to move`}
         >
           {/* Holiday title */}
-          <span className="truncate px-8 pointer-events-none select-none">
+          <span className="truncate px-2 pointer-events-none select-none">
             🏖️ {holiday.title}
           </span>
 
-          {/* Left resize handle - COMPLETELY REWRITTEN */}
+          {/* Left resize area - Two-way arrow cursor for resizing */}
           <div 
-            className="absolute left-0 top-0 bottom-0 w-8 cursor-ew-resize bg-transparent hover:bg-orange-500/30 z-60 flex items-center justify-center"
-            style={{ 
-              minWidth: '32px',
-              touchAction: 'none'
-            }}
-            onMouseDown={(e) => { 
-              e.stopPropagation(); 
+            className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize pointer-events-auto"
+            style={{ zIndex: 26 }}
+            onMouseDown={(e) => {
+              e.stopPropagation();
               e.preventDefault();
-              console.log('🔥 LEFT RESIZE STARTING');
               
               if (!handleHolidayMouseDown) return;
               
-              // Call the handler directly
               handleHolidayMouseDown(e, holiday.id, 'resize-start-date');
             }}
             onTouchStart={(e) => {
               e.stopPropagation();
               e.preventDefault();
-              console.log('🔥 LEFT RESIZE TOUCH STARTING');
               
               if (!handleHolidayMouseDown) return;
               
@@ -879,22 +869,16 @@ function HolidayBar({
               
               handleHolidayMouseDown(fakeMouseEvent, holiday.id, 'resize-start-date');
             }}
-            title="◀ Resize start date"
-          >
-            <div className="w-1 h-4 bg-orange-600/50 rounded opacity-0 group-hover:opacity-100 transition-opacity" />
-          </div>
+            title="Drag to change start date"
+          />
           
-          {/* Right resize handle - COMPLETELY REWRITTEN */}
+          {/* Right resize area - Two-way arrow cursor for resizing */}
           <div 
-            className="absolute right-0 top-0 bottom-0 w-8 cursor-ew-resize bg-transparent hover:bg-orange-500/30 z-60 flex items-center justify-center"
-            style={{ 
-              minWidth: '32px',
-              touchAction: 'none'
-            }}
-            onMouseDown={(e) => { 
-              e.stopPropagation(); 
+            className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize pointer-events-auto"
+            style={{ zIndex: 26 }}
+            onMouseDown={(e) => {
+              e.stopPropagation();
               e.preventDefault();
-              console.log('🔥 RIGHT RESIZE STARTING');
               
               if (!handleHolidayMouseDown) return;
               
@@ -903,7 +887,6 @@ function HolidayBar({
             onTouchStart={(e) => {
               e.stopPropagation();
               e.preventDefault();
-              console.log('🔥 RIGHT RESIZE TOUCH STARTING');
               
               if (!handleHolidayMouseDown) return;
               
@@ -917,50 +900,24 @@ function HolidayBar({
               
               handleHolidayMouseDown(fakeMouseEvent, holiday.id, 'resize-end-date');
             }}
-            title="Resize end date ▶"
-          >
-            <div className="w-1 h-4 bg-orange-600/50 rounded opacity-0 group-hover:opacity-100 transition-opacity" />
-          </div>
+            title="Drag to change end date"
+          />
 
-          {/* Move handle - CENTER AREA FOR MOVING */}
+          {/* Main clickable area - Single click to open modal, four-way cursor for dragging */}
           <div 
-            className="absolute top-0 bottom-0 cursor-move bg-transparent hover:bg-orange-400/20 z-50"
-            style={{
-              left: '32px',
-              right: '32px',
-              touchAction: 'none'
-            }}
-            onMouseDown={(e) => {
+            className="absolute inset-0 cursor-move"
+            style={{ zIndex: 20 }}
+            onMouseDown={(e) => handleHolidayMouseDownWithClickDetection(e, holiday.id, 'move')}
+            onMouseUp={(e) => handleHolidayMouseUp(e, holiday.id)}
+            onMouseMove={handleHolidayMouseMove}
+            onClick={(e) => {
               e.stopPropagation();
-              e.preventDefault();
-              console.log('🔥 MOVE STARTING');
-              
-              if (!handleHolidayMouseDown) return;
-              
-              handleHolidayMouseDown(e, holiday.id, 'move');
+              // Single click opens modal - prioritize click over drag state
+              if (!hasMoved) {
+                onHolidayClick(holiday.id);
+              }
             }}
-            onTouchStart={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              console.log('🔥 MOVE TOUCH STARTING');
-              
-              if (!handleHolidayMouseDown) return;
-              
-              const touch = e.touches[0];
-              const fakeMouseEvent = {
-                clientX: touch.clientX,
-                clientY: touch.clientY,
-                preventDefault: () => {},
-                stopPropagation: () => {}
-              } as any;
-              
-              handleHolidayMouseDown(fakeMouseEvent, holiday.id, 'move');
-            }}
-            onDoubleClick={(e) => {
-              e.stopPropagation();
-              onHolidayClick(holiday.id);
-            }}
-            title="Drag to move holiday, double-click to edit"
+            title="Click to edit holiday, drag to move"
           />
         </div>
       )}

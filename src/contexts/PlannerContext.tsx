@@ -16,7 +16,7 @@ interface PlannerContextType {
   holidays: Holiday[];
   isHolidaysLoading: boolean;
   addHoliday: (holiday: Omit<Holiday, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
-  updateHoliday: (id: string, updates: Partial<Holiday>) => Promise<void>;
+  updateHoliday: (id: string, updates: Partial<Holiday>, options?: { silent?: boolean }) => Promise<void>;
   deleteHoliday: (id: string) => Promise<void>;
   
   // UI State for modals
@@ -176,7 +176,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
     await dbAddHoliday(dbHoliday);
   }, [dbAddHoliday]);
 
-  const updateHoliday = useCallback(async (id: string, updates: Partial<Holiday>): Promise<void> => {
+  const updateHoliday = useCallback(async (id: string, updates: Partial<Holiday>, options: { silent?: boolean } = {}): Promise<void> => {
     // Transform camelCase to snake_case for database
     const dbUpdates: any = {};
     if (updates.title !== undefined) dbUpdates.title = updates.title;
@@ -184,7 +184,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
     if (updates.endDate !== undefined) dbUpdates.end_date = updates.endDate.toISOString().split('T')[0];
     if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
     
-    await dbUpdateHoliday(id, dbUpdates);
+    await dbUpdateHoliday(id, dbUpdates, options);
   }, [dbUpdateHoliday]);
 
   const deleteHoliday = useCallback(async (id: string): Promise<void> => {
@@ -195,7 +195,6 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
   const ensureRecurringEvents = useCallback(async (): Promise<void> => {
     // TODO: Implement recurring events logic
     // For now, this is a placeholder
-    console.log('ensureRecurringEvents called');
   }, []);
 
   // Utility functions

@@ -94,7 +94,6 @@ export class ProjectValidationService {
       return { fixed: 0, skipped: orphanedProjects.length };
     }
 
-    console.log('🔧 Auto-fixing orphaned projects...');
     let fixed = 0;
     let skipped = 0;
 
@@ -106,8 +105,6 @@ export class ProjectValidationService {
         skipped++;
       }
     });
-
-    console.log(`✅ Fixed ${fixed} orphaned projects, skipped ${skipped}`);
     return { fixed, skipped };
   }
 
@@ -134,7 +131,6 @@ export class ProjectValidationService {
       }
 
       if (targetRowId && (!project.rowId || !project.groupId)) {
-        console.log(`🔧 Auto-fixing project ${project.name}: assigning to groupId=${targetGroupId}, rowId=${targetRowId}`);
         updateProject(project.id, {
           groupId: targetGroupId,
           rowId: targetRowId
@@ -177,7 +173,7 @@ export class ProjectValidationService {
     }
 
     if (result.isValid) {
-      console.log('✅ All projects have valid relationships');
+      // All projects have valid relationships
     } else {
       console.warn(`⚠️ Found ${result.totalIssues} project relationship issues`);
     }

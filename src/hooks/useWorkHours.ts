@@ -45,20 +45,10 @@ export const useWorkHours = (): UseWorkHoursReturn => {
   // Helper functions now delegate to service
   const getWeekOverrides = useCallback((weekStart: Date): WorkHour[] => {
     const overrides = weekOverrideManager.getWeekOverrides(weekStart);
-    console.log('getWeekOverrides:', { 
-      weekKey: WorkHourCalculationService.getWeekKey(weekStart), 
-      count: overrides.length, 
-      overrides: overrides.map(o => o.id) 
-    });
     return overrides;
   }, []);
 
-  const setWeekOverrides = useCallback((weekStart: Date, overrides: WorkHour[]) => {
-    console.log('setWeekOverrides:', { 
-      weekKey: WorkHourCalculationService.getWeekKey(weekStart), 
-      count: overrides.length, 
-      overrides: overrides.map(o => o.id) 
-    });
+  const setWeekOverrides = useCallback((weekStart: Date, overrides: WorkHour[]) => { 
     weekOverrideManager.setWeekOverrides(weekStart, overrides);
   }, []);
 
@@ -83,7 +73,6 @@ export const useWorkHours = (): UseWorkHoursReturn => {
   // Get the current week's start date (Monday) - now uses service
   const getCurrentWeekStart = useCallback(() => {
     const weekStart = WorkHourCalculationService.getCurrentWeekStart();
-    console.log('getCurrentWeekStart:', weekStart.toISOString());
     return weekStart;
   }, []);
 
@@ -116,14 +105,6 @@ export const useWorkHours = (): UseWorkHoursReturn => {
       
       // Get overrides for the current week
       const weekOverrides = getWeekOverrides(currentWeekStart);
-      
-      console.log('fetchWorkHours:', { 
-        viewWeekStart: viewWeekStart.toISOString(), 
-        currentWeekStart: currentWeekStart.toISOString(),
-        isCurrentWeek,
-        settingsWorkHours: settingsWorkHours.length,
-        weekOverrides: weekOverrides.length
-      });
       
       // Use service to merge settings with overrides
       const finalWorkHours = WorkHourCalculationService.mergeWorkHoursWithOverrides({
@@ -199,11 +180,8 @@ export const useWorkHours = (): UseWorkHoursReturn => {
       return;
     }
     
-    console.log('updateWorkHour called:', { id, updates, scope, isFromSettings });
-    
     if (!scope && isFromSettings) {
       // Show scope dialog for settings-based work hours
-      console.log('Showing scope dialog for settings work hour');
       setPendingWorkHourChange({
         type: 'update',
         workHourId: id,
@@ -219,17 +197,14 @@ export const useWorkHours = (): UseWorkHoursReturn => {
       
       if (scope === 'permanent' && isFromSettings) {
         // Update settings permanently - but only for future events
-        console.log('Updating settings permanently for work hour:', id);
         await updateSettingsWorkHour(id, updates);
       } else {
         // Update just this week (add/update override)
         const currentWeekStart = getCurrentWeekStart();
-        console.log('Updating for this week only:', { currentWeekStart: currentWeekStart.toISOString(), id, updates });
         
         if (isFromSettings) {
           // Create or update override for settings-based work hour
           const originalWorkHour = workHours.find(wh => wh.id === id);
-          console.log('Found original work hour:', originalWorkHour);
           
           if (originalWorkHour) {
             const overrideWorkHour = WorkHourCalculationService.createUpdateOverride(
@@ -238,15 +213,11 @@ export const useWorkHours = (): UseWorkHoursReturn => {
               updates
             );
             
-            console.log('Creating/updating override:', { overrideId: overrideWorkHour.id, overrideWorkHour });
-            
             updateWeekOverride(currentWeekStart, overrideWorkHour.id, overrideWorkHour);
-            console.log('Override added to map');
           } else {
             console.error('Original work hour not found for ID:', id);
           }
         } else {
-          console.log('Updating custom work hour');
           // Update custom work hour or existing override
           const weekOverrides = getWeekOverrides(currentWeekStart);
           const existingWorkHour = weekOverrides.find(wh => wh.id === id);
@@ -262,9 +233,7 @@ export const useWorkHours = (): UseWorkHoursReturn => {
         }
       }
       
-      console.log('About to call fetchWorkHours after work hour update');
       await fetchWorkHours(new Date()); // Force refresh of current date/week
-      console.log('fetchWorkHours completed after work hour update');
     } catch (err) {
       console.error('Error updating work hour:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to update work hour';
@@ -328,15 +297,12 @@ export const useWorkHours = (): UseWorkHoursReturn => {
       // Extract day and slot ID from settings work hour ID (format: settings-dayName-slotId-weekTimestamp)
       const match = id.match(/^settings-(\w+)-([^-]+)-\d+$/);
       if (!match || !settings?.weekly_work_hours) {
-        console.log('updateSettingsWorkHour failed - no match or no settings:', { id, match, hasSettings: !!settings?.weekly_work_hours });
         return;
       }
       
       const [, dayName, slotId] = match;
       const weeklyWorkHours = settings.weekly_work_hours as any;
       const daySlots = weeklyWorkHours[dayName as keyof typeof weeklyWorkHours] || [];
-      
-      console.log('Updating settings work hour:', { id, dayName, slotId, updates, daySlots });
       
       const updatedSlots = daySlots.map((slot: WorkSlot) => {
         if (slot.id === slotId) {
@@ -357,7 +323,6 @@ export const useWorkHours = (): UseWorkHoursReturn => {
           const [endHour, endMin] = result.endTime.split(':').map(Number);
           result.duration = (endHour + endMin / 60) - (startHour + startMin / 60);
           
-          console.log('Updated slot:', result);
           return result;
         }
         return slot;
@@ -367,14 +332,10 @@ export const useWorkHours = (): UseWorkHoursReturn => {
         ...weeklyWorkHours,
         [dayName]: updatedSlots
       };
-      
-      console.log('Updating settings with:', { weekly_work_hours: newWeeklyWorkHours });
 
       const result = await updateSettings({
         weekly_work_hours: newWeeklyWorkHours
       });
-      
-      console.log('Settings update result:', result);
     } catch (error) {
       console.error('Error in updateSettingsWorkHour:', error);
       throw error;
@@ -443,8 +404,6 @@ export const useWorkHours = (): UseWorkHoursReturn => {
     if (!pendingWorkHourChange) return;
     
     const { type, workHourId, updates, newWorkHour } = pendingWorkHourChange;
-    
-    console.log('confirmWorkHourChange called:', { scope, type, workHourId, updates, newWorkHour });
     
     try {
       if (type === 'add' && newWorkHour) {

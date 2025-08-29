@@ -58,7 +58,6 @@ const DragHandle = memo(function DragHandle({
   children 
 }: DragHandleProps) {
   const handlePointerDown = (e: React.PointerEvent) => {
-    console.log('🖱️ DRAG HANDLE POINTER DOWN:', projectId, action, e.pointerId);
     // Prefer pointer events for pen/tablet reliability
     try {
       (e.currentTarget as any).setPointerCapture?.(e.pointerId);
@@ -69,7 +68,6 @@ const DragHandle = memo(function DragHandle({
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    console.log('🖱️ DRAG HANDLE MOUSE DOWN:', projectId, action, e.button);
     // Fallback for older devices
     e.preventDefault();
     e.stopPropagation();
@@ -321,7 +319,6 @@ export const TimelineBar = memo(function TimelineBar({
                                 };
                               })()}
                               onMouseDown={(e) => { 
-                                console.log('🔥 PARENT BAR MOUSE DOWN - SHOULD NOT HAPPEN FOR START DRAG');
                                 e.stopPropagation(); 
                                 handleMouseDown(e, project.id, 'move'); 
                               }}
@@ -331,7 +328,6 @@ export const TimelineBar = memo(function TimelineBar({
                                 <div
                                   className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-black/10 opacity-0 group-hover:opacity-100"
                                   onMouseDown={(e) => {
-                                    console.log('🎯 WEEK DAY 0 RESIZE START:', project.id);
                                     e.preventDefault();
                                     e.stopPropagation();
                                     handleMouseDown(e, project.id, 'resize-start-date');
@@ -344,7 +340,6 @@ export const TimelineBar = memo(function TimelineBar({
                                 <div
                                   className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-black/10 opacity-0 group-hover:opacity-100"
                                   onMouseDown={(e) => {
-                                    console.log('🎯 WEEK DAY 6 RESIZE END:', project.id);
                                     e.preventDefault();
                                     e.stopPropagation();
                                     handleMouseDown(e, project.id, 'resize-end-date');
@@ -541,7 +536,6 @@ export const TimelineBar = memo(function TimelineBar({
                         <div
                           className="absolute inset-0"
                           onMouseDown={(e) => {
-                            console.log('🎯 RECTANGLE AREA MOVE:', project.id);
                             e.preventDefault();
                             e.stopPropagation();
                             handleMouseDown(e, project.id, 'move');
@@ -596,7 +590,6 @@ export const TimelineBar = memo(function TimelineBar({
                           <div
                             className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-auto"
                             onMouseDown={(e) => {
-                              console.log('🎯 FIRST WORKING DAY RESIZE START:', project.id);
                               e.preventDefault();
                               e.stopPropagation();
                               handleMouseDown(e, project.id, 'resize-start-date');
@@ -609,7 +602,6 @@ export const TimelineBar = memo(function TimelineBar({
                           <div
                             className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity"
                             onMouseDown={(e) => {
-                              console.log('🎯 LAST WORKING DAY RESIZE END:', project.id);
                               e.preventDefault();
                               e.stopPropagation();
                               handleMouseDown(e, project.id, 'resize-end-date');
@@ -706,7 +698,6 @@ export const TimelineBar = memo(function TimelineBar({
                   zIndex: 25
                 }}
                 onMouseDown={(e) => {
-                  console.log('🎯 PROJECT BAR DIRECT MOUSE DOWN:', project.id);
                   e.preventDefault();
                   e.stopPropagation();
                   handleMouseDown(e, project.id, 'move');
@@ -724,7 +715,6 @@ export const TimelineBar = memo(function TimelineBar({
                   zIndex: 30
                 }}
                 onMouseDown={(e) => {
-                  console.log('🎯 START CIRCLE DIRECT MOUSE DOWN:', project.id);
                   e.preventDefault();
                   e.stopPropagation();
                   handleMouseDown(e, project.id, 'resize-start-date');
@@ -758,7 +748,6 @@ export const TimelineBar = memo(function TimelineBar({
                     borderRight: `7px solid ${colorScheme.baseline}`
                   }}
                   onMouseDown={(e) => {
-                    console.log('🎯 END TRIANGLE DIRECT MOUSE DOWN:', project.id);
                     e.preventDefault();
                     e.stopPropagation();
                     handleMouseDown(e, project.id, 'resize-end-date');
