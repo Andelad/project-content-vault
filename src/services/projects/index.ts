@@ -7,7 +7,7 @@ export {
 } from './ProjectRepository';
 
 // Legacy services - For backward compatibility (🗑️ DELETE AFTER MIGRATION)
-export * from './calculations';
+export * from './ProjectCalculations';
 export * from './legacy/ProjectCalculationService';
 export * from './legacy/projectProgressCalculationService';
 export { analyzeProjectProgress } from './legacy/projectProgressGraphService';

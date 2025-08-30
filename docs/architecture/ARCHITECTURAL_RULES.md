@@ -518,3 +518,203 @@ import { ProjectContext } from '@/contexts/ProjectContext';
 - ✅ All services from `@/services` (no sub-barrels)
 
 **This file must be consulted before every change!**
+
+## 🗑️ **Legacy File Cleanup Strategy**
+
+### **🔍 Before Deleting Legacy Files - Audit Required**
+
+**MANDATORY steps before removing any legacy folder:**
+
+1. **📊 Calculation Extraction Audit**
+   ```bash
+   # Find all exported functions in legacy files
+   grep -r "export.*function\|export.*=" src/services/{feature}/legacy/
+   
+   # Check if functions exist in new domain files
+   grep -r "function_name" src/services/{feature}/
+   grep -r "function_name" src/services/core/
+   ```
+
+2. **📈 Import Usage Analysis**
+   ```bash
+   # Find all components using legacy imports
+   grep -r "services/{feature}/legacy" src/components/
+   grep -r "services/{feature}/legacy" src/hooks/
+   grep -r "services/{feature}/legacy" src/contexts/
+   ```
+
+3. **✅ Migration Verification Checklist**
+   - [ ] **All calculations extracted** - Every exported function has equivalent in new structure
+   - [ ] **No unique logic remaining** - Legacy files contain no business logic not found elsewhere
+   - [ ] **All imports updated** - No components import from legacy folders
+   - [ ] **Tests still pass** - Existing functionality works with new imports
+   - [ ] **No circular dependencies** - New structure doesn't create import cycles
+
+### **🚀 Recommended Migration Process**
+
+#### **Phase 1: Extract Unique Calculations**
+```typescript
+// ✅ STEP 1: Identify unique functions in legacy files
+// legacy/ProjectCalculationService.ts → projects/calculations/projectMetrics.ts
+// legacy/projectProgressService.ts → projects/calculations/progressTracking.ts
+// legacy/projectOverlapService.ts → projects/calculations/overlapDetection.ts
+
+// ✅ STEP 2: Move functions to appropriate new files
+// Pure calculations → core/calculations/ (if global) or {feature}/calculations/ (if specific)
+// Workflow logic → {feature}/orchestrators/
+// Validation rules → {feature}/validators/ or core/domain/
+```
+
+#### **Phase 2: Create Migration Layer**
+```typescript
+// ✅ STEP 3: Update legacy files to delegate (temporary backward compatibility)
+// legacy/ProjectCalculationService.ts
+export class ProjectCalculationService {
+  static calculateMetrics(project: Project) {
+    // Delegate to new domain-driven function
+    return projectMetricsCalculations.calculateMetrics(project);
+  }
+}
+```
+
+#### **Phase 3: Update Imports Gradually**
+```typescript
+// ✅ STEP 4: Update component imports one-by-one (safe incremental changes)
+// Before: import { ProjectCalculationService } from '@/services/projects/legacy/ProjectCalculationService';
+// After:  import { calculateProjectMetrics } from '@/services';
+```
+
+#### **Phase 4: Delete Legacy Files**
+```typescript
+// ✅ STEP 5: Remove legacy folder when no imports remain
+// 1. Verify no imports: grep -r "projects/legacy" src/
+// 2. Remove from barrel exports: projects/index.ts
+// 3. Delete entire legacy folder
+// 4. Update documentation
+```
+
+### **⚠️ Legacy Deletion Safety Rules**
+
+**❌ NEVER delete legacy files until:**
+- [ ] **Complete function audit** - Every legacy function has equivalent in new structure
+- [ ] **Zero import references** - No files import from legacy folders
+- [ ] **Tests pass** - All existing functionality works with new imports
+- [ ] **Documentation updated** - Architecture docs reflect new structure
+
+**✅ SAFE to delete when:**
+- [ ] **All calculations extracted** to appropriate domain files
+- [ ] **All imports updated** to use new services barrel
+- [ ] **Legacy files only contain** delegation code (if any)
+- [ ] **Build passes** without any legacy imports
+- [ ] **Team consensus** on migration completion
+
+### **🛠️ Legacy Migration Tools**
+
+#### **Find Legacy Usage Script**
+```bash
+#!/bin/bash
+# Check if legacy folder is safe to delete
+
+feature=$1  # e.g., "projects", "milestones"
+
+echo "🔍 Checking legacy usage for: $feature"
+echo "📊 Legacy imports found:"
+grep -r "services/$feature/legacy" src/ || echo "✅ No legacy imports found"
+
+echo "📁 Legacy files remaining:"
+find src/services/$feature/legacy/ -name "*.ts" 2>/dev/null || echo "✅ No legacy files found"
+
+echo "📈 Legacy exports in barrel:"
+grep -r "legacy/" src/services/$feature/index.ts || echo "✅ No legacy exports found"
+```
+
+#### **Migration Analysis Script** 🆕
+```bash
+# Run comprehensive legacy analysis
+# Usage: ./scripts/analyze-legacy-usage.sh
+# 
+# Provides:
+# - Total files needing import updates
+# - Reference count per legacy service  
+# - Legacy file count and locations
+# - Migration effort assessment
+# - Recommended approach based on scope
+```
+
+#### **Migration Progress Tracker**
+```typescript
+// Add to each feature's index.ts during migration
+/*
+🚧 MIGRATION STATUS:
+✅ Domain entities created (ProjectEntity, etc.)
+✅ Orchestrators implemented (ProjectOrchestrator)
+✅ Calculations extracted (projectMetrics, progressTracking)
+⚠️  PENDING: Component imports still use legacy
+⚠️  PENDING: Legacy files contain unique functions
+❌ NOT READY: Legacy folder deletion blocked
+*/
+```
+
+#### **🔍 Pre-Migration Analysis Commands** 🆕
+
+**Quick Legacy Check:**
+```bash
+# Count total files importing legacy services
+grep -rl "from '@/services/projects/legacy" src/ | wc -l
+
+# Find most used legacy services
+grep -r "ProjectCalculationService\|projectProgressService" src/ | wc -l
+
+# Check legacy exports still in barrel
+grep -c "legacy/" src/services/projects/index.ts
+```
+
+**Current Projects Legacy Status (Based on index.ts analysis):**
+```typescript
+// 🔍 DETECTED: 8 Legacy Services in projects/index.ts
+// 🟡 MIGRATION EFFORT: MEDIUM-HIGH (estimated 15-30+ files to update)
+//
+// Legacy Services Found:
+// 1. ProjectCalculationService
+// 2. projectProgressCalculationService  
+// 3. projectProgressGraphService
+// 4. projectProgressService
+// 5. projectStatusService
+// 6. projectWorkingDaysService
+// 7. projectOverlapService
+// 8. ProjectValidationService
+//
+// Recommended Approach: Phased migration with delegation layer
+```
+
+**Detailed Function Analysis:**
+```bash
+# Find all exported functions in legacy files
+grep -r "export.*function\|export.*=" src/services/projects/legacy/
+
+# Check if functions exist in new domain structure  
+grep -r "calculateProjectMetrics\|analyzeProjectProgress" src/services/projects/
+grep -r "calculateProjectMetrics\|analyzeProjectProgress" src/services/core/
+```
+
+**Import Impact Assessment:**
+```bash
+# Files that will need import updates
+grep -rl "ProjectCalculationService\|projectProgressService\|projectStatusService" src/components/
+grep -rl "ProjectCalculationService\|projectProgressService\|projectStatusService" src/hooks/
+
+# Specific legacy import patterns
+grep -r "from '@/services/projects/legacy" src/
+```
+
+**Migration Readiness Check:**
+```bash
+# Verify new domain structure exists
+ls -la src/services/projects/
+ls -la src/services/core/domain/
+
+# Check barrel exports
+grep -c "Orchestrator\|Entity" src/services/projects/index.ts
+```
+
+**This migration analysis helps determine the exact scope before starting legacy cleanup.**
