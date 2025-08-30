@@ -11,6 +11,7 @@ export * from './insights';
 export * from './work-hours';
 export * from './planner';
 export * from './modals';
+export * from './dialog';
 export * from './debug';
 export * from './views';
 export * from './layout';

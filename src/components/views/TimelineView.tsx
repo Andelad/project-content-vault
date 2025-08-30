@@ -27,7 +27,7 @@ import {
 import { TIMELINE_CONSTANTS } from '@/constants';
 import { performanceMonitor } from '@/services/performance/performanceMetricsService';
 import { checkProjectOverlap, adjustProjectDatesForDrag } from '@/services/projects/projectOverlapService';
-import { throttledDragUpdate, clearDragQueue } from '@/services/performance/dragPerformanceService';
+import { throttledDragUpdate, clearDragQueue, throttledVisualUpdate } from '@/services/performance/dragPerformanceService';
 import { workingDayStats } from '@/lib/workingDayCache';
 import { milestoneStats } from '@/lib/milestoneCache';
 
@@ -465,7 +465,8 @@ export function TimelineView() {
       originalEndDate: new Date(targetProject.endDate),
       lastDaysDelta: 0,
       pixelDeltaX: 0,
-      lastSnappedDelta: 0
+      lastSnappedDelta: 0,
+      lastVisualUpdate: 0 // Track last visual update time for throttling
     };
     
     setIsDragging(true);
@@ -514,21 +515,25 @@ export function TimelineView() {
         // DEBUG: Always log drag events to see if handler is being called
         // Drag move event processed
 
-        // IMMEDIATE visual update for responsive UI (incremental movement)
-        setDragState(prev => ({ 
-          ...prev, 
-          daysDelta: visualDelta,  // Use calculated visual delta
-          pixelDeltaX: currentPixelDeltaX  // Accumulate smooth movement
-        }));
-
         // Update last mouse position for next incremental calculation
-        initialDragState.lastMouseX = e.clientX;        // Check for auto-scroll during drag
+        initialDragState.lastMouseX = e.clientX;
+        
+        // Check for auto-scroll during drag
         checkAutoScroll(e.clientX);
+
+        // Use service for throttled visual updates to improve performance
+        throttledVisualUpdate(() => {
+          setDragState(prev => ({ 
+            ...prev, 
+            daysDelta: visualDelta,  // Use calculated visual delta
+            pixelDeltaX: currentPixelDeltaX  // Accumulate smooth movement
+          }));
+        }, timelineMode);
 
         // BACKGROUND persistence (throttled database updates)
         if (daysDelta !== initialDragState.lastDaysDelta) {
-          // Schedule database update with longer throttle for better performance
-          const throttleMs = 0; // No throttling for immediate visual feedback like milestones
+          // Use mode-specific throttling for better performance
+          const throttleMs = timelineMode === 'weeks' ? 100 : 50; // Longer throttle for weeks mode
 
                   throttledDragUpdate(async () => {
                     if (action === 'resize-start-date') {

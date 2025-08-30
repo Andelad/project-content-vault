@@ -19,8 +19,9 @@ export function throttledDragUpdate(
 ): void {
   const now = Date.now();
 
-  // Add to queue
-  dragUpdateQueue.push(updateFunction);
+  // For performance optimization: only keep the latest update in queue
+  // This prevents queue buildup during fast drag operations
+  dragUpdateQueue = [updateFunction]; // Replace entire queue with latest update
 
   // Only process if enough time has passed
   if (now - lastDragUpdateTime >= throttleMs && !isProcessingQueue) {
@@ -79,4 +80,42 @@ export function getDragQueueStatus(): {
     isProcessing: isProcessingQueue,
     lastUpdateTime: lastDragUpdateTime
   };
+}
+
+/**
+ * Visual drag state management for performance optimization
+ */
+let lastVisualUpdateTime = 0;
+let pendingVisualUpdate: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * Throttled visual state update for drag operations
+ * Prevents excessive React re-renders during smooth drag movements
+ */
+export function throttledVisualUpdate(
+  updateFunction: () => void,
+  timelineMode: 'days' | 'weeks'
+): void {
+  const now = performance.now();
+  const throttleMs = timelineMode === 'weeks' ? 16 : 8; // 60fps for weeks, 120fps for days
+  const timeSinceLastUpdate = now - lastVisualUpdateTime;
+
+  // Clear any pending update
+  if (pendingVisualUpdate) {
+    clearTimeout(pendingVisualUpdate);
+  }
+
+  if (timeSinceLastUpdate >= throttleMs) {
+    // Execute immediately if enough time has passed
+    lastVisualUpdateTime = now;
+    updateFunction();
+  } else {
+    // Schedule for next available slot
+    const delay = throttleMs - timeSinceLastUpdate;
+    pendingVisualUpdate = setTimeout(() => {
+      lastVisualUpdateTime = performance.now();
+      updateFunction();
+      pendingVisualUpdate = null;
+    }, delay);
+  }
 }

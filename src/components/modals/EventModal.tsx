@@ -14,10 +14,10 @@ import { Calendar as CalendarIcon, Clock, Repeat, Trash2, CheckCircle2 } from 'l
 import { Switch } from '../ui/switch';
 import { cn } from '@/lib/utils';
 import { OKLCH_FALLBACK_GRAY } from '@/constants/colors';
-import { RecurringDeleteDialog } from './RecurringDeleteDialog';
+import { RecurringDeleteDialog } from '../dialog/RecurringDeleteDialog';
 import { StandardModal } from './StandardModal';
 
-interface EventDetailModalProps {
+interface EventModalProps {
   isOpen: boolean;
   onClose: () => void;
   eventId?: string;
@@ -25,13 +25,13 @@ interface EventDetailModalProps {
   defaultEndTime?: Date;
 }
 
-export function EventDetailModal({ 
+export function EventModal({ 
   isOpen, 
   onClose, 
   eventId,
   defaultStartTime,
   defaultEndTime
-}: EventDetailModalProps) {
+}: EventModalProps) {
   const { projects, groups } = useProjectContext();
   
   // Use PlannerV2Context as the primary context since PlannerV2 will replace Planner

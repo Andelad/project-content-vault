@@ -30,8 +30,8 @@ const SettingsView = lazy(() => import('@/components').then(module => ({ default
 const ProfileView = lazy(() => import('@/components/views').then(module => ({ default: module.ProfileView })));
 const Auth = lazy(() => import('@/pages/Auth'));
 
-// Import the EventDetailModal
-import { EventDetailModal } from '@/components/modals/EventDetailModal';
+// Import the EventModal
+import { EventModal } from '@/components/modals/EventModal';
 
 const queryClient = new QueryClient();
 
@@ -143,14 +143,14 @@ function AuthenticatedContent() {
           rowId={creatingNewProject?.rowId}
         />
 
-        <EventDetailModal
+        <EventModal
           key="edit-event-modal"
           isOpen={!!selectedEventId}
           onClose={() => setSelectedEventId(null)}
           eventId={selectedEventId || ''}
         />
 
-        <EventDetailModal
+        <EventModal
           key="create-event-modal"
           isOpen={!!creatingNewEvent}
           onClose={() => setCreatingNewEvent(null)}

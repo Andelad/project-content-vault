@@ -206,41 +206,16 @@ export const TimelineBar = memo(function TimelineBar({
             
             return dates.map((date, dateIndex) => {
             if (mode === 'weeks') {
-              // Week mode logic
-              const weekStart = new Date(date);
-              weekStart.setHours(0, 0, 0, 0);
-              const weekEnd = new Date(weekStart);
-              weekEnd.setDate(weekStart.getDate() + 6);
-              weekEnd.setHours(23, 59, 59, 999);
+              // Use service to calculate week-project intersection (no hooks in loop)
+              const weekCalculations = TimelineCalculationService.calculateWeekProjectIntersection(
+                date, visualProjectStart, visualProjectEnd, isWorkingDay
+              );
               
-              // Normalize project dates (using visually adjusted dates for immediate drag response)
-              const projectStart = new Date(visualProjectStart);
-              projectStart.setHours(0, 0, 0, 0);
-              const projectEnd = new Date(visualProjectEnd);
-              projectEnd.setHours(23, 59, 59, 999);
-              
-              // Check if project intersects with this week
-              const weekIntersectsProject = !(projectEnd < weekStart || projectStart > weekEnd);
-              
-              if (!weekIntersectsProject) {
+              if (!weekCalculations.intersects || weekCalculations.workingDaysInWeek.length === 0) {
                 return <div key={dateIndex} className="flex flex-col-reverse" style={{ minWidth: '77px', width: '77px' }}></div>;
               }
               
-              // Calculate working days in this week that are part of the project
-              const workingDaysInWeek = [];
-              for (let d = new Date(Math.max(weekStart.getTime(), projectStart.getTime())); 
-                   d <= new Date(Math.min(weekEnd.getTime(), projectEnd.getTime())); 
-                   d.setDate(d.getDate() + 1)) {
-                const normalizedDay = new Date(d);
-                normalizedDay.setHours(0, 0, 0, 0);
-                if (isWorkingDay(normalizedDay)) {
-                  workingDaysInWeek.push(normalizedDay);
-                }
-              }
-              
-              if (workingDaysInWeek.length === 0) {
-                return <div key={dateIndex} className="flex flex-col-reverse" style={{ minWidth: '77px', width: '77px' }}></div>;
-              }
+              const { weekStart, weekEnd } = weekCalculations;
               
               // For weeks mode, create segments for each day of the week with simple 11px positioning
               // Each week column is 77px, with each day getting exactly 11px

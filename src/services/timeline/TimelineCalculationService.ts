@@ -409,4 +409,53 @@ export class TimelineCalculationService {
       width: endIndex >= 0 ? (endIndex - Math.max(0, startIndex) + 1) * 48 : 0
     };
   }
+
+  /**
+   * Calculate week-project intersection data for weeks view
+   * Extracts the logic that was causing hooks violation in TimelineBar
+   */
+  static calculateWeekProjectIntersection(
+    date: Date,
+    visualProjectStart: Date,
+    visualProjectEnd: Date,
+    isWorkingDay: (date: Date) => boolean
+  ): {
+    intersects: boolean;
+    workingDaysInWeek: Date[];
+    weekStart?: Date;
+    weekEnd?: Date;
+  } {
+    const weekStart = new Date(date);
+    weekStart.setHours(0, 0, 0, 0);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    weekEnd.setHours(23, 59, 59, 999);
+    
+    // Normalize project dates (using visually adjusted dates for immediate drag response)
+    const projectStart = new Date(visualProjectStart);
+    projectStart.setHours(0, 0, 0, 0);
+    const projectEnd = new Date(visualProjectEnd);
+    projectEnd.setHours(23, 59, 59, 999);
+    
+    // Check if project intersects with this week
+    const weekIntersectsProject = !(projectEnd < weekStart || projectStart > weekEnd);
+    
+    if (!weekIntersectsProject) {
+      return { intersects: false, workingDaysInWeek: [] };
+    }
+    
+    // Calculate working days in this week that are part of the project
+    const workingDaysInWeek = [];
+    for (let d = new Date(Math.max(weekStart.getTime(), projectStart.getTime())); 
+         d <= new Date(Math.min(weekEnd.getTime(), projectEnd.getTime())); 
+         d.setDate(d.getDate() + 1)) {
+      const normalizedDay = new Date(d);
+      normalizedDay.setHours(0, 0, 0, 0);
+      if (isWorkingDay(normalizedDay)) {
+        workingDaysInWeek.push(normalizedDay);
+      }
+    }
+    
+    return { intersects: true, workingDaysInWeek, weekStart, weekEnd };
+  }
 }

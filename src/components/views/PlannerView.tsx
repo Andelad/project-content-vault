@@ -11,7 +11,7 @@ import { useTimelineContext } from '../../contexts/TimelineContext';
 import { CalendarEvent, WorkHour } from '../../types';
 import { Button } from '../ui/button';
 import { ChevronLeft, ChevronRight, CheckCircle2, Circle, Calendar as CalendarIcon, MapPin, CalendarSearch, Trash2 } from 'lucide-react';
-import { EventDetailModal } from '../modals/EventDetailModal';
+import { EventModal } from '../modals/EventModal';
 import { Checkbox } from '../ui/checkbox';
 import { Badge } from '../ui/badge';
 import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group';
@@ -19,7 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Calendar as DatePicker } from '../ui/calendar';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../ui/alert-dialog';
 import { TimeTracker } from '../work-hours/TimeTracker';
-import { WorkHourCreationModal } from '../modals/WorkHourCreationModal';
+import { WorkSlotModal } from '../modals/WorkSlotModal';
 import { WorkHourScopeDialog } from '../work-hours/WorkHourScopeDialog';
 import { PlannerInsightCard } from '../planner/PlannerInsightCard';
 import { CustomWeekHeader, CustomDayHeader } from '../planner/CustomCalendarHeaders';
@@ -953,7 +953,7 @@ export function PlannerView() {
 
       {/* Work Hour Creation Modal */}
       {showWorkHourCreator && selectedSlot && (
-        <WorkHourCreationModal
+        <WorkSlotModal
           isOpen={showWorkHourCreator}
           onClose={() => {
             setShowWorkHourCreator(false);

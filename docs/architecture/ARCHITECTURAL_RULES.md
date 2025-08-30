@@ -16,6 +16,87 @@ const metrics = calculateMilestoneMetrics(milestones, projectBudget);
 const totalHours = milestones.reduce((sum, m) => sum + m.hours, 0);
 ```
 
+### **📦 Import/Export Patterns**
+**MANDATORY patterns for optimal performance and maintainability:**
+
+#### **✅ Use Barrel Exports For:**
+
+**1. Services (Pure Functions)**
+```typescript
+// ✅ CORRECT - Tree-shakable, pure functions
+import { calculateProjectMetrics, formatDuration, PROJECT_CONSTANTS } from '@/services';
+```
+- **Why:** Pure functions, tree-shakable, minimal runtime overhead
+- **Performance:** Only imports what you use, highly optimized
+
+**2. Types & Interfaces**
+```typescript
+// ✅ CORRECT - Zero runtime cost
+import { Project, CalendarEvent, WorkHour } from '@/types';
+```
+- **Why:** TypeScript strips these at build time
+- **Performance:** None - compile-time only
+
+**3. Constants & Utils**
+```typescript
+// ✅ CORRECT - Static values, pure utilities
+import { COLORS, LAYOUT_CONSTANTS } from '@/constants';
+import { cn, formatDate } from '@/utils';
+```
+
+#### **❌ Use Direct Imports For:**
+
+**1. React Components**
+```typescript
+// ❌ AVOID - Can import unnecessary component code
+import { EventModal, ProjectModal } from '@/components';
+
+// ✅ CORRECT - Direct imports for components
+import { EventModal } from '@/components/modals/EventModal';
+import { Button } from '@/components/ui/button';
+```
+- **Why:** Components include JSX, styles, heavy dependencies
+- **Performance:** Prevents bundle bloat from unused components
+
+**2. Hooks (Stateful Logic)**
+```typescript
+// ❌ AVOID - Hooks have heavy dependencies
+import { useProjects, useTimeline } from '@/hooks';
+
+// ✅ CORRECT - Direct imports
+import { useProjects } from '@/hooks/useProjects';
+import { useTimelineContext } from '@/contexts/TimelineContext';
+```
+- **Why:** Hooks import contexts, services, and state management
+- **Performance:** Avoids unnecessary state management code
+
+#### **🎯 Complete Import Pattern:**
+```typescript
+// ✅ BARREL EXPORTS - Lightweight, functional code
+import { calculateProjectMetrics, PROJECT_CONSTANTS } from '@/services';
+import { Project, CalendarEvent } from '@/types';
+import { COLORS } from '@/constants';
+import { cn, formatDate } from '@/utils';
+
+// ✅ DIRECT IMPORTS - Heavy, stateful code
+import { EventModal } from '@/components/modals/EventModal';
+import { useProjects } from '@/hooks/useProjects';
+import { ProjectContext } from '@/contexts/ProjectContext';
+```
+
+#### **📋 Services Consolidation Rule:**
+- ✅ **ALL services MUST use `@/services` barrel export**
+- ❌ **NEVER use sub-barrels like `@/services/constants`**
+- ✅ **Move service constants into main services barrel**
+
+```typescript
+// ✅ CORRECT - Everything from main services barrel
+import { calculateDuration, WORK_HOUR_CONSTANTS } from '@/services';
+
+// ❌ WRONG - Sub-barrel patterns
+import { WORK_HOUR_CONSTANTS } from '@/services/constants';
+```
+
 ### **🔍 Calculation Extraction Process**
 **MANDATORY workflow before extracting calculations to services:**
 
@@ -252,14 +333,18 @@ Before adding any calculation to services:
 
 ## 🎯 **QUICK REFERENCE**
 
-**Need to calculate something?**
+**Import Patterns:**
 ```typescript
-import { 
-  calculateProjectMetrics,
-  calculateMilestoneMetrics,
-  calculateProjectPosition,
-  getBusinessDaysBetween 
-} from '@/services';
+// ✅ BARREL EXPORTS - Lightweight code
+import { calculateProjectMetrics, PROJECT_CONSTANTS } from '@/services';
+import { Project, CalendarEvent } from '@/types';
+import { COLORS } from '@/constants';
+import { cn, formatDate } from '@/utils';
+
+// ✅ DIRECT IMPORTS - Heavy/stateful code
+import { EventModal } from '@/components/modals/EventModal';
+import { useProjects } from '@/hooks/useProjects';
+import { ProjectContext } from '@/contexts/ProjectContext';
 ```
 
 **Need state management?**
@@ -267,5 +352,10 @@ import {
 - Timeline/Navigation → `useTimelineContext()`
 - Events/Holidays → `usePlannerContext()`
 - Settings/Work Hours → `useSettingsContext()`
+
+**Performance Guidelines:**
+- ✅ Barrel exports for: Services, Types, Constants, Utils
+- ❌ Direct imports for: Components, Hooks, Contexts
+- ✅ All services from `@/services` (no sub-barrels)
 
 **This file must be consulted before every change!**

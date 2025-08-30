@@ -7,7 +7,7 @@ import { StandardModal } from '../modals/StandardModal';
 import { WorkHour } from '../../types/core';
 import { calculateDurationHours } from '../../services/work-hours';
 
-interface WorkHourCreationModalProps {
+interface WorkSlotModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (workHour: Omit<WorkHour, 'id'>) => void;
@@ -15,13 +15,13 @@ interface WorkHourCreationModalProps {
   defaultEnd: Date;
 }
 
-export function WorkHourCreationModal({
+export function WorkSlotModal({
   isOpen,
   onClose,
   onSave,
   defaultStart,
-  defaultEnd,
-}: WorkHourCreationModalProps) {
+  defaultEnd
+}: WorkSlotModalProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [startTime, setStartTime] = useState(
