@@ -15,7 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { calculateRecurringMilestoneCount, calculateRecurringTotalAllocation, detectRecurringPattern, MilestoneManagementService } from '@/services';
 import { MilestoneCalculationService } from '@/services/milestones/milestoneCalculationService';
 
-interface MilestoneManagerProps {
+interface ProjectMilestoneSectionProps {
   projectId?: string; // Made optional to support new projects
   projectEstimatedHours: number;
   projectStartDate: Date;
@@ -53,7 +53,7 @@ interface RecurringMilestoneConfig {
   recurringInterval: number; // Every X days/weeks/months
 }
 
-export function MilestoneManager({ 
+export function ProjectMilestoneSection({ 
   projectId, 
   projectEstimatedHours, 
   projectStartDate,
@@ -63,7 +63,7 @@ export function MilestoneManager({
   onRecurringMilestoneChange,
   localMilestonesState,
   isCreatingProject = false
-}: MilestoneManagerProps) {
+}: ProjectMilestoneSectionProps) {
   const { milestones, addMilestone, updateMilestone, deleteMilestone, showMilestoneSuccessToast } = useProjectContext();
   const { toast } = useToast();
   const [isExpanded, setIsExpanded] = useState(false);

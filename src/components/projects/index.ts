@@ -4,10 +4,10 @@
 export { ProjectsView } from './ProjectsView';
 
 // Modal Components
-export * from './Modal Components';
+export * from './modal';
 
 // Bar Components
-export * from './Bar Components';
+export * from './bar';
 
 // UI Components (shared)
 export { RichTextEditor } from '@/components/ui/rich-text-editor';

@@ -10,7 +10,7 @@ import { Calendar } from '../ui/calendar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
-import { RichTextEditor, MilestoneManager, ProjectProgressGraph, ProjectNotesSection } from '../projects';
+import { RichTextEditor, ProjectMilestoneSection, ProjectInsightsSection, ProjectNotesSection } from '../projects';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
@@ -1267,18 +1267,18 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
           onClick: () => setShowDeleteConfirm(true)
         } : undefined}
       >
-        {/* Milestone Manager */}
-        <MilestoneManager
-            projectId={!isCreating ? projectId : undefined}
-            projectEstimatedHours={localValues.estimatedHours}
-            projectStartDate={localValues.startDate}
-            projectEndDate={localValues.endDate}
-            projectContinuous={localValues.continuous}
-            onUpdateProjectBudget={handleUpdateProjectBudget}
-            onRecurringMilestoneChange={handleRecurringMilestoneChange}
-            localMilestonesState={localMilestonesStateMemo}
-            isCreatingProject={isCreating}
-          />
+        {/* Project Milestones */}
+        <ProjectMilestoneSection
+          projectId={!isCreating ? projectId : undefined}
+          projectEstimatedHours={localValues.estimatedHours}
+          projectStartDate={localValues.startDate}
+          projectEndDate={localValues.endDate}
+          projectContinuous={localValues.continuous}
+          onUpdateProjectBudget={handleUpdateProjectBudget}
+          onRecurringMilestoneChange={handleRecurringMilestoneChange}
+          localMilestonesState={localMilestonesStateMemo}
+          isCreatingProject={isCreating}
+        />
 
           {/* Project Insights */}
           <div className="border-b border-gray-200">
@@ -1305,19 +1305,18 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
                   transition={{ duration: 0.2 }}
                   className="overflow-hidden"
                 >
-                  {/* Project Progress Graph */}
+                  {/* Project Insights */}
                   {!isCreating && (
-                    <div className="px-8 py-6 border-b border-gray-200">
-                      <ProjectProgressGraph 
+                    <div className="border-b border-gray-200">
+                      <ProjectInsightsSection 
                         project={project || {
                           ...localValues,
                           id: projectId || '',
                           groupId: groupId || '',
                           rowId: rowId || ''
                         }}
-                        metrics={metrics}
                         events={events}
-                        milestones={milestones.filter(m => m.projectId === (projectId || project?.id))}
+                        holidays={holidays}
                       />
                     </div>
                   )}

@@ -1,4 +1,4 @@
-// Bar Components barrel exports
+// Bar components barrel exports
 export { DraggableProjectRow } from './DraggableProjectRow';
 export { HoverAddProjectBar } from './HoverAddProjectBar';
 export { SmartHoverAddProjectBar } from './SmartHoverAddProjectBar';
