@@ -12,5 +12,5 @@ export {
   calculateAverageDayData,
   calculateProjectLoadDistribution,
   getProductivityMetrics
-} from './insightsCalculationService';
-export { calculateDailyTotals as calculateReportDailyTotals } from './insightsCalculationService';
+} from './legacy/insightsCalculationService';
+export { calculateDailyTotals as calculateReportDailyTotals } from './legacy/insightsCalculationService';

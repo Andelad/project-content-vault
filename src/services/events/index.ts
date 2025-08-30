@@ -1,14 +1,17 @@
 // Events services
-export * from './dragCalculationService';
-export * from './eventDurationService';
-export * from './eventOverlapService';
-export { calculateDurationHours as calculateSplitDurationHours } from './eventSplittingService';
+export * from './legacy/dragCalculationService';
+export * from './legacy/eventDurationService';
+export * from './legacy/eventOverlapService';
+export { calculateDurationHours as calculateSplitDurationHours } from './legacy/eventSplittingService';
 export {
   processEventOverlaps,
   calculateElapsedTime,
   createTimeRange,
-  type EventSplitResult
-} from './eventSplittingService';
-export * from './eventWorkHourIntegrationService';
-export * from './plannedTimeCompletionService';
+  type EventSplitResult,
+  splitMidnightCrossingEvents
+} from './legacy/eventSplittingService';
+export {
+  memoizedGetProjectTimeAllocation
+} from './eventWorkHourIntegrationService';
+export * from './legacy/plannedTimeCompletionService';
 export * from './timelineDragCoordinatorService';

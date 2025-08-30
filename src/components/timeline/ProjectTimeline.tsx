@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import { Project } from '../../types';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useTimelineContext } from '../../contexts/TimelineContext';
-import { calculateProjectDuration } from '@/services/projects/projectProgressService';
+import { calculateProjectDuration } from '@/services/projects/legacy/projectProgressService';
 import { ProjectCalculationService } from '@/services/projects';
 import { HeightCalculationService } from '@/services/timeline';
-import { TimelineCalculationService } from '@/services/timeline/TimelineCalculationService';
-import { CommittedHoursCalculationService } from '@/services/timeline/TimelineBusinessLogicService';
+import { TimelineCalculationService } from '@/services';
+import { CommittedHoursCalculationService } from '@/services';
 
 interface ProjectTimelineProps {
   project: Project;

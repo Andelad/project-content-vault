@@ -2,8 +2,9 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
-import { calculateWorkHourCapacity, getWorkHoursCapacityForPeriod } from '@/services/work-hours/workHourCapacityService';
-import { WeeklyCapacityCalculationService } from '@/services/timeline/TimelineBusinessLogicService';
+import { useTimelineContext } from '../../contexts/TimelineContext';
+import { calculateWorkHourCapacity, getWorkHoursCapacityForPeriod } from '@/services/work-hours';
+import { WeeklyCapacityCalculationService } from '@/services';
 import { 
   BarChart, 
   Bar, 

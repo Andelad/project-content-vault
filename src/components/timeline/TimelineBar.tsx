@@ -4,15 +4,24 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
-import { TimelinePositioningService } from '@/services/timeline/TimelinePositioningService';
-import { calculateWorkHourCapacity, isHolidayDateCapacity as isHolidayDate } from '@/services/work-hours/workHourCapacityService';
-import { getProjectTimeAllocation, memoizedGetProjectTimeAllocation, generateWorkHoursForDate } from '@/services/events/eventWorkHourIntegrationService';
-import { calculateMilestoneSegments, getMilestoneSegmentForDate } from '@/services/milestones/milestoneUtilitiesService';
+import { 
+  TimelinePositioningService,
+  calculateWorkHourCapacity, 
+  isHolidayDateCapacity as isHolidayDate,
+  getProjectTimeAllocation, 
+  memoizedGetProjectTimeAllocation, 
+  generateWorkHoursForDate,
+  calculateMilestoneSegments, 
+  getMilestoneSegmentForDate,
+  TimeAllocationService, 
+  HeightCalculationService, 
+  ColorCalculationService,
+  TimelineCalculationService,
+  ProjectDaysCalculationService, 
+  ProjectMetricsCalculationService
+} from '@/services';
 import { ProjectIconIndicator, ProjectMilestones } from '@/components';
-import { TimeAllocationService, HeightCalculationService, ColorCalculationService } from '@/services';
 import { useCachedWorkingDayChecker } from '@/lib/workingDayCache';
-import { TimelineCalculationService } from '@/services/timeline/TimelineCalculationService';
-import { ProjectDaysCalculationService, ProjectMetricsCalculationService } from '@/services/timeline/TimelineBusinessLogicService';
 
 interface TimelineBarProps {
   project: any;

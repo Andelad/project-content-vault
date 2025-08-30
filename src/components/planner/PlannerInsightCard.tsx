@@ -3,9 +3,10 @@ import moment from 'moment';
 import { Card } from '../ui/card';
 import { CalendarEvent } from '../../types';
 import { useSettingsContext } from '../../contexts/SettingsContext';
-import { calculateEventDurationOnDate, aggregateEventDurationsByDate, formatDuration } from '@/services';
+import { calculateEventDurationOnDate, aggregateEventDurationsByDate } from '@/services';
+import { formatDuration } from '@/services/events/legacy/eventDurationService';
 // Keep the original import for now to avoid breaking changes
-import { calculateEventDurationOnDateLegacy as originalCalculateEventDurationOnDate } from '@/services/events/eventDurationService';
+import { calculateEventDurationOnDateLegacy as originalCalculateEventDurationOnDate } from '@/services/events/legacy/eventDurationService';
 import { calculateDurationMinutes } from '../../services/work-hours';
 
 interface CalendarInsightCardProps {

@@ -1,8 +1,19 @@
-// Timeline services
-export * from './timelinePositionService';
-export * from './timelineViewportService';
-export * from './HeightCalculationService';
-export * from './TimelineCalculationService';
-export * from './TimeAllocationService';
-export * from './HolidayCalculationService';
-export * from './AvailabilityCircleSizingService';
+// Timeline services - only import from existing files
+export * from '../core/TimeAllocationService'; // Re-export from canonical location
+
+// Legacy services - maintain backward compatibility
+export * from './legacy/HeightCalculationService';
+export * from './legacy/HolidayCalculationService';
+export * from './legacy/AvailabilityCircleSizingService';
+export * from './legacy/timelineViewportService';
+export * from './legacy/timelinePositionService'; // Export positioning functions
+export { TimelinePositioningService } from './legacy/TimelinePositioningService';
+export { TimelineCalculationService } from './legacy/TimelineCalculationService';
+export { 
+  ProjectDaysCalculationService, 
+  ProjectMetricsCalculationService,
+  WeeklyCapacityCalculationService,
+  WorkHoursCalculationService,
+  CommittedHoursCalculationService,
+  WorkHoursValidationService
+} from './legacy/TimelineBusinessLogicService';

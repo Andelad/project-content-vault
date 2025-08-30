@@ -8,7 +8,6 @@ import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 import { CalendarEvent } from '../../types';
 import { calculateOverlapActions, findOverlappingEvents } from '@/services';
-import { formatTimeSeconds } from '@/services';
 import { 
   processEventOverlaps, 
   calculateElapsedTime, 
@@ -135,8 +134,13 @@ export function TimeTracker({ className }: TimeTrackerProps) {
     return TimeTrackerCalculationService.filterSearchResults(projects, searchQuery);
   }, [searchQuery, projects]);
 
-  // Format time display using extracted service
-  const formatTime = formatTimeSeconds;
+  // Format time display (simple inline function)
+  const formatTime = (seconds: number): string => {
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
 
   // Handle search selection
   const handleSelectItem = async (item: any) => {

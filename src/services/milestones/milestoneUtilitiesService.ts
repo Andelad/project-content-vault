@@ -456,8 +456,8 @@ export { MilestoneManagementService };
 // =====================================================================================
 
 import type { Holiday, WorkHour } from '@/types/core';
-import { calculateWorkHourCapacity } from '@/services/work-hours/workHourCapacityService';
-import { HeightCalculationService } from '@/services/timeline/HeightCalculationService';
+import { calculateWorkHourCapacity } from '@/services/work-hours/legacy/workHourCapacityService';
+import { HeightCalculationService } from '@/services/timeline/legacy/HeightCalculationService';
 
 export interface MilestoneSegment {
   id: string;
@@ -655,4 +655,64 @@ function calculatePlannedTimeInSegment(
     }
     return total;
   }, 0);
+}
+
+/**
+ * Calculate the interval type and value between two milestone dates
+ * Extracted from ProjectMilestoneSection component logic
+ * 
+ * @param firstDate - First milestone date
+ * @param secondDate - Second milestone date  
+ * @returns Object with interval type and value
+ */
+export function calculateMilestoneInterval(
+  firstDate: Date, 
+  secondDate: Date
+): { type: 'daily' | 'weekly' | 'monthly' | 'custom'; interval: number } {
+  const daysDifference = Math.round((secondDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24));
+  
+  if (daysDifference === 1) {
+    return { type: 'daily', interval: 1 };
+  } else if (daysDifference === 7) {
+    return { type: 'weekly', interval: 1 };
+  } else if (daysDifference >= 28 && daysDifference <= 31) {
+    return { type: 'monthly', interval: 1 };
+  } else if (daysDifference % 7 === 0) {
+    return { type: 'weekly', interval: daysDifference / 7 };
+  } else {
+    return { type: 'custom', interval: daysDifference };
+  }
+}
+
+/**
+ * Validate milestone budget and return formatted results
+ * Extracted from ProjectMilestoneSection budget validation logic
+ * 
+ * @param currentTotal - Current total allocation
+ * @param additionalHours - Additional hours to add
+ * @param projectBudget - Total project budget
+ * @returns Validation result with formatted total
+ */
+export function validateMilestoneBudget(
+  currentTotal: number,
+  additionalHours: number, 
+  projectBudget: number
+): { isValid: boolean; newTotal: number; formattedTotal: string } {
+  const newTotal = currentTotal + additionalHours;
+  return {
+    isValid: newTotal <= projectBudget,
+    newTotal,
+    formattedTotal: `${Math.ceil(newTotal)}h`
+  };
+}
+
+/**
+ * Format milestone budget value for display
+ * Extracted from ProjectMilestoneSection formatting logic
+ * 
+ * @param hours - Hours value to format
+ * @returns Formatted hours string with 'h' suffix
+ */
+export function formatMilestoneBudget(hours: number): string {
+  return `${Math.ceil(hours)}h`;
 }

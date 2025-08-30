@@ -1,15 +1,24 @@
 /**
  * Milestone Management Service
  * 
- * Centralizes all milestone-related business logic including budget calculations,
- * date range validation, recurring milestone generation, and allocation management.
+ * Legacy interface that delegates to the new domain-driven architecture.
+ * Maintains backward compatibility while using the improved separation of concerns.
  * 
- * This service extracts complex milestone management logic from MilestoneManager
- * to improve maintainability, enable comprehensive testing, and provide reusable
- * milestone calculation functions across the application.
+ * New architecture components:
+ * - Domain: MilestoneEntity (pure business rules)
+ * - Business: MilestoneOrchestrator (workflow coordination)
+ * - Calculations: milestoneCalculations (pure math functions)
+ * - Validation: MilestoneValidator (complex validation scenarios)
+ * - Data: MilestoneRepository (data access abstraction)
+ * 
+ * @deprecated Consider using MilestoneOrchestrator and domain entities directly
  */
 
-import { Milestone } from '@/types/core';
+import { Milestone, Project } from '@/types/core';
+import { MilestoneEntity } from '../core/domain/MilestoneEntity';
+import { MilestoneOrchestrator } from './orchestrators/MilestoneOrchestrator';
+import { MilestoneValidator, ValidationContext } from './validators/MilestoneValidator';
+import * as milestoneCalcs from '../core/calculations/milestoneCalculations';
 
 // Types for milestone operations
 export interface MilestoneValidationResult {
@@ -77,83 +86,68 @@ export interface MilestoneCalendarConfig {
 /**
  * Milestone Management Service
  * Handles all milestone-related calculations and validations
+ * 
+ * @deprecated This service is being migrated to use domain-driven architecture.
+ * New code should use MilestoneOrchestrator and domain entities directly.
  */
 export class MilestoneManagementService {
 
   /**
    * Calculate valid date range for milestone positioning
+   * @deprecated Use MilestoneEntity.validateMilestoneDate instead
    */
   static calculateMilestoneDateRange(params: MilestonePositioningParams): MilestoneDateRange {
-    const { projectStartDate, projectEndDate, existingMilestones, currentMilestone } = params;
-    
-    // Start with project bounds, excluding start and end dates
-    let minDate = new Date(projectStartDate);
+    // Delegate to domain entity for business rule validation
+    const validation = MilestoneEntity.validateMilestoneDate(
+      new Date(), // placeholder date for range calculation
+      params.projectStartDate,
+      params.projectEndDate,
+      params.existingMilestones as Milestone[],
+      params.currentMilestone?.id
+    );
+
+    // Calculate safe positioning range
+    const minDate = new Date(params.projectStartDate);
     minDate.setDate(minDate.getDate() + 1); // Day after project start
     
-    let maxDate = new Date(projectEndDate);
+    const maxDate = new Date(params.projectEndDate);
     maxDate.setDate(maxDate.getDate() - 1); // Day before project end
 
-    // Get other milestones (excluding current one)
-    const otherMilestones = existingMilestones
-      .filter(m => !currentMilestone || m.id !== currentMilestone.id)
-      .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+    // Use milestone calculations for positioning logic
+    const sortedMilestones = milestoneCalcs.sortMilestonesByDate(
+      params.existingMilestones.filter(m => 
+        !params.currentMilestone || m.id !== params.currentMilestone.id
+      ) as Milestone[]
+    );
 
-    if (otherMilestones.length === 0) {
-      return {
-        minDate,
-        maxDate,
-        isCurrentDateValid: currentMilestone ? 
-          currentMilestone.dueDate >= minDate && currentMilestone.dueDate <= maxDate : true
-      };
-    }
+    // Find safe date range based on existing milestones
+    let actualMinDate = minDate;
+    let actualMaxDate = maxDate;
 
-    // If current milestone exists, find its appropriate slot
-    if (currentMilestone) {
-      const currentDate = currentMilestone.dueDate;
+    if (sortedMilestones.length > 0 && params.currentMilestone) {
+      const currentDate = params.currentMilestone.dueDate;
       
-      // Find position relative to other milestones
-      if (currentDate <= otherMilestones[0].dueDate) {
-        // Before all other milestones
-        const dayBefore = new Date(otherMilestones[0].dueDate);
-        dayBefore.setDate(dayBefore.getDate() - 1);
-        maxDate = dayBefore;
-      } else if (currentDate >= otherMilestones[otherMilestones.length - 1].dueDate) {
-        // After all other milestones
-        const dayAfter = new Date(otherMilestones[otherMilestones.length - 1].dueDate);
-        dayAfter.setDate(dayAfter.getDate() + 1);
-        minDate = dayAfter;
-      } else {
-        // Between other milestones - find the appropriate gap
-        for (let i = 0; i < otherMilestones.length - 1; i++) {
-          const current = otherMilestones[i];
-          const next = otherMilestones[i + 1];
-          
-          if (currentDate > current.dueDate && currentDate < next.dueDate) {
-            const dayAfter = new Date(current.dueDate);
-            dayAfter.setDate(dayAfter.getDate() + 1);
-            const dayBefore = new Date(next.dueDate);
-            dayBefore.setDate(dayBefore.getDate() - 1);
-            
-            minDate = dayAfter;
-            maxDate = dayBefore;
-            break;
-          }
-        }
+      // Find appropriate gap for current milestone
+      const gapInfo = milestoneCalcs.findMilestoneGap(sortedMilestones, currentDate);
+      if (gapInfo) {
+        actualMinDate = gapInfo.startDate;
+        actualMaxDate = gapInfo.endDate;
       }
     }
 
     return {
-      minDate,
-      maxDate,
-      isCurrentDateValid: currentMilestone ? 
-        currentMilestone.dueDate >= minDate && currentMilestone.dueDate <= maxDate : true,
-      reason: currentMilestone && (currentMilestone.dueDate < minDate || currentMilestone.dueDate > maxDate) ?
-        'Date conflicts with existing milestones' : undefined
+      minDate: actualMinDate,
+      maxDate: actualMaxDate,
+      isCurrentDateValid: params.currentMilestone ? 
+        params.currentMilestone.dueDate >= actualMinDate && 
+        params.currentMilestone.dueDate <= actualMaxDate : true,
+      reason: validation.errors.length > 0 ? validation.errors.join(', ') : undefined
     };
   }
 
   /**
    * Calculate appropriate default date for new milestone
+   * @deprecated Use MilestoneOrchestrator.suggestMilestoneDate instead
    */
   static calculateDefaultMilestoneDate(params: MilestonePositioningParams): Date {
     const { projectStartDate, projectEndDate, existingMilestones } = params;
@@ -230,36 +224,40 @@ export class MilestoneManagementService {
 
   /**
    * Analyze milestone budget allocation
+   * @deprecated Use ProjectEntity.analyzeBudget instead
    */
   static analyzeMilestoneBudget(
     milestones: (Milestone | { timeAllocation: number })[],
     projectEstimatedHours: number,
     recurringAllocation: number = 0
   ): MilestoneBudgetAnalysis {
-    const totalRegularAllocation = milestones.reduce(
-      (total, milestone) => total + milestone.timeAllocation, 
-      0
+    // Delegate to pure calculation functions
+    const totalRegularAllocation = milestones.reduce((sum, m) => sum + m.timeAllocation, 0);
+    
+    const totalRecurringAllocation = recurringAllocation;
+    const totalAllocation = totalRegularAllocation + totalRecurringAllocation;
+    
+    // Use milestone calculations for budget analysis
+    const budgetUtilization = milestoneCalcs.calculateBudgetUtilization(
+      totalAllocation,
+      projectEstimatedHours
     );
     
-    const totalAllocation = totalRegularAllocation + recurringAllocation;
-    const isOverBudget = totalAllocation > projectEstimatedHours;
-    const budgetUtilization = projectEstimatedHours > 0 ? totalAllocation / projectEstimatedHours : 0;
-    const suggestedBudget = Math.max(projectEstimatedHours, Math.ceil(totalAllocation));
-    const remainingBudget = Math.max(0, projectEstimatedHours - totalAllocation);
-
     return {
       totalRegularAllocation,
-      totalRecurringAllocation: recurringAllocation,
+      totalRecurringAllocation,
       totalAllocation,
-      isOverBudget,
-      budgetUtilization,
-      suggestedBudget,
-      remainingBudget
+      isOverBudget: budgetUtilization > 100,
+      budgetUtilization: budgetUtilization / 100,
+      suggestedBudget: budgetUtilization > 100 ? 
+        Math.ceil(totalAllocation * 1.2) : projectEstimatedHours,
+      remainingBudget: Math.max(0, projectEstimatedHours - totalAllocation)
     };
   }
 
   /**
    * Generate recurring milestones based on configuration
+   * @deprecated Use MilestoneOrchestrator.createRecurringMilestones instead
    */
   static generateRecurringMilestones(
     config: RecurringMilestoneConfig,

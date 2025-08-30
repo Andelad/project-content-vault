@@ -12,80 +12,33 @@
  * ✅ Feature-organized services:
  */
 
+// Core domain entities (NEW: Domain-driven design)
+export * from './core/domain/MilestoneEntity';
+export * from './core/domain/ProjectEntity';
+export * from './core/domain/PauseEntity';
+
+// Business orchestrators (NEW: Domain-driven design)
+export * from './milestones/MilestoneOrchestrator';
+export * from './projects/ProjectOrchestrator';
+
 // Feature-based service exports
+export * from './calendar';
 export * from './events';
 export * from './insights';
 export * from './milestones';
-export * from './performance';
 export * from './plannerV2';
 export * from './projects';
 export * from './settings';
 export * from './timeline';
-// export * from './work-hours'; // Commented out to avoid duplicate exports
 export * from './tracker';
+export * from './work-hours';
 
-// Explicit exports from work-hours to avoid conflicts
-export {
-  WorkHourCalculationService,
-  calculateWorkHourCapacity,
-  getWorkHoursCapacityForPeriod,
-  calculateWorkHourUtilization,
-  isDayOverbooked,
-  analyzeUtilizationEfficiency,
-  calculateWorkHourCapacityWithHolidays,
-  performCapacityPlanning,
-  generateCapacityRecommendations,
-  calculateAvailabilityReduction,
-  calculateOvertimePlannedHours,
-  calculateTotalPlannedHours,
-  calculateOtherTime,
-  generateWorkHoursForDate,
-  calculateProjectWorkingDays,
-  getProjectTimeAllocation,
-  // Work hour creation functions
-  handleWorkHourCreationStart,
-  handleWorkHourCreationMove,
-  handleWorkHourCreationComplete,
-  getWorkHourOverlapInfo,
-  generateWorkHourPreviewStyle,
-  formatDurationPreview,
-  getWorkHourCreationCursor,
-  shouldAllowWorkHourCreation,
-  type WorkHourCreateState
-} from './work-hours';
-
-// Core cross-cutting services (explicit to avoid ProjectCalculationService conflict)
-export {
-  ColorCalculationService,
-  DateCalculationService
-} from './core';
-
-// Timeline services
-export { TimelineViewportService } from './timeline';
-export { HeightCalculationService } from './timeline';
-
-// Explicit export of ProjectCalculationService from core (not from projects)
-export { ProjectCalculationService } from './core';
-
-// Project overlap service
-export * from './projects/projectOverlapService';
-
-// Explicit exports for missing services
-export { CalendarIntegrationService, type ImportResult } from './calendar/calendarIntegration';
-export { TimeAllocationService } from './timeline/TimeAllocationService';
-export { expandHolidayDates } from './calendar/dateRangeService';
-export { calculateDailyTotals } from './calendar/calendarInsightService';
-
-// Time formatting utilities
-export {
-  formatTimeSeconds,
-  formatTimeMinutes, 
-  formatTimeHours,
-  formatTimeHoursMinutes,
-  formatTimeRange,
-  formatRelativeTime,
-  parseTimeToSeconds,
-  convertMilliseconds,
-  TIME_FORMAT_CONSTANTS
-} from './settings/timeFormattingService';
+// Core services - cross-cutting utilities used across multiple features
+export * from './core/CalculationCacheService';
+export * from './core/ColorCalculationService';
+export * from './core/DateCalculationService';
+export { ProjectCalculationService as CoreProjectCalculationService } from './core/ProjectCalculationService';
+export * from './core/TimeAllocationService';
+export * from './core/calculations/dateCalculations';
+export * from './core/infrastructure/dateCache';
 

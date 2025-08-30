@@ -14,7 +14,7 @@ import { WorkSlot } from '@/types/core';
 import { CalendarImport } from '../planner/CalendarImport';
 import { useToast } from '../../hooks/use-toast';
 import { AppPageLayout } from '../layout/AppPageLayout';
-import { formatWorkSlotDurationDisplay } from '../../services/work-hours';
+import { formatWorkSlotDurationDisplay } from '@/services';
 import {
   generateTimeOptions,
   calculateDayTotalHours,
@@ -22,7 +22,6 @@ import {
   createNewWorkSlot,
   updateWorkSlot,
   generateDefaultWorkSchedule,
-  validateWorkSchedule,
   analyzeWorkSchedule
 } from '@/services';
 
@@ -365,8 +364,8 @@ export function SettingsView() {
                                     </SelectTrigger>
                                     <SelectContent>
                                       {timeOptions.map(time => (
-                                        <SelectItem key={time} value={time} className="text-xs">
-                                          {time}
+                                        <SelectItem key={time.value} value={time.value} className="text-xs">
+                                          {time.label}
                                         </SelectItem>
                                       ))}
                                     </SelectContent>
@@ -383,8 +382,8 @@ export function SettingsView() {
                                     </SelectTrigger>
                                     <SelectContent>
                                       {timeOptions.map(time => (
-                                        <SelectItem key={time} value={time} className="text-xs">
-                                          {time}
+                                        <SelectItem key={time.value} value={time.value} className="text-xs">
+                                          {time.label}
                                         </SelectItem>
                                       ))}
                                     </SelectContent>

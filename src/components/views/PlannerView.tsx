@@ -23,7 +23,7 @@ import { WorkSlotModal } from '../modals/WorkSlotModal';
 import { WorkHourScopeDialog } from '../work-hours/WorkHourScopeDialog';
 import { PlannerInsightCard } from '../planner/PlannerInsightCard';
 import { CustomWeekHeader, CustomDayHeader } from '../planner/CustomCalendarHeaders';
-import { splitMidnightCrossingEvents } from '@/services/events/eventSplittingService';
+import { splitMidnightCrossingEvents } from '@/services';
 import { useWorkHours } from '../../hooks/useWorkHours';
 import { getCalendarEventBackgroundColor, getCalendarEventTextColor, OKLCH_FALLBACK_GRAY } from '@/constants/colors';
 import { calculateEventStyle, type EventStyleConfig } from '@/services/events/eventWorkHourIntegrationService';

@@ -1,0 +1,198 @@
+/**
+ * Pure Date Calculations
+ * 
+ * Contains only pure mathematical functions for date operations.
+ * No side effects, no caching, no external dependencies beyond date-fns.
+ * 
+ * ✅ Pure functions only - no side effects
+ * ✅ Testable without mocks
+ * ✅ Deterministic outputs
+ */
+
+import { addDays, subDays, endOfWeek, isWeekend } from 'date-fns';
+
+/**
+ * Calculate business days between two dates
+ */
+export function calculateBusinessDaysBetween(startDate: Date, endDate: Date, holidays: Date[] = []): number {
+  let businessDays = 0;
+  const current = new Date(startDate);
+  
+  while (current <= endDate) {
+    if (!isWeekend(current) && !isHoliday(current, holidays)) {
+      businessDays++;
+    }
+    current.setDate(current.getDate() + 1);
+  }
+  
+  return businessDays;
+}
+
+/**
+ * Get all business days in a date range
+ */
+export function calculateBusinessDaysInRange(startDate: Date, endDate: Date, holidays: Date[] = []): Date[] {
+  const businessDays: Date[] = [];
+  const current = new Date(startDate);
+  
+  while (current <= endDate) {
+    if (!isWeekend(current) && !isHoliday(current, holidays)) {
+      businessDays.push(new Date(current));
+    }
+    current.setDate(current.getDate() + 1);
+  }
+  
+  return businessDays;
+}
+
+/**
+ * Check if a date falls on a holiday
+ */
+export function isHoliday(date: Date, holidays: Date[]): boolean {
+  const dateStr = date.toISOString().split('T')[0];
+  return holidays.some(holiday => 
+    holiday.toISOString().split('T')[0] === dateStr
+  );
+}
+
+/**
+ * Calculate working days in a specific week
+ */
+export function calculateWorkingDaysInWeek(weekStart: Date, holidays: Date[] = []): Date[] {
+  const weekEnd = endOfWeek(weekStart);
+  return calculateBusinessDaysInRange(weekStart, weekEnd, holidays);
+}
+
+/**
+ * Calculate date range for timeline viewport
+ */
+export function calculateTimelineViewport(
+  currentDate: Date, 
+  mode: 'days' | 'weeks', 
+  count: number
+): { start: Date; end: Date } {
+  if (mode === 'weeks') {
+    const start = subDays(currentDate, count * 7);
+    const end = addDays(currentDate, count * 7);
+    return { start, end };
+  } else {
+    const start = subDays(currentDate, count);
+    const end = addDays(currentDate, count);
+    return { start, end };
+  }
+}
+
+/**
+ * Check if two dates are the same day
+ */
+export function isSameDay(date1: Date, date2: Date): boolean {
+  return date1.getFullYear() === date2.getFullYear() &&
+         date1.getMonth() === date2.getMonth() &&
+         date1.getDate() === date2.getDate();
+}
+
+/**
+ * Calculate overlap between two date ranges
+ */
+export function calculateDateRangeOverlap(
+  range1: { start: Date; end: Date },
+  range2: { start: Date; end: Date }
+): { start: Date; end: Date } | null {
+  const start = new Date(Math.max(range1.start.getTime(), range2.start.getTime()));
+  const end = new Date(Math.min(range1.end.getTime(), range2.end.getTime()));
+  
+  if (start <= end) {
+    return { start, end };
+  }
+  
+  return null; // No overlap
+}
+
+/**
+ * Calculate the difference in days between two dates
+ */
+export function calculateDayDifference(date1: Date, date2: Date): number {
+  const d1 = new Date(date1);
+  const d2 = new Date(date2);
+  d1.setHours(0, 0, 0, 0);
+  d2.setHours(0, 0, 0, 0);
+  return Math.round((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+/**
+ * Add business days to a date (excluding weekends and holidays)
+ */
+export function addBusinessDays(startDate: Date, businessDays: number, holidays: Date[] = []): Date {
+  let current = new Date(startDate);
+  let addedDays = 0;
+  
+  while (addedDays < businessDays) {
+    current = addDays(current, 1);
+    if (!isWeekend(current) && !isHoliday(current, holidays)) {
+      addedDays++;
+    }
+  }
+  
+  return current;
+}
+
+/**
+ * Subtract business days from a date (excluding weekends and holidays)
+ */
+export function subtractBusinessDays(startDate: Date, businessDays: number, holidays: Date[] = []): Date {
+  let current = new Date(startDate);
+  let subtractedDays = 0;
+  
+  while (subtractedDays < businessDays) {
+    current = subDays(current, 1);
+    if (!isWeekend(current) && !isHoliday(current, holidays)) {
+      subtractedDays++;
+    }
+  }
+  
+  return current;
+}
+
+/**
+ * Calculate duration between dates in various units
+ */
+export function calculateDateDuration(
+  startDate: Date, 
+  endDate: Date, 
+  unit: 'days' | 'weeks' | 'months' | 'businessDays' = 'days',
+  holidays: Date[] = []
+): number {
+  switch (unit) {
+    case 'days':
+      return calculateDayDifference(startDate, endDate);
+    case 'weeks':
+      return Math.round(calculateDayDifference(startDate, endDate) / 7);
+    case 'months':
+      return Math.round(calculateDayDifference(startDate, endDate) / 30);
+    case 'businessDays':
+      return calculateBusinessDaysBetween(startDate, endDate, holidays);
+    default:
+      return calculateDayDifference(startDate, endDate);
+  }
+}
+
+/**
+ * Check if a date falls within a date range
+ */
+export function isDateInRange(date: Date, startDate: Date, endDate: Date): boolean {
+  return date >= startDate && date <= endDate;
+}
+
+/**
+ * Get the next business day after a given date
+ */
+export function getNextBusinessDay(date: Date, holidays: Date[] = []): Date {
+  return addBusinessDays(date, 1, holidays);
+}
+
+/**
+ * Get the previous business day before a given date
+ */
+export function getPreviousBusinessDay(date: Date, holidays: Date[] = []): Date {
+  return subtractBusinessDays(date, 1, holidays);
+}

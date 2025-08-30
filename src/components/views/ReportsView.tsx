@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
-import { calculateWorkHourCapacity, getWorkHoursCapacityForPeriod } from '@/services/work-hours/workHourCapacityService';
+import { calculateWorkHourCapacity, getWorkHoursCapacityForPeriod } from '@/services';
 import { 
   BarChart, 
   Bar, 
@@ -27,13 +27,13 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Checkbox } from '../ui/checkbox';
-import { ProjectCalculationService } from '../../services/core';
+import { CoreProjectCalculationService as ProjectCalculationService } from '@/services';
 import { 
   calculateFutureCommitments,
   calculateValidDays,
   calculateAverageDayData,
   calculateWeeklyCapacity
-} from '../../services/insights/insightsCalculationService';
+} from '@/services';
 
 type TimeFrame = 'week' | 'month' | 'year';
 type AveragePeriod = 'week' | 'month' | '6months';

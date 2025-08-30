@@ -1,8 +1,5 @@
 // Projects feature barrel exports
 
-// Main project components
-export { ProjectsView } from './ProjectsView';
-
 // Modal Components
 export * from './modal';
 

@@ -16,7 +16,166 @@ const metrics = calculateMilestoneMetrics(milestones, projectBudget);
 const totalHours = milestones.reduce((sum, m) => sum + m.hours, 0);
 ```
 
-### **📦 Import/Export Patterns**
+### **🏢 Services Organization Pattern**
+**Clean, domain-driven structure for service files:**
+
+```
+src/services/
+├── core/                        # Cross-cutting technical concerns
+│   ├── domain/                  # Pure business rules (no dependencies)
+│   ├── calculations/            # Pure mathematical functions  
+│   ├── infrastructure/          # Caching, performance, optimization  
+│   └── performance/             # Performance monitoring & optimization
+├── {feature}/                   # Business feature domains  
+│   ├── {Feature}Orchestrator.ts  # Business workflow (1 file = flat)
+│   ├── orchestrators/           # Multiple orchestrators (2+ files = folder)
+│   ├── {Feature}Validator.ts    # Validation logic (1 file = flat)  
+│   ├── validators/              # Multiple validators (2+ files = folder)
+│   ├── calculations.ts          # Feature calculations (1 file = flat)
+│   ├── calculations/            # Multiple calculations (2+ files = folder)
+│   └── legacy/                  # DELETE AFTER MIGRATION
+└── index.ts            # Clean exports organized by layer
+```
+
+**Logic behind this structure:**
+- **Core**: Cross-cutting technical concerns (domain rules, calculations, infrastructure)
+- **Domain**: Universal business rules that never change
+- **Calculations**: Pure math functions (easily testable, cacheable)
+- **Infrastructure**: Performance optimization, caching, metrics (wraps pure functions)
+- **Feature folders**: Business domains that users interact with
+- **Legacy folders**: Safe migration path (maintain backward compatibility)
+
+**Folder Structure Rules:**
+- ✅ **Feature-specific logic** - Keep in feature folder, classify by type (calculations, workflows, etc.)
+- ✅ **Cross-cutting logic** - Move to `core/` (domain, calculations, infrastructure, performance)
+- ✅ **Single file per type** - Use flat files (`milestones/calculations.ts`, `events/orchestrator.ts`)
+- ✅ **Multiple files per type** - Create subfolders (`events/calculations/`, `timeline/orchestrators/`)
+- ❌ **Never create single-file folders** - No `{feature}/orchestrators/SomeOrchestrator.ts` for just one file
+- ✅ **Legacy folder always exists** - All existing services go in `/legacy/` during migration
+- ❌ **No deeply nested folders** - Keep structure navigable (max 2-3 levels deep)
+
+**Subfolder Decision Logic:**
+1. **Classify the concern**: Is it feature-specific or cross-cutting?
+2. **Count files by type**: How many calculations/orchestrators/validators?
+3. **Apply structure rule**: 1 file = flat, 2+ files = subfolder
+4. **Name consistently**: Use standard patterns (`calculations/`, `orchestrators/`, `workflows/`)
+
+**Core vs Feature Distinction:**
+- **Core concerns**: Technical, cross-cutting functionality (domain rules, calculations, infrastructure)
+- **Feature domains**: Business functionality that users directly interact with
+- **Performance/caching**: Always belongs in `core/infrastructure/`, never as separate feature
+- **Validation rules**: Universal rules go in `core/domain/`, feature-specific in `{feature}/Validator.ts`
+
+### **� Feature Folder Organization Rules**
+
+#### **✅ Simple Feature Structure (Single Files)**
+```
+src/services/milestones/
+├── 📄 MilestoneOrchestrator.ts    # One orchestrator = flat file
+├── 📄 MilestoneValidator.ts       # One validator = flat file
+├── 📄 MilestoneRepository.ts      # One repository = flat file
+└── 📁 legacy/                     # Migration safety
+    └── 📄 milestoneManagementService.ts
+```
+
+#### **✅ Mixed Feature Structure (Some Single, Some Multiple)**  
+```
+src/services/projects/
+├── 📄 ProjectOrchestrator.ts      # One orchestrator = flat file
+├── 📄 ProjectValidator.ts         # One validator = flat file  
+├── 📄 ProjectRepository.ts        # One repository = flat file
+├── 📄 calculations.ts             # One calculation file = flat file
+└── 📁 legacy/                     # Migration safety
+    ├── 📄 ProjectCalculationService.ts
+    └── 📄 projectProgressService.ts
+```
+
+#### **✅ Complex Feature Structure (Multiple Files by Type)**  
+```
+src/services/events/
+├── 📄 EventOrchestrator.ts        # One main orchestrator = flat file
+├── 📄 EventValidator.ts           # One main validator = flat file
+├── 📄 EventRepository.ts          # One main repository = flat file
+├── 📁 calculations/               # Multiple calculations = subfolder
+│   ├── 📄 dragCalculations.ts     # Drag interaction logic
+│   ├── 📄 overlapCalculations.ts  # Event overlap logic
+│   ├── 📄 durationCalculations.ts # Event duration logic
+│   └── 📄 splitCalculations.ts    # Event splitting logic
+└── 📁 legacy/                     # Migration safety
+    ├── 📄 eventDurationService.ts
+    └── 📄 dragCalculationService.ts
+```
+
+#### **❌ Incorrect Nested Structure**
+```
+src/services/work-hours/
+├── 📁 orchestrators/              # ❌ NEVER - Single file in folder
+│   └── 📄 WorkHourOrchestrator.ts
+├── 📁 validators/                 # ❌ NEVER - Unnecessary nesting
+│   └── 📄 WorkHourValidator.ts
+└── 📁 repositories/               # ❌ NEVER - Overengineered
+    └── 📄 WorkHourRepository.ts
+```
+
+#### **✅ Core vs Feature Examples**
+
+**Core Infrastructure (Technical Concerns):**
+```
+src/services/core/infrastructure/
+├── 📄 performanceMetrics.ts      # ✅ Performance monitoring
+├── 📄 dragPerformanceCache.ts    # ✅ UI performance optimization
+├── 📄 cachePerformanceService.ts # ✅ Caching strategies
+└── 📄 calculationCache.ts        # ✅ General calculation caching
+```
+
+**Feature Domains (Business Concerns):**
+```
+src/services/milestones/           # ✅ User manages milestones
+src/services/projects/             # ✅ User manages projects  
+src/services/work-hours/           # ✅ User schedules work hours
+src/services/events/               # ✅ User manages calendar events
+```
+
+**❌ Wrong Categorization:**
+```
+src/services/performance/          # ❌ Performance is infrastructure, not feature
+src/services/caching/              # ❌ Caching is infrastructure, not feature
+src/services/validation/           # ❌ Validation is cross-cutting, belongs in core/domain
+```
+
+#### **✅ Legacy Folder Rules**
+- **Purpose**: Maintain backward compatibility during migration
+- **Contents**: All existing services that haven't been migrated yet
+- **Naming**: Keep original service names exactly as they are
+- **Imports**: Components should import from legacy until migration is complete
+- **Lifecycle**: Delete entire `/legacy/` folder once migration is finished
+
+**Example Legacy Migration:**
+```typescript
+// ✅ PHASE 1: Create new domain-driven service
+// src/services/work-hours/WorkHourOrchestrator.ts
+export class WorkHourOrchestrator { ... }
+
+// ✅ PHASE 2: Move existing service to legacy  
+// src/services/work-hours/legacy/WorkHourCalculationService.ts
+// (Existing service, unchanged)
+
+// ✅ PHASE 3: Update legacy service to delegate
+export class WorkHourCalculationService {
+  static calculateWeekHours(week: Date): number {
+    // Delegate to new domain-driven approach
+    return WorkHourOrchestrator.calculateWeekHours(week);
+  }
+}
+
+// ✅ PHASE 4: Components gradually migrate imports
+// Before: import { WorkHourCalculationService } from '@/services/work-hours/legacy/WorkHourCalculationService';
+// After:  import { WorkHourOrchestrator } from '@/services';
+
+// ✅ PHASE 5: Delete legacy folder when migration complete
+```
+
+### **�📦 Import/Export Patterns**
 **MANDATORY patterns for optimal performance and maintainability:**
 
 #### **✅ Use Barrel Exports For:**

@@ -1,0 +1,964 @@
+import React, { useState } from 'react';
+import { DndProvider, useDrag, useDrop } from 'react-dnd';
+import { HTML5Backend } from 'react-dnd-html5-backend';
+import { useProjectContext } from '../../contexts/ProjectContext';
+import { Plus, Edit, Trash2, Calendar, Clock, Users, FolderPlus, Grid3X3, List, GripVertical, Archive, PlayCircle, Clock4, ChevronDown, ChevronRight } from 'lucide-react';
+import { Button } from '../ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { Textarea } from '../ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Badge } from '../ui/badge';
+import { Separator } from '../ui/separator';
+import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group';
+import { StandardModal } from '../modals/StandardModal';
+import { Group, Project, ProjectStatus } from '../../types';
+import { AppPageLayout } from '../layout/AppPageLayout';
+import { getEffectiveProjectStatus } from '@/services/projects/legacy/projectStatusService';
+import { DurationFormattingService } from '@/services/projects/calculations';
+
+type ViewType = 'grid' | 'list';
+
+// Drag and drop item types
+const ItemTypes = {
+  GROUP: 'group',
+  PROJECT: 'project'
+};
+
+// Draggable Group Component
+function DraggableGroup({ 
+  group, 
+  index, 
+  onMoveGroup, 
+  children 
+}: { 
+  group: Group; 
+  index: number; 
+  onMoveGroup: (fromIndex: number, toIndex: number) => void;
+  children: React.ReactNode;
+}) {
+  const [{ isDragging }, drag, preview] = useDrag({
+    type: ItemTypes.GROUP,
+    item: { type: ItemTypes.GROUP, id: group.id, index },
+    collect: (monitor) => ({
+      isDragging: monitor.isDragging(),
+    }),
+  });
+
+  const [, drop] = useDrop({
+    accept: ItemTypes.GROUP,
+    hover: (item: { type: string; id: string; index: number }) => {
+      if (!item || item.type !== ItemTypes.GROUP) return;
+      
+      const dragIndex = item.index;
+      const hoverIndex = index;
+
+      if (dragIndex === hoverIndex) return;
+
+      onMoveGroup(dragIndex, hoverIndex);
+      item.index = hoverIndex;
+    },
+  });
+
+  return (
+    <div ref={(node) => preview(drop(node))} style={{ opacity: isDragging ? 0.5 : 1 }}>
+      <div className="flex items-start gap-3">
+        <div ref={drag} className="cursor-move pt-6 text-gray-400 hover:text-gray-600">
+          <GripVertical className="w-4 h-4" />
+        </div>
+        <div className="flex-1">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Draggable Project Component
+function DraggableProject({ 
+  project, 
+  index, 
+  groupId,
+  onMoveProject, 
+  children 
+}: { 
+  project: Project; 
+  index: number; 
+  groupId: string;
+  onMoveProject: (groupId: string, fromIndex: number, toIndex: number) => void;
+  children: React.ReactNode;
+}) {
+  const [{ isDragging }, drag, preview] = useDrag({
+    type: ItemTypes.PROJECT,
+    item: { type: ItemTypes.PROJECT, id: project.id, index, groupId },
+    collect: (monitor) => ({
+      isDragging: monitor.isDragging(),
+    }),
+  });
+
+  const [, drop] = useDrop({
+    accept: ItemTypes.PROJECT,
+    hover: (item: { type: string; id: string; index: number; groupId: string }) => {
+      if (!item || item.type !== ItemTypes.PROJECT) return;
+      if (item.groupId !== groupId) return; // Only allow reordering within the same group
+      
+      const dragIndex = item.index;
+      const hoverIndex = index;
+
+      if (dragIndex === hoverIndex) return;
+
+      onMoveProject(groupId, dragIndex, hoverIndex);
+      item.index = hoverIndex;
+    },
+  });
+
+  return (
+    <div ref={(node) => preview(drop(node))} style={{ opacity: isDragging ? 0.5 : 1 }}>
+      <div className="flex items-center gap-2">
+        <div ref={drag} className="cursor-move text-gray-400 hover:text-gray-600 p-1">
+          <GripVertical className="w-3 h-3" />
+        </div>
+        <div className="flex-1">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function ProjectsView() {
+  const { groups, projects, addGroup, updateGroup, deleteGroup, addProject, updateProject, deleteProject, reorderGroups, reorderProjects, setSelectedProjectId } = useProjectContext();
+
+  // View toggle state
+  const [viewType, setViewType] = useState<ViewType>('list');
+
+  // Group dialog state
+  const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<Group | null>(null);
+  const [groupName, setGroupName] = useState('');
+  const [groupDescription, setGroupDescription] = useState('');
+  const [groupColor, setGroupColor] = useState('#6366f1');
+
+  // Project dialog state
+  const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [projectName, setProjectName] = useState('');
+  const [projectClient, setProjectClient] = useState('');
+  const [projectGroupId, setProjectGroupId] = useState('default-group');
+  const [projectStartDate, setProjectStartDate] = useState('');
+  const [projectEndDate, setProjectEndDate] = useState('');
+  const [projectEstimatedHours, setProjectEstimatedHours] = useState('');
+  const [projectColor, setProjectColor] = useState('#6366f1');
+
+  // Collapsible state for sections and groups
+  const [collapsedSections, setCollapsedSections] = useState<{[key: string]: boolean}>({
+    current: true,
+    future: true,
+    archived: true
+  });
+  const [collapsedGroups, setCollapsedGroups] = useState<{[key: string]: boolean}>({});
+
+  const defaultColors = [
+    '#6366f1', '#8b5cf6', '#ec4899', '#ef4444', '#f97316',
+    '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#6b7280'
+  ];
+
+  // Group management functions
+  const handleAddGroup = () => {
+    setEditingGroup(null);
+    setGroupName('');
+    setGroupDescription('');
+    setGroupColor('#6366f1');
+    setIsGroupDialogOpen(true);
+  };
+
+  const handleEditGroup = (group: Group) => {
+    setEditingGroup(group);
+    setGroupName(group.name);
+    setGroupDescription(group.description || '');
+    setGroupColor(group.color);
+    setIsGroupDialogOpen(true);
+  };
+
+  const handleSaveGroup = () => {
+    if (!groupName.trim()) return;
+
+    if (editingGroup) {
+      updateGroup(editingGroup.id, {
+        name: groupName,
+        description: groupDescription,
+        color: groupColor
+      });
+    } else {
+      addGroup({
+        name: groupName,
+        description: groupDescription,
+        color: groupColor
+      });
+    }
+
+    setIsGroupDialogOpen(false);
+    resetGroupForm();
+  };
+
+  const resetGroupForm = () => {
+    setEditingGroup(null);
+    setGroupName('');
+    setGroupDescription('');
+    setGroupColor('#6366f1');
+  };
+
+  // Project management functions
+  const handleAddProject = (groupId?: string) => {
+    setEditingProject(null);
+    setProjectName('');
+    setProjectClient('');
+    setProjectGroupId(groupId || 'work-group');
+    setProjectStartDate('');
+    setProjectEndDate('');
+    setProjectEstimatedHours('');
+    setProjectColor('#6366f1');
+    setIsProjectDialogOpen(true);
+  };
+
+  const handleEditProject = (project: Project) => {
+    setEditingProject(project);
+    setProjectName(project.name);
+    setProjectClient(project.client);
+    setProjectGroupId(project.groupId || 'work-group');
+    setProjectStartDate(project.startDate.toISOString().split('T')[0]);
+    setProjectEndDate(project.endDate.toISOString().split('T')[0]);
+    setProjectEstimatedHours(project.estimatedHours.toString());
+    setProjectColor(project.color);
+    setIsProjectDialogOpen(true);
+  };
+
+  const handleSaveProject = () => {
+    if (!projectName.trim() || !projectClient.trim() || !projectStartDate || !projectEndDate || !projectEstimatedHours) return;
+
+    const startDate = new Date(projectStartDate);
+    const endDate = new Date(projectEndDate);
+    const estimatedHours = parseInt(projectEstimatedHours);
+
+    if (editingProject) {
+      updateProject(editingProject.id, {
+        name: projectName,
+        client: projectClient,
+        groupId: projectGroupId,
+        startDate,
+        endDate,
+        estimatedHours,
+        color: projectColor
+      });
+      
+      setIsProjectDialogOpen(false);
+      resetProjectForm();
+    } else {
+      // Project creation is disabled - redirect to Timeline view
+      alert('Please use the Timeline view to create new projects. This ensures proper row assignment.');
+      setIsProjectDialogOpen(false);
+      resetProjectForm();
+    }
+  };
+
+  const resetProjectForm = () => {
+    setEditingProject(null);
+    setProjectName('');
+    setProjectClient('');
+    setProjectGroupId('work-group');
+    setProjectStartDate('');
+    setProjectEndDate('');
+    setProjectEstimatedHours('');
+    setProjectColor('#6366f1');
+  };
+
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  // Duration formatting is now handled by DurationFormattingService
+
+  const getProjectsByGroup = (groupId: string) => {
+    return projects.filter(project => project.groupId === groupId);
+  };
+
+  const getProjectsByGroupAndStatus = (groupId: string, status: ProjectStatus) => {
+    return projects.filter(project => project.groupId === groupId && getEffectiveProjectStatus(project) === status);
+  };
+
+  const getProjectCountByStatus = (status: ProjectStatus) => {
+    return projects.filter(project => getEffectiveProjectStatus(project) === status).length;
+  };
+
+  // Collapsible toggle functions
+  const toggleSection = (section: string) => {
+    setCollapsedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+
+  const toggleGroup = (groupId: string, section: string) => {
+    const key = `${section}-${groupId}`;
+    setCollapsedGroups(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
+
+  const isSectionCollapsed = (section: string) => {
+    return collapsedSections[section] || false;
+  };
+
+  const isGroupCollapsed = (groupId: string, section: string) => {
+    const key = `${section}-${groupId}`;
+    return collapsedGroups[key] !== false; // Default to collapsed (true) unless explicitly set to false
+  };
+
+  // Handle drag and drop
+  const handleMoveGroup = (fromIndex: number, toIndex: number) => {
+    reorderGroups(fromIndex, toIndex);
+  };
+
+  const handleMoveProject = (groupId: string, fromIndex: number, toIndex: number) => {
+    reorderProjects(groupId, fromIndex, toIndex);
+  };
+
+  // Render project in grid format
+  const renderGridProject = (project: Project, index: number, groupId: string) => (
+    <DraggableProject
+      key={project.id}
+      project={project}
+      index={index}
+      groupId={groupId}
+      onMoveProject={handleMoveProject}
+    >
+      <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setSelectedProjectId(project.id)}>
+        <CardHeader className="pb-2 pt-3 px-4">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <div 
+                className="w-2 h-2 rounded-full flex-shrink-0" 
+                style={{ backgroundColor: project.color }}
+              />
+              <div className="min-w-0 flex-1">
+                <CardTitle className="text-sm font-medium truncate">{project.name}</CardTitle>
+                <CardDescription className="text-xs truncate">
+                  {project.client}
+                </CardDescription>
+              </div>
+            </div>
+            
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                deleteProject(project.id);
+              }}
+              className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1 h-6 w-6"
+            >
+              <Trash2 className="w-3 h-3" />
+            </Button>
+          </div>
+        </CardHeader>
+        
+        <CardContent className="space-y-2 pt-0 px-4 pb-3">
+          <div className="flex items-center gap-1 text-xs text-gray-600">
+            <Calendar className="w-3 h-3" />
+            <span className="truncate">
+              {formatDate(project.startDate)} - {formatDate(project.endDate)}
+            </span>
+          </div>
+          
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1 text-xs">
+              <Clock className="w-3 h-3 text-gray-600" />
+              <span className="font-medium text-gray-900">{project.estimatedHours}h</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </DraggableProject>
+  );
+
+  // Render project in list format
+  const renderListProject = (project: Project, index: number, groupId: string) => (
+    <DraggableProject
+      key={project.id}
+      project={project}
+      index={index}
+      groupId={groupId}
+      onMoveProject={handleMoveProject}
+    >
+      <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setSelectedProjectId(project.id)}>
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            {/* Left section - Project info */}
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div 
+                className="w-3 h-3 rounded-full flex-shrink-0" 
+                style={{ backgroundColor: project.color }}
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-medium text-gray-900 truncate text-sm">{project.name}</h3>
+                  <span className="text-xs text-gray-600 whitespace-nowrap">{project.client}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Middle section - Timeline info */}
+            <div className="flex items-center gap-4 flex-1 justify-center">
+              <div className="flex items-center gap-1 text-xs text-gray-600">
+                <Calendar className="w-3 h-3" />
+                <span className="whitespace-nowrap">
+                  {formatDate(project.startDate)} - {formatDate(project.endDate)}
+                </span>
+              </div>
+              
+              <div className="flex items-center gap-1 text-xs">
+                <Clock className="w-3 h-3 text-gray-600" />
+                <span className="whitespace-nowrap font-medium text-gray-900">{project.estimatedHours}h</span>
+              </div>
+              
+              <div className="text-xs text-gray-500">
+                <span>{DurationFormattingService.formatDuration(project.startDate, project.endDate)}</span>
+              </div>
+            </div>
+
+            {/* Right section - Actions */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteProject(project.id);
+                }}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1 h-6 w-6"
+              >
+                <Trash2 className="w-3 h-3" />
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </DraggableProject>
+  );
+
+  return (
+    <DndProvider backend={HTML5Backend}>
+      <AppPageLayout>
+        {/* Header */}
+        <AppPageLayout.Header className="h-20 border-b border-[#e2e2e2] flex items-center justify-between px-8">
+          <div className="flex items-center space-x-6">
+            <h1 className="text-lg font-semibold text-[#595956]">Projects</h1>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            {/* View Toggle */}
+            <ToggleGroup
+              type="single"
+              value={viewType}
+              onValueChange={(value) => value && setViewType(value as ViewType)}
+              className="border border-gray-200 rounded-lg"
+            >
+              <ToggleGroupItem value="list" aria-label="List view" className="px-3 py-2">
+                <List className="w-4 h-4" />
+              </ToggleGroupItem>
+              <ToggleGroupItem value="grid" aria-label="Grid view" className="px-3 py-2">
+                <Grid3X3 className="w-4 h-4" />
+              </ToggleGroupItem>
+            </ToggleGroup>
+
+            <StandardModal
+              isOpen={isGroupDialogOpen}
+              onClose={() => setIsGroupDialogOpen(false)}
+              title={editingGroup ? 'Edit Group' : 'Create New Group'}
+              description={editingGroup 
+                ? 'Modify the details of your project group.' 
+                : 'Create a new group to organize your projects.'
+              }
+              size="md"
+              primaryAction={{
+                label: editingGroup ? 'Update Group' : 'Create Group',
+                onClick: handleSaveGroup,
+                disabled: !groupName.trim()
+              }}
+              secondaryAction={{
+                label: 'Cancel',
+                onClick: () => setIsGroupDialogOpen(false)
+              }}
+            >
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="group-name">Group Name</Label>
+                  <Input
+                    id="group-name"
+                    value={groupName}
+                    onChange={(e) => setGroupName(e.target.value)}
+                    placeholder="Enter group name"
+                    autoFocus
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="group-description">Description (Optional)</Label>
+                  <Textarea
+                    id="group-description"
+                    value={groupDescription}
+                    onChange={(e) => setGroupDescription(e.target.value)}
+                    placeholder="Brief description of this group"
+                    rows={2}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="group-color">Color</Label>
+                  <div className="flex gap-2 mt-2">
+                    {defaultColors.map((color) => (
+                      <button
+                        key={color}
+                        className={`w-8 h-8 rounded-full border-2 transition-all ${
+                          groupColor === color ? 'border-gray-400 scale-110' : 'border-gray-200'
+                        }`}
+                        style={{ backgroundColor: color }}
+                        onClick={() => setGroupColor(color)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </StandardModal>
+
+          <StandardModal
+            isOpen={isProjectDialogOpen}
+            onClose={() => setIsProjectDialogOpen(false)}
+            title={editingProject ? 'Edit Project' : 'Create New Project'}
+            description={editingProject 
+              ? 'Modify the details of your project.' 
+              : 'Add a new project with timeline and budget information.'
+            }
+            size="lg"
+            primaryAction={{
+              label: editingProject ? 'Update Project' : 'Create Project',
+              onClick: handleSaveProject,
+              disabled: !projectName.trim() || !projectClient.trim() || !projectStartDate || !projectEndDate || !projectEstimatedHours
+            }}
+            secondaryAction={{
+              label: 'Cancel',
+              onClick: () => setIsProjectDialogOpen(false)
+            }}
+          >
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="project-name">Project Name</Label>
+                    <Input
+                      id="project-name"
+                      value={projectName}
+                      onChange={(e) => setProjectName(e.target.value)}
+                      placeholder="Project name"
+                      autoFocus
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="project-client">Client</Label>
+                    <Input
+                      id="project-client"
+                      value={projectClient}
+                      onChange={(e) => setProjectClient(e.target.value)}
+                      placeholder="Client name"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="project-group">Group</Label>
+                  <Select value={projectGroupId} onValueChange={setProjectGroupId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a group" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {groups.map((group) => (
+                        <SelectItem key={group.id} value={group.id}>
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-3 h-3 rounded-full" 
+                              style={{ backgroundColor: group.color }}
+                            />
+                            {group.name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="project-start-date">Start Date</Label>
+                    <Input
+                      id="project-start-date"
+                      type="date"
+                      value={projectStartDate}
+                      onChange={(e) => setProjectStartDate(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="project-end-date">End Date</Label>
+                    <Input
+                      id="project-end-date"
+                      type="date"
+                      value={projectEndDate}
+                      onChange={(e) => setProjectEndDate(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="project-hours">Estimated Hours</Label>
+                  <Input
+                    id="project-hours"
+                    type="number"
+                    min="1"
+                    value={projectEstimatedHours}
+                    onChange={(e) => setProjectEstimatedHours(e.target.value)}
+                    placeholder="Total estimated hours"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="project-color">Color</Label>
+                  <div className="flex gap-2 mt-2">
+                    {defaultColors.map((color) => (
+                      <button
+                        key={color}
+                        className={`w-8 h-8 rounded-full border-2 transition-all ${
+                          projectColor === color ? 'border-gray-400 scale-110' : 'border-gray-200'
+                        }`}
+                        style={{ backgroundColor: color }}
+                        onClick={() => setProjectColor(color)}
+                      />
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="flex gap-3 pt-4">
+                  <Button 
+                    onClick={handleSaveProject} 
+                    className="flex-1"
+                    disabled={!projectName.trim() || !projectClient.trim() || !projectStartDate || !projectEndDate || !projectEstimatedHours}
+                  >
+                    {editingProject ? 'Update Project' : 'Create Project'}
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setIsProjectDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+            </div>
+          </StandardModal>
+        </div>
+      </AppPageLayout.Header>
+
+      {/* No sub-header for Projects view */}
+      
+      {/* Content */}
+      <AppPageLayout.Content className="flex-1 overflow-auto light-scrollbar p-0">
+        <div className="px-[21px] pb-[21px] pt-[35px] space-y-8">
+          {/* Current Projects Section */}
+          <div className="space-y-6">
+            <div 
+              className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
+              onClick={() => toggleSection('current')}
+            >
+              {isSectionCollapsed('current') ? (
+                <ChevronRight className="w-4 h-4 text-gray-500" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-gray-500" />
+              )}
+              <PlayCircle className="w-5 h-5" />
+              <h2 className="text-xl font-semibold text-gray-900">Current Projects</h2>
+              <Badge variant="secondary" className="bg-green-100 text-green-700">
+                {getProjectCountByStatus('current')} projects
+              </Badge>
+            </div>
+            
+            {!isSectionCollapsed('current') && groups.map((group, groupIndex) => {
+              const groupProjects = getProjectsByGroupAndStatus(group.id, 'current');
+              if (groupProjects.length === 0) return null;
+              
+              return (
+                <DraggableGroup
+                  key={`current-${group.id}`}
+                  group={group}
+                  index={groupIndex}
+                  onMoveGroup={handleMoveGroup}
+                >
+                  <div className="space-y-3">
+                    {/* Group Header */}
+                    <div 
+                      className="flex items-center justify-between cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
+                      onClick={() => toggleGroup(group.id, 'current')}
+                    >
+                      <div className="flex items-center gap-3">
+                        {isGroupCollapsed(group.id, 'current') ? (
+                          <ChevronRight className="w-3 h-3 text-gray-500" />
+                        ) : (
+                          <ChevronDown className="w-3 h-3 text-gray-500" />
+                        )}
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: group.color }}
+                        />
+                        <div>
+                          <h3 className="text-md font-medium text-gray-900">{group.name}</h3>
+                          {group.description && (
+                            <p className="text-xs text-gray-600 mt-1">{group.description}</p>
+                          )}
+                        </div>
+                        <Badge variant="outline" className="text-xs">
+                          {groupProjects.length}
+                        </Badge>
+                      </div>
+                    </div>
+
+                    {/* Projects Display */}
+                    {!isGroupCollapsed(group.id, 'current') && (
+                      <div className={viewType === 'grid' 
+                        ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" 
+                        : "space-y-2"
+                      }>
+                        {groupProjects.map((project, projectIndex) => 
+                          viewType === 'grid' 
+                            ? renderGridProject(project, projectIndex, group.id)
+                            : renderListProject(project, projectIndex, group.id)
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </DraggableGroup>
+              );
+            })}
+
+            {!isSectionCollapsed('current') && getProjectCountByStatus('current') === 0 && (
+              <Card className="border-dashed">
+                <CardContent className="flex flex-col items-center justify-center py-8">
+                  <div className="text-gray-400 mb-2">
+                    <PlayCircle className="w-12 h-12" />
+                  </div>
+                  <p className="text-gray-600 mb-4">No current projects</p>
+                  <p className="text-gray-500 text-sm">Create projects from the Timeline view</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          <Separator />
+
+          {/* Future Projects Section */}
+          <div className="space-y-6">
+            <div 
+              className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
+              onClick={() => toggleSection('future')}
+            >
+              {isSectionCollapsed('future') ? (
+                <ChevronRight className="w-4 h-4 text-gray-500" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-gray-500" />
+              )}
+              <Clock4 className="w-5 h-5" />
+              <h2 className="text-xl font-semibold text-gray-900">Future Projects</h2>
+              <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+                {getProjectCountByStatus('future')} projects
+              </Badge>
+            </div>
+            
+            {!isSectionCollapsed('future') && groups.map((group, groupIndex) => {
+              const groupProjects = getProjectsByGroupAndStatus(group.id, 'future');
+              if (groupProjects.length === 0) return null;
+              
+              return (
+                <DraggableGroup
+                  key={`future-${group.id}`}
+                  group={group}
+                  index={groupIndex}
+                  onMoveGroup={handleMoveGroup}
+                >
+                  <div className="space-y-3">
+                    {/* Group Header */}
+                    <div 
+                      className="flex items-center justify-between cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
+                      onClick={() => toggleGroup(group.id, 'future')}
+                    >
+                      <div className="flex items-center gap-3">
+                        {isGroupCollapsed(group.id, 'future') ? (
+                          <ChevronRight className="w-3 h-3 text-gray-500" />
+                        ) : (
+                          <ChevronDown className="w-3 h-3 text-gray-500" />
+                        )}
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: group.color }}
+                        />
+                        <div>
+                          <h3 className="text-md font-medium text-gray-900">{group.name}</h3>
+                          {group.description && (
+                            <p className="text-xs text-gray-600 mt-1">{group.description}</p>
+                          )}
+                        </div>
+                        <Badge variant="outline" className="text-xs">
+                          {groupProjects.length}
+                        </Badge>
+                      </div>
+                    </div>
+
+                    {/* Projects Display */}
+                    {!isGroupCollapsed(group.id, 'future') && (
+                      <div className={viewType === 'grid' 
+                        ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" 
+                        : "space-y-2"
+                      }>
+                        {groupProjects.map((project, projectIndex) => 
+                          viewType === 'grid' 
+                            ? renderGridProject(project, projectIndex, group.id)
+                            : renderListProject(project, projectIndex, group.id)
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </DraggableGroup>
+              );
+            })}
+
+            {!isSectionCollapsed('future') && getProjectCountByStatus('future') === 0 && (
+              <Card className="border-dashed">
+                <CardContent className="flex flex-col items-center justify-center py-8">
+                  <div className="text-gray-400 mb-2">
+                    <Clock4 className="w-12 h-12" />
+                  </div>
+                  <p className="text-gray-600 mb-4">No future projects</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          <Separator />
+
+          {/* Archive Projects Section */}
+          <div className="space-y-6">
+            <div 
+              className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
+              onClick={() => toggleSection('archived')}
+            >
+              {isSectionCollapsed('archived') ? (
+                <ChevronRight className="w-4 h-4 text-gray-500" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-gray-500" />
+              )}
+              <Archive className="w-5 h-5" />
+              <h2 className="text-xl font-semibold text-gray-900">Archived Projects</h2>
+              <Badge variant="secondary" className="bg-gray-100 text-gray-700">
+                {getProjectCountByStatus('archived')} projects
+              </Badge>
+            </div>
+            
+            {!isSectionCollapsed('archived') && groups.map((group, groupIndex) => {
+              const groupProjects = getProjectsByGroupAndStatus(group.id, 'archived');
+              if (groupProjects.length === 0) return null;
+              
+              return (
+                <DraggableGroup
+                  key={`archive-${group.id}`}
+                  group={group}
+                  index={groupIndex}
+                  onMoveGroup={handleMoveGroup}
+                >
+                  <div className="space-y-3">
+                    {/* Group Header */}
+                    <div 
+                      className="flex items-center justify-between cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
+                      onClick={() => toggleGroup(group.id, 'archived')}
+                    >
+                      <div className="flex items-center gap-3">
+                        {isGroupCollapsed(group.id, 'archived') ? (
+                          <ChevronRight className="w-3 h-3 text-gray-500" />
+                        ) : (
+                          <ChevronDown className="w-3 h-3 text-gray-500" />
+                        )}
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: group.color }}
+                        />
+                        <div>
+                          <h3 className="text-md font-medium text-gray-900">{group.name}</h3>
+                          {group.description && (
+                            <p className="text-xs text-gray-600 mt-1">{group.description}</p>
+                          )}
+                        </div>
+                        <Badge variant="outline" className="text-xs">
+                          {groupProjects.length}
+                        </Badge>
+                      </div>
+                    </div>
+
+                    {/* Projects Display */}
+                    {!isGroupCollapsed(group.id, 'archived') && (
+                      <div className={viewType === 'grid' 
+                        ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" 
+                        : "space-y-2"
+                      }>
+                        {groupProjects.map((project, projectIndex) => 
+                          viewType === 'grid' 
+                            ? renderGridProject(project, projectIndex, group.id)
+                            : renderListProject(project, projectIndex, group.id)
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </DraggableGroup>
+              );
+            })}
+
+            {!isSectionCollapsed('archived') && getProjectCountByStatus('archived') === 0 && (
+              <Card className="border-dashed">
+                <CardContent className="flex flex-col items-center justify-center py-8">
+                  <div className="text-gray-400 mb-2">
+                    <Archive className="w-12 h-12" />
+                  </div>
+                  <p className="text-gray-600 mb-4">No archived projects</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* Show welcome message only if no projects exist at all */}
+          {projects.length === 0 && (
+            <Card className="border-dashed">
+              <CardContent className="flex flex-col items-center justify-center py-16">
+                <div className="text-gray-400 mb-4">
+                  <Users className="w-16 h-16" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Welcome to Projects</h3>
+                <p className="text-gray-600 text-center mb-6 max-w-md">
+                  Organize your work by creating project groups, adding rows, and creating projects from the Timeline view.
+                </p>
+                <p className="text-gray-500 text-sm">Start by going to the Timeline view to create your first group and projects.</p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </AppPageLayout.Content>
+    </AppPageLayout>
+    </DndProvider>
+  );
+}

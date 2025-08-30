@@ -17,8 +17,8 @@
  */
 
 import type { CalendarEvent, WorkHour } from '@/types';
-import { memoizeExpensiveCalculation, timelineCalculationCache } from '@/services/performance/cachePerformanceService';
-import { calculateEventDurationOnDateLegacy as calculateEventDurationOnDate } from './eventDurationService';
+import { memoizeExpensiveCalculation, timelineCalculationCache } from '@/services/core/performance/cachePerformanceService';
+import { calculateEventDurationOnDateLegacy as calculateEventDurationOnDate } from './legacy/eventDurationService';
 import { getCalendarEventBackgroundColor, getCalendarEventTextColor } from '@/constants/colors';
 
 /**

@@ -16,11 +16,11 @@ import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 import { useTimelineContext } from '../../contexts/TimelineContext';
 import { calculateProjectTimeMetrics } from '@/services/projects';
-import { ProjectWorkingDaysService } from '@/services/projects/projectWorkingDaysService';
-import { formatTimeHoursMinutes } from '@/services';
+import { ProjectWorkingDaysService } from '@/services/projects/legacy/projectWorkingDaysService';
+import { formatTimeHoursMinutes } from '@/utils/timeFormatUtils';
 import { formatDate, formatDateForInput } from '@/utils/dateFormatUtils';
 import { StandardModal } from './StandardModal';
-import { WorkHoursValidationService } from '@/services/timeline/TimelineBusinessLogicService';
+import { WorkHoursValidationService } from '@/services';
 
 // OKLCH color palette - matches the one defined in AppContext
 const OKLCH_PROJECT_COLORS = [

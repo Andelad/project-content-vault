@@ -3,7 +3,7 @@
  * Handles project data validation, integrity checks, and auto-correction logic
  */
 
-import { Project, Group, Row } from '../../types';
+import { Project, Group, Row } from '@/types';
 
 export interface OrphanedProject {
   id: string;

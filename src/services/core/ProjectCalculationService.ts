@@ -1,5 +1,5 @@
 import { CalendarEvent, Project, Group } from '../../types';
-import { calculateValidDays } from '../insights/insightsCalculationService';
+import { calculateValidDays } from '../insights/legacy/insightsCalculationService';
 
 export class ProjectCalculationService {
   /**

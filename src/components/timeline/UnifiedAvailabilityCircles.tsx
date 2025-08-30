@@ -1,7 +1,7 @@
 import React, { memo, useMemo } from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import { usePlannerContext } from '../../contexts/PlannerContext';
-import { isHolidayDateCapacity as isHolidayDate } from '@/services/work-hours/workHourCapacityService';
+import { isHolidayDateCapacity as isHolidayDate } from '@/services';
 import { 
   calculateAvailabilityReduction, 
   generateWorkHoursForDate,
@@ -11,7 +11,7 @@ import {
   calculateProjectWorkingDays,
   getProjectTimeAllocation
 } from '@/services/work-hours';
-import { WeeklyCapacityCalculationService, WorkHoursCalculationService } from '@/services/timeline/TimelineBusinessLogicService';
+import { WeeklyCapacityCalculationService, WorkHoursCalculationService } from '@/services';
 import { calculateAvailabilityCircleSize, getMinimumCircleDimensions } from '@/services';
 
 type AvailabilityType = 
