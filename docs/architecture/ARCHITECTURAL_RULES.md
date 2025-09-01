@@ -1,22 +1,81 @@
 # 🏗️ Development Architecture Rules
 
-## 🚨 **Essential Rules - Always Follow**
+## **🤖 AI Development Guard Rails**
 
-### **📊 Calculation Logic**
-- ✅ **ALL calculations MUST use services from `/src/services/`**
-- ❌ **NEVER add math logic to components or hooks**
-- ✅ **Use memoized functions for performance**
+> **CRITICAL**: These constraints MUST be followed by all AI assistants. Violations break architectural integrity.
 
+### **🚫 Forbidden Patterns (DO NOT CREATE)**
+
+| Pattern | Why Forbidden | Detection |
+|---------|----   grep -r "calculateDuration\|formatDuration\|calculateHours" src/services/
+   
+   # Search for specific calculation patterns
+   grep -r "getTime.*getTime\|reduce.*sum\|Math\." src/services/
+   ```-------|
+| **`utils/` folders** | Creates loose coupling, unclear ownership | Any folder named `utils` |
+| **`helpers/` folders** | Same as utils - use proper domain services | Any folder named `helpers` |
+| **Direct service imports** | Bypasses barrel exports, breaks modularity | `import from '@/services/domain/ServiceName'` |
+| **Duplicate functions** | Code duplication, maintenance burden | Same function name in multiple files |
+| **Mixed responsibility files** | Violates SRP, creates tight coupling | File doing > 1 domain concern |
+| **Orphaned legacy files** | Technical debt accumulation | Files not imported anywhere |
+
+### **✅ Mandatory AI Workflows**
+
+#### **Before Creating New Code**
+1. **Check existing services**: Use `semantic_search` for similar functionality
+2. **Verify domain boundaries**: Ensure feature fits existing structure  
+3. **Plan barrel exports**: All services MUST export through `@/services`
+4. **Legacy migration**: Move old files to `legacy/` folders
+
+#### **When Adding Features**
+1. **Use domain-driven structure**: `{domain}/{Orchestrator|Repository|Validator}.ts`
+2. **Single responsibility files**: One class/function per file
+3. **Proper imports**: Always use main `@/services` barrel import
+4. **Update index.ts**: Add all new exports to main services barrel
+
+### **📋 Quick Reference Tables**
+
+#### **Where Does This Code Go?**
+| Code Type | Location | Example |
+|-----------|----------|---------|
+| **Business Logic** | `services/{domain}/Orchestrator.ts` | `ProjectOrchestrator.ts` |
+| **Data Access** | `services/{domain}/Repository.ts` | `ProjectRepository.ts` |
+| **Validation** | `services/{domain}/Validator.ts` | `ProjectValidator.ts` |
+| **Infrastructure** | `services/core/infrastructure/` | `CacheService.ts` |
+| **Shared Domain** | `services/core/domain/` | `ValidationRules.ts` |
+| **Legacy Code** | `services/{domain}/legacy/` | `oldProjectService.ts` |
+
+#### **Import Patterns Checklist**
 ```typescript
-// ✅ CORRECT
-import { calculateMilestoneMetrics } from '@/services';
-const metrics = calculateMilestoneMetrics(milestones, projectBudget);
+// ✅ CORRECT - Use main services barrel
+import { ProjectOrchestrator, CacheService } from '@/services';
 
-// ❌ WRONG
-const totalHours = milestones.reduce((sum, m) => sum + m.hours, 0);
+// ❌ WRONG - Direct service imports
+import { ProjectOrchestrator } from '@/services/projects/ProjectOrchestrator';
+import { CacheService } from '@/services/core/infrastructure/CacheService';
+
+// ❌ WRONG - Sub-barrel imports  
+import { ProjectOrchestrator } from '@/services/projects';
+import { CacheService } from '@/services/core';
 ```
 
-### **🏢 Services Organization Pattern**
+### **🎯 AI Constraint Enforcement**
+
+**Before ANY code changes:**
+- [ ] Searched for existing similar functionality
+- [ ] Verified proper domain placement  
+- [ ] Planned barrel export structure
+- [ ] Identified legacy migration needs
+
+**Red flags requiring human review:**
+- Creating new folder structures
+- Adding duplicate-looking functionality  
+- Modifying core service exports
+- Large refactoring operations
+
+---
+
+## **🏢 Services Organization Pattern**
 **Clean, domain-driven structure for service files:**
 
 ```
@@ -175,86 +234,74 @@ export class WorkHourCalculationService {
 // ✅ PHASE 5: Delete legacy folder when migration complete
 ```
 
-### **�📦 Import/Export Patterns**
-**MANDATORY patterns for optimal performance and maintainability:**
+## **📦 Import/Export Patterns**
 
-#### **✅ Use Barrel Exports For:**
-
-**1. Services (Pure Functions)**
+### **✅ Use Barrel Exports For Lightweight Code:**
 ```typescript
-// ✅ CORRECT - Tree-shakable, pure functions
-import { calculateProjectMetrics, formatDuration, PROJECT_CONSTANTS } from '@/services';
-```
-- **Why:** Pure functions, tree-shakable, minimal runtime overhead
-- **Performance:** Only imports what you use, highly optimized
-
-**2. Types & Interfaces**
-```typescript
-// ✅ CORRECT - Zero runtime cost
-import { Project, CalendarEvent, WorkHour } from '@/types';
-```
-- **Why:** TypeScript strips these at build time
-- **Performance:** None - compile-time only
-
-**3. Constants & Utils**
-```typescript
-// ✅ CORRECT - Static values, pure utilities
-import { COLORS, LAYOUT_CONSTANTS } from '@/constants';
-import { cn, formatDate } from '@/utils';
-```
-
-#### **❌ Use Direct Imports For:**
-
-**1. React Components**
-```typescript
-// ❌ AVOID - Can import unnecessary component code
-import { EventModal, ProjectModal } from '@/components';
-
-// ✅ CORRECT - Direct imports for components
-import { EventModal } from '@/components/modals/EventModal';
-import { Button } from '@/components/ui/button';
-```
-- **Why:** Components include JSX, styles, heavy dependencies
-- **Performance:** Prevents bundle bloat from unused components
-
-**2. Hooks (Stateful Logic)**
-```typescript
-// ❌ AVOID - Hooks have heavy dependencies
-import { useProjects, useTimeline } from '@/hooks';
-
-// ✅ CORRECT - Direct imports
-import { useProjects } from '@/hooks/useProjects';
-import { useTimelineContext } from '@/contexts/TimelineContext';
-```
-- **Why:** Hooks import contexts, services, and state management
-- **Performance:** Avoids unnecessary state management code
-
-#### **🎯 Complete Import Pattern:**
-```typescript
-// ✅ BARREL EXPORTS - Lightweight, functional code
+// ✅ Services, Types, Constants, Utils - Tree-shakable, minimal overhead
 import { calculateProjectMetrics, PROJECT_CONSTANTS } from '@/services';
 import { Project, CalendarEvent } from '@/types';
 import { COLORS } from '@/constants';
 import { cn, formatDate } from '@/utils';
+```
 
-// ✅ DIRECT IMPORTS - Heavy, stateful code
+### **✅ Use Direct Imports For Heavy/Stateful Code:**
+```typescript
+// ✅ Components, Hooks, Contexts - Prevents bundle bloat
 import { EventModal } from '@/components/modals/EventModal';
 import { useProjects } from '@/hooks/useProjects';
 import { ProjectContext } from '@/contexts/ProjectContext';
 ```
 
-#### **📋 Services Consolidation Rule:**
-- ✅ **ALL services MUST use `@/services` barrel export**
+### **📋 Services Import Rules:**
+- ✅ **ALL services from main `@/services` barrel only**
 - ❌ **NEVER use sub-barrels like `@/services/constants`**
-- ✅ **Move service constants into main services barrel**
 
 ```typescript
-// ✅ CORRECT - Everything from main services barrel
+// ✅ CORRECT
 import { calculateDuration, WORK_HOUR_CONSTANTS } from '@/services';
 
-// ❌ WRONG - Sub-barrel patterns
+// ❌ WRONG  
 import { WORK_HOUR_CONSTANTS } from '@/services/constants';
 ```
+
+## **🔍 Service Development Workflow**
+
+### **Before Creating New Services:**
+1. **Search for duplicates**: `grep -r "functionName\|pattern" src/services/`
+2. **Determine scope**: Global (core) vs Feature-specific
+3. **Check file placement**: Add to existing vs create new file
+4. **Verify domain fit**: Correct feature folder assignment
+
+### **File Organization Decision Tree:**
+- **Global calculation** → `services/core/`
+- **Feature-specific** → `services/{feature}/`
+- **Single file per type** → Flat structure (`calculations.ts`)
+- **Multiple files per type** → Subfolder (`calculations/`)
+- **File size >500 lines** → Consider splitting
+
+### **Domain Assignment Guide:**
+| Domain | Purpose | Examples |
+|--------|---------|----------|
+| `calendar/` | Date positioning, time slots | Calendar grid, date ranges |
+| `work-hours/` | Duration, scheduling | Hours calculation, time formatting |
+| `projects/` | Project logic, metrics | Progress, overlaps, validation |
+| `timeline/` | UI positioning, viewport | Timeline rendering, drag operations |
+| `milestones/` | Milestone logic | Validation, budgeting |
+| `events/` | Event management | Conflicts, scheduling |
+
+### **🔍 Calculation Extraction Process**
+**MANDATORY workflow before extracting calculations to services:**
+
+1. **🔍 Check for Duplicates First**
+   ```bash
+   # Search for similar function names across all services
+   grep -r "calculateDuration\|formatDuration\|calculateHours" src/services/
+   
+   # Search for specific calculation patterns
+```
+
+## **� Service Development Workflow**
 
 ### **🔍 Calculation Extraction Process**
 **MANDATORY workflow before extracting calculations to services:**
@@ -380,144 +427,61 @@ export function calculateHolidayOverlayPosition(holiday: Holiday, viewport: View
 // services/calendar/holidayPositionService.ts
 ```
 
-**Verification Steps:**
-- [ ] **Scope Analysis**: Is this global or feature-specific calculation?
-- [ ] **Folder Selection**: `core/` for global, `{feature}/` for specific
-- [ ] **File Placement**: Searched existing files for best fit?
-- [ ] **Organization Check**: Does placement improve ease of access and performance?
-- [ ] **Size Consideration**: Is existing file too large (>500 lines)?
-- [ ] **No Duplicates**: Confirmed no similar functionality exists
-- [ ] **Updated Exports**: Added to service index.ts if needed
-- [ ] **Build Verification**: TypeScript compilation passes
-- [ ] **No Linting Errors**: Code follows established patterns
+## **🚨 Common Violations to Avoid**
 
-### **🔄 State Management**
-- ✅ **Use specialized contexts**: ProjectContext, TimelineContext, SettingsContext
-- ❌ **NEVER create god objects or bloated contexts**
-- ✅ **Keep contexts focused on their domain**
-
-### **📁 File Organization**
-- **Services** (`/src/services/`) → All calculations and business logic
-- **Components** → Rendering only, import from services
-- **Hooks** → State management, delegate calculations to services
-
-### **⚡ Performance**
-- ✅ **Use memoized calculation functions from services**
-- ❌ **NEVER do expensive calculations in render**
-- ✅ **Let CalculationCacheService handle caching automatically**
-
-## 🎯 **Quick Decision Guide**
-
-**Adding a new calculation to services?**
-
-1. **📊 Analyze Scope**
-   - Multiple features use it? → `services/core/`
-   - Specific feature only? → `services/{feature}/`
-
-2. **🔍 Check Existing Files**
-   - Search for similar functions: `grep -r "calculate.*" src/services/`
-   - Review related services in target folder
-   - Consider file size and organization
-
-3. **📁 Choose File Strategy**
-   - **Add to existing** if related and file size < 500 lines
-   - **Create new file** if improves organization and discoverability
-   - **Split existing** if file is too large or unfocused
-
-4. **✅ Verify Placement**
-   - Easy to find and import?
-   - Improves performance/caching?
-   - Clear separation of concerns?
-   - Follows naming conventions?
-
-**Example Decision Flow:**
+### **❌ Component/Hook Violations:**
 ```typescript
-// New timeline calculation function
-// 1. Scope: Feature-specific (timeline only) → services/timeline/
-// 2. Search: Found timelinePositionService.ts with related functions
-// 3. Decision: Add to existing (file size OK, related functionality)
-// 4. Result: services/timeline/timelinePositionService.ts
-```
-
-**Need to calculate something?**
-```typescript
-import { 
-  calculateProjectMetrics,
-  calculateMilestoneMetrics,
-  calculateProjectPosition,
-  getBusinessDaysBetween 
-} from '@/services';
-```
-
-## 🚨 **VIOLATIONS TO WATCH FOR:**
-
-### **❌ Component Calculation Violations**
-```typescript
-// DON'T ADD THESE TO COMPONENTS:
+// DON'T ADD CALCULATIONS IN COMPONENTS:
 const total = items.reduce(...);
-const dailyHours = hours / days;
-const isOverBudget = allocated > budget;
 const position = { left: offset * width, width: duration * width };
 ```
 
-### **❌ Context Pollution Violations**
+### **❌ Context Violations:**
 ```typescript
-// DON'T ADD THESE TO WRONG CONTEXTS:
-// Timeline stuff in ProjectContext
-// Project stuff in PlannerContext  
-// Calculations in any Context (use services)
+// DON'T PUT WRONG LOGIC IN CONTEXTS:
+// Timeline logic in ProjectContext ❌
+// Calculations in any Context ❌ (use services)
 ```
 
-### **❌ Duplication Violations**
+### **❌ Service Duplication:**
 ```typescript
 // DON'T DUPLICATE EXISTING SERVICES:
-// Date calculations → DateCalculationService exists
-// Project metrics → ProjectCalculationService exists
-// Timeline positioning → TimelineCalculationService exists
+// Date calculations → Use existing DateCalculationService
+// Project metrics → Use existing ProjectCalculationService  
+// Timeline positioning → Use existing TimelineCalculationService
 ```
 
-## ✅ **ENFORCEMENT CHECKLIST**
+## **✅ Development Checklist**
 
-Before adding any calculation to services:
-- [ ] **Scope Analysis**: Global calculation (core) or feature-specific?
-- [ ] **Existing Search**: Thoroughly searched existing services for similar functionality?
-- [ ] **File Strategy**: Add to existing file or create new based on organization factors?
-- [ ] **Placement Decision**: Does placement improve ease of access and performance?
-- [ ] **Size Check**: Is target file size appropriate (< 500 lines preferred)?
-- [ ] **No Duplication**: Confirmed no similar functionality exists elsewhere?
-- [ ] **Domain Fit**: Does calculation belong in chosen service domain?
-- [ ] **Export Updates**: Added to service index.ts exports if needed
-- [ ] **Build Verification**: TypeScript compilation passes without errors
-- [ ] **Pattern Compliance**: Follows established naming and organization patterns
+**Before adding any service code:**
+- [ ] **Duplicate check**: Searched existing services for similar functionality
+- [ ] **Scope analysis**: Determined global (core) vs feature-specific placement
+- [ ] **File strategy**: Decided add-to-existing vs create-new based on organization
+- [ ] **Domain fit**: Verified calculation belongs in chosen service domain
+- [ ] **Size check**: Confirmed target file size appropriate (<500 lines preferred)
+- [ ] **Export updates**: Added to service index.ts if creating new functionality
+- [ ] **Build verification**: TypeScript compilation passes without errors
+- [ ] **Pattern compliance**: Follows established naming and organization patterns
 
-## 🎯 **QUICK REFERENCE**
+## **🎯 Quick Import Reference**
 
-**Import Patterns:**
 ```typescript
-// ✅ BARREL EXPORTS - Lightweight code
+// ✅ Barrel exports for lightweight code
 import { calculateProjectMetrics, PROJECT_CONSTANTS } from '@/services';
 import { Project, CalendarEvent } from '@/types';
 import { COLORS } from '@/constants';
-import { cn, formatDate } from '@/utils';
 
-// ✅ DIRECT IMPORTS - Heavy/stateful code
+// ✅ Direct imports for heavy/stateful code
 import { EventModal } from '@/components/modals/EventModal';
 import { useProjects } from '@/hooks/useProjects';
 import { ProjectContext } from '@/contexts/ProjectContext';
 ```
 
-**Need state management?**
+**State Management:**
 - Projects/Milestones → `useProjectContext()`
 - Timeline/Navigation → `useTimelineContext()`
 - Events/Holidays → `usePlannerContext()`
 - Settings/Work Hours → `useSettingsContext()`
-
-**Performance Guidelines:**
-- ✅ Barrel exports for: Services, Types, Constants, Utils
-- ❌ Direct imports for: Components, Hooks, Contexts
-- ✅ All services from `@/services` (no sub-barrels)
-
-**This file must be consulted before every change!**
 
 ## 🗑️ **Legacy File Cleanup Strategy**
 
@@ -610,111 +574,47 @@ export class ProjectCalculationService {
 
 ### **🛠️ Legacy Migration Tools**
 
-#### **Find Legacy Usage Script**
+#### **Legacy Usage Analysis Commands:**
 ```bash
-#!/bin/bash
 # Check if legacy folder is safe to delete
+feature="domain_name"  # e.g., "projects", "milestones", "events"
 
-feature=$1  # e.g., "projects", "milestones"
+# Find legacy imports
+grep -r "services/$feature/legacy" src/
 
-echo "🔍 Checking legacy usage for: $feature"
-echo "📊 Legacy imports found:"
-grep -r "services/$feature/legacy" src/ || echo "✅ No legacy imports found"
+# Count legacy files  
+find src/services/$feature/legacy/ -name "*.ts" 2>/dev/null | wc -l
 
-echo "📁 Legacy files remaining:"
-find src/services/$feature/legacy/ -name "*.ts" 2>/dev/null || echo "✅ No legacy files found"
-
-echo "📈 Legacy exports in barrel:"
-grep -r "legacy/" src/services/$feature/index.ts || echo "✅ No legacy exports found"
+# Check barrel exports
+grep -r "legacy/" src/services/$feature/index.ts
 ```
 
-#### **Migration Analysis Script** 🆕
+#### **Migration Readiness Checklist:**
 ```bash
-# Run comprehensive legacy analysis
-# Usage: ./scripts/analyze-legacy-usage.sh
-# 
-# Provides:
-# - Total files needing import updates
-# - Reference count per legacy service  
-# - Legacy file count and locations
-# - Migration effort assessment
-# - Recommended approach based on scope
+# Verify all functions extracted
+grep -r "export.*function\|export.*=" src/services/{feature}/legacy/
+
+# Check new domain structure exists  
+ls -la src/services/{feature}/
+ls -la src/services/core/domain/
+
+# Confirm no import dependencies
+grep -rl "from '@/services/{feature}/legacy" src/
 ```
 
-#### **Migration Progress Tracker**
+#### **Migration Progress Template:**
 ```typescript
-// Add to each feature's index.ts during migration
+// Add to feature's index.ts during migration
 /*
-🚧 MIGRATION STATUS:
-✅ Domain entities created (ProjectEntity, etc.)
-✅ Orchestrators implemented (ProjectOrchestrator)
-✅ Calculations extracted (projectMetrics, progressTracking)
-⚠️  PENDING: Component imports still use legacy
-⚠️  PENDING: Legacy files contain unique functions
-❌ NOT READY: Legacy folder deletion blocked
+🚧 MIGRATION STATUS for {FEATURE}:
+✅ New domain structure created
+✅ Functions extracted to appropriate services  
+⚠️  PENDING: {X} files still importing legacy
+⚠️  PENDING: Legacy validation in progress
+❌ NOT READY: Migration blocked by {reason}
 */
 ```
 
-#### **🔍 Pre-Migration Analysis Commands** 🆕
+---
 
-**Quick Legacy Check:**
-```bash
-# Count total files importing legacy services
-grep -rl "from '@/services/projects/legacy" src/ | wc -l
-
-# Find most used legacy services
-grep -r "ProjectCalculationService\|projectProgressService" src/ | wc -l
-
-# Check legacy exports still in barrel
-grep -c "legacy/" src/services/projects/index.ts
-```
-
-**Current Projects Legacy Status (Based on index.ts analysis):**
-```typescript
-// 🔍 DETECTED: 8 Legacy Services in projects/index.ts
-// 🟡 MIGRATION EFFORT: MEDIUM-HIGH (estimated 15-30+ files to update)
-//
-// Legacy Services Found:
-// 1. ProjectCalculationService
-// 2. projectProgressCalculationService  
-// 3. projectProgressGraphService
-// 4. projectProgressService
-// 5. projectStatusService
-// 6. projectWorkingDaysService
-// 7. projectOverlapService
-// 8. ProjectValidationService
-//
-// Recommended Approach: Phased migration with delegation layer
-```
-
-**Detailed Function Analysis:**
-```bash
-# Find all exported functions in legacy files
-grep -r "export.*function\|export.*=" src/services/projects/legacy/
-
-# Check if functions exist in new domain structure  
-grep -r "calculateProjectMetrics\|analyzeProjectProgress" src/services/projects/
-grep -r "calculateProjectMetrics\|analyzeProjectProgress" src/services/core/
-```
-
-**Import Impact Assessment:**
-```bash
-# Files that will need import updates
-grep -rl "ProjectCalculationService\|projectProgressService\|projectStatusService" src/components/
-grep -rl "ProjectCalculationService\|projectProgressService\|projectStatusService" src/hooks/
-
-# Specific legacy import patterns
-grep -r "from '@/services/projects/legacy" src/
-```
-
-**Migration Readiness Check:**
-```bash
-# Verify new domain structure exists
-ls -la src/services/projects/
-ls -la src/services/core/domain/
-
-# Check barrel exports
-grep -c "Orchestrator\|Entity" src/services/projects/index.ts
-```
-
-**This migration analysis helps determine the exact scope before starting legacy cleanup.**
+**This architectural guide ensures consistent, maintainable code organization across all development work.**
