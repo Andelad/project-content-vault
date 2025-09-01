@@ -3,12 +3,9 @@ import { AppProviders } from '../../contexts/AppProviders';
 import { useProjectContext } from '../../contexts/ProjectContext';
 
 function TestComponent() {
-  try {
-    const { projects } = useProjectContext();
-    return <div>Projects loaded: {projects?.length || 0}</div>;
-  } catch (error) {
-    return <div>Error: {error.message}</div>;
-  }
+  const { projects } = useProjectContext();
+  
+  return <div>Projects loaded: {projects?.length || 0}</div>;
 }
 
 function DebugView() {

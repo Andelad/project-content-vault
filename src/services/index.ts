@@ -34,11 +34,11 @@ export * from './tracker';
 export * from './work-hours';
 
 // Core services - cross-cutting utilities used across multiple features
-export * from './core/CalculationCacheService';
-export * from './core/ColorCalculationService';
-export * from './core/DateCalculationService';
-export { ProjectCalculationService as CoreProjectCalculationService } from './core/ProjectCalculationService';
-export * from './core/TimeAllocationService';
+export * from './core/infrastructure/calculationCache';
+export * from './core/infrastructure/colorCalculations';
+export * from './core/infrastructure/dateCalculationService';
+export { ProjectCalculationService as CoreProjectCalculationService } from './core/calculations/projectCalculations';
+export * from './core/orchestrators/TimeAllocationOrchestrator';
 export * from './core/calculations/dateCalculations';
 export * from './core/infrastructure/dateCache';
 

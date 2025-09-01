@@ -9,8 +9,8 @@
  * ✅ Easy migration path for existing code
  */
 
-import { CachedDateCalculationService } from './infrastructure/dateCache';
-import * as DateCalculations from './calculations/dateCalculations';
+import { CachedDateCalculationService } from './dateCache';
+import * as DateCalculations from '../calculations/dateCalculations';
 
 export class DateCalculationService {
   /**

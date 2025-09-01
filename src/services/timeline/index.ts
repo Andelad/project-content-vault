@@ -1,5 +1,5 @@
 // Timeline services - only import from existing files
-export * from '../core/TimeAllocationService'; // Re-export from canonical location
+export * from '../core/orchestrators/TimeAllocationOrchestrator'; // Re-export from canonical location
 
 // Legacy services - maintain backward compatibility
 export * from './legacy/HeightCalculationService';

@@ -3,7 +3,7 @@
  * Handles all project duration, milestone, and resource calculations
  */
 
-import { DateCalculationService } from '../../core/DateCalculationService';
+import { DateCalculationService } from '../../core/infrastructure/dateCalculationService';
 import { calculateProjectDuration } from './projectProgressService';
 import { Project } from '@/types';
 

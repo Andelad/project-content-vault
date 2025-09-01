@@ -96,15 +96,6 @@ export function InsightsView() {
   
   const today = new Date();
 
-  // Early return if essential data is not loaded
-  if (!projects || !events || !settings) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <div className="text-gray-500">Loading...</div>
-      </div>
-    );
-  }
-
   // Trigger animation when data changes
   useEffect(() => {
     setAnimationKey(prev => prev + 1);
@@ -151,8 +142,6 @@ export function InsightsView() {
       return start <= today && end >= today;
     });
   }, [projects, today]);
-
-
 
   // Future committed hours
   const futureCommitments = useMemo(() => {
@@ -296,6 +285,15 @@ export function InsightsView() {
   const futureProjects = useMemo(() => {
     return projects.filter(project => new Date(project.startDate) > today);
   }, [projects, today]);
+
+  // Early return if essential data is not loaded
+  if (!projects || !events || !settings) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="text-gray-500">Loading...</div>
+      </div>
+    );
+  }
 
 
 

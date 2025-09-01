@@ -6,7 +6,7 @@
 import { CalendarEvent, Milestone } from '@/types/core';
 import { memoizedGetProjectTimeAllocation } from '@/services/events/eventWorkHourIntegrationService';
 import { getMilestoneSegmentForDate, type MilestoneSegment } from '@/services/milestones/legacy/milestoneUtilitiesService';
-import { HeightCalculationService } from '../timeline/legacy/HeightCalculationService';
+import { HeightCalculationService } from '../../timeline/legacy/HeightCalculationService';
 import { isPlannedTimeCompleted } from '@/services/events/legacy/plannedTimeCompletionService';
 
 export interface TimeAllocationResult {
