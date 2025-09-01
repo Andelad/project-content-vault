@@ -165,7 +165,7 @@ export function ReportsView() {
     const data = [];
     const now = new Date();
     
-    let periods: { label: string; monthYear: string; year: number; start: Date; end: Date; }[] = [];
+    const periods: { label: string; monthYear: string; year: number; start: Date; end: Date; }[] = [];
     
     if (timeAnalysisTimeFrame === 'week') {
       // 12 weeks with time offset - each offset moves by 1 week

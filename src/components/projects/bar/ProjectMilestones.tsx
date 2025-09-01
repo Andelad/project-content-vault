@@ -115,7 +115,7 @@ export const ProjectMilestones = memo(function ProjectMilestones({
         position: milestonePosition
       };
     });
-  }, [projectMilestones, viewportStart, viewportEnd, project.startDate, mode, projectPositions, isDragging, dragState]);
+  }, [projectMilestones, viewportStart, viewportEnd, project.startDate, project.id, mode, projectPositions, isDragging, dragState]);
 
   // Handle milestone drag start
   const handleMilestoneMouseDown = (e: React.MouseEvent, milestoneId: string) => {

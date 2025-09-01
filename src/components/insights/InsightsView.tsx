@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
@@ -94,7 +94,7 @@ export function InsightsView() {
     sunday: false
   });
   
-  const today = new Date();
+  const today = useMemo(() => new Date(), []);
 
   // Trigger animation when data changes
   useEffect(() => {
@@ -151,7 +151,7 @@ export function InsightsView() {
   }, [projects, today]);
 
   // Helper function to calculate valid days in period
-  const calculateValidDays = (startDate: Date, endDate: Date) => {
+  const calculateValidDays = useCallback((startDate: Date, endDate: Date) => {
     let count = 0;
     const current = new Date(startDate);
     
@@ -167,7 +167,7 @@ export function InsightsView() {
     }
     
     return count;
-  };
+  }, [includedDays]);
 
   // Average Day calculation
   const averageDayData = useMemo(() => {
@@ -279,7 +279,7 @@ export function InsightsView() {
       totalAverageHours: timelineData.reduce((sum, hour) => sum + hour.totalHours, 0),
       validDays: totalValidDays
     };
-  }, [events, projects, groups, averagePeriod, includedDays]);
+  }, [events, projects, groups, averagePeriod, includedDays, calculateValidDays]);
 
   // Future projects
   const futureProjects = useMemo(() => {

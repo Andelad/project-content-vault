@@ -19,11 +19,6 @@ export function DragPerformanceMonitor({
     avgResponseTime: 0
   });
 
-  // Only show in development mode
-  if (process.env.NODE_ENV !== 'development') {
-    return null;
-  }
-
   useEffect(() => {
     if (isDragging) {
       setMetrics(prev => ({
@@ -41,6 +36,11 @@ export function DragPerformanceMonitor({
       // Performance metrics calculated but not logged in production
     }
   }, [isDragging, timelineMode, projectCount, metrics.dragStartTime, metrics.updateCount, metrics.throttledCount]);
+
+  // Only show in development mode
+  if (process.env.NODE_ENV !== 'development') {
+    return null;
+  }
 
   if (!isDragging || metrics.updateCount === 0) {
     return null;

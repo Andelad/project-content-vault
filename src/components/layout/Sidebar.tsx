@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTimelineContext } from '../../contexts/TimelineContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Calendar, AlignLeft, Folders, Settings, ChevronLeft, ChevronRight, PieChart } from 'lucide-react';
@@ -10,30 +10,7 @@ export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [profile, setProfile] = useState<any>(null);
 
-  // Load user profile for avatar
-  useEffect(() => {
-    if (user) {
-      fetchProfile();
-    }
-  }, [user]);
-
-  // Listen for storage changes to refresh avatar when updated
-  useEffect(() => {
-    const handleStorageChange = () => {
-      if (user) {
-        fetchProfile();
-      }
-    };
-
-    // Listen for custom events from profile updates
-    window.addEventListener('profile-updated', handleStorageChange);
-    
-    return () => {
-      window.removeEventListener('profile-updated', handleStorageChange);
-    };
-  }, [user]);
-
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -49,7 +26,30 @@ export function Sidebar() {
     } catch (error) {
       console.error('Error:', error);
     }
-  };
+  }, [user?.id]);
+
+  // Load user profile for avatar
+  useEffect(() => {
+    if (user) {
+      fetchProfile();
+    }
+  }, [user, fetchProfile]);
+
+  // Listen for storage changes to refresh avatar when updated
+  useEffect(() => {
+    const handleStorageChange = () => {
+      if (user) {
+        fetchProfile();
+      }
+    };
+
+    // Listen for custom events from profile updates
+    window.addEventListener('profile-updated', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('profile-updated', handleStorageChange);
+    };
+  }, [user, fetchProfile]);
 
   const mainNavItems = [
     {

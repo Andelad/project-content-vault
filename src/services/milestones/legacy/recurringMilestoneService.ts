@@ -23,7 +23,7 @@ export function calculateRecurringMilestoneCount(params: RecurringMilestoneCalcu
   const { config, projectStartDate, projectEndDate, projectContinuous = false } = params;
   
   let count = 0;
-  let currentDate = new Date(projectStartDate);
+  const currentDate = new Date(projectStartDate);
   currentDate.setDate(currentDate.getDate() + 1); // Start day after project start
   
   const endDate = projectContinuous ? 
@@ -65,7 +65,7 @@ export function generateRecurringMilestoneDates(params: RecurringMilestoneCalcul
   const { config, projectStartDate, projectEndDate, projectContinuous = false } = params;
   
   const dates: Date[] = [];
-  let currentDate = new Date(projectStartDate);
+  const currentDate = new Date(projectStartDate);
   currentDate.setDate(currentDate.getDate() + 1);
   
   const endDate = projectContinuous ? 

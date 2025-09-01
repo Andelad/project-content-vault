@@ -480,8 +480,8 @@ export const TimelineBar = memo(function TimelineBar({
               // Always round upper corners by 3px, remove bottom rounding on last rectangles
               let borderTopLeftRadius = '3px';
               let borderTopRightRadius = '3px';
-              let borderBottomLeftRadius = '0px';
-              let borderBottomRightRadius = '0px';
+              const borderBottomLeftRadius = '0px';
+              const borderBottomRightRadius = '0px';
               
               // Handle horizontal continuity for grouped rectangles
               if (visibleWorkingDays.length === 1) {

@@ -99,7 +99,7 @@ export function PlannerV2View() {
         variant: "destructive",
       });
     }
-  }, [updateEventWithUndo]);
+  }, [updateEventWithUndo, toast]);
 
   const handleEventResize = useCallback(async (resizeInfo: any) => {
     const eventId = resizeInfo.event.id;
@@ -130,7 +130,7 @@ export function PlannerV2View() {
         variant: "destructive",
       });
     }
-  }, [updateEventWithUndo]);
+  }, [updateEventWithUndo, toast]);
 
   const handleDateSelect = useCallback((selectInfo: DateSelectArg) => {
     // Create new event using global context so the modal opens
