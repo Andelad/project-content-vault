@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Console</title>
+</head>
+<body>
+    <h1>Debug Console</h1>
+    <div id="output"></div>
+    <script>
+        // Capture all console errors
+        const originalError = console.error;
+        const output = document.getElementById('output');
+        
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            const div = document.createElement('div');
+            div.style.color = 'red';
+            div.textContent = 'ERROR: ' + args.join(' ');
+            output.appendChild(div);
+        };
+        
+        // Capture unhandled errors
+        window.addEventListener('error', (event) => {
+            const div = document.createElement('div');
+            div.style.color = 'red';
+            div.textContent = 'UNHANDLED ERROR: ' + event.message + ' at ' + event.filename + ':' + event.lineno;
+            output.appendChild(div);
+        });
+        
+        // Test if we can access the main app
+        fetch('/')
+            .then(response => response.text())
+            .then(html => {
+                const div = document.createElement('div');
+                div.style.color = 'green';
+                div.textContent = 'App HTML loaded successfully (length: ' + html.length + ')';
+                output.appendChild(div);
+            })
+            .catch(err => {
+                const div = document.createElement('div');
+                div.style.color = 'red';
+                div.textContent = 'Failed to load app: ' + err.message;
+                output.appendChild(div);
+            });
+    </script>
+</body>
+</html>
