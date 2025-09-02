@@ -384,6 +384,104 @@ export function TimelineView() {
     });
   }, [autoScrollState.intervalId]);
 
+  // Horizontal scroll handler for touchpad/wheel events
+  const handleHorizontalScroll = useCallback((e: WheelEvent) => {
+    // This handler is only called for horizontal scrolls, so no need to check again
+    if (!isDragging && !isAnimating) {
+      // Calculate scroll direction and amount
+      const scrollDirection = e.deltaX > 0 ? 'next' : 'prev';
+      const scrollIntensity = Math.abs(e.deltaX);
+      
+      // Much more sensitive thresholds for smoother scrolling
+      if (scrollIntensity > 5) { // Lower threshold for better responsiveness
+        // More granular scrolling calculation
+        let daysToScroll: number;
+        
+        if (scrollIntensity <= 20) {
+          // Small gesture = 1 day/column
+          daysToScroll = 1;
+        } else if (scrollIntensity <= 50) {
+          // Medium gesture = 2-3 days
+          daysToScroll = Math.floor(scrollIntensity / 20);
+        } else {
+          // Large gesture = 3-7 days max
+          daysToScroll = Math.min(7, Math.floor(scrollIntensity / 15));
+        }
+        
+        // Create smooth navigation
+        const currentStart = viewportStart.getTime();
+        const targetStart = new Date(viewportStart);
+        targetStart.setDate(targetStart.getDate() + (scrollDirection === 'next' ? daysToScroll : -daysToScroll));
+        
+        // Faster, more responsive animation
+        setIsAnimating(true);
+        const animationDuration = Math.min(150, daysToScroll * 25); // Even faster for better responsiveness
+        
+        const animationConfig = {
+          currentStart,
+          targetStart: targetStart.getTime(),
+          duration: animationDuration
+        };
+        
+        createSmoothDragAnimation(
+          animationConfig,
+          (intermediateStart) => setViewportStart(intermediateStart),
+          (finalStart) => {
+            setViewportStart(finalStart);
+            setCurrentDate(new Date(finalStart));
+            setIsAnimating(false);
+          }
+        );
+      }
+    }
+  }, [viewportStart, setViewportStart, setCurrentDate, isDragging, isAnimating, setIsAnimating]);
+
+  // Add wheel event listener to timeline content area and availability card
+  React.useEffect(() => {
+    const timelineContent = document.querySelector('.timeline-content-area');
+    const availabilityContent = document.querySelector('.availability-timeline-content');
+    
+    // Enhanced wheel handler that prevents browser navigation
+    const enhancedWheelHandler = (e: WheelEvent) => {
+      const isHorizontalScroll = Math.abs(e.deltaX) > Math.abs(e.deltaY);
+      
+      if (isHorizontalScroll) {
+        // ALWAYS prevent browser navigation for any horizontal scroll
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        
+        // Call our custom scroll handler
+        handleHorizontalScroll(e);
+        
+        return false;
+      }
+    };
+    
+    if (timelineContent) {
+      timelineContent.addEventListener('wheel', enhancedWheelHandler, { 
+        passive: false,
+        capture: true  // Capture early to prevent browser navigation
+      });
+    }
+    
+    if (availabilityContent) {
+      availabilityContent.addEventListener('wheel', enhancedWheelHandler, { 
+        passive: false,
+        capture: true  // Capture early to prevent browser navigation
+      });
+    }
+    
+    return () => {
+      if (timelineContent) {
+        timelineContent.removeEventListener('wheel', enhancedWheelHandler, { capture: true });
+      }
+      if (availabilityContent) {
+        availabilityContent.removeEventListener('wheel', enhancedWheelHandler, { capture: true });
+      }
+    };
+  }, [handleHorizontalScroll]);
+
   const checkAutoScroll = useCallback((clientX: number) => {
     if (!isDragging) return;
     
@@ -1285,7 +1383,7 @@ export function TimelineView() {
                   />
                   
                   {/* Availability Timeline Content */}
-                  <div className="flex-1 flex flex-col bg-white relative" style={{ minWidth: `${dates.length * (mode === 'weeks' ? 77 : 40)}px` }}>
+                  <div className="flex-1 flex flex-col bg-white relative availability-timeline-content" style={{ minWidth: `${dates.length * (mode === 'weeks' ? 77 : 40)}px` }}>
                     {/* Holiday Overlay */}
                     {/* <HolidayOverlay dates={dates} type="availability" mode={mode} /> */}
                     

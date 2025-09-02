@@ -276,3 +276,16 @@ All colors MUST be HSL.
     rgba(107, 114, 128, 0.075) 4px
   );
 }
+
+/* Prevent browser back/forward navigation on horizontal scroll in timeline areas */
+.timeline-content-area,
+.availability-timeline-content {
+  overscroll-behavior-x: none;
+  -webkit-overscroll-behavior-x: none;
+}
+
+/* Additional prevention for the entire timeline container */
+.timeline-card-container {
+  overscroll-behavior-x: none;
+  -webkit-overscroll-behavior-x: none;
+}
