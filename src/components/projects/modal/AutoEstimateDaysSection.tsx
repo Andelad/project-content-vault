@@ -27,6 +27,7 @@ interface AutoEstimateDaysSectionProps {
     };
   };
   setLocalValues: (updater: (prev: any) => any) => void;
+  onAutoEstimateDaysChange?: (newAutoEstimateDays: any) => void;
 }
 
 const DAYS = [
@@ -44,6 +45,7 @@ export function AutoEstimateDaysSection({
   onToggle,
   localValues,
   setLocalValues,
+  onAutoEstimateDaysChange,
 }: AutoEstimateDaysSectionProps) {
   // Initialize autoEstimateDays with all days enabled if not set
   const autoEstimateDays = localValues.autoEstimateDays || {
@@ -66,7 +68,14 @@ export function AutoEstimateDaysSection({
       ...prev,
       autoEstimateDays: newAutoEstimateDays,
     }));
-  };  const enabledDaysCount = Object.values(autoEstimateDays).filter(Boolean).length;
+    
+    // Call the change handler if provided (for immediate persistence)
+    if (onAutoEstimateDaysChange) {
+      onAutoEstimateDaysChange(newAutoEstimateDays);
+    }
+  };
+
+  const enabledDaysCount = Object.values(autoEstimateDays).filter(Boolean).length;
 
   return (
     <div className="px-8 py-6 space-y-4">

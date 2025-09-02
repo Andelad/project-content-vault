@@ -343,6 +343,7 @@ export type Database = {
       }
       projects: {
         Row: {
+          auto_estimate_days: Json | null
           client: string
           color: string
           continuous: boolean | null
@@ -360,6 +361,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          auto_estimate_days?: Json | null
           client: string
           color: string
           continuous?: boolean | null
@@ -377,6 +379,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          auto_estimate_days?: Json | null
           client?: string
           color?: string
           continuous?: boolean | null

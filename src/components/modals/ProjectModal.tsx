@@ -687,14 +687,13 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
     }
   };
 
-  // Handle auto-estimate days changes (store locally, don't save to database)
+  // Handle auto-estimate days changes
   const handleAutoEstimateDaysChange = useCallback((newAutoEstimateDays: any) => {
     setLocalValues(prev => ({ ...prev, autoEstimateDays: newAutoEstimateDays }));
-    // Store in localStorage for this project
-    if (projectId) {
-      localStorage.setItem(`autoEstimateDays_${projectId}`, JSON.stringify(newAutoEstimateDays));
+    if (!isCreating && projectId) {
+      updateProject(projectId, { autoEstimateDays: newAutoEstimateDays }, { silent: true });
     }
-  }, [projectId]);
+  }, [isCreating, projectId, updateProject]);
 
   const handleContinuousToggle = () => {
     const newContinuous = !localValues.continuous;
@@ -1451,6 +1450,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
                     onToggle={() => setIsAutoEstimateDaysExpanded(!isAutoEstimateDaysExpanded)}
                     localValues={localValues}
                     setLocalValues={setLocalValues}
+                    onAutoEstimateDaysChange={handleAutoEstimateDaysChange}
                   />
                 </motion.div>
               )}

@@ -24,17 +24,24 @@ function transformDatabaseProject(dbProject: DatabaseProject): Project {
     icon: dbProject.icon || undefined,
     continuous: dbProject.continuous ?? false,
     status: 'current', // Default until database schema is updated
-    // TODO: Add autoEstimateDays support after database migration
-    // autoEstimateDays: dbProject.auto_estimate_days || {
-    autoEstimateDays: {
-      monday: true,
-      tuesday: true,
-      wednesday: true,
-      thursday: true,
-      friday: true,
-      saturday: true,
-      sunday: true,
-    },
+    autoEstimateDays: (dbProject.auto_estimate_days && typeof dbProject.auto_estimate_days === 'object') ? 
+      dbProject.auto_estimate_days as {
+        monday: boolean;
+        tuesday: boolean;
+        wednesday: boolean;
+        thursday: boolean;
+        friday: boolean;
+        saturday: boolean;
+        sunday: boolean;
+      } : {
+        monday: true,
+        tuesday: true,
+        wednesday: true,
+        thursday: true,
+        friday: true,
+        saturday: true,
+        sunday: true,
+      },
   };
 }
 
@@ -61,8 +68,7 @@ function transformToDatabase(projectData: any): any {
   if (projectData.notes !== undefined) dbData.notes = projectData.notes;
   if (projectData.icon !== undefined) dbData.icon = projectData.icon;
   if (projectData.continuous !== undefined) dbData.continuous = projectData.continuous;
-  // TODO: Add autoEstimateDays support after database migration
-  // if (projectData.autoEstimateDays !== undefined) dbData.auto_estimate_days = projectData.autoEstimateDays;
+  if (projectData.autoEstimateDays !== undefined) dbData.auto_estimate_days = projectData.autoEstimateDays;
   
   return dbData;
 }
