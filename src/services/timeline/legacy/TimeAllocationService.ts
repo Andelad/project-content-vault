@@ -102,6 +102,11 @@ export class TimeAllocationService {
       ? `${displayHours}h ${displayMinutes}m/day`
       : `${displayHours} hour${displayHours !== 1 ? 's' : ''}/day`;
 
+    // Extra aggressive debug log to catch all tooltip text generation
+    if (displayText.includes('3m') || displayText.includes('3 m') || displayMinutes === 3) {
+      console.log(`[FOUND 3 MINUTES LEGACY!] Tooltip text: "${displayText}" from ${allocation.hours}h (${(allocation.hours * 60).toFixed(1)} min), source: ${allocation.source}`);
+    }
+
     return {
       type: tooltipType,
       hours: allocation.hours,

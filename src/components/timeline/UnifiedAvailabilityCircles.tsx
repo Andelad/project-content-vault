@@ -11,8 +11,9 @@ import {
   calculateProjectWorkingDays,
   getProjectTimeAllocation
 } from '@/services/work-hours';
-import { WeeklyCapacityCalculationService, WorkHoursCalculationService } from '@/services';
+import { WeeklyCapacityCalculationService, WorkHoursCalculationService, expandHolidayDates } from '@/services';
 import { calculateAvailabilityCircleSize, getMinimumCircleDimensions } from '@/services';
+import { calculateAutoEstimateHoursPerDay, calculateAutoEstimateWorkingDays } from '@/services';
 
 type AvailabilityType = 
   | 'available' 
@@ -64,11 +65,16 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
     return weekDates;
   };
 
-  // Memoized calculation of project hours for a specific date - optimized for continuous projects
+  // Memoized calculation of project hours for a specific date - using proper auto-estimate calculations
   const getDailyProjectHours = useMemo(() => {
-    // Pre-filter and process continuous vs regular projects for better performance
-    const regularProjects = projects.filter((project: any) => !project.continuous);
-    const continuousProjects = projects.filter((project: any) => project.continuous);
+    // Convert holidays to Date array for the new calculation functions
+    const holidaysWithName = holidays.map(holiday => ({
+      startDate: new Date(holiday.startDate),
+      endDate: new Date(holiday.endDate),
+      name: holiday.title || 'Holiday',
+      id: holiday.id
+    }));
+    const holidayDates = expandHolidayDates(holidaysWithName);
     
     return (date: Date) => {
       let totalHours = 0;
@@ -77,38 +83,28 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
         return 0;
       }
       
-      // Process regular projects first (more predictable)
-      regularProjects.forEach((project: any) => {
+      // Use the proper auto-estimate calculation for each project
+      projects.forEach((project: any) => {
         const projectStart = new Date(project.startDate);
-        const projectEnd = new Date(project.endDate);
+        const projectEnd = project.continuous ? new Date() : new Date(project.endDate);
         
         if (date >= projectStart && date <= projectEnd) {
-          const workingDays = calculateProjectWorkingDays(projectStart, projectEnd, settings, holidays);
-          const totalWorkingDays = workingDays.length;
+          // Check if this specific date is a valid auto-estimate day for this project
+          const workingDays = calculateAutoEstimateWorkingDays(
+            projectStart,
+            projectEnd,
+            project.autoEstimateDays,
+            settings,
+            holidayDates
+          );
           
-          if (totalWorkingDays > 0) {
-            const hoursPerDay = project.estimatedHours / totalWorkingDays;
-            const roundedHoursPerDay = Math.ceil(hoursPerDay);
-            totalHours += roundedHoursPerDay;
-          }
-        }
-      });
-      
-      // Process continuous projects separately (they only need to check start date)
-      continuousProjects.forEach((project: any) => {
-        const projectStart = new Date(project.startDate);
-        
-        if (date >= projectStart) {
-          // For continuous projects, use a simplified calculation
-          // Assume 1 year duration for working days calculation to avoid viewport dependency
-          const oneYearLater = new Date(projectStart);
-          oneYearLater.setFullYear(projectStart.getFullYear() + 1);
+          // Check if the current date is in the working days for this project
+          const isProjectWorkingDay = workingDays.some(workingDay => 
+            workingDay.toDateString() === date.toDateString()
+          );
           
-          const workingDays = calculateProjectWorkingDays(projectStart, oneYearLater, settings, holidays);
-          const totalWorkingDays = workingDays.length;
-          
-          if (totalWorkingDays > 0) {
-            const hoursPerDay = project.estimatedHours / totalWorkingDays;
+          if (isProjectWorkingDay) {
+            const hoursPerDay = calculateAutoEstimateHoursPerDay(project, settings, holidayDates);
             const roundedHoursPerDay = Math.ceil(hoursPerDay);
             totalHours += roundedHoursPerDay;
           }

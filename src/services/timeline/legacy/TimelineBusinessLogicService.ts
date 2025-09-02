@@ -135,7 +135,10 @@ export class ProjectMetricsCalculationService {
     projectEndDate: Date,
     estimatedHours: number,
     isWorkingDay: (date: Date) => boolean,
-    heightCalculationService: any
+    heightCalculationService: any,
+    autoEstimateDays?: any,
+    settings?: any,
+    holidays?: any[]
   ): {
     exactDailyHours: number;
     dailyHours: number;
@@ -146,15 +149,45 @@ export class ProjectMetricsCalculationService {
     const projectStart = new Date(projectStartDate);
     const projectEnd = new Date(projectEndDate);
 
-    // Count only working days (days with > 0 hours in settings and not holidays)
-    const workingDays = [];
-    for (let d = new Date(projectStart); d <= projectEnd; d.setDate(d.getDate() + 1)) {
-      if (isWorkingDay(new Date(d))) {
-        workingDays.push(new Date(d));
+    let workingDays: Date[];
+    
+    // Use auto-estimate working days if available, otherwise fall back to basic working day calculation
+    if (autoEstimateDays && settings && holidays) {
+      // Inline the auto-estimate working days calculation logic (copied from other services)
+      workingDays = [];
+      
+      for (let d = new Date(projectStart); d <= projectEnd; d.setDate(d.getDate() + 1)) {
+        const currentDate = new Date(d);
+        
+        // Check if it's a basic working day first
+        if (!isWorkingDay(currentDate)) {
+          continue;
+        }
+        
+        // Check if this day type is excluded in autoEstimateDays
+        const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const dayName = dayNames[currentDate.getDay()];
+        
+        if (autoEstimateDays && autoEstimateDays[dayName] === false) {
+          continue; // Skip this day type
+        }
+        
+        workingDays.push(currentDate);
+      }
+    } else {
+      // Fallback to basic working day calculation
+      workingDays = [];
+      for (let d = new Date(projectStart); d <= projectEnd; d.setDate(d.getDate() + 1)) {
+        if (isWorkingDay(new Date(d))) {
+          workingDays.push(new Date(d));
+        }
       }
     }
 
     const totalWorkingDays = workingDays.length;
+
+    // Debug log to verify which calculation path is being used
+    console.log(`[DEBUG] ProjectMetrics: ${estimatedHours}h ÷ ${totalWorkingDays} days = ${estimatedHours / totalWorkingDays}h per day (${((estimatedHours / totalWorkingDays) * 60).toFixed(1)} min/day) - autoEstimate: ${!!autoEstimateDays}`);
 
     // If no working days, don't divide by zero
     if (totalWorkingDays === 0) {

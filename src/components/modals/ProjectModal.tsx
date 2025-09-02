@@ -15,7 +15,7 @@ import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 import { useTimelineContext } from '../../contexts/TimelineContext';
-import { calculateProjectTimeMetrics } from '@/services/projects';
+import { calculateProjectTimeMetrics, calculateAutoEstimateHoursPerDay, expandHolidayDates } from '@/services';
 import { ProjectWorkingDaysService } from '@/services/projects/legacy/projectWorkingDaysService';
 import { formatTimeHoursMinutes } from '@/utils/timeFormatUtils';
 import { formatDate, formatDateForInput } from '@/utils/dateFormatUtils';
@@ -1190,13 +1190,28 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
                 style={{ color: localValues.color || OKLCH_PROJECT_COLORS[0] }}
               >
                 {(() => {
-                  const workingDays = ProjectWorkingDaysService.calculateTotalWorkingDays(localValues.startDate, localValues.endDate, settings, holidays);
-                  if (workingDays === 0) {
+                  // Use the proper auto-estimate calculation that respects autoEstimateDays
+                  if (!localValues.startDate || !localValues.endDate || !localValues.estimatedHours) {
                     return 'Avg -';
-                  } else {
-                    const avgHoursPerDay = localValues.estimatedHours / workingDays;
-                    return `Avg ${formatTimeHoursMinutes(avgHoursPerDay)} per day`;
                   }
+                  
+                  const avgHoursPerDay = calculateAutoEstimateHoursPerDay(
+                    {
+                      startDate: localValues.startDate,
+                      endDate: localValues.endDate,
+                      estimatedHours: localValues.estimatedHours,
+                      autoEstimateDays: localValues.autoEstimateDays,
+                      continuous: localValues.continuous
+                    } as any,
+                    settings,
+                    expandHolidayDates(holidays.map(h => ({ 
+                      startDate: new Date(h.startDate), 
+                      endDate: new Date(h.endDate), 
+                      name: h.title || 'Holiday' 
+                    })))
+                  );
+                  
+                  return avgHoursPerDay > 0 ? `Avg ${formatTimeHoursMinutes(avgHoursPerDay)} per day` : 'Avg -';
                 })()}
               </div>
               

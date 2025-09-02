@@ -18,6 +18,7 @@
 import type { Milestone } from '@/types/core';
 import { MilestoneManagementService } from './milestoneManagementService';
 import { cachedMilestoneCalculation } from '@/lib/milestoneCache';
+import { calculateAutoEstimateWorkingDays } from '@/services/projects/ProjectCalculations';
 
 /**
  * Interface for milestone time distribution entry
@@ -74,12 +75,18 @@ export const MILESTONE_CALCULATION_CONFIG = {
  * @param milestones - Array of milestones to distribute
  * @param projectStartDate - Project start date
  * @param projectEndDate - Project end date
+ * @param autoEstimateDays - Optional auto-estimate days filter
+ * @param settings - Optional settings for holiday checking
+ * @param holidays - Optional holidays array
  * @returns Array of daily time distribution entries
  */
 export function calculateMilestoneTimeDistribution(
   milestones: Milestone[],
   projectStartDate: Date,
-  projectEndDate: Date
+  projectEndDate: Date,
+  autoEstimateDays?: any,
+  settings?: any,
+  holidays?: any[]
 ): MilestoneTimeDistributionEntry[] {
   if (milestones.length === 0) {
     return [];
@@ -103,8 +110,21 @@ export function calculateMilestoneTimeDistribution(
     const timeDiff = milestoneDate.getTime() - currentDate.getTime();
     const daysDiff = Math.max(1, Math.ceil(timeDiff / (1000 * 60 * 60 * 24)));
 
-    // Distribute milestone hours across the days
-    const hoursPerDay = milestone.timeAllocation / daysDiff;
+    // Calculate hours per day - use auto-estimate days if available
+    let hoursPerDay: number;
+    if (autoEstimateDays && settings && holidays) {
+      const workingDays = calculateAutoEstimateWorkingDays(
+        currentDate,
+        milestoneDate,
+        autoEstimateDays,
+        settings,
+        holidays.map(h => new Date(h.startDate || h))
+      );
+      hoursPerDay = workingDays.length > 0 ? milestone.timeAllocation / workingDays.length : 0;
+    } else {
+      // Fallback to calendar days
+      hoursPerDay = milestone.timeAllocation / daysDiff;
+    }
 
     // Add entries for each day leading up to the milestone
     for (let day = 0; day < daysDiff; day++) {
@@ -484,7 +504,8 @@ export function calculateMilestoneSegments(
   isWorkingDay: (date: Date) => boolean,
   events: any[] = [],
   projectTotalBudget?: number,
-  workHours?: WorkHour[]
+  workHours?: WorkHour[],
+  autoEstimateDays?: any
 ): MilestoneSegment[] {
   // Create a unique identifier for this calculation
   const milestoneIds = milestones.map(m => m.id).sort().join(',');
@@ -524,13 +545,21 @@ export function calculateMilestoneSegments(
         const segmentEndDate = new Date(milestoneDate);
 
         // Calculate working days in this segment (including milestone day)
-        const workingDays = calculateWorkingDaysInRange(
-          currentStartDate,
-          segmentEndDate,
-          isWorkingDay,
-          holidays,
-          workHours
-        );
+        const workingDays = autoEstimateDays 
+          ? calculateAutoEstimateWorkingDays(
+              currentStartDate,
+              segmentEndDate, 
+              autoEstimateDays,
+              settings,
+              holidays.map(h => new Date(h.startDate))
+            ).length
+          : calculateWorkingDaysInRange(
+              currentStartDate,
+              segmentEndDate,
+              isWorkingDay,
+              holidays,
+              workHours
+            );
 
         // Calculate total planned time in this segment
         const plannedTimeInSegment = calculatePlannedTimeInSegment(

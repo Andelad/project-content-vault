@@ -32,6 +32,9 @@ export class TimeAllocationService {
     holidays: any[],
     milestoneSegments: MilestoneSegment[]
   ): TimeAllocationResult {
+    // Debug log for time allocation request
+    console.log(`[DEBUG] TimeAllocation for project ${projectId} on ${date.toDateString()} at ${Date.now()}`);
+    
     // Get base time allocation (planned vs auto-estimate)
     const timeAllocation = memoizedGetProjectTimeAllocation(
       projectId,
@@ -98,9 +101,17 @@ export class TimeAllocationService {
     const displayHours = Math.floor(allocation.hours);
     const displayMinutes = Math.round((allocation.hours - displayHours) * 60);
     
+    // Debug log for tooltip generation
+    console.log(`[DEBUG] Tooltip: ${allocation.hours}h = ${displayHours}h ${displayMinutes}m/day (source: ${allocation.source}) at ${Date.now()}`);
+    
     const displayText = displayMinutes > 0 
       ? `${displayHours}h ${displayMinutes}m/day`
       : `${displayHours} hour${displayHours !== 1 ? 's' : ''}/day`;
+
+    // Extra aggressive debug log to catch all tooltip text generation
+    if (displayText.includes('3m') || displayText.includes('3 m') || displayMinutes === 3) {
+      console.log(`[FOUND 3 MINUTES!] Tooltip text: "${displayText}" from ${allocation.hours}h (${(allocation.hours * 60).toFixed(1)} min), source: ${allocation.source}`);
+    }
 
     return {
       type: tooltipType,

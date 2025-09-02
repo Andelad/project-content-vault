@@ -157,9 +157,10 @@ export const TimelineBar = memo(function TimelineBar({
       isWorkingDay,
       events,
       project.estimatedHours, // Pass the project total budget
-      workHoursForPeriod // Pass work hours for accurate working day calculation
+      workHoursForPeriod, // Pass work hours for accurate working day calculation
+      project.autoEstimateDays // Pass auto-estimate days for proper filtering
     );
-  }, [project.id, project.startDate, project.endDate, milestones, settings, holidays, isWorkingDay, events, project.estimatedHours, workHoursForPeriod]);
+  }, [project.id, project.startDate, project.endDate, milestones, settings, holidays, isWorkingDay, events, project.estimatedHours, workHoursForPeriod, project.autoEstimateDays]);
 
   // Memoize project metrics calculation using service
   const projectMetrics = useMemo(() => {
@@ -168,9 +169,12 @@ export const TimelineBar = memo(function TimelineBar({
       project.endDate,
       project.estimatedHours,
       isWorkingDay,
-      HeightCalculationService
+      HeightCalculationService,
+      project.autoEstimateDays, // Pass auto-estimate days for proper filtering
+      settings, // Pass settings for working day calculation
+      holidays // Pass holidays for working day calculation
     );
-  }, [project.startDate, project.endDate, project.estimatedHours, isWorkingDay]);
+  }, [project.startDate, project.endDate, project.estimatedHours, isWorkingDay, project.autoEstimateDays, settings, holidays]);
   
   // Memoize color calculations to avoid repeated parsing
   const colorScheme = useMemo(() => {
@@ -252,7 +256,15 @@ export const TimelineBar = memo(function TimelineBar({
                       const isHoliday = isHolidayDate(currentDay, holidays);
                       const isDayWorking = !isHoliday && totalDayWork > 0;
                       
-                      if (!isDayInProject || !isDayWorking) {
+                      // Check if this day is enabled for auto-estimation in project settings
+                      const dayOfWeekName = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][currentDay.getDay()];
+                      const autoEstimateDays = project.autoEstimateDays || {
+                        monday: true, tuesday: true, wednesday: true, thursday: true,
+                        friday: true, saturday: true, sunday: true
+                      };
+                      const isDayEnabled = autoEstimateDays[dayOfWeekName as keyof typeof autoEstimateDays];
+                      
+                      if (!isDayInProject || !isDayWorking || !isDayEnabled) {
                         return <div key={dayOfWeek} style={{ width: `${dayWidth}px` }}></div>;
                       }
                       
@@ -370,6 +382,9 @@ export const TimelineBar = memo(function TimelineBar({
                               
                               const tooltipInfo = TimeAllocationService.getTooltipInfo(allocation);
                               
+                              // Debug log directly in the first tooltip JSX
+                              console.log(`[DEBUG] Rendering first tooltip for project ${project.id}: "${tooltipInfo.displayText}" (allocation.hours: ${allocation.hours}, source: ${allocation.source}) - PROJECT NAME: "${project.name}" CLIENT: "${project.client}"`);
+                              
                               return (
                                 <div className="text-xs">
                                   <div className="font-medium">
@@ -411,7 +426,16 @@ export const TimelineBar = memo(function TimelineBar({
               const dayWorkHours = generateWorkHoursForDate(date, settings);
               const totalDayWork = TimelineCalculationService.calculateWorkHoursTotal(dayWorkHours);
               const isHoliday = isHolidayDate(date, holidays);
-              if (!isProjectDay || isHoliday || totalDayWork === 0) {
+              
+              // Check if this day is enabled for auto-estimation in project settings
+              const dayOfWeekName = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][date.getDay()];
+              const autoEstimateDays = project.autoEstimateDays || {
+                monday: true, tuesday: true, wednesday: true, thursday: true,
+                friday: true, saturday: true, sunday: true
+              };
+              const isDayEnabled = autoEstimateDays[dayOfWeekName as keyof typeof autoEstimateDays];
+              
+              if (!isProjectDay || isHoliday || totalDayWork === 0 || !isDayEnabled) {
                 return <div key={dateIndex} className="h-full" style={{ minWidth: '40px', width: '40px' }}></div>;
               }
 
@@ -644,6 +668,9 @@ export const TimelineBar = memo(function TimelineBar({
                       {(() => {
                         // Use centralized service for consistent tooltip values
                         const tooltipInfo = TimeAllocationService.getTooltipInfo(allocation);
+                        
+                        // Debug log directly in the tooltip JSX
+                        console.log(`[DEBUG] Rendering tooltip for project ${project.id}: "${tooltipInfo.displayText}" (allocation.hours: ${allocation.hours}, source: ${allocation.source}) - PROJECT NAME: "${project.name}" CLIENT: "${project.client}"`);
                         
                         return (
                           <div className="text-xs">
