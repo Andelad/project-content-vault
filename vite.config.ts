@@ -61,7 +61,7 @@ export default defineConfig(({ mode }) => {
               '@radix-ui/react-tooltip',
               '@radix-ui/react-select'
             ],
-            calendar: ['react-big-calendar', 'moment'],
+            fullcalendar: ['@fullcalendar/core', '@fullcalendar/react', '@fullcalendar/timegrid', '@fullcalendar/interaction'],
             charts: ['recharts'],
             forms: ['react-hook-form', '@hookform/resolvers', 'zod'],
             utils: ['date-fns', 'dompurify', 'clsx', 'tailwind-merge']

@@ -35,6 +35,7 @@ export function getBaseFullCalendarConfig(): Partial<CalendarOptions> {
     selectable: true,
     selectMirror: true,
     dayMaxEvents: false,
+    allDaySlot: false, // Remove all-day events slot
     
     // Enable event resizing
     eventResizableFromStart: true, // Allow resizing from the start of the event

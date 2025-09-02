@@ -3,15 +3,39 @@
 /* Override FullCalendar default styles to match our design */
 .fc {
   font-family: inherit;
+  border: none !important; /* Remove main calendar border like regular planner */
+  background-color: transparent !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  box-shadow: none !important; /* Remove any shadow from FullCalendar itself */
+}
+
+/* Ensure NO shadows from any FullCalendar elements */
+.fc *,
+.fc::before,
+.fc::after {
+  box-shadow: none !important;
 }
 
 .fc-theme-standard td, 
 .fc-theme-standard th {
-  border-color: #e2e2e2;
+  border-color: #e2e2e2; /* Restore internal grid borders */
 }
 
 .fc-theme-standard .fc-scrollgrid {
-  border-color: #e2e2e2;
+  border: none; /* Keep scrollgrid border removed to avoid double border with card */
+}
+
+/* Remove borders from all FullCalendar view containers */
+.fc-view-harness,
+.fc-timegrid,
+.fc-daygrid,
+.fc-scrollgrid-section,
+.fc-scrollgrid-section-header,
+.fc-scrollgrid-section-body {
+  border: none !important;
+  box-shadow: none !important; /* Ensure no shadows interfere with card shadow */
+  background: transparent !important; /* Ensure background doesn't affect shadow rendering */
 }
 
 /* Ensure resize handles are always visible */
@@ -46,10 +70,44 @@
   font-size: 12px;
   padding: 2px 4px;
   position: relative;
+  border: none !important; /* No default border */
 }
 
 .planner-v2-event.completed {
   opacity: 0.7;
+}
+
+/* Remove all default FullCalendar borders and visual effects */
+.fc-event,
+.fc-event-main,
+.fc-event-title-container,
+.fc-event-time,
+.fc-event-title {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Ensure no box-shadow on hover either */
+.fc-event:hover {
+  box-shadow: none !important;
+}
+
+/* Remove box-shadow from selected events too */
+.fc-event.fc-event-selected {
+  box-shadow: none !important;
+}
+
+/* Non-completed events get dashed borders in project color (like regular planner) */
+.fc-event.future-event,
+.planner-v2-event.future-event {
+  border: 2px dashed var(--future-event-border-color) !important;
+}
+
+/* Selected events get solid borders in project color */
+.fc-event.selected-event,
+.planner-v2-event.selected-event {
+  border: 2px solid var(--selected-event-border-color) !important;
 }
 
 /* Pulse animation for tracking indicator */
@@ -95,15 +153,72 @@
   height: 7px;
 }
 
-/* Header styles */
+/* Header styles - Match toggle button height (h-9 = 36px) */
+.fc-col-header,
 .fc-col-header-cell {
   background-color: #f9fafb;
-  font-weight: 600;
+  font-weight: 500;
   color: #374151;
+  height: 36px !important; /* Match h-9 toggle button height */
+  min-height: 36px !important;
+  font-size: 14px; /* Match text-sm from regular planner */
+  position: relative !important;
+  vertical-align: middle !important;
+}
+
+.fc-col-header-cell-cushion {
+  padding: 0 4px !important; /* Horizontal padding only */
+  font-weight: 500; /* Match regular planner font weight */
+  height: 36px !important; /* Match the cell height */
+  min-height: 36px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important; /* Prevent line-height from affecting vertical centering */
+  box-sizing: border-box !important;
+  margin: 0 !important;
+}
+
+/* Day view headers should be larger like regular planner */
+.fc-timegrid-day-view .fc-col-header-cell,
+.fc-timegrid-day-view .fc-col-header-cell-cushion {
+  font-size: 18px; /* Match text-lg from regular planner day headers */
+}
+
+/* Week view headers stay smaller */
+.fc-timegrid-week-view .fc-col-header-cell,
+.fc-timegrid-week-view .fc-col-header-cell-cushion {
+  font-size: 14px; /* Match text-sm from regular planner week headers */
+}
+
+/* Additional fallback centering approach */
+.fc-col-header-cell-cushion * {
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: 1 !important;
+}
+
+/* Ensure text is perfectly centered */
+.fc-col-header-cell a,
+.fc-col-header-cell span {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 100% !important;
+  line-height: 1 !important;
+}
+
+/* Alternative class names for different FullCalendar versions */
+.fc-day-header .fc-col-header-cell-cushion {
+  font-size: 18px; /* Day view fallback */
+}
+
+.fc-week-header .fc-col-header-cell-cushion {
+  font-size: 14px; /* Week view fallback */
 }
 
 .fc-daygrid-day-number {
-  font-weight: 600;
+  font-weight: 500;
   color: #374151;
 }
 
@@ -120,7 +235,7 @@
 
 .fc-day-today .fc-col-header-cell-cushion {
   color: #d97706;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 /* Now indicator */
@@ -165,10 +280,7 @@
 /* Event interaction states */
 .fc-event:hover {
   opacity: 0.85;
-}
-
-.fc-event.fc-event-selected {
-  box-shadow: 0 0 0 2px #02c0b7;
+  /* box-shadow removed - handled above */
 }
 
 /* Drag and drop */
@@ -205,7 +317,7 @@
 /* Make resize handles more visible on hover */
 .fc-event:hover {
   opacity: 0.85;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  /* box-shadow removed - handled above */
 }
 
 /* Mobile responsive adjustments */

@@ -35,6 +35,7 @@ export function PlannerV2View() {
   const { 
     events,
     fullCalendarEvents,
+    getStyledFullCalendarEvents,
     selectedEventId,
     setSelectedEventId,
     updateEventWithUndo,
@@ -420,7 +421,7 @@ export function PlannerV2View() {
   const calendarConfig = {
     ...getBaseFullCalendarConfig(),
     ...getEventStylingConfig(),
-    events: fullCalendarEvents,
+    events: getStyledFullCalendarEvents({ selectedEventId, projects }),
     initialView: currentView === 'week' ? 'timeGridWeek' : 'timeGridDay',
     initialDate: calendarDate,
     
@@ -432,6 +433,16 @@ export function PlannerV2View() {
     eventDrop: handleEventDrop,
     eventResize: handleEventResize,
     select: handleDateSelect,
+    eventDidMount: (info: any) => {
+      // Set custom CSS properties for border colors
+      const { futureEventBorderColor, selectedEventBorderColor } = info.event.extendedProps;
+      if (futureEventBorderColor) {
+        info.el.style.setProperty('--future-event-border-color', futureEventBorderColor);
+      }
+      if (selectedEventBorderColor) {
+        info.el.style.setProperty('--selected-event-border-color', selectedEventBorderColor);
+      }
+    },
     
     // Ensure events are resizable
     editable: true,

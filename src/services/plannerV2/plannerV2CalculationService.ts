@@ -13,14 +13,17 @@ export class PlannerV2CalculationService {
   static prepareEventsForFullCalendar(
     events: CalendarEvent[], 
     workHours: WorkHour[],
-    layerMode: 'events' | 'work-hours' | 'both' = 'both'
+    layerMode: 'events' | 'work-hours' | 'both' = 'both',
+    options: { selectedEventId?: string | null; projects?: any[] } = {}
   ): EventInput[] {
+    const { selectedEventId, projects = [] } = options;
     const fcEvents: EventInput[] = [];
     
     // Add calendar events if in events or both mode
     if (layerMode === 'events' || layerMode === 'both') {
       events.forEach(event => {
-        fcEvents.push(transformCalendarEventToFullCalendar(event));
+        const isSelected = selectedEventId === event.id;
+        fcEvents.push(transformCalendarEventToFullCalendar(event, { isSelected, projects }));
       });
     }
     

@@ -50,6 +50,9 @@ interface PlannerV2ContextType {
   // FullCalendar Events
   fullCalendarEvents: EventInput[];
   
+  // Method to get styled events with project context
+  getStyledFullCalendarEvents: (options: { selectedEventId?: string | null; projects?: any[] }) => EventInput[];
+  
   // Utility functions
   getEventsForDate: (date: Date) => CalendarEvent[];
   getEventsInDateRange: (startDate: Date, endDate: Date) => CalendarEvent[];
@@ -265,6 +268,16 @@ export function PlannerV2Provider({ children }: { children: React.ReactNode }) {
     );
   }, [processedEvents, workHours, layerMode]);
 
+  // Method to get styled events with project context
+  const getStyledFullCalendarEvents = useCallback((options: { selectedEventId?: string | null; projects?: any[] } = {}) => {
+    return PlannerV2CalculationService.prepareEventsForFullCalendar(
+      processedEvents,
+      workHours || [],
+      layerMode,
+      options
+    );
+  }, [processedEvents, workHours, layerMode]);
+
   const contextValue: PlannerV2ContextType = {
     // Calendar Events
     events: processedEvents,
@@ -301,6 +314,9 @@ export function PlannerV2Provider({ children }: { children: React.ReactNode }) {
     
     // FullCalendar Events
     fullCalendarEvents,
+    
+    // Method to get styled events with project context
+    getStyledFullCalendarEvents,
     
     // Utility functions
     getEventsForDate,

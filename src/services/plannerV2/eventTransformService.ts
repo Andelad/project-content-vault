@@ -1,18 +1,57 @@
 import { CalendarEvent, WorkHour } from '@/types';
 import { EventInput } from '@fullcalendar/core';
+import { calculateEventStyle, type EventStyleConfig } from '@/services/events/eventWorkHourIntegrationService';
+import { OKLCH_FALLBACK_GRAY } from '@/constants/colors';
 
 /**
  * Transform CalendarEvent to FullCalendar EventInput format
  */
-export function transformCalendarEventToFullCalendar(event: CalendarEvent): EventInput {
+export function transformCalendarEventToFullCalendar(event: CalendarEvent, options: { isSelected?: boolean; projects?: any[] } = {}): EventInput {
+  const { isSelected = false, projects = [] } = options;
+  
+  // Find project for color fallback
+  const project = event.projectId ? projects.find(p => p.id === event.projectId) : null;
+  
+  // Get the base color (project color or fallback)
+  const baseColor = event.color || (project ? project.color : OKLCH_FALLBACK_GRAY);
+  
+  // Check if event is in the future (non-completed)
+  const now = new Date();
+  const eventStart = new Date(event.startTime);
+  const isFutureEvent = eventStart > now;
+  const isNonCompleted = !event.completed;
+  
+  // Calculate event styling using service (same as regular planner)
+  const styleConfig: EventStyleConfig = {
+    isSelected,
+    isFutureEvent: isNonCompleted, // All non-completed events get future styling
+    isActiveLayer: true, // Always active in PlannerV2
+    isCompleted: event.completed
+  };
+  
+  const { backgroundColor, textColor, borderColor } = calculateEventStyle(baseColor, styleConfig);
+  
+  // Determine CSS classes for styling
+  const cssClasses = ['planner-v2-event'];
+  if (event.completed) {
+    cssClasses.push('completed');
+  }
+  if (isNonCompleted) {
+    cssClasses.push('future-event');
+  }
+  if (isSelected) {
+    cssClasses.push('selected-event');
+  }
+  
   return {
     id: event.id,
     title: event.title,
     start: event.startTime,
     end: event.endTime,
-    backgroundColor: event.color,
-    borderColor: event.color,
-    textColor: getContrastTextColor(event.color || '#666'),
+    backgroundColor,
+    // Don't set borderColor - let CSS classes handle borders completely
+    textColor,
+    className: cssClasses,
     extendedProps: {
       description: event.description,
       projectId: event.projectId,
@@ -20,7 +59,10 @@ export function transformCalendarEventToFullCalendar(event: CalendarEvent): Even
       duration: event.duration,
       type: event.type,
       recurring: event.recurring,
-      originalEvent: event
+      originalEvent: event,
+      // Store colors for CSS custom properties
+      futureEventBorderColor: baseColor,
+      selectedEventBorderColor: borderColor
     },
     editable: true,
     startEditable: true,

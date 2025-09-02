@@ -63,11 +63,6 @@ export function Sidebar() {
       icon: Calendar,
     },
     {
-      id: 'plannerV2' as const,
-      label: 'Planner V2',
-      icon: Calendar,
-    },
-    {
       id: 'insights' as const,
       label: 'Insights',
       icon: PieChart,
