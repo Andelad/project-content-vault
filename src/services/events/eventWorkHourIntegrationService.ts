@@ -16,7 +16,8 @@
  * @module EventWorkHourIntegrationService
  */
 
-import type { CalendarEvent, WorkHour } from '@/types';
+import { WorkHour, CalendarEvent } from '@/types';
+import { calculateAutoEstimateWorkingDays } from '../projects/ProjectCalculations';
 import { memoizeExpensiveCalculation, timelineCalculationCache } from '@/services/core/performance/cachePerformanceService';
 import { calculateEventDurationOnDateLegacy as calculateEventDurationOnDate } from './legacy/eventDurationService';
 import { getCalendarEventBackgroundColor, getCalendarEventTextColor } from '@/constants/colors';
@@ -352,10 +353,26 @@ export function getProjectTimeAllocation(
     effectiveProjectEnd.setHours(0, 0, 0, 0);
   }
 
-  // Use memoized calculation for project working days
-  const projectWorkingDays = memoizedProjectWorkingDays(projectStart, effectiveProjectEnd, settings, holidays);
+  // Use the new auto-estimate working days calculation that respects excluded days
+  const projectWorkingDays = calculateAutoEstimateWorkingDays(
+    projectStart, 
+    effectiveProjectEnd, 
+    project.autoEstimateDays, 
+    settings, 
+    holidays
+  );
 
   if (projectWorkingDays.length === 0) {
+    return { type: 'none', hours: 0, isWorkingDay: true };
+  }
+
+  // Check if the current date is in the list of auto-estimate working days
+  const currentDateString = normalizedDate.toDateString();
+  const isInAutoEstimateDays = projectWorkingDays.some(workDay => 
+    workDay.toDateString() === currentDateString
+  );
+
+  if (!isInAutoEstimateDays) {
     return { type: 'none', hours: 0, isWorkingDay: true };
   }
 

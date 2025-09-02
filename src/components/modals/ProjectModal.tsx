@@ -10,7 +10,7 @@ import { Calendar } from '../ui/calendar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
-import { RichTextEditor, ProjectMilestoneSection, ProjectInsightsSection, ProjectNotesSection } from '../projects';
+import { RichTextEditor, ProjectMilestoneSection, ProjectInsightsSection, ProjectNotesSection, AutoEstimateDaysSection } from '../projects';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
@@ -139,6 +139,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
   // State for collapsible sections
   const [isInsightsExpanded, setIsInsightsExpanded] = useState(false);
   const [isNotesExpanded, setIsNotesExpanded] = useState(true);
+  const [isAutoEstimateDaysExpanded, setIsAutoEstimateDaysExpanded] = useState(false);
   
   // Temporary state for style picker
   const [tempColor, setTempColor] = useState('');
@@ -169,7 +170,16 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
     endDate: new Date(),
     color: '',
     icon: 'folder',
-    continuous: false
+    continuous: false,
+    autoEstimateDays: {
+      monday: true,
+      tuesday: true,
+      wednesday: true,
+      thursday: true,
+      friday: true,
+      saturday: true,
+      sunday: true,
+    }
   });
 
   // Stable callbacks/objects for MilestoneManager (avoid render loops)
@@ -207,7 +217,16 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
     endDate: new Date(),
     color: '',
     icon: 'folder',
-    continuous: false
+    continuous: false,
+    autoEstimateDays: {
+      monday: true,
+      tuesday: true,
+      wednesday: true,
+      thursday: true,
+      friday: true,
+      saturday: true,
+      sunday: true,
+    }
   });
 
   useEffect(() => {
@@ -221,7 +240,16 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
         endDate: new Date(project.endDate),
         color: project.color,
         icon: project.icon,
-        continuous: project.continuous ?? false // Handle null values from database
+        continuous: project.continuous ?? false, // Handle null values from database
+        autoEstimateDays: project.autoEstimateDays || {
+          monday: true,
+          tuesday: true,
+          wednesday: true,
+          thursday: true,
+          friday: true,
+          saturday: true,
+          sunday: true,
+        }
       };
       
       setLocalValues(projectValues);
@@ -243,7 +271,16 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
         endDate: creatingNewProject?.endDate || nextWeek,
         color: OKLCH_PROJECT_COLORS[0],
         icon: 'folder',
-        continuous: false
+        continuous: false,
+        autoEstimateDays: {
+          monday: true,
+          tuesday: true,
+          wednesday: true,
+          thursday: true,
+          friday: true,
+          saturday: true,
+          sunday: true,
+        }
       };
       
       setLocalValues(defaultValues);
@@ -285,7 +322,8 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
           color: localValues.color || OKLCH_PROJECT_COLORS[0],
           notes: localValues.notes,
           icon: localValues.icon,
-          continuous: localValues.continuous
+          continuous: localValues.continuous,
+          autoEstimateDays: localValues.autoEstimateDays
         });
 
         // If project was created successfully and we have milestones or recurring milestone, save them
@@ -648,6 +686,15 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
       updateProject(projectId, { notes: value }, { silent: true });
     }
   };
+
+  // Handle auto-estimate days changes (store locally, don't save to database)
+  const handleAutoEstimateDaysChange = useCallback((newAutoEstimateDays: any) => {
+    setLocalValues(prev => ({ ...prev, autoEstimateDays: newAutoEstimateDays }));
+    // Store in localStorage for this project
+    if (projectId) {
+      localStorage.setItem(`autoEstimateDays_${projectId}`, JSON.stringify(newAutoEstimateDays));
+    }
+  }, [projectId]);
 
   const handleContinuousToggle = () => {
     const newContinuous = !localValues.continuous;
@@ -1369,6 +1416,42 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
                       />
                     </div>
                   </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Auto-Estimate Days */}
+          <div className="border-b border-gray-200">
+            <button
+              onClick={() => setIsAutoEstimateDaysExpanded(!isAutoEstimateDaysExpanded)}
+              className="w-full px-8 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                {isAutoEstimateDaysExpanded ? (
+                  <ChevronDown className="w-4 h-4 text-gray-500" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 text-gray-500" />
+                )}
+                <h3 className="text-lg font-medium text-gray-900">Auto-Estimate Days</h3>
+              </div>
+            </button>
+            
+            <AnimatePresence>
+              {isAutoEstimateDaysExpanded && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
+                >
+                  <AutoEstimateDaysSection
+                    isExpanded={isAutoEstimateDaysExpanded}
+                    onToggle={() => setIsAutoEstimateDaysExpanded(!isAutoEstimateDaysExpanded)}
+                    localValues={localValues}
+                    setLocalValues={setLocalValues}
+                  />
                 </motion.div>
               )}
             </AnimatePresence>

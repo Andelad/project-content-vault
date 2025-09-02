@@ -26,6 +26,15 @@ export interface Project {
   milestones?: Milestone[]; // Project milestones
   continuous?: boolean; // Whether the project is continuous (no end date)
   status?: ProjectStatus; // Project status for organization
+  autoEstimateDays?: {
+    monday: boolean;
+    tuesday: boolean;
+    wednesday: boolean;
+    thursday: boolean;
+    friday: boolean;
+    saturday: boolean;
+    sunday: boolean;
+  }; // Days to include in auto-estimation (default: all true)
 }
 
 export interface Row {
