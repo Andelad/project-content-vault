@@ -17,6 +17,13 @@ interface PlannerV2ContextType {
   // Holidays
   holidays: Holiday[];
   isHolidaysLoading: boolean;
+  addHoliday: (holiday: any) => Promise<any>;
+  updateHoliday: (id: string, updates: any, options?: { silent?: boolean }) => Promise<any>;
+  deleteHoliday: (id: string) => Promise<any>;
+  creatingNewHoliday: { startDate: Date; endDate: Date } | null;
+  setCreatingNewHoliday: (creating: { startDate: Date; endDate: Date } | null) => void;
+  editingHolidayId: string | null;
+  setEditingHolidayId: (holidayId: string | null) => void;
   
   // Work Hours
   workHours: any[];
@@ -72,7 +79,10 @@ export function PlannerV2Provider({ children }: { children: React.ReactNode }) {
   
   const { 
     holidays: dbHolidays, 
-    loading: holidaysLoading 
+    loading: holidaysLoading,
+    addHoliday,
+    updateHoliday,
+    deleteHoliday
   } = useHolidays();
 
   const { 
@@ -85,6 +95,10 @@ export function PlannerV2Provider({ children }: { children: React.ReactNode }) {
   const [creatingNewEvent, setCreatingNewEvent] = useState<{ startTime?: Date; endTime?: Date } | null>(null);
   const [layerMode, setLayerMode] = useState<'events' | 'work-hours' | 'both'>('both');
   const [currentView, setCurrentView] = useState<'week' | 'day'>('week');
+  
+  // Holiday UI state
+  const [creatingNewHoliday, setCreatingNewHoliday] = useState<{ startDate: Date; endDate: Date } | null>(null);
+  const [editingHolidayId, setEditingHolidayId] = useState<string | null>(null);
   
   // Undo state
   const [lastAction, setLastAction] = useState<{
@@ -289,6 +303,13 @@ export function PlannerV2Provider({ children }: { children: React.ReactNode }) {
     // Holidays
     holidays: processedHolidays,
     isHolidaysLoading: holidaysLoading,
+    addHoliday,
+    updateHoliday,
+    deleteHoliday,
+    creatingNewHoliday,
+    setCreatingNewHoliday,
+    editingHolidayId,
+    setEditingHolidayId,
     
     // Work Hours
     workHours: workHours || [],

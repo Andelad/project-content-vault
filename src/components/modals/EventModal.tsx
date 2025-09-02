@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
-import { usePlannerV2Context } from '../../contexts/PlannerV2Context';
 import { CalendarEvent } from '../../types';
 import { calculateDurationHours } from '../../services/work-hours';
 import { Button } from '../ui/button';
@@ -15,6 +14,7 @@ import { Switch } from '../ui/switch';
 import { cn } from '@/lib/utils';
 import { OKLCH_FALLBACK_GRAY } from '@/constants/colors';
 import { RecurringDeleteDialog } from '../dialog/RecurringDeleteDialog';
+import { RecurringUpdateDialog } from '../dialog/RecurringUpdateDialog';
 import { StandardModal } from './StandardModal';
 
 interface EventModalProps {
@@ -34,21 +34,18 @@ export function EventModal({
 }: EventModalProps) {
   const { projects, groups } = useProjectContext();
   
-  // Use PlannerV2Context as the primary context since PlannerV2 will replace Planner
+  // Use PlannerContext as the primary context since PlannerV2 will replace Planner
   const { 
     events, 
     addEvent, 
     updateEvent,
-    deleteEvent
-  } = usePlannerV2Context();
-  
-  // Use PlannerContext for recurring operations (since PlannerV2 doesn't have them yet)
-  const plannerContext = usePlannerContext();
-  const {
+    deleteEvent,
     getRecurringGroupEvents,
     deleteRecurringSeriesFuture,
-    deleteRecurringSeriesAll
-  } = plannerContext;
+    deleteRecurringSeriesAll,
+    updateRecurringSeriesFuture,
+    updateRecurringSeriesAll
+  } = usePlannerContext();
 
   const [formData, setFormData] = useState({
     description: '',
@@ -72,7 +69,10 @@ export function EventModal({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showUpdateDialog, setShowUpdateDialog] = useState(false);
+  const [pendingUpdateData, setPendingUpdateData] = useState<Partial<CalendarEvent> | null>(null);
   const [isRecurringEvent, setIsRecurringEvent] = useState(false);
+  const [isCreatingRecurring, setIsCreatingRecurring] = useState(false);
 
   const isEditing = !!eventId;
   let existingEvent = isEditing ? events.find(e => e.id === eventId) : null;
@@ -290,12 +290,42 @@ export function EventModal({
           ? eventId.split('-split-')[0] 
           : existingEvent.id;
           
-        await updateEvent(originalEventId, eventData);
+        // Check if this is a recurring event
+        if (existingEvent.recurring || isRecurringEvent) {
+          // Store the update data and show the dialog
+          setPendingUpdateData(eventData);
+          setShowUpdateDialog(true);
+          setIsSubmitting(false);
+          return;
+        } else {
+          // Non-recurring event, update directly
+          await updateEvent(originalEventId, eventData);
+        }
       } else {
-        await addEvent(eventData);
+        // Creating new event
+        if (eventData.recurring) {
+          // For recurring events, show immediate feedback and process in background
+          setIsCreatingRecurring(true);
+          setIsSubmitting(false);
+          
+          // Create first event immediately
+          try {
+            await addEvent(eventData);
+            handleClose();
+          } catch (error) {
+            console.error('Failed to create recurring events:', error);
+            setErrors({ submit: 'Failed to create recurring events. Please try again.' });
+            setIsSubmitting(false);
+            setIsCreatingRecurring(false);
+          }
+          return;
+        } else {
+          // Single event - process normally
+          await addEvent(eventData);
+        }
       }
 
-      onClose();
+      handleClose();
     } catch (error) {
       console.error('Failed to save event:', error);
       setErrors({ submit: 'Failed to save event. Please try again.' });
@@ -357,6 +387,7 @@ export function EventModal({
         : existingEvent.id;
         
       await deleteRecurringSeriesAll(originalEventId);
+      
       setShowDeleteDialog(false);
       onClose();
     } catch (error) {
@@ -366,7 +397,75 @@ export function EventModal({
     }
   };
 
+  const handleUpdateThis = async () => {
+    if (!existingEvent || !pendingUpdateData) return;
+    
+    try {
+      // Get the original event ID in case this is a split event
+      const originalEventId = eventId?.includes('-split-') 
+        ? eventId.split('-split-')[0] 
+        : existingEvent.id;
+        
+      await updateEvent(originalEventId, pendingUpdateData);
+      setShowUpdateDialog(false);
+      setPendingUpdateData(null);
+      onClose();
+    } catch (error) {
+      console.error('Failed to update event:', error);
+      setErrors({ submit: 'Failed to update event. Please try again.' });
+      setShowUpdateDialog(false);
+    }
+  };
+
+  const handleUpdateFuture = async () => {
+    if (!existingEvent || !pendingUpdateData) return;
+    
+    try {
+      // Get the original event ID in case this is a split event
+      const originalEventId = eventId?.includes('-split-') 
+        ? eventId.split('-split-')[0] 
+        : existingEvent.id;
+        
+      await updateRecurringSeriesFuture(originalEventId, pendingUpdateData);
+      setShowUpdateDialog(false);
+      setPendingUpdateData(null);
+      onClose();
+    } catch (error) {
+      console.error('Failed to update future recurring events:', error);
+      setErrors({ submit: 'Failed to update future recurring events. Please try again.' });
+      setShowUpdateDialog(false);
+    }
+  };
+
+  const handleUpdateAll = async () => {
+    if (!existingEvent || !pendingUpdateData) return;
+    
+    try {
+      // Get the original event ID in case this is a split event
+      const originalEventId = eventId?.includes('-split-') 
+        ? eventId.split('-split-')[0] 
+        : existingEvent.id;
+        
+      await updateRecurringSeriesAll(originalEventId, pendingUpdateData);
+      setShowUpdateDialog(false);
+      setPendingUpdateData(null);
+      onClose();
+    } catch (error) {
+      console.error('Failed to update all recurring events:', error);
+      setErrors({ submit: 'Failed to update all recurring events. Please try again.' });
+      setShowUpdateDialog(false);
+    }
+  };
+
   const selectedProject = formData.projectId ? projects.find(p => p.id === formData.projectId) : null;
+
+  // Custom close handler to reset any ongoing operations
+  const handleClose = () => {
+    setIsSubmitting(false);
+    setIsCreatingRecurring(false);
+    setErrors({});
+    onClose();
+  };
 
   // Group projects by group for better organization
   const projectsByGroup = projects.reduce((acc, project) => {
@@ -384,11 +483,11 @@ export function EventModal({
     <>
       <StandardModal
         isOpen={isOpen}
-        onClose={onClose}
+        onClose={handleClose}
         title={isEditing ? 'Edit Event' : 'Create Event'}
         size="md"
         primaryAction={{
-          label: isSubmitting ? 'Saving...' : (isEditing ? 'Update Event' : 'Create Event'),
+          label: isSubmitting || isCreatingRecurring ? 'Saving...' : (isEditing ? 'Update Event' : 'Create Event'),
           onClick: () => {
             const form = document.querySelector('form');
             if (form) {
@@ -396,12 +495,12 @@ export function EventModal({
               form.dispatchEvent(submitEvent);
             }
           },
-          loading: isSubmitting,
-          disabled: isSubmitting
+          loading: isSubmitting || isCreatingRecurring,
+          disabled: isSubmitting || isCreatingRecurring
         }}
         secondaryAction={{
           label: "Cancel",
-          onClick: onClose
+          onClick: handleClose
         }}
         destructiveAction={isEditing ? {
           label: "Delete Event",
@@ -710,6 +809,17 @@ export function EventModal({
         onDeleteThis={handleDeleteThis}
         onDeleteFuture={handleDeleteFuture}
         onDeleteAll={handleDeleteAll}
+        eventTitle={existingEvent?.title || ''}
+        isRecurring={isRecurringEvent}
+      />
+
+      {/* Recurring Update Dialog */}
+      <RecurringUpdateDialog
+        isOpen={showUpdateDialog}
+        onClose={() => setShowUpdateDialog(false)}
+        onUpdateThis={handleUpdateThis}
+        onUpdateFuture={handleUpdateFuture}
+        onUpdateAll={handleUpdateAll}
         eventTitle={existingEvent?.title || ''}
         isRecurring={isRecurringEvent}
       />

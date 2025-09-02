@@ -2,7 +2,6 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import { Calendar, EventClickArg, EventDropArg, DateSelectArg } from '@fullcalendar/core';
 import moment from 'moment';
-import { usePlannerV2Context } from '@/contexts/PlannerV2Context';
 import { usePlannerContext } from '@/contexts/PlannerContext';
 import { useProjectContext } from '@/contexts/ProjectContext';
 import { useTimelineContext } from '@/contexts/TimelineContext';
@@ -48,13 +47,6 @@ export function PlannerV2View() {
     currentView,
     setCurrentView,
     getEventsInDateRange
-  } = usePlannerV2Context();
-  
-  // Get the global selectedEventId state that the modal uses
-  const { 
-    selectedEventId: globalSelectedEventId, 
-    setSelectedEventId: setGlobalSelectedEventId,
-    setCreatingNewEvent: setGlobalCreatingNewEvent
   } = usePlannerContext();
   
   const { projects } = useProjectContext();
@@ -68,7 +60,7 @@ export function PlannerV2View() {
 
   // FullCalendar event handlers
     const handleEventClick = (info: any) => {
-    setGlobalSelectedEventId(info.event.id);
+    setSelectedEventId(info.event.id);
   };
 
   const handleEventDrop = useCallback(async (dropInfo: EventDropArg) => {
@@ -135,14 +127,14 @@ export function PlannerV2View() {
 
   const handleDateSelect = useCallback((selectInfo: DateSelectArg) => {
     // Create new event using global context so the modal opens
-    setGlobalCreatingNewEvent({
+    setCreatingNewEvent({
       startTime: selectInfo.start,
       endTime: selectInfo.end
     });
     
     // Clear the selection
     selectInfo.view.calendar.unselect();
-  }, [setGlobalCreatingNewEvent]);
+  }, [setCreatingNewEvent]);
 
   // Navigation handlers
   const handleNavigate = useCallback((direction: 'prev' | 'next' | 'today') => {

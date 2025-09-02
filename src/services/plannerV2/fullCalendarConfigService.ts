@@ -30,6 +30,13 @@ export function getBaseFullCalendarConfig(): Partial<CalendarOptions> {
     firstDay: 1, // Monday
     weekends: true,
     
+    // Custom day header content - show "Day 01", "Day 02", etc.
+    dayHeaderContent: function(arg) {
+      // Get the day of the month from the date
+      const dayOfMonth = arg.date.getDate();
+      return `Day ${dayOfMonth.toString().padStart(2, '0')}`;
+    },
+    
     // Event settings
     editable: true,
     selectable: true,

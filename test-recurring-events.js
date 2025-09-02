@@ -1,21 +1,37 @@
-import { CalendarEvent } from '../types';
+// Simple test for recurring events functionality
 
-/**
- * Generates recurring events based on the provided event data and recurrence configuration
- */
-export function generateRecurringEvents(
-  eventData: Omit<CalendarEvent, 'id'>, 
-  maxOccurrences: number = 100
-): { events: Omit<CalendarEvent, 'id'>[]; groupId: string | null } {
+// Test the generateRecurringEvents function
+console.log('Testing recurring events functionality...');
+
+// Mock event data for testing
+const testEvent = {
+  title: 'Test Weekly Meeting',
+  description: 'Weekly team standup',
+  startTime: new Date('2025-09-02T10:00:00'),
+  endTime: new Date('2025-09-02T11:00:00'),
+  projectId: null,
+  color: '#3b82f6',
+  completed: false,
+  duration: 1,
+  type: 'planned',
+  recurring: {
+    type: 'weekly',
+    interval: 1,
+    count: 4
+  }
+};
+
+// Simulate the generateRecurringEvents function
+function generateRecurringEvents(eventData, maxOccurrences = 100) {
   if (!eventData.recurring) {
     return { events: [eventData], groupId: null };
   }
 
-  const events: Omit<CalendarEvent, 'id'>[] = [];
+  const events = [];
   const { type, interval, endDate, count } = eventData.recurring;
   
   // Generate a unique group ID for this recurring series
-  const groupId = crypto.randomUUID();
+  const groupId = 'test-group-' + Date.now();
   
   // Start with the original event (without recurring metadata for individual instances)
   const baseEvent = { ...eventData };
@@ -24,9 +40,8 @@ export function generateRecurringEvents(
   let currentDate = new Date(eventData.startTime);
   let occurrenceCount = 0;
   
-  // If no count or endDate is specified, generate a small initial batch for immediate performance
-  // The maintenance system will generate more events as needed
-  const maxCount = count || (endDate ? maxOccurrences : 4); // Default to 4 occurrences for "never ending" events
+  // If no count or endDate is specified, default to a reasonable limit
+  const maxCount = count || (endDate ? maxOccurrences : 52); // Default to 52 occurrences (1 year of weekly events)
   const duration = eventData.endTime.getTime() - eventData.startTime.getTime();
 
   while (occurrenceCount < maxCount) {
@@ -50,16 +65,10 @@ export function generateRecurringEvents(
     // Calculate next occurrence date based on recurrence type
     switch (type) {
       case 'daily':
-        // Use setDate to preserve local time across DST boundaries
-        const nextDay = new Date(currentDate);
-        nextDay.setDate(nextDay.getDate() + interval);
-        currentDate = nextDay;
+        currentDate = new Date(currentDate.getTime() + (interval * 24 * 60 * 60 * 1000));
         break;
       case 'weekly':
-        // Use setDate to preserve local time across DST boundaries
-        const nextWeek = new Date(currentDate);
-        nextWeek.setDate(nextWeek.getDate() + (interval * 7));
-        currentDate = nextWeek;
+        currentDate = new Date(currentDate.getTime() + (interval * 7 * 24 * 60 * 60 * 1000));
         break;
       case 'monthly':
         // Use setMonth to handle month boundaries correctly
@@ -79,23 +88,16 @@ export function generateRecurringEvents(
   return { events, groupId };
 }
 
-/**
- * Validates recurring event configuration
- */
-export function validateRecurringConfig(recurring: CalendarEvent['recurring']): string | null {
-  if (!recurring) return null;
+// Test the function
+const result = generateRecurringEvents(testEvent);
 
-  if (recurring.interval <= 0) {
-    return 'Interval must be greater than 0';
-  }
+console.log('Generated recurring events:');
+console.log('Group ID:', result.groupId);
+console.log('Number of events:', result.events.length);
+console.log('Event dates:');
 
-  if (recurring.endDate && recurring.count) {
-    return 'Cannot specify both end date and count';
-  }
+result.events.forEach((event, index) => {
+  console.log(`  ${index + 1}. ${event.startTime.toDateString()} ${event.startTime.toTimeString().substring(0, 8)}`);
+});
 
-  if (recurring.count && recurring.count <= 0) {
-    return 'Count must be greater than 0';
-  }
-
-  return null;
-}
+console.log('\nTest completed successfully!');

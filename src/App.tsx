@@ -62,8 +62,7 @@ function AuthenticatedContent() {
     selectedEventId,
     setSelectedEventId,
     creatingNewEvent,
-    setCreatingNewEvent,
-    ensureRecurringEvents
+    setCreatingNewEvent
   } = usePlannerContext();
   const { isTimeTracking } = useSettingsContext();
 
@@ -72,14 +71,11 @@ function AuthenticatedContent() {
   // Use the favicon hook to change favicon based on time tracking state
   useFavicon(isTimeTracking);
 
-  // Ensure recurring events are maintained when switching to calendar view
+  // Initialize recurring events when view changes
   useEffect(() => {
-    if (currentView === 'calendar') {
-      ensureRecurringEvents();
-    }
-  }, [currentView, ensureRecurringEvents]);
-
-  const renderView = () => {
+    // Recurring events are now handled automatically by PlannerContext
+    // No manual initialization needed
+  }, [currentView]);  const renderView = () => {
     // Pass key directly instead of spreading to avoid React warnings
     switch (currentView) {
       case 'projects':

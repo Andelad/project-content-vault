@@ -530,7 +530,7 @@ interface AddHolidayRowProps {
 }
 
 export function AddHolidayRow({ dates, collapsed, isDragging, dragState, handleHolidayMouseDown, mode = 'days' }: AddHolidayRowProps) {
-  const { setCreatingNewHoliday, holidays: globalHolidays, setEditingHolidayId, addHoliday } = usePlannerContext();
+  const { holidays: globalHolidays, addHoliday, setCreatingNewHoliday, setEditingHolidayId } = usePlannerContext();
   
   // Convert global holidays to timeline format
   const timelineHolidays = globalHolidays.map(holiday => {
