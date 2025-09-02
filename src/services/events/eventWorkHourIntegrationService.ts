@@ -23,6 +23,13 @@ import { calculateEventDurationOnDateLegacy as calculateEventDurationOnDate } fr
 import { getCalendarEventBackgroundColor, getCalendarEventTextColor } from '@/constants/colors';
 
 /**
+ * Clear the timeline calculation cache - useful when project settings change
+ */
+export function clearTimelineCache() {
+  timelineCalculationCache.clear();
+}
+
+/**
  * Interface for project time allocation analysis
  */
 export interface ProjectTimeAllocation {
@@ -408,7 +415,15 @@ export const memoizedGetProjectTimeAllocation = memoizeExpensiveCalculation(
       .sort()
       .join(',');
     
-    return `alloc-${projectId}-${date.getTime()}-${project.estimatedHours}-${project.startDate.getTime()}-${project.endDate.getTime()}-${settingsHash}-${holidaysHash}-${eventsHash}`;
+    // Include autoEstimateDays in cache key to invalidate cache when days change
+    const autoEstimateDaysHash = project.autoEstimateDays ? 
+      Object.entries(project.autoEstimateDays)
+        .sort()
+        .map(([day, enabled]) => `${day}:${enabled}`)
+        .join(',') : 
+      'default';
+    
+    return `alloc-${projectId}-${date.getTime()}-${project.estimatedHours}-${project.startDate.getTime()}-${project.endDate.getTime()}-${settingsHash}-${holidaysHash}-${eventsHash}-${autoEstimateDaysHash}`;
   }
 );
 

@@ -5,7 +5,7 @@
 
 function calculateRectangleHeight(hoursPerDay, maxHeight = 28) {
   if (hoursPerDay === 0) return 0;
-  const heightInPixels = Math.max(3, Math.round(hoursPerDay * 2));
+  const heightInPixels = Math.max(3, Math.round(hoursPerDay * 4));
   return Math.min(heightInPixels, maxHeight);
 }
 

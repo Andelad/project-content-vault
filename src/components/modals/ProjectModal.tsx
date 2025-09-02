@@ -692,6 +692,11 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
     setLocalValues(prev => ({ ...prev, autoEstimateDays: newAutoEstimateDays }));
     if (!isCreating && projectId) {
       updateProject(projectId, { autoEstimateDays: newAutoEstimateDays }, { silent: true });
+      
+      // Clear timeline cache to ensure UI updates immediately
+      import('@/services/events/eventWorkHourIntegrationService').then(({ clearTimelineCache }) => {
+        clearTimelineCache();
+      });
     }
   }, [isCreating, projectId, updateProject]);
 

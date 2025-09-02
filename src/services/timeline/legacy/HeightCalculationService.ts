@@ -6,13 +6,13 @@
 export class HeightCalculationService {
   /**
    * Calculate rectangle height based on hours per day
-   * Uses consistent formula: minimum 3px, scale by hours (2px per hour)
+   * Uses consistent formula: minimum 3px, scale by hours (4px per hour)
    */
   static calculateRectangleHeight(hoursPerDay: number, maxHeight: number = 28): number {
     if (hoursPerDay === 0) return 0;
     
-    // Base formula: minimum 3px, scale by hours (2px per hour)
-    const heightInPixels = Math.max(3, Math.round(hoursPerDay * 2));
+    // Base formula: minimum 3px, scale by hours (4px per hour)
+    const heightInPixels = Math.max(3, Math.round(hoursPerDay * 4));
     
     // Apply maximum height constraint
     return Math.min(heightInPixels, maxHeight);
