@@ -22,7 +22,7 @@ import {
   getRelevantMilestones,
   calculateProgressPercentage,
   calculateProjectTimeMetrics
-} from './ProjectCalculations';
+} from './legacy/projectProgressService';
 
 // =====================================================================================
 // TYPES & INTERFACES
@@ -128,7 +128,7 @@ export function calculateProjectProgressData(
     date: new Date(startDate),
     estimatedProgress: 0,
     completedTime: completedTimeAtStart,
-    plannedTime: getPlannedTimeUpToDate(plannedTimeMap, startDate)
+    plannedTime: getPlannedTimeUpToDate(startDate, plannedTimeMap)
   });
   
   if (relevantMilestones.length > 0) {
@@ -145,7 +145,7 @@ export function calculateProjectProgressData(
         date: new Date(milestoneDate),
         estimatedProgress: cumulativeEstimatedHours,
         completedTime: completedTimeAtMilestone,
-        plannedTime: getPlannedTimeUpToDate(plannedTimeMap, milestoneDate)
+        plannedTime: getPlannedTimeUpToDate(milestoneDate, plannedTimeMap)
       });
     });
   }
@@ -157,7 +157,7 @@ export function calculateProjectProgressData(
     date: new Date(endDate),
     estimatedProgress: project.estimatedHours,
     completedTime: completedTimeAtEnd,
-    plannedTime: getPlannedTimeUpToDate(plannedTimeMap, endDate)
+    plannedTime: getPlannedTimeUpToDate(endDate, plannedTimeMap)
   });
   
   return data;
@@ -329,4 +329,4 @@ export {
   calculateProgressPercentage,
   getRelevantMilestones,
   calculateProjectTimeMetrics
-} from './ProjectCalculations';
+} from './legacy/projectProgressService';

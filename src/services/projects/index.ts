@@ -14,5 +14,14 @@ export { analyzeProjectProgress } from './legacy/projectProgressGraphService';
 export { calculateEventDurationHours as calculateProgressEventDurationHours, calculateProjectTimeMetrics, type ComprehensiveProjectTimeMetrics } from './legacy/projectProgressService';
 export * from './legacy/projectStatusService';
 export * from './legacy/projectWorkingDaysService';
-export * from './legacy/projectOverlapService';
+// Export selected functions from overlap service to avoid datesOverlap conflict
+export { 
+  checkProjectOverlap,
+  detectLiveDragConflicts,
+  resolveDragConflicts,
+  findNearestAvailableSlot,
+  adjustProjectDatesForDrag,
+  type ConflictDetectionResult,
+  type DateAdjustmentResult
+} from './legacy/projectOverlapService';
 export * from './legacy/ProjectValidationService';

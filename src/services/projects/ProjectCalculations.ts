@@ -3,6 +3,33 @@
  * Handles formatting of time durations and date ranges for project displays
  */
 
+/**
+ * Check if two date ranges overlap (inclusive)
+ */
+export function datesOverlap(
+  startA: Date,
+  endA: Date,
+  startB: Date,
+  endB: Date
+): boolean {
+  // Normalize dates to midnight for consistent comparison
+  const normalizedStartA = new Date(startA);
+  normalizedStartA.setHours(0, 0, 0, 0);
+
+  const normalizedEndA = new Date(endA);
+  normalizedEndA.setHours(23, 59, 59, 999);
+
+  const normalizedStartB = new Date(startB);
+  normalizedStartB.setHours(0, 0, 0, 0);
+
+  const normalizedEndB = new Date(endB);
+  normalizedEndB.setHours(23, 59, 59, 999);
+
+  // Two ranges overlap if start of one is before or equal to end of other
+  // and end of one is after or equal to start of other
+  return normalizedStartA <= normalizedEndB && normalizedEndA >= normalizedStartB;
+}
+
 export class DurationFormattingService {
   /**
    * Format a date range as a human-readable duration string
