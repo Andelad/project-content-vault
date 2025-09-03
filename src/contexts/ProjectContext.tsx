@@ -41,6 +41,7 @@ interface ProjectContextType {
   getMilestonesForProject: (projectId: string) => Milestone[];
   showMilestoneSuccessToast: (message?: string) => void;
   normalizeMilestoneOrders: (projectId?: string, options?: { silent?: boolean }) => Promise<void>;
+  refetchMilestones: () => Promise<void>;
   
   // Selection state
   selectedProjectId: string | null;
@@ -105,7 +106,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     updateMilestone: dbUpdateMilestone,
     deleteMilestone: dbDeleteMilestone,
     showSuccessToast: showMilestoneSuccessToast,
-    normalizeMilestoneOrders: dbNormalizeMilestoneOrders
+    normalizeMilestoneOrders: dbNormalizeMilestoneOrders,
+    refetch: refetchMilestones
   } = useMilestones(); // Fetch all milestones
 
   // Transform milestones to match app types (camelCase)
@@ -129,6 +131,17 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       setCreatingNewProjectState(null);
     }
   }, []);
+
+  // Listen for milestone updates to refresh data
+  React.useEffect(() => {
+    const handleMilestonesUpdated = (event: CustomEvent) => {
+      // Trigger a refresh of milestone data
+      refetchMilestones();
+    };
+
+    window.addEventListener('milestonesUpdated', handleMilestonesUpdated as EventListener);
+    return () => window.removeEventListener('milestonesUpdated', handleMilestonesUpdated as EventListener);
+  }, [refetchMilestones]);
 
   // Wrapped functions to add color assignment
   const addProject = useCallback(async (project: any) => {
@@ -242,6 +255,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     getMilestonesForProject,
     showMilestoneSuccessToast,
     normalizeMilestoneOrders: dbNormalizeMilestoneOrders,
+    refetchMilestones: refetchMilestones,
     
     // Selection state
     selectedProjectId,

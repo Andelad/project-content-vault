@@ -118,7 +118,7 @@ export function ProjectMilestoneSection({
   localMilestonesState,
   isCreatingProject = false
 }: ProjectMilestoneSectionProps) {
-  const { milestones, addMilestone, updateMilestone, deleteMilestone, showMilestoneSuccessToast } = useProjectContext();
+  const { milestones, addMilestone, updateMilestone, deleteMilestone, showMilestoneSuccessToast, normalizeMilestoneOrders, refetchMilestones } = useProjectContext();
   const { toast } = useToast();
   const [isExpanded, setIsExpanded] = useState(false);
   const [localMilestones, setLocalMilestones] = useState<LocalMilestone[]>([]);
@@ -129,10 +129,7 @@ export function ProjectMilestoneSection({
   const [showRecurringConfig, setShowRecurringConfig] = useState(false);
   const [showRegularMilestoneWarning, setShowRegularMilestoneWarning] = useState(false);
   const [showRecurringWarning, setShowRecurringWarning] = useState(false);
-  const [isGeneratingMilestones, setIsGeneratingMilestones] = useState(false);
   const [isDeletingRecurringMilestone, setIsDeletingRecurringMilestone] = useState(false);
-  const [isBatchCreating, setIsBatchCreating] = useState(false);  // NEW: Flag for batch creation
-  const [expectedMilestoneCount, setExpectedMilestoneCount] = useState<number | null>(null);  // Expected final count during creation
   const [frozenMilestoneCount, setFrozenMilestoneCount] = useState<number | null>(null);
   const [recurringConfig, setRecurringConfig] = useState<RecurringMilestoneConfig>({
     name: 'Milestone',
@@ -907,7 +904,7 @@ export function ProjectMilestoneSection({
 
   // Auto-generate recurring milestones as needed (transparent to user)
   const ensureRecurringMilestonesAvailable = React.useCallback(async (targetDate?: Date) => {
-    if (!recurringMilestone || !projectId || isGeneratingMilestones) return;
+    if (!recurringMilestone || !projectId) return;
     
     // Get current milestone count
     const currentMilestones = projectMilestones.filter(m => 
@@ -990,7 +987,7 @@ export function ProjectMilestoneSection({
     } catch (error) {
       console.error('Error auto-generating recurring milestones:', error);
     }
-  }, [recurringMilestone, projectId, projectMilestones, generateRecurringMilestones, addMilestone, isGeneratingMilestones, projectContinuous, projectStartDate, projectEndDate]);
+  }, [recurringMilestone, projectId, projectMilestones, generateRecurringMilestones, addMilestone, projectContinuous, projectStartDate, projectEndDate]);
 
   // Auto-trigger milestone generation when needed
   React.useEffect(() => {
@@ -1070,10 +1067,6 @@ export function ProjectMilestoneSection({
       // Asynchronously save initial milestones - INSTANT for all project types
       setTimeout(async () => {
         try {
-          // Set batch creation flag and expected count to freeze counters at final value
-          setIsBatchCreating(true);
-          setExpectedMilestoneCount(projectMilestones.length + generatedMilestones.length);
-          
           // TRUE BATCH INSERT - bypassing addMilestone to prevent progressive counting
           const { data: { user } } = await supabase.auth.getUser();
           if (!user) throw new Error('User not authenticated');
@@ -1109,9 +1102,23 @@ export function ProjectMilestoneSection({
           // Force the parent component to refresh milestone data
           // We'll trigger a custom event that the ProjectContext can listen to
           if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('refreshMilestones', { 
-              detail: { projectId } 
+            window.dispatchEvent(new CustomEvent('milestonesUpdated', { 
+              detail: { projectId, action: 'batchInsert', count: insertedMilestones?.length || 0 } 
             }));
+          }
+          
+          // Normalize milestone orders after batch insert
+          try {
+            await normalizeMilestoneOrders(projectId, { silent: true });
+          } catch (e) {
+            console.warn('Milestone order normalization after batch insert failed:', e);
+          }
+          
+          // Refetch milestones to ensure UI is updated
+          try {
+            await refetchMilestones();
+          } catch (e) {
+            console.warn('Milestone refetch after batch insert failed:', e);
           }
           
           // Trigger auto-generation of more milestones if this is a continuous project
@@ -1120,13 +1127,6 @@ export function ProjectMilestoneSection({
           }
         } catch (error) {
           console.error('Background milestone creation error:', error);
-        } finally {
-          // Clear batch creation flag and expected count after a short delay
-          // This ensures the final state is reflected
-          setTimeout(() => {
-            setIsBatchCreating(false);
-            setExpectedMilestoneCount(null);
-          }, 1000);
         }
       }, 100);
       
@@ -1223,17 +1223,6 @@ export function ProjectMilestoneSection({
             <ChevronRight className="w-4 h-4 text-gray-500" />
           )}
           <h3 className="text-lg font-medium text-gray-900">Milestones</h3>
-          {(isBatchCreating 
-            ? expectedMilestoneCount
-            : projectMilestones.length
-          ) > 0 && (
-            <span className="text-sm text-gray-500">
-              ({isBatchCreating 
-                ? expectedMilestoneCount
-                : projectMilestones.length
-              })
-            </span>
-          )}
         </div>
         
         {isOverBudget && !projectContinuous && (
@@ -1672,12 +1661,6 @@ export function ProjectMilestoneSection({
                     <div className="mt-4 pt-4 border-t border-gray-200">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm text-gray-700">
-                            {isBatchCreating && expectedMilestoneCount
-                              ? expectedMilestoneCount
-                              : projectMilestones.filter(m => m.name && /\s\d+$/.test(m.name)).length
-                            } milestones available
-                          </p>
                           <p className="text-xs text-gray-500">
                             Milestones are generated automatically as needed
                           </p>
@@ -1691,31 +1674,6 @@ export function ProjectMilestoneSection({
                     <div className="mt-4 pt-4 border-t border-gray-200">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm text-gray-700">
-                            {(() => {
-                              const currentCount = projectMilestones.filter(m => m.name && /\s\d+$/.test(m.name)).length;
-                              const projectDurationDays = Math.ceil((new Date(projectEndDate).getTime() - new Date(projectStartDate).getTime()) / (24 * 60 * 60 * 1000));
-                              let totalNeeded = 0;
-                              
-                              if (recurringMilestone) {
-                                switch (recurringMilestone.recurringType) {
-                                  case 'daily':
-                                    totalNeeded = Math.floor(projectDurationDays / recurringMilestone.recurringInterval);
-                                    break;
-                                  case 'weekly':
-                                    totalNeeded = Math.floor(projectDurationDays / (7 * recurringMilestone.recurringInterval));
-                                    break;
-                                  case 'monthly':
-                                    totalNeeded = Math.floor(projectDurationDays / (30 * recurringMilestone.recurringInterval));
-                                    break;
-                                }
-                              }
-                              
-                              return currentCount >= totalNeeded 
-                                ? `All ${totalNeeded} milestones created for project duration`
-                                : `${currentCount} of ${totalNeeded} milestones created`;
-                            })()}
-                          </p>
                           <p className="text-xs text-gray-500">
                             Based on project timeline and recurrence pattern
                           </p>
@@ -1778,7 +1736,7 @@ export function ProjectMilestoneSection({
                   <AlertDialogHeader>
                     <AlertDialogTitle>Delete Existing Milestones?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This project currently has {projectMilestones.length} milestone{projectMilestones.length !== 1 ? 's' : ''}. Creating recurring milestones will delete all existing milestones. This action cannot be undone.
+                      This project has existing milestones. Creating recurring milestones will delete all existing milestones. This action cannot be undone.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
