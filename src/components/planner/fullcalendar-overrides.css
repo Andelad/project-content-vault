@@ -330,3 +330,16 @@
     font-size: 10px;
   }
 }
+
+/* Hoverable date cell enhancements */
+.fc-col-header-cell-cushion {
+  transition: opacity 0.2s ease !important;
+}
+
+.fc-col-header-cell[data-hoverable-processed] {
+  transition: background-color 0.2s ease !important;
+}
+
+.fc-col-header-cell[data-hoverable-processed]:hover {
+  background-color: rgba(59, 130, 246, 0.05) !important;
+}

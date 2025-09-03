@@ -6,21 +6,16 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 interface HoverablePlannerDateCellProps {
   date: Date;
   children: React.ReactNode;
-  className?: string;
 }
 
-export function HoverablePlannerDateCell({ date, children, className = '' }: HoverablePlannerDateCellProps) {
+export function HoverablePlannerDateCell({ date, children }: HoverablePlannerDateCellProps) {
   const [isHovered, setIsHovered] = useState(false);
   const { setCurrentView, setCurrentDate } = useTimelineContext();
 
   const handleClick = () => {
     // Navigate to timeline at the specified date
-    // Set date first, then view to ensure timeline loads at the correct date
     setCurrentDate(new Date(date));
-    // Use setTimeout to ensure date is set before view change
-    setTimeout(() => {
-      setCurrentView('timeline');
-    }, 0);
+    setCurrentView('timeline');
   };
 
   return (
@@ -28,7 +23,7 @@ export function HoverablePlannerDateCell({ date, children, className = '' }: Hov
       <Tooltip delayDuration={300}>
         <TooltipTrigger asChild>
           <div
-            className={`relative cursor-pointer h-full w-full ${className}`}
+            className="relative cursor-pointer h-full w-full"
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
             onClick={handleClick}
