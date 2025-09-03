@@ -1,6 +1,8 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { Settings } from '@/types/core';
 import { useSettings as useSettingsHook } from '@/hooks/useSettings';
+import { timeTrackingSyncService } from '@/services/timeTrackingSyncService';
+import { supabase } from '@/integrations/supabase/client';
 
 // Individual work hour override for specific dates
 export interface WorkHourOverride {
@@ -51,6 +53,57 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [workHours] = useState<any[]>([]);
   const [timelineEntries, setTimelineEntries] = useState<any[]>([]);
   const [isTimeTracking, setIsTimeTracking] = useState<boolean>(false);
+  const [realtimeSubscription, setRealtimeSubscription] = useState<any>(null);
+
+  // Initialize sync service when user is available
+  useEffect(() => {
+    const initializeTracking = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user?.id) {
+        timeTrackingSyncService.setUserId(user.id);
+        
+        // Set up callback to sync state changes from other windows
+        timeTrackingSyncService.setOnStateChangeCallback((syncedState) => {
+          setIsTimeTracking(syncedState.isTracking);
+          // Update other relevant state if needed
+        });
+
+        // Load initial state from database
+        const dbState = await timeTrackingSyncService.loadStateFromDatabase();
+        if (dbState) {
+          setIsTimeTracking(dbState.isTracking);
+          // Set other state values as needed
+        }
+
+        // Set up real-time subscription
+        const subscription = await timeTrackingSyncService.setupRealtimeSubscription();
+        setRealtimeSubscription(subscription);
+      }
+    };
+
+    initializeTracking();
+
+    return () => {
+      if (realtimeSubscription) {
+        realtimeSubscription.unsubscribe();
+      }
+    };
+  }, []);
+
+  // Update setIsTimeTracking to sync to database
+  const setIsTimeTrackingWithSync = useCallback(async (isTracking: boolean) => {
+    setIsTimeTracking(isTracking);
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user?.id) {
+      await timeTrackingSyncService.syncStateToDatabase({
+        isTracking,
+        lastUpdated: new Date()
+        // Add other relevant state
+      });
+    }
+  }, []);
 
   // Default settings fallback if not loaded from database
   const defaultSettings: Settings = {
@@ -147,7 +200,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     
     // Time tracking state
     isTimeTracking,
-    setIsTimeTracking,
+    setIsTimeTracking: setIsTimeTrackingWithSync,
     
     // Loading states
     isLoading: settingsLoading,

@@ -455,6 +455,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          time_tracking_state: Json | null
           updated_at: string
           user_id: string
           weekly_work_hours: Json
@@ -462,6 +463,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          time_tracking_state?: Json | null
           updated_at?: string
           user_id: string
           weekly_work_hours?: Json
@@ -469,6 +471,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          time_tracking_state?: Json | null
           updated_at?: string
           user_id?: string
           weekly_work_hours?: Json

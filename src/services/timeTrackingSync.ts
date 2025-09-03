@@ -68,9 +68,13 @@ export class TimeTrackingSyncService {
    */
   static async loadFromDatabase(): Promise<SyncedTrackingState | null> {
     try {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user?.id) return null;
+
       const { data: settings, error } = await supabase
         .from('settings')
         .select('time_tracking_state')
+        .eq('user_id', user.user.id)
         .single();
 
       if (error) {
@@ -80,7 +84,7 @@ export class TimeTrackingSyncService {
         return null;
       }
 
-      const trackingState = settings?.time_tracking_state;
+      const trackingState = settings?.time_tracking_state as any;
       if (!trackingState || !trackingState.isTracking) {
         return null;
       }
@@ -108,12 +112,17 @@ export class TimeTrackingSyncService {
 
     try {
       // Save to database
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user?.id) return;
+
       const { error } = await supabase
         .from('settings')
-        .update({ 
+        .upsert({ 
+          user_id: user.user.id,
           time_tracking_state: stateToSave 
-        })
-        .eq('user_id', (await supabase.auth.getUser()).data.user?.id);
+        }, {
+          onConflict: 'user_id'
+        });
 
       if (error) {
         console.error('Error saving tracking state to database:', error);

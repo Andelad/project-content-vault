@@ -15,6 +15,8 @@ import {
   type EventSplitResult 
 } from '@/services';
 import { TimeTrackerCalculationService } from '@/services';
+import { timeTrackingSyncService } from '@/services/timeTrackingSyncService';
+import { supabase } from '@/integrations/supabase/client';
 
 interface TimeTrackerProps {
   className?: string;
@@ -40,9 +42,45 @@ export function TimeTracker({ className }: TimeTrackerProps) {
   // Storage keys from service
   const STORAGE_KEYS = TimeTrackerCalculationService.getStorageKeys();
 
-  // Load tracking state from localStorage on mount
+  // Load tracking state from localStorage and database on mount
   useEffect(() => {
-    const loadTrackingState = () => {
+    const loadTrackingState = async () => {
+      // First try to load from database (authoritative source)
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.id) {
+        const dbState = await timeTrackingSyncService.loadStateFromDatabase();
+        if (dbState && dbState.isTracking && dbState.startTime && dbState.eventId) {
+          const { totalSeconds: elapsedSeconds } = TimeTrackerCalculationService.calculateElapsedTime(dbState.startTime);
+          
+          setIsTimeTracking(true);
+          setSeconds(elapsedSeconds);
+          setCurrentEventId(dbState.eventId);
+          startTimeRef.current = dbState.startTime;
+          
+          if (dbState.selectedProject) {
+            setSelectedProject(dbState.selectedProject);
+          }
+          
+          if (dbState.searchQuery) {
+            setSearchQuery(dbState.searchQuery);
+          }
+
+          if (dbState.affectedEvents) {
+            setAffectedPlannedEvents(dbState.affectedEvents);
+          }
+          
+          // Start the timer interval
+          intervalRef.current = setInterval(() => {
+            setSeconds(prev => prev + 1);
+          }, 1000);
+
+          // Start live update interval
+          startLiveUpdates(dbState.eventId, dbState.startTime);
+          return;
+        }
+      }
+
+      // Fallback to localStorage if no database state
       const trackingState = TimeTrackerCalculationService.loadTrackingState();
       
       if (trackingState && trackingState.startTime && trackingState.eventId) {
@@ -119,8 +157,8 @@ export function TimeTracker({ className }: TimeTrackerProps) {
     }, 5000); // Update every 5 seconds
   };
 
-  // Save tracking state to localStorage
-  const saveTrackingState = (trackingData: {
+  // Save tracking state to both localStorage and database with cross-window sync
+  const saveTrackingState = async (trackingData: {
     isTracking: boolean;
     startTime?: Date;
     eventId?: string | null;
@@ -128,7 +166,17 @@ export function TimeTracker({ className }: TimeTrackerProps) {
     searchQuery?: string;
     affectedEvents?: string[];
   }) => {
+    // Save to localStorage (existing functionality)
     TimeTrackerCalculationService.saveTrackingState(trackingData);
+    
+    // Sync to database and other windows
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user?.id) {
+      await timeTrackingSyncService.syncStateToDatabase({
+        ...trackingData,
+        lastUpdated: new Date()
+      });
+    }
   };
 
   // Filter projects and clients based on search query
@@ -195,7 +243,7 @@ export function TimeTracker({ className }: TimeTrackerProps) {
         handlePlannedEventOverlaps(now, new Date(now.getTime() + 60000));
         
         // Save tracking state
-        saveTrackingState({
+        await saveTrackingState({
           isTracking: true,
           startTime: now,
           eventId: createdEvent.id,
@@ -245,7 +293,7 @@ export function TimeTracker({ className }: TimeTrackerProps) {
         startLiveUpdates(createdEvent.id, now);
         
         // Save tracking state
-        saveTrackingState({
+        await saveTrackingState({
           isTracking: true,
           startTime: now,
           eventId: createdEvent.id,
@@ -313,8 +361,8 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       setSearchQuery('');
       setAffectedPlannedEvents([]);
       
-      // Clear tracking state from localStorage
-      saveTrackingState({ isTracking: false });
+      // Clear tracking state from localStorage and database
+      await saveTrackingState({ isTracking: false });
     }
   };
 
