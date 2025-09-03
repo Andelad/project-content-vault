@@ -18,6 +18,10 @@ import { transformFullCalendarToCalendarEvent } from '@/services';
 import { useToast } from '@/hooks/use-toast';
 import './PlannerV2.css';
 
+// Modal imports
+import { EventModal } from '../modals/EventModal';
+import { WorkSlotModal } from '../modals/WorkSlotModal';
+
 /**
  * PlannerV2View - FullCalendar-based planner with keyboard shortcuts
  * 
@@ -42,6 +46,7 @@ export function PlannerV2View() {
     undoLastAction,
     lastAction,
     setCreatingNewEvent,
+    creatingNewEvent,
     layerMode,
     setLayerMode,
     currentView,
@@ -585,6 +590,21 @@ export function PlannerV2View() {
           view={currentView === 'day' ? 'day' : 'week'}
         />
       </div>
+      
+      {/* Modals */}
+      <EventModal
+        isOpen={!!creatingNewEvent}
+        onClose={() => setCreatingNewEvent(null)}
+        defaultStartTime={creatingNewEvent?.startTime}
+        defaultEndTime={creatingNewEvent?.endTime}
+      />
+      
+      {/* Event Edit Modal */}
+      <EventModal
+        isOpen={!!selectedEventId}
+        onClose={() => setSelectedEventId(null)}
+        eventId={selectedEventId || undefined}
+      />
     </div>
   );
 }

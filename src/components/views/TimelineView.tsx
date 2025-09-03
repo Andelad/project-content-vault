@@ -50,6 +50,10 @@ import { DraggableGroupRow } from '../timeline/DraggableGroupRow';
 import { AddGroupRow } from '../timeline/AddGroupRow';
 import { AppPageLayout } from '../layout/AppPageLayout';
 
+// Modal imports
+import { ProjectModal } from '../modals/ProjectModal';
+import { HolidayModal } from '../modals/HolidayModal';
+
 export function TimelineView() {
   // Get data from specific contexts
   const { 
@@ -63,6 +67,7 @@ export function TimelineView() {
     addProject, 
     updateMilestone,
     setCreatingNewProject,
+    creatingNewProject,
     showMilestoneSuccessToast,
     showProjectSuccessToast
   } = useProjectContext();
@@ -77,7 +82,9 @@ export function TimelineView() {
 
   const { 
     holidays,
-    updateHoliday
+    updateHoliday,
+    creatingNewHoliday,
+    setCreatingNewHoliday
   } = usePlannerContext();
 
   const { 
@@ -1468,6 +1475,28 @@ export function TimelineView() {
             </div>
           </AppPageLayout.Content>
         </AppPageLayout>
+        
+        {/* Modals */}
+        <ProjectModal
+          isOpen={!!creatingNewProject}
+          onClose={() => setCreatingNewProject(null)}
+          groupId={creatingNewProject?.groupId || null}
+          rowId={creatingNewProject?.rowId}
+        />
+        
+        {/* Project Edit Modal */}
+        <ProjectModal
+          isOpen={!!selectedProjectId}
+          onClose={() => setSelectedProjectId(null)}
+          projectId={selectedProjectId || undefined}
+        />
+        
+        <HolidayModal
+          isOpen={!!creatingNewHoliday}
+          onClose={() => setCreatingNewHoliday(null)}
+          defaultStartDate={creatingNewHoliday?.startDate}
+          defaultEndDate={creatingNewHoliday?.endDate}
+        />
       </TooltipProvider>
     </DndProvider>
   );

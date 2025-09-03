@@ -3,9 +3,21 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
 
-type Holiday = Database['public']['Tables']['holidays']['Row'];
+type HolidayRow = Database['public']['Tables']['holidays']['Row'];
 type HolidayInsert = Database['public']['Tables']['holidays']['Insert'];
 type HolidayUpdate = Database['public']['Tables']['holidays']['Update'];
+
+// UI-friendly Holiday type (camelCase)
+export interface Holiday {
+  id: string;
+  title: string;
+  startDate: Date;
+  endDate: Date;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+  user_id: string;
+}
 
 export function useHolidays() {
   const [holidays, setHolidays] = useState<Holiday[]>([]);
@@ -35,7 +47,20 @@ export function useHolidays() {
         .order('start_date', { ascending: true });
 
       if (error) throw error;
-      setHolidays(data || []);
+      
+      // Transform snake_case to camelCase for UI
+      const transformedData = (data || []).map(holiday => ({
+        id: holiday.id,
+        title: holiday.title,
+        startDate: new Date(holiday.start_date),
+        endDate: new Date(holiday.end_date),
+        notes: holiday.notes,
+        created_at: holiday.created_at,
+        updated_at: holiday.updated_at,
+        user_id: holiday.user_id
+      }));
+      
+      setHolidays(transformedData);
     } catch (error) {
       console.error('Error fetching holidays:', error);
       toast({
@@ -48,19 +73,45 @@ export function useHolidays() {
     }
   };
 
-  const addHoliday = async (holidayData: Omit<HolidayInsert, 'user_id'>) => {
+  const addHoliday = async (holidayData: any) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
+      // Transform camelCase to snake_case for database
+      const dbHolidayData = {
+        title: holidayData.title,
+        start_date: holidayData.startDate instanceof Date 
+          ? holidayData.startDate.toISOString().split('T')[0]
+          : holidayData.startDate,
+        end_date: holidayData.endDate instanceof Date 
+          ? holidayData.endDate.toISOString().split('T')[0] 
+          : holidayData.endDate,
+        notes: holidayData.notes || null,
+        user_id: user.id
+      };
+
       const { data, error } = await supabase
         .from('holidays')
-        .insert([{ ...holidayData, user_id: user.id }])
+        .insert([dbHolidayData])
         .select()
         .single();
 
       if (error) throw error;
-      setHolidays(prev => [...prev, data]);
+      
+      // Transform database response to camelCase for UI consistency
+      const transformedData = {
+        id: data.id,
+        title: data.title,
+        startDate: new Date(data.start_date),
+        endDate: new Date(data.end_date),
+        notes: data.notes,
+        created_at: data.created_at,
+        updated_at: data.updated_at,
+        user_id: data.user_id
+      };
+      
+      setHolidays(prev => [...prev, transformedData]);
       toast({
         title: "Success",
         description: "Holiday created successfully",
@@ -77,17 +128,45 @@ export function useHolidays() {
     }
   };
 
-  const updateHoliday = async (id: string, updates: HolidayUpdate, options: { silent?: boolean } = {}) => {
+  const updateHoliday = async (id: string, updates: any, options: { silent?: boolean } = {}) => {
     try {
+      // Transform camelCase to snake_case for database if needed
+      const dbUpdates: any = {};
+      if (updates.title !== undefined) dbUpdates.title = updates.title;
+      if (updates.startDate !== undefined) {
+        dbUpdates.start_date = updates.startDate instanceof Date 
+          ? updates.startDate.toISOString().split('T')[0]
+          : updates.startDate;
+      }
+      if (updates.endDate !== undefined) {
+        dbUpdates.end_date = updates.endDate instanceof Date 
+          ? updates.endDate.toISOString().split('T')[0] 
+          : updates.endDate;
+      }
+      if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+
       const { data, error } = await supabase
         .from('holidays')
-        .update(updates)
+        .update(dbUpdates)
         .eq('id', id)
         .select()
         .single();
 
       if (error) throw error;
-      setHolidays(prev => prev.map(holiday => holiday.id === id ? data : holiday));
+      
+      // Transform database response to camelCase for UI consistency
+      const transformedData = {
+        id: data.id,
+        title: data.title,
+        startDate: new Date(data.start_date),
+        endDate: new Date(data.end_date),
+        notes: data.notes,
+        created_at: data.created_at,
+        updated_at: data.updated_at,
+        user_id: data.user_id
+      };
+      
+      setHolidays(prev => prev.map(holiday => holiday.id === id ? transformedData : holiday));
       
       // Only show toast if not in silent mode
       if (!options.silent) {

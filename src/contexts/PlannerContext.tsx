@@ -251,8 +251,8 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
     return (dbHolidays || []).map(holiday => ({
       id: holiday.id,
       title: holiday.title,
-      startDate: new Date(holiday.start_date),
-      endDate: new Date(holiday.end_date),
+      startDate: holiday.startDate, // Already transformed by useHolidays hook
+      endDate: holiday.endDate,     // Already transformed by useHolidays hook
       notes: holiday.notes || ''
     }));
   }, [dbHolidays]);
