@@ -17,6 +17,60 @@ import { RecurringDeleteDialog } from '../dialog/RecurringDeleteDialog';
 import { RecurringUpdateDialog } from '../dialog/RecurringUpdateDialog';
 import { StandardModal } from './StandardModal';
 
+// Helper functions for monthly pattern calculations
+const getDayName = (dayOfWeek: number): string => {
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  return days[dayOfWeek];
+};
+
+const getOrdinalNumber = (num: number): string => {
+  const suffixes = ['st', 'nd', 'rd', 'th'];
+  const mod10 = num % 10;
+  const mod100 = num % 100;
+  
+  if (mod100 >= 11 && mod100 <= 13) {
+    return num + 'th';
+  }
+  
+  switch (mod10) {
+    case 1: return num + 'st';
+    case 2: return num + 'nd';
+    case 3: return num + 'rd';
+    default: return num + 'th';
+  }
+};
+
+const getWeekOfMonthName = (week: number): string => {
+  const weeks = ['', '1st', '2nd', '3rd', '4th', '2nd last', 'Last'];
+  return weeks[week] || 'Last';
+};
+
+// Calculate which week of the month a date falls in
+const getWeekOfMonth = (date: Date): number => {
+  const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
+  const firstDayWeekday = firstDay.getDay();
+  const dateNumber = date.getDate();
+  
+  // Calculate which week this date falls in
+  const weekNumber = Math.ceil((dateNumber + firstDayWeekday) / 7);
+  
+  // Check if this is the last occurrence of this weekday in the month
+  const lastDayOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  const remainingDays = lastDayOfMonth - dateNumber;
+  const isLastOccurrence = remainingDays < 7;
+  
+  // Check if this is the second last occurrence
+  const isSecondLastOccurrence = remainingDays >= 7 && remainingDays < 14 && weekNumber >= 3;
+  
+  if (isLastOccurrence && weekNumber >= 4) {
+    return 6; // "Last"
+  } else if (isSecondLastOccurrence) {
+    return 5; // "2nd last"
+  }
+  
+  return weekNumber;
+};
+
 interface EventModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -63,7 +117,12 @@ export function EventModal({
     recurringInterval: 1,
     recurringEndType: 'never' as 'never' | 'date' | 'count',
     recurringEndDate: '',
-    recurringCount: 10
+    recurringCount: 10,
+    // New monthly pattern fields
+    monthlyPattern: 'date' as 'date' | 'dayOfWeek',
+    monthlyDate: 1,
+    monthlyWeekOfMonth: 1,
+    monthlyDayOfWeek: 1
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -112,6 +171,8 @@ export function EventModal({
         const existingProject = projects.find(p => p.id === existingEvent.projectId);
         const groupId = existingProject ? existingProject.groupId : '';
         
+        const eventDate = new Date(existingEvent.startTime);
+        
         setFormData({
           description: existingEvent.title,
           notes: existingEvent.description || '',
@@ -128,7 +189,12 @@ export function EventModal({
           recurringInterval: existingEvent.recurring?.interval || 1,
           recurringEndType: existingEvent.recurring?.endDate ? 'date' : existingEvent.recurring?.count ? 'count' : 'never',
           recurringEndDate: existingEvent.recurring?.endDate ? formatDate(existingEvent.recurring.endDate) : '',
-          recurringCount: existingEvent.recurring?.count || 10
+          recurringCount: existingEvent.recurring?.count || 10,
+          // Monthly pattern fields - preload with current event's pattern or smart defaults
+          monthlyPattern: existingEvent.recurring?.monthlyPattern || 'dayOfWeek',
+          monthlyDate: existingEvent.recurring?.monthlyDate || eventDate.getDate(),
+          monthlyWeekOfMonth: existingEvent.recurring?.monthlyWeekOfMonth || getWeekOfMonth(eventDate),
+          monthlyDayOfWeek: existingEvent.recurring?.monthlyDayOfWeek || eventDate.getDay()
         });
       } else {
         // Reset for new event
@@ -150,7 +216,12 @@ export function EventModal({
           recurringInterval: 1,
           recurringEndType: 'never',
           recurringEndDate: '',
-          recurringCount: 10
+          recurringCount: 10,
+          // Smart defaults for monthly patterns based on the start date
+          monthlyPattern: 'dayOfWeek',
+          monthlyDate: startDate.getDate(),
+          monthlyWeekOfMonth: getWeekOfMonth(startDate),
+          monthlyDayOfWeek: startDate.getDay()
         });
       }
       setErrors({});
@@ -280,6 +351,13 @@ export function EventModal({
           }),
           ...(formData.recurringEndType === 'never' && {
             count: 52 // Default to 52 occurrences for "never" ending events
+          }),
+          // Add monthly pattern options
+          ...(formData.recurringType === 'monthly' && {
+            monthlyPattern: formData.monthlyPattern,
+            monthlyDate: formData.monthlyDate,
+            monthlyWeekOfMonth: formData.monthlyWeekOfMonth,
+            monthlyDayOfWeek: formData.monthlyDayOfWeek
           })
         };
       }
@@ -734,6 +812,103 @@ export function EventModal({
                     </div>
                   </div>
                 </div>
+
+                {/* Monthly pattern selection */}
+                {formData.recurringType === 'monthly' && (
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <Label>Monthly pattern</Label>
+                      <Select 
+                        value={formData.monthlyPattern} 
+                        onValueChange={(value: 'date' | 'dayOfWeek') => setFormData(prev => ({ ...prev, monthlyPattern: value }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="date">Specific date of month</SelectItem>
+                          <SelectItem value="dayOfWeek">Day of week pattern</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Date-based monthly pattern */}
+                    {formData.monthlyPattern === 'date' && (
+                      <div className="space-y-1.5">
+                        <Label htmlFor="monthlyDate">On the</Label>
+                        <Select 
+                          value={formData.monthlyDate.toString()} 
+                          onValueChange={(value) => setFormData(prev => ({ ...prev, monthlyDate: parseInt(value) }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Array.from({ length: 31 }, (_, i) => i + 1).map(date => (
+                              <SelectItem key={date} value={date.toString()}>
+                                {getOrdinalNumber(date)} of the month
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
+                    {/* Day-of-week based monthly pattern */}
+                    {formData.monthlyPattern === 'dayOfWeek' && (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label>Week of month</Label>
+                          <Select 
+                            value={formData.monthlyWeekOfMonth.toString()} 
+                            onValueChange={(value) => setFormData(prev => ({ ...prev, monthlyWeekOfMonth: parseInt(value) }))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="1">1st week</SelectItem>
+                              <SelectItem value="2">2nd week</SelectItem>
+                              <SelectItem value="3">3rd week</SelectItem>
+                              <SelectItem value="4">4th week</SelectItem>
+                              <SelectItem value="5">2nd last week</SelectItem>
+                              <SelectItem value="6">Last week</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label>Day of week</Label>
+                          <Select 
+                            value={formData.monthlyDayOfWeek.toString()} 
+                            onValueChange={(value) => setFormData(prev => ({ ...prev, monthlyDayOfWeek: parseInt(value) }))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="0">Sunday</SelectItem>
+                              <SelectItem value="1">Monday</SelectItem>
+                              <SelectItem value="2">Tuesday</SelectItem>
+                              <SelectItem value="3">Wednesday</SelectItem>
+                              <SelectItem value="4">Thursday</SelectItem>
+                              <SelectItem value="5">Friday</SelectItem>
+                              <SelectItem value="6">Saturday</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Preview text for monthly patterns */}
+                    <div className="text-sm text-muted-foreground p-2 bg-muted rounded">
+                      <strong>Preview:</strong> Events will recur{' '}
+                      {formData.monthlyPattern === 'date' 
+                        ? `on the ${getOrdinalNumber(formData.monthlyDate)} of each month`
+                        : `on the ${getWeekOfMonthName(formData.monthlyWeekOfMonth)} ${getDayName(formData.monthlyDayOfWeek)} of each month`
+                      }
+                    </div>
+                  </div>
+                )}
 
                 <div className="space-y-1.5">
                   <Label>End recurring</Label>

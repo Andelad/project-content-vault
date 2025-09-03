@@ -7,6 +7,11 @@ export interface RecurringMilestoneConfig {
   recurringType: 'daily' | 'weekly' | 'monthly';
   recurringInterval: number;
   timeAllocation: number;
+  weeklyDayOfWeek?: number; // 0-6 (Sunday-Saturday) for weekly recurrence
+  monthlyPattern?: 'date' | 'dayOfWeek'; // Pattern type for monthly recurrence
+  monthlyDate?: number; // 1-31 for specific date of month
+  monthlyWeekOfMonth?: number; // 1-4 for which week of the month
+  monthlyDayOfWeek?: number; // 0-6 for day of week in monthly pattern
 }
 
 export interface RecurringMilestoneCalculationParams {

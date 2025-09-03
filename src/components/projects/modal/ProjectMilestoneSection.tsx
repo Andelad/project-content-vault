@@ -25,6 +25,35 @@ import {
   ProjectOrchestrator
 } from '@/services';
 import { MilestoneCalculationService } from '@/services';
+import { supabase } from '@/integrations/supabase/client';
+
+// Helper functions for day and date patterns
+const getDayName = (dayOfWeek: number): string => {
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  return days[dayOfWeek];
+};
+
+const getOrdinalNumber = (num: number): string => {
+  const suffixes = ['st', 'nd', 'rd', 'th'];
+  const mod10 = num % 10;
+  const mod100 = num % 100;
+  
+  if (mod100 >= 11 && mod100 <= 13) {
+    return num + 'th';
+  }
+  
+  switch (mod10) {
+    case 1: return num + 'st';
+    case 2: return num + 'nd';
+    case 3: return num + 'rd';
+    default: return num + 'th';
+  }
+};
+
+const getWeekOfMonthName = (week: number): string => {
+  const weeks = ['', '1st', '2nd', '3rd', '4th', '2nd last', 'last'];
+  return weeks[week] || 'last';
+};
 
 interface ProjectMilestoneSectionProps {
   projectId?: string; // Made optional to support new projects
@@ -33,7 +62,11 @@ interface ProjectMilestoneSectionProps {
   projectEndDate: Date;
   projectContinuous?: boolean; // Whether the project is continuous
   onUpdateProjectBudget?: (newBudget: number) => void;
-  onRecurringMilestoneChange?: (info: { totalAllocation: number; hasRecurring: boolean }) => void;
+  onRecurringMilestoneChange?: (info: { 
+    totalAllocation: number; 
+    hasRecurring: boolean;
+    ensureMilestonesAvailable?: (targetDate?: Date) => Promise<void>;
+  }) => void;
   // For new projects, we need local state management
   localMilestonesState?: {
     milestones: LocalMilestone[];
@@ -55,6 +88,11 @@ interface RecurringMilestone {
   recurringInterval: number;
   projectId: string;
   isRecurring: true;
+  weeklyDayOfWeek?: number; // 0-6 (Sunday-Saturday) for weekly recurrence
+  monthlyPattern?: 'date' | 'dayOfWeek'; // Pattern type for monthly recurrence
+  monthlyDate?: number; // 1-31 for specific date of month
+  monthlyWeekOfMonth?: number; // 1-6 (1st, 2nd, 3rd, 4th, 2nd last=5, last=6)
+  monthlyDayOfWeek?: number; // 0-6 for day of week in monthly pattern
 }
 
 interface RecurringMilestoneConfig {
@@ -62,6 +100,11 @@ interface RecurringMilestoneConfig {
   timeAllocation: number;
   recurringType: 'daily' | 'weekly' | 'monthly';
   recurringInterval: number; // Every X days/weeks/months
+  weeklyDayOfWeek?: number; // 0-6 (Sunday-Saturday) for weekly recurrence
+  monthlyPattern?: 'date' | 'dayOfWeek'; // Pattern type for monthly recurrence
+  monthlyDate?: number; // 1-31 for specific date of month
+  monthlyWeekOfMonth?: number; // 1-6 (1st, 2nd, 3rd, 4th, 2nd last=5, last=6)
+  monthlyDayOfWeek?: number; // 0-6 for day of week in monthly pattern
 }
 
 export function ProjectMilestoneSection({ 
@@ -86,11 +129,21 @@ export function ProjectMilestoneSection({
   const [showRecurringConfig, setShowRecurringConfig] = useState(false);
   const [showRegularMilestoneWarning, setShowRegularMilestoneWarning] = useState(false);
   const [showRecurringWarning, setShowRecurringWarning] = useState(false);
+  const [isGeneratingMilestones, setIsGeneratingMilestones] = useState(false);
+  const [isDeletingRecurringMilestone, setIsDeletingRecurringMilestone] = useState(false);
+  const [isBatchCreating, setIsBatchCreating] = useState(false);  // NEW: Flag for batch creation
+  const [expectedMilestoneCount, setExpectedMilestoneCount] = useState<number | null>(null);  // Expected final count during creation
+  const [frozenMilestoneCount, setFrozenMilestoneCount] = useState<number | null>(null);
   const [recurringConfig, setRecurringConfig] = useState<RecurringMilestoneConfig>({
     name: 'Milestone',
     timeAllocation: 8,
     recurringType: 'weekly',
-    recurringInterval: 1
+    recurringInterval: 1,
+    weeklyDayOfWeek: projectStartDate ? projectStartDate.getDay() : 1, // Default to project start day, or Monday
+    monthlyPattern: 'date',
+    monthlyDate: projectStartDate ? projectStartDate.getDate() : 1,
+    monthlyWeekOfMonth: 1,
+    monthlyDayOfWeek: projectStartDate ? projectStartDate.getDay() : 1
   });
   
   const [editingRecurringPattern, setEditingRecurringPattern] = useState(false);
@@ -99,12 +152,12 @@ export function ProjectMilestoneSection({
   const [editingRecurringLoad, setEditingRecurringLoad] = useState(false);
   const [editingLoadValue, setEditingLoadValue] = useState(0);
 
-  // Helper functions can be removed since we're using toast directly
-
-  // Helper function to get ordinal numbers using service
-  const getOrdinalNumber = (num: number) => {
-    return MilestoneManagementService.generateOrdinalNumber(num);
-  };
+  // Additional editing state for the new pattern options
+  const [editingWeeklyDayOfWeek, setEditingWeeklyDayOfWeek] = useState<number>(1);
+  const [editingMonthlyPattern, setEditingMonthlyPattern] = useState<'date' | 'dayOfWeek'>('date');
+  const [editingMonthlyDate, setEditingMonthlyDate] = useState<number>(1);
+  const [editingMonthlyWeekOfMonth, setEditingMonthlyWeekOfMonth] = useState<number>(1);
+  const [editingMonthlyDayOfWeek, setEditingMonthlyDayOfWeek] = useState<number>(1);
 
   // Handle updating recurring milestone load
   const handleUpdateRecurringLoad = async (direction: 'forward' | 'both') => {
@@ -494,7 +547,7 @@ export function ProjectMilestoneSection({
 
   // Check if project has recurring milestones and reconstruct config
   React.useEffect(() => {
-    if (recurringMilestone || !projectId) return;
+    if (recurringMilestone || !projectId || isDeletingRecurringMilestone) return;
     
     // Look for recurring milestone pattern in existing milestones (but don't show them as individual cards)
     const recurringPattern = projectMilestones.filter(m => 
@@ -534,7 +587,7 @@ export function ProjectMilestoneSection({
         isRecurring: true
       });
     }
-  }, [projectMilestones, recurringMilestone, projectId]);
+  }, [projectMilestones, recurringMilestone, projectId, isDeletingRecurringMilestone]);
 
   // Calculate total time allocation including recurring milestone
   const totalRecurringAllocation = useMemo(() => {
@@ -742,18 +795,105 @@ export function ProjectMilestoneSection({
 
   const isOverBudget = budgetAnalysis.isOverBudget;
 
-  // Generate recurring milestones based on configuration using service
-  const generateRecurringMilestones = (config: RecurringMilestoneConfig) => {
-    return MilestoneManagementService.generateRecurringMilestones(
-      config,
-      projectStartDate,
-      projectEndDate,
-      projectContinuous,
-      projectId || 'temp'
-    ).map(generated => ({
-      ...generated,
-      isNew: true
-    }));
+  // Generate recurring milestones based on configuration using enhanced logic
+  const generateRecurringMilestones = (config: RecurringMilestoneConfig, maxCount?: number) => {
+    const milestones: any[] = [];
+    let currentDate = new Date(projectStartDate);
+    currentDate.setDate(currentDate.getDate() + 1); // Start day after project start
+    let order = 0;
+
+    const endDate = projectContinuous ? 
+      new Date(currentDate.getTime() + 365 * 24 * 60 * 60 * 1000) : // 1 year for continuous
+      new Date(projectEndDate);
+    endDate.setDate(endDate.getDate() - 1); // End day before project end
+
+    // Default limit for better performance: smaller for lazy loading, larger for non-continuous projects
+    const defaultLimit = projectContinuous ? 10 : 100;
+    const limit = maxCount || defaultLimit;
+
+    while (currentDate <= endDate && order < limit) { // Configurable limit
+      milestones.push({
+        id: `recurring-${order}`,
+        name: `${config.name} ${order + 1}`,
+        dueDate: new Date(currentDate),
+        timeAllocation: config.timeAllocation,
+        projectId: projectId || 'temp',
+        order,
+        isRecurring: true,
+        isNew: true
+      });
+
+      // Calculate next occurrence based on pattern
+      switch (config.recurringType) {
+        case 'daily':
+          currentDate.setDate(currentDate.getDate() + config.recurringInterval);
+          break;
+        case 'weekly':
+          // Move to the next occurrence of the specified day of week
+          const targetDayOfWeek = config.weeklyDayOfWeek ?? currentDate.getDay();
+          const daysUntilTarget = (targetDayOfWeek - currentDate.getDay() + 7) % 7 || 7;
+          currentDate.setDate(currentDate.getDate() + daysUntilTarget);
+          
+          // If this is not the first milestone, add the interval
+          if (order > 0) {
+            currentDate.setDate(currentDate.getDate() + (7 * (config.recurringInterval - 1)));
+          }
+          break;
+        case 'monthly':
+          if (config.monthlyPattern === 'date') {
+            // Specific date pattern (e.g., 15th of each month)
+            const targetDate = config.monthlyDate ?? 1;
+            currentDate.setMonth(currentDate.getMonth() + config.recurringInterval);
+            currentDate.setDate(Math.min(targetDate, new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate()));
+          } else {
+            // Day of week pattern (e.g., 3rd Tuesday, last Friday, 2nd last Monday)
+            const targetWeekOfMonth = config.monthlyWeekOfMonth ?? 1;
+            const targetDayOfWeek = config.monthlyDayOfWeek ?? 1;
+            
+            currentDate.setMonth(currentDate.getMonth() + config.recurringInterval);
+            
+            if (targetWeekOfMonth === 6) {
+              // "Last" occurrence - find the last occurrence of the target day in the month
+              const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+              const lastDayWeekday = lastDayOfMonth.getDay();
+              const daysToSubtract = (lastDayWeekday - targetDayOfWeek + 7) % 7;
+              currentDate.setDate(lastDayOfMonth.getDate() - daysToSubtract);
+            } else if (targetWeekOfMonth === 5) {
+              // "2nd last" occurrence - find the second last occurrence of the target day in the month
+              const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+              const lastDayWeekday = lastDayOfMonth.getDay();
+              const daysToSubtract = (lastDayWeekday - targetDayOfWeek + 7) % 7;
+              const lastOccurrence = lastDayOfMonth.getDate() - daysToSubtract;
+              const secondLastOccurrence = lastOccurrence - 7;
+              
+              // Use second last if it's valid (positive), otherwise use last
+              currentDate.setDate(secondLastOccurrence > 0 ? secondLastOccurrence : lastOccurrence);
+            } else {
+              // Find the nth occurrence of the target day in the month (1st, 2nd, 3rd, 4th)
+              const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+              const firstDayWeekday = firstDayOfMonth.getDay();
+              const daysToAdd = (targetDayOfWeek - firstDayWeekday + 7) % 7;
+              const firstOccurrence = 1 + daysToAdd;
+              const targetDate = firstOccurrence + ((targetWeekOfMonth - 1) * 7);
+              
+              // Check if the calculated date exists in the month
+              const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+              if (targetDate <= daysInMonth) {
+                currentDate.setDate(targetDate);
+              } else {
+                // If the target week doesn't exist, use the last occurrence
+                const lastOccurrence = targetDate - 7;
+                currentDate.setDate(lastOccurrence > 0 ? lastOccurrence : firstOccurrence);
+              }
+            }
+          }
+          break;
+      }
+      
+      order++;
+    }
+
+    return milestones;
   };
 
   // Handle creating recurring milestone
@@ -765,39 +905,235 @@ export function ProjectMilestoneSection({
     setShowRecurringConfig(true);
   };
 
+  // Auto-generate recurring milestones as needed (transparent to user)
+  const ensureRecurringMilestonesAvailable = React.useCallback(async (targetDate?: Date) => {
+    if (!recurringMilestone || !projectId || isGeneratingMilestones) return;
+    
+    // Get current milestone count
+    const currentMilestones = projectMilestones.filter(m => 
+      m.name && /\s\d+$/.test(m.name)
+    );
+    
+    // Calculate total milestones needed for the project duration
+    const projectDurationMs = projectContinuous ? 
+      365 * 24 * 60 * 60 * 1000 : // 1 year for continuous
+      new Date(projectEndDate).getTime() - new Date(projectStartDate).getTime();
+    
+    const projectDurationDays = Math.ceil(projectDurationMs / (24 * 60 * 60 * 1000));
+    
+    // Estimate total milestones needed based on recurrence pattern
+    let estimatedTotalMilestones = 0;
+    switch (recurringMilestone.recurringType) {
+      case 'daily':
+        estimatedTotalMilestones = Math.floor(projectDurationDays / recurringMilestone.recurringInterval);
+        break;
+      case 'weekly':
+        estimatedTotalMilestones = Math.floor(projectDurationDays / (7 * recurringMilestone.recurringInterval));
+        break;
+      case 'monthly':
+        estimatedTotalMilestones = Math.floor(projectDurationDays / (30 * recurringMilestone.recurringInterval));
+        break;
+    }
+    
+    // For continuous projects, ensure we have at least 6 months worth
+    // For time-bounded projects, only generate what's actually needed
+    const targetMilestoneCount = projectContinuous ? 
+      Math.max(26, estimatedTotalMilestones) : // At least 6 months for continuous
+      estimatedTotalMilestones; // Exact amount for time-bounded
+    
+    const needsMoreMilestones = currentMilestones.length < targetMilestoneCount;
+    
+    // Or if a specific target date is provided, ensure we have milestones up to that date
+    let needsCoverageToDate = false;
+    if (targetDate && currentMilestones.length > 0) {
+      const lastMilestone = currentMilestones.sort((a, b) => 
+        new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime()
+      )[0];
+      needsCoverageToDate = new Date(lastMilestone.dueDate) < targetDate;
+    }
+    
+    if (!needsMoreMilestones && !needsCoverageToDate) return;
+    
+    // No generation feedback - everything should be instant and silent
+    try {
+      const recurringConfig: RecurringMilestoneConfig = {
+        name: recurringMilestone.name,
+        timeAllocation: recurringMilestone.timeAllocation,
+        recurringType: recurringMilestone.recurringType,
+        recurringInterval: recurringMilestone.recurringInterval,
+        weeklyDayOfWeek: recurringMilestone.weeklyDayOfWeek,
+        monthlyPattern: recurringMilestone.monthlyPattern,
+        monthlyDate: recurringMilestone.monthlyDate,
+        monthlyWeekOfMonth: recurringMilestone.monthlyWeekOfMonth,
+        monthlyDayOfWeek: recurringMilestone.monthlyDayOfWeek
+      };
+      
+      // Calculate how many milestones to generate
+      const milestonesToGenerate = targetMilestoneCount - currentMilestones.length;
+      const batchSize = Math.min(milestonesToGenerate, 20); // Don't generate more than 20 at once
+      const startFromIndex = currentMilestones.length;
+      const allMilestones = generateRecurringMilestones(recurringConfig, startFromIndex + batchSize);
+      const newMilestones = allMilestones.slice(startFromIndex, startFromIndex + batchSize);
+      
+      // Save new milestones to database in background
+      const savePromises = newMilestones.map(milestone =>
+        addMilestone({
+          name: milestone.name,
+          due_date: milestone.dueDate.toISOString(),
+          time_allocation: milestone.timeAllocation,
+          project_id: projectId
+        }, { silent: true })
+      );
+      
+      await Promise.all(savePromises);
+      
+    } catch (error) {
+      console.error('Error auto-generating recurring milestones:', error);
+    }
+  }, [recurringMilestone, projectId, projectMilestones, generateRecurringMilestones, addMilestone, isGeneratingMilestones, projectContinuous, projectStartDate, projectEndDate]);
+
+  // Auto-trigger milestone generation when needed
+  React.useEffect(() => {
+    if (recurringMilestone && projectContinuous) {
+      ensureRecurringMilestonesAvailable();
+    }
+  }, [recurringMilestone, projectContinuous, ensureRecurringMilestonesAvailable]);
+
+  // Load recurring milestone configuration from local storage on mount
+  React.useEffect(() => {
+    if (projectId && !recurringMilestone && !isDeletingRecurringMilestone) {
+      const stored = localStorage.getItem(`recurring-milestone-${projectId}`);
+      if (stored) {
+        try {
+          const storedData = JSON.parse(stored);
+          setRecurringMilestone(storedData);
+        } catch (error) {
+          console.error('Error loading stored recurring milestone:', error);
+          localStorage.removeItem(`recurring-milestone-${projectId}`);
+        }
+      }
+    }
+  }, [projectId, recurringMilestone, isDeletingRecurringMilestone]);
+
   // Handle confirming recurring milestone creation
   const handleConfirmRecurringMilestone = async () => {
     if (!projectId) return;
     
     try {
-      // Generate the milestone entries
-      const generatedMilestones = generateRecurringMilestones(recurringConfig);
-      
-      // Save each milestone to the database
-      for (const milestone of generatedMilestones) {
-        await addMilestone({
-          name: milestone.name,
-          due_date: milestone.dueDate.toISOString(),
-          time_allocation: milestone.timeAllocation,
-          project_id: projectId
-        }, { silent: true });
-      }
-      
-      // Set the recurring milestone configuration for UI display
-      setRecurringMilestone({
+      // For instant UX, set the recurring milestone configuration immediately
+      const recurringMilestoneData: RecurringMilestone = {
         id: 'recurring-milestone',
         name: recurringConfig.name,
         timeAllocation: recurringConfig.timeAllocation,
         recurringType: recurringConfig.recurringType,
         recurringInterval: recurringConfig.recurringInterval,
         projectId: projectId,
-        isRecurring: true
-      });
+        isRecurring: true as const,
+        weeklyDayOfWeek: recurringConfig.weeklyDayOfWeek,
+        monthlyPattern: recurringConfig.monthlyPattern,
+        monthlyDate: recurringConfig.monthlyDate,
+        monthlyWeekOfMonth: recurringConfig.monthlyWeekOfMonth,
+        monthlyDayOfWeek: recurringConfig.monthlyDayOfWeek
+      };
+      
+      setRecurringMilestone(recurringMilestoneData);
+      
+      // Calculate optimal initial milestone count based on project duration
+      const projectDurationMs = projectContinuous ? 
+        365 * 24 * 60 * 60 * 1000 : // 1 year for continuous
+        new Date(projectEndDate).getTime() - new Date(projectStartDate).getTime();
+      
+      const projectDurationDays = Math.ceil(projectDurationMs / (24 * 60 * 60 * 1000));
+      
+      // Estimate total milestones needed
+      let estimatedTotalMilestones = 0;
+      switch (recurringConfig.recurringType) {
+        case 'daily':
+          estimatedTotalMilestones = Math.floor(projectDurationDays / recurringConfig.recurringInterval);
+          break;
+        case 'weekly':
+          estimatedTotalMilestones = Math.floor(projectDurationDays / (7 * recurringConfig.recurringInterval));
+          break;
+        case 'monthly':
+          estimatedTotalMilestones = Math.floor(projectDurationDays / (30 * recurringConfig.recurringInterval));
+          break;
+      }
+      
+      // For short projects, generate all milestones immediately
+      // For long projects, generate a reasonable initial batch
+      const initialCount = Math.min(estimatedTotalMilestones, projectContinuous ? 3 : estimatedTotalMilestones);
+      const generatedMilestones = generateRecurringMilestones(recurringConfig, initialCount);
+      
+      // Save the recurring configuration to local storage for persistence
+      localStorage.setItem(`recurring-milestone-${projectId}`, JSON.stringify(recurringMilestoneData));
+      
+      // Asynchronously save initial milestones - INSTANT for all project types
+      setTimeout(async () => {
+        try {
+          // Set batch creation flag and expected count to freeze counters at final value
+          setIsBatchCreating(true);
+          setExpectedMilestoneCount(projectMilestones.length + generatedMilestones.length);
+          
+          // TRUE BATCH INSERT - bypassing addMilestone to prevent progressive counting
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) throw new Error('User not authenticated');
+
+          // Calculate the next order index for this project
+          const { data: maxOrderData } = await supabase
+            .from('milestones')
+            .select('order_index')
+            .eq('project_id', projectId)
+            .order('order_index', { ascending: false })
+            .limit(1);
+
+          const nextOrderIndex = maxOrderData?.[0]?.order_index ? maxOrderData[0].order_index + 1 : 0;
+
+          // Prepare all milestones for batch insert
+          const milestonesToInsert = generatedMilestones.map((milestone, index) => ({
+            name: milestone.name,
+            due_date: milestone.dueDate.toISOString(),
+            time_allocation: milestone.timeAllocation,
+            project_id: projectId,
+            user_id: user.id,
+            order_index: nextOrderIndex + index
+          }));
+
+          // Single database operation - insert all milestones at once
+          const { data: insertedMilestones, error } = await supabase
+            .from('milestones')
+            .insert(milestonesToInsert)
+            .select();
+
+          if (error) throw error;
+
+          // Force the parent component to refresh milestone data
+          // We'll trigger a custom event that the ProjectContext can listen to
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('refreshMilestones', { 
+              detail: { projectId } 
+            }));
+          }
+          
+          // Trigger auto-generation of more milestones if this is a continuous project
+          if (projectContinuous) {
+            await ensureRecurringMilestonesAvailable();
+          }
+        } catch (error) {
+          console.error('Background milestone creation error:', error);
+        } finally {
+          // Clear batch creation flag and expected count after a short delay
+          // This ensures the final state is reflected
+          setTimeout(() => {
+            setIsBatchCreating(false);
+            setExpectedMilestoneCount(null);
+          }, 1000);
+        }
+      }, 100);
       
       setShowRecurringConfig(false);
       setShowRecurringWarning(false);
       
-      // No toast - will be handled by modal confirmation
+      // No toast - instant UX
     } catch (error) {
       console.error('Error creating recurring milestones:', error);
       toast({
@@ -810,28 +1146,48 @@ export function ProjectMilestoneSection({
 
   // Handle deleting recurring milestones
   const handleDeleteRecurringMilestones = async () => {
-    if (isCreatingProject && localMilestonesState) {
-      localMilestonesState.setMilestones([]);
-    } else {
-      // For existing projects, delete recurring milestone pattern
-      const recurringMilestones = projectMilestones.filter(m => 
-        m.name && /\s\d+$/.test(m.name) // Ends with space and number
-      );
-      
-      // Delete each recurring milestone from database silently
-      for (const milestone of recurringMilestones) {
-        if (milestone.id && !milestone.id.startsWith('temp-')) {
-          try {
-            await deleteMilestone(milestone.id, { silent: true });
-          } catch (error) {
-            console.error('Error deleting milestone:', error);
-          }
-        }
-      }
-      setLocalMilestones([]);
+    // Set deletion flag to prevent restoration
+    setIsDeletingRecurringMilestone(true);
+    
+    // Clear local storage FIRST to prevent restoration
+    if (projectId) {
+      localStorage.removeItem(`recurring-milestone-${projectId}`);
     }
     
+    // Instantly clear the UI state for better UX
     setRecurringMilestone(null);
+    setLocalMilestones([]);
+    
+    // Asynchronously clean up database in background
+    setTimeout(async () => {
+      try {
+        if (isCreatingProject && localMilestonesState) {
+          localMilestonesState.setMilestones([]);
+        } else {
+          // For existing projects, delete recurring milestone pattern
+          const recurringMilestones = projectMilestones.filter(m => 
+            m.name && /\s\d+$/.test(m.name) // Ends with space and number
+          );
+          
+          // Delete each recurring milestone from database silently in background
+          const deletePromises = recurringMilestones
+            .filter(milestone => milestone.id && !milestone.id.startsWith('temp-'))
+            .map(milestone => 
+              deleteMilestone(milestone.id!, { silent: true }).catch(error => 
+                console.error('Error deleting milestone:', error)
+              )
+            );
+          
+          // Wait for all deletions to complete
+          await Promise.all(deletePromises);
+        }
+      } catch (error) {
+        console.error('Error deleting some milestones:', error);
+      } finally {
+        // Clear deletion flag after cleanup is complete
+        setIsDeletingRecurringMilestone(false);
+      }
+    }, 100);
   };
 
   // Handle adding regular milestone when recurring exists
@@ -843,15 +1199,16 @@ export function ProjectMilestoneSection({
     addNewMilestone();
   };
 
-  // Notify parent of recurring milestone changes
+  // Expose milestone generation function for external components (timeline, calendar, etc.)
   React.useEffect(() => {
     if (onRecurringMilestoneChange) {
       onRecurringMilestoneChange({
         totalAllocation: totalRecurringAllocation,
-        hasRecurring: !!recurringMilestone
+        hasRecurring: !!recurringMilestone,
+        ensureMilestonesAvailable: ensureRecurringMilestonesAvailable // Expose the function
       });
     }
-  }, [totalRecurringAllocation, recurringMilestone, onRecurringMilestoneChange]);
+  }, [totalRecurringAllocation, recurringMilestone, onRecurringMilestoneChange, ensureRecurringMilestonesAvailable]);
 
   return (
     <div className="border-b border-gray-200">
@@ -866,9 +1223,15 @@ export function ProjectMilestoneSection({
             <ChevronRight className="w-4 h-4 text-gray-500" />
           )}
           <h3 className="text-lg font-medium text-gray-900">Milestones</h3>
-          {projectMilestones.length > 0 && (
+          {(isBatchCreating 
+            ? expectedMilestoneCount
+            : projectMilestones.length
+          ) > 0 && (
             <span className="text-sm text-gray-500">
-              ({projectMilestones.length})
+              ({isBatchCreating 
+                ? expectedMilestoneCount
+                : projectMilestones.length
+              })
             </span>
           )}
         </div>
@@ -924,7 +1287,7 @@ export function ProjectMilestoneSection({
               {/* All Milestones with Inline Editing */}
               {projectMilestones.filter(milestone => {
                 // If we have a recurring milestone config, filter out the individual recurring milestones
-                if (recurringMilestone && milestone.name && /\s\d+$/.test(milestone.name)) {
+                if ((recurringMilestone || isDeletingRecurringMilestone) && milestone.name && /\s\d+$/.test(milestone.name)) {
                   return false; // Don't show individual recurring milestones as cards
                 }
                 return true; // Show regular milestones
@@ -992,7 +1355,7 @@ export function ProjectMilestoneSection({
                     <div className="flex items-end gap-3">
                       <div className="min-w-[120px]">
                         <Label className="text-xs text-muted-foreground mb-1 block">Name</Label>
-                        <div className="flex items-center gap-2">
+                        <div className="h-9 flex items-center gap-2">
                           <RefreshCw className="w-4 h-4 text-blue-600" />
                           <span className="text-sm font-medium">{recurringMilestone.name}</span>
                         </div>
@@ -1005,7 +1368,7 @@ export function ProjectMilestoneSection({
                               type="number"
                               value={editingLoadValue}
                               onChange={(e) => setEditingLoadValue(Number(e.target.value))}
-                              className="h-10 text-sm border-border bg-background w-20"
+                              className="h-9 text-sm border-border bg-background w-20"
                               min="0"
                               step="0.5"
                               onKeyDown={(e) => {
@@ -1027,7 +1390,7 @@ export function ProjectMilestoneSection({
                           ) : (
                             <Button
                               variant="outline"
-                              className="h-10 text-sm justify-start text-left font-normal px-3"
+                              className="h-9 text-sm justify-start text-left font-normal px-3"
                               style={{ width: `${Math.max(`${recurringMilestone.timeAllocation}h`.length * 8 + 40, 80)}px` }}
                               onClick={() => {
                                 setEditingRecurringLoad(true);
@@ -1054,7 +1417,7 @@ export function ProjectMilestoneSection({
                               value={editingRecurringType} 
                               onValueChange={(value: 'daily' | 'weekly' | 'monthly') => setEditingRecurringType(value)}
                             >
-                              <SelectTrigger className="w-full h-8">
+                              <SelectTrigger className="w-full h-9">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -1063,6 +1426,100 @@ export function ProjectMilestoneSection({
                                 <SelectItem value="monthly">Monthly</SelectItem>
                               </SelectContent>
                             </Select>
+                            
+                            {/* Weekly day selection for editing */}
+                            {editingRecurringType === 'weekly' && (
+                              <Select 
+                                value={editingWeeklyDayOfWeek.toString()} 
+                                onValueChange={(value) => setEditingWeeklyDayOfWeek(parseInt(value))}
+                              >
+                                <SelectTrigger className="w-full h-9">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="0">Sunday</SelectItem>
+                                  <SelectItem value="1">Monday</SelectItem>
+                                  <SelectItem value="2">Tuesday</SelectItem>
+                                  <SelectItem value="3">Wednesday</SelectItem>
+                                  <SelectItem value="4">Thursday</SelectItem>
+                                  <SelectItem value="5">Friday</SelectItem>
+                                  <SelectItem value="6">Saturday</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            )}
+
+                            {/* Monthly pattern selection for editing */}
+                            {editingRecurringType === 'monthly' && (
+                              <div className="space-y-2">
+                                <Select 
+                                  value={editingMonthlyPattern} 
+                                  onValueChange={(value: 'date' | 'dayOfWeek') => setEditingMonthlyPattern(value)}
+                                >
+                                  <SelectTrigger className="w-full h-9">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="date">Specific date</SelectItem>
+                                    <SelectItem value="dayOfWeek">Day of week pattern</SelectItem>
+                                  </SelectContent>
+                                </Select>
+
+                                {editingMonthlyPattern === 'date' ? (
+                                  <Select 
+                                    value={editingMonthlyDate.toString()} 
+                                    onValueChange={(value) => setEditingMonthlyDate(parseInt(value))}
+                                  >
+                                    <SelectTrigger className="w-full h-9">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {Array.from({ length: 31 }, (_, i) => i + 1).map(date => (
+                                        <SelectItem key={date} value={date.toString()}>
+                                          {getOrdinalNumber(date)}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                ) : (
+                                  <div className="space-y-1">
+                                    <Select 
+                                      value={editingMonthlyWeekOfMonth.toString()} 
+                                      onValueChange={(value) => setEditingMonthlyWeekOfMonth(parseInt(value))}
+                                    >
+                                      <SelectTrigger className="w-full h-9">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="1">1st week</SelectItem>
+                                        <SelectItem value="2">2nd week</SelectItem>
+                                        <SelectItem value="3">3rd week</SelectItem>
+                                        <SelectItem value="4">4th week</SelectItem>
+                                        <SelectItem value="5">2nd last week</SelectItem>
+                                        <SelectItem value="6">Last week</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                    <Select 
+                                      value={editingMonthlyDayOfWeek.toString()} 
+                                      onValueChange={(value) => setEditingMonthlyDayOfWeek(parseInt(value))}
+                                    >
+                                      <SelectTrigger className="w-full h-9">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="0">Sunday</SelectItem>
+                                        <SelectItem value="1">Monday</SelectItem>
+                                        <SelectItem value="2">Tuesday</SelectItem>
+                                        <SelectItem value="3">Wednesday</SelectItem>
+                                        <SelectItem value="4">Thursday</SelectItem>
+                                        <SelectItem value="5">Friday</SelectItem>
+                                        <SelectItem value="6">Saturday</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            
                             <div className="flex gap-2">
                               <Button 
                                 size="sm" 
@@ -1072,7 +1529,12 @@ export function ProjectMilestoneSection({
                                     const updatedMilestone = {
                                       ...recurringMilestone,
                                       recurringType: editingRecurringType,
-                                      recurringInterval: editingRecurringInterval
+                                      recurringInterval: editingRecurringInterval,
+                                      weeklyDayOfWeek: editingWeeklyDayOfWeek,
+                                      monthlyPattern: editingMonthlyPattern,
+                                      monthlyDate: editingMonthlyDate,
+                                      monthlyWeekOfMonth: editingMonthlyWeekOfMonth,
+                                      monthlyDayOfWeek: editingMonthlyDayOfWeek
                                     };
                                     setRecurringMilestone(updatedMilestone);
                                     
@@ -1084,7 +1546,12 @@ export function ProjectMilestoneSection({
                                       name: recurringMilestone.name,
                                       timeAllocation: recurringMilestone.timeAllocation,
                                       recurringType: editingRecurringType,
-                                      recurringInterval: editingRecurringInterval
+                                      recurringInterval: editingRecurringInterval,
+                                      weeklyDayOfWeek: editingWeeklyDayOfWeek,
+                                      monthlyPattern: editingMonthlyPattern,
+                                      monthlyDate: editingMonthlyDate,
+                                      monthlyWeekOfMonth: editingMonthlyWeekOfMonth,
+                                      monthlyDayOfWeek: editingMonthlyDayOfWeek
                                     };
                                     
                                     const generatedMilestones = generateRecurringMilestones(newConfig);
@@ -1118,26 +1585,26 @@ export function ProjectMilestoneSection({
                         ) : (
                           <Button
                             variant="outline"
-                            className="h-8 text-sm justify-start text-left font-normal px-3 w-full"
+                            className="h-9 text-sm justify-start text-left font-normal px-3 w-full"
                             onClick={() => {
                               setEditingRecurringPattern(true);
                               setEditingRecurringType(recurringMilestone.recurringType);
                               setEditingRecurringInterval(recurringMilestone.recurringInterval);
+                              setEditingWeeklyDayOfWeek(recurringMilestone.weeklyDayOfWeek ?? projectStartDate.getDay());
+                              setEditingMonthlyPattern(recurringMilestone.monthlyPattern ?? 'date');
+                              setEditingMonthlyDate(recurringMilestone.monthlyDate ?? projectStartDate.getDate());
+                              setEditingMonthlyWeekOfMonth(recurringMilestone.monthlyWeekOfMonth ?? 1);
+                              setEditingMonthlyDayOfWeek(recurringMilestone.monthlyDayOfWeek ?? projectStartDate.getDay());
                             }}
                           >
-                            <div>
-                              <div>
-                                {recurringMilestone.recurringType === 'weekly' 
-                                  ? `Every ${format(projectStartDate, 'EEEE')}`
-                                  : recurringMilestone.recurringType === 'monthly'
-                                  ? `${getOrdinalNumber(projectStartDate.getDate())} of each month`
-                                  : 'Daily'
-                                }
-                              </div>
-                              <div className="text-xs text-muted-foreground">
-                                Since {format(projectStartDate, recurringMilestone.recurringType === 'weekly' ? 'MMM d, yyyy' : 'MMM yyyy')}
-                              </div>
-                            </div>
+                            {recurringMilestone.recurringType === 'weekly' 
+                              ? `Every ${getDayName(recurringMilestone.weeklyDayOfWeek ?? projectStartDate.getDay())}`
+                              : recurringMilestone.recurringType === 'monthly'
+                              ? recurringMilestone.monthlyPattern === 'date'
+                                ? `${getOrdinalNumber(recurringMilestone.monthlyDate ?? projectStartDate.getDate())} of each month`
+                                : `${getWeekOfMonthName(recurringMilestone.monthlyWeekOfMonth ?? 1)} ${getDayName(recurringMilestone.monthlyDayOfWeek ?? projectStartDate.getDay())} of each month`
+                              : 'Daily'
+                            }
                           </Button>
                         )}
                       </div>
@@ -1146,7 +1613,7 @@ export function ProjectMilestoneSection({
                           <Button
                             variant="outline"
                             size="sm"
-                            className="h-10 w-10 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            className="h-9 w-9 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
@@ -1196,6 +1663,63 @@ export function ProjectMilestoneSection({
                         >
                           Going Forward & Back
                         </Button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Transparent status for continuous projects */}
+                  {projectContinuous && (
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-gray-700">
+                            {isBatchCreating && expectedMilestoneCount
+                              ? expectedMilestoneCount
+                              : projectMilestones.filter(m => m.name && /\s\d+$/.test(m.name)).length
+                            } milestones available
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Milestones are generated automatically as needed
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Status for time-bounded projects */}
+                  {!projectContinuous && (
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-gray-700">
+                            {(() => {
+                              const currentCount = projectMilestones.filter(m => m.name && /\s\d+$/.test(m.name)).length;
+                              const projectDurationDays = Math.ceil((new Date(projectEndDate).getTime() - new Date(projectStartDate).getTime()) / (24 * 60 * 60 * 1000));
+                              let totalNeeded = 0;
+                              
+                              if (recurringMilestone) {
+                                switch (recurringMilestone.recurringType) {
+                                  case 'daily':
+                                    totalNeeded = Math.floor(projectDurationDays / recurringMilestone.recurringInterval);
+                                    break;
+                                  case 'weekly':
+                                    totalNeeded = Math.floor(projectDurationDays / (7 * recurringMilestone.recurringInterval));
+                                    break;
+                                  case 'monthly':
+                                    totalNeeded = Math.floor(projectDurationDays / (30 * recurringMilestone.recurringInterval));
+                                    break;
+                                }
+                              }
+                              
+                              return currentCount >= totalNeeded 
+                                ? `All ${totalNeeded} milestones created for project duration`
+                                : `${currentCount} of ${totalNeeded} milestones created`;
+                            })()}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Based on project timeline and recurrence pattern
+                          </p>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -1336,8 +1860,128 @@ export function ProjectMilestoneSection({
                       </div>
                     </div>
 
+                    {/* Weekly day selection */}
+                    {recurringConfig.recurringType === 'weekly' && (
+                      <div>
+                        <Label htmlFor="weekly-day">On day</Label>
+                        <Select 
+                          value={recurringConfig.weeklyDayOfWeek?.toString()} 
+                          onValueChange={(value) => setRecurringConfig(prev => ({ ...prev, weeklyDayOfWeek: parseInt(value) }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="0">Sunday</SelectItem>
+                            <SelectItem value="1">Monday</SelectItem>
+                            <SelectItem value="2">Tuesday</SelectItem>
+                            <SelectItem value="3">Wednesday</SelectItem>
+                            <SelectItem value="4">Thursday</SelectItem>
+                            <SelectItem value="5">Friday</SelectItem>
+                            <SelectItem value="6">Saturday</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
+                    {/* Monthly pattern selection */}
+                    {recurringConfig.recurringType === 'monthly' && (
+                      <div className="space-y-3">
+                        <div>
+                          <Label>Monthly pattern</Label>
+                          <Select 
+                            value={recurringConfig.monthlyPattern} 
+                            onValueChange={(value: 'date' | 'dayOfWeek') => setRecurringConfig(prev => ({ ...prev, monthlyPattern: value }))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="date">Specific date</SelectItem>
+                              <SelectItem value="dayOfWeek">Day of week pattern</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Date-based monthly pattern */}
+                        {recurringConfig.monthlyPattern === 'date' && (
+                          <div>
+                            <Label htmlFor="monthly-date">On the</Label>
+                            <Select 
+                              value={recurringConfig.monthlyDate?.toString()} 
+                              onValueChange={(value) => setRecurringConfig(prev => ({ ...prev, monthlyDate: parseInt(value) }))}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Array.from({ length: 31 }, (_, i) => i + 1).map(date => (
+                                  <SelectItem key={date} value={date.toString()}>
+                                    {getOrdinalNumber(date)} of the month
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+
+                        {/* Day-of-week based monthly pattern */}
+                        {recurringConfig.monthlyPattern === 'dayOfWeek' && (
+                          <div className="space-y-2">
+                            <div>
+                              <Label>Week of month</Label>
+                              <Select 
+                                value={recurringConfig.monthlyWeekOfMonth?.toString()} 
+                                onValueChange={(value) => setRecurringConfig(prev => ({ ...prev, monthlyWeekOfMonth: parseInt(value) }))}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="1">1st week</SelectItem>
+                                  <SelectItem value="2">2nd week</SelectItem>
+                                  <SelectItem value="3">3rd week</SelectItem>
+                                  <SelectItem value="4">4th week</SelectItem>
+                                  <SelectItem value="5">2nd last week</SelectItem>
+                                  <SelectItem value="6">Last week</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label>Day of week</Label>
+                              <Select 
+                                value={recurringConfig.monthlyDayOfWeek?.toString()} 
+                                onValueChange={(value) => setRecurringConfig(prev => ({ ...prev, monthlyDayOfWeek: parseInt(value) }))}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="0">Sunday</SelectItem>
+                                  <SelectItem value="1">Monday</SelectItem>
+                                  <SelectItem value="2">Tuesday</SelectItem>
+                                  <SelectItem value="3">Wednesday</SelectItem>
+                                  <SelectItem value="4">Thursday</SelectItem>
+                                  <SelectItem value="5">Friday</SelectItem>
+                                  <SelectItem value="6">Saturday</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     <div className="text-sm text-muted-foreground p-3 bg-muted rounded">
-                      <strong>Preview:</strong> {recurringConfig.name} milestones will be created every {recurringConfig.recurringInterval} {recurringConfig.recurringType}(s) from the project start date{projectContinuous ? ' (continues indefinitely for continuous projects)' : ' until the project end date'}.
+                      <strong>Preview:</strong> {recurringConfig.name} milestones will be created{' '}
+                      {recurringConfig.recurringType === 'daily' ? 
+                        `every ${recurringConfig.recurringInterval} day${recurringConfig.recurringInterval > 1 ? 's' : ''}` :
+                        recurringConfig.recurringType === 'weekly' ?
+                        `every ${recurringConfig.recurringInterval} week${recurringConfig.recurringInterval > 1 ? 's' : ''} on ${getDayName(recurringConfig.weeklyDayOfWeek || 1)}` :
+                        recurringConfig.monthlyPattern === 'date' ?
+                        `every ${recurringConfig.recurringInterval} month${recurringConfig.recurringInterval > 1 ? 's' : ''} on the ${getOrdinalNumber(recurringConfig.monthlyDate || 1)}` :
+                        `every ${recurringConfig.recurringInterval} month${recurringConfig.recurringInterval > 1 ? 's' : ''} on the ${getWeekOfMonthName(recurringConfig.monthlyWeekOfMonth || 1)} ${getDayName(recurringConfig.monthlyDayOfWeek || 1)}`
+                      } from the project start date{projectContinuous ? ' (continues indefinitely for continuous projects)' : ' until the project end date'}.
                     </div>
                   </div>
 

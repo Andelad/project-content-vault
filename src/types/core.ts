@@ -67,6 +67,11 @@ export interface CalendarEvent {
     interval: number; // Every X days/weeks/months/years
     endDate?: Date; // When to stop recurring
     count?: number; // Or number of occurrences
+    // Enhanced monthly pattern options
+    monthlyPattern?: 'date' | 'dayOfWeek'; // Pattern type for monthly recurrence
+    monthlyDate?: number; // 1-31 for specific date of month
+    monthlyWeekOfMonth?: number; // 1-5 for which week of the month (1st, 2nd, 3rd, 4th, last)
+    monthlyDayOfWeek?: number; // 0-6 for day of week in monthly pattern
   };
   // Properties for handling midnight-crossing events
   originalEventId?: string; // Reference to original event if this is a split

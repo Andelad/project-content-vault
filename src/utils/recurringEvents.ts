@@ -62,9 +62,60 @@ export function generateRecurringEvents(
         currentDate = nextWeek;
         break;
       case 'monthly':
-        // Use setMonth to handle month boundaries correctly
+        // Enhanced monthly handling with pattern support
         const nextMonth = new Date(currentDate);
-        nextMonth.setMonth(nextMonth.getMonth() + interval);
+        
+        if (eventData.recurring.monthlyPattern === 'date') {
+          // Specific date pattern (e.g., 15th of each month)
+          const targetDate = eventData.recurring.monthlyDate || currentDate.getDate();
+          nextMonth.setMonth(nextMonth.getMonth() + interval);
+          
+          // Handle months with fewer days (e.g., February 31st -> February 28th)
+          const daysInTargetMonth = new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 1, 0).getDate();
+          nextMonth.setDate(Math.min(targetDate, daysInTargetMonth));
+        } else {
+          // Day of week pattern (e.g., 3rd Tuesday)
+          const targetWeekOfMonth = eventData.recurring.monthlyWeekOfMonth || 1;
+          const targetDayOfWeek = eventData.recurring.monthlyDayOfWeek || currentDate.getDay();
+          
+          nextMonth.setMonth(nextMonth.getMonth() + interval);
+          
+          if (targetWeekOfMonth === 6) {
+            // "Last" occurrence - find the last occurrence of the target day in the month
+            const lastDayOfMonth = new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 1, 0);
+            const lastDayWeekday = lastDayOfMonth.getDay();
+            const daysToSubtract = (lastDayWeekday - targetDayOfWeek + 7) % 7;
+            nextMonth.setDate(lastDayOfMonth.getDate() - daysToSubtract);
+          } else if (targetWeekOfMonth === 5) {
+            // "2nd last" occurrence - find the second last occurrence of the target day in the month
+            const lastDayOfMonth = new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 1, 0);
+            const lastDayWeekday = lastDayOfMonth.getDay();
+            const daysToSubtract = (lastDayWeekday - targetDayOfWeek + 7) % 7;
+            const lastOccurrence = lastDayOfMonth.getDate() - daysToSubtract;
+            const secondLastOccurrence = lastOccurrence - 7;
+            
+            // Use second last if it's valid (positive), otherwise use last
+            nextMonth.setDate(secondLastOccurrence > 0 ? secondLastOccurrence : lastOccurrence);
+          } else {
+            // Find the nth occurrence of the target day in the month
+            const firstDayOfMonth = new Date(nextMonth.getFullYear(), nextMonth.getMonth(), 1);
+            const firstDayWeekday = firstDayOfMonth.getDay();
+            const daysToAdd = (targetDayOfWeek - firstDayWeekday + 7) % 7;
+            const firstOccurrence = 1 + daysToAdd;
+            const targetDate = firstOccurrence + ((targetWeekOfMonth - 1) * 7);
+            
+            // Check if the calculated date exists in the month
+            const daysInMonth = new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 1, 0).getDate();
+            if (targetDate <= daysInMonth) {
+              nextMonth.setDate(targetDate);
+            } else {
+              // If the target week doesn't exist, use the last occurrence
+              const lastOccurrence = targetDate - 7;
+              nextMonth.setDate(lastOccurrence > 0 ? lastOccurrence : firstOccurrence);
+            }
+          }
+        }
+        
         currentDate = nextMonth;
         break;
       case 'yearly':
