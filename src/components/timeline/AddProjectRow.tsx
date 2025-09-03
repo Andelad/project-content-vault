@@ -640,7 +640,12 @@ export function AddHolidayRow({ dates, collapsed, isDragging, dragState, handleH
       >
         {collapsed ? (
           <button 
-            onClick={() => setCreatingNewHoliday(null)}
+            onClick={() => {
+              const today = new Date();
+              const endDate = new Date(today);
+              endDate.setDate(today.getDate() + 2); // 2 days from today
+              setCreatingNewHoliday({ startDate: today, endDate });
+            }}
             className="hover:bg-gray-50 transition-colors p-1 rounded -m-1" 
           >
             <div 

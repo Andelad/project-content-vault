@@ -84,7 +84,9 @@ export function TimelineView() {
     holidays,
     updateHoliday,
     creatingNewHoliday,
-    setCreatingNewHoliday
+    setCreatingNewHoliday,
+    editingHolidayId,
+    setEditingHolidayId
   } = usePlannerContext();
 
   const { 
@@ -701,6 +703,8 @@ export function TimelineView() {
             };
     
     const handleMouseUp = () => {
+      const hadMovement = dragState && dragState.lastDaysDelta !== 0;
+      
       setIsDragging(false);
       setDragState(null);
       stopAutoScroll(); // Fix infinite scrolling
@@ -708,8 +712,10 @@ export function TimelineView() {
       // Clear any pending drag updates for better performance
       clearDragQueue();
       
-      // Show success toast when drag operation completes
-      showProjectSuccessToast("Project updated successfully");
+      // Only show success toast if there was actual movement/change
+      if (hadMovement) {
+        showProjectSuccessToast("Project updated successfully");
+      }
       
       // Remove ALL possible event listeners for robust pen/tablet support
       document.removeEventListener('mousemove', handleMouseMove);
@@ -1496,6 +1502,13 @@ export function TimelineView() {
           onClose={() => setCreatingNewHoliday(null)}
           defaultStartDate={creatingNewHoliday?.startDate}
           defaultEndDate={creatingNewHoliday?.endDate}
+        />
+        
+        {/* Holiday Edit Modal */}
+        <HolidayModal
+          isOpen={!!editingHolidayId}
+          onClose={() => setEditingHolidayId(null)}
+          holidayId={editingHolidayId || undefined}
         />
       </TooltipProvider>
     </DndProvider>
