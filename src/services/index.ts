@@ -42,3 +42,8 @@ export * from './core/orchestrators/TimeAllocationOrchestrator';
 export * from './core/calculations/dateCalculations';
 export * from './core/infrastructure/dateCache';
 
+
+// Unified Calculation Services (New)
+export * from './core/unified/UnifiedWorkingDayService';
+export * from './core/unified/UnifiedMilestoneService';
+export * from './core/unified/UnifiedProjectMetricsService';

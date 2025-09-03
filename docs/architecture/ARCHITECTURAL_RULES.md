@@ -38,12 +38,13 @@
 #### **Where Does This Code Go?**
 | Code Type | Location | Example |
 |-----------|----------|---------|
-| **Business Logic** | `services/{domain}/Orchestrator.ts` | `ProjectOrchestrator.ts` |
-| **Data Access** | `services/{domain}/Repository.ts` | `ProjectRepository.ts` |
-| **Validation** | `services/{domain}/Validator.ts` | `ProjectValidator.ts` |
-| **Infrastructure** | `services/core/infrastructure/` | `CacheService.ts` |
-| **Shared Domain** | `services/core/domain/` | `ValidationRules.ts` |
-| **Legacy Code** | `services/{domain}/legacy/` | `oldProjectService.ts` |
+| **Business Rules** | `core/domain/` | `ProjectEntity.validateBudget()`, `MilestoneEntity.wouldExceedBudget()` |
+| **Pure Math** | `core/calculations/` | `calculateDuration()`, `computeOverlap()`, `calculateBudgetUtilization()` |
+| **Business Logic** | `unified/` | `UnifiedProjectService.createWithValidation()` |
+| **Workflow Coordination** | `orchestrators/` | `ProjectWorkflowOrchestrator.createWithMilestones()` |
+| **Complex Validation** | `validators/` (when needed) | `CrossDomainValidator.validateConsistency()` |
+| **Complex Data Access** | `repositories/` (when needed) | `ProjectRepository.getWithOptimizedMilestones()` |
+| **Legacy Code** | `legacy/` | `oldMilestoneService.ts` (temporary) |
 
 #### **Import Patterns Checklist**
 ```typescript
@@ -75,106 +76,191 @@ import { CacheService } from '@/services/core';
 
 ---
 
-## **🏢 Services Organization Pattern**
-**Clean, domain-driven structure for service files:**
+## **🏢 AI-Optimized Unified Services Architecture**
+**Single source of truth pattern - optimized for AI development collaboration:**
 
 ```
 src/services/
-├── core/                        # Cross-cutting technical concerns
-│   ├── domain/                  # Pure business rules (no dependencies)
-│   ├── calculations/            # Pure mathematical functions  
-│   ├── infrastructure/          # Caching, performance, optimization  
-│   └── performance/             # Performance monitoring & optimization
-├── {feature}/                   # Business feature domains  
-│   ├── {Feature}Orchestrator.ts  # Business workflow (1 file = flat)
-│   ├── orchestrators/           # Multiple orchestrators (2+ files = folder)
-│   ├── {Feature}Validator.ts    # Validation logic (1 file = flat)  
-│   ├── validators/              # Multiple validators (2+ files = folder)
-│   ├── calculations.ts          # Feature calculations (1 file = flat)
-│   ├── calculations/            # Multiple calculations (2+ files = folder)
-│   └── legacy/                  # DELETE AFTER MIGRATION
-└── index.ts            # Clean exports organized by layer
+├── core/                        # Foundation layers (always required)
+│   ├── calculations/            # Pure mathematical functions (no dependencies)
+│   │   ├── budgetCalculations.ts
+│   │   ├── timeCalculations.ts
+│   │   └── dateCalculations.ts
+│   └── domain/                  # Domain entities - business rules (SINGLE SOURCE OF TRUTH)
+│       ├── ProjectEntity.ts     # All project business rules HERE
+│       ├── MilestoneEntity.ts   # All milestone business rules HERE
+│       ├── WorkHourEntity.ts    # All work hour business rules HERE
+│       └── EventEntity.ts       # All event business rules HERE
+├── unified/                     # Business logic consolidation (always required)
+│   ├── UnifiedProjectService.ts
+│   ├── UnifiedMilestoneService.ts
+│   ├── UnifiedWorkHourService.ts
+│   └── UnifiedEventService.ts
+├── orchestrators/               # Workflow coordination (always required)
+│   ├── ProjectWorkflowOrchestrator.ts
+│   ├── MilestoneWorkflowOrchestrator.ts
+│   └── TimelineWorkflowOrchestrator.ts
+├── validators/                  # Complex validation (add when needed)
+│   ├── ProjectValidator.ts
+│   ├── MilestoneValidator.ts
+│   └── CrossDomainValidator.ts
+├── repositories/                # Data access patterns (add when needed)
+│   ├── ProjectRepository.ts
+│   ├── MilestoneRepository.ts
+│   └── TimelineRepository.ts
+├── legacy/                      # Migration safety (temporary)
+│   └── {existing services - DELETE AFTER MIGRATION}
+└── index.ts                     # Clean exports organized by layer
 ```
 
 **Logic behind this structure:**
-- **Core**: Cross-cutting technical concerns (domain rules, calculations, infrastructure)
-- **Domain**: Universal business rules that never change
-- **Calculations**: Pure math functions (easily testable, cacheable)
-- **Infrastructure**: Performance optimization, caching, metrics (wraps pure functions)
-- **Feature folders**: Business domains that users interact with
-- **Legacy folders**: Safe migration path (maintain backward compatibility)
+- **Core**: Foundation layers that all other services depend on
+- **Domain Entities**: Single source of truth for business rules (prevents AI confusion)
+- **Calculations**: Pure mathematical functions (easily testable, cacheable, reusable)
+- **Unified**: Business logic consolidation (orchestrates domain entities + calculations)
+- **Orchestrators**: Workflow coordination across domains (uses unified services)
+- **Validators**: Complex validation logic (add when domain rules aren't sufficient)
+- **Repositories**: Data access patterns (add when simple data access isn't sufficient)
+- **Legacy**: Safe migration path (maintain backward compatibility)
 
-**Folder Structure Rules:**
-- ✅ **Feature-specific logic** - Keep in feature folder, classify by type (calculations, workflows, etc.)
-- ✅ **Cross-cutting logic** - Move to `core/` (domain, calculations, infrastructure, performance)
-- ✅ **Single file per type** - Use flat files (`milestones/calculations.ts`, `events/orchestrator.ts`)
-- ✅ **Multiple files per type** - Create subfolders (`events/calculations/`, `timeline/orchestrators/`)
-- ❌ **Never create single-file folders** - No `{feature}/orchestrators/SomeOrchestrator.ts` for just one file
-- ✅ **Legacy folder always exists** - All existing services go in `/legacy/` during migration
-- ❌ **No deeply nested folders** - Keep structure navigable (max 2-3 levels deep)
+### **🤖 AI Development Optimization**
 
-**Subfolder Decision Logic:**
-1. **Classify the concern**: Is it feature-specific or cross-cutting?
-2. **Count files by type**: How many calculations/orchestrators/validators?
-3. **Apply structure rule**: 1 file = flat, 2+ files = subfolder
-4. **Name consistently**: Use standard patterns (`calculations/`, `orchestrators/`, `workflows/`)
+**Why "Single Source of Truth" is Critical for AI:**
+- ✅ **Prevents AI confusion** - Clear, unambiguous places for each concern
+- ✅ **Reduces duplication errors** - AI knows exactly where existing functions live
+- ✅ **Consistent patterns** - AI can reliably follow the same organizational rules  
+- ✅ **Easy validation** - AI can easily check if functionality already exists
+- ✅ **Clear import paths** - AI knows exactly what to import from where
 
-**Core vs Feature Distinction:**
-- **Core concerns**: Technical, cross-cutting functionality (domain rules, calculations, infrastructure)
-- **Feature domains**: Business functionality that users directly interact with
-- **Performance/caching**: Always belongs in `core/infrastructure/`, never as separate feature
-- **Validation rules**: Universal rules go in `core/domain/`, feature-specific in `{feature}/Validator.ts`
+**AI Anti-Patterns to Avoid:**
+- ❌ **Scattered similar functions** - AI can't tell which one to use
+- ❌ **Inconsistent naming patterns** - AI mixes up similar-sounding services
+- ❌ **Deep nested structures** - AI loses context navigating folders
+- ❌ **Unclear responsibilities** - AI doesn't know which layer handles what
 
-### **� Feature Folder Organization Rules**
+### **📊 When to Add Each Layer**
 
-#### **✅ Simple Feature Structure (Single Files)**
+| Layer | Required | Add When... | Example Use Case |
+|-------|----------|-------------|------------------|
+| **Core/Domain** | ✅ Always | - | `ProjectEntity.validateBudget()`, `MilestoneEntity.wouldExceedBudget()` |
+| **Core/Calculations** | ✅ Always | - | `calculateDuration()`, `computeOverlap()`, `calculateBudgetUtilization()` |
+| **Unified Services** | ✅ Always | - | `UnifiedProjectService.createWithValidation()` |
+| **Orchestrators** | ✅ Always | - | `ProjectWorkflowOrchestrator.createWithMilestones()` |
+| **Validators** | ⚠️ When needed | Complex business rules | Cross-domain validation, intricate rule sets |
+| **Repositories** | ⚠️ When needed | Complex data access | Multiple data sources, sophisticated caching |
+
+### **🎯 Layer Hierarchy & Dependencies**
+
 ```
-src/services/milestones/
-├── 📄 MilestoneOrchestrator.ts    # One orchestrator = flat file
-├── 📄 MilestoneValidator.ts       # One validator = flat file
-├── 📄 MilestoneRepository.ts      # One repository = flat file
-└── 📁 legacy/                     # Migration safety
-    └── 📄 milestoneManagementService.ts
-```
-
-#### **✅ Mixed Feature Structure (Some Single, Some Multiple)**  
-```
-src/services/projects/
-├── 📄 ProjectOrchestrator.ts      # One orchestrator = flat file
-├── 📄 ProjectValidator.ts         # One validator = flat file  
-├── 📄 ProjectRepository.ts        # One repository = flat file
-├── 📄 calculations.ts             # One calculation file = flat file
-└── 📁 legacy/                     # Migration safety
-    ├── 📄 ProjectCalculationService.ts
-    └── 📄 projectProgressService.ts
-```
-
-#### **✅ Complex Feature Structure (Multiple Files by Type)**  
-```
-src/services/events/
-├── 📄 EventOrchestrator.ts        # One main orchestrator = flat file
-├── 📄 EventValidator.ts           # One main validator = flat file
-├── 📄 EventRepository.ts          # One main repository = flat file
-├── 📁 calculations/               # Multiple calculations = subfolder
-│   ├── 📄 dragCalculations.ts     # Drag interaction logic
-│   ├── 📄 overlapCalculations.ts  # Event overlap logic
-│   ├── 📄 durationCalculations.ts # Event duration logic
-│   └── 📄 splitCalculations.ts    # Event splitting logic
-└── 📁 legacy/                     # Migration safety
-    ├── 📄 eventDurationService.ts
-    └── 📄 dragCalculationService.ts
+┌─────────────────┐
+│  Orchestrators  │  ← Coordinates workflows, uses unified services
+└─────────────────┘
+         ↓
+┌─────────────────┐
+│ Unified Services│  ← Business logic consolidation, uses domain + calculations  
+└─────────────────┘
+         ↓
+┌─────────────────┐
+│ Domain Entities │  ← Business rules, may use calculations for complex logic
+└─────────────────┘
+         ↓
+┌─────────────────┐
+│  Calculations   │  ← Pure math functions, no dependencies
+└─────────────────┘
 ```
 
-#### **❌ Incorrect Nested Structure**
+**Key Principle:** Higher layers depend on lower layers, never the reverse.
+
+### **🚦 Two-Stage Migration Strategy**
+
+#### **Stage 1: Consolidate Duplicates (Single Source of Truth)**
+**Goal:** Eliminate duplication using domain entities as authoritative source
+**Approach:** Delegation pattern for safe migration
+
 ```
-src/services/work-hours/
-├── 📁 orchestrators/              # ❌ NEVER - Single file in folder
-│   └── 📄 WorkHourOrchestrator.ts
-├── 📁 validators/                 # ❌ NEVER - Unnecessary nesting
-│   └── 📄 WorkHourValidator.ts
-└── 📁 repositories/               # ❌ NEVER - Overengineered
-    └── 📄 WorkHourRepository.ts
+CURRENT PROBLEMS:                  STAGE 1 SOLUTION:
+├── calculateTotalAllocation       ├── All delegate to ProjectEntity.calculateTotalMilestoneAllocation()
+│   ├── milestoneCalculations.ts   │   ├── milestoneCalculations.ts → delegation wrapper
+│   ├── legacyService1.ts          │   ├── legacyService1.ts → delegation wrapper  
+│   └── legacyService2.ts          │   └── legacyService2.ts → delegation wrapper
+├── analyzeBudget                  ├── All delegate to ProjectEntity.analyzeBudget()
+│   ├── managementService.ts       │   ├── managementService.ts → delegation wrapper
+│   └── legacyService.ts           │   └── legacyService.ts → delegation wrapper
 ```
+
+**Benefits:**
+- ✅ **Zero breaking changes** - All existing imports continue working
+- ✅ **Domain entities become single source of truth**
+- ✅ **Easy rollback** - Remove delegation wrappers if issues
+- ✅ **AI can reliably find functions** - Only one real implementation
+
+#### **Stage 2: Architectural Refinement (Optional)**
+**Goal:** Extract pure math, create unified services that orchestrate domain entities  
+**Timing:** Only after Stage 1 is complete and stable
+
+```
+STAGE 1 RESULT:                    STAGE 2 REFINEMENT:
+├── Domain entities do everything  ├── Pure math extracted to calculations/
+├── Other services delegate        ├── Domain entities keep business rules
+├── No duplication                 ├── Unified services orchestrate both
+```
+
+**Decision Point:** Evaluate if Stage 2 is needed based on complexity growth
+
+### **🎯 AI Development Guidelines**
+
+#### **For AI Development:**
+- **Always check domain entities first** - Business rules live there, don't recreate them
+- **Use single source of truth** - If functionality exists, delegate to it rather than duplicating
+- **Follow layer hierarchy** - Lower layers never import from higher layers
+- **Consistent naming** - Follow established patterns (UnifiedXService, XOrchestrator, XEntity)
+
+#### **AI Decision Framework:**
+
+| When AI Needs To... | First Check... | Then Place In... |
+|---------------------|----------------|------------------|
+| **Add business rule** | `core/domain/XEntity` | Same entity if rule exists, extend if new |
+| **Add calculation** | `core/calculations/` | Extract to calculations if reusable math |
+| **Add business logic** | `unified/UnifiedXService` | Extend existing or create new unified service |
+| **Add workflow** | `orchestrators/` | Create or extend appropriate orchestrator |
+| **Add validation** | Domain entity first | Create validator only if domain rules insufficient |
+
+#### **AI Red Flags (Avoid These):**
+- ❌ **Creating duplicate functions** - Always check if functionality already exists
+- ❌ **Putting business logic in calculations** - Keep calculations pure math only
+- ❌ **Creating parallel services** - Use existing unified services, don't create alternatives
+- ❌ **Bypassing domain entities** - Always use domain entities for business rules
+
+---
+
+## 🎯 **Summary: AI-Optimized Unified Services Migration**
+
+**Current Status:** Moving from scattered services to unified architecture with single source of truth
+**Approach:** Two-stage consolidation with domain entities as authoritative foundation
+**Optimization:** Structure designed to prevent AI confusion and duplication errors
+
+**✅ Stage 1 Actions (Immediate):**
+- Consolidate duplicate calculations using delegation to domain entities
+- Establish domain entities as single source of truth for business rules
+- Use delegation wrappers for safe migration without breaking changes
+- Remove legacy services after delegation is verified working
+
+**⚠️ Stage 2 Considerations (Future):**
+- Extract pure math to `core/calculations/` if domain entities become too complex
+- Create unified services that orchestrate domain entities + calculations
+- Add `validators/` and `repositories/` layers only when simple approaches become insufficient
+
+**🤖 AI Development Principles:**
+- **Single source of truth** - Prevents AI from creating duplicate functions
+- **Consistent patterns** - AI can reliably follow organizational rules
+- **Clear layer hierarchy** - AI knows exactly where functionality belongs
+- **Delegation over duplication** - AI reuses existing functionality rather than recreating
+
+**🚦 Key Success Metrics:**
+- Zero duplicate function implementations
+- All business rules centralized in domain entities
+- Clear, unambiguous import paths
+- Easy for AI to validate if functionality already exists
 
 #### **✅ Core vs Feature Examples**
 

@@ -72,6 +72,9 @@ export const MILESTONE_CALCULATION_CONFIG = {
  * Calculate daily time allocation for milestones
  * Distributes milestone hours across the days between milestones
  * 
+ * ⚠️ MIGRATION: This function now delegates to UnifiedMilestoneService
+ * All existing imports continue to work unchanged.
+ * 
  * @param milestones - Array of milestones to distribute
  * @param projectStartDate - Project start date
  * @param projectEndDate - Project end date
@@ -88,63 +91,19 @@ export function calculateMilestoneTimeDistribution(
   settings?: any,
   holidays?: any[]
 ): MilestoneTimeDistributionEntry[] {
-  if (milestones.length === 0) {
-    return [];
-  }
-
-  // Sort milestones by due date
-  const sortedMilestones = [...milestones].sort((a, b) => 
-    new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+  // Delegate to unified service for consistent calculation
+  const { UnifiedMilestoneService } = require('../core/unified/UnifiedMilestoneService');
+  
+  return UnifiedMilestoneService.calculateTimeDistribution(
+    milestones,
+    projectStartDate,
+    projectEndDate,
+    {
+      autoEstimateDays,
+      settings,
+      holidays
+    }
   );
-
-  const result: MilestoneTimeDistributionEntry[] = [];
-  let currentDate = new Date(projectStartDate);
-  currentDate.setHours(0, 0, 0, 0);
-
-  for (let i = 0; i < sortedMilestones.length; i++) {
-    const milestone = sortedMilestones[i];
-    const milestoneDate = new Date(milestone.dueDate);
-    milestoneDate.setHours(0, 0, 0, 0);
-
-    // Calculate days between current date and milestone
-    const timeDiff = milestoneDate.getTime() - currentDate.getTime();
-    const daysDiff = Math.max(1, Math.ceil(timeDiff / (1000 * 60 * 60 * 24)));
-
-    // Calculate hours per day - use auto-estimate days if available
-    let hoursPerDay: number;
-    if (autoEstimateDays && settings && holidays) {
-      const workingDays = calculateAutoEstimateWorkingDays(
-        currentDate,
-        milestoneDate,
-        autoEstimateDays,
-        settings,
-        holidays.map(h => new Date(h.startDate || h))
-      );
-      hoursPerDay = workingDays.length > 0 ? milestone.timeAllocation / workingDays.length : 0;
-    } else {
-      // Fallback to calendar days
-      hoursPerDay = milestone.timeAllocation / daysDiff;
-    }
-
-    // Add entries for each day leading up to the milestone
-    for (let day = 0; day < daysDiff; day++) {
-      const dayDate = new Date(currentDate.getTime() + (day * 24 * 60 * 60 * 1000));
-      const isLastDay = day === daysDiff - 1;
-      
-      result.push({
-        date: dayDate,
-        estimatedHours: hoursPerDay,
-        milestone: isLastDay ? milestone : undefined,
-        dayIndex: day,
-        isDeadlineDay: isLastDay
-      });
-    }
-
-    // Move current date to the day after this milestone
-    currentDate = new Date(milestoneDate.getTime() + (24 * 60 * 60 * 1000));
-  }
-
-  return result;
 }
 
 /**
