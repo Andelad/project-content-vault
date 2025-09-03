@@ -8,8 +8,12 @@ export * from './infrastructure/dateCache';
 
 // Calculation services  
 export * from './calculations/dateCalculations';
+export * from './calculations/timeCalculations';
 export * from './calculations/milestoneCalculations';
 export * from './calculations/projectCalculations';
+
+// Explicit re-export to resolve datesOverlap ambiguity
+export { datesOverlap } from './calculations/dateCalculations';
 
 // Orchestrator services
 export * from './orchestrators/TimeAllocationOrchestrator';

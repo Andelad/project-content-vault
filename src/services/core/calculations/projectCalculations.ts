@@ -1,181 +1,152 @@
-import { CalendarEvent, Project, Group } from '../../../types';
-import { calculateValidDays } from '../../insights/legacy/insightsCalculationService';
+/**
+ * Duration Formatting Service
+ * Handles formatting of time durations and date ranges for project displays
+ * Uses single source of truth for all calculations
+ */
 
-export class ProjectCalculationService {
-  /**
-   * Calculate weekly capacity based on work hours settings
-   */
-  static calculateWeeklyCapacity(
-    settings: { weeklyWorkHours: { [key: string]: Array<{ duration: number }> } }
-  ): number {
-    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+import { Project } from '@/types';
+import { 
+  datesOverlap as coreDatesOverlap,
+  calculateDurationDays,
+  formatDuration as coreFormatDuration
+} from '@/services/core/calculations/dateCalculations';
+
+/**
+ * Calculate working days for auto-estimation excluding specified days
+ */
+export function calculateAutoEstimateWorkingDays(
+  startDate: Date,
+  endDate: Date,
+  autoEstimateDays: Project['autoEstimateDays'],
+  settings?: any,
+  holidays: Date[] = []
+): Date[] {
+  const workingDays: Date[] = [];
+  const current = new Date(startDate);
+  
+  // Default to all days enabled if not specified
+  const enabledDays = autoEstimateDays || {
+    monday: true,
+    tuesday: true,
+    wednesday: true,
+    thursday: true,
+    friday: true,
+    saturday: true,
+    sunday: true,
+  };
+
+  const dayMap = {
+    0: 'sunday',
+    1: 'monday',
+    2: 'tuesday',
+    3: 'wednesday',
+    4: 'thursday',
+    5: 'friday',
+    6: 'saturday',
+  } as const;
+
+  while (current <= endDate) {
+    const dayOfWeek = current.getDay();
+    const dayName = dayMap[dayOfWeek as keyof typeof dayMap];
     
-    return dayNames.reduce((total, dayName, index) => {
-      const daySlots = settings.weeklyWorkHours[dayName] || [];
-      const dayHours = daySlots.reduce((sum, slot) => sum + slot.duration, 0);
-      return total + dayHours;
-    }, 0);
-  }
-
-  /**
-   * Calculate project hours summary for reporting
-   */
-  static calculateProjectHoursSummary(
-    projects: Project[],
-    events: CalendarEvent[]
-  ): {
-    totalEstimated: number;
-    totalLogged: number;
-    totalProjects: number;
-  } {
-    const totalEstimated = projects.reduce((sum, project) => sum + project.estimatedHours, 0);
-    const totalLogged = events.reduce((sum, event) => {
-      const duration = (new Date(event.endTime).getTime() - new Date(event.startTime).getTime()) / (1000 * 60 * 60);
-      return sum + duration;
-    }, 0);
-
-    return {
-      totalEstimated,
-      totalLogged,
-      totalProjects: projects.length
-    };
-  }
-
-  /**
-   * Calculate average hours per day from events data
-   */
-  static calculateAverageHoursPerDay(
-    events: CalendarEvent[],
-    projects: Project[],
-    groups: Group[],
-    averagePeriod: { start: Date; end: Date },
-    settings: { weeklyWorkHours: { [key: string]: Array<{ duration: number }> } }
-  ): {
-    timeline: Array<{
-      hour: number;
-      time: string;
-      groups: { [groupId: string]: number };
-      totalHours: number;
-    }>;
-    totalAverageHours: number;
-    validDays: number;
-  } {
-    // Determine included days from settings (days with work hours)
-    const includedDaysArray = this.getIncludedDaysFromSettings(settings);
+    // Check if this day is enabled for auto-estimation
+    const isDayEnabled = enabledDays[dayName];
     
-    // Convert number[] to IncludedDays boolean object
-    const includedDays: { [key: string]: boolean } = {
-      sunday: false, monday: false, tuesday: false, wednesday: false,
-      thursday: false, friday: false, saturday: false
-    };
-    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    includedDaysArray.forEach(dayIndex => {
-      includedDays[dayNames[dayIndex]] = true;
-    });
-    
-    // Filter events within the average period
-    const periodEvents = events.filter(event => {
-      const eventDate = new Date(event.startTime);
-      return eventDate >= averagePeriod.start && eventDate <= averagePeriod.end;
+    // Check if it's a holiday
+    const isHoliday = holidays.some(holiday => {
+      const holidayDate = new Date(holiday);
+      return holidayDate.toDateString() === current.toDateString();
     });
 
-    // Calculate valid days (days in period that are included in work week)
-    const totalValidDays = calculateValidDays(averagePeriod.start, averagePeriod.end, includedDays as any);
-
-    // Initialize hourly data structure
-    const hourlyData: { [hour: number]: { [groupId: string]: number } } = {};
-    for (let hour = 0; hour < 24; hour++) {
-      hourlyData[hour] = {};
-      groups.forEach(group => {
-        hourlyData[hour][group.id] = 0;
-      });
+    if (isDayEnabled && !isHoliday) {
+      workingDays.push(new Date(current));
     }
 
-    // Process each event
-    periodEvents.forEach(event => {
-      try {
-        const startTime = new Date(event.startTime);
-        const endTime = new Date(event.endTime);
+    current.setDate(current.getDate() + 1);
+  }
 
-        // Skip if event is on excluded day
-        const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-        const eventDayName = dayNames[startTime.getDay()];
-        if (!includedDays[eventDayName]) {
-          return;
-        }
+  return workingDays;
+}
 
-        // Find associated project and group
-        const project = projects.find(p => p.id === event.projectId);
-        if (!project) return;
+/**
+ * Calculate auto-estimate hours per day for a project
+ */
+export function calculateAutoEstimateHoursPerDay(
+  project: Project,
+  settings?: any,
+  holidays: Date[] = []
+): number {
+  const startDate = new Date(project.startDate);
+  const endDate = project.continuous ? new Date() : new Date(project.endDate);
+  
+  const workingDays = calculateAutoEstimateWorkingDays(
+    startDate,
+    endDate,
+    project.autoEstimateDays,
+    settings,
+    holidays
+  );
 
-        const group = groups.find(g => g.id === project.groupId);
-        if (!group) return;
+  if (workingDays.length === 0) {
+    return 0;
+  }
 
-        const groupId = group.id;
+  return project.estimatedHours / workingDays.length;
+}
 
-        // Calculate hours that overlap with each hour of the day
-        for (let hour = 0; hour < 24; hour++) {
-          const hourStart = new Date(startTime);
-          hourStart.setHours(hour, 0, 0, 0);
-          const hourEnd = new Date(startTime);
-          hourEnd.setHours(hour + 1, 0, 0, 0);
+/**
+ * Check if two date ranges overlap (delegates to core date calculations)
+ */
+export function datesOverlap(
+  startA: Date,
+  endA: Date,
+  startB: Date,
+  endB: Date
+): boolean {
+  // Delegate to core date calculations for single source of truth
+  return coreDatesOverlap(startA, endA, startB, endB);
+}
 
-          // Find overlap between event and this hour
-          const overlapStart = new Date(Math.max(startTime.getTime(), hourStart.getTime()));
-          const overlapEnd = new Date(Math.min(endTime.getTime(), hourEnd.getTime()));
+export class DurationFormattingService {
+  /**
+   * Format a date range as a human-readable duration string
+   * @param startDate - Start date of the period
+   * @param endDate - End date of the period
+   * @returns Formatted duration string (e.g., "2w 3d", "5 days", "3 weeks")
+   */
+  static formatDuration(startDate: Date, endDate: Date): string {
+    const diffTime = endDate.getTime() - startDate.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const weeks = Math.floor(diffDays / 7);
+    const days = diffDays % 7;
 
-          if (overlapEnd > overlapStart) {
-            const hourPortion = (overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60);
-            hourlyData[hour][groupId] += hourPortion;
-          }
-        }
-      } catch (error) {
-        console.warn('Error processing event times:', event, error);
-      }
-    });
-
-    // Calculate averages and create 24-hour timeline
-    const timelineData = [];
-    for (let hour = 0; hour < 24; hour++) {
-      const hourData = hourlyData[hour] || {};
-      const groupTotals: { [groupId: string]: number } = {};
-
-      Object.keys(hourData).forEach(groupId => {
-        groupTotals[groupId] = totalValidDays > 0 ? hourData[groupId] / totalValidDays : 0;
-      });
-
-      timelineData.push({
-        hour,
-        time: `${hour.toString().padStart(2, '0')}:00`,
-        groups: groupTotals,
-        totalHours: Object.values(groupTotals).reduce((sum, hours) => sum + hours, 0)
-      });
-    }
-
-    return {
-      timeline: timelineData,
-      totalAverageHours: timelineData.reduce((sum, hour) => sum + hour.totalHours, 0),
-      validDays: totalValidDays
-    };
+    if (weeks === 0) return `${diffDays} days`;
+    if (days === 0) return `${weeks} weeks`;
+    return `${weeks}w ${days}d`;
   }
 
   /**
-   * Get included days (days with work hours) from settings
+   * Format duration in days only
+   * @param startDate - Start date
+   * @param endDate - End date
+   * @returns Number of days as string
    */
-  private static getIncludedDaysFromSettings(
-    settings: { weeklyWorkHours: { [key: string]: Array<{ duration: number }> } }
-  ): number[] {
-    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    const includedDays: number[] = [];
-    
-    dayNames.forEach((dayName, index) => {
-      const daySlots = settings.weeklyWorkHours[dayName] || [];
-      const dayHours = daySlots.reduce((sum, slot) => sum + slot.duration, 0);
-      if (dayHours > 0) {
-        includedDays.push(index);
-      }
-    });
-    
-    return includedDays;
+  static formatDurationInDays(startDate: Date, endDate: Date): string {
+    const diffTime = endDate.getTime() - startDate.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return `${diffDays} days`;
+  }
+
+  /**
+   * Format duration in weeks only
+   * @param startDate - Start date
+   * @param endDate - End date
+   * @returns Number of weeks as string
+   */
+  static formatDurationInWeeks(startDate: Date, endDate: Date): string {
+    const diffTime = endDate.getTime() - startDate.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const weeks = Math.floor(diffDays / 7);
+    return `${weeks} weeks`;
   }
 }

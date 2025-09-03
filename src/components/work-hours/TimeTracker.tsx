@@ -14,7 +14,7 @@ import {
   createTimeRange,
   type EventSplitResult 
 } from '@/services';
-import { TimeTrackerCalculationService } from '@/services/tracker';
+import { TimeTrackerCalculationService } from '@/services';
 
 interface TimeTrackerProps {
   className?: string;

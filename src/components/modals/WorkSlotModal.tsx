@@ -5,7 +5,7 @@ import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { StandardModal } from '../modals/StandardModal';
 import { WorkHour } from '../../types/core';
-import { calculateDurationHours } from '../../services/work-hours';
+import { calculateDurationHours } from '@/services';
 
 interface WorkSlotModalProps {
   isOpen: boolean;

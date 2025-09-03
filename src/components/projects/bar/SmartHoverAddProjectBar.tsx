@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { Project } from '../../../types';
-import { calculateMinimumHoverOverlaySize } from '../../../services/timeline';
+import { calculateMinimumHoverOverlaySize } from '@/services';
 
 interface SmartHoverAddProjectBarProps {
   dates: Date[];

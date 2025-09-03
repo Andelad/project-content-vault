@@ -1,12 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Clock, Move, GripVertical } from 'lucide-react';
 import { WorkHour } from '../../types';
-import {
-  snapToTimeSlot,
-  calculateTimeFromPosition as calculateTimeFromPositionService,
-  formatDurationFromHours,
-  formatTimeForDisplay
-} from '@/services/work-hours';
+import { calculateTimeFromPosition as calculateTimeFromPositionService, formatTimeForDisplay, formatDurationFromHours } from '@/services';
 
 interface DraggableWorkHourProps {
   workHour: WorkHour;

@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { Project } from '../../types';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useTimelineContext } from '../../contexts/TimelineContext';
-import { calculateProjectDuration } from '@/services/projects/legacy/projectProgressService';
-import { ProjectCalculationService } from '@/services/projects';
-import { HeightCalculationService } from '@/services/timeline';
+import { calculateProjectDuration } from '@/services';
+import { ProjectCalculationService } from '@/services';
+import { HeightCalculationService } from '@/services';
 import { TimelineCalculationService } from '@/services';
 import { CommittedHoursCalculationService } from '@/services';
+import { calculateProjectBarPosition } from '@/services/ui/TimelinePositioning';
 
 interface ProjectTimelineProps {
   project: Project;
@@ -112,8 +113,15 @@ export function ProjectTimeline({ project, dates, currentDate }: ProjectTimeline
     </div>
   );
 
-  // Find the start and end positions for the timeline bar
-  const timelinePosition = TimelineCalculationService.calculateTimelineBarPosition(dates, project);
+  // Find the start and end positions for the timeline bar using unified positioning
+  const timelinePosition = calculateProjectBarPosition(
+    new Date(project.startDate),
+    new Date(project.endDate),
+    dates[0] || new Date(project.startDate),
+    dates[dates.length - 1] || new Date(project.endDate),
+    dates,
+    'days'
+  );
 
   return (
     <div className="relative">

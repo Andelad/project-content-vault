@@ -24,7 +24,7 @@ import {
   MilestoneOrchestrator,
   ProjectOrchestrator
 } from '@/services';
-import { MilestoneCalculationService } from '@/services/milestones/legacy/milestoneCalculationService';
+import { MilestoneCalculationService } from '@/services';
 
 interface ProjectMilestoneSectionProps {
   projectId?: string; // Made optional to support new projects

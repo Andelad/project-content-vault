@@ -10,7 +10,7 @@ import {
   calculateOtherTime,
   calculateProjectWorkingDays,
   getProjectTimeAllocation
-} from '@/services/work-hours';
+} from '@/services';
 import { WeeklyCapacityCalculationService, WorkHoursCalculationService, expandHolidayDates } from '@/services';
 import { calculateAvailabilityCircleSize, getMinimumCircleDimensions } from '@/services';
 import { calculateAutoEstimateHoursPerDay, calculateAutoEstimateWorkingDays } from '@/services';

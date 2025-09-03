@@ -26,7 +26,7 @@ import {
 } from '@/services';
 import { TIMELINE_CONSTANTS } from '@/constants';
 import { performanceMonitor } from '@/services/core/performance/performanceMetricsService';
-import { checkProjectOverlap, adjustProjectDatesForDrag } from '@/services/projects/legacy/projectOverlapService';
+import { checkProjectOverlap, adjustProjectDatesForDrag } from '@/services';
 import { throttledDragUpdate, clearDragQueue, throttledVisualUpdate } from '@/services/core/performance/dragPerformanceService';
 import { workingDayStats } from '@/lib/workingDayCache';
 import { milestoneStats } from '@/lib/milestoneCache';

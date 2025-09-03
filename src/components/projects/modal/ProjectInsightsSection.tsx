@@ -2,7 +2,7 @@ import React from 'react';
 import { Clock, TrendingUp, Calendar, Target } from 'lucide-react';
 import { ProjectProgressGraph } from './ProjectProgressGraph';
 import { formatTimeHoursMinutes } from '../../../utils/timeFormatUtils';
-import { calculateProjectTimeMetrics } from '@/services/projects';
+import { calculateProjectTimeMetrics } from '@/services';
 import { useSettingsContext } from '../../../contexts/SettingsContext';
 
 interface ProjectInsightsSectionProps {
@@ -83,7 +83,6 @@ export const ProjectInsightsSection: React.FC<ProjectInsightsSectionProps> = ({
         </div>
         <ProjectProgressGraph
           project={project}
-          metrics={metrics}
           events={projectEvents}
         />
       </div>

@@ -16,7 +16,7 @@ import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 import { useTimelineContext } from '../../contexts/TimelineContext';
 import { calculateProjectTimeMetrics, calculateAutoEstimateHoursPerDay, expandHolidayDates } from '@/services';
-import { ProjectWorkingDaysService } from '@/services/projects/legacy/projectWorkingDaysService';
+import { ProjectWorkingDaysService } from '@/services';
 import { formatTimeHoursMinutes } from '@/utils/timeFormatUtils';
 import { formatDate, formatDateForInput } from '@/utils/dateFormatUtils';
 import { StandardModal } from './StandardModal';
@@ -694,7 +694,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
       updateProject(projectId, { autoEstimateDays: newAutoEstimateDays }, { silent: true });
       
       // Clear timeline cache to ensure UI updates immediately
-      import('@/services/events/eventWorkHourIntegrationService').then(({ clearTimelineCache }) => {
+      import('@/services').then(({ clearTimelineCache }) => {
         clearTimelineCache();
       });
     }

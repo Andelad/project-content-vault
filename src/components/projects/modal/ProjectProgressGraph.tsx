@@ -1,17 +1,15 @@
 import React, { useMemo } from 'react';
 import { Project, CalendarEvent, Milestone } from '@/types/core';
-import { ComprehensiveProjectTimeMetrics } from '@/services/projects';
 import { analyzeProjectProgress } from '@/services';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../ui/tooltip';
 
 interface ProjectProgressGraphProps {
   project: Project;
-  metrics: ComprehensiveProjectTimeMetrics;
   events: CalendarEvent[];
   milestones?: Milestone[];
 }
 
-export function ProjectProgressGraph({ project, metrics, events, milestones = [] }: ProjectProgressGraphProps) {
+export function ProjectProgressGraph({ project, events, milestones = [] }: ProjectProgressGraphProps) {
   // Use the comprehensive progress analysis service
   const analysis = useMemo(() => {
     return analyzeProjectProgress({

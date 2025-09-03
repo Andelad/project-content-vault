@@ -12,6 +12,127 @@
 import { addDays, subDays, endOfWeek, isWeekend } from 'date-fns';
 
 /**
+ * SINGLE SOURCE OF TRUTH - Duration Calculations
+ * All duration calculations throughout the app MUST use these functions
+ */
+
+/**
+ * Calculate duration between two dates in hours
+ * THE authoritative duration calculation used everywhere
+ */
+export function calculateDurationHours(startTime: Date, endTime: Date): number {
+  return (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
+}
+
+/**
+ * Calculate duration between two dates in minutes  
+ * THE authoritative minute calculation used everywhere
+ */
+export function calculateDurationMinutes(startTime: Date, endTime: Date): number {
+  return (endTime.getTime() - startTime.getTime()) / (1000 * 60);
+}
+
+/**
+ * Calculate duration between two dates in days
+ * THE authoritative day calculation used everywhere
+ */
+export function calculateDurationDays(startDate: Date, endDate: Date): number {
+  return Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+/**
+ * Format duration from hours to human-readable string
+ * THE authoritative duration formatting used everywhere
+ */
+export function formatDuration(hours: number): string {
+  const wholeHours = Math.floor(hours);
+  const minutes = Math.round((hours - wholeHours) * 60);
+  
+  if (wholeHours > 0 && minutes > 0) {
+    return `${wholeHours}h ${minutes}m`;
+  } else if (wholeHours > 0) {
+    return `${wholeHours}h`;
+  } else {
+    return `${minutes}m`;
+  }
+}
+
+/**
+ * Format duration from minutes to human-readable string
+ * THE authoritative minute formatting used everywhere
+ */
+export function formatDurationFromMinutes(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = Math.round(minutes % 60);
+  
+  if (hours > 0 && remainingMinutes > 0) {
+    return `${hours}h ${remainingMinutes}m`;
+  } else if (hours > 0) {
+    return `${hours}h`;
+  } else {
+    return `${remainingMinutes}m`;
+  }
+}
+
+/**
+ * SINGLE SOURCE OF TRUTH - Overlap Calculations
+ * All overlap detection throughout the app MUST use these functions
+ */
+
+/**
+ * Calculate overlap between two time ranges in hours
+ * THE authoritative overlap calculation used everywhere
+ */
+export function calculateTimeOverlapHours(
+  startA: Date,
+  endA: Date,
+  startB: Date,
+  endB: Date
+): number {
+  const overlapStart = Math.max(startA.getTime(), startB.getTime());
+  const overlapEnd = Math.min(endA.getTime(), endB.getTime());
+  
+  if (overlapStart < overlapEnd) {
+    return (overlapEnd - overlapStart) / (1000 * 60 * 60);
+  }
+  
+  return 0;
+}
+
+/**
+ * Calculate overlap between two time ranges in minutes
+ * THE authoritative overlap calculation in minutes used everywhere
+ */
+export function calculateTimeOverlapMinutes(
+  startA: Date,
+  endA: Date,
+  startB: Date,
+  endB: Date
+): number {
+  const overlapStart = Math.max(startA.getTime(), startB.getTime());
+  const overlapEnd = Math.min(endA.getTime(), endB.getTime());
+  
+  if (overlapStart < overlapEnd) {
+    return (overlapEnd - overlapStart) / (1000 * 60);
+  }
+  
+  return 0;
+}
+
+/**
+ * Check if two date ranges overlap (inclusive)
+ * THE authoritative overlap detection used everywhere
+ */
+export function datesOverlap(
+  startA: Date,
+  endA: Date,
+  startB: Date,
+  endB: Date
+): boolean {
+  return startA <= endB && endA >= startB;
+}
+
+/**
  * Calculate business days between two dates
  */
 export function calculateBusinessDaysBetween(startDate: Date, endDate: Date, holidays: Date[] = []): number {

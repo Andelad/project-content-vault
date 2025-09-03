@@ -4,10 +4,10 @@ import { Card } from '../ui/card';
 import { CalendarEvent } from '../../types';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 import { calculateEventDurationOnDate, aggregateEventDurationsByDate } from '@/services';
-import { formatDuration } from '@/services/events/legacy/eventDurationService';
+import { formatDuration } from '@/services';
 // Keep the original import for now to avoid breaking changes
-import { calculateEventDurationOnDateLegacy as originalCalculateEventDurationOnDate } from '@/services/events/legacy/eventDurationService';
-import { calculateDurationMinutes } from '../../services/work-hours';
+import { calculateEventDurationOnDateLegacy as originalCalculateEventDurationOnDate } from '@/services';
+import { calculateDurationMinutes } from '@/services';
 
 interface CalendarInsightCardProps {
   dates: Date[];

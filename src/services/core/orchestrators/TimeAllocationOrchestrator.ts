@@ -4,10 +4,8 @@
  */
 
 import { CalendarEvent, Milestone } from '@/types/core';
-import { memoizedGetProjectTimeAllocation } from '@/services/events/eventWorkHourIntegrationService';
-import { getMilestoneSegmentForDate, type MilestoneSegment } from '@/services/milestones/legacy/milestoneUtilitiesService';
-import { HeightCalculationService } from '../../timeline/legacy/HeightCalculationService';
-import { isPlannedTimeCompleted } from '@/services/events/legacy/plannedTimeCompletionService';
+import { memoizedGetProjectTimeAllocation, getMilestoneSegmentForDate, type MilestoneSegment, isPlannedTimeCompleted } from '@/services';
+import { HeightCalculationService } from '../../legacy/timeline/HeightCalculationService';
 
 export interface TimeAllocationResult {
   type: 'planned' | 'auto-estimate' | 'none';

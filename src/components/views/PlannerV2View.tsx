@@ -13,8 +13,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar as DatePicker } from '@/components/ui/calendar';
 import { TimeTracker } from '@/components/work-hours/TimeTracker';
 import { PlannerInsightCard } from '@/components/planner/PlannerInsightCard';
-import { getBaseFullCalendarConfig, getEventStylingConfig } from '@/services/plannerV2/fullCalendarConfigService';
-import { transformFullCalendarToCalendarEvent } from '@/services/plannerV2/eventTransformService';
+import { getBaseFullCalendarConfig, getEventStylingConfig } from '@/services';
+import { transformFullCalendarToCalendarEvent } from '@/services';
 import { useToast } from '@/hooks/use-toast';
 import './PlannerV2.css';
 

@@ -4,7 +4,7 @@ import { useEvents } from '@/hooks/useEvents';
 import { useHolidays } from '@/hooks/useHolidays';
 import { useWorkHours } from '@/hooks/useWorkHours';
 import { EventInput } from '@fullcalendar/core';
-import { PlannerV2CalculationService } from '@/services/plannerV2/plannerV2CalculationService';
+import { PlannerV2CalculationService } from '@/services';
 import { supabase } from '@/integrations/supabase/client';
 import { generateRecurringEvents } from '@/utils/recurringEvents';
 import { ensureRecurringEventsExist } from '@/utils/recurringEventsMaintenance';

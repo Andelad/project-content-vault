@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { Holiday } from '../../types';
-import { calculateOccupiedHolidayIndices, convertMousePositionToIndex, convertIndicesToDates, calculateMinimumHoverOverlaySize } from '../../services/timeline';
+import { calculateOccupiedHolidayIndices, convertMousePositionToIndex, convertIndicesToDates, calculateMinimumHoverOverlaySize } from '@/services';
 
 interface SmartHoverAddHolidayBarProps {
   dates: Date[];

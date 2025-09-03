@@ -7,15 +7,13 @@ function ServiceTest() {
     console.log('Testing projects services...');
     
     // This should work if our fixes are correct
-    import('@/services/projects').then((projectsModule) => {
-      console.log('✅ Projects services loaded:', Object.keys(projectsModule));
+    import('@/services').then((servicesModule) => {
+      console.log('✅ Services loaded:', Object.keys(servicesModule));
       
       // Test the specific functions
-      const { calculateProjectTimeMetrics, buildPlannedTimeMap, getPlannedTimeUpToDate } = projectsModule;
+      const { calculateProjectTimeMetrics } = servicesModule;
       console.log('✅ Functions available:', {
-        calculateProjectTimeMetrics: typeof calculateProjectTimeMetrics,
-        buildPlannedTimeMap: typeof buildPlannedTimeMap,
-        getPlannedTimeUpToDate: typeof getPlannedTimeUpToDate
+        calculateProjectTimeMetrics: typeof calculateProjectTimeMetrics
       });
     }).catch(err => {
       console.error('❌ Failed to load projects services:', err);

@@ -22,6 +22,7 @@ import {
 } from '@/services';
 import { ProjectIconIndicator, ProjectMilestones } from '@/components';
 import { useCachedWorkingDayChecker } from '@/lib/workingDayCache';
+import { getTimelinePositions } from '@/services/ui/TimelinePositioning';
 
 interface TimelineBarProps {
   project: any;
@@ -705,8 +706,8 @@ export const TimelineBar = memo(function TimelineBar({
             ? new Date(viewportEnd)
             : new Date(project.endDate);
           
-          // Use utility function for consistent positioning calculations
-          const positions = TimelinePositioningService.calculateTimelinePositions(
+          // Use unified UI positioning service for consistent calculations
+          const positions = getTimelinePositions(
             projectStart,
             projectEnd,
             viewportStart,

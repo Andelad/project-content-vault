@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
-import { calculateWorkHourCapacity, getWorkHoursCapacityForPeriod } from '@/services/work-hours';
+import { calculateWorkHourCapacity, getWorkHoursCapacityForPeriod } from '@/services';
 import { WeeklyCapacityCalculationService } from '@/services';
 import {
   BarChart,
