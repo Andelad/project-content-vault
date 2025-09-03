@@ -179,7 +179,8 @@ export class TimeTrackerCalculationService {
       color: selectedProject?.color || '#DC2626', // Red color for tracking
       description: `Active time tracking${selectedProject ? ` for ${selectedProject.name}` : ''}`,
       duration: 0.0167, // 1 minute in hours
-      type: 'tracked'
+      type: 'tracked',
+      completed: true // Time being tracked is considered completed by default
     };
   }
 

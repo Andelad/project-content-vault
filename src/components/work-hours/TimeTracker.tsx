@@ -104,9 +104,11 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       const { duration } = TimeTrackerCalculationService.calculateElapsedTime(startTime);
       
       // Update the tracking event silently (no toast notifications)
+      // Keep completed: true during tracking
       updateEvent(eventId, {
         endTime: new Date(),
-        duration
+        duration,
+        completed: true
       }, { silent: true });
 
       // Check for new overlaps as the event grows
