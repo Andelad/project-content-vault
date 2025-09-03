@@ -30,11 +30,12 @@ export function getBaseFullCalendarConfig(): Partial<CalendarOptions> {
     firstDay: 1, // Monday
     weekends: true,
     
-    // Custom day header content - show "Day 01", "Day 02", etc.
+    // Custom day header content - show weekday abbreviations (3 letters) + two-digit date
     dayHeaderContent: function(arg) {
-      // Get the day of the month from the date
-      const dayOfMonth = arg.date.getDate();
-      return `Day ${dayOfMonth.toString().padStart(2, '0')}`;
+      // Get the weekday abbreviation (3 letters) and two-digit date
+      const weekday = arg.date.toLocaleDateString('en-US', { weekday: 'short' });
+      const day = arg.date.getDate().toString().padStart(2, '0');
+      return `${weekday} ${day}`;
     },
     
     // Event settings

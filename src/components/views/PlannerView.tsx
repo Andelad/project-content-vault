@@ -16,14 +16,14 @@ import { PlannerInsightCard } from '@/components/planner/PlannerInsightCard';
 import { getBaseFullCalendarConfig, getEventStylingConfig } from '@/services';
 import { transformFullCalendarToCalendarEvent } from '@/services';
 import { useToast } from '@/hooks/use-toast';
-import './PlannerV2.css';
+import './Planner.css';
 
 // Modal imports
 import { EventModal } from '../modals/EventModal';
 import { WorkSlotModal } from '../modals/WorkSlotModal';
 
 /**
- * PlannerV2View - FullCalendar-based planner with keyboard shortcuts
+ * PlannerView - FullCalendar-based planner with keyboard shortcuts
  * 
  * Keyboard Shortcuts:
  * - Cmd/Ctrl + Z: Undo last action
@@ -34,7 +34,7 @@ import { WorkSlotModal } from '../modals/WorkSlotModal';
  * - W: Toggle layer mode (Events → Work Hours → Both)
  * - Delete/Backspace: Delete selected event
  */
-export function PlannerV2View() {
+export function PlannerView() {
   const { 
     events,
     fullCalendarEvents,
@@ -203,13 +203,18 @@ export function PlannerV2View() {
         day: 'numeric' 
       });
     } else {
-      const startDate = start.toLocaleDateString('en-GB', { month: 'short', day: 'numeric' });
-      const endDate = new Date(end.getTime() - 24 * 60 * 60 * 1000).toLocaleDateString('en-GB', { 
-        month: 'short', 
-        day: 'numeric',
+      // Format as "1 Sept - 7 Sept 2025"
+      const startFormatted = start.toLocaleDateString('en-GB', { 
+        day: 'numeric', 
+        month: 'short' 
+      });
+      const endDate = new Date(end.getTime() - 24 * 60 * 60 * 1000);
+      const endFormatted = endDate.toLocaleDateString('en-GB', { 
+        day: 'numeric', 
+        month: 'short',
         year: 'numeric'
       });
-      return `${startDate} - ${endDate}`;
+      return `${startFormatted} - ${endFormatted}`;
     }
   }, [currentView]);
 
@@ -363,7 +368,7 @@ export function PlannerV2View() {
       iconHtml = `<button type="button" style="cursor: pointer; transition: transform 0.2s; background: none; border: none; color: inherit; padding: 0; margin: 0; display: flex; align-items: center; justify-content: center;" 
                     onmouseover="this.style.transform='scale(1.1)'" 
                     onmouseout="this.style.transform='scale(1)'"
-                    onclick="window.plannerV2ToggleCompletion && window.plannerV2ToggleCompletion('${event.id}')"
+                    onclick="window.plannerToggleCompletion && window.plannerToggleCompletion('${event.id}')"
                     title="${isCompleted ? 'Mark as not completed' : 'Mark as completed'}">${checkIconSvg}</button>`;
     }
     
@@ -407,10 +412,10 @@ export function PlannerV2View() {
 
   // Set up global completion toggle function for HTML onclick events
   useEffect(() => {
-    (window as any).plannerV2ToggleCompletion = handleCompletionToggle;
+    (window as any).plannerToggleCompletion = handleCompletionToggle;
     
     return () => {
-      delete (window as any).plannerV2ToggleCompletion;
+      delete (window as any).plannerToggleCompletion;
     };
   }, [handleCompletionToggle]);
 
@@ -459,7 +464,7 @@ export function PlannerV2View() {
       {/* Header */}
       <div className="h-20 border-b border-[#e2e2e2] flex items-center justify-between px-8">
         <div className="flex items-center space-x-4">
-          <h1 className="text-lg font-semibold text-[#595956]">Planner V2</h1>
+          <h1 className="text-lg font-semibold text-[#595956]">Planner</h1>
           {lastAction && (
             <div className="flex items-center text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
               <span>Press Cmd+Z to undo</span>

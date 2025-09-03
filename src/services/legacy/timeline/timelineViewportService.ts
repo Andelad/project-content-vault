@@ -461,30 +461,26 @@ export class TimelineViewportService {
     const sameYear = startDate.getFullYear() === endDate.getFullYear();
     
     if (sameMonth && sameYear) {
-      return `${startDate.toLocaleDateString('en-US', { 
+      // Format as "1 - 7 September 2025"
+      return `${startDate.getDate()} - ${endDate.getDate()} ${startDate.toLocaleDateString('en-US', { 
         month: 'long',
-        day: 'numeric'
-      })} - ${endDate.toLocaleDateString('en-US', { 
-        day: 'numeric',
         year: 'numeric'
       })}`;
     } else if (sameYear) {
-      return `${startDate.toLocaleDateString('en-US', { 
+      // Format as "1 Sept - 7 Oct 2025"
+      return `${startDate.getDate()} ${startDate.toLocaleDateString('en-US', { 
+        month: 'short'
+      })} - ${endDate.getDate()} ${endDate.toLocaleDateString('en-US', { 
         month: 'short',
-        day: 'numeric'
-      })} - ${endDate.toLocaleDateString('en-US', { 
-        month: 'short',
-        day: 'numeric',
         year: 'numeric'
       })}`;
     } else {
-      return `${startDate.toLocaleDateString('en-US', { 
+      // Format as "1 Sept 2024 - 7 Jan 2025"
+      return `${startDate.getDate()} ${startDate.toLocaleDateString('en-US', { 
         month: 'short',
-        day: 'numeric',
         year: 'numeric'
-      })} - ${endDate.toLocaleDateString('en-US', { 
+      })} - ${endDate.getDate()} ${endDate.toLocaleDateString('en-US', { 
         month: 'short',
-        day: 'numeric',
         year: 'numeric'
       })}`;
     }

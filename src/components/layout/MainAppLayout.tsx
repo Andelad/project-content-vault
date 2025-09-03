@@ -3,7 +3,7 @@ import { Sidebar } from './Sidebar';
 import { useTimelineContext } from '../../contexts/TimelineContext';
 
 // Import all views
-import { PlannerV2View } from '../views/PlannerV2View';
+import { PlannerView } from '../views/PlannerView';
 import { TimelineView } from '../views/TimelineView';
 import { ProjectsView } from '../views/ProjectsView';
 import { ReportsView } from '../views/ReportsView';
@@ -17,7 +17,7 @@ export function MainAppLayout() {
       case 'timeline':
         return <TimelineView />;
       case 'calendar':
-        return <PlannerV2View />;
+        return <PlannerView />;
       case 'insights':
         return <ReportsView />;
       case 'projects':
@@ -27,7 +27,7 @@ export function MainAppLayout() {
       case 'settings':
         return <div className="p-6">Settings View - Coming Soon</div>;
       default:
-        return <PlannerV2View />; // Default to planner
+        return <PlannerView />; // Default to planner
     }
   };
 
