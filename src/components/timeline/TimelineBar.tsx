@@ -280,11 +280,11 @@ export const TimelineBar = memo(function TimelineBar({
                               }`}
                               style={(() => {
                                 // Use centralized time allocation service
-                                const allocation = TimeAllocationService.getTimeAllocationForDate(
+                                const allocation = TimeAllocationService.generateTimeAllocation(
                                   project.id,
                                   currentDay,
-                                  project,
                                   events,
+                                  project,
                                   settings,
                                   holidays,
                                   milestoneSegments
@@ -371,11 +371,11 @@ export const TimelineBar = memo(function TimelineBar({
                           <TooltipContent>
                             {(() => {
                               // Use centralized service for consistent tooltip values
-                              const allocation = TimeAllocationService.getTimeAllocationForDate(
+                              const allocation = TimeAllocationService.generateTimeAllocation(
                                 project.id,
                                 currentDay,
-                                project,
                                 events,
+                                project,
                                 settings,
                                 holidays,
                                 milestoneSegments
@@ -384,7 +384,6 @@ export const TimelineBar = memo(function TimelineBar({
                               const tooltipInfo = TimeAllocationService.getTooltipInfo(allocation);
                               
                               // Debug log directly in the first tooltip JSX
-                              console.log(`[DEBUG] Rendering first tooltip for project ${project.id}: "${tooltipInfo.displayText}" (allocation.hours: ${allocation.hours}, source: ${allocation.source}) - PROJECT NAME: "${project.name}" CLIENT: "${project.client}"`);
                               
                               return (
                                 <div className="text-xs">
@@ -487,11 +486,11 @@ export const TimelineBar = memo(function TimelineBar({
               const milestoneSegment = getMilestoneSegmentForDate(date, milestoneSegments);
 
               // Use centralized time allocation service
-              const allocation = TimeAllocationService.getTimeAllocationForDate(
+              const allocation = TimeAllocationService.generateTimeAllocation(
                 project.id,
                 date,
-                project,
                 events,
+                project,
                 settings,
                 holidays,
                 milestoneSegments
@@ -671,7 +670,6 @@ export const TimelineBar = memo(function TimelineBar({
                         const tooltipInfo = TimeAllocationService.getTooltipInfo(allocation);
                         
                         // Debug log directly in the tooltip JSX
-                        console.log(`[DEBUG] Rendering tooltip for project ${project.id}: "${tooltipInfo.displayText}" (allocation.hours: ${allocation.hours}, source: ${allocation.source}) - PROJECT NAME: "${project.name}" CLIENT: "${project.client}"`);
                         
                         return (
                           <div className="text-xs">

@@ -28,9 +28,45 @@ class TimeTrackingSyncService {
 
   constructor() {
     if (typeof window !== 'undefined') {
-      this.broadcastChannel = new BroadcastChannel('time_tracking_sync');
-      this.setupBroadcastListener();
+      console.log('🔧 Setting up BroadcastChannel for cross-window sync');
+      
+      // Check if BroadcastChannel is supported
+      if ('BroadcastChannel' in window) {
+        try {
+          this.broadcastChannel = new BroadcastChannel('time_tracking_sync');
+          console.log('✅ BroadcastChannel created successfully');
+          this.setupBroadcastListener();
+        } catch (error) {
+          console.error('❌ Failed to create BroadcastChannel:', error);
+          console.log('📝 Falling back to localStorage-only sync');
+        }
+      } else {
+        console.log('⚠️ BroadcastChannel not supported, using localStorage-only sync');
+      }
+      
       this.setupStorageListener();
+      
+      // Add a global test function for debugging
+      (window as any).testBroadcast = () => {
+        console.log('🧪 Manual test: sending broadcast message');
+        if (this.broadcastChannel) {
+          this.broadcastChannel.postMessage({
+            type: 'MANUAL_TEST',
+            data: { timestamp: new Date().toISOString() }
+          });
+          console.log('📤 BroadcastChannel message sent');
+        } else {
+          console.log('❌ No BroadcastChannel available');
+          // Fallback to localStorage trigger
+          localStorage.setItem('timeTracker_crossWindowSync', JSON.stringify({
+            type: 'MANUAL_TEST',
+            data: { timestamp: new Date().toISOString() }
+          }));
+          setTimeout(() => {
+            localStorage.removeItem('timeTracker_crossWindowSync');
+          }, 100);
+        }
+      };
     }
   }
 
@@ -46,15 +82,41 @@ class TimeTrackingSyncService {
   }
 
   setOnStateChangeCallback(callback: (state: TimeTrackingState) => void) {
+    console.log('🎯 Setting state change callback:', callback ? 'callback provided' : 'callback is null/undefined');
     this.onStateChangeCallback = callback;
+    
+    // Test the BroadcastChannel immediately
+    if (this.broadcastChannel && callback) {
+      console.log('🧪 Testing BroadcastChannel with immediate test message');
+      setTimeout(() => {
+        this.broadcastChannel.postMessage({
+          type: 'TEST_MESSAGE',
+          data: { test: true }
+        });
+      }, 100);
+    }
   }
 
   private setupBroadcastListener() {
     if (!this.broadcastChannel) return;
     
+    console.log('📻 Setting up BroadcastChannel listener');
     this.broadcastChannel.addEventListener('message', (event) => {
+      console.log('📡 BroadcastChannel message received:', event.data);
       const { type, data } = event.data;
+      
+      if (type === 'MANUAL_TEST') {
+        console.log('🧪 Manual test message received!', data);
+        return;
+      }
+      
+      if (type === 'TEST_MESSAGE') {
+        console.log('🧪 Test message received successfully!');
+        return;
+      }
+      
       if (type === 'TIME_TRACKING_STATE_CHANGED' && this.onStateChangeCallback) {
+        console.log('🔄 Calling state change callback with:', data);
         this.onStateChangeCallback(this.deserializeState(data));
       }
     });
@@ -141,8 +203,11 @@ class TimeTrackingSyncService {
   private broadcastToOtherWindows(state: any) {
     if (typeof window === 'undefined') return;
     
+    console.log('📤 Broadcasting state to other windows:', state);
+    
     // Use BroadcastChannel for same-origin tabs
     if (this.broadcastChannel) {
+      console.log('📻 Sending via BroadcastChannel');
       this.broadcastChannel.postMessage({
         type: 'TIME_TRACKING_STATE_CHANGED',
         data: state

@@ -536,7 +536,6 @@ export function calculateMilestoneSegments(
         const hoursPerDay = workingDays > 0 ? remainingBudget / workingDays : 0;
         
         // Debug log to verify milestone segment calculation
-        console.log(`[DEBUG] Milestone ${milestone.name}: ${remainingBudget}h ÷ ${workingDays} days = ${hoursPerDay}h per day (${(hoursPerDay * 60).toFixed(1)} min/day) from ${currentStartDate.toDateString()} to ${segmentEndDate.toDateString()}`);
         
         const heightInPixels = HeightCalculationService.calculateSegmentHeight(hoursPerDay);
 

@@ -187,7 +187,6 @@ export class ProjectMetricsCalculationService {
     const totalWorkingDays = workingDays.length;
 
     // Debug log to verify which calculation path is being used
-    console.log(`[DEBUG] ProjectMetrics: ${estimatedHours}h ÷ ${totalWorkingDays} days = ${estimatedHours / totalWorkingDays}h per day (${((estimatedHours / totalWorkingDays) * 60).toFixed(1)} min/day) - autoEstimate: ${!!autoEstimateDays}`);
 
     // If no working days, don't divide by zero
     if (totalWorkingDays === 0) {

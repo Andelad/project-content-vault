@@ -21,19 +21,18 @@ export class TimeAllocationService {
    * Get comprehensive time allocation information for a specific date
    * Centralizes the decision logic for planned vs auto-estimate vs none
    */
-  static getTimeAllocationForDate(
-    projectId: string,
-    date: Date,
-    project: any,
-    events: CalendarEvent[],
-    settings: any,
-    holidays: any[],
-    milestoneSegments: MilestoneSegment[]
-  ): TimeAllocationResult {
-    // Debug log for time allocation request
-    console.log(`[DEBUG] TimeAllocation for project ${projectId} on ${date.toDateString()} at ${Date.now()}`);
+  static generateTimeAllocation(
+    projectId: string, 
+    date: Date, 
+    events: CalendarEvent[], 
+    project: any, 
+    settings: any, 
+    holidays: any[], 
+    milestoneSegments: MilestoneSegment[],
+    options?: any
+  ): any {
     
-    // Get base time allocation (planned vs auto-estimate)
+    // Get the current implementation registry
     const timeAllocation = memoizedGetProjectTimeAllocation(
       projectId,
       date,
@@ -100,7 +99,6 @@ export class TimeAllocationService {
     const displayMinutes = Math.round((allocation.hours - displayHours) * 60);
     
     // Debug log for tooltip generation
-    console.log(`[DEBUG] Tooltip: ${allocation.hours}h = ${displayHours}h ${displayMinutes}m/day (source: ${allocation.source}) at ${Date.now()}`);
     
     const displayText = displayMinutes > 0 
       ? `${displayHours}h ${displayMinutes}m/day`
