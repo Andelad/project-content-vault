@@ -1,6 +1,10 @@
 import React from 'react';
 import { Sidebar } from './Sidebar';
 import { useTimelineContext } from '../../contexts/TimelineContext';
+import { useSettingsContext } from '../../contexts/SettingsContext';
+import { useFavicon } from '../../hooks/useFavicon';
+// Import test utility for development testing
+import '../../utils/testFavicon';
 
 // Import all views
 import { PlannerView } from '../views/PlannerView';
@@ -11,6 +15,10 @@ import { ProfileView } from '../views/ProfileView';
 
 export function MainAppLayout() {
   const { currentView } = useTimelineContext();
+  const { isTimeTracking } = useSettingsContext();
+  
+  // Use favicon hook to monitor global time tracking state
+  useFavicon(isTimeTracking);
 
   const renderCurrentView = () => {
     switch (currentView) {
