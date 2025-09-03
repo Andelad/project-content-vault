@@ -38,6 +38,7 @@ export function TimeTracker({ className }: TimeTrackerProps) {
   const startTimeRef = useRef<Date | null>(null);
   const liveUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const currentStateRef = useRef<any>(null); // Track current state for sync
 
   // Storage keys from service
   const STORAGE_KEYS = TimeTrackerCalculationService.getStorageKeys();
@@ -50,14 +51,24 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       if (user?.id) {
         const dbState = await timeTrackingSyncService.loadStateFromDatabase();
         if (dbState && dbState.isTracking && dbState.startTime && dbState.eventId) {
-          const { totalSeconds: elapsedSeconds } = TimeTrackerCalculationService.calculateElapsedTime(dbState.startTime);
+          // Use synced seconds if available, otherwise calculate from start time
+          const elapsedSeconds = dbState.currentSeconds ?? 
+            TimeTrackerCalculationService.calculateElapsedTime(dbState.startTime).totalSeconds;
           
           setIsTimeTracking(true);
           setSeconds(elapsedSeconds);
           setCurrentEventId(dbState.eventId);
           startTimeRef.current = dbState.startTime;
           
-          if (dbState.selectedProject) {
+          // Store state for sync
+          currentStateRef.current = {
+            isTracking: true,
+            startTime: dbState.startTime,
+            eventId: dbState.eventId,
+            selectedProject: dbState.selectedProject,
+            searchQuery: dbState.searchQuery,
+            affectedEvents: dbState.affectedEvents,
+          };          if (dbState.selectedProject) {
             setSelectedProject(dbState.selectedProject);
           }
           
@@ -70,8 +81,23 @@ export function TimeTracker({ className }: TimeTrackerProps) {
           }
           
           // Start the timer interval
+          let syncCounter = 0;
           intervalRef.current = setInterval(() => {
-            setSeconds(prev => prev + 1);
+            setSeconds(prev => {
+              const newSeconds = prev + 1;
+              
+              // Sync timer state every 5 seconds to other windows
+              syncCounter++;
+              if (syncCounter >= 5 && currentStateRef.current) {
+                syncCounter = 0;
+                saveTrackingState({
+                  ...currentStateRef.current,
+                  currentSeconds: newSeconds,
+                });
+              }
+              
+              return newSeconds;
+            });
           }, 1000);
 
           // Start live update interval
@@ -91,6 +117,16 @@ export function TimeTracker({ className }: TimeTrackerProps) {
         setCurrentEventId(trackingState.eventId);
         startTimeRef.current = trackingState.startTime;
         
+        // Store state for sync
+        currentStateRef.current = {
+          isTracking: true,
+          startTime: trackingState.startTime,
+          eventId: trackingState.eventId,
+          selectedProject: trackingState.selectedProject,
+          searchQuery: trackingState.searchQuery,
+          affectedEvents: trackingState.affectedEvents,
+        };
+        
         if (trackingState.selectedProject) {
           setSelectedProject(trackingState.selectedProject);
         }
@@ -103,9 +139,24 @@ export function TimeTracker({ className }: TimeTrackerProps) {
           setAffectedPlannedEvents(trackingState.affectedEvents);
         }
         
-        // Start the timer interval
+        // Start the timer interval with cross-window sync
+        let syncCounter = 0;
         intervalRef.current = setInterval(() => {
-          setSeconds(prev => prev + 1);
+          setSeconds(prev => {
+            const newSeconds = prev + 1;
+            
+            // Sync timer state every 5 seconds to other windows
+            syncCounter++;
+            if (syncCounter >= 5 && currentStateRef.current) {
+              syncCounter = 0;
+              saveTrackingState({
+                ...currentStateRef.current,
+                currentSeconds: newSeconds,
+              });
+            }
+            
+            return newSeconds;
+          });
         }, 1000);
 
         // Start live update interval
@@ -114,6 +165,23 @@ export function TimeTracker({ className }: TimeTrackerProps) {
     };
 
     loadTrackingState();
+
+    // Set up cross-window timer sync listener
+    const handleStateChange = (newState: any) => {
+      if (newState.isTracking && newState.currentSeconds !== undefined) {
+        // Update timer from other tabs
+        setSeconds(newState.currentSeconds);
+      }
+      // Update tracking state if different
+      setIsTimeTracking(newState.isTracking);
+    };
+
+    timeTrackingSyncService.setOnStateChangeCallback(handleStateChange);
+
+    return () => {
+      // Cleanup listener
+      timeTrackingSyncService.setOnStateChangeCallback(undefined);
+    };
   }, []);
 
   // Check for overlapping planned events and adjust them
@@ -161,6 +229,7 @@ export function TimeTracker({ className }: TimeTrackerProps) {
   const saveTrackingState = async (trackingData: {
     isTracking: boolean;
     startTime?: Date;
+    currentSeconds?: number;
     eventId?: string | null;
     selectedProject?: any;
     searchQuery?: string;
@@ -242,15 +311,41 @@ export function TimeTracker({ className }: TimeTrackerProps) {
         // Handle any planned event overlaps
         handlePlannedEventOverlaps(now, new Date(now.getTime() + 60000));
         
-        // Save tracking state
-        await saveTrackingState({
+        // Store current state for sync
+        currentStateRef.current = {
           isTracking: true,
           startTime: now,
           eventId: createdEvent.id,
           selectedProject: selectedProjectData,
           searchQuery: selectedProjectData?.name || item.name,
           affectedEvents: []
+        };
+        
+        // Save tracking state
+        await saveTrackingState({
+          ...currentStateRef.current,
+          currentSeconds: 0
         });
+        
+        // Start the timer interval with cross-window sync
+        let syncCounter = 0;
+        intervalRef.current = setInterval(() => {
+          setSeconds(prev => {
+            const newSeconds = prev + 1;
+            
+            // Sync timer state every 5 seconds to other windows
+            syncCounter++;
+            if (syncCounter >= 5 && currentStateRef.current) {
+              syncCounter = 0;
+              saveTrackingState({
+                ...currentStateRef.current,
+                currentSeconds: newSeconds,
+              });
+            }
+            
+            return newSeconds;
+          });
+        }, 1000);
         
       } catch (error) {
         console.error('Failed to create tracking event:', error);
@@ -289,18 +384,44 @@ export function TimeTracker({ className }: TimeTrackerProps) {
         // Use the actual event ID from the database
         setCurrentEventId(createdEvent.id);
         
-        // Start live updates immediately
-        startLiveUpdates(createdEvent.id, now);
-        
-        // Save tracking state
-        await saveTrackingState({
+        // Store current state for sync
+        currentStateRef.current = {
           isTracking: true,
           startTime: now,
           eventId: createdEvent.id,
           selectedProject,
           searchQuery,
           affectedEvents: []
+        };
+        
+        // Start live updates immediately
+        startLiveUpdates(createdEvent.id, now);
+        
+        // Save tracking state
+        await saveTrackingState({
+          ...currentStateRef.current,
+          currentSeconds: 0
         });
+        
+        // Start the timer interval with cross-window sync
+        let syncCounter = 0;
+        intervalRef.current = setInterval(() => {
+          setSeconds(prev => {
+            const newSeconds = prev + 1;
+            
+            // Sync timer state every 5 seconds to other windows
+            syncCounter++;
+            if (syncCounter >= 5 && currentStateRef.current) {
+              syncCounter = 0;
+              saveTrackingState({
+                ...currentStateRef.current,
+                currentSeconds: newSeconds,
+              });
+            }
+            
+            return newSeconds;
+          });
+        }, 1000);
         
       } catch (error) {
         console.error('Failed to create tracking event:', error);
@@ -360,9 +481,13 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       setSelectedProject(null);
       setSearchQuery('');
       setAffectedPlannedEvents([]);
+      currentStateRef.current = null; // Clear state ref
       
       // Clear tracking state from localStorage and database
-      await saveTrackingState({ isTracking: false });
+      await saveTrackingState({ 
+        isTracking: false,
+        currentSeconds: 0
+      });
     }
   };
 

@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 export interface TimeTrackingState {
   isTracking: boolean;
   startTime?: Date;
+  currentSeconds?: number;
   eventId?: string | null;
   selectedProject?: any;
   searchQuery?: string;
