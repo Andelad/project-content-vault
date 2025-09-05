@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
-import { calculateWorkHourCapacity, getWorkHoursCapacityForPeriod } from '@/services';
+import { calculateWorkHourCapacity, getWorkHoursCapacityForPeriod } from '../../services';
 import { 
   BarChart, 
   Bar, 
@@ -27,16 +27,14 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Checkbox } from '../ui/checkbox';
-import { CoreProjectCalculationService as ProjectCalculationService } from '@/services';
+import { CoreProjectCalculationService as ProjectCalculationService } from '../../services';
+import { AverageDayHeatmapCard } from '../insights/AverageDayHeatmapCard';
 import { 
   calculateFutureCommitments,
-  calculateValidDays,
-  calculateAverageDayData,
   calculateWeeklyCapacity
-} from '@/services';
+} from '../../services';
 
 type TimeFrame = 'week' | 'month' | 'year';
-type AveragePeriod = 'week' | 'month' | '6months';
 
 // Custom shape component for overlaying bars
 const OverlaidBars = (props: any) => {
@@ -88,18 +86,6 @@ export function ReportsView() {
   const [showActiveProjects, setShowActiveProjects] = useState(true);
   const [animationKey, setAnimationKey] = useState(0);
   const [timeOffset, setTimeOffset] = useState(0); // For navigating through time
-  
-  // Average Day card state
-  const [averagePeriod, setAveragePeriod] = useState<AveragePeriod>('month');
-  const [includedDays, setIncludedDays] = useState({
-    monday: true,
-    tuesday: true,
-    wednesday: true,
-    thursday: true,
-    friday: true,
-    saturday: false,
-    sunday: false
-  });
   
   const today = new Date();
 
@@ -154,11 +140,6 @@ export function ReportsView() {
   const futureCommitments = useMemo(() => {
     return calculateFutureCommitments(projects, today);
   }, [projects, today]);
-
-  // Average Day calculation using service
-  const averageDayData = useMemo(() => {
-    return calculateAverageDayData(events, averagePeriod, includedDays, groups, today);
-  }, [events, averagePeriod, includedDays, groups, today]);
 
   // Generate time analysis data based on selected timeframe
   const { timeAnalysisData, headerData } = useMemo(() => {
@@ -698,115 +679,12 @@ export function ReportsView() {
               </CardContent>
             </Card>
 
-            {/* Average Day Card */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Sun className="h-5 w-5 text-orange-500" />
-                  Average Day
-                </CardTitle>
-                <CardDescription>
-                  Your typical day based on completed activities
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {/* Period Selection */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-600">Period:</span>
-                    <Select value={averagePeriod} onValueChange={(value: AveragePeriod) => setAveragePeriod(value)}>
-                      <SelectTrigger className="w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="week">Last Week</SelectItem>
-                        <SelectItem value="month">Last Month</SelectItem>
-                        <SelectItem value="6months">Last 6 Months</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Day Filter */}
-                  <div className="space-y-2">
-                    <span className="text-sm text-gray-600">Include days:</span>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      {Object.entries(includedDays).map(([day, checked]) => (
-                        <label key={day} className="flex items-center space-x-2 cursor-pointer">
-                          <Checkbox
-                            checked={checked}
-                            onCheckedChange={(isChecked) => 
-                              setIncludedDays(prev => ({ ...prev, [day]: !!isChecked }))
-                            }
-                          />
-                          <span className="capitalize">{day.substring(0, 3)}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Summary Stats */}
-                  <div className="text-center py-2 border-t border-gray-100">
-                    <div className="text-2xl font-bold text-foreground mb-1">
-                      {averageDayData.totalAverageHours.toFixed(1)}h
-                    </div>
-                    <div className="text-sm text-gray-600">Average daily hours</div>
-                  </div>
-
-                  {/* 24-Hour Timeline */}
-                  <div className="space-y-1 max-h-48 overflow-y-auto">
-                    {averageDayData.timeline
-                      .filter(hourData => hourData.totalHours > 0.1) // Only show hours with meaningful activity
-                      .map((hourData) => (
-                        <div key={hourData.hour} className="flex items-center gap-2">
-                          <div className="text-xs text-gray-500 w-10">{hourData.time}</div>
-                          <div className="flex-1 flex gap-1">
-                            {Object.entries(hourData.groups).map(([groupId, hours]) => {
-                              const hoursNum = Number(hours);
-                              if (hoursNum < 0.1) return null;
-                              
-                              const group = groups?.find(g => g.id === groupId);
-                              const groupName = group?.name || 'Other';
-                              const groupColor = group?.color || '#6b7280';
-                              
-                              return (
-                                <div
-                                  key={groupId}
-                                  className="h-4 rounded-sm relative group"
-                                  style={{
-                                    backgroundColor: groupColor,
-                                    width: `${Math.max(hoursNum * 20, 8)}px`, // Min width of 8px for visibility
-                                    opacity: 0.8
-                                  }}
-                                  title={`${groupName}: ${hoursNum.toFixed(1)}h`}
-                                />
-                              );
-                            })}
-                          </div>
-                          <div className="text-xs text-gray-600 w-8">
-                            {hourData.totalHours.toFixed(1)}h
-                          </div>
-                        </div>
-                      ))
-                    }
-                    
-                    {averageDayData.timeline.every(hourData => hourData.totalHours <= 0.1) && (
-                      <div className="text-center py-4 text-gray-500">
-                        <p className="text-sm">No activity data for this period</p>
-                        <p className="text-xs">Try a different time period or include more days</p>
-                      </div>
-                    )}
-                  </div>
-
-                  {averageDayData.validDays > 0 && (
-                    <div className="text-center pt-2 border-t border-gray-100">
-                      <span className="text-xs text-gray-500">
-                        Based on {averageDayData.validDays} days
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            {/* Average Day Heatmap Card */}
+            <AverageDayHeatmapCard 
+              events={events}
+              groups={groups || []}
+              projects={projects || []}
+            />
           </div>
 
 
