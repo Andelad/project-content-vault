@@ -78,7 +78,7 @@ const OverlaidBars = (props: any) => {
 
 
 
-export function ReportsView() {
+export function InsightsView() {
   const { projects, groups } = useProjectContext();
   const { events } = usePlannerContext();
   const { settings } = useSettingsContext();
@@ -694,4 +694,4 @@ export function ReportsView() {
   );
 }
 
-export default ReportsView;
+export default InsightsView;

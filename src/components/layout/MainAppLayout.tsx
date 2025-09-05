@@ -10,7 +10,7 @@ import '../../utils/testFavicon';
 import { PlannerView } from '../views/PlannerView';
 import { TimelineView } from '../views/TimelineView';
 import { ProjectsView } from '../views/ProjectsView';
-import { ReportsView } from '../views/ReportsView';
+import { InsightsView } from '../views/InsightsView';
 import { ProfileView } from '../views/ProfileView';
 
 export function MainAppLayout() {
@@ -27,7 +27,7 @@ export function MainAppLayout() {
       case 'calendar':
         return <PlannerView />;
       case 'insights':
-        return <ReportsView />;
+        return <InsightsView />;
       case 'projects':
         return <ProjectsView />;
       case 'profile':
