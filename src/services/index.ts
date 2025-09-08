@@ -1,31 +1,42 @@
 /**
- * Central Services Index
- * Single Source of Truth Architecture - matches Architectural Guide
+ * 🏗️ AI-Optimized Services Architecture - Central Index
+ * SINGLE SOURCE OF TRUTH for all service imports
  * 
- * 🚨 ARCHITECTURAL RULE: ALL CALCULATIONS MUST USE THESE SERVICES
- * 
- * ❌ DON'T add calculations to:
- *    - Components (render logic only)
- *    - Hooks (state management only) 
- *    - Utils (use these services instead)
+ * 🚨 ARCHITECTURAL RULES:
+ * ❌ DON'T add calculations to: Components, Hooks, Utils
+ * ✅ DO import from: @/services (this barrel export only)
+ * ✅ Logic Flow: Components → Unified Services → Orchestrators → Validators + Calculations + Repositories
  *
- * ✅ Architectural layers (matching guide):
+ * 📁 Current Architecture Layers:
+ * ├── unified/           # Main API - Components import from here
+ * ├── orchestrators/     # Workflow coordination  
+ * ├── calculations/      # Pure business calculations
+ * ├── validators/        # Business rules validation
+ * ├── repositories/      # Data access layer
+ * ├── ui/               # View-specific positioning & layout
+ * ├── infrastructure/   # Technical utilities (caching, colors, dates)
+ * ├── performance/      # Performance optimization & monitoring
+ * └── legacy/           # Migration safety (temporary)
  */
 
-// Core infrastructure - reorganized to new architecture  
-export * from './calculations';
-export * from './infrastructure';
-export * from './performance';
+// 🎯 Core Architecture Layers (New Structure)
+export * from './unified';           // Main API - UnifiedProjectService, UnifiedMilestoneService, etc.
+export * from './orchestrators';     // Workflow coordination - ProjectOrchestrator, TimeTrackingOrchestrator
+export * from './calculations';      // Pure business calculations - projectCalculations, timeCalculations
+export * from './validators';        // Business rules - ProjectValidator, TimeTrackingValidator  
+// export * from './repositories';      // Data access - ProjectRepository, MilestoneRepository (conflicts with orchestrators)
+export * from './ui';               // View positioning - TimelinePositioning, CalendarLayout
+export * from './infrastructure';   // Technical utilities - calculationCache, colorCalculations
+export * from './performance';      // Performance optimization - dragPerformanceService, cachePerformanceService
 
-// Specific legacy exports that components need (temporary during migration)
+// 🚧 Legacy Services (Temporary - During Migration)
+// These will be removed once migration to new architecture is complete
 export { HeightCalculationService } from './legacy/timeline/HeightCalculationService';
 export { TimelinePositioningService } from './legacy/timeline/TimelinePositioningService';
 export { ProjectCalculationService } from './legacy/projects/ProjectCalculationService';
 export { WorkHourCalculationService } from './legacy/work-hours/WorkHourCalculationService';
 
-// Unified services that components need
-export { TimeTrackerCalculationService } from './unified/UnifiedTimeTrackerService';
-
+// 🔧 Additional Temporary Exports (Remove after migration)
 // Timeline positioning functions (frequently used)
 export { 
   calculateOccupiedHolidayIndices, 
@@ -34,27 +45,19 @@ export {
   calculateMinimumHoverOverlaySize 
 } from './legacy/timeline/timelinePositionService';
 
-// Work hours functions from creation service
-export { calculateTimeFromPosition } from './legacy/work-hours/workHourCreationService';
-export { calculateDurationMinutes } from './legacy/work-hours/workHourCreationService';
-export { calculateWorkHourCapacity } from './legacy/work-hours/workHourCapacityService';
+// 🎯 Unified Services (Main API Layer)
+export { TimeTrackerCalculationService } from './unified/UnifiedTimeTrackerService';
+export { UnifiedMilestoneService } from './unified/UnifiedMilestoneService';
+export { CalendarIntegrationService, type ImportResult } from './unified/UnifiedCalendarService';
+export { transformFullCalendarToCalendarEvent } from './unified/UnifiedEventTransformService';
+export { clearTimelineCache, generateWorkHoursForDate, calculateAvailabilityReduction, calculateProjectWorkingDays } from './unified/UnifiedEventWorkHourService';
 
-// Project functions frequently used
-export { calculateProjectDuration } from './legacy/projects/projectProgressService';
-export { calculateProjectTimeMetrics } from './legacy/projects/projectProgressService';
-export { ProjectWorkingDaysService } from './legacy/projects/projectWorkingDaysService';
+// 🔧 Frequently Used Functions (Stable API)
+export { expandHolidayDates } from './calculations/holidayCalculations';
+export { getBaseFullCalendarConfig, getEventStylingConfig } from './ui/FullCalendarConfig';
+export { throttledDragUpdate as throttleDragUpdate } from './performance/dragPerformanceService';
 
-// Event-related functions  
-export { formatDuration, calculateEventDurationOnDateLegacy } from './legacy/events/eventDurationService';
-export { memoizedGetProjectTimeAllocation, calculateEventStyle, getProjectTimeAllocation } from './legacy/events/eventWorkHourIntegrationService';
-export { isPlannedTimeCompleted } from './legacy/events/plannedTimeCompletionService';
-export { calculateOverlapActions, findOverlappingEvents } from './legacy/events/eventOverlapService';
-export { processEventOverlaps, calculateElapsedTime, createTimeRange, type EventSplitResult } from './legacy/events/eventSplittingService';
-
-// Milestones functions
-export { getMilestoneSegmentForDate, type MilestoneSegment } from './legacy/milestones/milestoneUtilitiesService';
-
-// Milestone calculations
+// 📊 Calculation Functions (Business Logic)
 export {
   calculateTotalAllocation,
   calculateBudgetUtilization,
@@ -72,176 +75,66 @@ export {
   findMilestoneGap
 } from './calculations/milestoneCalculations';
 
-// Timeline functions 
+// 🚧 Legacy Layer (Migration in Progress)
+// ⚠️ TODO: Migrate these to new architecture layers above
+// These exports maintain backward compatibility during the migration process
+// Once migration is complete, all functionality will be available through the new layers
+
+// Essential legacy services still needed by components
 export { WorkHoursValidationService } from './legacy/timeline/TimelineBusinessLogicService';
-
-// UI functions
-export { getBaseFullCalendarConfig, getEventStylingConfig } from './ui/FullCalendarConfig';
-
-// Unified functions
-export { transformFullCalendarToCalendarEvent } from './unified/UnifiedEventTransformService';
-export { clearTimelineCache } from './unified/UnifiedEventWorkHourService';
-export { generateWorkHoursForDate } from './unified/UnifiedEventWorkHourService';
-export { calculateAvailabilityReduction } from './unified/UnifiedEventWorkHourService';
-export { calculateProjectWorkingDays } from './unified/UnifiedEventWorkHourService';
-
-// Additional missing exports for components (only existing ones)
 export { WeeklyCapacityCalculationService } from './legacy/timeline/TimelineBusinessLogicService';
-export { expandHolidayDates } from './calculations/holidayCalculations';
 export { MilestoneManagementService } from './legacy/milestones/milestoneManagementService';
-export { UnifiedMilestoneService } from './unified/UnifiedMilestoneService';
-
-// Work hours related exports
-export { getWorkHoursCapacityForPeriod } from './legacy/work-hours/workHourCapacityService';
-
-// Timeline related exports
 export { TimelineViewportService } from './legacy/timeline/timelineViewportService';
 export { HolidayCalculationService } from './legacy/timeline/HolidayCalculationService';
 export { ProjectValidationService } from './legacy/projects/ProjectValidationService';
-
-// Project related exports
-export { getEffectiveProjectStatus } from './legacy/projects/projectStatusService';
-
-// Settings related exports (from calculations)
-export { calculateDayTotalHours } from './legacy/settings/calculations/workSlotCalculations';
-export { calculateWeekTotalHours } from './legacy/settings/calculations/scheduleCalculations';
-export { generateTimeOptions } from './legacy/settings/calculations/timeCalculations';
-export { generateDefaultWorkSchedule } from './legacy/settings/calculations/scheduleCalculations';
-
-// Milestone related exports
-export { calculateRecurringMilestoneCount } from './legacy/milestones/recurringMilestoneService';
-export { calculateRecurringTotalAllocation } from './legacy/milestones/recurringMilestoneService';
-export { detectRecurringPattern } from './legacy/milestones/recurringMilestoneService';
-export { calculateMilestoneInterval } from './legacy/milestones/milestoneUtilitiesService';
-export { calculateMilestoneSegments } from './legacy/milestones/milestoneUtilitiesService';
-
-// Event related exports
-export { aggregateEventDurationsByDate } from './legacy/events/eventDurationService';
-export { calculateEventDurationOnDate } from './legacy/events/eventDurationService';
-
-// Timeline calculation exports
 export { TimelineCalculationService } from './legacy/timeline/TimelineCalculationService';
-export { ProjectDaysCalculationService } from './legacy/timeline/TimelineBusinessLogicService';
-export { ProjectMetricsCalculationService } from './legacy/timeline/TimelineBusinessLogicService';
-export { WorkHoursCalculationService } from './legacy/timeline/TimelineBusinessLogicService';
 
-// Timeline bar exports
-export { isHolidayDateCapacity } from './legacy/work-hours/workHourCapacityService';
+// Legacy calculation functions (to be migrated)
+export { calculateTimeFromPosition, calculateDurationMinutes } from './legacy/work-hours/workHourCreationService';
+export { calculateWorkHourCapacity, getWorkHoursCapacityForPeriod } from './legacy/work-hours/workHourCapacityService';
+export { calculateProjectDuration, calculateProjectTimeMetrics } from './legacy/projects/projectProgressService';
+export { formatDuration, calculateEventDurationOnDateLegacy } from './legacy/events/eventDurationService';
+export { memoizedGetProjectTimeAllocation, calculateEventStyle, getProjectTimeAllocation } from './legacy/events/eventWorkHourIntegrationService';
+export { isPlannedTimeCompleted } from './legacy/events/plannedTimeCompletionService';
+export { calculateOverlapActions, findOverlappingEvents } from './legacy/events/eventOverlapService';
+export { processEventOverlaps, calculateElapsedTime, createTimeRange, type EventSplitResult } from './legacy/events/eventSplittingService';
 
-// Availability circles exports
-export { calculateAvailabilityCircleSize } from './legacy/timeline/AvailabilityCircleSizingService';
-
-// Reports view exports
-export { ProjectCalculationService as CoreProjectCalculationService } from './legacy/projects/ProjectCalculationService';
-
-// Timeline view exports
-export { throttledDragUpdate as throttleDragUpdate } from './performance/dragPerformanceService';
-
-// Work hours component exports
-export { handleWorkHourCreationStart } from './legacy/work-hours/workHourCreationService';
-export { handleWorkHourCreationMove } from './legacy/work-hours/workHourCreationService';
-export { handleWorkHourCreationComplete } from './legacy/work-hours/workHourCreationService';
-export { formatTimeForDisplay } from './legacy/work-hours/workHourCreationService';
-export { formatDurationFromHours } from './legacy/work-hours/workHourCreationService';
-
-// Context exports
-// export { PlannerV2CalculationService } from './legacy/projects/ProjectCalculationService';
-
-// Orchestrators - All workflow coordination
-export * from './orchestrators';
-
-// TODO: Add back these exports once we fix the module resolution issues:
-// export * from './validators';
-// export * from './repositories';
-// export * from './ui';
-// Unified services (complete export)
-export * from './unified';
-// Additional explicit exports for entities
-export { UnifiedProjectEntity, UnifiedMilestoneEntity } from './unified';
-// export * from './legacy/events';
-// export * from './legacy/insights';
-// export * from './legacy/milestones';
-// export * from './legacy/projects';
-// export * from './legacy/settings';
-// export * from './legacy/timeline';
-// export * from './legacy/work-hours';
-
-// NEW MISSING EXPORTS - Adding systematically
-// Calendar integration
-export { CalendarIntegrationService, type ImportResult } from './unified/UnifiedCalendarService';
-
-// Work schedule functions - corrected paths
-export { formatWorkSlotDurationDisplay } from './legacy/work-hours/workHourCreationService';
-export { createNewWorkSlot } from './legacy/settings/calculations/workSlotCalculations';
-export { updateWorkSlot } from './legacy/settings/calculations/workSlotCalculations';
-export { analyzeWorkSchedule } from './legacy/settings/calculations/scheduleCalculations';
-
-// Timeline scrollbar functions
-export { calculateScrollbarPosition } from './legacy/timeline/timelinePositionService';
-export { calculateScrollbarClickTarget } from './legacy/timeline/timelinePositionService';
-export { calculateScrollbarDragTarget } from './legacy/timeline/timelinePositionService';
-export { calculateScrollEasing } from './legacy/timeline/timelinePositionService';
-export { calculateAnimationDuration } from './legacy/timeline/timelinePositionService';
-
-// Timeline bar functions - TODO: Create these services
-// export { generateWorkHoursForDate } from './legacy/work-hours/workHourGenerationService';
-// export { calculateMilestoneSegments } from './legacy/milestones/milestoneCalculationService';
-
-// Availability circles functions
-// export { calculateAvailabilityCircleSize } from './legacy/timeline/AvailabilityCircleSizingService';
-// export { calculateAvailabilityReduction } from './legacy/timeline/AvailabilityCircleSizingService';
-// export { generateWorkHoursForDate as generateWorkHoursForDateCircles } from './legacy/work-hours/workHourGenerationService';
-export { calculateOvertimePlannedHours } from './legacy/work-hours/workHourCapacityService';
-export { calculateTotalPlannedHours } from './legacy/work-hours/workHourCapacityService';
-export { calculateOtherTime } from './legacy/work-hours/workHourCapacityService';
-// export { calculateProjectWorkingDays } from './legacy/projects/projectWorkingDaysService';
-export { getMinimumCircleDimensions } from './legacy/timeline/AvailabilityCircleSizingService';
-
-// Work hours calculation service
-// export { WorkHoursCalculationService } from './legacy/work-hours/WorkHourCalculationService';
-
-// Reports functions
-export { calculateFutureCommitments } from './legacy/insights/insightsCalculationService';
-export { calculateWeeklyCapacity } from './legacy/insights/insightsCalculationService';
-
-// Timeline view functions
-export { calculateDaysDelta } from './legacy/events/dragCalculationService';
-export { createSmoothDragAnimation } from './legacy/events/dragCalculationService';
-export { debounceDragUpdate } from './legacy/events/dragCalculationService';
-export { type SmoothAnimationConfig } from './legacy/events/dragCalculationService';
-
-// Project overlap functions
-export { checkProjectOverlap, adjustProjectDatesForDrag } from './legacy/projects/projectOverlapService';
-export { type Project, type ConflictDetectionResult, type DateAdjustmentResult } from './legacy/projects/projectOverlapService';
-export { detectLiveDragConflicts, resolveDragConflicts } from './legacy/projects/projectOverlapService';
-
-// Work hours creator functions
-export { getWorkHourOverlapInfo } from './legacy/work-hours/workHourCreationService';
-export { generateWorkHourPreviewStyle } from './legacy/work-hours/workHourCreationService';
-export { formatDurationPreview } from './legacy/work-hours/workHourCreationService';
-export { getWorkHourCreationCursor } from './legacy/work-hours/workHourCreationService';
-export { shouldAllowWorkHourCreation } from './legacy/work-hours/workHourCreationService';
-export { type WorkHourCreateState } from './legacy/work-hours/workHourCreationService';
-
-// Timeline positioning
-export { type PositionCalculation } from './legacy/timeline/TimelinePositioningService';
-
-// Project progress
-export { type ComprehensiveProjectTimeMetrics } from './legacy/projects/projectProgressService';
-export { type ProjectProgressAnalysis } from './legacy/projects/projectProgressGraphService';
-export { analyzeProjectProgress } from './legacy/projects/projectProgressGraphService';
-
-// Milestone calculation service
+// Additional legacy exports (organized by domain)
+export { getEffectiveProjectStatus } from './legacy/projects/projectStatusService';
+export { calculateDayTotalHours } from './legacy/settings/calculations/workSlotCalculations';
+export { calculateWeekTotalHours, generateDefaultWorkSchedule } from './legacy/settings/calculations/scheduleCalculations';
+export { generateTimeOptions } from './legacy/settings/calculations/timeCalculations';
+export { calculateRecurringMilestoneCount, calculateRecurringTotalAllocation, detectRecurringPattern } from './legacy/milestones/recurringMilestoneService';
+export { getMilestoneSegmentForDate, calculateMilestoneInterval, calculateMilestoneSegments, type MilestoneSegment } from './legacy/milestones/milestoneUtilitiesService';
+export { ProjectWorkingDaysService } from './legacy/projects/projectWorkingDaysService';
+export { aggregateEventDurationsByDate, calculateEventDurationOnDate } from './legacy/events/eventDurationService';
 export { MilestoneCalculationService } from './legacy/milestones/milestoneCalculationService';
+export { analyzeProjectProgress, type ProjectProgressAnalysis } from './legacy/projects/projectProgressGraphService';
+export { wouldOverlapHolidays, isHolidayDateCapacity } from './legacy/work-hours/workHourCapacityService';
+export { CommittedHoursCalculationService, ProjectDaysCalculationService, ProjectMetricsCalculationService, WorkHoursCalculationService } from './legacy/timeline/TimelineBusinessLogicService';
+export { calculateAvailabilityCircleSize, getMinimumCircleDimensions } from './legacy/timeline/AvailabilityCircleSizingService';
+export { ProjectCalculationService as CoreProjectCalculationService } from './legacy/projects/ProjectCalculationService';
+export { calculateFutureCommitments, calculateWeeklyCapacity } from './legacy/insights/insightsCalculationService';
+export { calculateDaysDelta, createSmoothDragAnimation, debounceDragUpdate, type SmoothAnimationConfig } from './legacy/events/dragCalculationService';
+export { formatTimeForDisplay, formatDurationFromHours } from './legacy/work-hours/workHourCreationService';
+export { handleWorkHourCreationStart, handleWorkHourCreationMove, handleWorkHourCreationComplete } from './legacy/work-hours/workHourCreationService';
+export { getWorkHourOverlapInfo, generateWorkHourPreviewStyle, formatDurationPreview, getWorkHourCreationCursor, shouldAllowWorkHourCreation, type WorkHourCreateState } from './legacy/work-hours/workHourCreationService';
+export { type PositionCalculation } from './legacy/timeline/TimelinePositioningService';
+export { type ComprehensiveProjectTimeMetrics } from './legacy/projects/projectProgressService';
+export { calculateScrollbarPosition, calculateScrollbarClickTarget, calculateScrollbarDragTarget, calculateScrollEasing, calculateAnimationDuration } from './legacy/timeline/timelinePositionService';
+export { createNewWorkSlot, updateWorkSlot } from './legacy/settings/calculations/workSlotCalculations';
+export { formatWorkSlotDurationDisplay } from './legacy/work-hours/workHourCreationService';
+export { analyzeWorkSchedule } from './legacy/settings/calculations/scheduleCalculations';
+export { checkProjectOverlap, adjustProjectDatesForDrag, type ConflictDetectionResult, type DateAdjustmentResult, type Project, detectLiveDragConflicts, resolveDragConflicts } from './legacy/projects/projectOverlapService';
 
-// Planner calculation service
-export { PlannerV2CalculationService } from './calculations/plannerCalculations';
-
-// Unified calendar service - TODO: Create this service
-// export { UnifiedCalendarService } from './unified/UnifiedCalendarService';
-
-// Holiday overlap check
-export { wouldOverlapHolidays } from './legacy/work-hours/workHourCapacityService';
-
-// Committed hours calculation
-export { CommittedHoursCalculationService } from './legacy/timeline/TimelineBusinessLogicService';
+/**
+ * 🎯 AI Development Guidelines:
+ * 
+ * ✅ For NEW features: Use the new architecture layers above (unified/, orchestrators/, etc.)
+ * ✅ For EXISTING features: Import from this barrel export only: @/services
+ * ❌ Never import directly from legacy/ paths - use this index instead
+ * ❌ Never create new files in legacy/ - use the new architecture
+ * 
+ * Migration Status: ~70% complete
+ * Next: Migrate remaining legacy services to unified/orchestrator pattern
+ */

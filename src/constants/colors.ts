@@ -1,6 +1,6 @@
 // OKLCH color palette - consistent lightness and chroma for harmony
 import { OKLCH_PROJECT_COLORS } from './projectModalConstants';
-import { ColorCalculationService } from '@/services/infrastructure/colorCalculations';
+import { ColorCalculationService } from '@/services';
 
 export const OKLCH_GROUP_COLORS = [
   'oklch(0.75 0.15 240)',   // Blue (slightly more saturated for groups)

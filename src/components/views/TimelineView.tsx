@@ -25,9 +25,8 @@ import {
   type SmoothAnimationConfig 
 } from '@/services';
 import { TIMELINE_CONSTANTS } from '@/constants';
-import { PerformanceMetrics } from '@/services/performance/performanceMetricsService';
+import { PerformanceMetrics, throttledDragUpdate, clearDragQueue, throttledVisualUpdate } from '@/services';
 import { checkProjectOverlap, adjustProjectDatesForDrag } from '@/services';
-import { throttledDragUpdate, clearDragQueue, throttledVisualUpdate } from '@/services/performance/dragPerformanceService';
 import { workingDayStats } from '@/lib/workingDayCache';
 import { milestoneStats } from '@/lib/milestoneCache';
 

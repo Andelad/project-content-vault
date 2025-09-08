@@ -17,12 +17,16 @@
  */
 
 import { 
+  calculateDateDuration,
+  calculateBusinessDaysBetween,
+  calculateBusinessDaysInRange,
+  isHoliday,
   calculateTimeOverlapMinutes 
-} from '@/services/calculations/dateCalculations';
+} from '../calculations/dateCalculations';
 
 import { WorkHour, CalendarEvent } from '@/types';
 import { calculateAutoEstimateWorkingDays, calculateEventDurationOnDateLegacy as calculateEventDurationOnDate } from '@/services';
-import { memoizeExpensiveCalculation, timelineCalculationCache } from '@/services/performance/cachePerformanceService';
+import { memoizeExpensiveCalculation, timelineCalculationCache } from '../performance/cachePerformanceService';
 import { getCalendarEventBackgroundColor, getCalendarEventTextColor } from '@/constants/colors';
 
 /**
