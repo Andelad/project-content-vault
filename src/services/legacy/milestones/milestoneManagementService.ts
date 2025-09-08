@@ -15,7 +15,7 @@
  */
 
 import { Milestone, Project } from '@/types/core';
-import { MilestoneEntity } from '../../core/domain/MilestoneEntity';
+import { UnifiedMilestoneEntity } from '../../unified';
 import { MilestoneOrchestrator } from '../../orchestrators/MilestoneOrchestrator';
 import { MilestoneValidator, ValidationContext } from '../../validators/MilestoneValidator';
 import * as milestoneCalcs from '../../core/calculations/milestoneCalculations';
@@ -99,11 +99,11 @@ export class MilestoneManagementService {
 
   /**
    * Calculate valid date range for milestone positioning
-   * @deprecated Use MilestoneEntity.validateMilestoneDate instead
+   * @deprecated Use UnifiedMilestoneEntity.validateMilestoneDate instead
    */
   static calculateMilestoneDateRange(params: MilestonePositioningParams): MilestoneDateRange {
     // Delegate to domain entity for business rule validation
-    const validation = MilestoneEntity.validateMilestoneDate(
+    const validation = UnifiedMilestoneEntity.validateMilestoneDate(
       new Date(), // placeholder date for range calculation
       params.projectStartDate,
       params.projectEndDate,

@@ -19,8 +19,8 @@ import {
   MilestoneManagementService, 
   calculateMilestoneInterval,
   // NEW: Domain-driven imports
-  MilestoneEntity,
-  ProjectEntity,
+  UnifiedMilestoneEntity,
+  UnifiedProjectEntity,
   MilestoneOrchestrator,
   ProjectOrchestrator
 } from '@/services';
@@ -199,7 +199,7 @@ export function ProjectMilestoneSection({
   // Helper function to check if milestone allocation would exceed budget using domain entity
   const wouldExceedBudget = (milestoneId: string, newTimeAllocation: number) => {
     const validMilestones = projectMilestones.filter(m => m.id) as Milestone[];
-    const validation = MilestoneEntity.wouldUpdateExceedBudget(
+    const validation = UnifiedMilestoneEntity.wouldUpdateExceedBudget(
       validMilestones,
       milestoneId,
       newTimeAllocation,
@@ -214,7 +214,7 @@ export function ProjectMilestoneSection({
     if (property === 'timeAllocation') {
       if (wouldExceedBudget(milestoneId, value)) {
         const validMilestones = projectMilestones.filter(m => m.id) as Milestone[];
-        const budgetValidation = MilestoneEntity.wouldUpdateExceedBudget(
+        const budgetValidation = UnifiedMilestoneEntity.wouldUpdateExceedBudget(
           validMilestones,
           milestoneId,
           value,
@@ -243,7 +243,7 @@ export function ProjectMilestoneSection({
         // Check budget before saving new milestone using domain entity
         const validMilestones = projectMilestones.filter(m => m.id) as Milestone[];
         const additionalHours = property === 'timeAllocation' ? value : localMilestone.timeAllocation;
-        const budgetValidation = MilestoneEntity.wouldExceedBudget(
+        const budgetValidation = UnifiedMilestoneEntity.wouldExceedBudget(
           validMilestones,
           additionalHours,
           projectEstimatedHours
@@ -693,7 +693,7 @@ export function ProjectMilestoneSection({
       ? localMilestonesState.milestones.filter(m => m.id !== milestone.id) as Milestone[]
       : projectMilestones.filter(m => m.id && m.id !== milestone.id) as Milestone[];
     
-    const budgetValidation = MilestoneEntity.wouldExceedBudget(
+    const budgetValidation = UnifiedMilestoneEntity.wouldExceedBudget(
       validMilestones,
       milestone.timeAllocation || 0,
       projectEstimatedHours

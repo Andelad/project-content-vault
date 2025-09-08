@@ -11,8 +11,13 @@
  */
 
 import { Milestone, Project } from '@/types/core';
-import { MilestoneEntity, MilestoneBudgetValidation, MilestoneTimeValidation, MilestoneDateValidation } from '../core/domain/MilestoneEntity';
-import { ProjectEntity } from '../core/domain/ProjectEntity';
+import { 
+  UnifiedMilestoneEntity, 
+  UnifiedProjectEntity,
+  MilestoneBudgetValidation,
+  MilestoneTimeValidation,
+  MilestoneDateValidation
+} from '../unified';
 
 export interface CreateMilestoneRequest {
   name: string;
@@ -73,7 +78,7 @@ export class MilestoneOrchestrator {
     const warnings: string[] = [];
 
     // Time validation using domain rules
-    const timeValidation = MilestoneEntity.validateMilestoneTime(
+    const timeValidation = UnifiedMilestoneEntity.validateMilestoneTime(
       request.timeAllocation,
       project.estimatedHours
     );
@@ -81,7 +86,7 @@ export class MilestoneOrchestrator {
     warnings.push(...timeValidation.warnings);
 
     // Date validation using domain rules
-    const dateValidation = MilestoneEntity.validateMilestoneDate(
+    const dateValidation = UnifiedMilestoneEntity.validateMilestoneDate(
       request.dueDate,
       project.startDate,
       project.endDate,
@@ -90,7 +95,7 @@ export class MilestoneOrchestrator {
     errors.push(...dateValidation.errors);
 
     // Budget validation using domain rules
-    const budgetValidation = MilestoneEntity.wouldExceedBudget(
+    const budgetValidation = UnifiedMilestoneEntity.wouldExceedBudget(
       existingMilestones,
       request.timeAllocation,
       project.estimatedHours
@@ -129,7 +134,7 @@ export class MilestoneOrchestrator {
 
     // Validate time allocation if being updated
     if (request.timeAllocation !== undefined) {
-      const timeValidation = MilestoneEntity.validateMilestoneTime(
+      const timeValidation = UnifiedMilestoneEntity.validateMilestoneTime(
         request.timeAllocation,
         project.estimatedHours
       );
@@ -137,7 +142,7 @@ export class MilestoneOrchestrator {
       warnings.push(...timeValidation.warnings);
 
       // Check budget impact
-      const budgetValidation = MilestoneEntity.wouldUpdateExceedBudget(
+      const budgetValidation = UnifiedMilestoneEntity.wouldUpdateExceedBudget(
         existingMilestones,
         request.id,
         request.timeAllocation,
@@ -150,7 +155,7 @@ export class MilestoneOrchestrator {
 
     // Validate date if being updated
     if (request.dueDate !== undefined) {
-      const dateValidation = MilestoneEntity.validateMilestoneDate(
+      const dateValidation = UnifiedMilestoneEntity.validateMilestoneDate(
         request.dueDate,
         project.startDate,
         project.endDate,
@@ -176,7 +181,7 @@ export class MilestoneOrchestrator {
     milestoneId?: string,
     newTimeAllocation?: number
   ): BudgetImpactAnalysis {
-    const currentBudgetUsage = ProjectEntity.calculateTotalMilestoneAllocation(milestones);
+    const currentBudgetUsage = UnifiedProjectEntity.calculateTotalMilestoneAllocation(milestones);
     
     let newBudgetUsage = currentBudgetUsage;
     if (milestoneId && newTimeAllocation !== undefined) {
@@ -225,11 +230,11 @@ export class MilestoneOrchestrator {
     if (requestedCount <= 0) return [];
 
     const suggestions: Partial<CreateMilestoneRequest>[] = [];
-    const suggestedBudget = ProjectEntity.suggestMilestoneBudget(project, requestedCount);
+    const suggestedBudget = UnifiedProjectEntity.suggestMilestoneBudget(project, requestedCount);
     
     // For time-limited projects, distribute dates evenly
-    if (ProjectEntity.isTimeLimitedProject(project)) {
-      const projectDuration = ProjectEntity.calculateProjectDuration(project);
+    if (UnifiedProjectEntity.isTimeLimitedProject(project)) {
+      const projectDuration = UnifiedProjectEntity.calculateProjectDuration(project);
       if (projectDuration) {
         const intervalDays = Math.floor(projectDuration / (requestedCount + 1));
         
@@ -275,7 +280,7 @@ export class MilestoneOrchestrator {
     const warnings: string[] = [];
 
     // Check if it's a recurring milestone
-    if (MilestoneEntity.isRecurringMilestone(milestone)) {
+    if (UnifiedMilestoneEntity.isRecurringMilestone(milestone)) {
       warnings.push('This appears to be part of a recurring milestone series');
     }
 

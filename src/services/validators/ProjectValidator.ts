@@ -10,8 +10,7 @@
  */
 
 import { Project, Milestone } from '@/types/core';
-import { ProjectEntity } from '../core/domain/ProjectEntity';
-import { MilestoneEntity } from '../core/domain/MilestoneEntity';
+import { UnifiedProjectEntity, UnifiedMilestoneEntity } from '../unified';
 
 export interface ProjectValidationContext {
   existingProjects: Project[];
@@ -81,14 +80,14 @@ export class ProjectValidator {
     const suggestions: string[] = [];
 
     // Domain-level validations using ProjectEntity
-    const dateValidation = ProjectEntity.validateProjectDates(
+    const dateValidation = UnifiedProjectEntity.validateProjectDates(
       request.startDate,
       request.endDate,
       false // Assuming non-continuous for creation validation
     );
     errors.push(...dateValidation.errors);
 
-    const timeValidation = ProjectEntity.validateProjectTime(
+    const timeValidation = UnifiedProjectEntity.validateProjectTime(
       request.estimatedHours,
       [] // No milestones yet for new project
     );
@@ -206,7 +205,7 @@ export class ProjectValidator {
       const newStartDate = request.startDate || currentProject.startDate;
       const newEndDate = request.endDate || currentProject.endDate;
 
-      const dateValidation = ProjectEntity.validateProjectDates(newStartDate, newEndDate);
+      const dateValidation = UnifiedProjectEntity.validateProjectDates(newStartDate, newEndDate);
       errors.push(...dateValidation.errors);
 
       // Check impact on existing milestones
@@ -220,11 +219,11 @@ export class ProjectValidator {
       }
 
       // Check for significant timeline changes
-      const currentDuration = ProjectEntity.calculateProjectDuration(currentProject);
+      const currentDuration = UnifiedProjectEntity.calculateProjectDuration(currentProject);
       
       // Create temporary project for duration calculation
       const tempProject = { ...currentProject, startDate: newStartDate, endDate: newEndDate };
-      const newDuration = ProjectEntity.calculateProjectDuration(tempProject);
+      const newDuration = UnifiedProjectEntity.calculateProjectDuration(tempProject);
       const durationChange = Math.abs(newDuration - currentDuration);
       const changePercent = currentDuration > 0 ? (durationChange / currentDuration) * 100 : 0;
 
@@ -235,14 +234,14 @@ export class ProjectValidator {
 
     // Validate budget changes
     if (request.estimatedHours !== undefined) {
-      const timeValidation = ProjectEntity.validateProjectTime(
+      const timeValidation = UnifiedProjectEntity.validateProjectTime(
         request.estimatedHours,
         context.projectMilestones
       );
       errors.push(...timeValidation.errors);
 
       // Check impact on milestone allocations
-      const currentAllocation = ProjectEntity.calculateTotalMilestoneAllocation(context.projectMilestones);
+      const currentAllocation = UnifiedProjectEntity.calculateTotalMilestoneAllocation(context.projectMilestones);
       
       if (request.estimatedHours < currentAllocation) {
         errors.push(`New budget (${request.estimatedHours}h) is less than current milestone allocation (${currentAllocation}h)`);
@@ -362,7 +361,7 @@ export class ProjectValidator {
     const suggestions: string[] = [];
 
     // Use domain entities for validation
-    const budgetAnalysis = ProjectEntity.analyzeBudget(project, milestones);
+    const budgetAnalysis = UnifiedProjectEntity.analyzeBudget(project, milestones);
     
     if (budgetAnalysis.isOverBudget) {
       errors.push(`Milestone allocation exceeds project budget by ${budgetAnalysis.overageHours}h`);
@@ -382,7 +381,7 @@ export class ProjectValidator {
     }
 
     // Analyze milestone distribution
-    const duration = ProjectEntity.calculateProjectDuration(project);
+    const duration = UnifiedProjectEntity.calculateProjectDuration(project);
     if (!duration) return { isValid: true, errors: [], warnings: [], suggestions: [], context: {} };
     const density = milestones.length / Math.max(1, duration / 7); // milestones per week
     

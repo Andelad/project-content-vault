@@ -152,7 +152,10 @@ export * from './orchestrators';
 // export * from './validators';
 // export * from './repositories';
 // export * from './ui';
-// export * from './unified';
+// Unified services (complete export)
+export * from './unified';
+// Additional explicit exports for entities
+export { UnifiedProjectEntity, UnifiedMilestoneEntity } from './unified';
 // export * from './legacy/events';
 // export * from './legacy/insights';
 // export * from './legacy/milestones';
@@ -197,8 +200,6 @@ export { getMinimumCircleDimensions } from './legacy/timeline/AvailabilityCircle
 
 // Reports functions
 export { calculateFutureCommitments } from './legacy/insights/insightsCalculationService';
-export { calculateValidDays } from './legacy/insights/insightsCalculationService';
-export { calculateAverageDayData } from './legacy/insights/insightsCalculationService';
 export { calculateWeeklyCapacity } from './legacy/insights/insightsCalculationService';
 
 // Timeline view functions

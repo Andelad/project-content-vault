@@ -10,8 +10,7 @@
  */
 
 import { Milestone, Project } from '@/types/core';
-import { MilestoneEntity } from '../core/domain/MilestoneEntity';
-import { ProjectEntity } from '../core/domain/ProjectEntity';
+import { UnifiedMilestoneEntity, UnifiedProjectEntity } from '../unified';
 import { IMilestoneRepository } from '../repositories/MilestoneRepository';
 
 export interface ValidationContext {
@@ -76,14 +75,14 @@ export class MilestoneValidator {
     const suggestions: string[] = [];
 
     // Domain-level validations
-    const timeValidation = MilestoneEntity.validateMilestoneTime(
+    const timeValidation = UnifiedMilestoneEntity.validateMilestoneTime(
       request.timeAllocation,
       context.project.estimatedHours
     );
     errors.push(...timeValidation.errors);
     warnings.push(...timeValidation.warnings);
 
-    const dateValidation = MilestoneEntity.validateMilestoneDate(
+    const dateValidation = UnifiedMilestoneEntity.validateMilestoneDate(
       request.dueDate,
       context.project.startDate,
       context.project.endDate,
@@ -92,7 +91,7 @@ export class MilestoneValidator {
     errors.push(...dateValidation.errors);
 
     // Budget impact analysis
-    const budgetValidation = MilestoneEntity.wouldExceedBudget(
+    const budgetValidation = UnifiedMilestoneEntity.wouldExceedBudget(
       context.existingMilestones,
       request.timeAllocation,
       context.project.estimatedHours
@@ -116,7 +115,7 @@ export class MilestoneValidator {
     }
 
     // Advanced business rule validations
-    const projectAnalysis = ProjectEntity.analyzeBudget(context.project, context.existingMilestones);
+    const projectAnalysis = UnifiedProjectEntity.analyzeBudget(context.project, context.existingMilestones);
     
     if (projectAnalysis.utilizationPercent > 80) {
       warnings.push('Project budget is already highly utilized (>80%)');
@@ -200,7 +199,7 @@ export class MilestoneValidator {
 
     // Validate time allocation changes
     if (request.timeAllocation !== undefined) {
-      const budgetValidation = MilestoneEntity.wouldUpdateExceedBudget(
+      const budgetValidation = UnifiedMilestoneEntity.wouldUpdateExceedBudget(
         context.existingMilestones,
         request.id,
         request.timeAllocation,
@@ -223,7 +222,7 @@ export class MilestoneValidator {
 
     // Validate date changes
     if (request.dueDate !== undefined) {
-      const dateValidation = MilestoneEntity.validateMilestoneDate(
+      const dateValidation = UnifiedMilestoneEntity.validateMilestoneDate(
         request.dueDate,
         context.project.startDate,
         context.project.endDate,
@@ -295,7 +294,7 @@ export class MilestoneValidator {
     }
 
     // Check if it's a recurring milestone
-    if (MilestoneEntity.isRecurringMilestone(milestone)) {
+    if (UnifiedMilestoneEntity.isRecurringMilestone(milestone)) {
       warnings.push('This appears to be part of a recurring milestone series');
       suggestions.push('Consider updating the recurring pattern instead of deleting');
     }
