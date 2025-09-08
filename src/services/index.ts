@@ -22,7 +22,7 @@
 // 🎯 Core Architecture Layers (New Structure)
 export * from './unified';           // Main API - UnifiedProjectService, UnifiedMilestoneService, etc.
 export * from './orchestrators';     // Workflow coordination - ProjectOrchestrator, TimeTrackingOrchestrator
-export * from './calculations';      // Pure business calculations - projectCalculations, timeCalculations
+export * from './calculations';      // Pure business calculations - projectCalculations, timeCalculations, dragCalculations
 export * from './validators';        // Business rules - ProjectValidator, TimeTrackingValidator  
 // export * from './repositories';      // Data access - ProjectRepository, MilestoneRepository (conflicts with orchestrators)
 export * from './ui';               // View positioning - TimelinePositioning, TimelineViewport, CalendarLayout
@@ -32,7 +32,7 @@ export * from './performance';      // Performance optimization - dragPerformanc
 // 🚧 Legacy Services (Temporary - During Migration)
 // These will be removed once migration to new architecture is complete
 export { TimelinePositioningService } from './legacy/timeline/TimelinePositioningService';
-export { ProjectCalculationService } from './legacy/projects/ProjectCalculationService';
+// ProjectCalculationService migrated to UnifiedProjectService
 export { WorkHourCalculationService } from './calculations/workHourCalculations';
 
 // 🔧 Additional Temporary Exports (Remove after migration)
@@ -42,7 +42,7 @@ export {
   convertMousePositionToIndex, 
   convertIndicesToDates, 
   calculateMinimumHoverOverlaySize 
-} from './legacy/timeline/timelinePositionService';
+} from './calculations/timelinePositionCalculations';
 
 // 🎯 Unified Services (Main API Layer)
 export { TimeTrackerCalculationService } from './unified/UnifiedTimeTrackerService';
@@ -89,12 +89,14 @@ export {
 export { WorkHoursValidationService } from './legacy/timeline/TimelineBusinessLogicService';
 export { WeeklyCapacityCalculationService } from './legacy/timeline/TimelineBusinessLogicService';
 export { MilestoneManagementService } from './legacy/milestones/milestoneManagementService';
-export { TimelineViewportService } from './legacy/timeline/timelineViewportService';
-export { ProjectValidationService } from './legacy/projects/ProjectValidationService';
 export { TimelineCalculationService } from './legacy/timeline/TimelineCalculationService';
 
+// New architecture services - maintain backward compatibility
+export { TimelineViewport, TimelineViewport as TimelineViewportService } from './ui/TimelineViewport';
+export { ProjectValidator, ProjectValidator as ProjectValidationService } from './validators/ProjectValidator';
+
 // Legacy calculation functions (to be migrated)
-export { calculateTimeFromPosition, calculateDurationMinutes } from './legacy/work-hours/workHourCreationService';
+export { calculateTimeFromPosition, calculateDurationMinutes } from './calculations/workHourCalculations';
 
 // Legacy event calculation wrappers for backward compatibility
 export {
@@ -114,9 +116,9 @@ export function calculateEventDurationOnDateLegacy(event: any, targetDate: Date)
   return calculateEventDurationOnDateNew({ event, targetDate });
 }
 export { calculateWorkHourCapacity, getWorkHoursCapacityForPeriod } from './calculations/capacityCalculations';
-export { calculateProjectDuration, calculateProjectTimeMetrics } from './legacy/projects/projectProgressService';
+export { calculateProjectDuration, calculateProjectTimeMetrics, buildPlannedTimeMap, getPlannedTimeUpToDate, generateProgressDataPoints, calculateProjectVelocity, estimateProjectCompletionDate } from './calculations/projectProgressCalculations';
 export { memoizedGetProjectTimeAllocation, calculateEventStyle, getProjectTimeAllocation } from './legacy/events/eventWorkHourIntegrationService';
-export { processEventOverlaps, calculateElapsedTime, createTimeRange, type EventSplitResult } from './legacy/events/eventSplittingService';
+export { processEventOverlaps, calculateElapsedTime, createTimeRange, validateEventForSplit, type EventSplitResult, type Event, type TimeRange } from './validators/eventValidations';
 
 // Additional legacy exports (organized by domain)
 export { 
@@ -126,29 +128,61 @@ export {
   getEffectiveProjectStatus,
   organizeProjectsByStatus
 } from './calculations/projectStatusCalculations';
-export { calculateDayTotalHours } from './legacy/settings/calculations/workSlotCalculations';
-export { calculateWeekTotalHours, generateDefaultWorkSchedule } from './legacy/settings/calculations/scheduleCalculations';
-export { generateTimeOptions } from './legacy/settings/calculations/timeCalculations';
-export { calculateRecurringMilestoneCount, calculateRecurringTotalAllocation, detectRecurringPattern } from './legacy/milestones/recurringMilestoneService';
-export { getMilestoneSegmentForDate, calculateMilestoneInterval, calculateMilestoneSegments, type MilestoneSegment } from './legacy/milestones/milestoneUtilitiesService';
-export { ProjectWorkingDaysService } from './legacy/projects/projectWorkingDaysService';
-export { MilestoneCalculationService } from './legacy/milestones/milestoneCalculationService';
+export { 
+  calculateDayTotalHours,
+  calculateWeekTotalHours,
+  generateDefaultWorkSchedule,
+  generateTimeOptions,
+  calculateWorkSlotDuration,
+  calculateSlotOverlapMinutes,
+  createNewWorkSlot,
+  updateWorkSlot,
+  validateWorkSchedule
+} from './calculations/settingsCalculations';
+export { 
+  calculateRecurringMilestoneCount, 
+  calculateRecurringTotalAllocation, 
+  detectRecurringPattern,
+  generateRecurringMilestoneDates
+} from './calculations/milestoneCalculations';
+export { getMilestoneSegmentForDate, calculateMilestoneInterval, calculateMilestoneSegments, getEstimatedHoursForDate, getMilestoneForDate, getMilestonesInDateRange, type MilestoneSegment } from './calculations/milestoneCalculations';
+export { MilestoneCalculationService, type MilestoneValidationResult, type LegacyMilestone, type RecurringPattern } from './calculations/milestoneCalculations';
 export { analyzeProjectProgress, type ProjectProgressAnalysis } from './legacy/projects/projectProgressGraphService';
 export { wouldOverlapHolidays, isHolidayDateCapacity } from './calculations/capacityCalculations';
 export { CommittedHoursCalculationService, ProjectDaysCalculationService, ProjectMetricsCalculationService, WorkHoursCalculationService } from './legacy/timeline/TimelineBusinessLogicService';
-export { ProjectCalculationService as CoreProjectCalculationService } from './legacy/projects/ProjectCalculationService';
-export { calculateFutureCommitments, calculateWeeklyCapacity } from './legacy/insights/insightsCalculationService';
-export { calculateDaysDelta, createSmoothDragAnimation, debounceDragUpdate, type SmoothAnimationConfig } from './legacy/events/dragCalculationService';
-export { formatTimeForDisplay, formatDurationFromHours } from './legacy/work-hours/workHourCreationService';
-export { handleWorkHourCreationStart, handleWorkHourCreationMove, handleWorkHourCreationComplete } from './legacy/work-hours/workHourCreationService';
-export { getWorkHourOverlapInfo, generateWorkHourPreviewStyle, formatDurationPreview, getWorkHourCreationCursor, shouldAllowWorkHourCreation, type WorkHourCreateState } from './legacy/work-hours/workHourCreationService';
+// CoreProjectCalculationService migrated to UnifiedProjectService
+export { 
+  calculateFutureCommitments, 
+  calculateWeeklyCapacity,
+  getCurrentProjects,
+  getRelevantEventsForPeriod,
+  calculateTrackedHours,
+  generateWeeklyUtilizationReport
+} from './calculations/insightCalculations';
+export { calculateDaysDelta, createSmoothDragAnimation, debounceDragUpdate, type SmoothAnimationConfig } from './calculations/dragCalculations';
+export { formatTimeForDisplay, formatDurationFromHours } from './calculations/workHourCalculations';
+export { handleWorkHourCreationStart, handleWorkHourCreationMove, handleWorkHourCreationComplete } from './calculations/workHourCalculations';
+export { getWorkHourOverlapInfo, generateWorkHourPreviewStyle, formatDurationPreview, getWorkHourCreationCursor, shouldAllowWorkHourCreation, type WorkHourCreateState } from './calculations/workHourCalculations';
 export { type PositionCalculation } from './legacy/timeline/TimelinePositioningService';
-export { type ComprehensiveProjectTimeMetrics } from './legacy/projects/projectProgressService';
-export { calculateScrollbarPosition, calculateScrollbarClickTarget, calculateScrollbarDragTarget, calculateScrollEasing, calculateAnimationDuration } from './legacy/timeline/timelinePositionService';
-export { createNewWorkSlot, updateWorkSlot } from './legacy/settings/calculations/workSlotCalculations';
-export { formatWorkSlotDurationDisplay } from './legacy/work-hours/workHourCreationService';
-export { analyzeWorkSchedule } from './legacy/settings/calculations/scheduleCalculations';
-export { checkProjectOverlap, adjustProjectDatesForDrag, type ConflictDetectionResult, type DateAdjustmentResult, type Project, detectLiveDragConflicts, resolveDragConflicts } from './legacy/projects/projectOverlapService';
+export { type ComprehensiveProjectTimeMetrics, type ProgressProject, type ProjectEvent as ProgressProjectEvent } from './calculations/projectProgressCalculations';
+export { 
+  calculateTimelinePositions, 
+  calculateScrollbarPosition, 
+  calculateScrollbarClickTarget, 
+  calculateScrollbarDragTarget, 
+  calculateScrollEasing, 
+  calculateAnimationDuration,
+  calculateMouseToTimelineIndex,
+  calculateHolidayPosition,
+  calculateCenterScrollPosition,
+  type TimelinePositionCalculation,
+  type ScrollbarCalculation,
+  type ScrollAnimationConfig,
+  type HolidayPositionCalculation,
+  type MouseToIndexConversion
+} from './calculations/timelinePositionCalculations';
+export { formatWorkSlotDurationDisplay } from './calculations/workHourCalculations';
+export { checkProjectOverlap, adjustProjectDatesForDrag, detectLiveDragConflicts, resolveDragConflicts, datesOverlap, calculateOverlapPercentage, type ConflictDetectionResult, type DateAdjustmentResult, type Project } from './calculations/projectOverlapCalculations';
 
 /**
  * 🎯 AI Development Guidelines:

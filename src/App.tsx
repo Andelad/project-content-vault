@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AppProviders } from './contexts/AppProviders';
 import { Toaster } from './components/ui/toaster';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 // Pages
 import LandingPage from './pages/LandingPage';
@@ -16,6 +17,7 @@ function AppContent() {
   const { user, loading } = useAuth();
 
   console.log('🔍 AppContent render - user:', !!user, 'loading:', loading);
+  console.log('🔍 Current path:', window.location.pathname);
 
   if (loading) {
     console.log('⏳ App is in loading state');
@@ -25,6 +27,8 @@ function AppContent() {
       </div>
     );
   }
+
+  console.log('🚀 Rendering routes, user authenticated:', !!user);
 
   return (
     <Routes>
@@ -58,13 +62,17 @@ function AppContent() {
 }
 
 function App() {
+  console.log('🔥 App component rendering...');
+  
   return (
-    <AuthProvider>
-      <Router>
-        <AppContent />
-        <Toaster />
-      </Router>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <Router>
+          <AppContent />
+          <Toaster />
+        </Router>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

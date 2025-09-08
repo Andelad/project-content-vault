@@ -12,6 +12,9 @@ export * from './completionCalculations';
 // Date calculations - core date/time functions
 export * from './dateCalculations';
 
+// Drag calculations - timeline interaction logic
+export * from './dragCalculations';
+
 // Event calculations
 export * from './eventCalculations';
 
@@ -20,6 +23,9 @@ export * from './eventOverlapCalculations';
 
 // Holiday calculations
 export * from './holidayCalculations';
+
+// Insight calculations
+export * from './insightCalculations';
 
 // Milestone calculations  
 export * from './milestoneCalculations';
@@ -31,14 +37,30 @@ export * from './plannerCalculations';
 export {
   calculateAutoEstimateWorkingDays,
   calculateAutoEstimateHoursPerDay,
+  calculateTotalWorkingDays,
   DurationFormattingService
 } from './projectCalculations';
 
-// Project overlap calculations
-export * from './projectOverlapCalculations';
+// Project overlap calculations - explicit exports to avoid conflicts
+export {
+  checkProjectOverlap,
+  detectLiveDragConflicts,
+  resolveDragConflicts,
+  findNearestAvailableSlot,
+  adjustProjectDatesForDrag,
+  calculateOverlapPercentage
+} from './projectOverlapCalculations';
+
+export type {
+  ConflictDetectionResult,
+  DateAdjustmentResult
+} from './projectOverlapCalculations';
 
 // Project status calculations
 export * from './projectStatusCalculations';
+
+// Settings calculations
+export * from './settingsCalculations';
 
 // Time calculations
 export * from './timeCalculations';
@@ -48,6 +70,12 @@ export * from './timeTrackingCalculations';
 
 // Timeline calculations - migrated from TimelineCalculationService
 export * from './timelineCalculations';
+
+// Timeline position calculations - migrated from timelinePositionService
+export * from './timelinePositionCalculations';
+
+// Project progress calculations - migrated from projectProgressService
+export * from './projectProgressCalculations';
 
 // Calendar insight calculations
 export * from './calendarInsightCalculations';

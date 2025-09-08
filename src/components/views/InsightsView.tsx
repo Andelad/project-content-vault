@@ -27,7 +27,6 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Checkbox } from '../ui/checkbox';
-import { CoreProjectCalculationService as ProjectCalculationService } from '../../services';
 import { AverageDayHeatmapCard } from '../insights/AverageDayHeatmapCard';
 import { 
   calculateFutureCommitments,

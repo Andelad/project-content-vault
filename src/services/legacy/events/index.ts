@@ -1,5 +1,4 @@
 // Legacy Events Services
-export * from './dragCalculationService';
-export * from './eventSplittingService';
+// dragCalculationService migrated to calculations/dragCalculations.ts
+// timelineDragCoordinatorService duplicated in ui/DragCalculations.ts (can be removed)
 export * from './eventWorkHourIntegrationService';
-export * from './timelineDragCoordinatorService';

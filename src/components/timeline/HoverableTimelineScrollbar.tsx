@@ -33,6 +33,12 @@ export const HoverableTimelineScrollbar = memo(function HoverableTimelineScrollb
   isDragging: timelineDragging = false,
   stopAutoScroll
 }: HoverableTimelineScrollbarProps) {
+  // Safety check: ensure viewportStart is valid
+  if (!viewportStart || isNaN(viewportStart.getTime())) {
+    console.error('⚠️ HoverableTimelineScrollbar received invalid viewportStart:', viewportStart);
+    return null;
+  }
+
   const scrollbarRef = useRef<HTMLDivElement>(null);
   const thumbRef = useRef<HTMLDivElement>(null);
   
@@ -40,7 +46,7 @@ export const HoverableTimelineScrollbar = memo(function HoverableTimelineScrollb
   const isDragging = useRef(false);
   const dragStartX = useRef(0);
   const dragStartDayOffset = useRef(0);
-  const scrollbarWidth = useRef(0);
+  const scrollbarWidthRef = useRef(0);
   const finalDragPosition = useRef<number | null>(null); // Store final drag position
   const justFinishedDrag = useRef(false); // Flag to prevent clicks after drag
   
@@ -48,13 +54,42 @@ export const HoverableTimelineScrollbar = memo(function HoverableTimelineScrollb
   const originalSetViewportStart = useRef(setViewportStart);
   const blockedUpdateCount = useRef(0);
   
+  // Safe wrapper for setViewportStart to prevent invalid dates
+  const safeSetViewportStart = useCallback((date: Date) => {
+    if (!date || isNaN(date.getTime())) {
+      console.error('⚠️ HoverableTimelineScrollbar attempted to set invalid date:', date);
+      return;
+    }
+    setViewportStart(date);
+  }, [setViewportStart]);
+  
   const [isDraggingThumb, setIsDraggingThumb] = useState(false);
   const [smoothThumbPosition, setSmoothThumbPosition] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
   
   // Use service for scrollbar calculations with adaptive total days
   const TOTAL_DAYS = Math.max(365, VIEWPORT_DAYS * 2); // At least a year, or double the viewport
-  const scrollbarCalc = calculateScrollbarPosition(viewportStart, VIEWPORT_DAYS);
+  
+  // Calculate viewport end and timeline bounds
+  const viewportEnd = new Date(viewportStart);
+  viewportEnd.setDate(viewportEnd.getDate() + VIEWPORT_DAYS);
+  
+  const fullTimelineStart = new Date(viewportStart);
+  fullTimelineStart.setDate(fullTimelineStart.getDate() - Math.floor(TOTAL_DAYS / 2));
+  
+  const fullTimelineEnd = new Date(fullTimelineStart);
+  fullTimelineEnd.setDate(fullTimelineEnd.getDate() + TOTAL_DAYS);
+  
+  // Calculate scrollbar width (we'll use a default and update it in effect)
+  const [scrollbarWidth, setScrollbarWidth] = useState(300);
+  
+  const scrollbarCalc = calculateScrollbarPosition(
+    viewportStart,
+    viewportEnd, 
+    fullTimelineStart,
+    fullTimelineEnd,
+    scrollbarWidth
+  );
   
   // Override total days calculation for weeks mode adaptation
   const adaptedCalc = {
@@ -66,7 +101,6 @@ export const HoverableTimelineScrollbar = memo(function HoverableTimelineScrollb
   };
   
   const { 
-    fullTimelineStart, 
     currentDayOffset, 
     thumbPosition: calculatedThumbPosition, 
     thumbWidth,
@@ -126,14 +160,14 @@ export const HoverableTimelineScrollbar = memo(function HoverableTimelineScrollb
     const newViewportStart = new Date(fullTimelineStart);
     newViewportStart.setDate(fullTimelineStart.getDate() + clampedDayOffset);
     
-    setViewportStart(newViewportStart);
+    safeSetViewportStart(newViewportStart);
     setCurrentDate(new Date(newViewportStart));
     
     // Update thumb position to match - THIS IS THE FINAL POSITION
     const newThumbPosition = maxOffset > 0 ? (clampedDayOffset / maxOffset) * 100 : 0;
     setSmoothThumbPosition(newThumbPosition);
     finalDragPosition.current = newThumbPosition; // Lock this position
-  }, [maxOffset, fullTimelineStart, setViewportStart, setCurrentDate]);
+  }, [maxOffset, fullTimelineStart, safeSetViewportStart, setCurrentDate]);
   
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -151,7 +185,7 @@ export const HoverableTimelineScrollbar = memo(function HoverableTimelineScrollb
     
     // Store initial state
     const rect = scrollbarRef.current.getBoundingClientRect();
-    scrollbarWidth.current = rect.width;
+    scrollbarWidthRef.current = rect.width;
     dragStartX.current = e.clientX;
     dragStartDayOffset.current = currentDayOffset;
     
@@ -171,7 +205,7 @@ export const HoverableTimelineScrollbar = memo(function HoverableTimelineScrollb
     
     // Calculate position change
     const deltaX = e.clientX - dragStartX.current;
-    const deltaPercent = (deltaX / scrollbarWidth.current) * 100;
+    const deltaPercent = (deltaX / scrollbarWidthRef.current) * 100;
     const deltaDays = Math.round((deltaPercent / 100) * maxOffset);
     
     // Calculate new day offset
@@ -248,12 +282,15 @@ export const HoverableTimelineScrollbar = memo(function HoverableTimelineScrollb
     const clickX = e.clientX - rect.left;
     
     // Use service to calculate target viewport
-    const targetViewportStart = calculateScrollbarClickTarget(
-      clickX, 
-      rect.width, 
-      fullTimelineStart, 
-      maxOffset
+    const targetDayOffset = calculateScrollbarClickTarget(
+      e.clientX, 
+      rect, 
+      scrollbarCalc
     );
+    
+    // Convert day offset back to date
+    const targetViewportStart = new Date(fullTimelineStart);
+    targetViewportStart.setDate(targetViewportStart.getDate() + targetDayOffset);
     
     // Calculate the difference in days for smooth animation
     const currentStart = viewportStart.getTime();
@@ -262,7 +299,7 @@ export const HoverableTimelineScrollbar = memo(function HoverableTimelineScrollb
     
     // If already close to target, don't animate
     if (daysDifference < 1) {
-      setViewportStart(targetViewportStart);
+      safeSetViewportStart(targetViewportStart);
       setCurrentDate(new Date(targetViewportStart));
       return;
     }
@@ -274,32 +311,37 @@ export const HoverableTimelineScrollbar = memo(function HoverableTimelineScrollb
     setIsAnimating(true);
     
     // Calculate target thumb position for smooth scrollbar animation
-    const targetDayOffset = Math.round((targetViewportStart.getTime() - fullTimelineStart.getTime()) / (24 * 60 * 60 * 1000));
-    const targetThumbPosition = maxOffset > 0 ? (targetDayOffset / maxOffset) * 100 : 0;
+    const animationTargetDayOffset = Math.round((targetViewportStart.getTime() - fullTimelineStart.getTime()) / (24 * 60 * 60 * 1000));
+    const targetThumbPosition = maxOffset > 0 ? (animationTargetDayOffset / maxOffset) * 100 : 0;
     const startThumbPosition = smoothThumbPosition;
     
     const animate = (currentTime: number) => {
-      const elapsed = currentTime - startTime;
-      const progress = Math.min(elapsed / animationDuration, 1);
+      // Create config for the new service function
+      const config = {
+        startTime,
+        startThumbPosition,
+        targetThumbPosition,
+        animationDuration,
+        startOffset: currentDayOffset,
+        targetOffset: animationTargetDayOffset
+      };
       
       // Use service for easing calculation
-      const easedProgress = calculateScrollEasing(progress);
+      const { thumbPosition: intermediateThumbPosition, offset: intermediateOffset, isComplete } = calculateScrollEasing(currentTime, config);
       
       // Calculate intermediate viewport start
-      const currentOffset = currentStart + (targetStart - currentStart) * easedProgress;
-      const intermediateStart = new Date(currentOffset);
+      const intermediateStart = new Date(fullTimelineStart);
+      intermediateStart.setDate(intermediateStart.getDate() + intermediateOffset);
       
-      // Smoothly animate thumb position
-      const intermediateThumbPosition = startThumbPosition + (targetThumbPosition - startThumbPosition) * easedProgress;
+      // Update thumb position
       setSmoothThumbPosition(intermediateThumbPosition);
+      safeSetViewportStart(intermediateStart);
       
-      setViewportStart(intermediateStart);
-      
-      if (progress < 1) {
+      if (!isComplete) {
         requestAnimationFrame(animate);
       } else {
         // Ensure we end up exactly at the target
-        setViewportStart(targetViewportStart);
+        safeSetViewportStart(targetViewportStart);
         setCurrentDate(new Date(targetViewportStart));
         setSmoothThumbPosition(targetThumbPosition);
         setIsAnimating(false);

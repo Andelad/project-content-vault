@@ -4,7 +4,10 @@ import { useEvents } from '@/hooks/useEvents';
 import { useHolidays } from '@/hooks/useHolidays';
 import { useWorkHours } from '@/hooks/useWorkHours';
 import { EventInput } from '@fullcalendar/core';
-import { PlannerV2CalculationService } from '@/services';
+
+// Try direct import from the specific file instead of barrel export
+console.log('🔍 PlannerV2Context: Attempting to import PlannerV2CalculationService...');
+import { PlannerV2CalculationService } from '@/services/calculations/plannerCalculations';
 
 interface PlannerV2ContextType {
   // Calendar Events

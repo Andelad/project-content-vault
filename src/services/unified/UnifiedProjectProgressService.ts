@@ -22,7 +22,7 @@ import {
   getRelevantMilestones,
   calculateProgressPercentage,
   calculateProjectTimeMetrics
-} from '../legacy/projects/projectProgressService';
+} from '../calculations/projectProgressCalculations';
 
 // =====================================================================================
 // TYPES & INTERFACES

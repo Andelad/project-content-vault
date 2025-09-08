@@ -1,11 +1,9 @@
-/**
- * Insights calculation service for generating reports and analytics
- * Uses single source of truth for all calculations
- */
+import type { Project } from '@/types';
 
-import { 
-  calculateDurationHours 
-} from '@/services/calculations/dateCalculations';
+/**
+ * Insight Calculations
+ * Business intelligence and reporting calculations
+ */
 
 export interface WorkSlot {
   duration: number;
@@ -13,12 +11,8 @@ export interface WorkSlot {
   endTime?: string;
 }
 
-export interface Project {
-  id: string;
-  startDate: string | Date;
-  endDate: string | Date;
-  estimatedHours: number;
-  name: string;
+export interface WeeklyWorkHours {
+  [dayName: string]: WorkSlot[] | number;
 }
 
 export interface ReportEvent {
@@ -28,10 +22,6 @@ export interface ReportEvent {
   type?: string;
   duration?: number;
   projectId?: string;
-}
-
-export interface WeeklyWorkHours {
-  [dayName: string]: WorkSlot[] | number;
 }
 
 /**
@@ -72,6 +62,7 @@ export function calculateFutureCommitments(projects: Project[], referenceDate: D
     .filter(project => new Date(project.startDate) > referenceDate)
     .reduce((sum, project) => sum + project.estimatedHours, 0);
 }
+
 /**
  * Filter events within date range that are completed or tracked
  */
@@ -94,61 +85,61 @@ export function getRelevantEventsForPeriod(
 }
 
 /**
- * Calculate event duration in hours
- * DELEGATES to single source of truth
+ * Calculate total tracked hours from events
  */
-export function calculateEventDurationHours(event: ReportEvent): number {
-  if (event.duration) {
-    return event.duration;
-  }
-  
-  try {
-    const start = new Date(event.startTime);
-    const end = new Date(event.endTime);
-    return calculateDurationHours(start, end);
-  } catch (error) {
-    console.warn('Could not calculate duration for event:', event);
-    return 0;
-  }
-}
-
-/**
- * Group events by date for timeline analysis
- */
-export function groupEventsByDate(events: ReportEvent[]): { [dateKey: string]: ReportEvent[] } {
-  const grouped: { [dateKey: string]: ReportEvent[] } = {};
-  
-  events.forEach(event => {
-    try {
-      const eventDate = new Date(event.startTime);
-      const dateKey = eventDate.toISOString().split('T')[0]; // YYYY-MM-DD format
-      
-      if (!grouped[dateKey]) {
-        grouped[dateKey] = [];
-      }
-      
-      grouped[dateKey].push(event);
-    } catch (error) {
-      console.warn('Could not group event by date:', event);
+export function calculateTrackedHours(events: ReportEvent[]): number {
+  return events.reduce((total, event) => {
+    if (event.duration) {
+      return total + event.duration;
     }
-  });
-  
-  return grouped;
+    
+    if (event.startTime && event.endTime) {
+      const start = new Date(event.startTime);
+      const end = new Date(event.endTime);
+      const durationMs = end.getTime() - start.getTime();
+      const durationHours = durationMs / (1000 * 60 * 60);
+      return total + durationHours;
+    }
+    
+    return total;
+  }, 0);
 }
 
 /**
- * Calculate daily totals from grouped events
+ * Generate weekly utilization report
  */
-export function calculateDailyTotals(groupedEvents: { [dateKey: string]: ReportEvent[] }): { [dateKey: string]: number } {
-  const dailyTotals: { [dateKey: string]: number } = {};
+export function generateWeeklyUtilizationReport(
+  projects: Project[],
+  events: ReportEvent[],
+  weeklyCapacity: number,
+  startDate: Date,
+  endDate: Date
+) {
+  const relevantEvents = getRelevantEventsForPeriod(events, startDate, endDate);
+  const trackedHours = calculateTrackedHours(relevantEvents);
+  const currentProjects = getCurrentProjects(projects, startDate);
+  const futureCommitments = calculateFutureCommitments(projects, endDate);
   
-  Object.entries(groupedEvents).forEach(([dateKey, dayEvents]) => {
-    dailyTotals[dateKey] = dayEvents.reduce((sum, event) => {
-      return sum + calculateEventDurationHours(event);
-    }, 0);
-  });
+  const utilizationPercentage = weeklyCapacity > 0 ? (trackedHours / weeklyCapacity) * 100 : 0;
   
-  return dailyTotals;
+  return {
+    period: {
+      start: startDate,
+      end: endDate
+    },
+    capacity: {
+      total: weeklyCapacity,
+      used: trackedHours,
+      available: Math.max(0, weeklyCapacity - trackedHours),
+      utilizationPercentage
+    },
+    projects: {
+      active: currentProjects.length,
+      futureCommitments
+    },
+    events: {
+      total: relevantEvents.length,
+      trackedHours
+    }
+  };
 }
-
-

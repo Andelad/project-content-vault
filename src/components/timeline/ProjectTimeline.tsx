@@ -3,7 +3,6 @@ import { Project } from '../../types';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useTimelineContext } from '../../contexts/TimelineContext';
 import { calculateProjectDuration } from '@/services';
-import { ProjectCalculationService } from '@/services';
 import { calculateProjectHeight } from '@/services';
 import { CommittedHoursCalculationService } from '@/services';
 import { calculateProjectBarPosition } from '@/services/ui/TimelinePositioning';
@@ -31,7 +30,16 @@ export function ProjectTimeline({ project, dates, currentDate }: ProjectTimeline
 
   // Calculate default hours per day
   const getDefaultHoursPerDay = () => {
-    return ProjectCalculationService.getDefaultHoursPerDay(project);
+    // Use project's estimated hours divided by duration, or default to 8 hours
+    if (project.estimatedHours && project.startDate && project.endDate) {
+      const startDate = new Date(project.startDate);
+      const endDate = new Date(project.endDate);
+      const durationMs = endDate.getTime() - startDate.getTime();
+      const totalDays = Math.ceil(durationMs / (1000 * 60 * 60 * 24));
+      const businessDays = Math.max(1, Math.ceil(totalDays * 5/7)); // Estimate business days
+      return Math.max(1, project.estimatedHours / businessDays);
+    }
+    return 8; // Default 8 hours per day
   };
 
   // Get allocated hours for a specific date from timeline entries

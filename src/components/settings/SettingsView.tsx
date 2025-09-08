@@ -21,8 +21,7 @@ import {
   calculateWeekTotalHours,
   createNewWorkSlot,
   updateWorkSlot,
-  generateDefaultWorkSchedule,
-  analyzeWorkSchedule
+  generateDefaultWorkSchedule
 } from '@/services';
 
 export function SettingsView() {

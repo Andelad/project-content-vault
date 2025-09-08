@@ -1,6 +1,6 @@
 import { CalendarEvent, WorkHour } from '@/types';
 import { EventInput } from '@fullcalendar/core';
-import { calculateEventStyle } from '@/services';
+import { calculateEventStyle } from './UnifiedEventWorkHourService';
 import { OKLCH_FALLBACK_GRAY } from '@/constants/colors';
 import { type EventStyleConfig } from './UnifiedEventWorkHourService';
 

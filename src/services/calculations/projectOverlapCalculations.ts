@@ -8,7 +8,9 @@
  */
 
 import { Project } from '@/types/core';
-import { datesOverlap } from './projectCalculations';
+
+// Re-export Project type for convenience
+export type { Project } from '@/types/core';
 
 // =====================================================================================
 // TYPES & INTERFACES
@@ -289,4 +291,54 @@ export function adjustProjectDatesForDrag(
   const adjustedDates = findNearestAvailableSlot(rowId, newStartDate, newEndDate, allProjects, 'auto');
 
   return { ...adjustedDates, adjusted: true };
+}
+
+/**
+ * Check if two date ranges overlap (inclusive) - re-exported utility
+ */
+export function datesOverlap(
+  startA: Date,
+  endA: Date,
+  startB: Date,
+  endB: Date
+): boolean {
+  // Normalize dates to midnight for consistent comparison
+  const normalizedStartA = new Date(startA);
+  normalizedStartA.setHours(0, 0, 0, 0);
+
+  const normalizedEndA = new Date(endA);
+  normalizedEndA.setHours(23, 59, 59, 999);
+
+  const normalizedStartB = new Date(startB);
+  normalizedStartB.setHours(0, 0, 0, 0);
+
+  const normalizedEndB = new Date(endB);
+  normalizedEndB.setHours(23, 59, 59, 999);
+
+  // Two ranges overlap if start of one is before or equal to end of other
+  // and end of one is after or equal to start of other
+  return normalizedStartA <= normalizedEndB && normalizedEndA >= normalizedStartB;
+}
+
+/**
+ * Calculate project overlap percentage
+ */
+export function calculateOverlapPercentage(
+  startA: Date,
+  endA: Date,
+  startB: Date,
+  endB: Date
+): number {
+  if (!datesOverlap(startA, endA, startB, endB)) {
+    return 0;
+  }
+
+  const overlapStart = Math.max(startA.getTime(), startB.getTime());
+  const overlapEnd = Math.min(endA.getTime(), endB.getTime());
+  const overlapDuration = overlapEnd - overlapStart;
+  
+  const totalDurationA = endA.getTime() - startA.getTime();
+  const overlapPercentage = (overlapDuration / totalDurationA) * 100;
+  
+  return Math.round(overlapPercentage);
 }

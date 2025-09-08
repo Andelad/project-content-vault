@@ -1,2 +1,2 @@
 // Legacy Insights Services
-export * from './insightsCalculationService';
+// All services migrated to calculations layer

@@ -4,7 +4,7 @@
  * Solves the project bar calculation inconsistency issue
  */
 
-import type { TimelinePositionCalculation } from '@/services/legacy/timeline/timelinePositionService';
+import type { TimelinePositionCalculation } from '@/services/legacy/timeline/TimelinePositioningService';
 
 // Re-export the type for external use
 export type { TimelinePositionCalculation };

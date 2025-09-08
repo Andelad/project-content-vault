@@ -119,6 +119,15 @@ export function TimelineView() {
   
   // Timeline state management
   const [viewportStart, setViewportStart] = useState(() => {
+    // Safety check: ensure currentDate is valid
+    if (!currentDate || isNaN(currentDate.getTime())) {
+      console.warn('⚠️ TimelineView: currentDate is invalid, using current date');
+      const fallbackDate = new Date();
+      fallbackDate.setDate(1); // Start at beginning of month
+      fallbackDate.setHours(0, 0, 0, 0); // Normalize time component
+      return fallbackDate;
+    }
+    
     const start = new Date(currentDate);
     start.setDate(1); // Start at beginning of month
     start.setHours(0, 0, 0, 0); // Normalize time component
@@ -127,6 +136,12 @@ export function TimelineView() {
   
   // Protected viewport setter that respects scrollbar blocking using service
   const protectedSetViewportStart = useCallback((date: Date) => {
+    // Safety check: ensure date is valid
+    if (!date || isNaN(date.getTime())) {
+      console.error('⚠️ Attempted to set invalid viewportStart:', date);
+      return;
+    }
+    
     const blockingState = TimelineViewportService.checkViewportBlocking();
     if (blockingState.isBlocked) {
       return;
@@ -168,9 +183,9 @@ export function TimelineView() {
   // Debug performance logging using service
   const performanceMetrics = useMemo(() => {
     return TimelineViewportService.calculateViewportPerformanceMetrics({
-      timelineMode,
-      daysCount: dates.length,
-      projectsCount: filteredProjects.length
+      projectCount: filteredProjects.length,
+      viewportDays: dates.length,
+      mode: timelineMode
     });
   }, [timelineMode, dates.length, filteredProjects.length]);
 
@@ -192,8 +207,7 @@ export function TimelineView() {
     
     const animationDuration = TimelineViewportService.calculateAnimationDuration(
       viewportStart.getTime(),
-      targetViewport.start.getTime(),
-      timelineMode
+      targetViewport.start.getTime()
     );
     
     setIsAnimating(true);
@@ -220,8 +234,7 @@ export function TimelineView() {
     today.setHours(0, 0, 0, 0);
     
     const targetViewport = TimelineViewportService.calculateTodayTarget({
-      selectedDate: today,
-      currentViewportStart: viewportStart,
+      currentDate: today,
       viewportDays: VIEWPORT_DAYS,
       timelineMode
     });
@@ -235,8 +248,7 @@ export function TimelineView() {
     
     const animationDuration = TimelineViewportService.calculateAnimationDuration(
       viewportStart.getTime(),
-      targetViewport.start.getTime(),
-      timelineMode
+      targetViewport.start.getTime()
     );
     
     setIsAnimating(true);
@@ -325,8 +337,7 @@ export function TimelineView() {
     
     const animationDuration = TimelineViewportService.calculateAnimationDuration(
       viewportStart.getTime(),
-      targetViewport.start.getTime(),
-      timelineMode
+      targetViewport.start.getTime()
     );
     
     setIsAnimating(true);
@@ -366,11 +377,12 @@ export function TimelineView() {
           return prevStart;
         }
         
-        const newStart = TimelineViewportService.calculateAutoScrollPosition(
-          prevStart, 
-          direction, 
-          config.scrollAmount
-        );
+        const newStart = TimelineViewportService.calculateAutoScrollPosition({
+          currentStart: prevStart,
+          direction,
+          scrollAmount: config.scrollAmount,
+          timelineMode
+        });
         setCurrentDate(new Date(newStart));
         return newStart;
       });

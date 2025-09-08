@@ -15,8 +15,7 @@ import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 import { useTimelineContext } from '../../contexts/TimelineContext';
-import { calculateProjectTimeMetrics, calculateAutoEstimateHoursPerDay, expandHolidayDates } from '@/services';
-import { ProjectWorkingDaysService } from '@/services';
+import { calculateProjectTimeMetrics, calculateAutoEstimateHoursPerDay, expandHolidayDates, calculateTotalWorkingDays } from '@/services';
 import { formatTimeHoursMinutes } from '@/utils/timeFormatUtils';
 import { formatDate, formatDateForInput } from '@/utils/dateFormatUtils';
 import { StandardModal } from './StandardModal';
@@ -1221,7 +1220,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
                 style={{ color: localValues.color || OKLCH_PROJECT_COLORS[0] }}
               >
                 {(() => {
-                  const workingDays = ProjectWorkingDaysService.calculateTotalWorkingDays(localValues.startDate, localValues.endDate, settings, holidays);
+                  const workingDays = calculateTotalWorkingDays(localValues.startDate, localValues.endDate, settings, holidays);
                   if (workingDays === 0) {
                     return '0 working days';
                   } else if (workingDays === 1) {

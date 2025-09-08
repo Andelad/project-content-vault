@@ -363,3 +363,242 @@ export class WorkHourCalculationService {
   private static weeklyOverridesMap = weeklyOverridesMap;
   private static nextId = nextId;
 }
+
+// ===== WORK HOUR CREATION FUNCTIONS =====
+
+import { 
+  snapToTimeSlot,
+  adjustEndTime,
+  formatTime
+} from '@/services/calculations/timeCalculations';
+import { 
+  formatDuration,
+  formatDurationFromMinutes 
+} from '@/services/calculations/dateCalculations';
+
+// Work hour constants
+export const WORK_HOUR_CONSTANTS = {
+  MINUTES_PER_SLOT: 15,
+  SLOTS_PER_HOUR: 4,
+  SLOT_HEIGHT_PX: 15,
+  MIN_HOUR: 6,
+  MAX_HOUR: 23,
+  MIN_DURATION_MINUTES: 15
+} as const;
+
+export interface TimeCalculationParams {
+  clientY: number;
+  containerElement: HTMLElement;
+  date: Date;
+}
+
+export interface WorkHourCreateState {
+  isCreating: boolean;
+  startTime: Date | null;
+  endTime: Date | null;
+  startPosition: { x: number; y: number } | null;
+}
+
+/**
+ * Calculates time from mouse position within a calendar grid
+ */
+export function calculateTimeFromPosition(params: TimeCalculationParams): Date {
+  const { clientY, containerElement, date } = params;
+  
+  // Get the calendar grid container
+  const calendarGrid = containerElement.closest('[data-calendar-grid]');
+  if (!calendarGrid) return new Date();
+  
+  const gridRect = calendarGrid.getBoundingClientRect();
+  const relativeY = clientY - gridRect.top;
+  
+  // Each hour is 60px, each 15-min slot is 15px
+  const slotIndex = Math.max(0, Math.floor(relativeY / WORK_HOUR_CONSTANTS.SLOT_HEIGHT_PX));
+  const hour = Math.floor(slotIndex / WORK_HOUR_CONSTANTS.SLOTS_PER_HOUR);
+  const minute = (slotIndex % WORK_HOUR_CONSTANTS.SLOTS_PER_HOUR) * WORK_HOUR_CONSTANTS.MINUTES_PER_SLOT;
+  
+  const newTime = new Date(date);
+  newTime.setHours(
+    Math.min(WORK_HOUR_CONSTANTS.MAX_HOUR, Math.max(WORK_HOUR_CONSTANTS.MIN_HOUR, hour)), 
+    minute, 
+    0, 
+    0
+  );
+  
+  return snapToTimeSlot(newTime);
+}
+
+/**
+ * Calculate duration in minutes - delegates to core function
+ */
+export function calculateDurationMinutes(startTime: Date, endTime: Date): number {
+  return Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60));
+}
+
+/**
+ * Format time for display in work hour components
+ */
+export function formatTimeForDisplay(date: Date): string {
+  return formatTime(date);
+}
+
+/**
+ * Format duration from hours for display
+ */
+export function formatDurationFromHours(hours: number): string {
+  const minutes = hours * 60;
+  return formatDurationFromMinutes(minutes);
+}
+
+/**
+ * Handle work hour creation start
+ */
+export function handleWorkHourCreationStart(
+  clientY: number,
+  containerElement: HTMLElement,
+  date: Date
+): { startTime: Date; startPosition: { x: number; y: number } } {
+  const startTime = calculateTimeFromPosition({ clientY, containerElement, date });
+  const rect = containerElement.getBoundingClientRect();
+  
+  return {
+    startTime,
+    startPosition: { 
+      x: rect.left,
+      y: clientY 
+    }
+  };
+}
+
+/**
+ * Handle work hour creation move
+ */
+export function handleWorkHourCreationMove(
+  clientY: number,
+  containerElement: HTMLElement,
+  date: Date,
+  startTime: Date
+): { endTime: Date; duration: number; formattedDuration: string } {
+  const currentTime = calculateTimeFromPosition({ clientY, containerElement, date });
+  const endTime = adjustEndTime(startTime, currentTime);
+  const duration = calculateDurationHours(startTime, endTime);
+  
+  return {
+    endTime,
+    duration,
+    formattedDuration: formatDuration(duration)
+  };
+}
+
+/**
+ * Handle work hour creation complete
+ */
+export function handleWorkHourCreationComplete(
+  startTime: Date,
+  endTime: Date,
+  existingWorkHours: any[] = []
+): { startTime: Date; endTime: Date; duration: number; formattedDuration: string; isValid: boolean; validationErrors: string[] } {
+  const adjustedEndTime = adjustEndTime(startTime, endTime);
+  const duration = calculateDurationHours(startTime, adjustedEndTime);
+  const validationErrors: string[] = [];
+  
+  // Basic validation
+  if (duration < WORK_HOUR_CONSTANTS.MIN_DURATION_MINUTES / 60) {
+    validationErrors.push('Duration must be at least 15 minutes');
+  }
+  
+  return {
+    startTime,
+    endTime: adjustedEndTime,
+    duration,
+    formattedDuration: formatDuration(duration),
+    isValid: validationErrors.length === 0,
+    validationErrors
+  };
+}
+
+/**
+ * Get work hour overlap information
+ */
+export function getWorkHourOverlapInfo(
+  startTime: Date,
+  endTime: Date,
+  existingWorkHours: any[]
+): { hasOverlaps: boolean; overlaps: any[]; overlapDuration: number } {
+  const overlaps = existingWorkHours.filter(workHour => {
+    const workHourStart = new Date(workHour.startTime);
+    const workHourEnd = new Date(workHour.endTime);
+    return (startTime < workHourEnd && endTime > workHourStart);
+  });
+  
+  let overlapDuration = 0;
+  overlaps.forEach(overlap => {
+    const overlapStart = Math.max(startTime.getTime(), new Date(overlap.startTime).getTime());
+    const overlapEnd = Math.min(endTime.getTime(), new Date(overlap.endTime).getTime());
+    overlapDuration += (overlapEnd - overlapStart) / (1000 * 60 * 60); // Convert to hours
+  });
+  
+  return {
+    hasOverlaps: overlaps.length > 0,
+    overlaps,
+    overlapDuration
+  };
+}
+
+/**
+ * Generate work hour preview style
+ */
+export function generateWorkHourPreviewStyle(
+  startTime: Date,
+  endTime: Date
+): { top: string; height: string; opacity: string } {
+  const startHour = startTime.getHours() + startTime.getMinutes() / 60;
+  const endHour = endTime.getHours() + endTime.getMinutes() / 60;
+  
+  const topOffset = (startHour - WORK_HOUR_CONSTANTS.MIN_HOUR) * 60; // 60px per hour
+  const height = (endHour - startHour) * 60;
+  
+  return {
+    top: `${topOffset}px`,
+    height: `${height}px`,
+    opacity: '0.6'
+  };
+}
+
+/**
+ * Format duration preview text
+ */
+export function formatDurationPreview(duration: number): string {
+  return formatDuration(duration);
+}
+
+/**
+ * Get work hour creation cursor style
+ */
+export function getWorkHourCreationCursor(isCreating: boolean): string {
+  return isCreating ? 'ns-resize' : 'crosshair';
+}
+
+/**
+ * Check if work hour creation should be allowed
+ */
+export function shouldAllowWorkHourCreation(
+  date: Date,
+  containerElement: HTMLElement
+): boolean {
+  return true; // Allow creation on all days for now
+}
+
+/**
+ * Format work slot duration for display
+ */
+export function formatWorkSlotDurationDisplay(
+  startTime: Date,
+  endTime: Date
+): string {
+  const duration = calculateDurationHours(startTime, endTime);
+  const formattedTime = `${formatTime(startTime)} - ${formatTime(endTime)}`;
+  const formattedDuration = formatDuration(duration);
+  
+  return `${formattedTime} (${formattedDuration})`;
+}

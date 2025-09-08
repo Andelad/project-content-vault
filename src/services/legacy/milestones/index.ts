@@ -1,9 +1,7 @@
 // Legacy Milestones Services
-export * from './milestoneCalculationService';
+// milestoneCalculationService migrated to calculations/milestoneCalculations.ts
 export * from './milestoneManagementService';
-export * from './milestoneUtilitiesService';
-export * from './recurringMilestoneService';
 
 // Explicit re-exports to resolve naming conflicts
-export type { MilestoneValidationResult } from './milestoneCalculationService';
-export type { RecurringMilestoneConfig } from './recurringMilestoneService';
+export type { MilestoneValidationResult, LegacyMilestone, RecurringPattern } from '../../calculations/milestoneCalculations';
+export type { RecurringMilestoneConfig } from '../../calculations/milestoneCalculations';
