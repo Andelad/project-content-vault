@@ -25,7 +25,7 @@ export * from './orchestrators';     // Workflow coordination - ProjectOrchestra
 export * from './calculations';      // Pure business calculations - projectCalculations, timeCalculations
 export * from './validators';        // Business rules - ProjectValidator, TimeTrackingValidator  
 // export * from './repositories';      // Data access - ProjectRepository, MilestoneRepository (conflicts with orchestrators)
-export * from './ui';               // View positioning - TimelinePositioning, CalendarLayout
+export * from './ui';               // View positioning - TimelinePositioning, TimelineViewport, CalendarLayout
 export * from './infrastructure';   // Technical utilities - calculationCache, colorCalculations
 export * from './performance';      // Performance optimization - dragPerformanceService, cachePerformanceService
 
@@ -53,7 +53,13 @@ export { transformFullCalendarToCalendarEvent } from './unified/UnifiedEventTran
 export { clearTimelineCache, generateWorkHoursForDate, calculateAvailabilityReduction, calculateProjectWorkingDays } from './unified/UnifiedEventWorkHourService';
 
 // 🔧 Frequently Used Functions (Stable API)
-export { expandHolidayDates } from './calculations/holidayCalculations';
+export { 
+  expandHolidayDates,
+  expandHolidayDatesDetailed,
+  getHolidayForDate,
+  getHolidaysInRangeDetailed,
+  countHolidayDaysInRange
+} from './calculations/holidayCalculations';
 export { getBaseFullCalendarConfig, getEventStylingConfig } from './ui/FullCalendarConfig';
 export { throttledDragUpdate as throttleDragUpdate } from './performance/dragPerformanceService';
 

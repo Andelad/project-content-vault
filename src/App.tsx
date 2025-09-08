@@ -15,7 +15,10 @@ import { MainAppLayout } from './components/layout/MainAppLayout';
 function AppContent() {
   const { user, loading } = useAuth();
 
+  console.log('🔍 AppContent render - user:', !!user, 'loading:', loading);
+
   if (loading) {
+    console.log('⏳ App is in loading state');
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-lg">Loading...</div>

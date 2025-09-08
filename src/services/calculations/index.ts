@@ -31,5 +31,8 @@ export * from './timeCalculations';
 // Time tracking calculations
 export * from './timeTrackingCalculations';
 
+// Timeline calculations - migrated from TimelineCalculationService
+export * from './timelineCalculations';
+
 // Calendar insight calculations
 export * from './calendarInsightCalculations';

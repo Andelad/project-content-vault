@@ -10,6 +10,12 @@ export interface Holiday {
   id?: string;
 }
 
+export interface HolidayDate {
+  date: Date;
+  name: string;
+  holidayId: string;
+}
+
 export interface DateRangeFormatOptions {
   includeYear?: boolean;
   format?: 'short' | 'long';
@@ -62,6 +68,78 @@ export function getHolidaysInRange(holidays: Holiday[], startDate: Date, endDate
     // Check if holiday overlaps with the date range
     return holidayStart <= endDate && holidayEnd >= startDate;
   });
+}
+
+/**
+ * Expand holiday date ranges into individual HolidayDate objects for detailed lookup
+ * Migrated from legacy/HolidayCalculationService
+ */
+export function expandHolidayDatesDetailed(holidays: Holiday[]): HolidayDate[] {
+  const holidayDates: HolidayDate[] = [];
+
+  holidays.forEach(holiday => {
+    const startDate = new Date(holiday.startDate);
+    const endDate = new Date(holiday.endDate);
+    const holidayName = holiday.name || 'Holiday';
+    const holidayId = holiday.id || 'unknown';
+
+    // Iterate through each day in the holiday range
+    const currentDate = new Date(startDate);
+    while (currentDate <= endDate) {
+      holidayDates.push({
+        date: new Date(currentDate),
+        name: holidayName,
+        holidayId: holidayId
+      });
+
+      // Move to next day
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+  });
+
+  return holidayDates;
+}
+
+/**
+ * Checks if a given date falls within any holiday period
+ * Migrated from legacy/HolidayCalculationService
+ */
+export function getHolidayForDate(date: Date, holidays: Holiday[]): HolidayDate | null {
+  const holidayDates = expandHolidayDatesDetailed(holidays);
+
+  const holidayDate = holidayDates.find(holidayDate =>
+    holidayDate.date.toDateString() === date.toDateString()
+  );
+
+  return holidayDate || null;
+}
+
+/**
+ * Gets all holidays within a date range (detailed format)
+ * Migrated from legacy/HolidayCalculationService
+ */
+export function getHolidaysInRangeDetailed(
+  startDate: Date,
+  endDate: Date,
+  holidays: Holiday[]
+): HolidayDate[] {
+  const holidayDates = expandHolidayDatesDetailed(holidays);
+
+  return holidayDates.filter(holidayDate =>
+    holidayDate.date >= startDate && holidayDate.date <= endDate
+  );
+}
+
+/**
+ * Calculates the number of holiday days within a date range
+ * Migrated from legacy/HolidayCalculationService
+ */
+export function countHolidayDaysInRange(
+  startDate: Date,
+  endDate: Date,
+  holidays: Holiday[]
+): number {
+  return getHolidaysInRangeDetailed(startDate, endDate, holidays).length;
 }
 
 /**

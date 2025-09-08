@@ -2,7 +2,7 @@ import React, { memo, useMemo, useState } from 'react';
 import { Flag } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../../ui/tooltip';
 import { useProjectContext } from '../../../contexts/ProjectContext';
-import { TimelinePositioningService, type PositionCalculation } from '@/services';
+import { type TimelinePositionCalculation } from '@/services/ui/TimelinePositioning';
 import { Milestone } from '@/types/core';
 import { useToast } from '@/hooks/use-toast';
 
@@ -19,7 +19,7 @@ interface ProjectMilestonesProps {
     autoEstimate: string;
     hover: string;
   };
-  projectPositions: PositionCalculation; // Add the project's calculated positions
+  projectPositions: TimelinePositionCalculation; // Add the project's calculated positions
   isDragging?: boolean; // Re-add for immediate drag response
   dragState?: any; // Re-add for immediate drag response
   onMilestoneDrag?: (milestoneId: string, newDate: Date) => void;

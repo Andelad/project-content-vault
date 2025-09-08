@@ -54,6 +54,8 @@ import { ProjectModal } from '../modals/ProjectModal';
 import { HolidayModal } from '../modals/HolidayModal';
 
 export function TimelineView() {
+  console.log('TimelineView: Component rendering');
+  
   // Get data from specific contexts
   const { 
     projects, 

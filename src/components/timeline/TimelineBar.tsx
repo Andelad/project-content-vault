@@ -5,7 +5,6 @@ import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 import { 
-  TimelinePositioningService,
   calculateWorkHourCapacity, 
   isHolidayDateCapacity as isHolidayDate,
   getProjectTimeAllocation, 
@@ -14,9 +13,11 @@ import {
   calculateMilestoneSegments, 
   getMilestoneSegmentForDate,
   TimeAllocationService, 
-  HeightCalculationService, 
   ColorCalculationService,
-  TimelineCalculationService,
+  calculateBaselineVisualOffsets as calculateBaselineVisualOffsetsNew,
+  calculateVisualProjectDates as calculateVisualProjectDatesNew,
+  calculateWeekProjectIntersection as calculateWeekProjectIntersectionNew,
+  calculateWorkHoursTotal as calculateWorkHoursTotalNew,
   ProjectDaysCalculationService, 
   ProjectMetricsCalculationService
 } from '@/services';
@@ -41,10 +42,22 @@ interface TimelineBarProps {
 
 // Helper function to calculate baseline visual offsets
 function calculateBaselineVisualOffsets(positions: any, isDragging: boolean, dragState: any, projectId: string, mode: 'days' | 'weeks' = 'days') {
-  return TimelineCalculationService.calculateBaselineVisualOffsets(positions, isDragging, dragState, projectId, mode);
-}// Helper function to calculate visual project dates with consolidated offset logic
+  try {
+    return calculateBaselineVisualOffsetsNew(positions, isDragging, dragState, projectId, mode);
+  } catch (error) {
+    console.error('Error in calculateBaselineVisualOffsets:', error);
+    return positions; // fallback to original positions
+  }
+}
+
+// Helper function to calculate visual project dates with consolidated offset logic
 function calculateVisualProjectDates(project: any, isDragging: boolean, dragState: any) {
-  return TimelineCalculationService.calculateVisualProjectDates(project, isDragging, dragState);
+  try {
+    return calculateVisualProjectDatesNew(project, isDragging, dragState);
+  } catch (error) {
+    console.error('Error in calculateVisualProjectDates:', error);
+    return { visualProjectStart: new Date(project.startDate), visualProjectEnd: new Date(project.endDate) }; // fallback
+  }
 }
 
 // Reusable drag handle component
@@ -114,19 +127,35 @@ export const TimelineBar = memo(function TimelineBar({
   onMilestoneDrag,
   onMilestoneDragEnd
 }: TimelineBarProps) {
+  console.log('TimelineBar rendering for project:', project?.id, project?.name);
+  
+  if (!project) {
+    console.warn('TimelineBar: No project provided');
+    return null;
+  }
+  
+  try {
   const { milestones } = useProjectContext();
   const { events, holidays } = usePlannerContext();
   const { settings } = useSettingsContext();
   
+  console.log('TimelineBar: Starting calculations for project', project?.id);
+  
   // Memoize project days calculation using service
   const projectDays = useMemo(() => {
-    return ProjectDaysCalculationService.calculateProjectDays(
-      project.startDate,
-      project.endDate,
-      project.continuous,
-      viewportStart,
-      viewportEnd
-    );
+    try {
+      console.log('TimelineBar: Calculating project days');
+      return ProjectDaysCalculationService.calculateProjectDays(
+        project.startDate,
+        project.endDate,
+        project.continuous,
+        viewportStart,
+        viewportEnd
+      );
+    } catch (error) {
+      console.error('Error calculating project days:', error);
+      return [];
+    }
   }, [project.startDate, project.endDate, project.continuous, viewportStart, viewportEnd]);
   
   // Cached working day checker - eliminates duplicate calculations
@@ -134,16 +163,22 @@ export const TimelineBar = memo(function TimelineBar({
 
   // Memoize work hours for the project period
   const workHoursForPeriod = useMemo(() => {
-    const workHours = [];
-    const projectStart = new Date(project.startDate);
-    const projectEnd = project.continuous ? new Date(viewportEnd) : new Date(project.endDate);
-    
-    for (let d = new Date(projectStart); d <= projectEnd; d.setDate(d.getDate() + 1)) {
-      const dayWorkHours = generateWorkHoursForDate(new Date(d), settings);
-      workHours.push(...dayWorkHours);
+    try {
+      console.log('TimelineBar: Calculating work hours for period');
+      const workHours = [];
+      const projectStart = new Date(project.startDate);
+      const projectEnd = project.continuous ? new Date(viewportEnd) : new Date(project.endDate);
+      
+      for (let d = new Date(projectStart); d <= projectEnd; d.setDate(d.getDate() + 1)) {
+        const dayWorkHours = generateWorkHoursForDate(new Date(d), settings);
+        workHours.push(...dayWorkHours);
+      }
+      
+      return workHours;
+    } catch (error) {
+      console.error('Error calculating work hours for period:', error);
+      return [];
     }
-    
-    return workHours;
   }, [project.startDate, project.endDate, project.continuous, viewportEnd, settings]);
 
   // Memoize milestone segments calculation
@@ -170,7 +205,6 @@ export const TimelineBar = memo(function TimelineBar({
       project.endDate,
       project.estimatedHours,
       isWorkingDay,
-      HeightCalculationService,
       project.autoEstimateDays, // Pass auto-estimate days for proper filtering
       settings, // Pass settings for working day calculation
       holidays // Pass holidays for working day calculation
@@ -221,9 +255,16 @@ export const TimelineBar = memo(function TimelineBar({
             return dates.map((date, dateIndex) => {
             if (mode === 'weeks') {
               // Use service to calculate week-project intersection (no hooks in loop)
-              const weekCalculations = TimelineCalculationService.calculateWeekProjectIntersection(
-                date, visualProjectStart, visualProjectEnd, isWorkingDay
-              );
+              const weekCalculations = (() => {
+                try {
+                  return calculateWeekProjectIntersectionNew(
+                    date, visualProjectStart, visualProjectEnd, isWorkingDay
+                  );
+                } catch (error) {
+                  console.error('Error in calculateWeekProjectIntersection:', error);
+                  return { intersects: false, workingDaysInWeek: [] };
+                }
+              })();
               
               if (!weekCalculations.intersects || weekCalculations.workingDaysInWeek.length === 0) {
                 return <div key={dateIndex} className="flex flex-col-reverse" style={{ minWidth: '77px', width: '77px' }}></div>;
@@ -253,7 +294,7 @@ export const TimelineBar = memo(function TimelineBar({
                       const isDayInProject = currentDay >= normalizedProjectStart && currentDay <= normalizedProjectEnd;
                       // Determine if this specific date actually has work capacity (honors overrides + holidays)
                       const dayWorkHours = generateWorkHoursForDate(currentDay, settings);
-                      const totalDayWork = TimelineCalculationService.calculateWorkHoursTotal(dayWorkHours);
+                      const totalDayWork = calculateWorkHoursTotalNew(dayWorkHours);
                       const isHoliday = isHolidayDate(currentDay, holidays);
                       const isDayWorking = !isHoliday && totalDayWork > 0;
                       
@@ -424,7 +465,7 @@ export const TimelineBar = memo(function TimelineBar({
               
               // Don't render rectangle if not a project day OR if it's a 0-hour day OR if it's a holiday (respect overrides)
               const dayWorkHours = generateWorkHoursForDate(date, settings);
-              const totalDayWork = TimelineCalculationService.calculateWorkHoursTotal(dayWorkHours);
+              const totalDayWork = calculateWorkHoursTotalNew(dayWorkHours);
               const isHoliday = isHolidayDate(date, holidays);
               
               // Check if this day is enabled for auto-estimation in project settings
@@ -473,7 +514,7 @@ export const TimelineBar = memo(function TimelineBar({
               const visibleWorkingDays = dates.filter((d, i) => {
                 const isInProject = projectDays.some(pd => pd.toDateString() === d.toDateString());
                 const wh = generateWorkHoursForDate(d, settings);
-                const total = TimelineCalculationService.calculateWorkHoursTotal(wh);
+                const total = calculateWorkHoursTotalNew(wh);
                 const holiday = isHolidayDate(d, holidays);
                 return isInProject && !holiday && total > 0;
               });
@@ -705,14 +746,29 @@ export const TimelineBar = memo(function TimelineBar({
             : new Date(project.endDate);
           
           // Use unified UI positioning service for consistent calculations
-          const positions = getTimelinePositions(
-            projectStart,
-            projectEnd,
-            viewportStart,
-            viewportEnd,
-            dates,
-            mode
-          );
+          const positions = (() => {
+            try {
+              console.log('TimelineBar: Getting timeline positions');
+              const result = getTimelinePositions(
+                projectStart,
+                projectEnd,
+                viewportStart,
+                viewportEnd,
+                dates,
+                mode
+              );
+              console.log('TimelineBar: Timeline positions result:', result);
+              return result;
+            } catch (error) {
+              console.error('Error getting timeline positions:', error);
+              return null;
+            }
+          })();
+          
+          if (!positions) {
+            console.error('Failed to get timeline positions');
+            return null;
+          }
           
           // Apply immediate drag offset using consolidated visual offset logic
           const adjustedPositions = calculateBaselineVisualOffsets(
@@ -836,4 +892,8 @@ export const TimelineBar = memo(function TimelineBar({
       </div>
     </div>
   );
+  } catch (error) {
+    console.error('Error rendering TimelineBar for project:', project?.id, error);
+    return <div style={{ height: '40px', background: '#ffebee' }}>Error rendering project bar</div>;
+  }
 });

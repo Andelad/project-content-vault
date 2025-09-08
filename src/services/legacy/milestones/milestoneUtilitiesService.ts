@@ -436,8 +436,7 @@ export { MilestoneManagementService };
 // =====================================================================================
 
 import type { Holiday, WorkHour } from '@/types/core';
-import { calculateWorkHourCapacity } from '@/services';
-import { HeightCalculationService } from '@/services';
+import { calculateWorkHourCapacity, calculateSegmentHeight } from '@/services';
 
 export interface MilestoneSegment {
   id: string;
@@ -537,7 +536,7 @@ export function calculateMilestoneSegments(
         
         // Debug log to verify milestone segment calculation
         
-        const heightInPixels = HeightCalculationService.calculateSegmentHeight(hoursPerDay);
+        const heightInPixels = calculateSegmentHeight(hoursPerDay);
 
         segments.push({
           id: `segment-${milestone.id}`,

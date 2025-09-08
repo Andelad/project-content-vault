@@ -1,7 +1,21 @@
 /**
  * Holiday Calculation Service
  * Handles holiday-related calculations and utilities for timeline components
+ *
+ * @deprecated This service has been migrated to calculations/holidayCalculations.ts
+ * Use the new functions directly from @/services:
+ * - expandHolidayDatesDetailed
+ * - getHolidayForDate
+ * - getHolidaysInRangeDetailed
+ * - countHolidayDaysInRange
  */
+
+import {
+  expandHolidayDatesDetailed,
+  getHolidayForDate as getHolidayForDateNew,
+  getHolidaysInRangeDetailed,
+  countHolidayDaysInRange as countHolidayDaysInRangeNew
+} from '../../calculations/holidayCalculations';
 
 export interface Holiday {
   id: string;
@@ -20,85 +34,78 @@ export interface HolidayDate {
 
 /**
  * Service for holiday-related calculations and utilities
+ * @deprecated Use functions from calculations/holidayCalculations instead
  */
 export class HolidayCalculationService {
   /**
    * Expands holiday date ranges into individual Date objects for fast lookup
-   * @param holidays Array of holiday objects with date ranges
-   * @returns Array of individual holiday dates with names
+   * @deprecated Use expandHolidayDatesDetailed from @/services instead
    */
   static expandHolidayDates(holidays: Holiday[]): HolidayDate[] {
-    const holidayDates: HolidayDate[] = [];
-
-    holidays.forEach(holiday => {
-      const startDate = new Date(holiday.startDate);
-      const endDate = new Date(holiday.endDate);
-      const holidayName = holiday.title || holiday.name || 'Holiday';
-
-      // Iterate through each day in the holiday range
-      const currentDate = new Date(startDate);
-      while (currentDate <= endDate) {
-        holidayDates.push({
-          date: new Date(currentDate),
-          name: holidayName,
-          holidayId: holiday.id
-        });
-
-        // Move to next day
-        currentDate.setDate(currentDate.getDate() + 1);
-      }
-    });
-
-    return holidayDates;
+    console.warn('HolidayCalculationService.expandHolidayDates is deprecated. Use expandHolidayDatesDetailed from @/services');
+    // Convert legacy Holiday format to new format
+    const convertedHolidays = holidays.map(h => ({
+      startDate: new Date(h.startDate),
+      endDate: new Date(h.endDate),
+      name: h.title || h.name || 'Holiday',
+      id: h.id
+    }));
+    return expandHolidayDatesDetailed(convertedHolidays);
   }
 
   /**
    * Checks if a given date falls within any holiday period
-   * @param date Date to check
-   * @param holidays Array of holiday objects
-   * @returns Holiday information if date is a holiday, null otherwise
+   * @deprecated Use getHolidayForDate from @/services instead
    */
   static getHolidayForDate(date: Date, holidays: Holiday[]): HolidayDate | null {
-    const holidayDates = this.expandHolidayDates(holidays);
-
-    const holidayDate = holidayDates.find(holidayDate =>
-      holidayDate.date.toDateString() === date.toDateString()
-    );
-
-    return holidayDate || null;
+    console.warn('HolidayCalculationService.getHolidayForDate is deprecated. Use getHolidayForDate from @/services');
+    // Convert legacy Holiday format to new format
+    const convertedHolidays = holidays.map(h => ({
+      startDate: new Date(h.startDate),
+      endDate: new Date(h.endDate),
+      name: h.title || h.name || 'Holiday',
+      id: h.id
+    }));
+    return getHolidayForDateNew(date, convertedHolidays);
   }
 
   /**
    * Gets all holidays within a date range
-   * @param startDate Start of the range
-   * @param endDate End of the range
-   * @param holidays Array of holiday objects
-   * @returns Array of holidays within the range
+   * @deprecated Use getHolidaysInRangeDetailed from @/services instead
    */
   static getHolidaysInRange(
     startDate: Date,
     endDate: Date,
     holidays: Holiday[]
   ): HolidayDate[] {
-    const holidayDates = this.expandHolidayDates(holidays);
-
-    return holidayDates.filter(holidayDate =>
-      holidayDate.date >= startDate && holidayDate.date <= endDate
-    );
+    console.warn('HolidayCalculationService.getHolidaysInRange is deprecated. Use getHolidaysInRangeDetailed from @/services');
+    // Convert legacy Holiday format to new format
+    const convertedHolidays = holidays.map(h => ({
+      startDate: new Date(h.startDate),
+      endDate: new Date(h.endDate),
+      name: h.title || h.name || 'Holiday',
+      id: h.id
+    }));
+    return getHolidaysInRangeDetailed(startDate, endDate, convertedHolidays);
   }
 
   /**
    * Calculates the number of holiday days within a date range
-   * @param startDate Start of the range
-   * @param endDate End of the range
-   * @param holidays Array of holiday objects
-   * @returns Number of holiday days in the range
+   * @deprecated Use countHolidayDaysInRange from @/services instead
    */
   static countHolidayDaysInRange(
     startDate: Date,
     endDate: Date,
     holidays: Holiday[]
   ): number {
-    return this.getHolidaysInRange(startDate, endDate, holidays).length;
+    console.warn('HolidayCalculationService.countHolidayDaysInRange is deprecated. Use countHolidayDaysInRange from @/services');
+    // Convert legacy Holiday format to new format
+    const convertedHolidays = holidays.map(h => ({
+      startDate: new Date(h.startDate),
+      endDate: new Date(h.endDate),
+      name: h.title || h.name || 'Holiday',
+      id: h.id
+    }));
+    return countHolidayDaysInRangeNew(startDate, endDate, convertedHolidays);
   }
 }

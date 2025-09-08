@@ -2,7 +2,15 @@
  * Comprehensive Timeline Positioning Service
  * Single source of truth for all timeline positioning, calculation, and visual logic
  * Consolidates functionality from timelinePositionService, TimelineCalculationService, and lib/timelinePositioning
+ *
+ * @deprecated This service has been migrated to ui/TimelinePositioning.ts
+ * Use the new functions directly from @/services:
+ * - calculateTimelinePositions
+ * - calculateProjectBarPosition
+ * - getTimelinePositions
  */
+
+import { calculateTimelinePositions as calculateTimelinePositionsNew } from '../../ui/TimelinePositioning';
 
 export interface TimelinePositionCalculation {
   baselineStartPx: number;
@@ -69,6 +77,7 @@ export class TimelinePositioningService {
 
   /**
    * Calculate timeline element positions for projects/milestones (main entry point)
+   * @deprecated Use calculateTimelinePositions from @/services instead
    */
   static calculateTimelinePositions(
     projectStart: Date,
@@ -78,26 +87,15 @@ export class TimelinePositioningService {
     dates: Date[],
     mode: 'days' | 'weeks' = 'days'
   ): TimelinePositionCalculation {
-    const columnWidth = mode === 'weeks' ? 77 : 40; // 77px = 7 days × 11px per day
-
-    if (mode === 'weeks') {
-      return this.calculateWeeksModePositions(
-        projectStart,
-        projectEnd,
-        viewportStart,
-        viewportEnd,
-        dates
-      );
-    } else {
-      return this.calculateDaysModePositions(
-        projectStart,
-        projectEnd,
-        viewportStart,
-        viewportEnd,
-        dates,
-        columnWidth
-      );
-    }
+    console.warn('TimelinePositioningService.calculateTimelinePositions is deprecated. Use calculateTimelinePositions from @/services');
+    return calculateTimelinePositionsNew(
+      projectStart,
+      projectEnd,
+      viewportStart,
+      viewportEnd,
+      dates,
+      mode
+    );
   }
 
   /**

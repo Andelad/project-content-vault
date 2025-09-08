@@ -4,8 +4,7 @@
  */
 
 import { CalendarEvent, Milestone } from '@/types/core';
-import { memoizedGetProjectTimeAllocation, getMilestoneSegmentForDate, type MilestoneSegment, isPlannedTimeCompleted } from '@/services';
-import { HeightCalculationService } from '../legacy/timeline/HeightCalculationService';
+import { memoizedGetProjectTimeAllocation, getMilestoneSegmentForDate, type MilestoneSegment, isPlannedTimeCompleted, calculateDayHeight } from '@/services';
 
 export interface TimeAllocationResult {
   type: 'planned' | 'auto-estimate' | 'none';
@@ -72,7 +71,7 @@ export class TimeAllocationService {
       isPlannedTimeCompleted(projectId, date, events);
 
     // Calculate height using centralized service
-    const heightInPixels = HeightCalculationService.calculateDayHeight(finalHours);
+    const heightInPixels = calculateDayHeight(finalHours);
 
     return {
       type: timeAllocation.type,

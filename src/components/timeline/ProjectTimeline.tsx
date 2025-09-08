@@ -5,7 +5,6 @@ import { useTimelineContext } from '../../contexts/TimelineContext';
 import { calculateProjectDuration } from '@/services';
 import { ProjectCalculationService } from '@/services';
 import { HeightCalculationService } from '@/services';
-import { TimelineCalculationService } from '@/services';
 import { CommittedHoursCalculationService } from '@/services';
 import { calculateProjectBarPosition } from '@/services/ui/TimelinePositioning';
 

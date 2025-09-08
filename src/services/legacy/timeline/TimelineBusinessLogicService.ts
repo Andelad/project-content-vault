@@ -7,6 +7,7 @@
  */
 
 import * as React from 'react';
+import { calculateProjectHeight } from '../../ui/TimelinePositioning';
 
 /**
  * Project Days Calculation
@@ -135,7 +136,6 @@ export class ProjectMetricsCalculationService {
     projectEndDate: Date,
     estimatedHours: number,
     isWorkingDay: (date: Date) => boolean,
-    heightCalculationService: any,
     autoEstimateDays?: any,
     settings?: any,
     holidays?: any[]
@@ -205,7 +205,7 @@ export class ProjectMetricsCalculationService {
 
     // Calculate precise height in pixels (minimum 3px only if estimated hours > 0)
     const heightInPixels = estimatedHours > 0
-      ? heightCalculationService.calculateProjectHeight(exactHoursPerDay)
+      ? calculateProjectHeight(exactHoursPerDay)
       : 0;
     // Cap the outer rectangle at 40px to stay within taller row height (52px - 12px padding)
     const cappedHeight = Math.min(heightInPixels, 40);

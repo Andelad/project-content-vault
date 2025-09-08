@@ -1,7 +1,39 @@
 /**
  * Timeline UI Calculation Service
  * Handles all visual positioning and sizing calculations for the timeline
+ *
+ * @deprecated This service has been migrated to calculations/timelineCalculations.ts
+ * Use the new functions directly from @/services:
+ * - calculateProjectPosition
+ * - calculateMilestonePosition
+ * - calculateRowHeight
+ * - calculateScrollToDate
+ * - calculateVisibleDateRange
+ * - calculateColumnPositions
+ * - calculateDragConstraints
+ * - pixelToDate
+ * - dateToPixel
  */
+
+import {
+  calculateProjectPosition as calculateProjectPositionNew,
+  calculateMilestonePosition as calculateMilestonePositionNew,
+  calculateRowHeight as calculateRowHeightNew,
+  calculateScrollToDate as calculateScrollToDateNew,
+  calculateVisibleDateRange as calculateVisibleDateRangeNew,
+  calculateColumnPositions as calculateColumnPositionsNew,
+  calculateDragConstraints as calculateDragConstraintsNew,
+  pixelToDate as pixelToDateNew,
+  dateToPixel as dateToPixelNew,
+  calculateOptimalColumnWidth as calculateOptimalColumnWidthNew,
+  calculateZoomConstraints as calculateZoomConstraintsNew,
+  calculateWorkHoursTotal as calculateWorkHoursTotalNew,
+  calculateDayWidthPosition as calculateDayWidthPositionNew,
+  calculateBaselineVisualOffsets as calculateBaselineVisualOffsetsNew,
+  calculateVisualProjectDates as calculateVisualProjectDatesNew,
+  calculateTimelineBarPosition as calculateTimelineBarPositionNew,
+  calculateWeekProjectIntersection as calculateWeekProjectIntersectionNew
+} from '../../calculations/timelineCalculations';
 
 export interface TimelinePosition {
   left: number;
@@ -21,27 +53,20 @@ export interface ViewportConfig {
 export class TimelineCalculationService {
   /**
    * Calculate position for a project bar in the timeline
+   * @deprecated Use calculateProjectPosition from @/services instead
    */
   static calculateProjectPosition(
     projectStart: Date,
     projectEnd: Date,
     viewport: ViewportConfig
   ): TimelinePosition {
-    const { startDate, columnWidth, mode } = viewport;
-    
-    // Calculate left position
-    const startOffset = this.getDateOffset(projectStart, startDate, mode);
-    const left = Math.max(0, startOffset * columnWidth);
-    
-    // Calculate width
-    const duration = this.getDateOffset(projectEnd, projectStart, mode) + 1;
-    const width = Math.max(columnWidth * 0.8, duration * columnWidth);
-    
-    return { left, width };
+    console.warn('TimelineCalculationService.calculateProjectPosition is deprecated. Use calculateProjectPosition from @/services');
+    return calculateProjectPositionNew(projectStart, projectEnd, viewport);
   }
 
   /**
    * Calculate position for a milestone diamond
+   * @deprecated Use calculateMilestonePosition from @/services instead
    */
   static calculateMilestonePosition(
     milestoneDate: Date,
@@ -49,143 +74,92 @@ export class TimelineCalculationService {
     projectPosition: TimelinePosition,
     viewport: ViewportConfig
   ): TimelinePosition {
-    const { mode, columnWidth } = viewport;
-    
-    // Calculate offset from project start
-    const offsetFromProjectStart = this.getDateOffset(milestoneDate, projectStart, mode);
-    
-    // Determine actual day width based on mode
-    const dayWidth = mode === 'weeks' ? 11 : columnWidth; // 11px per day in weeks, columnWidth in days
-    const relativeLeft = offsetFromProjectStart * dayWidth;
-    
-    // Position milestone at END of its day column (add day width)
-    const left = projectPosition.left + relativeLeft + dayWidth;
-    const width = 16; // Diamond size
-    const height = 16;
-    
-    return { left, width, height };
+    console.warn('TimelineCalculationService.calculateMilestonePosition is deprecated. Use calculateMilestonePosition from @/services');
+    return calculateMilestonePositionNew(milestoneDate, projectStart, projectPosition, viewport);
   }
 
   /**
    * Calculate row height based on project workload
+   * @deprecated Use calculateRowHeight from @/services instead
    */
   static calculateRowHeight(dailyHours: number, baseHeight: number = 40): number {
-    // Scale height based on daily workload
-    const heightScale = Math.max(1, dailyHours / 8); // 8 hours = normal day
-    return Math.min(baseHeight * heightScale, baseHeight * 3); // Cap at 3x base height
+    console.warn('TimelineCalculationService.calculateRowHeight is deprecated. Use calculateRowHeight from @/services');
+    return calculateRowHeightNew(dailyHours, baseHeight);
   }
 
   /**
    * Calculate timeline scroll position to center on date
+   * @deprecated Use calculateScrollToDate from @/services instead
    */
   static calculateScrollToDate(
     targetDate: Date,
     viewport: ViewportConfig,
     containerWidth: number
   ): number {
-    const { startDate, columnWidth, mode } = viewport;
-    const offset = this.getDateOffset(targetDate, startDate, mode);
-    const targetPosition = offset * columnWidth;
-    
-    // Center the date in the viewport
-    return Math.max(0, targetPosition - containerWidth / 2);
+    console.warn('TimelineCalculationService.calculateScrollToDate is deprecated. Use calculateScrollToDate from @/services');
+    return calculateScrollToDateNew(targetDate, viewport, containerWidth);
   }
 
   /**
    * Calculate visible date range for the current viewport
+   * @deprecated Use calculateVisibleDateRange from @/services instead
    */
   static calculateVisibleDateRange(
     scrollLeft: number,
     containerWidth: number,
     viewport: ViewportConfig
   ): { start: Date; end: Date } {
-    const { startDate, columnWidth, mode } = viewport;
-    
-    const startOffset = Math.floor(scrollLeft / columnWidth);
-    const endOffset = Math.ceil((scrollLeft + containerWidth) / columnWidth);
-    
-    const start = this.addDateOffset(startDate, startOffset, mode);
-    const end = this.addDateOffset(startDate, endOffset, mode);
-    
-    return { start, end };
+    console.warn('TimelineCalculationService.calculateVisibleDateRange is deprecated. Use calculateVisibleDateRange from @/services');
+    return calculateVisibleDateRangeNew(scrollLeft, containerWidth, viewport);
   }
 
   /**
    * Calculate column positions for timeline grid
+   * @deprecated Use calculateColumnPositions from @/services instead
    */
   static calculateColumnPositions(
     viewport: ViewportConfig,
     visibleColumns: number
   ): Array<{ date: Date; position: number; label: string }> {
-    const { startDate, columnWidth, mode } = viewport;
-    const columns: Array<{ date: Date; position: number; label: string }> = [];
-    
-    for (let i = 0; i < visibleColumns; i++) {
-      const date = this.addDateOffset(startDate, i, mode);
-      const position = i * columnWidth;
-      const label = this.formatDateLabel(date, mode);
-      
-      columns.push({ date, position, label });
-    }
-    
-    return columns;
+    console.warn('TimelineCalculationService.calculateColumnPositions is deprecated. Use calculateColumnPositions from @/services');
+    return calculateColumnPositionsNew(viewport, visibleColumns);
   }
 
   /**
    * Calculate drag constraints for a project
+   * @deprecated Use calculateDragConstraints from @/services instead
    */
   static calculateDragConstraints(
     project: { startDate: Date; endDate: Date },
     viewport: ViewportConfig,
     containerBounds: { left: number; right: number }
   ): { minLeft: number; maxLeft: number } {
-    const projectDuration = this.getDateOffset(project.endDate, project.startDate, viewport.mode);
-    const projectWidth = projectDuration * viewport.columnWidth;
-    
-    return {
-      minLeft: containerBounds.left,
-      maxLeft: containerBounds.right - projectWidth
-    };
+    console.warn('TimelineCalculationService.calculateDragConstraints is deprecated. Use calculateDragConstraints from @/services');
+    return calculateDragConstraintsNew(project, viewport, containerBounds);
   }
 
   /**
    * Convert pixel position to date
+   * @deprecated Use pixelToDate from @/services instead
    */
   static pixelToDate(
     pixelPosition: number,
     viewport: ViewportConfig
   ): Date {
-    const { startDate, columnWidth, mode } = viewport;
-    
-    if (mode === 'weeks') {
-      // In weeks mode, each day is exactly 11px (77px ÷ 7 days = 11px per day)
-      const dayWidth = 11;
-      const dayOffset = Math.round(pixelPosition / dayWidth);
-      return this.addDateOffset(startDate, dayOffset, 'days');
-    }
-    
-    const offset = Math.round(pixelPosition / columnWidth);
-    return this.addDateOffset(startDate, offset, mode);
+    console.warn('TimelineCalculationService.pixelToDate is deprecated. Use pixelToDate from @/services');
+    return pixelToDateNew(pixelPosition, viewport);
   }
 
   /**
    * Convert date to pixel position
+   * @deprecated Use dateToPixel from @/services instead
    */
   static dateToPixel(
     date: Date,
     viewport: ViewportConfig
   ): number {
-    const { startDate, columnWidth, mode } = viewport;
-    
-    if (mode === 'weeks') {
-      // In weeks mode, calculate exact day offset and multiply by 11px per day
-      const dayWidth = 11;
-      const dayOffset = this.getDateOffset(date, startDate, 'days');
-      return dayOffset * dayWidth;
-    }
-    
-    const offset = this.getDateOffset(date, startDate, mode);
-    return offset * columnWidth;
+    console.warn('TimelineCalculationService.dateToPixel is deprecated. Use dateToPixel from @/services');
+    return dateToPixelNew(date, viewport);
   }
 
   /**
@@ -247,6 +221,7 @@ export class TimelineCalculationService {
 
   /**
    * Calculate optimal column width based on container size
+   * @deprecated Use calculateOptimalColumnWidth from @/services instead
    */
   static calculateOptimalColumnWidth(
     containerWidth: number,
@@ -254,48 +229,43 @@ export class TimelineCalculationService {
     minColumnWidth: number = 40,
     maxColumnWidth: number = 120
   ): number {
-    const idealWidth = containerWidth / desiredColumns;
-    return Math.max(minColumnWidth, Math.min(maxColumnWidth, idealWidth));
+    console.warn('TimelineCalculationService.calculateOptimalColumnWidth is deprecated. Use calculateOptimalColumnWidth from @/services');
+    return calculateOptimalColumnWidthNew(containerWidth, desiredColumns, minColumnWidth, maxColumnWidth);
   }
 
   /**
    * Calculate timeline zoom level constraints
+   * @deprecated Use calculateZoomConstraints from @/services instead
    */
   static calculateZoomConstraints(
     containerWidth: number,
     totalTimespan: number
   ): { minZoom: number; maxZoom: number } {
-    const minColumnWidth = 20;
-    const maxColumnWidth = 200;
-    
-    const minZoom = containerWidth / (totalTimespan * maxColumnWidth);
-    const maxZoom = containerWidth / (totalTimespan * minColumnWidth);
-    
-    return { minZoom, maxZoom };
+    console.warn('TimelineCalculationService.calculateZoomConstraints is deprecated. Use calculateZoomConstraints from @/services');
+    return calculateZoomConstraintsNew(containerWidth, totalTimespan);
   }
 
   /**
    * Calculate total work hours for a day
+   * @deprecated Use calculateWorkHoursTotal from @/services instead
    */
   static calculateWorkHoursTotal(workHours: any[]): number {
-    if (!Array.isArray(workHours)) {
-      return 0;
-    }
-    return workHours.reduce((sum, workHour) => sum + (workHour.duration || 0), 0);
+    console.warn('TimelineCalculationService.calculateWorkHoursTotal is deprecated. Use calculateWorkHoursTotal from @/services');
+    return calculateWorkHoursTotalNew(workHours);
   }
 
   /**
    * Calculate left position for a day within a week
+   * @deprecated Use calculateDayWidthPosition from @/services instead
    */
   static calculateDayWidthPosition(dayWidths: number[], dayOfWeek: number): number {
-    if (!Array.isArray(dayWidths) || dayOfWeek <= 0) {
-      return 0;
-    }
-    return dayWidths.slice(0, dayOfWeek).reduce((sum, width) => sum + width, 0);
+    console.warn('TimelineCalculationService.calculateDayWidthPosition is deprecated. Use calculateDayWidthPosition from @/services');
+    return calculateDayWidthPositionNew(dayWidths, dayOfWeek);
   }
 
   /**
    * Calculate baseline visual offsets for drag operations
+   * @deprecated Use calculateBaselineVisualOffsets from @/services instead
    */
   static calculateBaselineVisualOffsets(
     positions: any,
@@ -304,115 +274,38 @@ export class TimelineCalculationService {
     projectId: string,
     mode: 'days' | 'weeks' = 'days'
   ): any {
-    let adjustedPositions = { ...positions };
-
-    if (isDragging && dragState?.projectId === projectId) {
-      // In days view: use snapped daysDelta for day boundary snapping
-      // In weeks view: use smooth pixelDeltaX for responsive movement
-      const dayWidth = mode === 'weeks' ? 11 : 40;
-      const dragOffsetPx = mode === 'days'
-        ? (dragState.daysDelta || 0) * dayWidth  // Snapped to day boundaries in days view
-        : (typeof dragState.pixelDeltaX === 'number' ? dragState.pixelDeltaX : (dragState.daysDelta || 0) * dayWidth);  // Smooth in weeks view
-
-      const action = dragState?.action;
-
-      if (action === 'move') {
-        // Move everything together
-        adjustedPositions = {
-          ...positions,
-          baselineStartPx: positions.baselineStartPx + dragOffsetPx,
-          circleLeftPx: positions.circleLeftPx + dragOffsetPx,
-          triangleLeftPx: positions.triangleLeftPx + dragOffsetPx,
-          baselineWidthPx: positions.baselineWidthPx // width unchanged when moving
-        };
-      } else if (action === 'resize-start-date') {
-        // Only start date (and baseline left edge) should move visually
-        adjustedPositions = {
-          ...positions,
-          baselineStartPx: positions.baselineStartPx + dragOffsetPx,
-          circleLeftPx: positions.circleLeftPx + dragOffsetPx,
-          triangleLeftPx: positions.triangleLeftPx, // keep end fixed
-          // Width must shrink/grow opposite to left edge movement to keep right edge fixed
-          baselineWidthPx: positions.baselineWidthPx - dragOffsetPx
-        };
-      } else if (action === 'resize-end-date') {
-        // Only end date should move visually; keep baseline start and start circle fixed
-        adjustedPositions = {
-          ...positions,
-          baselineStartPx: positions.baselineStartPx,
-          circleLeftPx: positions.circleLeftPx,
-          triangleLeftPx: positions.triangleLeftPx + dragOffsetPx,
-          // Width grows/shrinks with right edge movement
-          baselineWidthPx: positions.baselineWidthPx + dragOffsetPx
-        };
-      }
-    }
-
-    return adjustedPositions;
+    console.warn('TimelineCalculationService.calculateBaselineVisualOffsets is deprecated. Use calculateBaselineVisualOffsets from @/services');
+    return calculateBaselineVisualOffsetsNew(positions, isDragging, dragState, projectId, mode);
   }
 
   /**
    * Calculate visual project dates with consolidated offset logic
+   * @deprecated Use calculateVisualProjectDates from @/services instead
    */
   static calculateVisualProjectDates(
     project: any,
     isDragging: boolean,
     dragState: any
   ): { visualProjectStart: Date; visualProjectEnd: Date } {
-    let visualProjectStart = new Date(project.startDate);
-    let visualProjectEnd = new Date(project.endDate);
-
-    // Apply drag offset based on action type for immediate visual feedback
-    if (isDragging && dragState?.projectId === project.id) {
-      // Use fractional daysDelta for smooth visual movement (like milestones)
-      const daysOffset = dragState.daysDelta || 0;
-      const action = dragState.action;
-
-      if (action === 'move') {
-        // Move both start and end
-        visualProjectStart = new Date(project.startDate);
-        visualProjectStart.setDate(visualProjectStart.getDate() + daysOffset);
-        visualProjectEnd = new Date(project.endDate);
-        visualProjectEnd.setDate(visualProjectEnd.getDate() + daysOffset);
-      } else if (action === 'resize-start-date') {
-        // Only move start date
-        visualProjectStart = new Date(project.startDate);
-        visualProjectStart.setDate(visualProjectStart.getDate() + daysOffset);
-        // End date stays the same
-      } else if (action === 'resize-end-date') {
-        // Only move end date
-        visualProjectEnd = new Date(project.endDate);
-        visualProjectEnd.setDate(visualProjectEnd.getDate() + daysOffset);
-        // Start date stays the same
-      }
-    }
-
-    return { visualProjectStart, visualProjectEnd };
+    console.warn('TimelineCalculationService.calculateVisualProjectDates is deprecated. Use calculateVisualProjectDates from @/services');
+    return calculateVisualProjectDatesNew(project, isDragging, dragState);
   }
 
   /**
    * Calculate timeline bar position for a project
+   * @deprecated Use calculateTimelineBarPosition from @/services instead
    */
   static calculateTimelineBarPosition(
     dates: Date[],
     project: { startDate: Date; endDate: Date }
   ): { startIndex: number; width: number } {
-    const startIndex = dates.findIndex(date =>
-      date.toDateString() === project.startDate.toDateString()
-    );
-    const endIndex = dates.findIndex(date =>
-      date.toDateString() === project.endDate.toDateString()
-    );
-
-    return {
-      startIndex: Math.max(0, startIndex),
-      width: endIndex >= 0 ? (endIndex - Math.max(0, startIndex) + 1) * 48 : 0
-    };
+    console.warn('TimelineCalculationService.calculateTimelineBarPosition is deprecated. Use calculateTimelineBarPosition from @/services');
+    return calculateTimelineBarPositionNew(dates, project);
   }
 
   /**
    * Calculate week-project intersection data for weeks view
-   * Extracts the logic that was causing hooks violation in TimelineBar
+   * @deprecated Use calculateWeekProjectIntersection from @/services instead
    */
   static calculateWeekProjectIntersection(
     date: Date,
@@ -425,37 +318,7 @@ export class TimelineCalculationService {
     weekStart?: Date;
     weekEnd?: Date;
   } {
-    const weekStart = new Date(date);
-    weekStart.setHours(0, 0, 0, 0);
-    const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekStart.getDate() + 6);
-    weekEnd.setHours(23, 59, 59, 999);
-    
-    // Normalize project dates (using visually adjusted dates for immediate drag response)
-    const projectStart = new Date(visualProjectStart);
-    projectStart.setHours(0, 0, 0, 0);
-    const projectEnd = new Date(visualProjectEnd);
-    projectEnd.setHours(23, 59, 59, 999);
-    
-    // Check if project intersects with this week
-    const weekIntersectsProject = !(projectEnd < weekStart || projectStart > weekEnd);
-    
-    if (!weekIntersectsProject) {
-      return { intersects: false, workingDaysInWeek: [] };
-    }
-    
-    // Calculate working days in this week that are part of the project
-    const workingDaysInWeek = [];
-    for (let d = new Date(Math.max(weekStart.getTime(), projectStart.getTime())); 
-         d <= new Date(Math.min(weekEnd.getTime(), projectEnd.getTime())); 
-         d.setDate(d.getDate() + 1)) {
-      const normalizedDay = new Date(d);
-      normalizedDay.setHours(0, 0, 0, 0);
-      if (isWorkingDay(normalizedDay)) {
-        workingDaysInWeek.push(normalizedDay);
-      }
-    }
-    
-    return { intersects: true, workingDaysInWeek, weekStart, weekEnd };
+    console.warn('TimelineCalculationService.calculateWeekProjectIntersection is deprecated. Use calculateWeekProjectIntersection from @/services');
+    return calculateWeekProjectIntersectionNew(date, visualProjectStart, visualProjectEnd, isWorkingDay);
   }
 }
