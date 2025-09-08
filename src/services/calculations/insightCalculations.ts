@@ -44,6 +44,24 @@ export function calculateWeeklyCapacity(weeklyWorkHours: WeeklyWorkHours): numbe
 }
 
 /**
+ * Calculate daily capacity for a specific day
+ * Migrated from TimelineBusinessLogicService.WeeklyCapacityCalculationService
+ */
+export function calculateDailyCapacity(date: Date, weeklyWorkHours: any): number {
+  if (!weeklyWorkHours) return 0;
+
+  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const dayName = dayNames[date.getDay()] as keyof typeof weeklyWorkHours;
+  const dayData = weeklyWorkHours[dayName];
+
+  if (Array.isArray(dayData)) {
+    // Use the same logic as calculateWeeklyCapacity for consistency
+    return dayData.reduce((sum: number, slot: any) => sum + (slot.duration || 0), 0);
+  }
+  return dayData || 0;
+}
+
+/**
  * Get projects that are currently active (running today)
  */
 export function getCurrentProjects(projects: Project[], referenceDate: Date = new Date()): Project[] {

@@ -19,7 +19,6 @@ import { calculateProjectTimeMetrics, calculateAutoEstimateHoursPerDay, expandHo
 import { formatTimeHoursMinutes } from '@/utils/timeFormatUtils';
 import { formatDate, formatDateForInput } from '@/utils/dateFormatUtils';
 import { StandardModal } from './StandardModal';
-import { WorkHoursValidationService } from '@/services';
 
 // OKLCH color palette - matches the one defined in AppContext
 const OKLCH_PROJECT_COLORS = [

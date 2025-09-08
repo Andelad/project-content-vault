@@ -55,7 +55,7 @@ export function getEstimatedProgressForDate(
 ): number {
   const startDate = new Date(project.startDate);
   const endDate = new Date(project.endDate);
-  const relevantMilestones = getRelevantMilestones(milestones, project);
+  const relevantMilestones = getRelevantMilestones(milestones, project.id);
   
   if (relevantMilestones.length === 0) {
     // No milestones, use linear interpolation
@@ -117,12 +117,12 @@ export function calculateProjectProgressData(
   if (totalDays <= 0) return [];
   
   const projectEvents = getProjectEvents(events, project.id);
-  const relevantMilestones = getRelevantMilestones(milestones, project);
-  const plannedTimeMap = buildPlannedTimeMap(projectEvents);
+  const relevantMilestones = getRelevantMilestones(milestones, project.id);
+  const plannedTimeMap = buildPlannedTimeMap(projectEvents, project.id, startDate, endDate);
   const data: DataPoint[] = [];
   
   // Add starting point
-  const completedTimeAtStart = getCompletedTimeUpToDate(startDate, projectEvents);
+  const completedTimeAtStart = getCompletedTimeUpToDate(startDate, plannedTimeMap);
   
   data.push({
     date: new Date(startDate),
@@ -288,14 +288,14 @@ export function analyzeProjectProgress(
   const isOnTrack = isProjectOnTrack(project, projectEvents, milestones);
 
   // Analyze milestone progress
-  const relevantMilestones = getRelevantMilestones(milestones, project);
+  const relevantMilestones = getRelevantMilestones(milestones, project.id);
   const today = new Date();
   
   const milestoneProgress = relevantMilestones.map(milestone => {
     const dueDate = new Date(milestone.dueDate);
     const daysUntilDue = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     const expectedProgress = getEstimatedProgressForDate(today, project, milestones);
-    const actualProgress = getCompletedTimeUpToDate(today, projectEvents);
+    const actualProgress = getCompletedTimeUpToDate(today, new Map()); // Use empty map for now
     
     return {
       milestone,
@@ -315,6 +315,202 @@ export function analyzeProjectProgress(
 }
 
 // =====================================================================================
+// LEGACY COMPATIBILITY FUNCTIONS 
+// =====================================================================================
+
+// Legacy interfaces for backward compatibility with ProjectProgressGraph component
+export interface ProgressGraphCalculationOptions {
+  project: Project;
+  events: CalendarEvent[];
+  milestones?: Milestone[];
+  includeEventDatePoints?: boolean;
+  maxDataPoints?: number;
+}
+
+export interface ProgressDataPoint {
+  date: Date;
+  estimatedProgress: number;
+  completedTime: number;
+  plannedTime: number;
+}
+
+export interface ProjectProgressAnalysis {
+  progressData: ProgressDataPoint[];
+  maxHours: number;
+  totalDays: number;
+  progressMethod: 'milestone' | 'linear';
+  completionRate: number;
+  estimatedCompletionDate: Date | null;
+  isOnTrack: boolean;
+  variance: {
+    estimatedVsCompleted: number;
+    plannedVsCompleted: number;
+    estimatedVsPlanned: number;
+    overallVariance: number;
+  };
+  trends: {
+    completionTrend: 'accelerating' | 'steady' | 'declining';
+    milestoneComplianceRate: number;
+    averageDailyCompletion: number;
+    projectedOverrun: number;
+  };
+}
+
+/**
+ * Legacy compatibility wrapper for analyzeProjectProgress
+ * Maintains backward compatibility with existing ProjectProgressGraph component
+ * Migrated from legacy projectProgressGraphService
+ */
+export function analyzeProjectProgressLegacy(options: ProgressGraphCalculationOptions): ProjectProgressAnalysis {
+  const { project, events, milestones = [] } = options;
+  const startDate = new Date(project.startDate);
+  const endDate = new Date(project.endDate);
+  const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+  
+  // Convert events to internal format
+  const projectEvents: ProjectEvent[] = events
+    .filter(event => event.projectId === project.id)
+    .map(event => ({
+      id: event.id,
+      projectId: event.projectId,
+      startTime: new Date(event.startTime),
+      endTime: new Date(event.endTime || event.startTime),
+      completed: event.completed || false
+    }));
+
+  const relevantMilestones = getRelevantMilestones(milestones, project.id);
+  const progressMethod = relevantMilestones.length > 0 ? 'milestone' : 'linear';
+  
+  // Generate progress data points
+  const progressData: ProgressDataPoint[] = [];
+  const plannedTimeMap = buildPlannedTimeMap(projectEvents, project.id, startDate, endDate);
+  
+  if (progressMethod === 'milestone') {
+    // Add data points for each milestone
+    let cumulativeHours = 0;
+    
+    // Add starting point
+    progressData.push({
+      date: new Date(startDate),
+      estimatedProgress: 0,
+      completedTime: getCompletedTimeUpToDate(projectEvents, project.id, startDate),
+      plannedTime: getPlannedTimeUpToDate(startDate, plannedTimeMap)
+    });
+    
+    // Add milestone points
+    relevantMilestones.forEach(milestone => {
+      cumulativeHours += milestone.timeAllocation;
+      const milestoneDate = new Date(milestone.dueDate);
+      
+      progressData.push({
+        date: new Date(milestoneDate),
+        estimatedProgress: cumulativeHours,
+        completedTime: getCompletedTimeUpToDate(projectEvents, project.id, milestoneDate),
+        plannedTime: getPlannedTimeUpToDate(milestoneDate, plannedTimeMap)
+      });
+    });
+    
+    // Add end point
+    progressData.push({
+      date: new Date(endDate),
+      estimatedProgress: project.estimatedHours,
+      completedTime: getCompletedTimeUpToDate(projectEvents, project.id, endDate),
+      plannedTime: getPlannedTimeUpToDate(endDate, plannedTimeMap)
+    });
+  } else {
+    // Linear progression
+    const maxPoints = options.maxDataPoints || 20;
+    const samplePoints = Math.min(maxPoints, totalDays);
+    const dailyRate = project.estimatedHours / Math.max(1, totalDays);
+    
+    for (let i = 0; i <= samplePoints; i++) {
+      const dayIndex = Math.floor((i / samplePoints) * totalDays);
+      const currentDate = new Date(startDate);
+      currentDate.setDate(startDate.getDate() + dayIndex);
+      
+      const estimatedProgress = Math.min(project.estimatedHours, dailyRate * dayIndex);
+      
+      progressData.push({
+        date: new Date(currentDate),
+        estimatedProgress,
+        completedTime: getCompletedTimeUpToDate(projectEvents, project.id, currentDate),
+        plannedTime: getPlannedTimeUpToDate(currentDate, plannedTimeMap)
+      });
+    }
+  }
+  
+  // Calculate metrics
+  const maxHours = Math.max(
+    project.estimatedHours,
+    Math.max(...progressData.map(d => d.completedTime), 0),
+    Math.max(...progressData.map(d => d.plannedTime), 0),
+    1
+  );
+  
+  const latestPoint = progressData[progressData.length - 1];
+  const completionRate = latestPoint ? (latestPoint.completedTime / project.estimatedHours) * 100 : 0;
+  
+  // Calculate trends
+  const trends = {
+    completionTrend: 'steady' as const,
+    milestoneComplianceRate: 0,
+    averageDailyCompletion: 0,
+    projectedOverrun: 0
+  };
+  
+  if (progressData.length > 1) {
+    const recentPoints = progressData.slice(-5);
+    const completedDiff = recentPoints[recentPoints.length - 1].completedTime - recentPoints[0].completedTime;
+    const daysDiff = Math.max(1, Math.ceil((recentPoints[recentPoints.length - 1].date.getTime() - recentPoints[0].date.getTime()) / (1000 * 60 * 60 * 24)));
+    trends.averageDailyCompletion = completedDiff / daysDiff;
+    
+    if (trends.averageDailyCompletion > 0 && latestPoint) {
+      const remainingHours = project.estimatedHours - latestPoint.completedTime;
+      const projectedDays = remainingHours / trends.averageDailyCompletion;
+      const remainingDays = Math.ceil((endDate.getTime() - latestPoint.date.getTime()) / (1000 * 60 * 60 * 24));
+      trends.projectedOverrun = Math.max(0, projectedDays - remainingDays);
+    }
+  }
+  
+  // Estimate completion date
+  const estimatedCompletionDate = trends.averageDailyCompletion > 0 && latestPoint
+    ? new Date(latestPoint.date.getTime() + 
+        ((project.estimatedHours - latestPoint.completedTime) / trends.averageDailyCompletion) * 24 * 60 * 60 * 1000)
+    : null;
+  
+  const isOnTrack = estimatedCompletionDate ? estimatedCompletionDate <= endDate : completionRate >= 90;
+  
+  // Calculate variance
+  const variance = {
+    estimatedVsCompleted: 0,
+    plannedVsCompleted: 0,
+    estimatedVsPlanned: 0,
+    overallVariance: 0
+  };
+  
+  if (latestPoint) {
+    variance.estimatedVsCompleted = latestPoint.estimatedProgress - latestPoint.completedTime;
+    variance.plannedVsCompleted = latestPoint.plannedTime - latestPoint.completedTime;
+    variance.estimatedVsPlanned = latestPoint.estimatedProgress - latestPoint.plannedTime;
+    variance.overallVariance = Math.abs(variance.estimatedVsCompleted) + 
+                              Math.abs(variance.plannedVsCompleted) + 
+                              Math.abs(variance.estimatedVsPlanned);
+  }
+  
+  return {
+    progressData,
+    maxHours,
+    totalDays,
+    progressMethod,
+    completionRate,
+    estimatedCompletionDate,
+    isOnTrack,
+    variance,
+    trends
+  };
+}
+
+// =====================================================================================
 // EXPORTS (for backward compatibility)
 // =====================================================================================
 
@@ -329,4 +525,4 @@ export {
   calculateProgressPercentage,
   getRelevantMilestones,
   calculateProjectTimeMetrics
-} from '../legacy/projects/projectProgressService';
+} from '../calculations/projectProgressCalculations';

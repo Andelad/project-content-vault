@@ -4,7 +4,7 @@
  */
 
 import { DateCalculationService } from '@/services/infrastructure/dateCalculationService';
-import { calculateProjectDuration } from './projectProgressService';
+import { calculateProjectDuration } from '../../calculations/projectProgressCalculations';
 import { Project } from '@/types';
 
 interface Milestone {

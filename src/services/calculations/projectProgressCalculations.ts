@@ -5,6 +5,8 @@
  * Part of unified calculations layer for consistent project progress tracking
  */
 
+import type { Milestone as CoreMilestone } from '@/types/core';
+
 export interface ProjectEvent {
   id: string;
   projectId: string;
@@ -15,6 +17,7 @@ export interface ProjectEvent {
 
 export interface Milestone {
   id: string;
+  projectId: string;
   dueDate: string | Date;
   timeAllocation: number;
   completed?: boolean;
@@ -54,6 +57,13 @@ export interface ComprehensiveProjectTimeMetrics {
     total: number;
     percentage: number;
   };
+  // Legacy compatibility properties
+  plannedTime?: number;
+  completedTime?: number;
+  totalBudgetedTime?: number;
+  workDaysLeft?: number;
+  totalWorkDays?: number;
+  originalDailyEstimateFormatted?: string;
 }
 
 /**
@@ -66,16 +76,55 @@ export function calculateProjectDuration(project: ProgressProject): number {
 }
 
 /**
- * Filter events for a specific project
+ * Get project events filtered by project ID (alias for filterProjectEvents)
  */
-export function filterProjectEvents(events: ProjectEvent[], projectId: string): ProjectEvent[] {
-  return events.filter(event => event.projectId === projectId);
+export function getProjectEvents(events: ProjectEvent[], projectId: string): ProjectEvent[] {
+  return filterProjectEvents(events, projectId);
 }
 
 /**
- * Calculate completed time from events up to a specific date
+ * Calculate event duration in hours
  */
-export function calculateCompletedTimeUpToDate(
+export function calculateEventDurationHours(event: ProjectEvent): number {
+  const startTime = new Date(event.startTime);
+  const endTime = new Date(event.endTime);
+  return (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
+}
+
+/**
+ * Get completed time up to date - supports both legacy and new patterns
+ */
+export function getCompletedTimeUpToDate(
+  firstArg: Date | ProjectEvent[],
+  secondArg: Map<string, number> | string,
+  thirdArg?: Date
+): number {
+  // New pattern: getCompletedTimeUpToDate(upToDate: Date, plannedTimeMap: Map<string, number>)
+  if (firstArg instanceof Date && secondArg instanceof Map) {
+    let completedTime = 0;
+    const dateStr = firstArg.toISOString().split('T')[0];
+    
+    for (const [date, time] of secondArg.entries()) {
+      if (date <= dateStr) {
+        completedTime += time;
+      }
+    }
+    
+    return completedTime;
+  }
+  
+  // Legacy pattern: getCompletedTimeUpToDate(events: ProjectEvent[], projectId: string, upToDate: Date)
+  if (Array.isArray(firstArg) && typeof secondArg === 'string' && thirdArg instanceof Date) {
+    return calculateCompletedTimeUpToDate(firstArg, secondArg, thirdArg);
+  }
+  
+  return 0;
+}
+
+/**
+ * Calculate completed time from events up to a specific date (internal function)
+ */
+function calculateCompletedTimeUpToDate(
   events: ProjectEvent[],
   projectId: string,
   upToDate: Date
@@ -91,21 +140,80 @@ export function calculateCompletedTimeUpToDate(
 }
 
 /**
- * Calculate planned time from events up to a specific date
+ * Calculate planned time from events up to a specific date - supports both patterns
  */
 export function getPlannedTimeUpToDate(
-  events: ProjectEvent[],
-  projectId: string,
-  upToDate: Date
+  firstArg: ProjectEvent[] | Date,
+  secondArg: string | Map<string, number>,
+  thirdArg?: Date
 ): number {
-  const projectEvents = filterProjectEvents(events, projectId).filter(event => 
-    new Date(event.endTime) <= upToDate
-  );
+  // New pattern: getPlannedTimeUpToDate(upToDate: Date, plannedTimeMap: Map<string, number>)
+  if (firstArg instanceof Date && secondArg instanceof Map) {
+    let plannedTime = 0;
+    const dateStr = firstArg.toISOString().split('T')[0];
+    
+    for (const [date, time] of secondArg.entries()) {
+      if (date <= dateStr) {
+        plannedTime += time;
+      }
+    }
+    
+    return plannedTime;
+  }
   
-  return projectEvents.reduce((total, event) => {
-    const duration = (new Date(event.endTime).getTime() - new Date(event.startTime).getTime()) / (1000 * 60 * 60);
-    return total + duration;
-  }, 0);
+  // Legacy pattern: getPlannedTimeUpToDate(events: ProjectEvent[], projectId: string, upToDate: Date) 
+  if (Array.isArray(firstArg) && typeof secondArg === 'string' && thirdArg instanceof Date) {
+    const projectEvents = filterProjectEvents(firstArg, secondArg).filter(event => 
+      new Date(event.endTime) <= thirdArg
+    );
+    
+    return projectEvents.reduce((total, event) => {
+      const duration = (new Date(event.endTime).getTime() - new Date(event.startTime).getTime()) / (1000 * 60 * 60);
+      return total + duration;
+    }, 0);
+  }
+  
+  return 0;
+}
+
+/**
+ * Get relevant milestones for a project
+ */
+export function getRelevantMilestones(
+  milestones: Milestone[], 
+  projectId: string, 
+  startDate?: Date, 
+  endDate?: Date
+): Milestone[] {
+  let filtered = milestones.filter(m => m.projectId === projectId);
+  
+  if (startDate) {
+    filtered = filtered.filter(m => new Date(m.dueDate) >= startDate);
+  }
+  
+  if (endDate) {
+    filtered = filtered.filter(m => new Date(m.dueDate) <= endDate);
+  }
+  
+  return filtered;
+}
+
+/**
+ * Calculate progress percentage
+ */
+export function calculateProgressPercentage(
+  completedTime: number,
+  totalPlannedTime: number
+): number {
+  if (totalPlannedTime === 0) return 0;
+  return Math.min(100, (completedTime / totalPlannedTime) * 100);
+}
+
+/**
+ * Filter project events filtered by project ID
+ */
+export function filterProjectEvents(events: ProjectEvent[], projectId: string): ProjectEvent[] {
+  return events.filter(event => event.projectId === projectId);
 }
 
 /**
@@ -145,12 +253,16 @@ export function buildPlannedTimeMap(
 
 /**
  * Calculate comprehensive project time metrics
+ * Supports both new (3 args) and legacy (4 args) signatures
  */
 export function calculateProjectTimeMetrics(
   project: ProgressProject,
   events: ProjectEvent[],
-  milestones: Milestone[] = []
+  milestonesOrHolidays?: Milestone[] | any[], // Accept milestones or holidays for backward compatibility
+  settings?: any // Legacy settings parameter
 ): ComprehensiveProjectTimeMetrics {
+  const milestones = Array.isArray(milestonesOrHolidays) && milestonesOrHolidays.length > 0 && 'id' in milestonesOrHolidays[0] ? milestonesOrHolidays as Milestone[] : [];
+  
   const projectEvents = filterProjectEvents(events, project.id);
   const currentDate = new Date();
   
@@ -164,13 +276,15 @@ export function calculateProjectTimeMetrics(
   const remainingHours = Math.max(0, totalEstimatedHours - totalCompletedHours);
   
   // Calculate time remaining
+  const startDate = new Date(project.startDate);
   const endDate = new Date(project.endDate);
   const daysRemaining = Math.max(0, Math.ceil((endDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24)));
+  const totalWorkDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
   const averageHoursPerDay = daysRemaining > 0 ? remainingHours / daysRemaining : 0;
   
   // Determine if project is on track (simplified calculation)
   const expectedProgressAtCurrentDate = totalEstimatedHours * 
-    (1 - (endDate.getTime() - currentDate.getTime()) / (endDate.getTime() - new Date(project.startDate).getTime()));
+    (1 - (endDate.getTime() - currentDate.getTime()) / (endDate.getTime() - startDate.getTime()));
   const isOnTrack = totalCompletedHours >= expectedProgressAtCurrentDate * 0.9; // 90% tolerance
   
   // Calculate efficiency
@@ -194,7 +308,14 @@ export function calculateProjectTimeMetrics(
     averageHoursPerDay,
     isOnTrack,
     efficiency,
-    milestoneProgress
+    milestoneProgress,
+    // Legacy compatibility properties
+    plannedTime: totalPlannedHours,
+    completedTime: totalCompletedHours,
+    totalBudgetedTime: totalEstimatedHours,
+    workDaysLeft: daysRemaining,
+    totalWorkDays: totalWorkDays,
+    originalDailyEstimateFormatted: `${averageHoursPerDay.toFixed(1)}h/day`
   };
 }
 
@@ -290,4 +411,98 @@ export function estimateProjectCompletionDate(
   estimatedCompletionDate.setDate(estimatedCompletionDate.getDate() + Math.ceil(daysToCompletion));
   
   return estimatedCompletionDate;
+}
+
+// ============================================================================
+// MIGRATED FROM TimelineBusinessLogicService (Legacy Compatibility Functions)
+// ============================================================================
+
+/**
+ * Calculate project metrics including working days and height
+ * Migrated from TimelineBusinessLogicService.ProjectMetricsCalculationService
+ */
+export function calculateProjectMetrics(
+  projectStartDate: Date,
+  projectEndDate: Date,
+  estimatedHours: number,
+  isWorkingDay: (date: Date) => boolean,
+  autoEstimateDays?: any,
+  settings?: any,
+  holidays?: any[]
+): {
+  exactDailyHours: number;
+  dailyHours: number;
+  dailyMinutes: number;
+  heightInPixels: number;
+  workingDaysCount: number;
+} {
+  const projectStart = new Date(projectStartDate);
+  const projectEnd = new Date(projectEndDate);
+
+  let workingDays: Date[];
+  
+  // Use auto-estimate working days if available, otherwise fall back to basic working day calculation
+  if (autoEstimateDays && settings && holidays) {
+    // Inline the auto-estimate working days calculation logic (copied from other services)
+    workingDays = [];
+    
+    for (let d = new Date(projectStart); d <= projectEnd; d.setDate(d.getDate() + 1)) {
+      const currentDate = new Date(d);
+      
+      // Check if it's a basic working day first
+      if (!isWorkingDay(currentDate)) {
+        continue;
+      }
+      
+      // Check if this day type is excluded in autoEstimateDays
+      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const dayName = dayNames[currentDate.getDay()];
+      
+      if (autoEstimateDays && autoEstimateDays[dayName] === false) {
+        continue; // Skip this day type
+      }
+      
+      workingDays.push(currentDate);
+    }
+  } else {
+    // Fallback to basic working day calculation
+    workingDays = [];
+    for (let d = new Date(projectStart); d <= projectEnd; d.setDate(d.getDate() + 1)) {
+      if (isWorkingDay(new Date(d))) {
+        workingDays.push(new Date(d));
+      }
+    }
+  }
+
+  const totalWorkingDays = workingDays.length;
+
+  // If no working days, don't divide by zero
+  if (totalWorkingDays === 0) {
+    return {
+      exactDailyHours: 0,
+      dailyHours: 0,
+      dailyMinutes: 0,
+      heightInPixels: 0,
+      workingDaysCount: 0
+    };
+  }
+
+  const exactHoursPerDay = estimatedHours / totalWorkingDays;
+  const dailyHours = Math.floor(exactHoursPerDay);
+  const dailyMinutes = Math.round((exactHoursPerDay - dailyHours) * 60);
+
+  // Calculate precise height in pixels (minimum 3px only if estimated hours > 0)
+  // Note: calculateProjectHeight needs to be imported from ui/TimelinePositioning
+  // For now, we'll use a simple calculation
+  const heightInPixels = estimatedHours > 0
+    ? Math.max(3, Math.min(exactHoursPerDay * 5, 40)) // Simple height calculation
+    : 0;
+
+  return {
+    exactDailyHours: exactHoursPerDay,
+    dailyHours,
+    dailyMinutes,
+    heightInPixels,
+    workingDaysCount: totalWorkingDays
+  };
 }

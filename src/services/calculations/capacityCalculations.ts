@@ -11,6 +11,7 @@ import {
 } from './dateCalculations';
 
 import { calculateEventDurationOnDate } from './eventCalculations';
+import { calculateWorkHoursTotal, calculateDayWorkHours } from './timelineCalculations';
 
 import type { CalendarEvent, WorkHour } from '@/types';
 
@@ -650,6 +651,56 @@ export function getProjectTimeAllocation(
   const overtimeHours = 0; // Would require work hours parameter
 
   return { plannedHours, overtimeHours };
+}
+
+/**
+ * Calculate committed hours from calendar events for a specific date and project
+ * Unified function for timeline business logic
+ */
+export function calculateCommittedHoursForDate(
+  date: Date,
+  projectId: string,
+  events: CalendarEvent[]
+): number {
+  return events
+    .filter(event => {
+      const eventStart = new Date(event.startTime);
+      const eventEnd = new Date(event.endTime);
+      
+      // Check if event occurs on the target date
+      const targetDate = new Date(date);
+      targetDate.setHours(0, 0, 0, 0);
+      const nextDay = new Date(targetDate);
+      nextDay.setDate(nextDay.getDate() + 1);
+      
+      return event.projectId === projectId &&
+        eventStart < nextDay &&
+        eventEnd >= targetDate;
+    })
+    .reduce((total, event) => {
+      return total + calculateEventDurationOnDate({ event, targetDate: date });
+    }, 0);
+}
+
+// ============================================================================
+// WORK HOURS VALIDATION FUNCTIONS (Migrated from TimelineBusinessLogicService)
+// ============================================================================
+
+/**
+ * Check if work slots array has any work hours configured
+ * Migrated from TimelineBusinessLogicService.WorkHoursValidationService
+ */
+export function hasWorkHoursConfigured(workSlots: any[]): boolean {
+  return Array.isArray(workSlots) && calculateWorkHoursTotal(workSlots) > 0;
+}
+
+/**
+ * Check if a specific day has work hours configured in settings
+ * Migrated from TimelineBusinessLogicService.WorkHoursValidationService
+ */
+export function dayHasWorkHoursConfigured(date: Date, settings: any): boolean {
+  const dayWorkHours = calculateDayWorkHours(date, settings);
+  return hasWorkHoursConfigured(dayWorkHours);
 }
 
 // ===== BACKWARDS COMPATIBILITY =====

@@ -226,6 +226,144 @@ export class UnifiedMilestoneService {
     
     return entry ? entry.estimatedHours : 0;
   }
+
+  /**
+   * Calculate valid date range for milestone positioning
+   * Used by: Milestone date picker, milestone validation
+   * Migrated from legacy MilestoneManagementService
+   */
+  static calculateMilestoneDateRange(params: {
+    projectStartDate: Date;
+    projectEndDate: Date;
+    existingMilestones: (Milestone | { id?: string; dueDate: Date })[];
+    currentMilestone?: { id?: string; dueDate: Date };
+  }): {
+    minDate: Date;
+    maxDate: Date;
+    isCurrentDateValid: boolean;
+    reason?: string;
+  } {
+    // Calculate safe positioning range
+    const minDate = new Date(params.projectStartDate);
+    minDate.setDate(minDate.getDate() + 1); // Day after project start
+    
+    const maxDate = new Date(params.projectEndDate);
+    maxDate.setDate(maxDate.getDate() - 1); // Day before project end
+
+    // Find safe date range based on existing milestones
+    let actualMinDate = minDate;
+    let actualMaxDate = maxDate;
+
+    if (params.existingMilestones.length > 0 && params.currentMilestone) {
+      const currentDate = params.currentMilestone.dueDate;
+      const sortedMilestones = params.existingMilestones
+        .filter(m => !params.currentMilestone || m.id !== params.currentMilestone.id)
+        .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+      
+      // Find appropriate gap for current milestone
+      for (let i = 0; i < sortedMilestones.length + 1; i++) {
+        const prevMilestone = i > 0 ? sortedMilestones[i - 1] : null;
+        const nextMilestone = i < sortedMilestones.length ? sortedMilestones[i] : null;
+        
+        const gapStart = prevMilestone ? new Date(prevMilestone.dueDate.getTime() + 24 * 60 * 60 * 1000) : minDate;
+        const gapEnd = nextMilestone ? new Date(nextMilestone.dueDate.getTime() - 24 * 60 * 60 * 1000) : maxDate;
+        
+        if (currentDate >= gapStart && currentDate <= gapEnd) {
+          actualMinDate = gapStart;
+          actualMaxDate = gapEnd;
+          break;
+        }
+      }
+    }
+
+    // Validate current milestone date if provided
+    let isCurrentDateValid = true;
+    let reason: string | undefined;
+    
+    if (params.currentMilestone) {
+      const validation = UnifiedMilestoneEntity.validateMilestoneDate(
+        params.currentMilestone.dueDate,
+        params.projectStartDate,
+        params.projectEndDate,
+        params.existingMilestones as Milestone[],
+        params.currentMilestone.id
+      );
+      
+      isCurrentDateValid = validation.isValid && 
+        params.currentMilestone.dueDate >= actualMinDate && 
+        params.currentMilestone.dueDate <= actualMaxDate;
+      
+      if (validation.errors.length > 0) {
+        reason = validation.errors.join(', ');
+      }
+    }
+
+    return {
+      minDate: actualMinDate,
+      maxDate: actualMaxDate,
+      isCurrentDateValid,
+      reason
+    };
+  }
+
+  /**
+   * Calculate appropriate default date for new milestone
+   * Used by: Milestone creation, milestone suggestions
+   * Migrated from legacy MilestoneManagementService
+   */
+  static calculateDefaultMilestoneDate(params: {
+    projectStartDate: Date;
+    projectEndDate: Date;
+    existingMilestones: (Milestone | { dueDate: Date })[];
+  }): Date {
+    const { projectStartDate, projectEndDate, existingMilestones } = params;
+    
+    // Start with the day after project start
+    let defaultDate = new Date(projectStartDate);
+    defaultDate.setDate(defaultDate.getDate() + 1);
+    
+    // If there are existing milestones, place this one after the last one
+    if (existingMilestones.length > 0) {
+      const sortedMilestones = [...existingMilestones]
+        .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+      const lastMilestone = sortedMilestones[sortedMilestones.length - 1];
+      const dayAfterLast = new Date(lastMilestone.dueDate);
+      dayAfterLast.setDate(dayAfterLast.getDate() + 1);
+      
+      // Use the later of: day after project start, or day after last milestone
+      if (dayAfterLast > defaultDate) {
+        defaultDate = dayAfterLast;
+      }
+    }
+    
+    // Ensure it's not beyond project end date
+    const projectEnd = new Date(projectEndDate);
+    projectEnd.setDate(projectEnd.getDate() - 1); // Day before project end
+    if (defaultDate > projectEnd) {
+      defaultDate = projectEnd;
+    }
+    
+    return defaultDate;
+  }
+
+  /**
+   * Generate ordinal number for display (e.g., 1st, 2nd, 3rd, 4th)
+   * Used by: Recurring milestone naming, milestone display
+   * Migrated from legacy MilestoneManagementService
+   */
+  static generateOrdinalNumber(num: number): string {
+    const suffixes = ['th', 'st', 'nd', 'rd'];
+    const remainder = num % 100;
+    
+    if (remainder >= 11 && remainder <= 13) {
+      return num + 'th';
+    }
+    
+    const lastDigit = num % 10;
+    const suffix = suffixes[lastDigit] || suffixes[0];
+    
+    return num + suffix;
+  }
 }
 
 // ============================================================================

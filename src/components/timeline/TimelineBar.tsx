@@ -18,8 +18,8 @@ import {
   calculateVisualProjectDates as calculateVisualProjectDatesNew,
   calculateWeekProjectIntersection as calculateWeekProjectIntersectionNew,
   calculateWorkHoursTotal as calculateWorkHoursTotalNew,
-  ProjectDaysCalculationService, 
-  ProjectMetricsCalculationService
+  calculateProjectDays,
+  calculateLegacyProjectMetrics
 } from '@/services';
 import { ProjectIconIndicator, ProjectMilestones } from '@/components';
 import { useCachedWorkingDayChecker } from '@/lib/workingDayCache';
@@ -145,7 +145,7 @@ export const TimelineBar = memo(function TimelineBar({
   const projectDays = useMemo(() => {
     try {
       console.log('TimelineBar: Calculating project days');
-      return ProjectDaysCalculationService.calculateProjectDays(
+      return calculateProjectDays(
         project.startDate,
         project.endDate,
         project.continuous,
@@ -200,7 +200,7 @@ export const TimelineBar = memo(function TimelineBar({
 
   // Memoize project metrics calculation using service
   const projectMetrics = useMemo(() => {
-    return ProjectMetricsCalculationService.calculateProjectMetrics(
+    return calculateLegacyProjectMetrics(
       project.startDate,
       project.endDate,
       project.estimatedHours,

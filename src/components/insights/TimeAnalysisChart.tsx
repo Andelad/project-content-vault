@@ -2,8 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
-import { calculateWorkHourCapacity, getWorkHoursCapacityForPeriod } from '@/services';
-import { WeeklyCapacityCalculationService } from '@/services';
+import { calculateWorkHourCapacity, getWorkHoursCapacityForPeriod, calculateWeeklyCapacity } from '@/services';
 import {
   BarChart,
   Bar,
@@ -90,7 +89,7 @@ export function TimeAnalysisChart({
 
   // Calculate weekly work hours total
   const weeklyCapacity = useMemo(() => {
-    return WeeklyCapacityCalculationService.calculateWeeklyCapacity(settings.weeklyWorkHours);
+    return calculateWeeklyCapacity(settings.weeklyWorkHours);
   }, [settings.weeklyWorkHours]);
 
   // Format timeframe for display

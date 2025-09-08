@@ -16,9 +16,8 @@ import {
   calculateRecurringMilestoneCount, 
   calculateRecurringTotalAllocation, 
   detectRecurringPattern, 
-  MilestoneManagementService, 
-  calculateMilestoneInterval,
-  // NEW: Domain-driven imports
+  // NEW: Unified service imports (replacing legacy MilestoneManagementService)
+  UnifiedMilestoneService,
   UnifiedMilestoneEntity,
   UnifiedProjectEntity,
   MilestoneOrchestrator,
@@ -53,6 +52,26 @@ const getOrdinalNumber = (num: number): string => {
 const getWeekOfMonthName = (week: number): string => {
   const weeks = ['', '1st', '2nd', '3rd', '4th', '2nd last', 'last'];
   return weeks[week] || 'last';
+};
+
+// Compatibility function for calculateMilestoneInterval with the expected signature
+const calculateMilestoneInterval = (
+  firstDate: Date, 
+  secondDate: Date
+): { type: 'daily' | 'weekly' | 'monthly' | 'custom'; interval: number } => {
+  const daysDifference = Math.round((secondDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24));
+  
+  if (daysDifference === 1) {
+    return { type: 'daily', interval: 1 };
+  } else if (daysDifference === 7) {
+    return { type: 'weekly', interval: 1 };
+  } else if (daysDifference >= 28 && daysDifference <= 31) {
+    return { type: 'monthly', interval: 1 };
+  } else if (daysDifference % 7 === 0) {
+    return { type: 'weekly', interval: daysDifference / 7 };
+  } else {
+    return { type: 'custom', interval: daysDifference };
+  }
 };
 
 interface ProjectMilestoneSectionProps {
@@ -118,7 +137,8 @@ export function ProjectMilestoneSection({
   localMilestonesState,
   isCreatingProject = false
 }: ProjectMilestoneSectionProps) {
-  const { milestones, addMilestone, updateMilestone, deleteMilestone, showMilestoneSuccessToast, normalizeMilestoneOrders, refetchMilestones } = useProjectContext();
+  const { milestones: contextMilestones, addMilestone, updateMilestone, deleteMilestone, showMilestoneSuccessToast, normalizeMilestoneOrders, refetchMilestones } = useProjectContext();
+  const milestones = Array.isArray(contextMilestones) ? contextMilestones : [];
   const { toast } = useToast();
   const [isExpanded, setIsExpanded] = useState(false);
   const [localMilestones, setLocalMilestones] = useState<LocalMilestone[]>([]);
@@ -417,9 +437,9 @@ export function ProjectMilestoneSection({
       return `${months[date.getMonth()]} ${date.getDate()}`;
     };
 
-    // Calculate the valid date range for this milestone using service
+    // Calculate the valid date range for this milestone using unified service
     const getValidDateRange = () => {
-      const result = MilestoneManagementService.calculateMilestoneDateRange({
+      const result = UnifiedMilestoneService.calculateMilestoneDateRange({
         projectStartDate,
         projectEndDate,
         existingMilestones: projectMilestones,
@@ -530,15 +550,15 @@ export function ProjectMilestoneSection({
   const projectMilestones = useMemo(() => {
     if (isCreatingProject && localMilestonesState) {
       // For new projects, use the provided local state
-      return localMilestonesState.milestones;
+      return localMilestonesState.milestones || [];
     } else if (projectId) {
       // For existing projects, combine database milestones with any local ones
-      const existing = milestones.filter(m => m.projectId === projectId);
+      const existing = Array.isArray(milestones) ? milestones.filter(m => m.projectId === projectId) : [];
       const newMilestones = localMilestones.filter(m => 'isNew' in m && m.isNew);
       return [...existing, ...newMilestones] as (Milestone | LocalMilestone)[];
     } else {
       // Fallback: just local milestones
-      return localMilestones;
+      return localMilestones || [];
     }
   }, [milestones, projectId, localMilestones, isCreatingProject, localMilestonesState]);
 
@@ -603,9 +623,9 @@ export function ProjectMilestoneSection({
     return 0;
   }, [recurringMilestone, projectStartDate, projectEndDate, projectContinuous]);
 
-  // Calculate budget analysis using service
+  // Calculate budget analysis using unified orchestrator
   const budgetAnalysis = useMemo(() => {
-    return MilestoneManagementService.analyzeMilestoneBudget(
+    return MilestoneOrchestrator.analyzeMilestoneBudget(
       projectMilestones,
       projectEstimatedHours,
       totalRecurringAllocation
@@ -638,9 +658,9 @@ export function ProjectMilestoneSection({
   const suggestedBudgetFromMilestones = budgetAnalysis.suggestedBudget;
 
   const addNewMilestone = () => {
-    // Calculate the appropriate default date for the new milestone using service
+    // Calculate the appropriate default date for the new milestone using unified service
     const getDefaultMilestoneDate = () => {
-      return MilestoneManagementService.calculateDefaultMilestoneDate({
+      return UnifiedMilestoneService.calculateDefaultMilestoneDate({
         projectStartDate,
         projectEndDate,
         existingMilestones: projectMilestones

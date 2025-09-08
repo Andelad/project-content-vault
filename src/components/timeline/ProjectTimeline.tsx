@@ -4,7 +4,7 @@ import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useTimelineContext } from '../../contexts/TimelineContext';
 import { calculateProjectDuration } from '@/services';
 import { calculateProjectHeight } from '@/services';
-import { CommittedHoursCalculationService } from '@/services';
+import { calculateCommittedHoursForDate } from '@/services';
 import { calculateProjectBarPosition } from '@/services/ui/TimelinePositioning';
 
 interface ProjectTimelineProps {
@@ -63,7 +63,7 @@ export function ProjectTimeline({ project, dates, currentDate }: ProjectTimeline
 
   // Get committed hours from calendar events using service
   const getCommittedHours = (date: Date) => {
-    return CommittedHoursCalculationService.calculateCommittedHoursForDate(
+    return calculateCommittedHoursForDate(
       date,
       project.id,
       events

@@ -31,7 +31,7 @@ export * from './performance';      // Performance optimization - dragPerformanc
 
 // 🚧 Legacy Services (Temporary - During Migration)
 // These will be removed once migration to new architecture is complete
-export { TimelinePositioningService } from './legacy/timeline/TimelinePositioningService';
+// TimelinePositioningService migrated to ui/TimelinePositioning.ts
 // ProjectCalculationService migrated to UnifiedProjectService
 export { WorkHourCalculationService } from './calculations/workHourCalculations';
 
@@ -50,6 +50,13 @@ export { UnifiedMilestoneService } from './unified/UnifiedMilestoneService';
 export { CalendarIntegrationService, type ImportResult } from './unified/UnifiedCalendarService';
 export { transformFullCalendarToCalendarEvent } from './unified/UnifiedEventTransformService';
 export { clearTimelineCache, generateWorkHoursForDate, calculateAvailabilityReduction, calculateProjectWorkingDays } from './unified/UnifiedEventWorkHourService';
+// Project progress analysis (legacy compatibility)
+export { 
+  analyzeProjectProgressLegacy as analyzeProjectProgress,
+  type ProgressGraphCalculationOptions,
+  type ProgressDataPoint,
+  type ProjectProgressAnalysis as ProjectProgressAnalysisLegacy
+} from './unified/UnifiedProjectProgressService';
 
 // 🔧 Frequently Used Functions (Stable API)
 export { 
@@ -85,11 +92,19 @@ export {
 // These exports maintain backward compatibility during the migration process
 // Once migration is complete, all functionality will be available through the new layers
 
-// Essential legacy services still needed by components
-export { WorkHoursValidationService } from './legacy/timeline/TimelineBusinessLogicService';
-export { WeeklyCapacityCalculationService } from './legacy/timeline/TimelineBusinessLogicService';
-export { MilestoneManagementService } from './legacy/milestones/milestoneManagementService';
-export { TimelineCalculationService } from './legacy/timeline/TimelineCalculationService';
+// === TEMPORARY LEGACY EXPORTS FOR COMPATIBILITY ===
+// Re-adding essential legacy service exports that components still need
+export { 
+  WeeklyCapacityCalculationService, 
+  WorkHoursCalculationService,
+  ProjectDaysCalculationService,
+  ProjectMetricsCalculationService,
+  CommittedHoursCalculationService,
+  WorkHoursValidationService 
+} from './legacy/timeline/TimelineBusinessLogicService';
+
+// MilestoneManagementService migrated to unified/UnifiedMilestoneService.ts + orchestrators/MilestoneOrchestrator.ts
+// TimelineCalculationService migrated to calculations/timelineCalculations.ts
 
 // New architecture services - maintain backward compatibility
 export { TimelineViewport, TimelineViewport as TimelineViewportService } from './ui/TimelineViewport';
@@ -117,7 +132,8 @@ export function calculateEventDurationOnDateLegacy(event: any, targetDate: Date)
 }
 export { calculateWorkHourCapacity, getWorkHoursCapacityForPeriod } from './calculations/capacityCalculations';
 export { calculateProjectDuration, calculateProjectTimeMetrics, buildPlannedTimeMap, getPlannedTimeUpToDate, generateProgressDataPoints, calculateProjectVelocity, estimateProjectCompletionDate } from './calculations/projectProgressCalculations';
-export { memoizedGetProjectTimeAllocation, calculateEventStyle, getProjectTimeAllocation } from './legacy/events/eventWorkHourIntegrationService';
+export { isPlannedTimeCompleted, getPlannedTimeCompletionStats } from './calculations/completionCalculations';
+export { memoizedGetProjectTimeAllocation, calculateEventStyle, getProjectTimeAllocation } from './unified/UnifiedEventWorkHourService';
 export { processEventOverlaps, calculateElapsedTime, createTimeRange, validateEventForSplit, type EventSplitResult, type Event, type TimeRange } from './validators/eventValidations';
 
 // Additional legacy exports (organized by domain)
@@ -145,11 +161,13 @@ export {
   detectRecurringPattern,
   generateRecurringMilestoneDates
 } from './calculations/milestoneCalculations';
-export { getMilestoneSegmentForDate, calculateMilestoneInterval, calculateMilestoneSegments, getEstimatedHoursForDate, getMilestoneForDate, getMilestonesInDateRange, type MilestoneSegment } from './calculations/milestoneCalculations';
+export { getMilestoneSegmentForDate, calculateMilestoneInterval, calculateMilestoneSegments, getEstimatedHoursForDate, getMilestoneForDate, getMilestonesInDateRange, type MilestoneSegment } from './legacy/milestones/milestoneUtilitiesService';
 export { MilestoneCalculationService, type MilestoneValidationResult, type LegacyMilestone, type RecurringPattern } from './calculations/milestoneCalculations';
-export { analyzeProjectProgress, type ProjectProgressAnalysis } from './legacy/projects/projectProgressGraphService';
-export { wouldOverlapHolidays, isHolidayDateCapacity } from './calculations/capacityCalculations';
-export { CommittedHoursCalculationService, ProjectDaysCalculationService, ProjectMetricsCalculationService, WorkHoursCalculationService } from './legacy/timeline/TimelineBusinessLogicService';
+// Legacy project progress analysis - migrated to unified service with compatibility wrapper
+export { wouldOverlapHolidays, isHolidayDateCapacity, calculateCommittedHoursForDate, hasWorkHoursConfigured, dayHasWorkHoursConfigured } from './calculations/capacityCalculations';
+export { calculateProjectDays, calculateWorkHoursTotal, calculateDayWorkHours, calculateTotalDayWorkHours } from './calculations/timelineCalculations';
+export { calculateDailyCapacity } from './calculations/insightCalculations';
+export { calculateProjectMetrics as calculateLegacyProjectMetrics } from './calculations/projectProgressCalculations';
 // CoreProjectCalculationService migrated to UnifiedProjectService
 export { 
   calculateFutureCommitments, 
@@ -163,7 +181,7 @@ export { calculateDaysDelta, createSmoothDragAnimation, debounceDragUpdate, type
 export { formatTimeForDisplay, formatDurationFromHours } from './calculations/workHourCalculations';
 export { handleWorkHourCreationStart, handleWorkHourCreationMove, handleWorkHourCreationComplete } from './calculations/workHourCalculations';
 export { getWorkHourOverlapInfo, generateWorkHourPreviewStyle, formatDurationPreview, getWorkHourCreationCursor, shouldAllowWorkHourCreation, type WorkHourCreateState } from './calculations/workHourCalculations';
-export { type PositionCalculation } from './legacy/timeline/TimelinePositioningService';
+// PositionCalculation type migrated to ui/TimelinePositioning.ts
 export { type ComprehensiveProjectTimeMetrics, type ProgressProject, type ProjectEvent as ProgressProjectEvent } from './calculations/projectProgressCalculations';
 export { 
   calculateTimelinePositions, 

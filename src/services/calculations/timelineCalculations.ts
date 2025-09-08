@@ -498,3 +498,73 @@ export function calculateWeekProjectIntersection(
 
   return { intersects: true, workingDaysInWeek, weekStart, weekEnd };
 }
+
+// ============================================================================
+// MIGRATED FROM TimelineBusinessLogicService (Legacy Compatibility Functions)
+// ============================================================================
+
+/**
+ * Calculate the visible project days within viewport bounds
+ * Migrated from TimelineBusinessLogicService.ProjectDaysCalculationService
+ */
+export function calculateProjectDays(
+  projectStartDate: Date,
+  projectEndDate: Date,
+  isContinuous: boolean,
+  viewportStart: Date,
+  viewportEnd: Date
+): Date[] {
+  // Normalize project dates to remove time components
+  const projectStart = new Date(projectStartDate);
+  projectStart.setHours(0, 0, 0, 0);
+
+  // For continuous projects, use viewport end as the effective end date
+  // This prevents infinite rendering while still showing the project as ongoing
+  const projectEnd = isContinuous
+    ? new Date(viewportEnd)
+    : new Date(projectEndDate);
+  projectEnd.setHours(0, 0, 0, 0);
+
+  // Normalize viewport dates
+  const normalizedViewportStart = new Date(viewportStart);
+  normalizedViewportStart.setHours(0, 0, 0, 0);
+  const normalizedViewportEnd = new Date(viewportEnd);
+  normalizedViewportEnd.setHours(0, 0, 0, 0);
+
+  if (projectEnd < normalizedViewportStart || projectStart > normalizedViewportEnd) {
+    return [];
+  }
+
+  const projectDays = [];
+  const visibleStart = projectStart < normalizedViewportStart ? normalizedViewportStart : projectStart;
+  const visibleEnd = projectEnd > normalizedViewportEnd ? normalizedViewportEnd : projectEnd;
+
+  for (let d = new Date(visibleStart); d <= visibleEnd; d.setDate(d.getDate() + 1)) {
+    const dayToAdd = new Date(d);
+    dayToAdd.setHours(0, 0, 0, 0); // Normalize time component
+    projectDays.push(dayToAdd);
+  }
+
+  return projectDays;
+}
+
+/**
+ * Calculate work hours for a specific day from settings
+ * Migrated from TimelineBusinessLogicService.WorkHoursCalculationService
+ */
+export function calculateDayWorkHours(date: Date, settings: any): any[] {
+  if (!settings?.weeklyWorkHours) return [];
+
+  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const dayName = dayNames[date.getDay()] as keyof typeof settings.weeklyWorkHours;
+  return settings.weeklyWorkHours[dayName] || [];
+}
+
+/**
+ * Calculate total work hours for a specific day
+ * Migrated from TimelineBusinessLogicService.WorkHoursCalculationService
+ */
+export function calculateTotalDayWorkHours(date: Date, settings: any): number {
+  const dayWorkHours = calculateDayWorkHours(date, settings);
+  return calculateWorkHoursTotal(dayWorkHours);
+}

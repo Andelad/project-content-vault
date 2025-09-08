@@ -4,10 +4,13 @@
  * Solves the project bar calculation inconsistency issue
  */
 
-import type { TimelinePositionCalculation } from '@/services/legacy/timeline/TimelinePositioningService';
-
-// Re-export the type for external use
-export type { TimelinePositionCalculation };
+// Timeline position calculation result type
+export type TimelinePositionCalculation = {
+  baselineStartPx: number;
+  baselineWidthPx: number;
+  circleLeftPx: number;
+  triangleLeftPx: number;
+};
 
 // ============================================================================
 // CORE TIMELINE POSITIONING (Migrated from TimelinePositioningService)

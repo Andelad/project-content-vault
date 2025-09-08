@@ -340,4 +340,42 @@ export class MilestoneOrchestrator {
   static formatValidationWarnings(result: MilestoneOperationResult): string[] {
     return result.warnings;
   }
+
+  /**
+   * Analyze milestone budget allocation
+   * Used by: Milestone budget analysis, project budget validation
+   * Migrated from legacy MilestoneManagementService
+   */
+  static analyzeMilestoneBudget(
+    milestones: (Milestone | { timeAllocation: number })[],
+    projectEstimatedHours: number,
+    recurringAllocation: number = 0
+  ): {
+    totalRegularAllocation: number;
+    totalRecurringAllocation: number;
+    totalAllocation: number;
+    isOverBudget: boolean;
+    budgetUtilization: number;
+    suggestedBudget: number;
+    remainingBudget: number;
+  } {
+    const totalRegularAllocation = milestones.reduce((sum, m) => sum + m.timeAllocation, 0);
+    const totalRecurringAllocation = recurringAllocation;
+    const totalAllocation = totalRegularAllocation + totalRecurringAllocation;
+    
+    // Calculate budget utilization as percentage (0-100)
+    const budgetUtilization = projectEstimatedHours > 0 ? 
+      (totalAllocation / projectEstimatedHours) * 100 : 0;
+    
+    return {
+      totalRegularAllocation,
+      totalRecurringAllocation,
+      totalAllocation,
+      isOverBudget: budgetUtilization > 100,
+      budgetUtilization: budgetUtilization / 100, // Convert to decimal for compatibility
+      suggestedBudget: budgetUtilization > 100 ? 
+        Math.ceil(totalAllocation * 1.2) : projectEstimatedHours,
+      remainingBudget: Math.max(0, projectEstimatedHours - totalAllocation)
+    };
+  }
 }
