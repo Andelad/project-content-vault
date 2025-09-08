@@ -15,7 +15,7 @@ import {
   type EventSplitResult 
 } from '@/services';
 import { TimeTrackerCalculationService } from '@/services';
-import { timeTrackingSyncService } from '@/services/timeTrackingSyncService';
+import { timeTrackingService } from '@/services/unified/timeTrackingService';
 import { supabase } from '@/integrations/supabase/client';
 
 interface TimeTrackerProps {
@@ -24,7 +24,7 @@ interface TimeTrackerProps {
 
 export function TimeTracker({ className }: TimeTrackerProps) {
   console.log('🎭 TimeTracker component is rendering...');
-  console.log('🔍 timeTrackingSyncService:', timeTrackingSyncService);
+  console.log('🔍 timeTrackingService:', timeTrackingService);
   
   const { projects } = useProjectContext();
   const { events, addEvent, updateEvent, deleteEvent } = usePlannerContext();
@@ -52,7 +52,7 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       // First try to load from database (authoritative source)
       const { data: { user } } = await supabase.auth.getUser();
       if (user?.id) {
-        const dbState = await timeTrackingSyncService.loadStateFromDatabase();
+        const dbState = await timeTrackingService.loadState();
         if (dbState && dbState.isTracking && dbState.startTime && dbState.eventId) {
           // Use synced seconds if available, otherwise calculate from start time
           const elapsedSeconds = dbState.currentSeconds ?? 
@@ -245,11 +245,11 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       }
     };
 
-    timeTrackingSyncService.setOnStateChangeCallback(handleStateChange);
+    timeTrackingService.setOnStateChangeCallback(handleStateChange);
 
     return () => {
       // Cleanup listener
-      timeTrackingSyncService.setOnStateChangeCallback(undefined);
+      timeTrackingService.setOnStateChangeCallback(undefined);
     };
   }, []); // Remove dependency on isTimeTracking to prevent multiple re-registrations
 
@@ -312,15 +312,15 @@ export function TimeTracker({ className }: TimeTrackerProps) {
     // Sync to database and other windows
     const { data: { user } } = await supabase.auth.getUser();
     if (user?.id) {
-      console.log('🌐 About to call syncStateToDatabase...');
+      console.log('🌐 About to call syncState...');
       try {
-        await timeTrackingSyncService.syncStateToDatabase({
+        await timeTrackingService.syncState({
           ...trackingData,
-          lastUpdated: new Date()
+          lastUpdateTime: new Date()
         });
-        console.log('✅ syncStateToDatabase completed');
+        console.log('✅ syncState completed');
       } catch (error) {
-        console.error('❌ syncStateToDatabase failed:', error);
+        console.error('❌ syncState failed:', error);
       }
     } else {
       console.log('⚠️ No user, skipping database sync');

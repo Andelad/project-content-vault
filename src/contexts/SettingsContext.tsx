@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { Settings } from '@/types/core';
 import { useSettings as useSettingsHook } from '@/hooks/useSettings';
-import { timeTrackingSyncService } from '@/services/timeTrackingSyncService';
+import { timeTrackingService } from '@/services/unified/timeTrackingService';
 import { supabase } from '@/integrations/supabase/client';
 
 // Individual work hour override for specific dates
@@ -61,23 +61,23 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (user?.id) {
-        timeTrackingSyncService.setUserId(user.id);
+        timeTrackingService.setUserId(user.id);
         
         // Set up callback to sync state changes from other windows
-        timeTrackingSyncService.setOnStateChangeCallback((syncedState) => {
+        timeTrackingService.setOnStateChangeCallback((syncedState) => {
           setIsTimeTracking(syncedState.isTracking);
           // Update other relevant state if needed
         });
 
         // Load initial state from database
-        const dbState = await timeTrackingSyncService.loadStateFromDatabase();
+        const dbState = await timeTrackingService.loadState();
         if (dbState) {
           setIsTimeTracking(dbState.isTracking);
           // Set other state values as needed
         }
 
         // Set up real-time subscription
-        const subscription = await timeTrackingSyncService.setupRealtimeSubscription();
+        const subscription = await timeTrackingService.setupRealtimeSubscription();
         setRealtimeSubscription(subscription);
       }
     };
@@ -97,9 +97,9 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     
     const { data: { user } } = await supabase.auth.getUser();
     if (user?.id) {
-      await timeTrackingSyncService.syncStateToDatabase({
+      await timeTrackingService.syncState({
         isTracking,
-        lastUpdated: new Date()
+        lastUpdateTime: new Date()
         // Add other relevant state
       });
     }
