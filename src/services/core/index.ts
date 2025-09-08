@@ -15,9 +15,6 @@ export * from './calculations/projectCalculations';
 // Explicit re-export to resolve datesOverlap ambiguity
 export { datesOverlap } from './calculations/dateCalculations';
 
-// Orchestrator services
-export * from './orchestrators/TimeAllocationOrchestrator';
-
 // Domain entities
 export * from './domain/MilestoneEntity';
 export * from './domain/ProjectEntity';

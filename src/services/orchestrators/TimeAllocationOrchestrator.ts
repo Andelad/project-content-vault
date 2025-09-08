@@ -5,7 +5,7 @@
 
 import { CalendarEvent, Milestone } from '@/types/core';
 import { memoizedGetProjectTimeAllocation, getMilestoneSegmentForDate, type MilestoneSegment, isPlannedTimeCompleted } from '@/services';
-import { HeightCalculationService } from '../../legacy/timeline/HeightCalculationService';
+import { HeightCalculationService } from '../legacy/timeline/HeightCalculationService';
 
 export interface TimeAllocationResult {
   type: 'planned' | 'auto-estimate' | 'none';

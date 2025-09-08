@@ -145,8 +145,10 @@ export { formatDurationFromHours } from './legacy/work-hours/workHourCreationSer
 // Context exports
 // export { PlannerV2CalculationService } from './legacy/projects/ProjectCalculationService';
 
+// Orchestrators - All workflow coordination
+export * from './orchestrators';
+
 // TODO: Add back these exports once we fix the module resolution issues:
-// export * from './orchestrators';
 // export * from './validators';
 // export * from './repositories';
 // export * from './ui';
@@ -162,10 +164,6 @@ export { formatDurationFromHours } from './legacy/work-hours/workHourCreationSer
 // NEW MISSING EXPORTS - Adding systematically
 // Calendar integration
 export { CalendarIntegrationService, type ImportResult } from './unified/UnifiedCalendarService';
-
-// Milestone orchestrators
-export { MilestoneOrchestrator } from './orchestrators/MilestoneOrchestrator';
-export { ProjectOrchestrator } from './orchestrators/ProjectOrchestrator';
 
 // Work schedule functions - corrected paths
 export { formatWorkSlotDurationDisplay } from './legacy/work-hours/workHourCreationService';
