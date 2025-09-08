@@ -1,7 +1,4 @@
 // Legacy Timeline Services
-export * from './AvailabilityCircleSizingService';
-export * from './HeightCalculationService';
-export * from './HolidayCalculationService';
 export * from './TimeAllocationService';
 export * from './TimelineBusinessLogicService';
 export * from './TimelineCalculationService';

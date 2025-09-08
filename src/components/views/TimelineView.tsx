@@ -14,7 +14,7 @@ import { useProjectContext } from '../../contexts/ProjectContext';
 import { useTimelineContext } from '../../contexts/TimelineContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
-import { TimelineViewportService, HolidayCalculationService, ProjectValidationService } from '@/services';
+import { TimelineViewportService, expandHolidayDates, ProjectValidationService } from '@/services';
 import { useTimelineData } from '../../hooks/useTimelineData';
 import { useDynamicViewportDays } from '../../hooks/useDynamicViewportDays';
 import { 
@@ -162,7 +162,7 @@ export function TimelineView() {
   // Expand holiday ranges into individual Date objects for fast lookup by the markers
   const holidayDates = useMemo(() => {
     const holidaysWithName = holidays.map(h => ({ ...h, name: h.title || 'Holiday' }));
-    return HolidayCalculationService.expandHolidayDates(holidaysWithName);
+    return expandHolidayDates(holidaysWithName);
   }, [holidays]);
 
   // Debug performance logging using service
@@ -1011,7 +1011,7 @@ export function TimelineView() {
                   {/* Full-column holiday overlays that span the full scroll window */}
                   <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }}>
                     {holidays && holidays.length > 0 && holidays.map(holiday => {
-                      const expandedDates = HolidayCalculationService.expandHolidayDates([{ ...holiday, name: holiday.title || 'Holiday' }]);
+                      const expandedDates = expandHolidayDates([{ ...holiday, name: holiday.title || 'Holiday' }]);
                       const columnWidth = mode === 'weeks' ? 77 : 40;
                       const dayWidth = mode === 'weeks' ? 11 : columnWidth; // 11px per day in weeks mode
                       const totalDays = mode === 'weeks' ? dates.length * 7 : dates.length;
@@ -1021,7 +1021,7 @@ export function TimelineView() {
                       timelineStart.setHours(0,0,0,0);
                       const msPerDay = 24 * 60 * 60 * 1000;
 
-                      const startDay = Math.floor((expandedDates[0].date.getTime() - timelineStart.getTime()) / msPerDay);
+                      const startDay = Math.floor((expandedDates[0].getTime() - timelineStart.getTime()) / msPerDay);
                       const holidayDays = expandedDates.length;
 
                       const startDayIndex = Math.max(0, startDay);
@@ -1348,7 +1348,7 @@ export function TimelineView() {
                   {/* Full-column holiday overlays for availability card */}
                   <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }}>
                     {holidays && holidays.length > 0 && holidays.map(holiday => {
-                      const expandedDates = HolidayCalculationService.expandHolidayDates([{ ...holiday, name: holiday.title || 'Holiday' }]);
+                      const expandedDates = expandHolidayDates([{ ...holiday, name: holiday.title || 'Holiday' }]);
                       const columnWidth = mode === 'weeks' ? 77 : 40;
                       const dayWidth = mode === 'weeks' ? 11 : columnWidth; // 11px per day in weeks mode
                       const totalDays = mode === 'weeks' ? dates.length * 7 : dates.length;
@@ -1358,7 +1358,7 @@ export function TimelineView() {
                       timelineStart.setHours(0,0,0,0);
                       const msPerDay = 24 * 60 * 60 * 1000;
 
-                      const startDay = Math.floor((expandedDates[0].date.getTime() - timelineStart.getTime()) / msPerDay);
+                      const startDay = Math.floor((expandedDates[0].getTime() - timelineStart.getTime()) / msPerDay);
                       const holidayDays = expandedDates.length;
 
                       const startDayIndex = Math.max(0, startDay);

@@ -5,7 +5,6 @@ export * from './projectOverlapService';
 export * from './projectProgressCalculationService';
 export * from './projectProgressGraphService';
 export * from './projectProgressService';
-export * from './projectStatusService';
 export * from './projectWorkingDaysService';
 
 // Explicit re-exports to resolve naming conflicts

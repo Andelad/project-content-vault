@@ -155,7 +155,7 @@ import { UnifiedProjectService } from '@/services';
 #### Work Hour Services:
 - ✅ **`WorkHourCalculationService`** → `calculations/workHourCalculations.ts` (**COMPLETED** - September 8, 2025)
 - ❌ `WorkHoursValidationService` → `validators/WorkHourValidator.ts`
-- ❌ `WeeklyCapacityCalculationService` → `calculations/CapacityCalculations.ts`
+- ✅ **`WorkHourCapacityService`** → `calculations/capacityCalculations.ts` (**COMPLETED** - September 8, 2025)
 
 #### Milestone Services:
 - ❌ `MilestoneManagementService` → `unified/UnifiedMilestoneService.ts`
@@ -166,8 +166,8 @@ import { UnifiedProjectService } from '@/services';
 
 ### 📈 **Migration Statistics**
 - **Total Services**: ~32 legacy service classes across 88 files
-- **Completed**: 9 services (28%)
-- **Remaining**: ~23 services (72%)
+- **Completed**: 10 services (31%)
+- **Remaining**: ~22 services (69%)
 - **Risk Distribution**:
   - LOW RISK: Timeline positioning/calculation services, Project validation services
   - MEDIUM RISK: Project/work hour business logic

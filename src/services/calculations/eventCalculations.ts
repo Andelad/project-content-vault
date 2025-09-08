@@ -1,13 +1,12 @@
 /**
- * Event Duration Service
- * Handles duration calculations and formatting for calendar events
- * Uses single source of truth for all calculations
+ * Event Duration Calculations
+ * Pure business logic for calendar event duration calculations and formatting
+ * 
+ * Migrated from legacy/events/eventDurationService
+ * Enhanced with better type safety and comprehensive documentation
  */
 
-import { 
-  formatDuration as coreFormatDuration 
-} from '@/services/calculations/dateCalculations';
-
+import { formatDuration as coreFormatDuration } from './dateCalculations';
 import type { CalendarEvent } from '@/types';
 
 export interface EventDurationParams {
@@ -20,12 +19,25 @@ export interface EventDurationParams {
   currentTime?: Date;
 }
 
+export interface LiveTrackingResult {
+  totalMinutes: number;
+  dateMinutes: number;
+}
+
 /**
  * Calculate event duration on a specific date (handles midnight crossing)
- * This should match the existing calculateEventDurationOnDate function behavior
+ * This handles events that span multiple days by calculating only the portion
+ * that occurs on the target date.
+ * 
+ * @param params - Event duration calculation parameters
+ * @returns Duration in hours for the target date
  */
 export function calculateEventDurationOnDate(params: EventDurationParams): number {
   const { event, targetDate, currentTime = new Date() } = params;
+  
+  if (!event.startTime) {
+    return 0;
+  }
   
   // If event has no end time and isn't completed, calculate from start to current time
   const eventStart = new Date(event.startTime);
@@ -54,8 +66,17 @@ export function calculateEventDurationOnDate(params: EventDurationParams): numbe
 
 /**
  * Calculate total event duration across multiple dates
+ * Useful for getting the total time span of an event across a date range
+ * 
+ * @param event - Event to calculate duration for
+ * @param dates - Array of dates to check
+ * @returns Total duration in hours across all dates
  */
 export function calculateEventTotalDuration(event: EventDurationParams['event'], dates: Date[]): number {
+  if (!dates.length) {
+    return 0;
+  }
+  
   return dates.reduce((total, date) => {
     return total + calculateEventDurationOnDate({ event, targetDate: date });
   }, 0);
@@ -63,12 +84,16 @@ export function calculateEventTotalDuration(event: EventDurationParams['event'],
 
 /**
  * Calculate live tracking duration for an ongoing event
+ * Provides both total elapsed time and time specific to the target date
+ * 
+ * @param params - Live tracking calculation parameters
+ * @returns Object with total minutes and date-specific minutes
  */
 export function calculateLiveTrackingDuration(params: {
   event: EventDurationParams['event'];
   targetDate: Date;
   currentTime: Date;
-}): { totalMinutes: number; dateMinutes: number } {
+}): LiveTrackingResult {
   const { event, targetDate, currentTime } = params;
   
   if (!event.startTime) {
@@ -100,11 +125,20 @@ export function calculateLiveTrackingDuration(params: {
 
 /**
  * Aggregate event durations by date
+ * Creates a summary of total event durations for each date
+ * 
+ * @param events - Array of events to aggregate
+ * @param dates - Array of dates to check
+ * @returns Record mapping date strings (YYYY-MM-DD) to total minutes
  */
 export function aggregateEventDurationsByDate(
   events: EventDurationParams['event'][],
   dates: Date[]
 ): Record<string, number> {
+  if (!events.length || !dates.length) {
+    return {};
+  }
+  
   const totals: Record<string, number> = {};
   
   dates.forEach(date => {
@@ -128,16 +162,23 @@ export function aggregateEventDurationsByDate(
 
 /**
  * Format duration from hours to human-readable string
- * DELEGATES to single source of truth
+ * Delegates to the centralized duration formatting function
+ * 
+ * @param hours - Duration in hours
+ * @returns Human-readable duration string
  */
-export function formatDuration(hours: number): string {
+export function formatEventDuration(hours: number): string {
+  if (hours < 0) {
+    throw new Error('Duration cannot be negative');
+  }
+  
   return coreFormatDuration(hours);
 }
 
 /**
  * Constants for duration calculations
  */
-export const DURATION_CONSTANTS = {
+export const EVENT_DURATION_CONSTANTS = {
   MS_PER_MINUTE: 1000 * 60,
   MS_PER_HOUR: 1000 * 60 * 60,
   MINUTES_PER_HOUR: 60,
@@ -145,12 +186,51 @@ export const DURATION_CONSTANTS = {
 } as const;
 
 /**
- * Legacy wrapper for calculateEventDurationOnDate that matches the old lib function signature
- * @deprecated Use calculateEventDurationOnDate with params object instead
+ * Check if an event spans multiple days
+ * Useful for UI indicators and special handling
+ * 
+ * @param event - Event to check
+ * @returns True if event spans multiple days
  */
-export function calculateEventDurationOnDateLegacy(
-  event: CalendarEvent,
-  targetDate: Date
-): number {
-  return calculateEventDurationOnDate({ event, targetDate });
+export function isMultiDayEvent(event: EventDurationParams['event']): boolean {
+  if (!event.startTime || !event.endTime) {
+    return false;
+  }
+  
+  const startDate = new Date(event.startTime);
+  const endDate = new Date(event.endTime);
+  
+  // Reset time portions for date comparison
+  startDate.setHours(0, 0, 0, 0);
+  endDate.setHours(0, 0, 0, 0);
+  
+  return startDate.getTime() !== endDate.getTime();
+}
+
+/**
+ * Get all dates that an event spans
+ * Useful for timeline visualization
+ * 
+ * @param event - Event to analyze
+ * @returns Array of dates the event spans
+ */
+export function getEventDateSpan(event: EventDurationParams['event']): Date[] {
+  if (!event.startTime) {
+    return [];
+  }
+  
+  const endTime = event.endTime || new Date();
+  const startDate = new Date(event.startTime);
+  const endDate = new Date(endTime);
+  
+  const dates: Date[] = [];
+  const currentDate = new Date(startDate);
+  currentDate.setHours(0, 0, 0, 0);
+  
+  while (currentDate <= endDate) {
+    dates.push(new Date(currentDate));
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+  
+  return dates;
 }

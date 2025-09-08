@@ -4,7 +4,7 @@ import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useTimelineContext } from '../../contexts/TimelineContext';
 import { calculateProjectDuration } from '@/services';
 import { ProjectCalculationService } from '@/services';
-import { HeightCalculationService } from '@/services';
+import { calculateProjectHeight } from '@/services';
 import { CommittedHoursCalculationService } from '@/services';
 import { calculateProjectBarPosition } from '@/services/ui/TimelinePositioning';
 
@@ -64,7 +64,7 @@ export function ProjectTimeline({ project, dates, currentDate }: ProjectTimeline
 
   // Calculate bar height based on hours (max 8 hours = full height)
   const getBarHeight = (hours: number) => {
-    return HeightCalculationService.calculateProjectHeight(hours);
+    return calculateProjectHeight(hours);
   };
 
   // Handle time allocation adjustment

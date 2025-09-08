@@ -1,16 +1,19 @@
-import { Project } from '@/types/core';
+import type { Project } from '@/types';
 
-export interface ProjectStatus {
-  isOverdue: boolean;
-  isActive: boolean;
-  status: 'active' | 'overdue' | 'upcoming' | 'completed';
-  daysUntilDue?: number;
-}
+/**
+ * Project Status Calculations
+ * Handles project status determination and organization based on dates
+ */
 
 /**
  * Calculate project status based on dates and continuous flag
  */
-export const calculateProjectStatus = (project: Project): ProjectStatus => {
+export function calculateProjectStatus(project: Project): {
+  isOverdue: boolean;
+  isActive: boolean;
+  status: 'upcoming' | 'active' | 'completed' | 'overdue';
+  daysUntilDue?: number;
+} {
   if (!project.startDate || !project.endDate) {
     return {
       isOverdue: false,
@@ -26,7 +29,7 @@ export const calculateProjectStatus = (project: Project): ProjectStatus => {
   const isOverdue = end < now && !project.continuous;
   const isActive = start <= now && (end >= now || project.continuous);
 
-  let status: ProjectStatus['status'];
+  let status: 'upcoming' | 'active' | 'completed' | 'overdue';
   let daysUntilDue: number | undefined;
 
   if (isOverdue) {
@@ -51,12 +54,12 @@ export const calculateProjectStatus = (project: Project): ProjectStatus => {
     status,
     daysUntilDue
   };
-};
+}
 
 /**
  * Format project date range for display
  */
-export const formatProjectDateRange = (project: Project): string => {
+export function formatProjectDateRange(project: Project): string {
   if (!project.startDate || !project.endDate) return '';
 
   const start = new Date(project.startDate);
@@ -68,19 +71,24 @@ export const formatProjectDateRange = (project: Project): string => {
   });
 
   if (project.continuous) {
-    return `${startFormatted} - Ongoing`;
+    return `${startFormatted} - ongoing`;
   }
+
+  // If same year, don't repeat year
+  const startYear = start.getFullYear();
+  const endYear = end.getFullYear();
 
   const endFormatted = end.toLocaleDateString('en-US', {
     month: 'short',
-    day: 'numeric'
+    day: 'numeric',
+    year: startYear === endYear ? undefined : 'numeric'
   });
 
   return `${startFormatted} - ${endFormatted}`;
-};
+}
 
 /**
- * Determines the status of a project based on its start and end dates
+ * Determines project status as 'future', 'current', or 'archived' based on dates
  * - 'future': Project hasn't started yet (startDate is in the future)
  * - 'current': Project is running (today is between startDate and endDate)
  * - 'archived': Project has ended (endDate is in the past)

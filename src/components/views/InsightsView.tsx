@@ -124,7 +124,7 @@ export function InsightsView() {
 
   // Calculate weekly work hours total
   const weeklyCapacity = useMemo(() => {
-    return ProjectCalculationService.calculateWeeklyCapacity(settings);
+    return calculateWeeklyCapacity(settings.weeklyWorkHours || {});
   }, [settings.weeklyWorkHours]);
 
   // Current projects (active today)
