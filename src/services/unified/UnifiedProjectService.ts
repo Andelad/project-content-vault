@@ -409,4 +409,208 @@ export class UnifiedProjectEntity {
     if (!status) return true; // Status is optional
     return ['current', 'future', 'archived'].includes(status);
   }
+
+  /**
+   * Calculate comprehensive project metrics
+   * Migrated from ProjectCalculationService
+   */
+  static calculateProjectMetrics(project: Project, milestones: Milestone[], settings: any) {
+    const totalDuration = this.calculateProjectDuration(project);
+    const workload = this.calculateTotalProjectWorkload(project, milestones);
+    
+    const dailyCapacity = this.calculateDailyWorkCapacity(project, settings);
+    const weeklyCapacity = this.calculateWeeklyWorkCapacity(project, settings);
+    const endDate = this.calculateProjectEndDate(project, milestones, settings);
+    
+    return {
+      duration: totalDuration,
+      workload,
+      dailyCapacity,
+      weeklyCapacity,
+      estimatedEndDate: endDate,
+      totalMilestones: milestones.length,
+      remainingWork: Math.max(0, project.estimatedHours - workload)
+    };
+  }
+
+  /**
+   * Calculate milestone-specific metrics
+   * Migrated from ProjectCalculationService
+   */
+  static calculateMilestoneMetrics(milestones: Milestone[], settings: any) {
+    return milestones.map(milestone => ({
+      id: milestone.id,
+      name: milestone.name,
+      dueDate: milestone.dueDate,
+      timeAllocation: milestone.timeAllocation,
+      daysToComplete: this.calculateMilestoneDaysToComplete(milestone, settings),
+      isOverdue: this.isMilestoneOverdue(milestone)
+    }));
+  }
+
+  /**
+   * Calculate daily work capacity for a project
+   * Migrated from ProjectCalculationService
+   */
+  static calculateDailyWorkCapacity(project: Project, settings: any): number {
+    const workHoursPerDay = settings?.workHours?.hoursPerDay || 8;
+    // Use a default allocation of 1.0 (100%) since allocation isn't in Project type
+    return workHoursPerDay;
+  }
+
+  /**
+   * Calculate weekly work capacity for a project
+   * Migrated from ProjectCalculationService
+   */
+  static calculateWeeklyWorkCapacity(project: Project, settings: any): number {
+    const dailyCapacity = this.calculateDailyWorkCapacity(project, settings);
+    const workDaysPerWeek = settings?.workHours?.daysPerWeek || 5;
+    
+    return dailyCapacity * workDaysPerWeek;
+  }
+
+  /**
+   * Calculate project end date based on remaining work and capacity
+   * Migrated from ProjectCalculationService
+   */
+  static calculateProjectEndDate(project: Project, milestones: Milestone[], settings: any): Date | null {
+    const remainingHours = this.calculateRemainingWorkHours(project, milestones);
+    const dailyCapacity = this.calculateDailyWorkCapacity(project, settings);
+    
+    if (remainingHours <= 0 || dailyCapacity <= 0) {
+      return null; // Project complete or invalid capacity
+    }
+    
+    const daysRequired = Math.ceil(remainingHours / dailyCapacity);
+    const startDate = project.startDate ? new Date(project.startDate) : new Date();
+    
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + daysRequired);
+    
+    return endDate;
+  }
+
+  /**
+   * Check for project overlaps in timeline
+   * Migrated from ProjectCalculationService
+   */
+  static calculateProjectOverlaps(projects: Project[]): Array<{
+    project1: string;
+    project2: string;
+    overlapDays: number;
+    severity: 'low' | 'medium' | 'high';
+  }> {
+    const overlaps: Array<{
+      project1: string;
+      project2: string;
+      overlapDays: number;
+      severity: 'low' | 'medium' | 'high';
+    }> = [];
+
+    for (let i = 0; i < projects.length; i++) {
+      for (let j = i + 1; j < projects.length; j++) {
+        const project1 = projects[i];
+        const project2 = projects[j];
+        
+        const overlap = this.calculateOverlapDays(project1, project2);
+        if (overlap > 0) {
+          const severity = this.getOverlapSeverity(overlap, 1.0, 1.0); // Default allocation
+          overlaps.push({
+            project1: project1.id,
+            project2: project2.id,
+            overlapDays: overlap,
+            severity
+          });
+        }
+      }
+    }
+
+    return overlaps;
+  }
+
+  /**
+   * Validate milestone timeline consistency
+   * Migrated from ProjectCalculationService
+   */
+  static validateMilestoneTimeline(project: Project, milestones: Milestone[]): {
+    isValid: boolean;
+    issues: string[];
+    suggestions: string[];
+  } {
+    const issues: string[] = [];
+    const suggestions: string[] = [];
+
+    // Check if milestones are within project bounds
+    if (project.startDate && project.endDate) {
+      const projectStart = new Date(project.startDate);
+      const projectEnd = new Date(project.endDate);
+
+      milestones.forEach(milestone => {
+        if (milestone.dueDate) {
+          const milestoneDate = new Date(milestone.dueDate);
+          if (milestoneDate < projectStart) {
+            issues.push(`Milestone "${milestone.name}" is scheduled before project start date`);
+            suggestions.push(`Move milestone "${milestone.name}" to after ${projectStart.toDateString()}`);
+          }
+          if (milestoneDate > projectEnd) {
+            issues.push(`Milestone "${milestone.name}" is scheduled after project end date`);
+            suggestions.push(`Move milestone "${milestone.name}" to before ${projectEnd.toDateString()}`);
+          }
+        }
+      });
+    }
+
+    return {
+      isValid: issues.length === 0,
+      issues,
+      suggestions
+    };
+  }
+
+  // Helper methods for the new functionality
+  private static calculateMilestoneDaysToComplete(milestone: Milestone, settings: any): number {
+    const hoursPerDay = settings?.workHours?.hoursPerDay || 8;
+    return Math.ceil(milestone.timeAllocation / hoursPerDay);
+  }
+
+  private static isMilestoneOverdue(milestone: Milestone): boolean {
+    return new Date(milestone.dueDate) < new Date();
+  }
+
+  private static calculateRemainingWorkHours(project: Project, milestones: Milestone[]): number {
+    const totalAllocatedHours = milestones.reduce((total, milestone) => total + milestone.timeAllocation, 0);
+    return Math.max(0, project.estimatedHours - totalAllocatedHours);
+  }
+
+  private static calculateTotalProjectWorkload(project: Project, milestones: Milestone[]): number {
+    return milestones.reduce((total, milestone) => total + milestone.timeAllocation, 0);
+  }
+
+  private static calculateOverlapDays(project1: Project, project2: Project): number {
+    if (!project1.startDate || !project1.endDate || !project2.startDate || !project2.endDate) {
+      return 0;
+    }
+
+    const start1 = new Date(project1.startDate);
+    const end1 = new Date(project1.endDate);
+    const start2 = new Date(project2.startDate);
+    const end2 = new Date(project2.endDate);
+
+    const overlapStart = new Date(Math.max(start1.getTime(), start2.getTime()));
+    const overlapEnd = new Date(Math.min(end1.getTime(), end2.getTime()));
+
+    if (overlapStart <= overlapEnd) {
+      return Math.ceil((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24));
+    }
+
+    return 0;
+  }
+
+  private static getOverlapSeverity(overlapDays: number, allocation1: number, allocation2: number): 'low' | 'medium' | 'high' {
+    const totalAllocation = allocation1 + allocation2;
+    
+    if (totalAllocation > 1.5 && overlapDays > 14) return 'high';
+    if (totalAllocation > 1.2 && overlapDays > 7) return 'medium';
+    return 'low';
+  }
 }

@@ -34,7 +34,7 @@ export * from './performance';      // Performance optimization - dragPerformanc
 export { HeightCalculationService } from './legacy/timeline/HeightCalculationService';
 export { TimelinePositioningService } from './legacy/timeline/TimelinePositioningService';
 export { ProjectCalculationService } from './legacy/projects/ProjectCalculationService';
-export { WorkHourCalculationService } from './legacy/work-hours/WorkHourCalculationService';
+export { WorkHourCalculationService } from './calculations/workHourCalculations';
 
 // 🔧 Additional Temporary Exports (Remove after migration)
 // Timeline positioning functions (frequently used)

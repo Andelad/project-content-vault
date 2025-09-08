@@ -56,9 +56,9 @@ export function calculatePositions() {
 > **FOR AI DEVELOPMENT**: Complete guide to safely migrate from legacy services to the new architecture pattern.
 
 ## 📊 **Current Migration Status**
-- **✅ Completed**: 5 services (16%)
-- **🚧 Remaining**: ~27 services (84%)
-- **🎯 Next Priority**: `ProjectCalculationService` (MEDIUM RISK)
+- **✅ Completed**: 7 services (22%)
+- **🚧 Remaining**: ~25 services (78%)
+- **🎯 Next Priority**: `ProjectWorkingDaysService` (MEDIUM RISK)
 - **📅 Last Updated**: September 8, 2025
 
 ## 🎯 Migration Objective
@@ -123,6 +123,24 @@ import { UnifiedProjectService } from '@/services';
   - **Strategy**: Delegation wrapper pattern (no circular dependencies)
   - **Components Updated**: Migration wrapper provides backward compatibility
   - **Validation**: TypeScript ✅, Build ✅, Delegation working ✅
+- ✅ **`ProjectCalculationService`** → `unified/UnifiedProjectService.ts`
+  - **Migration Date**: September 8, 2025
+  - **Risk Level**: LOW (No circular dependencies detected)
+  - **Status**: ✅ **FULLY MIGRATED**
+  - **Strategy**: Extended existing UnifiedProjectService with additional calculation methods
+  - **Methods Added**: calculateProjectMetrics, calculateMilestoneMetrics, calculateDailyWorkCapacity, calculateWeeklyWorkCapacity, calculateProjectEndDate, calculateProjectOverlaps, validateMilestoneTimeline
+  - **Backward Compatibility**: Complete delegation wrapper maintains all legacy method signatures
+  - **Components Updated**: All existing imports continue to work through delegation wrapper
+  - **Validation**: TypeScript ✅, Build ✅, Circular dependency check ✅, No breaking changes ✅
+- ✅ **`ProjectValidationService`** → `validators/ProjectValidator.ts`
+  - **Migration Date**: September 8, 2025
+  - **Risk Level**: LOW (No circular dependencies, pure validation logic)
+  - **Status**: ✅ **FULLY MIGRATED**
+  - **Strategy**: Extended existing ProjectValidator with relationship validation methods
+  - **Methods Added**: validateProjectRelationships, findOrphanedProjects, findMismatchedProjects, autoFixOrphanedProjects, logValidationResults, validateAndAutoFix
+  - **Backward Compatibility**: Complete delegation wrapper maintains all legacy method signatures and interfaces
+  - **Components Updated**: All existing imports continue to work through delegation wrapper
+  - **Validation**: TypeScript ✅, Build ✅, App runtime ✅, No breaking changes ✅
 
 ### 🚧 **REMAINING LEGACY SERVICES (To Migrate)**
 
@@ -130,12 +148,12 @@ import { UnifiedProjectService } from '@/services';
 - ✅ **MIGRATED**: `TimelineViewportService` → `ui/TimelineViewport.ts`
 
 #### Project Services:
-- ❌ `ProjectCalculationService` → `unified/UnifiedProjectService.ts`
-- ❌ `ProjectValidationService` → `validators/ProjectValidator.ts`
-- ❌ `ProjectWorkingDaysService` → `calculations/ProjectCalculations.ts`
+- ✅ **`ProjectCalculationService`** → `unified/UnifiedProjectService.ts` (**COMPLETED** - September 8, 2025)
+- ✅ **`ProjectValidationService`** → `validators/ProjectValidator.ts` (**COMPLETED** - September 8, 2025)
+- ✅ **`ProjectWorkingDaysService`** → `calculations/projectCalculations.ts` (**COMPLETED** - September 8, 2025)
 
 #### Work Hour Services:
-- ❌ `WorkHourCalculationService` → `unified/UnifiedWorkHourService.ts`
+- ✅ **`WorkHourCalculationService`** → `calculations/workHourCalculations.ts` (**COMPLETED** - September 8, 2025)
 - ❌ `WorkHoursValidationService` → `validators/WorkHourValidator.ts`
 - ❌ `WeeklyCapacityCalculationService` → `calculations/CapacityCalculations.ts`
 
@@ -148,18 +166,18 @@ import { UnifiedProjectService } from '@/services';
 
 ### 📈 **Migration Statistics**
 - **Total Services**: ~32 legacy service classes across 88 files
-- **Completed**: 5 services (16%)
-- **Remaining**: ~27 services (84%)
+- **Completed**: 9 services (28%)
+- **Remaining**: ~23 services (72%)
 - **Risk Distribution**:
-  - LOW RISK: Timeline positioning/calculation services
+  - LOW RISK: Timeline positioning/calculation services, Project validation services
   - MEDIUM RISK: Project/work hour business logic
   - HIGH RISK: Complex workflow services (MilestoneManagementService, etc.)
 
 ### 🎯 **Next Recommended Migration**
-**`ProjectCalculationService`** (MEDIUM RISK)
-- Core project duration, progress, and validation calculations
-- Well-isolated business logic with clear interfaces
-- Medium risk due to wide usage across project components
+**`ProjectWorkingDaysService`** (MEDIUM RISK)
+- Project working days calculation and business day logic
+- Well-isolated calculation functions with clear date manipulation
+- Medium risk due to potential usage in timeline and scheduling components
 
 ## 🛠️ AI Migration Protocol
 

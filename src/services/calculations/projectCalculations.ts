@@ -11,6 +11,37 @@ import {
   formatDuration as coreFormatDuration
 } from '@/services/calculations/dateCalculations';
 
+// ===== WORKING DAYS INTERFACES =====
+export interface ProjectWorkSlot {
+  startTime: string;
+  endTime: string;
+  duration: number;
+}
+
+export interface ProjectWeeklyWorkHours {
+  sunday: ProjectWorkSlot[];
+  monday: ProjectWorkSlot[];
+  tuesday: ProjectWorkSlot[];
+  wednesday: ProjectWorkSlot[];
+  thursday: ProjectWorkSlot[];
+  friday: ProjectWorkSlot[];
+  saturday: ProjectWorkSlot[];
+}
+
+export interface ProjectHoliday {
+  startDate: string | Date;
+  endDate: string | Date;
+  title: string;
+}
+
+export interface ProjectWorkingDaysSettings {
+  weeklyWorkHours?: ProjectWeeklyWorkHours;
+}
+
+const DAY_NAMES: (keyof ProjectWeeklyWorkHours)[] = [
+  'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'
+];
+
 /**
  * Calculate working days for auto-estimation excluding specified days
  */
@@ -105,6 +136,177 @@ export function datesOverlap(
 ): boolean {
   // Delegate to core date calculations for single source of truth
   return coreDatesOverlap(startA, endA, startB, endB);
+}
+
+// ===== WORKING DAYS CALCULATIONS =====
+
+/**
+ * Calculate working days remaining until end date
+ */
+export function calculateWorkingDaysRemaining(
+  endDate: Date, 
+  settings: ProjectWorkingDaysSettings, 
+  holidays: ProjectHoliday[] = []
+): number {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const targetEndDate = new Date(endDate);
+  targetEndDate.setHours(0, 0, 0, 0);
+  
+  // If end date is in the past or today, return 0
+  if (targetEndDate <= today) {
+    return 0;
+  }
+  
+  // If no settings, return 0
+  if (!settings?.weeklyWorkHours) {
+    return 0;
+  }
+  
+  let workingDays = 0;
+  const current = new Date(today);
+  current.setDate(current.getDate() + 1); // Start from tomorrow
+  
+  while (current <= targetEndDate) {
+    if (isWorkingDay(current, settings, holidays)) {
+      workingDays++;
+    }
+    current.setDate(current.getDate() + 1);
+  }
+  
+  return workingDays;
+}
+
+/**
+ * Calculate total working days between start and end dates
+ */
+export function calculateTotalWorkingDays(
+  startDate: Date, 
+  endDate: Date, 
+  settings: ProjectWorkingDaysSettings, 
+  holidays: ProjectHoliday[] = []
+): number {
+  const start = new Date(startDate);
+  start.setHours(0, 0, 0, 0);
+  
+  const end = new Date(endDate);
+  end.setHours(0, 0, 0, 0);
+  
+  // If no settings, return 0
+  if (!settings?.weeklyWorkHours) {
+    return 0;
+  }
+  
+  let workingDays = 0;
+  const current = new Date(start);
+  
+  while (current <= end) {
+    if (isWorkingDay(current, settings, holidays)) {
+      workingDays++;
+    }
+    current.setDate(current.getDate() + 1);
+  }
+  
+  return workingDays;
+}
+
+/**
+ * Calculate valid days in a period based on included days filter
+ */
+export function calculateValidDaysInPeriod(
+  startDate: Date,
+  endDate: Date,
+  includedDays: Record<keyof ProjectWeeklyWorkHours, boolean>
+): number {
+  let count = 0;
+  const current = new Date(startDate);
+  
+  while (current <= endDate) {
+    const dayName = DAY_NAMES[current.getDay()];
+    
+    if (includedDays[dayName]) {
+      count++;
+    }
+    
+    current.setDate(current.getDate() + 1);
+  }
+  
+  return count;
+}
+
+/**
+ * Calculate total work hours for a specific day
+ */
+export function calculateDayWorkHours(
+  date: Date,
+  settings: ProjectWorkingDaysSettings
+): number {
+  if (!settings?.weeklyWorkHours) {
+    return 0;
+  }
+
+  const dayName = DAY_NAMES[date.getDay()];
+  const workSlots = settings.weeklyWorkHours[dayName] || [];
+  
+  return workSlots.reduce((sum, slot) => sum + slot.duration, 0);
+}
+
+/**
+ * Get all working days between two dates
+ */
+export function getWorkingDaysBetween(
+  startDate: Date,
+  endDate: Date,
+  settings: ProjectWorkingDaysSettings,
+  holidays: ProjectHoliday[] = []
+): Date[] {
+  const workingDays: Date[] = [];
+  const current = new Date(startDate);
+  current.setHours(0, 0, 0, 0);
+  
+  const end = new Date(endDate);
+  end.setHours(0, 0, 0, 0);
+  
+  while (current <= end) {
+    if (isWorkingDay(current, settings, holidays)) {
+      workingDays.push(new Date(current));
+    }
+    current.setDate(current.getDate() + 1);
+  }
+  
+  return workingDays;
+}
+
+/**
+ * Check if a specific date is a working day
+ */
+function isWorkingDay(
+  date: Date, 
+  settings: ProjectWorkingDaysSettings, 
+  holidays: ProjectHoliday[] = []
+): boolean {
+  // Check if it's a holiday
+  const isHoliday = holidays.some(holiday => {
+    const holidayStart = new Date(holiday.startDate);
+    const holidayEnd = new Date(holiday.endDate);
+    holidayStart.setHours(0, 0, 0, 0);
+    holidayEnd.setHours(0, 0, 0, 0);
+    return date >= holidayStart && date <= holidayEnd;
+  });
+  
+  if (isHoliday) {
+    return false;
+  }
+  
+  // Check if it's a day with work hours configured
+  const dayName = DAY_NAMES[date.getDay()];
+  const workSlots = settings.weeklyWorkHours?.[dayName] || [];
+  
+  const hasWorkHours = Array.isArray(workSlots) && 
+    workSlots.reduce((sum, slot) => sum + slot.duration, 0) > 0;
+  
+  return hasWorkHours;
 }
 
 export class DurationFormattingService {

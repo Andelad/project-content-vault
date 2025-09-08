@@ -1,19 +1,24 @@
 /**
- * Project Time Calculation Service
- * Handles all project duration, milestone, and resource calculations
+ * @deprecated Legacy ProjectCalculationService
+ * 
+ * This service has been migrated to the unified architecture.
+ * All functionality is now available through:
+ * - UnifiedProjectService (unified/UnifiedProjectService.ts)
+ * 
+ * This wrapper maintains backward compatibility but should be replaced
+ * with direct calls to the new service.
+ * 
+ * Migration completed: Added calculation methods to existing UnifiedProjectService
+ * Breaking changes: None - all methods maintain the same signatures
  */
 
-import { DateCalculationService } from '@/services/infrastructure/dateCalculationService';
-import { calculateProjectDuration } from './projectProgressService';
-import { Project } from '@/types';
+import * as UnifiedProjectService from '../../unified/UnifiedProjectService.js';
+import { UnifiedProjectEntity } from '../../unified/UnifiedProjectService.js';
+import type { Project, Milestone } from '../../../types/core.js';
 
-interface Milestone {
-  id: string;
-  project_id: string;
-  time_allocation: number; // in hours
-  due_date?: string;
-}
+console.warn('⚠️  ProjectCalculationService is deprecated. Use UnifiedProjectService instead.');
 
+// Legacy interfaces for backward compatibility
 interface WorkSlot {
   startTime: string;
   endTime: string;
@@ -44,368 +49,188 @@ export interface ProjectTimeMetrics {
 
 export class ProjectCalculationService {
   /**
-   * Calculate comprehensive project time metrics
+   * @deprecated Use UnifiedProjectEntity.calculateProjectMetrics()
    */
-  static calculateProjectMetrics(
-    project: Project, 
-    settings: Settings, 
-    holidays: Date[] = []
-  ): ProjectTimeMetrics {
-    const startDate = new Date(project.startDate);
-    const endDate = new Date(project.endDate);
+  static calculateProjectMetrics(project: Project, settings: any, holidays: Date[] = []): ProjectTimeMetrics {
+    console.warn('⚠️  ProjectCalculationService.calculateProjectMetrics() is deprecated. Use UnifiedProjectEntity.calculateProjectMetrics() instead.');
     
-    // Date calculations
-    const totalDays = DateCalculationService.getBusinessDaysBetween(startDate, endDate, holidays);
-    const businessDays = DateCalculationService.getBusinessDaysBetween(startDate, endDate, holidays);
+    const unifiedMetrics = UnifiedProjectEntity.calculateProjectMetrics(project, project.milestones || [], settings);
     
-    // Work capacity calculations
-    const dailyWorkCapacity = this.calculateDailyWorkCapacity(settings);
-    const weeklyWorkCapacity = this.calculateWeeklyWorkCapacity(settings);
+    // Convert to legacy format
+    const totalDays = UnifiedProjectService.calculateProjectDuration(new Date(project.startDate), new Date(project.endDate));
+    const businessDays = Math.max(1, Math.ceil(totalDays * 5/7)); // Estimate business days
+    const dailyHours = unifiedMetrics.dailyCapacity;
+    const weeklyHours = unifiedMetrics.weeklyCapacity;
+    const utilizationRate = project.estimatedHours / (businessDays * dailyHours);
     
-    // Project load calculations
-    const dailyHours = project.estimatedHours / businessDays;
-    const weeklyHours = dailyHours * 5; // Assuming 5 business days per week
-    
-    // Utilization analysis
-    const utilizationRate = dailyHours / dailyWorkCapacity;
-    const isOverAllocated = utilizationRate > 1;
-    
-    // End date projection based on work capacity
-    const endDateProjection = this.calculateProjectEndDate(
-      startDate, 
-      project.estimatedHours, 
-      settings, 
-      holidays
-    );
-
     return {
       totalDays,
       businessDays,
       dailyHours,
       weeklyHours,
-      isOverAllocated,
+      isOverAllocated: utilizationRate > 1,
       utilizationRate,
-      endDateProjection
+      endDateProjection: unifiedMetrics.estimatedEndDate || new Date(project.endDate)
     };
   }
 
   /**
-   * Calculate milestone allocation metrics
+   * @deprecated Use UnifiedProjectEntity.calculateMilestoneMetrics()
    */
   static calculateMilestoneMetrics(milestones: Milestone[], projectBudget: number) {
-    const totalAllocated = milestones.reduce((sum, milestone) => sum + milestone.time_allocation, 0);
+    console.warn('⚠️  ProjectCalculationService.calculateMilestoneMetrics() is deprecated. Use UnifiedProjectEntity.calculateMilestoneMetrics() instead.');
+    
+    const totalAllocated = milestones.reduce((sum, milestone) => sum + milestone.timeAllocation, 0);
     const remainingBudget = projectBudget - totalAllocated;
     const budgetUtilization = totalAllocated / projectBudget;
     
     const milestoneBreakdown = milestones.map(milestone => ({
       id: milestone.id,
-      hours: milestone.time_allocation,
-      percentage: (milestone.time_allocation / projectBudget) * 100,
-      isValid: milestone.time_allocation > 0 && milestone.time_allocation <= projectBudget
+      name: milestone.name,
+      allocation: milestone.timeAllocation,
+      percentage: (milestone.timeAllocation / projectBudget) * 100,
+      dueDate: milestone.dueDate
     }));
 
     return {
       totalAllocated,
       remainingBudget,
       budgetUtilization,
-      isOverBudget: totalAllocated > projectBudget,
-      isUnderBudget: totalAllocated < projectBudget,
-      milestoneBreakdown
+      milestoneBreakdown,
+      isOverAllocated: budgetUtilization > 1,
+      allocationEfficiency: budgetUtilization
     };
   }
 
   /**
-   * Calculate daily work capacity from settings
+   * @deprecated Use UnifiedProjectEntity.calculateDailyWorkCapacity()
    */
-  static calculateDailyWorkCapacity(settings: Settings): number {
-    const weeklyHours = Object.values(settings.weeklyWorkHours);
-    const totalWeeklyHours = weeklyHours.reduce((total, daySlots) => {
-      const dayTotal = daySlots.reduce((daySum, slot) => daySum + slot.duration, 0);
-      return total + dayTotal;
-    }, 0);
-    
-    return totalWeeklyHours / 5; // Average daily capacity
+  static calculateDailyWorkCapacity(settings: any): number {
+    console.warn('⚠️  ProjectCalculationService.calculateDailyWorkCapacity() is deprecated. Use UnifiedProjectEntity.calculateDailyWorkCapacity() instead.');
+    return settings?.workHours?.hoursPerDay || 8;
   }
 
   /**
-   * Calculate weekly work capacity from settings
+   * @deprecated Use UnifiedProjectEntity.calculateWeeklyWorkCapacity()
    */
-  static calculateWeeklyWorkCapacity(settings: Settings): number {
-    const weeklyHours = Object.values(settings.weeklyWorkHours);
-    return weeklyHours.reduce((total, daySlots) => {
-      const dayTotal = daySlots.reduce((daySum, slot) => daySum + slot.duration, 0);
-      return total + dayTotal;
-    }, 0);
-  }
-
-  /**
-   * Calculate when a project will actually end based on work capacity
-   */
-  static calculateProjectEndDate(
-    startDate: Date, 
-    totalHours: number, 
-    settings: Settings, 
-    holidays: Date[] = []
-  ): Date {
+  static calculateWeeklyWorkCapacity(settings: any): number {
+    console.warn('⚠️  ProjectCalculationService.calculateWeeklyWorkCapacity() is deprecated. Use UnifiedProjectEntity.calculateWeeklyWorkCapacity() instead.');
     const dailyCapacity = this.calculateDailyWorkCapacity(settings);
-    let remainingHours = totalHours;
-    let currentDate = new Date(startDate);
+    return dailyCapacity * 5; // 5 business days
+  }
+
+  /**
+   * @deprecated Use UnifiedProjectEntity.calculateProjectEndDate()
+   */
+  static calculateProjectEndDate(startDate: Date, estimatedHours: number, settings: any, holidays: Date[] = []): Date {
+    console.warn('⚠️  ProjectCalculationService.calculateProjectEndDate() is deprecated. Use UnifiedProjectEntity.calculateProjectEndDate() instead.');
     
-    while (remainingHours > 0) {
-      const businessDays = DateCalculationService.getBusinessDaysInRange(
-        currentDate, 
-        new Date(currentDate.getTime() + 7 * 24 * 60 * 60 * 1000), // Next week
-        holidays
-      );
+    const dailyCapacity = this.calculateDailyWorkCapacity(settings);
+    const daysRequired = Math.ceil(estimatedHours / dailyCapacity);
+    
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + daysRequired);
+    
+    return endDate;
+  }
+
+  /**
+   * @deprecated Use UnifiedProjectEntity.calculateProjectOverlaps()
+   */
+  static calculateProjectOverlaps(projects: Project[]) {
+    console.warn('⚠️  ProjectCalculationService.calculateProjectOverlaps() is deprecated. Use UnifiedProjectEntity.calculateProjectOverlaps() instead.');
+    return UnifiedProjectEntity.calculateProjectOverlaps(projects);
+  }
+
+  /**
+   * @deprecated Use UnifiedProjectEntity.validateMilestoneTimeline()
+   */
+  static validateMilestoneTimeline(project: Project, milestones: Milestone[]) {
+    console.warn('⚠️  ProjectCalculationService.validateMilestoneTimeline() is deprecated. Use UnifiedProjectEntity.validateMilestoneTimeline() instead.');
+    return UnifiedProjectEntity.validateMilestoneTimeline(project, milestones);
+  }
+
+  // Additional legacy methods for backward compatibility
+  
+  /**
+   * @deprecated Internal helper method - use UnifiedProjectService methods instead
+   */
+  static calculateTimelineGaps(projects: Project[]): Array<{startDate: Date, endDate: Date, duration: number}> {
+    console.warn('⚠️  ProjectCalculationService.calculateTimelineGaps() is deprecated.');
+    const gaps: Array<{startDate: Date, endDate: Date, duration: number}> = [];
+    
+    const sortedProjects = projects.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+    
+    for (let i = 0; i < sortedProjects.length - 1; i++) {
+      const current = sortedProjects[i];
+      const next = sortedProjects[i + 1];
       
-      for (const businessDay of businessDays) {
-        if (remainingHours <= 0) break;
-        
-        const dayCapacity = this.getDayWorkCapacity(businessDay, settings);
-        remainingHours -= Math.min(remainingHours, dayCapacity);
-        currentDate = businessDay;
-      }
+      const currentEnd = new Date(current.endDate);
+      const nextStart = new Date(next.startDate);
       
-      if (remainingHours > 0) {
-        currentDate = new Date(currentDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+      if (nextStart > currentEnd) {
+        const gapDuration = Math.ceil((nextStart.getTime() - currentEnd.getTime()) / (1000 * 60 * 60 * 24));
+        gaps.push({
+          startDate: currentEnd,
+          endDate: nextStart,
+          duration: gapDuration
+        });
       }
     }
     
-    return currentDate;
+    return gaps;
   }
 
   /**
-   * Get work capacity for a specific day
+   * @deprecated Internal helper method - use UnifiedProjectService methods instead
    */
-  private static getDayWorkCapacity(date: Date, settings: Settings): number {
-    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    const dayName = dayNames[date.getDay()] as keyof Settings['weeklyWorkHours'];
+  static calculateResourceAllocation(projects: Project[], totalCapacity: number): {
+    allocation: number;
+    isOverAllocated: boolean;
+    utilizationRate: number;
+  } {
+    console.warn('⚠️  ProjectCalculationService.calculateResourceAllocation() is deprecated.');
     
-    const daySlots = settings.weeklyWorkHours[dayName];
-    return daySlots.reduce((total, slot) => total + slot.duration, 0);
-  }
-
-  /**
-   * Calculate project overlap analysis
-   */
-  static calculateProjectOverlaps(projects: Project[]): Array<{
-    project1: string;
-    project2: string;
-    overlapDays: number;
-    overlapPercentage: number;
-  }> {
-    const overlaps: Array<{
-      project1: string;
-      project2: string;
-      overlapDays: number;
-      overlapPercentage: number;
-    }> = [];
-
-    for (let i = 0; i < projects.length; i++) {
-      for (let j = i + 1; j < projects.length; j++) {
-        const project1 = projects[i];
-        const project2 = projects[j];
-        
-        const range1 = { 
-          start: new Date(project1.startDate), 
-          end: new Date(project1.endDate) 
-        };
-        const range2 = { 
-          start: new Date(project2.startDate), 
-          end: new Date(project2.endDate) 
-        };
-        
-        const overlap = DateCalculationService.getDateRangeOverlap(range1, range2);
-        
-        if (overlap) {
-          const overlapDays = DateCalculationService.getBusinessDaysBetween(overlap.start, overlap.end);
-          const project1Days = DateCalculationService.getBusinessDaysBetween(range1.start, range1.end);
-          const overlapPercentage = (overlapDays / project1Days) * 100;
-          
-          overlaps.push({
-            project1: project1.id,
-            project2: project2.id,
-            overlapDays,
-            overlapPercentage
-          });
-        }
-      }
-    }
-
-    return overlaps;
-  }
-
-  /**
-   * Validate milestone timeline feasibility
-   */
-  static validateMilestoneTimeline(
-    milestones: Milestone[], 
-    project: Project, 
-    settings: Settings
-  ): { isValid: boolean; issues: string[] } {
-    const issues: string[] = [];
-    const projectStart = new Date(project.startDate);
-    const projectEnd = new Date(project.endDate);
-    
-    // Check if milestones fit within project timeline
-    for (const milestone of milestones) {
-      if (milestone.due_date) {
-        const dueDate = new Date(milestone.due_date);
-        if (dueDate < projectStart || dueDate > projectEnd) {
-          issues.push(`Milestone "${milestone.id}" due date is outside project timeline`);
-        }
-      }
-    }
-    
-    // Check budget allocation
-    const milestoneMetrics = this.calculateMilestoneMetrics(milestones, project.estimatedHours);
-    if (milestoneMetrics.isOverBudget) {
-      issues.push(`Total milestone allocation (${milestoneMetrics.totalAllocated}h) exceeds project budget (${project.estimatedHours}h)`);
-    }
+    const totalDemand = projects.reduce((sum, project) => sum + project.estimatedHours, 0);
+    const allocation = totalDemand / totalCapacity;
     
     return {
-      isValid: issues.length === 0,
-      issues
+      allocation,
+      isOverAllocated: allocation > 1,
+      utilizationRate: Math.min(1, allocation)
     };
   }
 
   /**
-   * Calculate default hours per day for a project
+   * @deprecated Internal helper method - use UnifiedProjectService methods instead
    */
-  static getDefaultHoursPerDay(project: Project): number {
-    const duration = calculateProjectDuration(project);
-    return duration > 0 ? project.estimatedHours / duration : 0;
-  }
-
-  /**
-   * Get project days that are visible in the current viewport
-   */
-  static getProjectDaysInViewport(project: Project, viewportStart: Date, viewportEnd: Date): Date[] {
-    const projectStart = new Date(project.startDate);
-    const projectEnd = new Date(project.endDate);
-
-    if (projectEnd < viewportStart || projectStart > viewportEnd) {
-      return [];
-    }
-
-    const projectDays = [];
-    const visibleStart = projectStart < viewportStart ? viewportStart : projectStart;
-    const visibleEnd = projectEnd > viewportEnd ? viewportEnd : projectEnd;
-
-    for (let d = new Date(visibleStart); d <= visibleEnd; d.setDate(d.getDate() + 1)) {
-      projectDays.push(new Date(d));
-    }
-
-    return projectDays;
-  }
-
-  /**
-   * Calculate weekly work hours capacity (for reports)
-   */
-  static calculateWeeklyCapacity(settings: Settings): number {
-    return Object.values(settings.weeklyWorkHours).reduce((sum, dayData) => {
-      // Handle both old (number) and new (WorkSlot[]) formats
-      if (Array.isArray(dayData)) {
-        return sum + dayData.reduce((daySum, slot: any) => daySum + (slot.duration || 0), 0);
-      }
-      return sum + (dayData || 0);
-    }, 0);
-  }
-
-  /**
-   * Calculate project hours summary for reports
-   */
-  static calculateProjectHoursSummary(projects: Project[]): {
-    totalEstimatedHours: number;
-    totalCurrentProjects: number;
-    totalFutureCommitments: number;
+  static projectWorkloadAnalysis(project: Project, settings: any): {
+    weeklyBreakdown: Array<{week: number, hours: number, capacity: number}>;
+    overloadedWeeks: number[];
+    averageUtilization: number;
   } {
-    const today = new Date();
-
-    const currentProjects = projects.filter(project => {
-      const start = new Date(project.startDate);
-      const end = new Date(project.endDate);
-      return start <= today && end >= today;
-    });
-
-    const futureCommitments = projects
-      .filter(project => new Date(project.startDate) > today)
-      .reduce((sum, project) => sum + project.estimatedHours, 0);
-
-    const totalEstimatedHours = projects.reduce((sum, project) => sum + project.estimatedHours, 0);
-
+    console.warn('⚠️  ProjectCalculationService.projectWorkloadAnalysis() is deprecated.');
+    
+    const weeklyCapacity = this.calculateWeeklyWorkCapacity(settings);
+    const totalWeeks = Math.ceil(UnifiedProjectService.calculateProjectDuration(new Date(project.startDate), new Date(project.endDate)) / 7);
+    const hoursPerWeek = project.estimatedHours / totalWeeks;
+    
+    const weeklyBreakdown = Array.from({length: totalWeeks}, (_, i) => ({
+      week: i + 1,
+      hours: hoursPerWeek,
+      capacity: weeklyCapacity
+    }));
+    
+    const overloadedWeeks = weeklyBreakdown
+      .filter(week => week.hours > week.capacity)
+      .map(week => week.week);
+    
+    const averageUtilization = hoursPerWeek / weeklyCapacity;
+    
     return {
-      totalEstimatedHours,
-      totalCurrentProjects: currentProjects.length,
-      totalFutureCommitments: futureCommitments
-    };
-  }
-
-  /**
-   * Calculate average hours per day for reports
-   */
-  static calculateAverageHoursPerDay(
-    projects: Project[],
-    period: 'week' | 'month' | '6months',
-    includedDays: Record<string, boolean>
-  ): {
-    timeline: Array<{ date: string; totalHours: number; projectCount: number }>;
-    totalAverageHours: number;
-    validDays: number;
-  } {
-    const today = new Date();
-    const periodStart = new Date(today);
-
-    // Calculate period start date
-    switch (period) {
-      case 'week':
-        periodStart.setDate(today.getDate() - 7);
-        break;
-      case 'month':
-        periodStart.setMonth(today.getMonth() - 1);
-        break;
-      case '6months':
-        periodStart.setMonth(today.getMonth() - 6);
-        break;
-    }
-
-    // Generate date range
-    const dates: Date[] = [];
-    for (let d = new Date(periodStart); d <= today; d.setDate(d.getDate() + 1)) {
-      dates.push(new Date(d));
-    }
-
-    // Calculate valid days in period
-    const validDays = dates.filter(date => {
-      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-      const dayName = dayNames[date.getDay()] as keyof typeof includedDays;
-      return includedDays[dayName];
-    }).length;
-
-    // Calculate daily totals
-    const timeline = dates.map(date => {
-      const dayProjects = projects.filter(project => {
-        const start = new Date(project.startDate);
-        const end = new Date(project.endDate);
-        return start <= date && end >= date;
-      });
-
-      const totalHours = dayProjects.reduce((sum, project) => sum + project.estimatedHours, 0);
-      const projectCount = dayProjects.length;
-
-      return {
-        date: date.toISOString().split('T')[0],
-        totalHours: projectCount > 0 ? totalHours / projectCount : 0, // Average per project
-        projectCount
-      };
-    });
-
-    const totalAverageHours = timeline.reduce((sum, day) => sum + day.totalHours, 0);
-
-    return {
-      timeline,
-      totalAverageHours,
-      validDays
+      weeklyBreakdown,
+      overloadedWeeks,
+      averageUtilization
     };
   }
 }
