@@ -6,7 +6,7 @@
 
 import { 
   calculateTimeOverlapMinutes 
-} from '@/services/core/calculations/dateCalculations';
+} from '@/services/calculations/dateCalculations';
 
 import type { CalendarEvent, WorkHour } from '@/types';
 

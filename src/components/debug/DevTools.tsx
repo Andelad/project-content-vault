@@ -3,13 +3,13 @@ import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Separator } from '../ui/separator';
-import { getCacheStats, cleanupMemoizationCaches } from '@/services/core/performance/cachePerformanceService';
-import { performanceMonitor } from '@/services/core/performance/performanceMetricsService';
+import { getCacheStats, cleanupMemoizationCaches } from '@/services/performance/cachePerformanceService';
+import { UsageMetrics, performanceMonitor } from '@/services/performance/performanceMetricsService';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { PERFORMANCE_LIMITS } from '@/constants';
 import { Eye, EyeOff, Trash2, Activity, Database } from 'lucide-react';
-import { calculateCacheHitRate, analyzeCachePerformance, generateCacheRecommendations } from '@/services/core/performance/cachePerformanceService';
+import { calculateCacheHitRate, analyzeCachePerformance, generateCacheRecommendations } from '@/services/performance/cachePerformanceService';
 
 interface PerformanceMetrics {
   renderCount: number;

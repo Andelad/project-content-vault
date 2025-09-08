@@ -9,11 +9,11 @@
 
 import { 
   calculateDurationHours 
-} from '@/services/core/calculations/dateCalculations';
+} from '@/services/calculations/dateCalculations';
 import { 
   getWeekStart as coreGetWeekStart,
   getCurrentWeekStart as coreGetCurrentWeekStart
-} from '@/services/core/calculations/timeCalculations';
+} from '@/services/calculations/timeCalculations';
 
 import { WorkHour, WorkSlot } from '@/types/core';
 

@@ -18,7 +18,7 @@ import { Milestone, Project } from '@/types/core';
 import { UnifiedMilestoneEntity } from '../../unified';
 import { MilestoneOrchestrator } from '../../orchestrators/MilestoneOrchestrator';
 import { MilestoneValidator, ValidationContext } from '../../validators/MilestoneValidator';
-import * as milestoneCalcs from '../../core/calculations/milestoneCalculations';
+import * as milestoneCalcs from '@/services/calculations/milestoneCalculations';
 
 // Types for milestone operations
 export interface MilestoneValidationResult {

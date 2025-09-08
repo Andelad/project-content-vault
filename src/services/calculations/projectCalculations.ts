@@ -9,7 +9,7 @@ import {
   datesOverlap as coreDatesOverlap,
   calculateDurationDays,
   formatDuration as coreFormatDuration
-} from '@/services/core/calculations/dateCalculations';
+} from '@/services/calculations/dateCalculations';
 
 /**
  * Calculate working days for auto-estimation excluding specified days

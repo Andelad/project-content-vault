@@ -5,7 +5,7 @@
 
 import { 
   calculateDurationHours as coreCalculateDurationHours 
-} from '@/services/core/calculations/dateCalculations';
+} from '@/services/calculations/dateCalculations';
 
 import type { CalendarEvent } from '@/types';
 

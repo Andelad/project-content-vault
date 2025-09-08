@@ -93,7 +93,7 @@ export function calculateMilestoneTimeDistribution(
   holidays?: any[]
 ): MilestoneTimeDistributionEntry[] {
   // Delegate to unified service for consistent calculation
-  const { UnifiedMilestoneService } = require('../core/unified/UnifiedMilestoneService');
+  const { UnifiedMilestoneService } = require('@/services/unified/UnifiedMilestoneService');
   
   return UnifiedMilestoneService.calculateTimeDistribution(
     milestones,

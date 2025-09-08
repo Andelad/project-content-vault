@@ -5,7 +5,7 @@
 
 import { 
   calculateDurationHours 
-} from '@/services/core/calculations/dateCalculations';
+} from '@/services/calculations/dateCalculations';
 
 export interface WorkSlot {
   duration: number;

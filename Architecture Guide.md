@@ -37,7 +37,8 @@ src/services/
 │   └── TimeTrackingOrchestrator.ts
 ├── calculations/                # Pure business calculations
 │   ├── ProjectCalculations.ts
-│   └── TimeCalculations.ts
+│   ├── TimeCalculations.ts
+│   └── timeTrackingCalculations.ts
 ├── validators/                  # Business rules validation
 │   ├── ProjectValidator.ts
 │   └── TimeTrackingValidator.ts
@@ -47,8 +48,16 @@ src/services/
 ├── ui/                         # View-specific positioning
 │   ├── TimelinePositioning.ts
 │   └── CalendarLayout.ts
-├── legacy/                     # Migration safety (temporary)
-└── index.ts                    # Barrel exports
+├── infrastructure/             # Technical utilities
+│   ├── calculationCache.ts
+│   ├── colorCalculations.ts
+│   └── dateCalculationService.ts
+├── performance/               # Performance optimization
+│   ├── cachePerformanceService.ts
+│   ├── dragPerformanceService.ts
+│   └── performanceMetricsService.ts
+├── legacy/                    # Migration safety (temporary)
+└── index.ts                   # Barrel exports
 ```
 
 ## 📋 AI Decision Matrix
@@ -135,6 +144,16 @@ import { projectHelper } from '@/services/helpers/projectHelper'; // Helpers pat
 - **Purpose**: View-specific positioning and layout
 - **Contains**: Canvas positioning, viewport calculations
 - **Example**: `TimelinePositioning.calculateBarDimensions()`
+
+### Infrastructure:
+- **Purpose**: Technical utilities and framework helpers
+- **Contains**: Caching, date utilities, color calculations
+- **Example**: `calculationCache.memoize()`, `colorCalculations.generatePalette()`
+
+### Performance:
+- **Purpose**: Performance optimization and monitoring
+- **Contains**: Performance metrics, caching strategies, optimization
+- **Example**: `performanceMetricsService.trackRender()`, `dragPerformanceService.optimize()`
 
 ## 🎯 Single Source of Truth Pattern
 

@@ -1,6 +1,6 @@
 import { CalendarEvent, WorkHour } from '@/types';
 import { EventInput } from '@fullcalendar/core';
-import { transformCalendarEventToFullCalendar, transformWorkHourToFullCalendar } from '../../../services/unified/UnifiedEventTransformService';
+import { transformCalendarEventToFullCalendar, transformWorkHourToFullCalendar } from '@/services/unified/UnifiedEventTransformService';
 
 /**
  * Calculate and prepare events for FullCalendar display

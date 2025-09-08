@@ -5,7 +5,7 @@ import {
   analyzePerformance, 
   getPerformanceLimits,
   type PerformanceAnalysis 
-} from '@/services/core/performance/performanceMetricsService';
+} from '@/services/performance/performanceMetricsService';
 
 interface PerformanceStatusProps {
   className?: string;

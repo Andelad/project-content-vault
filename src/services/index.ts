@@ -12,8 +12,10 @@
  * ✅ Architectural layers (matching guide):
  */
 
-// Core infrastructure - working (includes calculateDurationHours and other core utilities)
-export * from './core';
+// Core infrastructure - reorganized to new architecture  
+export * from './calculations';
+export * from './infrastructure';
+export * from './performance';
 
 // Specific legacy exports that components need (temporary during migration)
 export { HeightCalculationService } from './legacy/timeline/HeightCalculationService';
@@ -68,7 +70,7 @@ export {
   calculateSuggestedMilestoneBudget,
   sortMilestonesByDate,
   findMilestoneGap
-} from './core/calculations/milestoneCalculations';
+} from './calculations/milestoneCalculations';
 
 // Timeline functions 
 export { WorkHoursValidationService } from './legacy/timeline/TimelineBusinessLogicService';
@@ -85,7 +87,7 @@ export { calculateProjectWorkingDays } from './unified/UnifiedEventWorkHourServi
 
 // Additional missing exports for components (only existing ones)
 export { WeeklyCapacityCalculationService } from './legacy/timeline/TimelineBusinessLogicService';
-export { expandHolidayDates } from './core/calculations/holidayCalculations';
+export { expandHolidayDates } from './calculations/holidayCalculations';
 export { MilestoneManagementService } from './legacy/milestones/milestoneManagementService';
 export { UnifiedMilestoneService } from './unified/UnifiedMilestoneService';
 
@@ -133,7 +135,7 @@ export { calculateAvailabilityCircleSize } from './legacy/timeline/AvailabilityC
 export { ProjectCalculationService as CoreProjectCalculationService } from './legacy/projects/ProjectCalculationService';
 
 // Timeline view exports
-export { throttledDragUpdate as throttleDragUpdate } from './core/performance/dragPerformanceService';
+export { throttledDragUpdate as throttleDragUpdate } from './performance/dragPerformanceService';
 
 // Work hours component exports
 export { handleWorkHourCreationStart } from './legacy/work-hours/workHourCreationService';
@@ -233,7 +235,7 @@ export { analyzeProjectProgress } from './legacy/projects/projectProgressGraphSe
 export { MilestoneCalculationService } from './legacy/milestones/milestoneCalculationService';
 
 // Planner calculation service
-export { PlannerV2CalculationService } from './core/calculations/plannerCalculations';
+export { PlannerV2CalculationService } from './calculations/plannerCalculations';
 
 // Unified calendar service - TODO: Create this service
 // export { UnifiedCalendarService } from './unified/UnifiedCalendarService';

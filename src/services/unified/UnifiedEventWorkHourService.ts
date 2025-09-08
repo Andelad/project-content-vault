@@ -18,11 +18,11 @@
 
 import { 
   calculateTimeOverlapMinutes 
-} from '@/services/core/calculations/dateCalculations';
+} from '@/services/calculations/dateCalculations';
 
 import { WorkHour, CalendarEvent } from '@/types';
 import { calculateAutoEstimateWorkingDays, calculateEventDurationOnDateLegacy as calculateEventDurationOnDate } from '@/services';
-import { memoizeExpensiveCalculation, timelineCalculationCache } from '@/services/core/performance/cachePerformanceService';
+import { memoizeExpensiveCalculation, timelineCalculationCache } from '@/services/performance/cachePerformanceService';
 import { getCalendarEventBackgroundColor, getCalendarEventTextColor } from '@/constants/colors';
 
 /**

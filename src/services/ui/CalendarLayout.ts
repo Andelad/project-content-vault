@@ -7,11 +7,11 @@
 import { 
   formatDuration as coreFormatDuration,
   calculateDurationHours as coreCalculateDurationHours
-} from '@/services/core/calculations/dateCalculations';
+} from '@/services/calculations/dateCalculations';
 import { 
   formatTime as coreFormatTime,
   snapToTimeSlot as coreSnapToTimeSlot
-} from '@/services/core/calculations/timeCalculations';
+} from '@/services/calculations/timeCalculations';
 
 export interface TimeSlotConfig {
   slotHeight: number;

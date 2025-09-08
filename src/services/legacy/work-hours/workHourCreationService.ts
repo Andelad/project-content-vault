@@ -6,14 +6,14 @@ import {
   calculateDurationMinutes as coreDurationMinutes,
   formatDuration as coreFormatDuration,
   formatDurationFromMinutes as coreFormatDurationFromMinutes 
-} from '@/services/core/calculations/dateCalculations';
+} from '@/services/calculations/dateCalculations';
 import { 
   snapToTimeSlot as coreSnapToTimeSlot,
   adjustEndTime as coreAdjustEndTime,
   formatTime as coreFormatTime,
   formatTimeForValidation as coreFormatTimeForValidation,
   getDayName as coreGetDayName
-} from '@/services/core/calculations/timeCalculations';
+} from '@/services/calculations/timeCalculations';
 
 /**
  * Time calculation parameters for work hour creation
