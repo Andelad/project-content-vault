@@ -104,7 +104,22 @@ export { ProjectValidator, ProjectValidator as ProjectValidationService } from '
 
 // Legacy calculation functions (to be migrated)
 export { calculateTimeFromPosition } from './calculations/workHourCalculations';
-export { calculateDurationMinutes } from './calculations/dateCalculations';
+export { 
+  calculateDurationMinutes,
+  normalizeToMidnight,
+  normalizeToEndOfDay,
+  isSameDay,
+  isValidDate,
+  isBusinessDay,
+  isBusinessHour,
+  isWorkingDay
+} from './calculations/dateCalculations';
+export {
+  getCurrentTimezone,
+  convertToTimezone,
+  getTimezoneOffset,
+  isDaylightSavingTime
+} from './calculations/timeCalculations';
 
 // Legacy event calculation wrappers for backward compatibility
 export {

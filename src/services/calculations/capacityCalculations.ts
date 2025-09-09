@@ -13,6 +13,13 @@ import {
 import { calculateEventDurationOnDate } from './eventCalculations';
 import { calculateWorkHoursTotal, calculateDayWorkHours } from './timelineCalculations';
 
+// Import unified functions - these are the single source of truth
+import { 
+  generateWorkHoursForDate as unifiedGenerateWorkHoursForDate,
+  calculateProjectWorkingDays as unifiedCalculateProjectWorkingDays,
+  calculateOvertimePlannedHours as unifiedCalculateOvertimePlannedHours
+} from '../unified/UnifiedEventWorkHourService';
+
 import type { CalendarEvent, WorkHour } from '@/types';
 
 // ===== INTERFACES =====
@@ -493,38 +500,14 @@ function calculateEventWorkHourOverlap(event: CalendarEvent, workHours: WorkHour
 
 /**
  * Shows time that is planned AND attributed to a project outside of work hours
+ * DELEGATES to single source of truth in UnifiedEventWorkHourService
  */
 export function calculateOvertimePlannedHours(
   date: Date,
   events: CalendarEvent[],
   workHours: WorkHour[]
 ): number {
-  // Get events that occur on this date and have a projectId (attributed to projects)
-  const dayProjectEvents = events.filter(event =>
-    event.projectId && calculateEventDurationOnDate({ event, targetDate: date }) > 0
-  );
-
-  let overtimeHours = 0;
-
-  for (const event of dayProjectEvents) {
-    // Calculate total event duration for this specific date
-    const eventDurationHours = calculateEventDurationOnDate({ event, targetDate: date });
-
-    if (eventDurationHours === 0) continue;
-
-    // Calculate overlap with work hours - only consider the portion of the event on this date
-    const overlapMinutes = calculateEventWorkHourOverlap(event, workHours);
-    const overlapHours = overlapMinutes / 60;
-
-    // For events that cross midnight, we need to limit the overlap to this date's portion
-    const dailyOverlapHours = Math.min(overlapHours, eventDurationHours);
-
-    // Overtime is the portion that doesn't overlap with work hours
-    const eventOvertimeHours = Math.max(0, eventDurationHours - dailyOverlapHours);
-    overtimeHours += eventOvertimeHours;
-  }
-
-  return overtimeHours;
+  return unifiedCalculateOvertimePlannedHours(date, events, workHours);
 }
 
 /**
@@ -568,42 +551,18 @@ export function calculateOtherTime(
 
 /**
  * Generate work hours for a specific date based on settings
+ * DELEGATES to single source of truth in UnifiedEventWorkHourService
  */
 export function generateWorkHoursForDate(
   date: Date,
   settings: any
 ): WorkHour[] {
-  if (!settings?.weeklyWorkHours) return [];
-
-  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-  const dayName = dayNames[date.getDay()];
-  const daySlots = settings.weeklyWorkHours[dayName] || [];
-
-  return daySlots.map((slot: any) => {
-    const workHourDate = new Date(date);
-    const [startHour, startMin] = slot.startTime.split(':').map(Number);
-    const [endHour, endMin] = slot.endTime.split(':').map(Number);
-
-    const startDateTime = new Date(workHourDate);
-    startDateTime.setHours(startHour, startMin, 0, 0);
-
-    const endDateTime = new Date(workHourDate);
-    endDateTime.setHours(endHour, endMin, 0, 0);
-
-    return {
-      id: `${dayName}-${slot.startTime}-${slot.endTime}-${date.toISOString().split('T')[0]}`,
-      title: 'Work Hours',
-      description: `${dayName.charAt(0).toUpperCase() + dayName.slice(1)} work hours`,
-      startTime: startDateTime,
-      endTime: endDateTime,
-      duration: slot.duration,
-      type: 'work' as const
-    };
-  });
+  return unifiedGenerateWorkHoursForDate(date, settings);
 }
 
 /**
  * Calculate project working days within a date range
+ * DELEGATES to single source of truth in UnifiedEventWorkHourService
  */
 export function calculateProjectWorkingDays(
   projectStart: Date,
@@ -611,24 +570,8 @@ export function calculateProjectWorkingDays(
   settings: any,
   holidays: any[]
 ): Date[] {
-  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-  const projectWorkingDays = [];
-
-  for (let d = new Date(projectStart); d <= projectEnd; d.setDate(d.getDate() + 1)) {
-    const checkDate = new Date(d);
-    const checkDayName = dayNames[checkDate.getDay()] as keyof typeof settings.weeklyWorkHours;
-    const checkWorkSlots = settings.weeklyWorkHours[checkDayName] || [];
-    const checkIsHoliday = holidays.some(holiday =>
-      checkDate >= new Date(holiday.startDate) && checkDate <= new Date(holiday.endDate)
-    );
-
-    if (!checkIsHoliday && Array.isArray(checkWorkSlots) &&
-        checkWorkSlots.reduce((sum, slot) => sum + slot.duration, 0) > 0) {
-      projectWorkingDays.push(new Date(checkDate));
-    }
-  }
-
-  return projectWorkingDays;
+  const result = unifiedCalculateProjectWorkingDays(projectStart, projectEnd, settings, holidays);
+  return result.workingDays;
 }
 
 /**

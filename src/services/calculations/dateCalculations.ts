@@ -317,3 +317,95 @@ export function getNextBusinessDay(date: Date, holidays: Date[] = []): Date {
 export function getPreviousBusinessDay(date: Date, holidays: Date[] = []): Date {
   return subtractBusinessDays(date, 1, holidays);
 }
+
+/**
+ * SINGLE SOURCE OF TRUTH - Date Normalization
+ * All date normalization throughout the app MUST use these functions
+ */
+
+/**
+ * Normalize date to midnight for consistent comparison
+ * THE authoritative date normalization used everywhere
+ */
+export function normalizeToMidnight(date: Date): Date {
+  const normalized = new Date(date);
+  normalized.setHours(0, 0, 0, 0);
+  return normalized;
+}
+
+/**
+ * Normalize date to end of day (23:59:59.999) for range comparisons
+ * THE authoritative end-of-day normalization used everywhere
+ */
+export function normalizeToEndOfDay(date: Date): Date {
+  const normalized = new Date(date);
+  normalized.setHours(23, 59, 59, 999);
+  return normalized;
+}
+
+/**
+ * SINGLE SOURCE OF TRUTH - Date Validation
+ * All date validation throughout the app MUST use these functions
+ */
+
+/**
+ * Check if a date is valid
+ * THE authoritative date validation used everywhere
+ */
+export function isValidDate(date: any): date is Date {
+  return date instanceof Date && !isNaN(date.getTime());
+}
+
+/**
+ * Check if a date is a business day (Monday-Friday, excluding holidays)
+ * THE authoritative business day check used everywhere
+ */
+export function isBusinessDay(date: Date, holidays: Date[] = []): boolean {
+  if (!isValidDate(date)) return false;
+  
+  const dayOfWeek = date.getDay();
+  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6; // Sunday = 0, Saturday = 6
+  
+  if (isWeekend) return false;
+  
+  // Check if it's a holiday
+  const normalizedDate = normalizeToMidnight(date);
+  return !holidays.some(holiday => 
+    normalizeToMidnight(holiday).getTime() === normalizedDate.getTime()
+  );
+}
+
+/**
+ * Check if a time falls within typical business hours
+ * THE authoritative business hours check used everywhere
+ */
+export function isBusinessHour(date: Date, startHour: number = 9, endHour: number = 17): boolean {
+  if (!isValidDate(date)) return false;
+  
+  const hour = date.getHours();
+  return hour >= startHour && hour < endHour;
+}
+
+/**
+ * Check if a date falls within a working day based on settings
+ * THE authoritative working day check used everywhere
+ */
+export function isWorkingDay(date: Date, settings: any, holidays: Date[] = []): boolean {
+  if (!isValidDate(date) || !settings?.weeklyWorkHours) return false;
+  
+  // Check if it's a holiday first
+  const normalizedDate = normalizeToMidnight(date);
+  const isHoliday = holidays.some(holiday =>
+    normalizeToMidnight(holiday).getTime() === normalizedDate.getTime()
+  );
+  
+  if (isHoliday) return false;
+  
+  // Check if the day has any work slots defined
+  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const dayName = dayNames[date.getDay()];
+  const workSlots = settings.weeklyWorkHours[dayName] || [];
+  
+  return Array.isArray(workSlots) && 
+         workSlots.reduce((total, slot) => total + (slot.duration || 0), 0) > 0;
+}

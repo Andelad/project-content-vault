@@ -122,3 +122,76 @@ export function getDayName(date: Date): string {
   const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   return dayNames[date.getDay()];
 }
+
+/**
+ * SINGLE SOURCE OF TRUTH - Time Zone Utilities
+ * All timezone handling throughout the app MUST use these functions
+ */
+
+/**
+ * Get the user's current timezone
+ * THE authoritative timezone detection used everywhere
+ */
+export function getCurrentTimezone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
+
+/**
+ * Convert date to specific timezone
+ * THE authoritative timezone conversion used everywhere
+ */
+export function convertToTimezone(date: Date, timezone: string): Date {
+  try {
+    // Create a new date in the specified timezone
+    const utcDate = new Date(date.toLocaleString('en-US', { timeZone: 'UTC' }));
+    const targetDate = new Date(date.toLocaleString('en-US', { timeZone: timezone }));
+    
+    // Calculate the offset and apply it
+    const offset = utcDate.getTime() - targetDate.getTime();
+    return new Date(date.getTime() - offset);
+  } catch (error) {
+    console.warn(`Invalid timezone: ${timezone}, returning original date`);
+    return new Date(date);
+  }
+}
+
+/**
+ * Get timezone offset in minutes for a specific date and timezone
+ * THE authoritative timezone offset calculation used everywhere
+ */
+export function getTimezoneOffset(date: Date, timezone?: string): number {
+  try {
+    const targetTimezone = timezone || getCurrentTimezone();
+    const utcDate = new Date(date.toLocaleString('en-US', { timeZone: 'UTC' }));
+    const localDate = new Date(date.toLocaleString('en-US', { timeZone: targetTimezone }));
+    
+    // Return offset in minutes (positive for ahead of UTC, negative for behind)
+    return (utcDate.getTime() - localDate.getTime()) / (1000 * 60);
+  } catch (error) {
+    console.warn(`Could not calculate timezone offset for ${timezone}, using local offset`);
+    return date.getTimezoneOffset();
+  }
+}
+
+/**
+ * Check if a date falls within daylight saving time
+ * THE authoritative DST detection used everywhere
+ */
+export function isDaylightSavingTime(date: Date, timezone?: string): boolean {
+  try {
+    const targetTimezone = timezone || getCurrentTimezone();
+    
+    // Get the timezone offset in January (standard time)
+    const january = new Date(date.getFullYear(), 0, 1);
+    const januaryOffset = getTimezoneOffset(january, targetTimezone);
+    
+    // Get the timezone offset for the given date
+    const currentOffset = getTimezoneOffset(date, targetTimezone);
+    
+    // If current offset is different from January, we're likely in DST
+    return currentOffset !== januaryOffset;
+  } catch (error) {
+    console.warn(`Could not determine DST status for ${timezone}`);
+    return false;
+  }
+}

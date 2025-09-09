@@ -4,6 +4,8 @@
  * Solves the project bar calculation inconsistency issue
  */
 
+import { normalizeToMidnight } from '../calculations/dateCalculations';
+
 // Timeline position calculation result type
 export type TimelinePositionCalculation = {
   baselineStartPx: number;
@@ -175,12 +177,6 @@ function calculateDaysModePositions(
 }
 
 // Helper functions for days mode calculations
-function normalizeToMidnight(date: Date): Date {
-  const normalized = new Date(date);
-  normalized.setHours(0, 0, 0, 0);
-  return normalized;
-}
-
 function findDateIndex(dates: Date[], targetDate: Date): number {
   return dates.findIndex(date => {
     const normalized = normalizeToMidnight(date);
