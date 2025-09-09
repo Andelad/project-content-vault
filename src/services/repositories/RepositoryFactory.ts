@@ -26,6 +26,7 @@ import type {
 
 import { ProjectRepository, type IProjectRepository } from './ProjectRepository';
 import { MilestoneRepository, type IMilestoneRepository } from './MilestoneRepository';
+import { timeTrackingRepository } from './timeTrackingRepository';
 // Additional repository imports would go here
 // import { EventRepository, type IEventRepository } from './EventRepository';
 // import { WorkHourRepository, type IWorkHourRepository } from './WorkHourRepository';
