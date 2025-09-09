@@ -3,6 +3,8 @@
  * Extracted from TimelineView and other components
  */
 
+import { calculateDurationDays } from './dateCalculations';
+
 export interface Holiday {
   startDate: Date;
   endDate: Date;
@@ -231,17 +233,9 @@ export function isWeekend(date: Date): boolean {
 }
 
 /**
- * Get the number of days between two dates
+ * Get the number of days between two dates - REMOVED, using core calculateDurationDays
+ * This function was a duplicate of core functionality.
  */
-export function getDaysDifference(startDate: Date, endDate: Date): number {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  start.setHours(0, 0, 0, 0);
-  end.setHours(0, 0, 0, 0);
-  
-  const diffTime = end.getTime() - start.getTime();
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-}
 
 /**
  * Date range constants

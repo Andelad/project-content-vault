@@ -103,7 +103,8 @@ export { TimelineViewport, TimelineViewport as TimelineViewportService } from '.
 export { ProjectValidator, ProjectValidator as ProjectValidationService } from './validators/ProjectValidator';
 
 // Legacy calculation functions (to be migrated)
-export { calculateTimeFromPosition, calculateDurationMinutes } from './calculations/workHourCalculations';
+export { calculateTimeFromPosition } from './calculations/workHourCalculations';
+export { calculateDurationMinutes } from './calculations/dateCalculations';
 
 // Legacy event calculation wrappers for backward compatibility
 export {
@@ -155,7 +156,7 @@ export {
 } from './calculations/milestoneCalculations';
 // Milestone calculation functions from modern service
 export { getMilestoneSegmentForDate, calculateMilestoneInterval, calculateMilestoneSegments, getEstimatedHoursForDate, getMilestoneForDate, getMilestonesInDateRange, type MilestoneSegment } from './calculations/milestoneCalculations';
-export { MilestoneCalculationService, type MilestoneValidationResult, type LegacyMilestone, type RecurringPattern } from './calculations/milestoneCalculations';
+export { MilestoneCalculationService, type MilestoneValidationResult, type FlexibleMilestone, type RecurringPattern } from './calculations/milestoneCalculations';
 // Legacy project progress analysis - migrated to unified service with compatibility wrapper
 export { wouldOverlapHolidays, isHolidayDateCapacity, calculateCommittedHoursForDate, hasWorkHoursConfigured, dayHasWorkHoursConfigured } from './calculations/capacityCalculations';
 export { calculateProjectDays, calculateWorkHoursTotal, calculateDayWorkHours, calculateTotalDayWorkHours } from './calculations/timelineCalculations';
@@ -171,11 +172,13 @@ export {
   generateWeeklyUtilizationReport
 } from './calculations/insightCalculations';
 export { calculateDaysDelta, createSmoothDragAnimation, debounceDragUpdate, type SmoothAnimationConfig } from './calculations/dragCalculations';
-export { formatTimeForDisplay, formatDurationFromHours } from './calculations/workHourCalculations';
+export { formatTimeForDisplay } from './calculations/workHourCalculations';
+export { formatDuration as formatDurationFromHours } from './calculations/dateCalculations';
 export { handleWorkHourCreationStart, handleWorkHourCreationMove, handleWorkHourCreationComplete } from './calculations/workHourCalculations';
-export { getWorkHourOverlapInfo, generateWorkHourPreviewStyle, formatDurationPreview, getWorkHourCreationCursor, shouldAllowWorkHourCreation, type WorkHourCreateState } from './calculations/workHourCalculations';
+export { getWorkHourOverlapInfo, generateWorkHourPreviewStyle, getWorkHourCreationCursor, shouldAllowWorkHourCreation, type WorkHourCreateState } from './calculations/workHourCalculations';
+export { formatDuration as formatDurationPreview } from './calculations/dateCalculations';
 // PositionCalculation type migrated to ui/TimelinePositioning.ts
-export { type ComprehensiveProjectTimeMetrics, type ProgressProject, type ProjectEvent as ProgressProjectEvent } from './calculations/projectProgressCalculations';
+export { type ComprehensiveProjectTimeMetrics, type ProjectEvent as ProgressProjectEvent } from './calculations/projectProgressCalculations';
 export { 
   calculateTimelinePositions, 
   calculateScrollbarPosition, 

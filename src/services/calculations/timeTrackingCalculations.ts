@@ -1,4 +1,5 @@
 import type { TimeTrackingState } from '../../types/timeTracking';
+import { calculateDurationMinutes } from './dateCalculations';
 
 /**
  * Time Tracking Calculations
@@ -9,9 +10,11 @@ class TimeTrackingCalculations {
   
   /**
    * Calculate the duration between two dates in milliseconds
+   * Delegates to core date calculations for consistency
    */
   calculateDuration(startTime: Date, endTime: Date): number {
-    return Math.max(0, endTime.getTime() - startTime.getTime());
+    // Use core calculation and convert to milliseconds
+    return calculateDurationMinutes(startTime, endTime) * 60 * 1000;
   }
 
   /**

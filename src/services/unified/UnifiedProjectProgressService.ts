@@ -7,10 +7,10 @@
  * Architecture: Domain -> Calculations -> Orchestrators -> Validators -> Repository
  */
 
-import { Project, CalendarEvent, Holiday, Settings } from '@/types/core';
+import { Project, CalendarEvent, Holiday, Settings, Milestone } from '@/types/core';
 import {
   ProjectEvent,
-  Milestone,
+  MilestoneWithProgress,
   DataPoint,
   ComprehensiveProjectTimeMetrics,
   calculateProjectDuration,
@@ -256,7 +256,7 @@ export function formatProjectDateRange(project: Project): string {
 export function analyzeProjectProgress(
   project: Project,
   events: CalendarEvent[],
-  milestones: Milestone[],
+  milestones: MilestoneWithProgress[],
   holidays: Holiday[],
   settings: Settings
 ): {
@@ -265,7 +265,7 @@ export function analyzeProjectProgress(
   status: ProjectStatus;
   isOnTrack: boolean;
   milestoneProgress: Array<{
-    milestone: Milestone;
+    milestone: MilestoneWithProgress;
     isCompleted: boolean;
     daysUntilDue: number;
     progressToward: number;

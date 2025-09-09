@@ -5,29 +5,17 @@
  * Part of unified calculations layer for consistent project progress tracking
  */
 
-import type { Milestone as CoreMilestone } from '@/types/core';
+import type { Milestone, Project, CalendarEvent } from '@/types/core';
+import { calculateDurationDays, calculateDurationHours } from './dateCalculations';
 
-export interface ProjectEvent {
-  id: string;
-  projectId: string;
-  startTime: Date;
-  endTime: Date;
-  completed: boolean;
+// Project-specific subset of CalendarEvent for progress calculations
+export interface ProjectEvent extends Pick<CalendarEvent, 'id' | 'startTime' | 'endTime' | 'completed'> {
+  projectId: string; // projectId is optional in CalendarEvent but required for project calculations
 }
 
-export interface Milestone {
-  id: string;
-  projectId: string;
-  dueDate: string | Date;
-  timeAllocation: number;
+// Extends core Milestone with progress-specific fields
+export interface MilestoneWithProgress extends Milestone {
   completed?: boolean;
-}
-
-export interface ProgressProject {
-  id: string;
-  startDate: string | Date;
-  endDate: string | Date;
-  estimatedHours: number;
 }
 
 export interface DataPoint {
@@ -69,10 +57,10 @@ export interface ComprehensiveProjectTimeMetrics {
 /**
  * Calculate total project duration in days
  */
-export function calculateProjectDuration(project: ProgressProject): number {
+export function calculateProjectDuration(project: Project): number {
   const startDate = new Date(project.startDate);
   const endDate = new Date(project.endDate);
-  return Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+  return calculateDurationDays(startDate, endDate);
 }
 
 /**
@@ -88,7 +76,7 @@ export function getProjectEvents(events: ProjectEvent[], projectId: string): Pro
 export function calculateEventDurationHours(event: ProjectEvent): number {
   const startTime = new Date(event.startTime);
   const endTime = new Date(event.endTime);
-  return (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
+  return calculateDurationHours(startTime, endTime);
 }
 
 /**
@@ -134,7 +122,7 @@ function calculateCompletedTimeUpToDate(
   );
   
   return projectEvents.reduce((total, event) => {
-    const duration = (new Date(event.endTime).getTime() - new Date(event.startTime).getTime()) / (1000 * 60 * 60);
+    const duration = calculateDurationHours(new Date(event.startTime), new Date(event.endTime));
     return total + duration;
   }, 0);
 }
@@ -168,7 +156,7 @@ export function getPlannedTimeUpToDate(
     );
     
     return projectEvents.reduce((total, event) => {
-      const duration = (new Date(event.endTime).getTime() - new Date(event.startTime).getTime()) / (1000 * 60 * 60);
+      const duration = calculateDurationHours(new Date(event.startTime), new Date(event.endTime));
       return total + duration;
     }, 0);
   }
@@ -180,11 +168,11 @@ export function getPlannedTimeUpToDate(
  * Get relevant milestones for a project
  */
 export function getRelevantMilestones(
-  milestones: Milestone[], 
+  milestones: MilestoneWithProgress[], 
   projectId: string, 
   startDate?: Date, 
   endDate?: Date
-): Milestone[] {
+): MilestoneWithProgress[] {
   let filtered = milestones.filter(m => m.projectId === projectId);
   
   if (startDate) {
@@ -242,7 +230,7 @@ export function buildPlannedTimeMap(
     const dateKey = eventDate.toISOString().split('T')[0];
     
     if (plannedTimeMap.has(dateKey)) {
-      const duration = (new Date(event.endTime).getTime() - new Date(event.startTime).getTime()) / (1000 * 60 * 60);
+      const duration = calculateDurationHours(new Date(event.startTime), new Date(event.endTime));
       const currentTime = plannedTimeMap.get(dateKey) || 0;
       plannedTimeMap.set(dateKey, currentTime + duration);
     }
@@ -256,7 +244,7 @@ export function buildPlannedTimeMap(
  * Supports both new (3 args) and legacy (4 args) signatures
  */
 export function calculateProjectTimeMetrics(
-  project: ProgressProject,
+  project: Project,
   events: ProjectEvent[],
   milestonesOrHolidays?: Milestone[] | any[], // Accept milestones or holidays for backward compatibility
   settings?: any // Legacy settings parameter
@@ -278,8 +266,8 @@ export function calculateProjectTimeMetrics(
   // Calculate time remaining
   const startDate = new Date(project.startDate);
   const endDate = new Date(project.endDate);
-  const daysRemaining = Math.max(0, Math.ceil((endDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24)));
-  const totalWorkDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+  const daysRemaining = Math.max(0, calculateDurationDays(currentDate, endDate));
+  const totalWorkDays = calculateDurationDays(startDate, endDate);
   const averageHoursPerDay = daysRemaining > 0 ? remainingHours / daysRemaining : 0;
   
   // Determine if project is on track (simplified calculation)
@@ -291,7 +279,7 @@ export function calculateProjectTimeMetrics(
   const efficiency = totalPlannedHours > 0 ? (totalCompletedHours / totalPlannedHours) * 100 : 0;
   
   // Calculate milestone progress
-  const completedMilestones = milestones.filter(m => m.completed).length;
+  const completedMilestones = (milestones as MilestoneWithProgress[]).filter(m => m.completed).length;
   const milestoneProgress = {
     completed: completedMilestones,
     total: milestones.length,
@@ -323,7 +311,7 @@ export function calculateProjectTimeMetrics(
  * Generate progress data points for visualization
  */
 export function generateProgressDataPoints(
-  project: ProgressProject,
+  project: Project,
   events: ProjectEvent[],
   options: ProgressCalculationOptions = {}
 ): DataPoint[] {
@@ -370,7 +358,7 @@ export function generateProgressDataPoints(
  * Calculate project velocity (hours completed per day)
  */
 export function calculateProjectVelocity(
-  project: ProgressProject,
+  project: Project,
   events: ProjectEvent[],
   periodDays: number = 7
 ): number {
@@ -385,7 +373,7 @@ export function calculateProjectVelocity(
   );
   
   const totalHoursCompleted = projectEvents.reduce((total, event) => {
-    const duration = (new Date(event.endTime).getTime() - new Date(event.startTime).getTime()) / (1000 * 60 * 60);
+    const duration = calculateDurationHours(new Date(event.startTime), new Date(event.endTime));
     return total + duration;
   }, 0);
   
@@ -396,7 +384,7 @@ export function calculateProjectVelocity(
  * Estimate project completion date based on current velocity
  */
 export function estimateProjectCompletionDate(
-  project: ProgressProject,
+  project: Project,
   events: ProjectEvent[]
 ): Date {
   const velocity = calculateProjectVelocity(project, events, 14); // Use 14-day velocity

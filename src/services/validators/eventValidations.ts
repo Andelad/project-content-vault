@@ -8,19 +8,10 @@
 import { 
   calculateDurationHours 
 } from '@/services/calculations/dateCalculations';
+import type { CalendarEvent } from '@/types/core';
 
-export interface Event {
-  id: string;
-  title: string;
-  startTime: Date;
-  endTime: Date;
-  projectId?: string;
-  color?: string;
-  description?: string;
-  duration?: number;
-  type?: 'planned' | 'tracked' | 'completed';
-  completed?: boolean;
-}
+// Use core CalendarEvent as the single source of truth
+export type Event = CalendarEvent;
 
 export interface EventSplitResult {
   action: 'delete' | 'split' | 'trim-start' | 'trim-end' | 'no-overlap';

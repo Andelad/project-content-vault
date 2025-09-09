@@ -8,7 +8,8 @@
  */
 
 import { 
-  calculateDurationHours 
+  calculateDurationHours,
+  calculateDurationMinutes
 } from './dateCalculations';
 import { 
   getWeekStart as coreGetWeekStart,
@@ -429,25 +430,10 @@ export function calculateTimeFromPosition(params: TimeCalculationParams): Date {
 }
 
 /**
- * Calculate duration in minutes - delegates to core function
- */
-export function calculateDurationMinutes(startTime: Date, endTime: Date): number {
-  return Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60));
-}
-
-/**
  * Format time for display in work hour components
  */
 export function formatTimeForDisplay(date: Date): string {
   return formatTime(date);
-}
-
-/**
- * Format duration from hours for display
- */
-export function formatDurationFromHours(hours: number): string {
-  const minutes = hours * 60;
-  return formatDurationFromMinutes(minutes);
 }
 
 /**
@@ -563,13 +549,6 @@ export function generateWorkHourPreviewStyle(
     height: `${height}px`,
     opacity: '0.6'
   };
-}
-
-/**
- * Format duration preview text
- */
-export function formatDurationPreview(duration: number): string {
-  return formatDuration(duration);
 }
 
 /**

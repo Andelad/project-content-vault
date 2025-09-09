@@ -317,8 +317,7 @@ export class DurationFormattingService {
    * @returns Formatted duration string (e.g., "2w 3d", "5 days", "3 weeks")
    */
   static formatDuration(startDate: Date, endDate: Date): string {
-    const diffTime = endDate.getTime() - startDate.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const diffDays = calculateDurationDays(startDate, endDate);
     const weeks = Math.floor(diffDays / 7);
     const days = diffDays % 7;
 
@@ -334,8 +333,7 @@ export class DurationFormattingService {
    * @returns Number of days as string
    */
   static formatDurationInDays(startDate: Date, endDate: Date): string {
-    const diffTime = endDate.getTime() - startDate.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const diffDays = calculateDurationDays(startDate, endDate);
     return `${diffDays} days`;
   }
 
@@ -346,8 +344,7 @@ export class DurationFormattingService {
    * @returns Number of weeks as string
    */
   static formatDurationInWeeks(startDate: Date, endDate: Date): string {
-    const diffTime = endDate.getTime() - startDate.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const diffDays = calculateDurationDays(startDate, endDate);
     const weeks = Math.floor(diffDays / 7);
     return `${weeks} weeks`;
   }

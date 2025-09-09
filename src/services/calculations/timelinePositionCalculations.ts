@@ -5,6 +5,8 @@
  * Part of unified calculations layer for consistent timeline positioning
  */
 
+import { calculateDurationDays } from './dateCalculations';
+
 /**
  * Timeline position calculation interface
  */
@@ -135,7 +137,7 @@ function calculateDaysModePositions(
   columnWidth: number
 ): TimelinePositionCalculation {
   const startOffset = getDaysOffset(viewportStart, projectStart);
-  const duration = getDaysDifference(projectStart, projectEnd);
+  const duration = calculateDurationDays(projectStart, projectEnd);
   
   const baselineStartPx = startOffset * columnWidth;
   const baselineWidthPx = duration * columnWidth;
@@ -179,14 +181,6 @@ function getDaysOffset(fromDate: Date, toDate: Date): number {
 }
 
 /**
- * Calculate days difference between two dates
- */
-function getDaysDifference(startDate: Date, endDate: Date): number {
-  const diffTime = endDate.getTime() - startDate.getTime();
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-}
-
-/**
  * Calculate scrollbar position and dimensions
  */
 export function calculateScrollbarPosition(
@@ -196,8 +190,8 @@ export function calculateScrollbarPosition(
   fullTimelineEnd: Date,
   scrollbarWidth: number
 ): ScrollbarCalculation {
-  const totalDays = getDaysDifference(fullTimelineStart, fullTimelineEnd);
-  const viewportDays = getDaysDifference(viewportStart, viewportEnd);
+  const totalDays = calculateDurationDays(fullTimelineStart, fullTimelineEnd);
+  const viewportDays = calculateDurationDays(viewportStart, viewportEnd);
   const currentDayOffset = getDaysOffset(fullTimelineStart, viewportStart);
   
   const thumbWidth = Math.max(20, (viewportDays / totalDays) * scrollbarWidth);
@@ -359,7 +353,7 @@ export function calculateCenterScrollPosition(
   fullTimelineEnd: Date,
   viewportDays: number
 ): number {
-  const totalDays = getDaysDifference(fullTimelineStart, fullTimelineEnd);
+  const totalDays = calculateDurationDays(fullTimelineStart, fullTimelineEnd);
   const targetDayIndex = getDaysOffset(fullTimelineStart, targetDate);
   
   // Center the target date in the viewport

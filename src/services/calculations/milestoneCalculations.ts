@@ -418,7 +418,7 @@ export function detectRecurringPattern(milestones: Array<{ name: string; dueDate
   // Calculate interval between first two milestones
   const firstDate = new Date(sortedMilestones[0].dueDate);
   const secondDate = new Date(sortedMilestones[1].dueDate);
-  const daysDifference = Math.round((secondDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24));
+  const daysDifference = Math.round(DateCalculations.calculateDurationDays(firstDate, secondDate));
   
   let recurringType: 'daily' | 'weekly' | 'monthly' = 'weekly';
   let interval = 1;
@@ -505,8 +505,7 @@ export function calculateMilestoneSegments(
     }
     
     // Calculate working days (simplified - excludes weekends)
-    const timeDiff = segmentEnd.getTime() - segmentStart.getTime();
-    const totalDays = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+    const totalDays = Math.ceil(DateCalculations.calculateDurationDays(segmentStart, segmentEnd));
     const workingDays = Math.max(1, Math.floor(totalDays * 5/7)); // Approximate working days
     
     const estimatedHours = milestone.timeAllocation || 0;
@@ -530,8 +529,7 @@ export function calculateMilestoneSegments(
     const finalStart = new Date(lastMilestoneDate);
     finalStart.setDate(finalStart.getDate() + 1);
     
-    const timeDiff = projectEndDate.getTime() - finalStart.getTime();
-    const totalDays = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+    const totalDays = Math.ceil(DateCalculations.calculateDurationDays(finalStart, projectEndDate));
     const workingDays = Math.max(1, Math.floor(totalDays * 5/7));
     
     segments.push({
@@ -634,14 +632,12 @@ export function getMilestonesInDateRange(
 // =============================================================================
 
 /**
- * Milestone interface for validation functions
+ * Flexible milestone type that can handle dueDate as either string or Date
+ * Extends core Milestone interface for backward compatibility
  */
-export interface LegacyMilestone {
-  id: string;
-  name: string;
+export type FlexibleMilestone = Omit<Milestone, 'dueDate'> & {
   dueDate: string | Date;
-  timeAllocation: number;
-}
+};
 
 /**
  * Recurring pattern interface
@@ -666,7 +662,7 @@ export interface MilestoneValidationResult {
  * Validate milestone allocation against project budget
  */
 export function validateMilestoneAllocation(
-  milestones: LegacyMilestone[],
+  milestones: FlexibleMilestone[],
   projectEstimatedHours: number,
   excludeMilestoneId?: string
 ): MilestoneValidationResult {
@@ -697,7 +693,7 @@ export function validateMilestoneAllocation(
  * Validate adding a new milestone to existing allocation
  */
 export function validateNewMilestoneAllocation(
-  existingMilestones: LegacyMilestone[],
+  existingMilestones: FlexibleMilestone[],
   newMilestoneAllocation: number,
   projectEstimatedHours: number
 ): MilestoneValidationResult {
@@ -725,7 +721,7 @@ export function validateNewMilestoneAllocation(
  * Validate updating an existing milestone allocation
  */
 export function validateMilestoneUpdate(
-  milestones: LegacyMilestone[],
+  milestones: FlexibleMilestone[],
   milestoneId: string,
   newAllocation: number,
   projectEstimatedHours: number
@@ -749,7 +745,7 @@ export function calculateDaysDifference(firstDate: Date | string, secondDate: Da
 /**
  * Detect recurring pattern from legacy milestones
  */
-export function detectLegacyRecurringPattern(milestones: LegacyMilestone[]): RecurringPattern | null {
+export function detectFlexibleRecurringPattern(milestones: FlexibleMilestone[]): RecurringPattern | null {
   // Filter milestones that match recurring pattern (ends with space and number)
   const recurringPattern = milestones.filter(m => 
     m.name && /\s\d+$/.test(m.name)
@@ -809,7 +805,7 @@ export function calculateInputWidth(content: string, baseWidth: number = 80, cha
 /**
  * Sort legacy milestones by due date
  */
-export function sortLegacyMilestonesByDate(milestones: LegacyMilestone[]): LegacyMilestone[] {
+export function sortFlexibleMilestonesByDate(milestones: FlexibleMilestone[]): FlexibleMilestone[] {
   return [...milestones].sort((a, b) => 
     new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
   );
@@ -830,7 +826,7 @@ export function formatMilestoneDate(date: Date | string): string {
 /**
  * Check if milestone date matches a specific date
  */
-export function isMilestoneDueOnDate(milestone: LegacyMilestone, targetDate: Date): boolean {
+export function isMilestoneDueOnDate(milestone: FlexibleMilestone, targetDate: Date): boolean {
   const milestoneDate = new Date(milestone.dueDate);
   return milestoneDate.toDateString() === targetDate.toDateString();
 }
@@ -863,12 +859,12 @@ export function getOrdinalNumber(num: number): string {
  * This class will be removed in a future version.
  */
 export class MilestoneCalculationService {
-  static calculateTotalAllocation(milestones: LegacyMilestone[]): number {
+  static calculateTotalAllocation(milestones: FlexibleMilestone[]): number {
     return milestones.reduce((total, milestone) => total + milestone.timeAllocation, 0);
   }
 
   static validateMilestoneAllocation(
-    milestones: LegacyMilestone[],
+    milestones: FlexibleMilestone[],
     projectEstimatedHours: number,
     excludeMilestoneId?: string
   ): MilestoneValidationResult {
@@ -876,7 +872,7 @@ export class MilestoneCalculationService {
   }
 
   static validateNewMilestoneAllocation(
-    existingMilestones: LegacyMilestone[],
+    existingMilestones: FlexibleMilestone[],
     newMilestoneAllocation: number,
     projectEstimatedHours: number
   ): MilestoneValidationResult {
@@ -884,7 +880,7 @@ export class MilestoneCalculationService {
   }
 
   static validateMilestoneUpdate(
-    milestones: LegacyMilestone[],
+    milestones: FlexibleMilestone[],
     milestoneId: string,
     newAllocation: number,
     projectEstimatedHours: number
@@ -896,23 +892,23 @@ export class MilestoneCalculationService {
     return calculateDaysDifference(firstDate, secondDate);
   }
 
-  static detectRecurringPattern(milestones: LegacyMilestone[]): RecurringPattern | null {
-    return detectLegacyRecurringPattern(milestones);
+  static detectRecurringPattern(milestones: FlexibleMilestone[]): RecurringPattern | null {
+    return detectFlexibleRecurringPattern(milestones);
   }
 
   static calculateInputWidth(content: string, baseWidth?: number, charWidth?: number): number {
     return calculateInputWidth(content, baseWidth, charWidth);
   }
 
-  static sortMilestonesByDate(milestones: LegacyMilestone[]): LegacyMilestone[] {
-    return sortLegacyMilestonesByDate(milestones);
+  static sortMilestonesByDate(milestones: FlexibleMilestone[]): FlexibleMilestone[] {
+    return sortFlexibleMilestonesByDate(milestones);
   }
 
   static formatMilestoneDate(date: Date | string): string {
     return formatMilestoneDate(date);
   }
 
-  static isMilestoneDueOnDate(milestone: LegacyMilestone, targetDate: Date): boolean {
+  static isMilestoneDueOnDate(milestone: FlexibleMilestone, targetDate: Date): boolean {
     return isMilestoneDueOnDate(milestone, targetDate);
   }
 
