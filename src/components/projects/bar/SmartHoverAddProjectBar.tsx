@@ -260,15 +260,11 @@ export const SmartHoverAddProjectBar: React.FC<SmartHoverAddProjectBarProps> = (
         }
       }
     } else if (hoveredIndex !== null) {
-      // Just hovering - use minimum size calculation from service
-      const { startIndex: minStartIndex, endIndex: minEndIndex } = calculateMinimumHoverOverlaySize(
-        hoveredIndex,
-        mode,
-        occupiedIndices,
-        dates
-      );
+      // Just hovering - use simple index logic
+      const minStartIndex = hoveredIndex;
+      const minEndIndex = hoveredIndex; // Minimum size is just one day/week
       
-      // Check if service returned valid range
+      // Check if index is valid
       if (minStartIndex === -1 || minEndIndex === -1) {
         return null; // No valid range available
       }

@@ -219,9 +219,9 @@ export function TimelineView() {
     createSmoothDragAnimation(
       animationConfig,
       (intermediateStart) => setViewportStart(intermediateStart),
-      (targetStart) => {
-        setViewportStart(targetStart);
-        setCurrentDate(new Date(targetStart));
+      () => {
+        setViewportStart(new Date(animationConfig.targetStart));
+        setCurrentDate(new Date(animationConfig.targetStart));
         setIsAnimating(false);
       }
     );
@@ -448,9 +448,9 @@ export function TimelineView() {
         createSmoothDragAnimation(
           animationConfig,
           (intermediateStart) => setViewportStart(intermediateStart),
-          (finalStart) => {
-            setViewportStart(finalStart);
-            setCurrentDate(new Date(finalStart));
+          () => {
+            setViewportStart(new Date(animationConfig.targetStart));
+            setCurrentDate(new Date(animationConfig.targetStart));
             setIsAnimating(false);
           }
         );

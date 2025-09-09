@@ -54,7 +54,7 @@ export class TimeAllocationService {
       source = 'planned-events';
     } else if (milestoneSegment) {
       // Use milestone segment calculation
-      finalHours = milestoneSegment.hoursPerDay;
+      finalHours = milestoneSegment.dailyHours;
       source = 'milestone-segment';
     } else if (timeAllocation.type === 'auto-estimate') {
       // Fallback to project-level auto-estimate

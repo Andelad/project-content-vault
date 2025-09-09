@@ -92,16 +92,8 @@ export {
 // These exports maintain backward compatibility during the migration process
 // Once migration is complete, all functionality will be available through the new layers
 
-// === TEMPORARY LEGACY EXPORTS FOR COMPATIBILITY ===
-// Re-adding essential legacy service exports that components still need
-export { 
-  WeeklyCapacityCalculationService, 
-  WorkHoursCalculationService,
-  ProjectDaysCalculationService,
-  ProjectMetricsCalculationService,
-  CommittedHoursCalculationService,
-  WorkHoursValidationService 
-} from './legacy/timeline/TimelineBusinessLogicService';
+// Modern calculation services (replacing legacy timeline business logic)
+// These functions are now available directly as exports from their respective calculation modules
 
 // MilestoneManagementService migrated to unified/UnifiedMilestoneService.ts + orchestrators/MilestoneOrchestrator.ts
 // TimelineCalculationService migrated to calculations/timelineCalculations.ts
@@ -161,7 +153,8 @@ export {
   detectRecurringPattern,
   generateRecurringMilestoneDates
 } from './calculations/milestoneCalculations';
-export { getMilestoneSegmentForDate, calculateMilestoneInterval, calculateMilestoneSegments, getEstimatedHoursForDate, getMilestoneForDate, getMilestonesInDateRange, type MilestoneSegment } from './legacy/milestones/milestoneUtilitiesService';
+// Milestone calculation functions from modern service
+export { getMilestoneSegmentForDate, calculateMilestoneInterval, calculateMilestoneSegments, getEstimatedHoursForDate, getMilestoneForDate, getMilestonesInDateRange, type MilestoneSegment } from './calculations/milestoneCalculations';
 export { MilestoneCalculationService, type MilestoneValidationResult, type LegacyMilestone, type RecurringPattern } from './calculations/milestoneCalculations';
 // Legacy project progress analysis - migrated to unified service with compatibility wrapper
 export { wouldOverlapHolidays, isHolidayDateCapacity, calculateCommittedHoursForDate, hasWorkHoursConfigured, dayHasWorkHoursConfigured } from './calculations/capacityCalculations';

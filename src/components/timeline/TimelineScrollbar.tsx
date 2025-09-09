@@ -32,7 +32,24 @@ export const TimelineScrollbar = memo(function TimelineScrollbar({
   const [smoothThumbPosition, setSmoothThumbPosition] = useState(0);
   
   // Use service for scrollbar calculations
-  const scrollbarCalc = calculateScrollbarPosition(viewportStart, VIEWPORT_DAYS);
+  const viewportEnd = new Date(viewportStart);
+  viewportEnd.setDate(viewportStart.getDate() + VIEWPORT_DAYS);
+  
+  const timelineStart = new Date(viewportStart);
+  timelineStart.setDate(viewportStart.getDate() - 365); // 1 year before
+  
+  const timelineEnd = new Date(viewportStart);
+  timelineEnd.setDate(viewportStart.getDate() + 365); // 1 year after
+  
+  const scrollbarWidth = 800; // Default scrollbar width
+  
+  const scrollbarCalc = calculateScrollbarPosition(
+    viewportStart, 
+    viewportEnd,
+    timelineStart,
+    timelineEnd,
+    scrollbarWidth
+  );
   const { 
     fullTimelineStart, 
     currentDayOffset, 
@@ -58,12 +75,9 @@ export const TimelineScrollbar = memo(function TimelineScrollbar({
     const clickX = e.clientX - rect.left;
     
     // Use service to calculate target viewport
-    const targetViewportStart = calculateScrollbarClickTarget(
-      clickX, 
-      rect.width, 
-      fullTimelineStart, 
-      maxOffset
-    );
+    const targetOffset = Math.max(0, Math.min(maxOffset, (clickX / rect.width) * maxOffset));
+    const targetViewportStart = new Date(fullTimelineStart);
+    targetViewportStart.setDate(fullTimelineStart.getDate() + targetOffset);
     
     // Calculate the difference in days for smooth animation
     const currentStart = viewportStart.getTime();
@@ -84,23 +98,27 @@ export const TimelineScrollbar = memo(function TimelineScrollbar({
     setIsAnimating(true);
     
     // Calculate target thumb position for smooth scrollbar animation
-    const targetThumbPosition = maxOffset > 0 ? 
-      ((targetViewportStart.getTime() - fullTimelineStart.getTime()) / (24 * 60 * 60 * 1000) / maxOffset) * 100 : 0;
-    const startThumbPosition = smoothThumbPosition;
+    const targetDayOffset = (targetViewportStart.getTime() - fullTimelineStart.getTime()) / (24 * 60 * 60 * 1000);
+    const targetThumbPosition: number = maxOffset > 0 ? (targetDayOffset / maxOffset) * 100 : 0;
+    const startThumbPosition: number = smoothThumbPosition;
     
     const animate = (currentTime: number) => {
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / animationDuration, 1);
       
-      // Use service for easing calculation
-      const easedProgress = calculateScrollEasing(progress);
+      // Use simple cubic ease-out easing
+      const easedProgress = 1 - Math.pow(1 - progress, 3);
       
-      // Calculate intermediate viewport start
-      const currentOffset = currentStart + (targetStart - currentStart) * easedProgress;
+      // Calculate intermediate viewport start  
+      const currentStartTime: number = currentStart;
+      const targetStartTime: number = targetStart;
+      const currentOffset = currentStartTime + (targetStartTime - currentStartTime) * easedProgress;
       const intermediateStart = new Date(currentOffset);
       
       // Smoothly animate thumb position
-      const intermediateThumbPosition = startThumbPosition + (targetThumbPosition - startThumbPosition) * easedProgress;
+      const startPos: number = startThumbPosition;
+      const targetPos: number = targetThumbPosition;
+      const intermediateThumbPosition = startPos + (targetPos - startPos) * easedProgress;
       setSmoothThumbPosition(intermediateThumbPosition);
       
       setViewportStart(intermediateStart);
@@ -132,14 +150,12 @@ export const TimelineScrollbar = memo(function TimelineScrollbar({
     const rect = scrollbarRef.current.getBoundingClientRect();
     const deltaX = e.clientX - dragStartX;
     
-    // Use service to calculate new viewport position
-    const newViewportStart = calculateScrollbarDragTarget(
-      deltaX,
-      rect.width,
-      dragStartOffset,
-      maxOffset,
-      fullTimelineStart
-    );
+    // Calculate new viewport position from drag
+    const newPosition = dragStartOffset + (deltaX / rect.width) * maxOffset;
+    const clampedOffset = Math.max(0, Math.min(maxOffset, newPosition));
+    
+    const newViewportStart = new Date(fullTimelineStart);
+    newViewportStart.setDate(fullTimelineStart.getDate() + clampedOffset);
     
     setViewportStart(newViewportStart);
     setCurrentDate(new Date(newViewportStart));

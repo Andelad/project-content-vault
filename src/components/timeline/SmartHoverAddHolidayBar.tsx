@@ -34,7 +34,7 @@ export const SmartHoverAddHolidayBar: React.FC<SmartHoverAddHolidayBarProps> = (
     if (dragStart !== null || globalIsDragging) return; // Don't update hover during any drag operation
 
     const rect = e.currentTarget.getBoundingClientRect();
-    const { index, isValid } = convertMousePositionToIndex(
+    const { dayIndex: index, isValid } = convertMousePositionToIndex(
       e.clientX,
       rect,
       dates,
@@ -58,7 +58,7 @@ export const SmartHoverAddHolidayBar: React.FC<SmartHoverAddHolidayBarProps> = (
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     // Don't handle mouse down if we're over an occupied area (existing holiday)
     const rect = e.currentTarget.getBoundingClientRect();
-    const { index: clickIndex, isValid: clickIsValid } = convertMousePositionToIndex(
+    const { dayIndex: clickIndex, isValid: clickIsValid } = convertMousePositionToIndex(
       e.clientX,
       rect,
       dates,
@@ -91,7 +91,7 @@ export const SmartHoverAddHolidayBar: React.FC<SmartHoverAddHolidayBarProps> = (
       if (!container) return;
 
       const rect = container.getBoundingClientRect();
-      const { index } = convertMousePositionToIndex(
+      const { dayIndex: index } = convertMousePositionToIndex(
         e.clientX,
         rect,
         dates,
@@ -122,12 +122,9 @@ export const SmartHoverAddHolidayBar: React.FC<SmartHoverAddHolidayBarProps> = (
         }
         
         if (canCreate) {
-          const { startDate, endDate } = convertIndicesToDates(
-            startIndex,
-            endIndex,
-            dates,
-            mode
-          );
+          const dateRange = convertIndicesToDates([startIndex, endIndex], dates, mode);
+          const startDate = dateRange[0];
+          const endDate = dateRange[1] || startDate;
 
           onCreateHoliday(startDate, endDate);
         }
@@ -166,15 +163,11 @@ export const SmartHoverAddHolidayBar: React.FC<SmartHoverAddHolidayBarProps> = (
         }
       }
     } else if (hoveredIndex !== null) {
-      // Just hovering - use minimum size calculation from service
-      const { startIndex: minStartIndex, endIndex: minEndIndex } = calculateMinimumHoverOverlaySize(
-        hoveredIndex,
-        mode,
-        occupiedIndices,
-        dates
-      );
+      // Just hovering - use simple index logic
+      const minStartIndex = hoveredIndex;
+      const minEndIndex = hoveredIndex; // Minimum size is just one day/week
       
-      // Check if service returned valid range
+      // Check if index is valid
       if (minStartIndex === -1 || minEndIndex === -1) {
         return null; // No valid range available
       }

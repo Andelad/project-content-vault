@@ -184,19 +184,11 @@ export const TimelineBar = memo(function TimelineBar({
   // Memoize milestone segments calculation
   const milestoneSegments = useMemo(() => {
     return calculateMilestoneSegments(
-      project.id,
-      project.startDate,
-      project.endDate,
       milestones,
-      settings,
-      holidays,
-      isWorkingDay,
-      events,
-      project.estimatedHours, // Pass the project total budget
-      workHoursForPeriod, // Pass work hours for accurate working day calculation
-      project.autoEstimateDays // Pass auto-estimate days for proper filtering
+      new Date(project.startDate),
+      new Date(project.endDate)
     );
-  }, [project.id, project.startDate, project.endDate, milestones, settings, holidays, isWorkingDay, events, project.estimatedHours, workHoursForPeriod, project.autoEstimateDays]);
+  }, [milestones, project.startDate, project.endDate]);
 
   // Memoize project metrics calculation using service
   const projectMetrics = useMemo(() => {

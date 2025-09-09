@@ -11,7 +11,7 @@ import {
   calculateProjectWorkingDays,
   getProjectTimeAllocation
 } from '@/services';
-import { WeeklyCapacityCalculationService, WorkHoursCalculationService, expandHolidayDates } from '@/services';
+import { calculateWorkHoursTotal, expandHolidayDates } from '@/services';
 import { calculateAvailabilityCircleSize, getMinimumCircleDimensions } from '@/services';
 import { calculateAutoEstimateHoursPerDay, calculateAutoEstimateWorkingDays } from '@/services';
 
@@ -126,7 +126,7 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
     const dayData = settings.weeklyWorkHours[dayName];
     
     if (Array.isArray(dayData)) {
-      return WorkHoursCalculationService.calculateWorkHoursTotal(dayData);
+      return calculateWorkHoursTotal(dayData);
     }
     
     return typeof dayData === 'number' ? dayData : 0;

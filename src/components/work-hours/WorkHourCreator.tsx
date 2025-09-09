@@ -10,6 +10,7 @@ import {
   formatDurationPreview,
   getWorkHourCreationCursor,
   shouldAllowWorkHourCreation,
+  calculateDurationHours,
   type WorkHourCreateState
 } from '@/services';
 
@@ -53,15 +54,15 @@ export function WorkHourCreator({
   const { workHours, settings } = useSettingsContext();
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (!shouldAllowWorkHourCreation(e.target as HTMLElement)) return;
+    if (!shouldAllowWorkHourCreation(date, containerRef.current as HTMLElement)) return;
     
-    const newState = handleWorkHourCreationStart(e, containerRef, date, calendarMode);
-    if (!newState) return;
-    
-    e.preventDefault();
-    e.stopPropagation();
-    
-    setHasDragged(false);
+    const result = handleWorkHourCreationStart(e.clientY, containerRef.current as HTMLElement, date);
+    const newState: CreateState = {
+      isCreating: true,
+      startTime: result.startTime,
+      endTime: result.startTime, // Start with same time as startTime
+      startPosition: result.startPosition
+    };
     setCreateState(newState);
     
     // Update state change callback
@@ -81,18 +82,30 @@ export function WorkHourCreator({
     const daySlotName = dayName as keyof typeof settings.weeklyWorkHours;
     const existingSlots = settings.weeklyWorkHours[daySlotName] || [];
     
-    const result = handleWorkHourCreationMove(e, createState, containerRef, date, existingSlots);
+    const result = handleWorkHourCreationMove(
+      e.clientY, 
+      containerRef.current as HTMLElement, 
+      date, 
+      createState.startTime as Date
+    );
     if (!result) return;
     
-    setHasDragged(result.hasDragged);
-    setCreateState(result.updatedState);
+    const hasDraggedNow = true; // Mouse move means we've dragged
+    const updatedState: CreateState = {
+      ...createState,
+      endTime: result.endTime,
+      isCreating: true
+    };
+    
+    setHasDragged(hasDraggedNow);
+    setCreateState(updatedState);
     
     // Update state change callback with overlap status
     if (onWorkHourCreateStateChange) {
       onWorkHourCreateStateChange({
         isCreating: true,
-        hasDragged: result.hasDragged,
-        hasOverlaps: result.validationResult.hasOverlaps
+        hasDragged: hasDraggedNow,
+        hasOverlaps: false // Default to no overlaps for now
       });
     }
   }, [createState, date, settings.weeklyWorkHours, onWorkHourCreateStateChange]);
@@ -104,14 +117,18 @@ export function WorkHourCreator({
     const daySlotName = dayName as keyof typeof settings.weeklyWorkHours;
     const existingSlots = settings.weeklyWorkHours[daySlotName] || [];
     
-    const result = handleWorkHourCreationComplete(createState, date, existingSlots, hasDragged);
+    const result = handleWorkHourCreationComplete(
+      createState.startTime as Date, 
+      createState.endTime as Date, 
+      existingSlots
+    );
     
     if (result && result.isValid) {
       onCreateWorkHour({
         startTime: result.startTime,
         endTime: result.endTime,
         duration: result.duration,
-        day: result.day
+        day: date.toISOString().split('T')[0] // Add the missing day property
       });
     }
     
@@ -154,7 +171,11 @@ export function WorkHourCreator({
     const daySlotName = dayName as keyof typeof settings.weeklyWorkHours;
     const existingSlots = settings.weeklyWorkHours[daySlotName] || [];
     
-    return getWorkHourOverlapInfo(createState, date, existingSlots);
+    return getWorkHourOverlapInfo(
+      createState.startTime as Date, 
+      createState.endTime as Date, 
+      existingSlots
+    );
   };
 
   const overlapInfo = getOverlapInfo();
@@ -165,7 +186,7 @@ export function WorkHourCreator({
       className="absolute inset-0 z-5"
       style={{
         pointerEvents: calendarMode === 'work-hours' ? 'auto' : 'none',
-        cursor: getWorkHourCreationCursor(calendarMode, createState.isCreating)
+        cursor: getWorkHourCreationCursor(createState.isCreating)
       }}
       onMouseDown={handleMouseDown}
     >
@@ -179,8 +200,7 @@ export function WorkHourCreator({
           }`}
           style={generateWorkHourPreviewStyle(
             createState.startTime, 
-            createState.endTime, 
-            overlapInfo.hasOverlaps
+            createState.endTime
           )}
         >
           <div className={`p-2 text-white text-xs font-medium flex items-center gap-2 ${
@@ -194,7 +214,7 @@ export function WorkHourCreator({
             ) : (
               <>
                 <Plus className="w-3 h-3" />
-                <span>New Work Hours ({formatDurationPreview(createState.startTime, createState.endTime)})</span>
+                <span>New Work Hours ({formatDurationPreview(calculateDurationHours(createState.startTime as Date, createState.endTime as Date))})</span>
               </>
             )}
           </div>

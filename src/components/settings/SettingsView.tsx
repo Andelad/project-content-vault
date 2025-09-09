@@ -389,7 +389,7 @@ export function SettingsView() {
                                   </Select>
                                   
                                   <Badge variant="outline" className="text-xs">
-                                    {formatWorkSlotDurationDisplay(slot.duration)}
+                                    {formatWorkSlotDurationDisplay(new Date(`1970-01-01T${slot.startTime}`), new Date(`1970-01-01T${slot.endTime}`))}
                                   </Badge>
                                 </div>
                                 

@@ -139,7 +139,7 @@ export function calculateProjectProgressData(
       const milestoneDate = new Date(milestone.dueDate);
       cumulativeEstimatedHours += milestone.timeAllocation;
       
-      const completedTimeAtMilestone = getCompletedTimeUpToDate(milestoneDate, projectEvents);
+      const completedTimeAtMilestone = getCompletedTimeUpToDate(projectEvents, project.id, milestoneDate);
       
       data.push({
         date: new Date(milestoneDate),
@@ -151,7 +151,7 @@ export function calculateProjectProgressData(
   }
   
   // Add end point
-  const completedTimeAtEnd = getCompletedTimeUpToDate(endDate, projectEvents);
+  const completedTimeAtEnd = getCompletedTimeUpToDate(projectEvents, project.id, endDate);
   
   data.push({
     date: new Date(endDate),
@@ -173,7 +173,7 @@ export function isProjectOnTrack(
   currentDate: Date = new Date()
 ): boolean {
   const expectedProgress = getEstimatedProgressForDate(currentDate, project, milestones);
-  const actualProgress = getCompletedTimeUpToDate(currentDate, getProjectEvents(events, project.id));
+  const actualProgress = getCompletedTimeUpToDate(events, project.id, currentDate);
   
   // Consider on track if within 10% of expected progress
   const tolerance = expectedProgress * 0.1;
@@ -282,7 +282,7 @@ export function analyzeProjectProgress(
       completed: event.completed || false
     }));
 
-  const timeMetrics = calculateProjectTimeMetrics(project, events, holidays, settings);
+  const timeMetrics = calculateProjectTimeMetrics(project, projectEvents, holidays, settings);
   const progressData = calculateProjectProgressData(project, projectEvents, milestones);
   const status = calculateProjectStatus(project);
   const isOnTrack = isProjectOnTrack(project, projectEvents, milestones);

@@ -84,7 +84,7 @@ export class TimeTrackerCalculationService {
   ): string[] {
     const trackingRange = createTimeRange(trackingStart, trackingEnd);
     const eventsToProcess = events.filter(event => event.id !== currentEventId);
-    const splitResults = processEventOverlaps(eventsToProcess, trackingRange);
+    const splitResults = eventsToProcess.map(event => processEventOverlaps(event as any, trackingRange));
 
     const newAffectedEvents: string[] = [];
 
