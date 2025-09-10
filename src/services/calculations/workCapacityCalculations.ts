@@ -22,7 +22,10 @@ import {
   getCurrentWeekStart as coreGetCurrentWeekStart
 } from './timeCalculations';
 import { calculateEventDurationOnDate } from './eventCalculations';
-import { calculateWorkHoursTotal, calculateDayWorkHours } from './timelineCalculations';
+import { 
+  calculateWorkHoursTotal as calculateTotalWorkHours, 
+  calculateDayWorkHours 
+} from './timelineCalculations';
 
 import { WorkHour, WorkSlot } from '@/types/core';
 
@@ -156,14 +159,7 @@ export function calculateUtilizationRate(productiveHours: number, totalHours: nu
 // WORK SCHEDULE CALCULATIONS
 // =====================================================================================
 
-/**
- * Calculate total work hours for a date range
- */
-export function calculateTotalWorkHours(workHours: WorkHour[]): number {
-  return workHours.reduce((total, workHour) => {
-    return total + (workHour.duration || 0);
-  }, 0);
-}
+// calculateTotalWorkHours function moved to timelineCalculations.ts (imported as calculateWorkHoursTotal)
 
 /**
  * Group work hours by date

@@ -235,22 +235,7 @@ export function calculateValidDaysInPeriod(
   return count;
 }
 
-/**
- * Calculate total work hours for a specific day
- */
-export function calculateDayWorkHours(
-  date: Date,
-  settings: ProjectWorkingDaysSettings
-): number {
-  if (!settings?.weeklyWorkHours) {
-    return 0;
-  }
-
-  const dayName = DAY_NAMES[date.getDay()];
-  const workSlots = settings.weeklyWorkHours[dayName] || [];
-  
-  return workSlots.reduce((sum, slot) => sum + slot.duration, 0);
-}
+// calculateDayWorkHours function moved to timelineCalculations.ts for consolidation
 
 /**
  * Get all working days between two dates
