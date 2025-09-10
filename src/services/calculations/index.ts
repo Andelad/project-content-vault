@@ -50,5 +50,4 @@ export * from './timeTrackingCalculations';
 // Timeline calculations - migrated from TimelineCalculationService
 export * from './timelineCalculations';
 
-// Timeline position calculations - migrated from timelinePositionService
-export * from './timelinePositioning';
+// Timeline positioning moved to ui/TimelinePositioning.ts (UI logic, not pure calculations)

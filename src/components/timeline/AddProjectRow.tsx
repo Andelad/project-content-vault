@@ -587,22 +587,33 @@ export function AddHolidayRow({ dates, collapsed, isDragging, dragState, handleH
         actualEndWeek: endWeekIndex
       };
     } else {
-      // Original days mode logic
-      const startIndex = dates.findIndex(date => {
-        const dateStr = date.toDateString();
-        const holidayStartStr = holiday.startDate.toDateString();
-        return dateStr === holidayStartStr;
-      });
+      // Days mode: Calculate position relative to viewport, but maintain full holiday width
+      const holidayStart = new Date(holiday.startDate);
+      holidayStart.setHours(0, 0, 0, 0);
+      const holidayEnd = new Date(holiday.endDate);
+      holidayEnd.setHours(23, 59, 59, 999);
       
-      if (startIndex === -1) return null;
+      if (dates.length === 0) return null;
       
-      const endIndex = dates.findIndex(date => {
-        const dateStr = date.toDateString();
-        const holidayEndStr = holiday.endDate.toDateString();
-        return dateStr === holidayEndStr;
-      });
+      const firstVisibleDate = dates[0];
+      const lastVisibleDate = dates[dates.length - 1];
+      const msPerDay = 24 * 60 * 60 * 1000;
       
-      const dayCount = endIndex >= startIndex ? endIndex - startIndex + 1 : 1;
+      // Calculate the actual start index relative to the first visible date
+      // This can be negative if the holiday starts before the viewport
+      const startIndex = Math.floor((holidayStart.getTime() - firstVisibleDate.getTime()) / msPerDay);
+      
+      // Calculate the full duration of the holiday in days
+      const dayCount = Math.floor((holidayEnd.getTime() - holidayStart.getTime()) / msPerDay) + 1;
+      
+      // Check if holiday is completely outside viewport (optimization)
+      const holidayEndIndex = startIndex + dayCount - 1;
+      const lastVisibleIndex = dates.length - 1;
+      
+      if (holidayEndIndex < 0 || startIndex > lastVisibleIndex) {
+        // Holiday is completely outside viewport
+        return null;
+      }
       
       return {
         startIndex,
@@ -628,7 +639,7 @@ export function AddHolidayRow({ dates, collapsed, isDragging, dragState, handleH
     <div className="flex h-[52px] bg-white">
       {/* Sidebar section - must match TimelineSidebar and AvailabilitySidebar widths exactly */}
       <div 
-        className="bg-white border-r border-gray-200 transition-all duration-300 flex items-center"
+        className="bg-white border-r border-gray-200 transition-all duration-300 flex items-center relative z-10"
         style={{ 
           width: collapsed ? '48px' : '280px',
           minWidth: collapsed ? '48px' : '280px',
@@ -798,10 +809,11 @@ function HolidayBar({
     >
       {/* Existing holiday display - show if holiday exists for this column */}
       {holiday && (
-        (mode === 'weeks' || dayIndex === holiday.startIndex)
+        mode === 'weeks' || 
+        (mode === 'days' && dayIndex === Math.max(0, holiday.startIndex))
       ) && (
         <div
-          className={`absolute top-1/2 left-0 -translate-y-1/2 h-9 bg-orange-200/80 border border-orange-300/50 rounded-md flex items-center justify-center text-orange-800 text-sm transition-all shadow-sm z-20 group ${
+          className={`absolute top-1/2 left-0 -translate-y-1/2 h-9 bg-orange-200/80 border border-orange-300/50 rounded-md flex items-center justify-center text-orange-800 text-sm transition-all shadow-sm z-[1] group ${
             isDragging && dragState?.holidayId === holiday.id 
               ? 'opacity-90 shadow-lg' 
               : 'hover:bg-orange-300/80'
@@ -823,8 +835,15 @@ function HolidayBar({
                 width: `${width}px`,
               };
             } else {
-              // Days mode: original logic
+              // Days mode: Handle holidays that extend beyond viewport
+              // Calculate how far into the holiday this dayIndex is
+              const dayIntoHoliday = dayIndex - holiday.startIndex;
+              
+              // Calculate left offset - if holiday starts before this day, offset left
+              const leftOffset = dayIntoHoliday > 0 ? -dayIntoHoliday * columnWidth : 0;
+              
               return {
+                left: `${leftOffset}px`,
                 width: `${holiday.dayCount * columnWidth}px`,
               };
             }
@@ -839,7 +858,7 @@ function HolidayBar({
           {/* Left resize area - Two-way arrow cursor for resizing */}
           <div 
             className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize pointer-events-auto"
-            style={{ zIndex: 26 }}
+            style={{ zIndex: 3 }}
             onMouseDown={(e) => {
               e.stopPropagation();
               e.preventDefault();
@@ -870,7 +889,7 @@ function HolidayBar({
           {/* Right resize area - Two-way arrow cursor for resizing */}
           <div 
             className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize pointer-events-auto"
-            style={{ zIndex: 26 }}
+            style={{ zIndex: 3 }}
             onMouseDown={(e) => {
               e.stopPropagation();
               e.preventDefault();
@@ -901,7 +920,7 @@ function HolidayBar({
           {/* Main clickable area - Single click to open modal, four-way cursor for dragging */}
           <div 
             className="absolute inset-0 cursor-move"
-            style={{ zIndex: 20 }}
+            style={{ zIndex: 2 }}
             onMouseDown={(e) => handleHolidayMouseDownWithClickDetection(e, holiday.id, 'move')}
             onMouseUp={(e) => handleHolidayMouseUp(e, holiday.id)}
             onMouseMove={handleHolidayMouseMove}

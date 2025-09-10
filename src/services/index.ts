@@ -37,12 +37,7 @@ export { WorkHourCalculationService } from './calculations/workHourCalculations'
 
 // 🔧 Additional Temporary Exports (Remove after migration)
 // Timeline positioning functions (frequently used)
-export { 
-  calculateOccupiedHolidayIndices, 
-  convertMousePositionToIndex, 
-  convertIndicesToDates, 
-  calculateMinimumHoverOverlaySize 
-} from './calculations/timelinePositioning';
+// Timeline positioning functions moved to ui/TimelinePositioning.ts
 
 // 🎯 Unified Services (Main API Layer)
 export { TimeTrackerCalculationService } from './unified/UnifiedTimeTrackerService';
@@ -230,22 +225,8 @@ export { handleWorkHourCreationStart, handleWorkHourCreationMove, handleWorkHour
 export { getWorkHourOverlapInfo, generateWorkHourPreviewStyle, getWorkHourCreationCursor, shouldAllowWorkHourCreation, type WorkHourCreateState } from './calculations/workHourCalculations';
 // PositionCalculation type migrated to ui/TimelinePositioning.ts
 export { type ComprehensiveProjectTimeMetrics, type ProjectEvent as ProgressProjectEvent } from './calculations/projectOperations';
-export { 
-  calculateTimelinePositions, 
-  calculateScrollbarPosition, 
-  calculateScrollbarClickTarget, 
-  calculateScrollbarDragTarget, 
-  calculateScrollEasing, 
-  calculateAnimationDuration,
-  calculateMouseToTimelineIndex,
-  calculateHolidayPosition,
-  calculateCenterScrollPosition,
-  type TimelinePositionCalculation,
-  type ScrollbarCalculation,
-  type ScrollAnimationConfig,
-  type HolidayPositionCalculation,
-  type MouseToIndexConversion
-} from './calculations/timelinePositioning';
+// Timeline positioning now handled by ui/TimelinePositioning.ts
+// All UI positioning functions consolidated there
 export { formatWorkSlotDurationDisplay } from './calculations/workHourCalculations';
 export { checkProjectOverlap, adjustProjectDatesForDrag, detectLiveDragConflicts, resolveDragConflicts, datesOverlap, calculateOverlapPercentage, type ConflictDetectionResult, type DateAdjustmentResult, type Project } from './calculations/projectOperations';
 

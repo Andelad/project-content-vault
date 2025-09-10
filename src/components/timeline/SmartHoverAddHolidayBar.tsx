@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { Holiday } from '../../types';
-import { calculateOccupiedHolidayIndices, convertMousePositionToIndex, convertIndicesToDates, calculateMinimumHoverOverlaySize } from '@/services';
+import { calculateOccupiedHolidayIndices, convertMousePositionToTimelineIndex, convertIndicesToDates, calculateMinimumHoverOverlaySize } from '@/services';
 
 interface SmartHoverAddHolidayBarProps {
   dates: Date[];
@@ -34,7 +34,7 @@ export const SmartHoverAddHolidayBar: React.FC<SmartHoverAddHolidayBarProps> = (
     if (dragStart !== null || globalIsDragging) return; // Don't update hover during any drag operation
 
     const rect = e.currentTarget.getBoundingClientRect();
-    const { dayIndex: index, isValid } = convertMousePositionToIndex(
+    const { dayIndex: index, isValid } = convertMousePositionToTimelineIndex(
       e.clientX,
       rect,
       dates,
@@ -58,7 +58,7 @@ export const SmartHoverAddHolidayBar: React.FC<SmartHoverAddHolidayBarProps> = (
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     // Don't handle mouse down if we're over an occupied area (existing holiday)
     const rect = e.currentTarget.getBoundingClientRect();
-    const { dayIndex: clickIndex, isValid: clickIsValid } = convertMousePositionToIndex(
+    const { dayIndex: clickIndex, isValid: clickIsValid } = convertMousePositionToTimelineIndex(
       e.clientX,
       rect,
       dates,
@@ -74,7 +74,7 @@ export const SmartHoverAddHolidayBar: React.FC<SmartHoverAddHolidayBarProps> = (
     // Calculate the index directly in mouse down in case hover didn't update
     const targetIndex = (clickIndex >= 0 && clickIndex < (mode === 'weeks' ? dates.length * 7 : dates.length)) ? clickIndex : hoveredIndex;
     
-    if (targetIndex === null || occupiedIndices.has(targetIndex)) {
+    if (targetIndex === null || occupiedIndices.includes(targetIndex)) {
       return;
     }
     
@@ -91,7 +91,7 @@ export const SmartHoverAddHolidayBar: React.FC<SmartHoverAddHolidayBarProps> = (
       if (!container) return;
 
       const rect = container.getBoundingClientRect();
-      const { dayIndex: index } = convertMousePositionToIndex(
+      const { dayIndex: index } = convertMousePositionToTimelineIndex(
         e.clientX,
         rect,
         dates,
@@ -115,7 +115,7 @@ export const SmartHoverAddHolidayBar: React.FC<SmartHoverAddHolidayBarProps> = (
         // Check if the entire range is free
         let canCreate = true;
         for (let i = startIndex; i <= endIndex; i++) {
-          if (occupiedIndices.has(i)) {
+          if (occupiedIndices.includes(i)) {
             canCreate = false;
             break;
           }
@@ -157,7 +157,7 @@ export const SmartHoverAddHolidayBar: React.FC<SmartHoverAddHolidayBarProps> = (
       
       // Check if entire range is valid
       for (let i = startIndex; i <= endIndex; i++) {
-        if (occupiedIndices.has(i)) {
+        if (occupiedIndices.includes(i)) {
           isValid = false;
           break;
         }
@@ -194,7 +194,7 @@ export const SmartHoverAddHolidayBar: React.FC<SmartHoverAddHolidayBarProps> = (
     
     return (
       <div
-        className={`absolute top-1/2 -translate-y-1/2 h-9 border border-solid rounded-md pointer-events-none z-30 flex items-center justify-center ${
+        className={`absolute top-1/2 -translate-y-1/2 h-9 border border-solid rounded-md pointer-events-none z-[4] flex items-center justify-center ${
           isValid 
             ? 'bg-orange-100/50 border-orange-300/30' 
             : 'bg-red-100/50 border-red-400'
@@ -214,7 +214,7 @@ export const SmartHoverAddHolidayBar: React.FC<SmartHoverAddHolidayBarProps> = (
   return (
     <div
       className="absolute inset-0 cursor-pointer holiday-drag-container"
-      style={{ zIndex: 15 }} // Above container but below holiday bars (z-20)
+      style={{ zIndex: 1 }} // Above container but below holiday bars (z-[5])
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       onMouseDown={handleMouseDown}

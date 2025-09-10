@@ -5,6 +5,7 @@
  */
 
 import { normalizeToMidnight } from '../calculations/dateCalculations';
+import type { Holiday } from '../../types';
 
 // Timeline position calculation result type
 export type TimelinePositionCalculation = {
@@ -426,4 +427,318 @@ export function calculateTimelineBarPosition_LEGACY(
     startIndex: position.startIndex,
     width: position.width
   };
+}
+
+// ============================================================================
+// SCROLLBAR & INTERACTION UI FUNCTIONS (Moved from calculations/timelinePositioning.ts)
+// ============================================================================
+
+/**
+ * Scrollbar position calculation interface
+ */
+export interface ScrollbarCalculation {
+  fullTimelineStart: Date;
+  currentDayOffset: number;
+  thumbPosition: number;
+  thumbWidth: number;
+  maxOffset: number;
+}
+
+/**
+ * Easing animation interface for timeline scrolling
+ */
+export interface ScrollAnimationConfig {
+  startTime: number;
+  startThumbPosition: number;
+  targetThumbPosition: number;
+  animationDuration: number;
+  startOffset: number;
+  targetOffset: number;
+}
+
+/**
+ * Holiday position calculation result
+ */
+export interface HolidayPositionCalculation {
+  left: number;
+  width: number;
+  visible: boolean;
+}
+
+/**
+ * Mouse position to timeline index conversion result
+ */
+export interface MouseToIndexConversion {
+  index: number;
+  date: Date;
+  isValid: boolean;
+}
+
+/**
+ * Timeline constants for UI calculations
+ */
+const TIMELINE_CONSTANTS = {
+  COLUMN_WIDTH_DAYS: 40,
+  COLUMN_WIDTH_WEEKS: 60,
+  CIRCLE_SIZE: 8,
+  TRIANGLE_SIZE: 8,
+  VIEWPORT_DAYS: 14,
+  SCROLLBAR_HEIGHT: 20,
+  ANIMATION_DURATION: 300,
+  EASING_FACTOR: 0.3
+} as const;
+
+/**
+ * Calculate scrollbar position and dimensions
+ */
+export function calculateScrollbarPosition(
+  currentOffset: number,
+  maxOffset: number,
+  containerWidth: number,
+  viewportDays: number = TIMELINE_CONSTANTS.VIEWPORT_DAYS
+): ScrollbarCalculation {
+  // Calculate timeline start (14 days before current)
+  const fullTimelineStart = new Date();
+  fullTimelineStart.setDate(fullTimelineStart.getDate() - viewportDays);
+  
+  const currentDayOffset = Math.max(0, Math.min(currentOffset, maxOffset));
+  const thumbWidth = Math.max(50, (containerWidth * viewportDays) / (maxOffset + viewportDays));
+  const availableSpace = containerWidth - thumbWidth;
+  const thumbPosition = maxOffset > 0 ? (currentDayOffset / maxOffset) * availableSpace : 0;
+  
+  return {
+    fullTimelineStart,
+    currentDayOffset,
+    thumbPosition: Math.max(0, Math.min(thumbPosition, availableSpace)),
+    thumbWidth,
+    maxOffset
+  };
+}
+
+/**
+ * Calculate target scroll position from scrollbar click
+ */
+export function calculateScrollbarClickTarget(
+  clickX: number,
+  containerWidth: number,
+  thumbWidth: number,
+  maxOffset: number
+): number {
+  const availableSpace = containerWidth - thumbWidth;
+  const targetRatio = Math.max(0, Math.min(1, clickX / availableSpace));
+  return Math.round(targetRatio * maxOffset);
+}
+
+/**
+ * Calculate scroll target during drag operations
+ */
+export function calculateScrollbarDragTarget(
+  dragX: number,
+  containerWidth: number,
+  thumbWidth: number,
+  maxOffset: number
+): number {
+  const availableSpace = containerWidth - thumbWidth;
+  const clampedX = Math.max(0, Math.min(dragX, availableSpace));
+  const ratio = availableSpace > 0 ? clampedX / availableSpace : 0;
+  return Math.round(ratio * maxOffset);
+}
+
+/**
+ * Calculate easing animation for smooth scrolling
+ */
+export function calculateScrollEasing(
+  progress: number,
+  startValue: number,
+  targetValue: number,
+  easingFactor: number = TIMELINE_CONSTANTS.EASING_FACTOR
+): number {
+  // Cubic ease-out function
+  const easeProgress = 1 - Math.pow(1 - progress, 3);
+  return startValue + (targetValue - startValue) * easeProgress;
+}
+
+/**
+ * Calculate appropriate animation duration based on scroll distance
+ */
+export function calculateAnimationDuration(
+  distance: number,
+  baseDuration: number = TIMELINE_CONSTANTS.ANIMATION_DURATION
+): number {
+  const factor = Math.min(2, Math.max(0.5, Math.abs(distance) / 50));
+  return Math.round(baseDuration * factor);
+}
+
+/**
+ * Convert mouse position to timeline day index
+ */
+export function calculateMouseToTimelineIndex(
+  mouseX: number,
+  containerWidth: number,
+  currentOffset: number,
+  columnWidth: number = TIMELINE_CONSTANTS.COLUMN_WIDTH_DAYS
+): MouseToIndexConversion {
+  const relativeX = mouseX;
+  const dayIndex = Math.floor(relativeX / columnWidth) + currentOffset;
+  const date = new Date();
+  date.setDate(date.getDate() + dayIndex - 14); // Adjust for viewport offset
+  
+  const isValid = relativeX >= 0 && relativeX <= containerWidth && dayIndex >= 0;
+  
+  return {
+    index: Math.max(0, dayIndex),
+    date,
+    isValid
+  };
+}
+
+/**
+ * Calculate holiday/event position in timeline
+ */
+export function calculateHolidayPosition(
+  holidayDate: Date,
+  viewportStart: Date,
+  viewportEnd: Date,
+  columnWidth: number = TIMELINE_CONSTANTS.COLUMN_WIDTH_DAYS
+): HolidayPositionCalculation {
+  const msPerDay = 24 * 60 * 60 * 1000;
+  const daysDiff = Math.floor((holidayDate.getTime() - viewportStart.getTime()) / msPerDay);
+  
+  const left = daysDiff * columnWidth;
+  const visible = holidayDate >= viewportStart && holidayDate <= viewportEnd;
+  
+  return {
+    left,
+    width: columnWidth,
+    visible
+  };
+}
+
+/**
+ * Calculate centered scroll position for a specific date
+ */
+export function calculateCenterScrollPosition(
+  targetDate: Date,
+  viewportStart: Date,
+  viewportDays: number = TIMELINE_CONSTANTS.VIEWPORT_DAYS
+): number {
+  const msPerDay = 24 * 60 * 60 * 1000;
+  const daysDiff = Math.floor((targetDate.getTime() - viewportStart.getTime()) / msPerDay);
+  return Math.max(0, daysDiff - Math.floor(viewportDays / 2));
+}
+
+/**
+ * Calculate which day indices are occupied by holidays
+ */
+export function calculateOccupiedHolidayIndices(
+  holidays: Holiday[],
+  dates: Date[],
+  mode: 'days' | 'weeks' = 'days'
+): number[] {
+  const occupied: number[] = [];
+  
+  if (!holidays || holidays.length === 0 || !dates || dates.length === 0) {
+    return occupied;
+  }
+  
+  holidays.forEach(holiday => {
+    // Ensure we have valid dates
+    if (!holiday.startDate || typeof holiday.startDate.getTime !== 'function') {
+      console.warn('Invalid holiday startDate:', holiday);
+      return;
+    }
+    
+    const holidayEnd = holiday.endDate || holiday.startDate;
+    
+    // Calculate day indices for the holiday period
+    for (let d = new Date(holiday.startDate); d <= holidayEnd; d.setDate(d.getDate() + 1)) {
+      dates.forEach((date, index) => {
+        if (date.toDateString() === d.toDateString()) {
+          occupied.push(index);
+        }
+      });
+    }
+  });
+  
+  return [...new Set(occupied)].sort((a, b) => a - b);
+}
+
+/**
+ * Convert mouse position to day index with boundary checking
+ */
+export function convertMousePositionToIndex(
+  mouseX: number,
+  containerWidth: number,
+  scrollOffset: number,
+  columnWidth: number = TIMELINE_CONSTANTS.COLUMN_WIDTH_DAYS
+): number {
+  const relativeIndex = Math.floor(mouseX / columnWidth);
+  const absoluteIndex = relativeIndex + scrollOffset;
+  return Math.max(0, absoluteIndex);
+}
+
+/**
+ * Convert mouse position to timeline index for holiday bar interactions
+ * This version handles the specific needs of the SmartHoverAddHolidayBar component
+ */
+export function convertMousePositionToTimelineIndex(
+  clientX: number,
+  containerRect: DOMRect,
+  dates: Date[],
+  mode: 'days' | 'weeks' = 'days',
+  occupiedIndices: number[] = []
+): { dayIndex: number; isValid: boolean } {
+  const columnWidth = mode === 'weeks' ? TIMELINE_CONSTANTS.COLUMN_WIDTH_WEEKS : TIMELINE_CONSTANTS.COLUMN_WIDTH_DAYS;
+  const relativeX = clientX - containerRect.left;
+  const dayIndex = Math.floor(relativeX / columnWidth);
+  
+  const isValid = dayIndex >= 0 && 
+                  dayIndex < dates.length && 
+                  relativeX >= 0 && 
+                  relativeX <= containerRect.width &&
+                  !occupiedIndices.includes(dayIndex);
+  
+  return { dayIndex: Math.max(0, dayIndex), isValid };
+}
+
+/**
+ * Convert day indices to actual dates
+ */
+export function convertIndicesToDates(
+  indices: number[],
+  datesArray?: Date[] | Date,
+  mode: 'days' | 'weeks' = 'days'
+): Date[] {
+  // Handle different parameter patterns for backwards compatibility
+  if (Array.isArray(datesArray)) {
+    // New pattern: convertIndicesToDates([startIndex, endIndex], dates, mode)
+    return indices.map(index => {
+      if (index >= 0 && index < datesArray.length) {
+        return datesArray[index];
+      }
+      // Fallback if index is out of bounds
+      const firstDate = datesArray[0] || new Date();
+      const date = new Date(firstDate);
+      date.setDate(date.getDate() + index);
+      return date;
+    });
+  } else {
+    // Original pattern: convertIndicesToDates(indices, baseDate)
+    const baseDate = datesArray instanceof Date ? datesArray : new Date();
+    return indices.map(index => {
+      const date = new Date(baseDate);
+      date.setDate(date.getDate() + index);
+      return date;
+    });
+  }
+}
+
+/**
+ * Calculate minimum size for hover overlay elements
+ */
+export function calculateMinimumHoverOverlaySize(
+  elementWidth: number,
+  minSize: number = 40
+): number {
+  return Math.max(minSize, elementWidth);
 }
