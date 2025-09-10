@@ -16,19 +16,13 @@ import { MainAppLayout } from './components/layout/MainAppLayout';
 function AppContent() {
   const { user, loading } = useAuth();
 
-  console.log('🔍 AppContent render - user:', !!user, 'loading:', loading);
-  console.log('🔍 Current path:', window.location.pathname);
-
   if (loading) {
-    console.log('⏳ App is in loading state');
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-lg">Loading...</div>
       </div>
     );
   }
-
-  console.log('🚀 Rendering routes, user authenticated:', !!user);
 
   return (
     <Routes>
@@ -62,8 +56,6 @@ function AppContent() {
 }
 
 function App() {
-  console.log('🔥 App component rendering...');
-  
   return (
     <ErrorBoundary>
       <AuthProvider>

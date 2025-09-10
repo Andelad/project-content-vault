@@ -25,6 +25,11 @@
     "skipLibCheck": true,
     "allowJs": true,
     "noUnusedLocals": false,
-    "strictNullChecks": false
+    "strictNullChecks": false,
+    // Performance and code quality improvements
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    "noUncheckedIndexedAccess": false, // Enable later
+    "exactOptionalPropertyTypes": false // Enable later
   }
 }

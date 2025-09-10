@@ -18,9 +18,11 @@ import { getBaseFullCalendarConfig, getEventStylingConfig } from '@/services';
 import { transformFullCalendarToCalendarEvent } from '@/services';
 import { useToast } from '@/hooks/use-toast';
 import '../planner/fullcalendar-overrides.css';
+
 // Modal imports
-const EventModal = React.lazy(() => import('../modals/EventModal').then(module => ({ default: module.EventModal })));
+import { EventModal } from '../modals/EventModal';
 import { WorkSlotModal } from '../modals/WorkSlotModal';
+
 /**
  * PlannerView - FullCalendar-based planner with keyboard shortcuts
  * 
@@ -52,6 +54,7 @@ export function PlannerView() {
     setCurrentView,
     getEventsInDateRange
   } = usePlannerContext();
+  
   const { projects } = useProjectContext();
   const { 
     currentDate, 
@@ -60,21 +63,28 @@ export function PlannerView() {
   } = useTimelineContext();
   const { isTimeTracking } = useSettingsContext();
   const { toast } = useToast();
+  
   const calendarRef = useRef<FullCalendar>(null);
   const [calendarDate, setCalendarDate] = useState(new Date(currentDate));
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+
   // FullCalendar event handlers
     const handleEventClick = (info: any) => {
     setSelectedEventId(info.event.id);
   };
+
   const handleEventDrop = useCallback(async (dropInfo: EventDropArg) => {
     const eventId = dropInfo.event.id;
+    
     if (eventId.startsWith('work-')) {
       // Handle work hour drag - we'll implement this later
+      console.log('Work hour dropped:', dropInfo);
       return;
     }
+
     // Handle calendar event drag
     const updates = transformFullCalendarToCalendarEvent(dropInfo.event);
+    
     try {
       await updateEventWithUndo(eventId, updates);
       toast({
@@ -93,14 +103,19 @@ export function PlannerView() {
       });
     }
   }, [updateEventWithUndo, toast]);
+
   const handleEventResize = useCallback(async (resizeInfo: any) => {
     const eventId = resizeInfo.event.id;
+    
     if (eventId.startsWith('work-')) {
       // Handle work hour resize - we'll implement this later
+      console.log('Work hour resized:', resizeInfo);
       return;
     }
+
     // Handle calendar event resize
     const updates = transformFullCalendarToCalendarEvent(resizeInfo.event);
+    
     try {
       await updateEventWithUndo(eventId, updates);
       toast({
@@ -119,19 +134,23 @@ export function PlannerView() {
       });
     }
   }, [updateEventWithUndo, toast]);
+
   const handleDateSelect = useCallback((selectInfo: DateSelectArg) => {
     // Create new event using global context so the modal opens
     setCreatingNewEvent({
       startTime: selectInfo.start,
       endTime: selectInfo.end
     });
+    
     // Clear the selection
     selectInfo.view.calendar.unselect();
   }, [setCreatingNewEvent]);
+
   // Navigation handlers
   const handleNavigate = useCallback((direction: 'prev' | 'next' | 'today') => {
     const calendarApi = calendarRef.current?.getApi();
     if (!calendarApi) return;
+
     switch (direction) {
       case 'prev':
         calendarApi.prev();
@@ -143,35 +162,44 @@ export function PlannerView() {
         calendarApi.today();
         break;
     }
+    
     // Update our state with the new date
     const newDate = calendarApi.getDate();
     setCalendarDate(newDate);
     setCurrentDate(newDate);
   }, [setCurrentDate]);
+
   const handleDatePickerSelect = useCallback((selectedDate: Date | undefined) => {
     if (!selectedDate) return;
+    
     const calendarApi = calendarRef.current?.getApi();
     if (calendarApi) {
       calendarApi.gotoDate(selectedDate);
       setCalendarDate(selectedDate);
       setCurrentDate(selectedDate);
     }
+    
     setIsDatePickerOpen(false);
   }, [setCurrentDate]);
+
   const handleViewChange = useCallback((view: 'week' | 'day') => {
     setCurrentView(view);
+    
     const calendarApi = calendarRef.current?.getApi();
     if (calendarApi) {
       calendarApi.changeView(view === 'week' ? 'timeGridWeek' : 'timeGridDay');
     }
   }, [setCurrentView]);
+
   // Format date range for display
   const formatDateRange = useCallback(() => {
     const calendarApi = calendarRef.current?.getApi();
     if (!calendarApi) return '';
+    
     const view = calendarApi.view;
     const start = view.activeStart;
     const end = view.activeEnd;
+
     if (currentView === 'day') {
       return formatDateLong(start);
     } else {
@@ -188,6 +216,7 @@ export function PlannerView() {
           (e.target as HTMLElement).contentEditable === 'true') {
         return;
       }
+
       // Handle modifier key combinations
       if (e.metaKey || e.ctrlKey) {
         switch (e.key.toLowerCase()) {
@@ -205,6 +234,7 @@ export function PlannerView() {
         }
         return;
       }
+
       // Handle regular keys
       switch (e.key) {
         case 'Escape':
@@ -264,6 +294,7 @@ export function PlannerView() {
           break;
       }
     };
+
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [
@@ -279,32 +310,40 @@ export function PlannerView() {
     layerMode, 
     setLayerMode
   ]);
+
   // Custom event content renderer
   const renderEventContent = useCallback((eventInfo: any) => {
     const event = eventInfo.event;
     const extendedProps = event.extendedProps;
+    
     // Skip custom rendering for work hours - let them use default display
     if (extendedProps.isWorkHour) {
       return { html: '' }; // Use default FullCalendar rendering
     }
+    
     // Get project info
     const projectId = extendedProps.projectId;
     const project = projectId ? projects.find(p => p.id === projectId) : null;
+    
     // Format time
     const start = moment(event.start).format('HH:mm');
     const end = moment(event.end).format('HH:mm');
+    
     // Get event description or title
     const eventType = extendedProps.type;
     const description = (eventType === 'tracked' || eventType === 'completed') 
       ? 'Tracked Time' 
       : (extendedProps.description || event.title);
+    
     // Create project/client line
     const projectLine = project 
       ? `${project.name}${project.client ? ` • ${project.client}` : ''}`
       : 'No Project';
+    
     // Check if this is a currently tracking event
     const isCurrentlyTracking = eventType === 'tracked' && isTimeTracking;
     const isCompleted = extendedProps.completed;
+    
     // Create the icon HTML
     let iconHtml = '';
     if (isCurrentlyTracking) {
@@ -314,12 +353,14 @@ export function PlannerView() {
       const checkIconSvg = isCompleted 
         ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><path d="m9 12 2 2 4-4"></path><circle cx="12" cy="12" r="10"></circle></svg>'
         : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><circle cx="12" cy="12" r="10"></circle></svg>';
+      
       iconHtml = `<button type="button" style="cursor: pointer; transition: transform 0.2s; background: none; border: none; color: inherit; padding: 0; margin: 0; display: flex; align-items: center; justify-content: center;" 
                     onmouseover="this.style.transform='scale(1.1)'" 
                     onmouseout="this.style.transform='scale(1)'"
                     onclick="window.plannerToggleCompletion && window.plannerToggleCompletion('${event.id}')"
                     title="${isCompleted ? 'Mark as not completed' : 'Mark as completed'}">${checkIconSvg}</button>`;
     }
+    
     return {
       html: `
         <div style="height: 100%; display: flex; flex-direction: column; gap: 2px; padding: 2px;">
@@ -335,14 +376,17 @@ export function PlannerView() {
       `
     };
   }, [projects, isTimeTracking]);
+
   // Handle completion toggle for events
   const handleCompletionToggle = useCallback(async (eventId: string) => {
     const event = events.find(e => e.id === eventId);
     if (!event) return;
+    
     // Don't allow toggling completion for currently tracking events
     if (event.type === 'tracked' && isTimeTracking) {
       return;
     }
+    
     try {
       await updateEventWithUndo(eventId, { completed: !event.completed });
     } catch (error) {
@@ -354,13 +398,16 @@ export function PlannerView() {
       });
     }
   }, [events, isTimeTracking, updateEventWithUndo, toast]);
+
   // Set up global completion toggle function for HTML onclick events
   useEffect(() => {
     (window as any).plannerToggleCompletion = handleCompletionToggle;
+    
     return () => {
       delete (window as any).plannerToggleCompletion;
     };
   }, [handleCompletionToggle]);
+
   // Prepare FullCalendar configuration
   const calendarConfig = {
     ...getBaseFullCalendarConfig(),
@@ -368,8 +415,10 @@ export function PlannerView() {
     events: getStyledFullCalendarEvents({ selectedEventId, projects }),
     initialView: currentView === 'week' ? 'timeGridWeek' : 'timeGridDay',
     initialDate: calendarDate,
+    
     // Custom event content renderer
     eventContent: renderEventContent,
+    
     // Event handlers
     eventClick: handleEventClick,
     eventDrop: handleEventDrop,
@@ -385,44 +434,56 @@ export function PlannerView() {
         info.el.style.setProperty('--selected-event-border-color', selectedEventBorderColor);
       }
     },
+    
     // Ensure events are resizable
     editable: true,
     eventResizableFromStart: true,
     eventDurationEditable: true,
     eventStartEditable: true,
+    
     // View change handler
     datesSet: (dateInfo) => {
       setCalendarDate(dateInfo.start);
       setCurrentDate(dateInfo.start);
     }
   };
+
   // Add hoverable functionality to date headers after calendar renders
   useEffect(() => {
     const addHoverableHeaders = () => {
       const calendar = calendarRef.current?.getApi();
       if (!calendar) return;
+
       // Find all column header cells
       const headerCells = document.querySelectorAll('.fc-col-header-cell');
+      
       headerCells.forEach((cell) => {
         // Skip if already processed
         if (cell.hasAttribute('data-hoverable-processed')) return;
+        
         // Mark as processed
         cell.setAttribute('data-hoverable-processed', 'true');
+        
         // Get the date for this cell
         const dateAttr = cell.getAttribute('data-date');
         if (!dateAttr) return;
+        
         const cellDate = new Date(dateAttr);
+        
         // Add hover and click functionality
         let isHovered = false;
         let hoverOverlay: HTMLElement | null = null;
         let tooltip: HTMLElement | null = null;
         let hoverTimeout: NodeJS.Timeout | null = null;
+        
         const handleMouseEnter = () => {
           if (isHovered) return;
           isHovered = true;
+          
           // Add 300ms delay to match React tooltip
           hoverTimeout = setTimeout(() => {
             if (!isHovered) return; // Check if still hovered after delay
+            
             // Create and append hover overlay
             hoverOverlay = document.createElement('div');
             hoverOverlay.className = 'absolute inset-0 flex items-center justify-center pointer-events-none z-50';
@@ -435,10 +496,13 @@ export function PlannerView() {
                 </svg>
               </div>
             `;
+            
             // Create tooltip that matches React component styling
             tooltip = document.createElement('div');
+            
             // Get cell position relative to viewport for fixed positioning
             const cellRect = cell.getBoundingClientRect();
+            
             tooltip.style.cssText = `
               position: fixed;
               top: ${cellRect.top - 40}px;
@@ -458,17 +522,21 @@ export function PlannerView() {
               transition: opacity 150ms ease-in-out, transform 150ms ease-in-out;
             `;
             tooltip.innerHTML = 'Go to Timeline';
+            
             // Make cell content semi-transparent
             const cellContent = cell.querySelector('.fc-col-header-cell-cushion');
             if (cellContent) {
               (cellContent as HTMLElement).style.opacity = '0.3';
             }
+            
             // Make cell position relative for overlay positioning
             (cell as HTMLElement).style.position = 'relative';
             (cell as HTMLElement).style.cursor = 'pointer';
+            
             cell.appendChild(hoverOverlay);
             // Append tooltip to document body instead of cell to avoid clipping
             document.body.appendChild(tooltip);
+            
             // Trigger animation after a frame to ensure DOM is updated
             requestAnimationFrame(() => {
               if (tooltip) {
@@ -478,19 +546,23 @@ export function PlannerView() {
             });
           }, 300);
         };
+        
         const handleMouseLeave = () => {
           if (!isHovered) return;
           isHovered = false;
+          
           // Clear timeout if still pending
           if (hoverTimeout) {
             clearTimeout(hoverTimeout);
             hoverTimeout = null;
           }
+          
           // Remove hover overlay
           if (hoverOverlay) {
             hoverOverlay.remove();
             hoverOverlay = null;
           }
+          
           // Remove tooltip with fade out animation
           if (tooltip) {
             tooltip.style.opacity = '0';
@@ -503,25 +575,30 @@ export function PlannerView() {
               }
             }, 150);
           }
+          
           // Restore cell content opacity
           const cellContent = cell.querySelector('.fc-col-header-cell-cushion');
           if (cellContent) {
             (cellContent as HTMLElement).style.opacity = '1';
           }
         };
+        
         const handleClick = () => {
           // Navigate to timeline at the specified date
           setCurrentDate(new Date(cellDate));
           setTimelineView('timeline');
         };
+        
         // Add event listeners
         cell.addEventListener('mouseenter', handleMouseEnter);
         cell.addEventListener('mouseleave', handleMouseLeave);
         cell.addEventListener('click', handleClick);
       });
     };
+
     // Add headers after a short delay to ensure calendar is rendered
     const timeoutId = setTimeout(addHoverableHeaders, 100);
+    
     return () => {
       clearTimeout(timeoutId);
       // Clean up any processed headers
@@ -530,6 +607,7 @@ export function PlannerView() {
         cell.removeAttribute('data-hoverable-processed');
         (cell as HTMLElement).style.position = '';
         (cell as HTMLElement).style.cursor = '';
+        
         const cellContent = cell.querySelector('.fc-col-header-cell-cushion');
         if (cellContent) {
           (cellContent as HTMLElement).style.opacity = '';
@@ -537,6 +615,7 @@ export function PlannerView() {
       });
     };
   }, [calendarDate, currentView, setCurrentDate, setTimelineView]);
+
   return (
     <div className="h-full flex flex-col bg-gray-50 overflow-hidden">
       {/* Header */}
@@ -549,9 +628,11 @@ export function PlannerView() {
             </div>
           )}
         </div>
+        
         {/* Time Tracker in top right */}
         <TimeTracker />
       </div>
+
       {/* Calendar Controls */}
       <div className="px-6 p-[21px]">
         <div className="flex items-center justify-between">
@@ -575,6 +656,7 @@ export function PlannerView() {
                 Day
               </ToggleGroupItem>
             </ToggleGroup>
+            
             <ToggleGroup
               type="single"
               value={layerMode}
@@ -596,10 +678,12 @@ export function PlannerView() {
                 Both
               </ToggleGroupItem>
             </ToggleGroup>
+            
             <Button variant="outline" onClick={() => handleNavigate('today')} className="h-9 gap-2">
               <MapPin className="w-4 h-4" />
               Today
             </Button>
+            
             <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
               <PopoverTrigger asChild>
                 <Button variant="outline" size="icon" className="h-9 w-9">
@@ -616,20 +700,24 @@ export function PlannerView() {
               </PopoverContent>
             </Popover>
           </div>
+
           {/* Right side navigation */}
           <div className="flex items-center gap-0.5">
             <Button variant="ghost" className="h-9 w-9 px-0" onClick={() => handleNavigate('prev')}>
               <ChevronLeft className="w-4 h-4" />
             </Button>
+            
             <h2 className="text-sm font-semibold text-gray-900 text-center px-2">
               {formatDateRange()}
             </h2>
+            
             <Button variant="ghost" className="h-9 w-9 px-0" onClick={() => handleNavigate('next')}>
               <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
         </div>
       </div>
+
       {/* Calendar Content */}
       <div className="flex-1 px-6 pb-6 min-h-0">
         <div className="h-full bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
@@ -640,6 +728,7 @@ export function PlannerView() {
           />
         </div>
       </div>
+
       {/* Calendar Insight Card */}
       <div className="px-6 pb-6">
         <PlannerInsightCard 
@@ -663,21 +752,21 @@ export function PlannerView() {
           view={currentView === 'day' ? 'day' : 'week'}
         />
       </div>
+      
       {/* Modals */}
-      <React.Suspense fallback={<div>Loading...</div>}>
-        <EventModal
-          isOpen={!!creatingNewEvent}
-          onClose={() => setCreatingNewEvent(null)}
-          defaultStartTime={creatingNewEvent?.startTime}
-          defaultEndTime={creatingNewEvent?.endTime}
-        />
-        {/* Event Edit Modal */}
-        <EventModal
-          isOpen={!!selectedEventId}
-          onClose={() => setSelectedEventId(null)}
-          eventId={selectedEventId || undefined}
-        />
-      </React.Suspense>
+      <EventModal
+        isOpen={!!creatingNewEvent}
+        onClose={() => setCreatingNewEvent(null)}
+        defaultStartTime={creatingNewEvent?.startTime}
+        defaultEndTime={creatingNewEvent?.endTime}
+      />
+      
+      {/* Event Edit Modal */}
+      <EventModal
+        isOpen={!!selectedEventId}
+        onClose={() => setSelectedEventId(null)}
+        eventId={selectedEventId || undefined}
+      />
     </div>
   );
 }

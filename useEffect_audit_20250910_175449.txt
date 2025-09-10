@@ -1,0 +1,130 @@
+📋 useEffect Dependency Audit Report
+Generated: Wed Sep 10 17:54:49 BST 2025
+======================================
+
+📁 Files with useEffect hooks:
+src/contexts/ProjectContext.tsx
+src/contexts/TimelineContext.tsx
+src/contexts/AuthContext.tsx
+src/contexts/SettingsContext.tsx
+src/components/insights/FilterModal.tsx
+src/components/ui/rich-text-editor.tsx
+src/components/ui/sidebar.tsx
+src/components/ui/carousel.tsx
+src/components/settings/SettingsView.tsx
+src/components/planner/PlannerInsightCard.tsx
+src/components/layout/Sidebar.tsx
+src/components/projects/modal/ProjectMilestoneSection.tsx
+src/components/modals/EventModal.tsx
+src/components/modals/ProjectModal.tsx
+src/components/modals/HolidayModal.tsx
+src/components/views/ProfileView.tsx
+src/components/views/InsightsView.tsx
+src/components/views/PlannerView.tsx
+src/components/views/TimelineView.tsx
+src/components/timeline/HoverableTimelineScrollbar.tsx
+src/components/timeline/DraggableRowComponent.tsx
+src/components/timeline/AddProjectRow.tsx
+src/components/timeline/DragPerformanceMonitor.tsx
+src/components/timeline/TimelineScrollbar.tsx
+src/components/work-hours/TimeTracker.tsx
+src/components/work-hours/DraggableWorkHour.tsx
+src/components/work-hours/WorkHourCreator.tsx
+src/components/debug/DevTools.tsx
+src/components/debug/ViewErrorFallback.tsx
+src/hooks/use-mobile.tsx
+src/hooks/useDynamicViewportDays.ts
+src/hooks/useWorkHours.ts
+src/hooks/useGroups.ts
+src/hooks/useMilestones.ts
+src/hooks/useRows.ts
+src/hooks/use-toast.ts
+src/hooks/useEvents.ts
+src/hooks/useCalendarConnections.ts
+src/hooks/useFavicon.ts
+src/hooks/useHolidays.ts
+src/hooks/useProjects.ts
+src/hooks/useSettings.ts
+src/pages/Auth.tsx
+src/pages/NotFound.tsx
+
+📊 Total useEffect instances: 103
+
+🚨 Potential Issues Found:
+
+1. Empty dependency arrays (review if deps needed):
+   None found
+
+2. Missing dependency arrays (runs every render):
+src/contexts/ProjectContext.tsx:136:  React.useEffect(() => {
+src/contexts/AuthContext.tsx:24:  useEffect(() => {
+src/contexts/SettingsContext.tsx:59:  useEffect(() => {
+src/components/insights/FilterModal.tsx:47:  React.useEffect(() => {
+src/components/ui/rich-text-editor.tsx:41:  useEffect(() => {
+src/components/ui/sidebar.tsx:98:    React.useEffect(() => {
+src/components/ui/carousel.tsx:99:    React.useEffect(() => {
+src/components/ui/carousel.tsx:107:    React.useEffect(() => {
+src/components/settings/SettingsView.tsx:42:  useEffect(() => {
+src/components/planner/PlannerInsightCard.tsx:31:  useEffect(() => {
+src/components/layout/Sidebar.tsx:32:  useEffect(() => {
+src/components/layout/Sidebar.tsx:39:  useEffect(() => {
+src/components/projects/modal/ProjectMilestoneSection.tsx:565:  React.useEffect(() => {
+src/components/projects/modal/ProjectMilestoneSection.tsx:1012:  React.useEffect(() => {
+src/components/projects/modal/ProjectMilestoneSection.tsx:1019:  React.useEffect(() => {
+src/components/projects/modal/ProjectMilestoneSection.tsx:1222:  React.useEffect(() => {
+src/components/modals/EventModal.tsx:168:  useEffect(() => {
+src/components/modals/EventModal.tsx:232:  useEffect(() => {
+src/components/modals/EventModal.tsx:258:  useEffect(() => {
+src/components/modals/ProjectModal.tsx:85:  useEffect(() => {
+src/components/modals/ProjectModal.tsx:210:  useEffect(() => {
+src/components/modals/HolidayModal.tsx:79:  useEffect(() => {
+src/components/views/ProfileView.tsx:68:  useEffect(() => {
+src/components/views/InsightsView.tsx:93:  useEffect(() => {
+src/components/views/InsightsView.tsx:98:  useEffect(() => {
+src/components/views/PlannerView.tsx:183:  useEffect(() => {
+src/components/views/PlannerView.tsx:358:  useEffect(() => {
+src/components/views/PlannerView.tsx:400:  useEffect(() => {
+src/components/views/TimelineView.tsx:88:  React.useEffect(() => {
+src/components/views/TimelineView.tsx:98:  useEffect(() => {
+src/components/views/TimelineView.tsx:400:  React.useEffect(() => {
+src/components/views/TimelineView.tsx:454:  React.useEffect(() => {
+src/components/views/TimelineView.tsx:459:  React.useEffect(() => {
+src/components/views/TimelineView.tsx:467:  React.useEffect(() => {
+src/components/timeline/HoverableTimelineScrollbar.tsx:115:  useEffect(() => {
+src/components/timeline/HoverableTimelineScrollbar.tsx:120:  useEffect(() => {
+src/components/timeline/HoverableTimelineScrollbar.tsx:146:  useEffect(() => {
+src/components/timeline/HoverableTimelineScrollbar.tsx:247:  useEffect(() => {
+src/components/timeline/DraggableRowComponent.tsx:94:  useEffect(() => {
+src/components/timeline/AddProjectRow.tsx:78:  useEffect(() => {
+src/components/timeline/DragPerformanceMonitor.tsx:22:  useEffect(() => {
+src/components/timeline/TimelineScrollbar.tsx:68:  useEffect(() => {
+src/components/timeline/TimelineScrollbar.tsx:172:  useEffect(() => {
+src/components/work-hours/TimeTracker.tsx:40:  useEffect(() => {
+src/components/work-hours/TimeTracker.tsx:472:  useEffect(() => {
+src/components/work-hours/TimeTracker.tsx:486:  useEffect(() => {
+src/components/work-hours/DraggableWorkHour.tsx:56:  React.useEffect(() => {
+src/components/work-hours/DraggableWorkHour.tsx:64:  React.useEffect(() => {
+src/components/work-hours/WorkHourCreator.tsx:155:  React.useEffect(() => {
+src/components/debug/DevTools.tsx:28:  useEffect(() => {
+src/components/debug/DevTools.tsx:38:  useEffect(() => {
+src/components/debug/ViewErrorFallback.tsx:9:  React.useEffect(() => {
+src/hooks/use-mobile.tsx:8:  React.useEffect(() => {
+src/hooks/useDynamicViewportDays.ts:19:  useEffect(() => {
+src/hooks/useDynamicViewportDays.ts:48:  useEffect(() => {
+src/hooks/useWorkHours.ts:441:  useEffect(() => {
+src/hooks/useGroups.ts:15:  useEffect(() => {
+src/hooks/useMilestones.ts:18:  useEffect(() => {
+src/hooks/useRows.ts:15:  useEffect(() => {
+src/hooks/use-toast.ts:174:  React.useEffect(() => {
+src/hooks/useEvents.ts:15:  useEffect(() => {
+src/hooks/useCalendarConnections.ts:18:  useEffect(() => {
+src/hooks/useFavicon.ts:24:  useEffect(() => {
+src/hooks/useHolidays.ts:31:  useEffect(() => {
+src/hooks/useProjects.ts:85:  useEffect(() => {
+src/hooks/useSettings.ts:14:  useEffect(() => {
+src/pages/Auth.tsx:19:  useEffect(() => {
+src/pages/NotFound.tsx:7:  useEffect(() => {
+
+3. Large dependency arrays (consider useMemo/useCallback):
+   None found
+

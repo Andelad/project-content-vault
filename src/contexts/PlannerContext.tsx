@@ -6,7 +6,6 @@ import { useWorkHours } from '@/hooks/useWorkHours';
 import { EventInput } from '@fullcalendar/core';
 
 // Try direct import from the specific file instead of barrel export
-console.log('🔍 Attempting to import PlannerV2CalculationService...');
 import { PlannerV2CalculationService } from '@/services/calculations/plannerInsights';
 
 import { supabase } from '@/integrations/supabase/client';

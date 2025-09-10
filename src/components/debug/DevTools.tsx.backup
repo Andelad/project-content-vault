@@ -8,12 +8,14 @@ import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { PERFORMANCE_LIMITS } from '@/constants';
 import { Eye, EyeOff, Trash2, Activity, Database } from 'lucide-react';
+
 interface PerformanceMetrics {
   renderCount: number;
   memoryUsage: number;
   cacheHitRate: number;
   avgRenderTime: number;
 }
+
 export function DevTools() {
   const [isVisible, setIsVisible] = useState(false);
   const [metrics, setMetrics] = useState<PerformanceMetrics>({
@@ -22,8 +24,10 @@ export function DevTools() {
     cacheHitRate: 0,
     avgRenderTime: 0
   });
+
   const { projects, groups, normalizeMilestoneOrders } = useProjectContext();
   const { events, holidays } = usePlannerContext();
+
   // Toggle visibility with keyboard shortcut
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -31,15 +35,19 @@ export function DevTools() {
         setIsVisible(prev => !prev);
       }
     };
+
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
   // Update metrics periodically
   useEffect(() => {
     if (!isVisible) return;
+
     const interval = setInterval(() => {
       const cacheStats = getCacheStats();
       const performanceMetrics = performanceMonitor.getMetrics();
+      
       setMetrics({
         renderCount: performanceMetrics.length || 0,
         memoryUsage: (window.performance as any)?.memory?.usedJSHeapSize || 0,
@@ -47,13 +55,17 @@ export function DevTools() {
         avgRenderTime: performanceMonitor.getAverageRenderTime() || 0
       });
     }, 1000);
+
     return () => clearInterval(interval);
   }, [isVisible]);
+
   const handleClearCache = () => {
     cleanupMemoizationCaches();
     if (process.env.NODE_ENV === 'development') {
+      console.log('🧹 All memoization caches cleared');
     }
   };
+
   const getDataSummary = () => ({
     projects: projects.length,
     groups: groups.length,
@@ -61,6 +73,7 @@ export function DevTools() {
     holidays: holidays.length,
     totalEntities: projects.length + groups.length + events.length + holidays.length
   });
+
   if (!isVisible) {
     return (
       <div className="fixed bottom-4 right-4 z-[1000]">
@@ -75,8 +88,10 @@ export function DevTools() {
       </div>
     );
   }
+
   const cacheStats = getCacheStats();
   const dataSummary = getDataSummary();
+
   return (
     <div className="fixed bottom-4 right-4 z-[1000] w-80">
       <Card className="p-4 bg-background/95 backdrop-blur-sm border shadow-lg">
@@ -93,6 +108,7 @@ export function DevTools() {
             <EyeOff className="w-4 h-4" />
           </Button>
         </div>
+
         <div className="space-y-3 text-sm">
           {/* Performance Metrics */}
           <div>
@@ -112,7 +128,9 @@ export function DevTools() {
               </div>
             </div>
           </div>
+
           <Separator />
+
           {/* Data Summary */}
           <div>
             <h4 className="font-medium mb-2 flex items-center gap-2">
@@ -146,7 +164,9 @@ export function DevTools() {
               </div>
             </div>
           </div>
+
           <Separator />
+
           {/* Cache Stats */}
           <div>
             <h4 className="font-medium mb-2">Cache Status</h4>
@@ -170,6 +190,7 @@ export function DevTools() {
                 </Badge>
               </div>
             </div>
+            
             <Button
               onClick={handleClearCache}
               size="sm"
@@ -180,7 +201,9 @@ export function DevTools() {
               Clear Cache
             </Button>
           </div>
+
           <Separator />
+
           {/* Data Maintenance */}
           <div>
             <h4 className="font-medium mb-2">Data Maintenance</h4>
@@ -202,6 +225,7 @@ export function DevTools() {
               Ensures milestones are ordered by due date and fixes order_index.
             </div>
           </div>
+
           {/* Quick Actions */}
           <div className="pt-2 border-t">
             <div className="text-xs text-muted-foreground">
@@ -213,11 +237,13 @@ export function DevTools() {
     </div>
   );
 }
+
 // Development-only wrapper
 export function DevToolsWrapper({ children }: { children: React.ReactNode }) {
   if (process.env.NODE_ENV !== 'development') {
     return <>{children}</>;
   }
+
   return (
     <>
       {children}

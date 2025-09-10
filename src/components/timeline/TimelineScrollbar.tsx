@@ -43,12 +43,15 @@ export const TimelineScrollbar = memo(function TimelineScrollbar({
   
   const scrollbarWidth = 800; // Default scrollbar width
   
+  // Calculate offset in days for the scrollbar positioning function
+  const currentOffset = Math.floor((viewportStart.getTime() - timelineStart.getTime()) / (1000 * 60 * 60 * 24));
+  const maxOffsetDays = Math.floor((timelineEnd.getTime() - timelineStart.getTime()) / (1000 * 60 * 60 * 24)) - VIEWPORT_DAYS;
+  
   const scrollbarCalc = calculateScrollbarPosition(
-    viewportStart, 
-    viewportEnd,
-    timelineStart,
-    timelineEnd,
-    scrollbarWidth
+    currentOffset,
+    maxOffsetDays,
+    scrollbarWidth,
+    VIEWPORT_DAYS
   );
   const { 
     fullTimelineStart, 

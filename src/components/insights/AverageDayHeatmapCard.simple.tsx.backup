@@ -2,16 +2,20 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Sun } from 'lucide-react';
 import { CalendarEvent, Group, Project } from '../../types';
+
 interface AverageDayHeatmapCardProps {
   events: CalendarEvent[];
   groups: Group[];
   projects: Project[];
 }
+
 export const AverageDayHeatmapCard: React.FC<AverageDayHeatmapCardProps> = ({
   events,
   groups,
   projects
 }) => {
+  console.log('SIMPLE Heatmap rendering with:', { events: events?.length, groups: groups?.length, projects: projects?.length });
+  
   return (
     <Card className="col-span-full">
       <CardHeader>

@@ -83,12 +83,15 @@ export const HoverableTimelineScrollbar = memo(function HoverableTimelineScrollb
   // Calculate scrollbar width (we'll use a default and update it in effect)
   const [scrollbarWidth, setScrollbarWidth] = useState(300);
   
+  // Calculate offsets in days for the scrollbar positioning function
+  const currentOffset = Math.floor((viewportStart.getTime() - fullTimelineStart.getTime()) / (1000 * 60 * 60 * 24));
+  const maxOffset = TOTAL_DAYS - VIEWPORT_DAYS;
+  
   const scrollbarCalc = calculateScrollbarPosition(
-    viewportStart,
-    viewportEnd, 
-    fullTimelineStart,
-    fullTimelineEnd,
-    scrollbarWidth
+    currentOffset,
+    maxOffset,
+    scrollbarWidth,
+    VIEWPORT_DAYS
   );
   
   // Override total days calculation for weeks mode adaptation
@@ -96,15 +99,13 @@ export const HoverableTimelineScrollbar = memo(function HoverableTimelineScrollb
     ...scrollbarCalc,
     thumbWidth: VIEWPORT_DAYS > 200 ? 
       (Math.min(VIEWPORT_DAYS / 8, 30) / TOTAL_DAYS) * 100 : 
-      scrollbarCalc.thumbWidth,
-    maxOffset: TOTAL_DAYS - VIEWPORT_DAYS
+      scrollbarCalc.thumbWidth
   };
   
   const { 
     currentDayOffset, 
     thumbPosition: calculatedThumbPosition, 
-    thumbWidth,
-    maxOffset 
+    thumbWidth
   } = adaptedCalc;
   
   // Use smooth position during animations, but NOT during dragging
@@ -283,9 +284,10 @@ export const HoverableTimelineScrollbar = memo(function HoverableTimelineScrollb
     
     // Use service to calculate target viewport
     const targetDayOffset = calculateScrollbarClickTarget(
-      e.clientX, 
-      rect, 
-      scrollbarCalc
+      clickX,
+      scrollbarWidth,
+      thumbWidth,
+      maxOffset
     );
     
     // Convert day offset back to date
@@ -327,7 +329,17 @@ export const HoverableTimelineScrollbar = memo(function HoverableTimelineScrollb
       };
       
       // Use service for easing calculation
-      const { thumbPosition: intermediateThumbPosition, offset: intermediateOffset, isComplete } = calculateScrollEasing(currentTime, config);
+      const progress = currentTime / animationDuration;
+      const intermediateOffset = calculateScrollEasing(
+        progress,
+        currentDayOffset,
+        animationTargetDayOffset
+      );
+      
+      // Calculate intermediate thumb position
+      const availableSpace = scrollbarWidth - thumbWidth;
+      const intermediateThumbPosition = maxOffset > 0 ? (intermediateOffset / maxOffset) * availableSpace : 0;
+      const isComplete = progress >= 1;
       
       // Calculate intermediate viewport start
       const intermediateStart = new Date(fullTimelineStart);

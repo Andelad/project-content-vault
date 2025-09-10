@@ -31,8 +31,6 @@ export function calculateTimelinePositions(
   dates: Date[],
   mode: 'days' | 'weeks' = 'days'
 ): TimelinePositionCalculation {
-  console.log('calculateTimelinePositions called with mode:', mode);
-  
   try {
     if (mode === 'weeks') {
       return calculateWeeksModePositions(

@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
+
 export const DatabaseTestComponent = () => {
   const [testResult, setTestResult] = useState('');
   const [loading, setLoading] = useState(false);
+
   const testDatabaseConnection = async () => {
     setLoading(true);
     setTestResult('Testing...');
+    
     try {
       // First test authentication
       const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -14,10 +17,14 @@ export const DatabaseTestComponent = () => {
         setTestResult(`Auth error: ${authError.message}`);
         return;
       }
+      
       if (!user) {
         setTestResult('No user authenticated');
         return;
       }
+      
+      console.log('User authenticated:', user.id);
+      
       // Test the specific field that was causing issues
       const testEventData = {
         title: 'DB Test - recurring_group_id',
@@ -36,11 +43,15 @@ export const DatabaseTestComponent = () => {
         recurring_group_id: null, // This was the problematic field
         user_id: user.id
       };
+      
+      console.log('Testing recurring_group_id field with data:', testEventData);
+      
       const { data, error } = await supabase
         .from('calendar_events')
         .insert([testEventData])
         .select()
         .single();
+      
       if (error) {
         console.error('Database error:', error);
         if (error.code === 'PGRST204') {
@@ -49,10 +60,14 @@ export const DatabaseTestComponent = () => {
           setTestResult(`Database error: ${error.message} (Code: ${error.code})`);
         }
       } else {
+        console.log('✅ SUCCESS! Created event with recurring_group_id:', data);
         setTestResult(`✅ SUCCESS! recurring_group_id field is working! Event ID: ${data.id}`);
+        
         // Clean up - delete the test event
         await supabase.from('calendar_events').delete().eq('id', data.id);
+        console.log('Test event cleaned up');
       }
+      
     } catch (error) {
       console.error('Test error:', error);
       setTestResult(`Unexpected error: ${error.message || error}`);
@@ -60,6 +75,7 @@ export const DatabaseTestComponent = () => {
       setLoading(false);
     }
   };
+
   return (
     <div style={{ 
       position: 'fixed', 

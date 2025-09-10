@@ -1,5 +1,6 @@
 import { supabase } from '../../integrations/supabase/client';
 import type { TimeTrackingState, SerializedTimeTrackingState } from '../../types/timeTracking';
+
 /**
  * Time Tracking Repository
  * 
@@ -9,9 +10,11 @@ import type { TimeTrackingState, SerializedTimeTrackingState } from '../../types
 class TimeTrackingRepository {
   private userId: string | null = null;
   private readonly STORAGE_KEY = 'timeTracker_crossWindowSync';
+
   setUserId(userId: string): void {
     this.userId = userId;
   }
+
   private serializeState(state: TimeTrackingState): SerializedTimeTrackingState {
     return {
       isTracking: state.isTracking,
@@ -23,6 +26,7 @@ class TimeTrackingRepository {
       lastUpdateTime: (state.lastUpdateTime || state.lastUpdated)?.toISOString() || null
     };
   }
+
   private deserializeState(serializedState: SerializedTimeTrackingState): TimeTrackingState {
     return {
       isTracking: serializedState.isTracking,
@@ -32,15 +36,19 @@ class TimeTrackingRepository {
       pausedAt: serializedState.pausedAt ? new Date(serializedState.pausedAt) : null,
       totalPausedDuration: serializedState.totalPausedDuration,
       lastUpdateTime: serializedState.lastUpdateTime ? new Date(serializedState.lastUpdateTime) : null,
+      
       // Initialize legacy fields
       lastUpdated: serializedState.lastUpdateTime ? new Date(serializedState.lastUpdateTime) : undefined
     };
   }
+
   async saveState(state: TimeTrackingState): Promise<void> {
     if (!this.userId) {
       throw new Error('User ID must be set before saving state');
     }
+
     const serializedState = this.serializeState(state);
+
     try {
       // Save to database
       const { error } = await supabase
@@ -51,25 +59,31 @@ class TimeTrackingRepository {
         }, {
           onConflict: 'user_id'
         });
+
       if (error) {
         console.error('Error saving time tracking state to database:', error);
         throw error;
       }
+
       // Update localStorage cache
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify({
         state: serializedState,
         timestamp: Date.now()
       }));
+
+      console.log('✅ Time tracking state saved successfully');
     } catch (error) {
       console.error('❌ Failed to save time tracking state:', error);
       throw error;
     }
   }
+
   async loadState(): Promise<TimeTrackingState | null> {
     if (!this.userId) {
       // Try to load from localStorage if no user ID
       return this.loadFromLocalStorage();
     }
+
     try {
       // Try to load from database first
       const { data, error } = await supabase
@@ -77,15 +91,19 @@ class TimeTrackingRepository {
         .select('time_tracking_state')
         .eq('user_id', this.userId)
         .single();
+
       if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
         console.error('Error loading time tracking state from database:', error);
         // Fallback to localStorage
         return this.loadFromLocalStorage();
       }
+
       if (data?.time_tracking_state) {
         const deserializedState = this.deserializeState(data.time_tracking_state as unknown as SerializedTimeTrackingState);
+        console.log('✅ Time tracking state loaded from database');
         return deserializedState;
       }
+
       // Fallback to localStorage
       return this.loadFromLocalStorage();
     } catch (error) {
@@ -93,12 +111,14 @@ class TimeTrackingRepository {
       return this.loadFromLocalStorage();
     }
   }
+
   private loadFromLocalStorage(): TimeTrackingState | null {
     try {
       const stored = localStorage.getItem(this.STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
         if (parsed.state) {
+          console.log('✅ Time tracking state loaded from localStorage');
           return this.deserializeState(parsed.state);
         }
       }
@@ -108,10 +128,12 @@ class TimeTrackingRepository {
       return null;
     }
   }
+
   async setupRealtimeSubscription(onStateChange: (state: TimeTrackingState) => void): Promise<any> {
     if (!this.userId) {
       throw new Error('User ID must be set before setting up realtime subscription');
     }
+
     try {
       const subscription = supabase
         .channel('time_tracking_changes')
@@ -124,6 +146,8 @@ class TimeTrackingRepository {
             filter: `user_id=eq.${this.userId}`
           },
           (payload) => {
+            console.log('📡 Received time tracking state update from database:', payload);
+            
             if (payload.new?.time_tracking_state) {
               const deserializedState = this.deserializeState(payload.new.time_tracking_state as unknown as SerializedTimeTrackingState);
               onStateChange(deserializedState);
@@ -131,16 +155,21 @@ class TimeTrackingRepository {
           }
         )
         .subscribe();
+
+      console.log('✅ Time tracking realtime subscription setup complete');
       return subscription;
     } catch (error) {
       console.error('❌ Failed to setup time tracking realtime subscription:', error);
       throw error;
     }
   }
+
   cleanupRealtimeSubscription(subscription: any): void {
     if (subscription) {
       supabase.removeChannel(subscription);
+      console.log('🧹 Time tracking realtime subscription cleaned up');
     }
   }
 }
+
 export const timeTrackingRepository = new TimeTrackingRepository();
