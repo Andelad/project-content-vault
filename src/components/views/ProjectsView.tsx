@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { useProjectContext } from '../../contexts/ProjectContext';
+import { useGroups } from '../../hooks/useGroups';
 import { Plus, Edit, Trash2, Calendar, Clock, Users, FolderPlus, Grid3X3, List, GripVertical, Archive, PlayCircle, Clock4, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
@@ -16,6 +17,7 @@ import { StandardModal } from '../modals/StandardModal';
 import { Group, Project, ProjectStatus } from '../../types';
 import { AppPageLayout } from '../layout/AppPageLayout';
 import { getEffectiveProjectStatus, DurationFormattingService } from '@/services';
+import { GroupOrchestrator } from '@/services/orchestrators/GroupOrchestrator';
 
 type ViewType = 'grid' | 'list';
 
@@ -127,7 +129,8 @@ function DraggableProject({
 }
 
 export function ProjectsView() {
-  const { groups, projects, addGroup, updateGroup, deleteGroup, addProject, updateProject, deleteProject, reorderGroups, reorderProjects, setSelectedProjectId } = useProjectContext();
+  const { groups, projects, deleteGroup, addProject, updateProject, deleteProject, reorderGroups, reorderProjects, setSelectedProjectId } = useProjectContext();
+  const { addGroup, updateGroup } = useGroups();
 
   // View toggle state
   const [viewType, setViewType] = useState<ViewType>('list');
@@ -180,25 +183,60 @@ export function ProjectsView() {
     setIsGroupDialogOpen(true);
   };
 
-  const handleSaveGroup = () => {
+  const handleSaveGroup = async () => {
     if (!groupName.trim()) return;
 
-    if (editingGroup) {
-      updateGroup(editingGroup.id, {
-        name: groupName,
-        description: groupDescription,
-        color: groupColor
-      });
-    } else {
-      addGroup({
-        name: groupName,
-        description: groupDescription,
-        color: groupColor
-      });
-    }
+    try {
+      if (editingGroup) {
+        // Use GroupOrchestrator for update workflow
+        const result = await GroupOrchestrator.executeGroupUpdateWorkflow(
+          {
+            id: editingGroup.id,
+            name: groupName,
+            description: groupDescription,
+            color: groupColor
+          },
+          editingGroup,
+          { updateGroup }
+        );
 
-    setIsGroupDialogOpen(false);
-    resetGroupForm();
+        if (!result.success) {
+          console.error('Group update failed:', result.errors);
+          // Show first error to user - toast handling is in updateGroup
+          return;
+        }
+
+        if (result.warnings && result.warnings.length > 0) {
+          console.warn('Group update warnings:', result.warnings);
+        }
+      } else {
+        // Use GroupOrchestrator for creation workflow
+        const result = await GroupOrchestrator.executeGroupCreationWorkflow(
+          {
+            name: groupName,
+            description: groupDescription,
+            color: groupColor
+          },
+          { addGroup }
+        );
+
+        if (!result.success) {
+          console.error('Group creation failed:', result.errors);
+          // Show first error to user - toast handling is in addGroup
+          return;
+        }
+
+        if (result.warnings && result.warnings.length > 0) {
+          console.warn('Group creation warnings:', result.warnings);
+        }
+      }
+
+      setIsGroupDialogOpen(false);
+      resetGroupForm();
+    } catch (error) {
+      console.error('Group operation failed:', error);
+      // Let the underlying hooks handle toast notifications
+    }
   };
 
   const resetGroupForm = () => {

@@ -40,6 +40,33 @@ export interface ProjectCreationRequest {
   rowId: string;
   notes?: string;
   icon?: string;
+  autoEstimateDays?: {
+    monday: boolean;
+    tuesday: boolean;
+    wednesday: boolean;
+    thursday: boolean;
+    friday: boolean;
+    saturday: boolean;
+    sunday: boolean;
+  };
+}
+
+export interface ProjectCreationResult {
+  success: boolean;
+  project?: Project;
+  errors?: string[];
+  warnings?: string[];
+}
+
+export interface ProjectMilestone {
+  name: string;
+  dueDate: Date;
+  timeAllocation: number;
+  order: number;
+}
+
+export interface ProjectCreationWithMilestonesRequest extends ProjectCreationRequest {
+  milestones?: ProjectMilestone[];
 }
 
 export interface ProjectUpdateRequest {
@@ -343,5 +370,117 @@ export class ProjectOrchestrator {
       estimatedHours: Math.max(0, request.estimatedHours),
       icon: request.icon || 'folder'
     };
+  }
+
+  /**
+   * Execute complete project creation workflow with milestones
+   * EXTRACTED from ProjectModal handleCreateProject complex logic
+   * 
+   * Handles:
+   * - Validation and preparation
+   * - Project creation via context
+   * - Milestone batch creation
+   * - Error handling and coordination
+   */
+  static async executeProjectCreationWorkflow(
+    request: ProjectCreationWithMilestonesRequest,
+    projectContext: {
+      addProject: (data: any) => Promise<Project>;
+      addMilestone: (data: any, options?: { silent?: boolean }) => Promise<void>;
+    }
+  ): Promise<ProjectCreationResult> {
+    try {
+      // Step 1: Validate inputs
+      if (!request.groupId || request.groupId === '') {
+        return {
+          success: false,
+          errors: ['Group ID is required for project creation']
+        };
+      }
+
+      if (!request.rowId || request.rowId === '') {
+        return {
+          success: false,
+          errors: ['No row selected. Please select a row before creating a project.']
+        };
+      }
+
+      // Step 2: Prepare project data following AI Development Rules
+      const preparedProject = this.prepareProjectForCreation(request);
+
+      // Provide defaults following the component logic
+      const projectData = {
+        name: preparedProject.name || 'New Project',
+        client: preparedProject.client || 'N/A',
+        startDate: preparedProject.startDate,
+        endDate: preparedProject.endDate,
+        estimatedHours: preparedProject.estimatedHours,
+        groupId: preparedProject.groupId,
+        rowId: preparedProject.rowId,
+        color: preparedProject.color,
+        notes: preparedProject.notes,
+        icon: preparedProject.icon,
+        continuous: preparedProject.continuous,
+        autoEstimateDays: preparedProject.autoEstimateDays
+      };
+
+      // Step 3: Create project via context (delegates to existing project creation logic)
+      const createdProject = await projectContext.addProject(projectData);
+
+      if (!createdProject) {
+        return {
+          success: false,
+          errors: ['Project creation failed - no project returned']
+        };
+      }
+
+      // Step 4: Handle milestone creation if provided
+      if (request.milestones && request.milestones.length > 0) {
+        await this.createProjectMilestones(
+          createdProject.id,
+          request.milestones,
+          projectContext.addMilestone
+        );
+      }
+
+      return {
+        success: true,
+        project: createdProject
+      };
+
+    } catch (error) {
+      console.error('Project creation workflow error:', error);
+      return {
+        success: false,
+        errors: [error instanceof Error ? error.message : 'Project creation failed']
+      };
+    }
+  }
+
+  /**
+   * Create milestones for a project
+   * PRIVATE helper extracted from complex component logic
+   */
+  private static async createProjectMilestones(
+    projectId: string,
+    milestones: ProjectMilestone[],
+    addMilestone: (data: any, options?: { silent?: boolean }) => Promise<void>
+  ): Promise<void> {
+    for (const milestone of milestones) {
+      if (milestone.name.trim()) {
+        try {
+          await addMilestone({
+            name: milestone.name,
+            dueDate: milestone.dueDate,
+            timeAllocation: milestone.timeAllocation,
+            projectId: projectId,
+            order: milestone.order
+          }, { silent: true }); // Silent mode to prevent individual milestone toasts
+        } catch (error) {
+          console.error('Failed to save milestone:', error);
+          // Continue with other milestones even if one fails
+        }
+      }
+    }
   }
 }

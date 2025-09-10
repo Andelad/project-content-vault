@@ -15,6 +15,7 @@ import { CalendarImport } from './CalendarImport';
 import { useToast } from '../../hooks/use-toast';
 import { AppPageLayout } from '../layout/AppPageLayout';
 import { formatWorkSlotDurationDisplay } from '@/services';
+import { SettingsOrchestrator } from '@/services/orchestrators/SettingsOrchestrator';
 import {
   generateTimeOptions,
   calculateDayTotalHours,
@@ -47,32 +48,28 @@ export function SettingsView() {
   }, [appSettings.defaultView]);
 
   const handleSettingChange = async (key: string, value: any) => {
-    setLocalSettings(prev => ({ ...prev, [key]: value }));
-    
-    // If defaultView is being changed, immediately apply it
-    if (key === 'defaultView') {
-      setDefaultView(value);
-      
-      // Save to localStorage (until database migration is available)
-      try {
-        await updateSettings({ defaultView: value });
-        
-        const viewDisplayName = value === 'timeline-weeks' ? 'Timeline (weeks)' : 
-                               value === 'timeline' ? 'Timeline (days)' :
-                               value === 'projects' ? 'Projects' : 
-                               value === 'calendar' ? 'Calendar' : value;
-        
-        toast({
-          title: "Default view updated",
-          description: `Your default view has been set to ${viewDisplayName}`,
-        });
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to save default view setting",
-          variant: "destructive",
-        });
+    // Delegate to SettingsOrchestrator (AI Rule: use existing orchestrator)
+    const result = await SettingsOrchestrator.updateSetting(
+      key,
+      value,
+      {
+        setLocalSettings,
+        updateSettings,
+        setDefaultView
       }
+    );
+
+    if (result.success && result.message) {
+      toast({
+        title: result.message.includes('view') ? "Default view updated" : "Setting updated",
+        description: result.message,
+      });
+    } else if (!result.success) {
+      toast({
+        title: "Error",
+        description: result.error,
+        variant: "destructive",
+      });
     }
   };
 
@@ -138,45 +135,42 @@ export function SettingsView() {
   };
 
   const handleSaveSettings = async () => {
-    try {
-      // Save any remaining settings
-      await updateSettings({
-        defaultView: localSettings.defaultView,
-        // Add other settings here as they're implemented
-      });
-      
-      toast({
-        title: "Settings saved",
-        description: "Your preferences have been updated successfully.",
-      });
-    } catch (error) {
-      toast({
-        title: "Settings applied locally",
-        description: "Changes applied in current session (database save pending).",
-      });
-    }
+    // Delegate to SettingsOrchestrator (AI Rule: use existing orchestrator)
+    const result = await SettingsOrchestrator.saveAllSettings(
+      localSettings,
+      { updateSettings }
+    );
+
+    toast({
+      title: result.message || (result.success ? "Settings saved" : "Error"),
+      description: result.success ? result.message : result.error,
+      variant: result.success ? "default" : "destructive",
+    });
   };
 
   const handleResetSettings = () => {
-    setLocalSettings({
-      notifications: true,
-      emailNotifications: false,
-      darkMode: false,
-      timeFormat: '12h',
-      timezone: 'UTC-8',
-      language: 'en',
-      autoSave: true,
-      defaultView: 'projects'
-    });
-    // Use service to generate default work schedule
-    const defaultWeek = generateDefaultWorkSchedule('standard');
-    updateSettings({ weeklyWorkHours: defaultWeek });
+    // Delegate to SettingsOrchestrator (AI Rule: use existing orchestrator)
+    const result = SettingsOrchestrator.resetToDefaults();
+    
+    if (result.success) {
+      setLocalSettings(result.resetSettings);
+      // Use service to generate default work schedule
+      const defaultWeek = generateDefaultWorkSchedule('standard');
+      updateSettings({ weeklyWorkHours: defaultWeek });
+    }
   };
 
-  const handleClearData = () => {
+  const handleClearData = async () => {
     // Implementation for clearing app data
     if (confirm('Are you sure you want to clear all app data? This action cannot be undone.')) {
-      // Data clearing logic would go here
+      // Delegate to SettingsOrchestrator (AI Rule: use existing orchestrator)
+      const result = await SettingsOrchestrator.clearApplicationData();
+      
+      toast({
+        title: result.success ? "Data cleared" : "Error",
+        description: result.message || result.error,
+        variant: result.success ? "default" : "destructive",
+      });
     }
   };
 

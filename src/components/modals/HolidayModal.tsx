@@ -8,6 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Calendar } from '../ui/calendar';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { StandardModal } from './StandardModal';
+import { HolidayModalOrchestrator } from '@/services/orchestrators/HolidayModalOrchestrator';
 
 interface HolidayModalProps {
   isOpen: boolean;
@@ -101,65 +102,13 @@ export function HolidayModal({ isOpen, onClose, holidayId, defaultStartDate, def
     }
   }, [isEditing, existingHoliday, isOpen, defaultStartDate, defaultEndDate]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!title.trim() || !startDate || !endDate) return;
 
-    // Validate dates
-    if (startDate > endDate) {
-      alert('❌ Invalid dates: Start date cannot be after end date.');
-      return;
-    }
-
-    // Check for overlaps and auto-fix
-    const overlappingHolidays = holidays.filter(existingHoliday => {
-      // Skip the current holiday if editing
-      if (isEditing && holidayId && existingHoliday.id === holidayId) return false;
-      
-      // Check if dates overlap
-      const overlap = startDate <= existingHoliday.endDate && existingHoliday.startDate <= endDate;
-      return overlap;
-    });
-
-    if (overlappingHolidays.length > 0) {
-      const conflictList = overlappingHolidays
-        .map(h => `• "${h.title}" (${h.startDate.toDateString()} - ${h.endDate.toDateString()})`)
-        .join('\n');
-      
-      // Find which date needs adjustment and fix it
-      let adjustedStartDate = new Date(startDate);
-      let adjustedEndDate = new Date(endDate);
-      let adjustmentMade = false;
-      let adjustmentMessage = '';
-      
-      // Check if start date overlaps - move it after the conflicting holiday
-      const startOverlap = overlappingHolidays.find(h => startDate <= h.endDate && startDate >= h.startDate);
-      if (startOverlap) {
-        adjustedStartDate = new Date(startOverlap.endDate);
-        adjustedStartDate.setDate(adjustedStartDate.getDate() + 1);
-        adjustmentMade = true;
-        adjustmentMessage = `Start date moved to ${adjustedStartDate.toDateString()} (after "${startOverlap.title}")`;
-      }
-      
-      // Check if end date overlaps - move it before the conflicting holiday
-      const endOverlap = overlappingHolidays.find(h => endDate >= h.startDate && endDate <= h.endDate);
-      if (endOverlap && !startOverlap) { // Only adjust end if we didn't already adjust start
-        adjustedEndDate = new Date(endOverlap.startDate);
-        adjustedEndDate.setDate(adjustedEndDate.getDate() - 1);
-        adjustmentMade = true;
-        adjustmentMessage = `End date moved to ${adjustedEndDate.toDateString()} (before "${endOverlap.title}")`;
-      }
-      
-      if (adjustmentMade) {
-        // Update the form with adjusted dates
-        setStartDate(adjustedStartDate);
-        setEndDate(adjustedEndDate);
-        
-        alert(`❌ Holiday overlap detected!\n\nConflicting holidays:\n${conflictList}\n\n✅ Auto-fixed: ${adjustmentMessage}\n\nYou can now save or make further adjustments.`);
-        return;
-      }
-    }
-
-    const holidayData = {
+    // Delegate to HolidayModalOrchestrator (AI Rule: use existing orchestrator)
+    const orchestrator = new HolidayModalOrchestrator(holidays, holidayId);
+    
+    const formData = {
       title: title.trim(),
       startDate,
       endDate,
@@ -167,12 +116,41 @@ export function HolidayModal({ isOpen, onClose, holidayId, defaultStartDate, def
     };
 
     if (isEditing && holidayId) {
-      updateHoliday(holidayId, holidayData);
-    } else {
-      addHoliday(holidayData);
-    }
+      // Handle editing workflow
+      const result = await orchestrator.updateHolidayWorkflow(
+        formData,
+        holidayId,
+        (id, holidayData) => updateHoliday(id, holidayData)
+      );
 
-    onClose();
+      if (result.success) {
+        onClose();
+      } else if (result.needsUserConfirmation && result.adjustedDates) {
+        // Update form with adjusted dates and show message
+        setStartDate(result.adjustedDates.startDate);
+        setEndDate(result.adjustedDates.endDate);
+        alert(`❌ Holiday overlap detected!\n\n✅ Auto-fixed: ${result.adjustedDates.message}\n\nYou can now save or make further adjustments.`);
+      } else if (result.error) {
+        alert(`❌ ${result.error}`);
+      }
+    } else {
+      // Handle creation workflow
+      const result = await orchestrator.createHolidayWorkflow(
+        formData,
+        addHoliday
+      );
+
+      if (result.success) {
+        onClose();
+      } else if (result.needsUserConfirmation && result.adjustedDates) {
+        // Update form with adjusted dates and show message
+        setStartDate(result.adjustedDates.startDate);
+        setEndDate(result.adjustedDates.endDate);
+        alert(`❌ Holiday overlap detected!\n\n✅ Auto-fixed: ${result.adjustedDates.message}\n\nYou can now save or make further adjustments.`);
+      } else if (result.error) {
+        alert(`❌ ${result.error}`);
+      }
+    }
   };
 
   const handleCancel = () => {

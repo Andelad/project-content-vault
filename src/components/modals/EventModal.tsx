@@ -3,6 +3,7 @@ import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { CalendarEvent } from '../../types';
 import { calculateDurationHours } from '@/services';
+import { eventModalOrchestrator, type EventFormData, type EventFormErrors } from '@/services/orchestrators/EventModalOrchestrator';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -101,7 +102,7 @@ export function EventModal({
     updateRecurringSeriesAll
   } = usePlannerContext();
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<EventFormData>({
     description: '',
     notes: '',
     groupId: '',
@@ -113,23 +114,23 @@ export function EventModal({
     color: OKLCH_FALLBACK_GRAY,
     completed: false,
     isRecurring: false,
-    recurringType: 'weekly' as 'daily' | 'weekly' | 'monthly' | 'yearly',
+    recurringType: 'weekly',
     recurringInterval: 1,
-    recurringEndType: 'never' as 'never' | 'date' | 'count',
+    recurringEndType: 'never',
     recurringEndDate: '',
     recurringCount: 10,
     // New monthly pattern fields
-    monthlyPattern: 'date' as 'date' | 'dayOfWeek',
+    monthlyPattern: 'date',
     monthlyDate: 1,
     monthlyWeekOfMonth: 1,
     monthlyDayOfWeek: 1
   });
 
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<EventFormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showUpdateDialog, setShowUpdateDialog] = useState(false);
-  const [pendingUpdateData, setPendingUpdateData] = useState<Partial<CalendarEvent> | null>(null);
+  const [pendingUpdateData, setPendingUpdateData] = useState<Omit<CalendarEvent, 'id'> | null>(null);
   const [isRecurringEvent, setIsRecurringEvent] = useState(false);
   const [isCreatingRecurring, setIsCreatingRecurring] = useState(false);
 
@@ -265,150 +266,63 @@ export function EventModal({
   }, [formData.projectId, projects]);
 
   const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-
-    if (!formData.description.trim()) {
-      newErrors.description = 'Description is required';
-    }
-
-    if (!formData.startDate || !formData.startTime) {
-      newErrors.startDateTime = 'Start date and time are required';
-    }
-
-    if (!formData.endDate || !formData.endTime) {
-      newErrors.endDateTime = 'End date and time are required';
-    }
-
-    if (formData.startDate && formData.startTime && formData.endDate && formData.endTime) {
-      const startDateTime = getStartDateTime();
-      const endDateTime = getEndDateTime();
-
-      if (startDateTime >= endDateTime) {
-        newErrors.endDateTime = 'End time must be after start time';
-      }
-    }
-
-    if (formData.isRecurring && formData.recurringEndType === 'date' && !formData.recurringEndDate) {
-      newErrors.recurringEndDate = 'End date is required for recurring events';
-    }
-
-    if (formData.isRecurring && formData.recurringInterval < 1) {
-      newErrors.recurringInterval = 'Interval must be at least 1';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    const validationErrors = eventModalOrchestrator.validateEventForm(formData);
+    setErrors(validationErrors);
+    return Object.keys(validationErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validateForm()) {
-      return;
-    }
-
     setIsSubmitting(true);
 
     try {
-    const startDateTime = getStartDateTime();
-    const endDateTime = getEndDateTime();
-    const duration = calculateDurationHours(startDateTime, endDateTime);
-    
-    // Determine the title: Description always takes precedence, fallback to 'Tracked Time' only if no description
-    let title;
-    if (formData.description.trim()) {
-      // If user provided a description, always use it (overrides 'Tracked Time')
-      title = formData.description.trim();
-    } else if (existingEvent?.title === 'Tracked Time' || existingEvent?.title?.includes('Tracked Time')) {
-      // Only use 'Tracked Time' if no description provided and this was originally a tracked time event
-      title = 'Tracked Time';
-    } else {
-      // Fallback for other cases
-      title = formData.description.trim() || 'Untitled Event';
-    }
-    
-    const eventData: Omit<CalendarEvent, 'id'> = {
-        title,
-        description: formData.notes.trim() || undefined,
-        startTime: startDateTime,
-        endTime: endDateTime,
-        duration,
-        projectId: formData.projectId || undefined,
-        color: formData.color,
-        completed: formData.completed
-      };
-
-      // Add recurring data if enabled
-      if (formData.isRecurring) {
-        eventData.recurring = {
-          type: formData.recurringType,
-          interval: formData.recurringInterval,
-          ...(formData.recurringEndType === 'date' && formData.recurringEndDate && {
-            endDate: new Date(formData.recurringEndDate)
-          }),
-          ...(formData.recurringEndType === 'count' && {
-            count: formData.recurringCount
-          }),
-          ...(formData.recurringEndType === 'never' && {
-            count: 52 // Default to 52 occurrences for "never" ending events
-          }),
-          // Add monthly pattern options
-          ...(formData.recurringType === 'monthly' && {
-            monthlyPattern: formData.monthlyPattern,
-            monthlyDate: formData.monthlyDate,
-            monthlyWeekOfMonth: formData.monthlyWeekOfMonth,
-            monthlyDayOfWeek: formData.monthlyDayOfWeek
-          })
-        };
-      }
-
       if (isEditing && existingEvent) {
-        // Get the original event ID in case this is a split event
-        const originalEventId = eventId?.includes('-split-') 
-          ? eventId.split('-split-')[0] 
-          : existingEvent.id;
-          
-        // Check if this is a recurring event
-        if (existingEvent.recurring || isRecurringEvent) {
-          // Store the update data and show the dialog
+        // Update existing event using orchestrator
+        const result = await eventModalOrchestrator.updateEventWorkflow(
+          formData,
+          existingEvent,
+          eventId || existingEvent.id,
+          isRecurringEvent,
+          updateEvent
+        );
+
+        if (result.success) {
+          handleClose();
+        } else if (result.needsRecurringDialog) {
+          // Store the update data and show the recurring update dialog
+          const eventData = eventModalOrchestrator.transformFormToEventData(formData, existingEvent);
           setPendingUpdateData(eventData);
           setShowUpdateDialog(true);
           setIsSubmitting(false);
           return;
-        } else {
-          // Non-recurring event, update directly
-          await updateEvent(originalEventId, eventData);
+        } else if (result.errors) {
+          setErrors(result.errors);
         }
       } else {
-        // Creating new event
-        if (eventData.recurring) {
-          // For recurring events, show immediate feedback and process in background
-          setIsCreatingRecurring(true);
-          setIsSubmitting(false);
-          
-          // Create first event immediately
-          try {
+        // Create new event using orchestrator
+        const result = await eventModalOrchestrator.createEventWorkflow(
+          formData, 
+          async (eventData) => {
             await addEvent(eventData);
-            handleClose();
-          } catch (error) {
-            console.error('Failed to create recurring events:', error);
-            setErrors({ submit: 'Failed to create recurring events. Please try again.' });
-            setIsSubmitting(false);
-            setIsCreatingRecurring(false);
           }
-          return;
-        } else {
-          // Single event - process normally
-          await addEvent(eventData);
+        );
+
+        if (result.success) {
+          if (formData.isRecurring) {
+            setIsCreatingRecurring(true);
+          }
+          handleClose();
+        } else if (result.errors) {
+          setErrors(result.errors);
         }
       }
-
-      handleClose();
     } catch (error) {
       console.error('Failed to save event:', error);
       setErrors({ submit: 'Failed to save event. Please try again.' });
     } finally {
       setIsSubmitting(false);
+      setIsCreatingRecurring(false);
     }
   };
 
@@ -420,18 +334,17 @@ export function EventModal({
   const handleDeleteThis = async () => {
     if (!existingEvent) return;
     
-    try {
-      // Get the original event ID in case this is a split event
-      const originalEventId = eventId?.includes('-split-') 
-        ? eventId.split('-split-')[0] 
-        : existingEvent.id;
-        
-      await deleteEvent(originalEventId);
+    const result = await eventModalOrchestrator.deleteEventWorkflow(
+      existingEvent,
+      eventId || existingEvent.id,
+      deleteEvent
+    );
+
+    if (result.success) {
       setShowDeleteDialog(false);
       onClose();
-    } catch (error) {
-      console.error('Failed to delete event:', error);
-      setErrors({ submit: 'Failed to delete event. Please try again.' });
+    } else if (result.errors) {
+      setErrors(result.errors);
       setShowDeleteDialog(false);
     }
   };
@@ -439,18 +352,20 @@ export function EventModal({
   const handleDeleteFuture = async () => {
     if (!existingEvent) return;
     
-    try {
-      // Get the original event ID in case this is a split event
-      const originalEventId = eventId?.includes('-split-') 
-        ? eventId.split('-split-')[0] 
-        : existingEvent.id;
-        
-      await deleteRecurringSeriesFuture(originalEventId);
+    const result = await eventModalOrchestrator.deleteRecurringEventWorkflow(
+      'future',
+      existingEvent,
+      eventId || existingEvent.id,
+      deleteEvent,
+      deleteRecurringSeriesFuture,
+      deleteRecurringSeriesAll
+    );
+
+    if (result.success) {
       setShowDeleteDialog(false);
       onClose();
-    } catch (error) {
-      console.error('Failed to delete recurring events:', error);
-      setErrors({ submit: 'Failed to delete recurring events. Please try again.' });
+    } else if (result.errors) {
+      setErrors(result.errors);
       setShowDeleteDialog(false);
     }
   };
@@ -458,19 +373,20 @@ export function EventModal({
   const handleDeleteAll = async () => {
     if (!existingEvent) return;
     
-    try {
-      // Get the original event ID in case this is a split event
-      const originalEventId = eventId?.includes('-split-') 
-        ? eventId.split('-split-')[0] 
-        : existingEvent.id;
-        
-      await deleteRecurringSeriesAll(originalEventId);
-      
+    const result = await eventModalOrchestrator.deleteRecurringEventWorkflow(
+      'all',
+      existingEvent,
+      eventId || existingEvent.id,
+      deleteEvent,
+      deleteRecurringSeriesFuture,
+      deleteRecurringSeriesAll
+    );
+
+    if (result.success) {
       setShowDeleteDialog(false);
       onClose();
-    } catch (error) {
-      console.error('Failed to delete recurring events:', error);
-      setErrors({ submit: 'Failed to delete recurring events. Please try again.' });
+    } else if (result.errors) {
+      setErrors(result.errors);
       setShowDeleteDialog(false);
     }
   };
@@ -478,19 +394,22 @@ export function EventModal({
   const handleUpdateThis = async () => {
     if (!existingEvent || !pendingUpdateData) return;
     
-    try {
-      // Get the original event ID in case this is a split event
-      const originalEventId = eventId?.includes('-split-') 
-        ? eventId.split('-split-')[0] 
-        : existingEvent.id;
-        
-      await updateEvent(originalEventId, pendingUpdateData);
+    const result = await eventModalOrchestrator.updateRecurringEventWorkflow(
+      'this',
+      existingEvent,
+      eventId || existingEvent.id,
+      pendingUpdateData,
+      updateEvent,
+      updateRecurringSeriesFuture,
+      updateRecurringSeriesAll
+    );
+
+    if (result.success) {
       setShowUpdateDialog(false);
       setPendingUpdateData(null);
       onClose();
-    } catch (error) {
-      console.error('Failed to update event:', error);
-      setErrors({ submit: 'Failed to update event. Please try again.' });
+    } else if (result.errors) {
+      setErrors(result.errors);
       setShowUpdateDialog(false);
     }
   };
@@ -498,19 +417,22 @@ export function EventModal({
   const handleUpdateFuture = async () => {
     if (!existingEvent || !pendingUpdateData) return;
     
-    try {
-      // Get the original event ID in case this is a split event
-      const originalEventId = eventId?.includes('-split-') 
-        ? eventId.split('-split-')[0] 
-        : existingEvent.id;
-        
-      await updateRecurringSeriesFuture(originalEventId, pendingUpdateData);
+    const result = await eventModalOrchestrator.updateRecurringEventWorkflow(
+      'future',
+      existingEvent,
+      eventId || existingEvent.id,
+      pendingUpdateData,
+      updateEvent,
+      updateRecurringSeriesFuture,
+      updateRecurringSeriesAll
+    );
+
+    if (result.success) {
       setShowUpdateDialog(false);
       setPendingUpdateData(null);
       onClose();
-    } catch (error) {
-      console.error('Failed to update future recurring events:', error);
-      setErrors({ submit: 'Failed to update future recurring events. Please try again.' });
+    } else if (result.errors) {
+      setErrors(result.errors);
       setShowUpdateDialog(false);
     }
   };
@@ -518,19 +440,22 @@ export function EventModal({
   const handleUpdateAll = async () => {
     if (!existingEvent || !pendingUpdateData) return;
     
-    try {
-      // Get the original event ID in case this is a split event
-      const originalEventId = eventId?.includes('-split-') 
-        ? eventId.split('-split-')[0] 
-        : existingEvent.id;
-        
-      await updateRecurringSeriesAll(originalEventId, pendingUpdateData);
+    const result = await eventModalOrchestrator.updateRecurringEventWorkflow(
+      'all',
+      existingEvent,
+      eventId || existingEvent.id,
+      pendingUpdateData,
+      updateEvent,
+      updateRecurringSeriesFuture,
+      updateRecurringSeriesAll
+    );
+
+    if (result.success) {
       setShowUpdateDialog(false);
       setPendingUpdateData(null);
       onClose();
-    } catch (error) {
-      console.error('Failed to update all recurring events:', error);
-      setErrors({ submit: 'Failed to update all recurring events. Please try again.' });
+    } else if (result.errors) {
+      setErrors(result.errors);
       setShowUpdateDialog(false);
     }
   };

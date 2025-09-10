@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../../ui/alert-dialog';
 import { useProjectContext } from '../../../contexts/ProjectContext';
 import { Milestone } from '@/types/core';
+import { Project } from '@/types/core';
 import { useToast } from '@/hooks/use-toast';
 import { 
   calculateRecurringMilestoneCount, 
@@ -21,7 +22,8 @@ import {
   UnifiedMilestoneEntity,
   UnifiedProjectEntity,
   MilestoneOrchestrator,
-  ProjectOrchestrator
+  ProjectOrchestrator,
+  ProjectMilestoneOrchestrator
 } from '@/services';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -179,40 +181,30 @@ export function ProjectMilestoneSection({
   const handleUpdateRecurringLoad = async (direction: 'forward' | 'both') => {
     if (!recurringMilestone || !projectId) return;
 
-    try {
-      // Get all recurring milestones from the database
-      const recurringMilestones = projectMilestones.filter(m => 
-        m.name && /\s\d+$/.test(m.name) // Ends with space and number
-      );
-
-      // Update each recurring milestone in the database silently
-      for (const milestone of recurringMilestones) {
-        if (milestone.id && !milestone.id.startsWith('temp-')) {
-          await updateMilestone(milestone.id, {
-            time_allocation: editingLoadValue
-          }, { silent: true });
-        }
+    // Delegate to ProjectMilestoneOrchestrator (AI Rule: use existing orchestrator)
+    const result = await ProjectMilestoneOrchestrator.updateRecurringMilestoneLoad(
+      projectId,
+      editingLoadValue,
+      {
+        projectMilestones: projectMilestones.filter(m => m.id) as Milestone[],
+        recurringMilestone,
+        updateMilestone: async (id: string, updates: any, options?: any) => {
+          await updateMilestone(id, updates, options);
+        },
+        setRecurringMilestone
       }
-      
-      // Update the recurring milestone configuration
-      const updatedMilestone = {
-        ...recurringMilestone,
-        timeAllocation: editingLoadValue
-      };
-      
-      setRecurringMilestone(updatedMilestone);
-      setEditingRecurringLoad(false);
-      
-      // No toast - will be handled by modal confirmation
-    } catch (error) {
-      console.error('Error updating recurring milestones:', error);
-      // Only show error toasts
+    );
+
+    if (!result.success) {
       toast({
         title: "Error",
-        description: "Failed to update recurring milestones",
+        description: result.error,
         variant: "destructive",
       });
+      return;
     }
+    
+    setEditingRecurringLoad(false);
   };
 
   // Helper function to check if milestone allocation would exceed budget using domain entity
@@ -229,94 +221,39 @@ export function ProjectMilestoneSection({
 
   // Helper function to handle property saving for milestones
   const handleSaveMilestoneProperty = async (milestoneId: string, property: string, value: any) => {
-    // Check if this is a time allocation update that would exceed budget
-    if (property === 'timeAllocation') {
-      if (wouldExceedBudget(milestoneId, value)) {
-        const validMilestones = projectMilestones.filter(m => m.id) as Milestone[];
-        const budgetValidation = UnifiedMilestoneEntity.wouldUpdateExceedBudget(
-          validMilestones,
-          milestoneId,
-          value,
-          projectEstimatedHours
-        );
-        toast({
-          title: "Error",
-          description: `Cannot save milestone: Total milestone allocation (${budgetValidation.formattedTotal}) would exceed project budget (${projectEstimatedHours}h).`,
-          variant: "destructive",
-        });
-        setEditingProperty(null);
-        return;
+    // Delegate to ProjectMilestoneOrchestrator (AI Rule: use existing orchestrator)
+    const validMilestones = projectMilestones.filter(m => m.id) as Milestone[];
+    const result = await ProjectMilestoneOrchestrator.updateMilestoneProperty(
+      milestoneId,
+      property,
+      value,
+      {
+        projectMilestones: validMilestones,
+        projectEstimatedHours,
+        localMilestones,
+        isCreatingProject,
+        localMilestonesState,
+        addMilestone: async (milestone: any) => {
+          await addMilestone(milestone);
+          return milestone; // Return the milestone as expected
+        },
+        updateMilestone: async (id: string, updates: any, options?: any) => {
+          await updateMilestone(id, updates, options);
+        },
+        setLocalMilestones
       }
+    );
+
+    if (!result.success) {
+      toast({
+        title: "Error",
+        description: result.error,
+        variant: "destructive",
+      });
+      setEditingProperty(null);
+      return;
     }
 
-    if (isCreatingProject && localMilestonesState) {
-      // For new projects, update local state
-      const updatedMilestones = localMilestonesState.milestones.map(m =>
-        m.id === milestoneId ? { ...m, [property]: value } : m
-      );
-      localMilestonesState.setMilestones(updatedMilestones);
-    } else {
-      // Check if this is a new milestone that needs to be saved first
-      const localMilestone = localMilestones.find(m => m.id === milestoneId);
-      if (localMilestone && localMilestone.isNew && projectId) {
-        // Check budget before saving new milestone using domain entity
-        const validMilestones = projectMilestones.filter(m => m.id) as Milestone[];
-        const additionalHours = property === 'timeAllocation' ? value : localMilestone.timeAllocation;
-        const budgetValidation = UnifiedMilestoneEntity.wouldExceedBudget(
-          validMilestones,
-          additionalHours,
-          projectEstimatedHours
-        );
-        
-        if (!budgetValidation.isValid) {
-          toast({
-            title: "Error",
-            description: `Cannot save milestone: Total milestone allocation (${budgetValidation.formattedTotal}) would exceed project budget (${projectEstimatedHours}h).`,
-            variant: "destructive",
-          });
-          setEditingProperty(null);
-          return;
-        }
-
-        // Save the new milestone to database first
-        try {
-          const savedMilestone = await addMilestone({
-            name: localMilestone.name,
-            dueDate: localMilestone.dueDate,
-            timeAllocation: localMilestone.timeAllocation,
-            projectId: projectId,
-            order: localMilestone.order,
-            [property]: value // Apply the new property value
-          });
-          
-          // Remove from local state since it's now saved
-          setLocalMilestones(prev => prev.filter(m => m.id !== milestoneId));
-        } catch (error) {
-          console.error('Failed to save new milestone:', error);
-          toast({
-            title: "Error",
-            description: "Failed to save milestone. Please try again.",
-            variant: "destructive",
-          });
-          setEditingProperty(null);
-          return;
-        }
-      } else if (projectId) {
-        // For existing milestones, update in database - use silent mode to prevent toasts
-        try {
-          await updateMilestone(milestoneId, { [property]: value }, { silent: true });
-        } catch (error) {
-          console.error('Failed to update milestone:', error);
-          toast({
-            title: "Error",
-            description: "Failed to update milestone. Please try again.", 
-            variant: "destructive",
-          });
-          setEditingProperty(null);
-          return;
-        }
-      }
-    }
     setEditingProperty(null);
   };
 
@@ -707,54 +644,37 @@ export function ProjectMilestoneSection({
     
     if (!milestone || !milestone.name.trim()) return;
 
-    // Check if total allocation exceeds project budget using domain entity
-    const validMilestones = isCreatingProject && localMilestonesState 
-      ? localMilestonesState.milestones.filter(m => m.id !== milestone.id) as Milestone[]
-      : projectMilestones.filter(m => m.id && m.id !== milestone.id) as Milestone[];
-    
-    const budgetValidation = UnifiedMilestoneEntity.wouldExceedBudget(
-      validMilestones,
-      milestone.timeAllocation || 0,
-      projectEstimatedHours
-    );
-    
-    if (!budgetValidation.isValid) {
-      toast({
-        title: "Error",
-        description: `Cannot save milestone: Total milestone allocation (${budgetValidation.formattedTotal}) would exceed project budget (${projectEstimatedHours}h).`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // For new projects, we don't save to database yet - just keep in local state
+    // For new projects, handle locally without database operations
     if (isCreatingProject) {
-      // Mark the milestone as no longer "new" since it's been validated
       const updatedMilestone = { ...milestone, isNew: false };
       updateLocalMilestone(index, updatedMilestone);
       return;
     }
 
-    // For existing projects, save to database
+    // For existing projects, delegate to orchestrator (AI Rule: use existing orchestrator)
     if (projectId) {
-      try {
-        await addMilestone({
-          name: milestone.name,
-          dueDate: milestone.dueDate,
-          timeAllocation: milestone.timeAllocation,
+      const result = await ProjectMilestoneOrchestrator.saveNewMilestone(
+        index,
+        {
+          localMilestones,
+          projectMilestones: projectMilestones.filter(m => m.id && m.id !== milestone.id) as Milestone[],
+          projectEstimatedHours,
           projectId,
-          order: milestone.order
-        });
-        
-        // Remove from local state
-        setLocalMilestones(prev => prev.filter((_, i) => i !== index));
-      } catch (error) {
-        console.error('Failed to save milestone:', error);
+          addMilestone: async (milestoneData: any) => {
+            await addMilestone(milestoneData);
+            return milestoneData;
+          },
+          setLocalMilestones
+        }
+      );
+
+      if (!result.success) {
         toast({
           title: "Error",
-          description: "Failed to save milestone. Please try again.",
+          description: result.error,
           variant: "destructive",
         });
+        return;
       }
     }
   };
@@ -1036,128 +956,70 @@ export function ProjectMilestoneSection({
     if (!projectId) return;
     
     try {
-      // For instant UX, set the recurring milestone configuration immediately
-      const recurringMilestoneData: RecurringMilestone = {
-        id: 'recurring-milestone',
+      // Create project object for orchestrator (with minimal required fields)
+      const project: Pick<Project, 'id' | 'startDate' | 'endDate' | 'continuous' | 'name' | 'client' | 'estimatedHours' | 'color' | 'groupId' | 'rowId'> = {
+        id: projectId,
+        startDate: projectStartDate,
+        endDate: projectEndDate,
+        continuous: projectContinuous,
+        name: 'Project', // Placeholder since we only need the project for date calculations
+        client: 'Client', // Placeholder
+        estimatedHours: projectEstimatedHours || 0,
+        color: '#000000', // Placeholder
+        groupId: 'group', // Placeholder
+        rowId: 'row' // Placeholder
+      };
+
+      // Convert component config to orchestrator config
+      const orchestratorConfig = {
         name: recurringConfig.name,
         timeAllocation: recurringConfig.timeAllocation,
         recurringType: recurringConfig.recurringType,
         recurringInterval: recurringConfig.recurringInterval,
-        projectId: projectId,
-        isRecurring: true as const,
         weeklyDayOfWeek: recurringConfig.weeklyDayOfWeek,
         monthlyPattern: recurringConfig.monthlyPattern,
         monthlyDate: recurringConfig.monthlyDate,
         monthlyWeekOfMonth: recurringConfig.monthlyWeekOfMonth,
         monthlyDayOfWeek: recurringConfig.monthlyDayOfWeek
       };
-      
-      setRecurringMilestone(recurringMilestoneData);
-      
-      // Calculate optimal initial milestone count based on project duration
-      const projectDurationMs = projectContinuous ? 
-        365 * 24 * 60 * 60 * 1000 : // 1 year for continuous
-        new Date(projectEndDate).getTime() - new Date(projectStartDate).getTime();
-      
-      const projectDurationDays = Math.ceil(projectDurationMs / (24 * 60 * 60 * 1000));
-      
-      // Estimate total milestones needed
-      let estimatedTotalMilestones = 0;
-      switch (recurringConfig.recurringType) {
-        case 'daily':
-          estimatedTotalMilestones = Math.floor(projectDurationDays / recurringConfig.recurringInterval);
-          break;
-        case 'weekly':
-          estimatedTotalMilestones = Math.floor(projectDurationDays / (7 * recurringConfig.recurringInterval));
-          break;
-        case 'monthly':
-          estimatedTotalMilestones = Math.floor(projectDurationDays / (30 * recurringConfig.recurringInterval));
-          break;
-      }
-      
-      // For short projects, generate all milestones immediately
-      // For long projects, generate a reasonable initial batch
-      const initialCount = Math.min(estimatedTotalMilestones, projectContinuous ? 3 : estimatedTotalMilestones);
-      const generatedMilestones = generateRecurringMilestones(recurringConfig, initialCount);
-      
-      // Save the recurring configuration to local storage for persistence
-      localStorage.setItem(`recurring-milestone-${projectId}`, JSON.stringify(recurringMilestoneData));
-      
-      // Asynchronously save initial milestones - INSTANT for all project types
-      setTimeout(async () => {
-        try {
-          // TRUE BATCH INSERT - bypassing addMilestone to prevent progressive counting
-          const { data: { user } } = await supabase.auth.getUser();
-          if (!user) throw new Error('User not authenticated');
 
-          // Calculate the next order index for this project
-          const { data: maxOrderData } = await supabase
-            .from('milestones')
-            .select('order_index')
-            .eq('project_id', projectId)
-            .order('order_index', { ascending: false })
-            .limit(1);
-
-          const nextOrderIndex = maxOrderData?.[0]?.order_index ? maxOrderData[0].order_index + 1 : 0;
-
-          // Prepare all milestones for batch insert
-          const milestonesToInsert = generatedMilestones.map((milestone, index) => ({
-            name: milestone.name,
-            due_date: milestone.dueDate.toISOString(),
-            time_allocation: milestone.timeAllocation,
-            project_id: projectId,
-            user_id: user.id,
-            order_index: nextOrderIndex + index
-          }));
-
-          // Single database operation - insert all milestones at once
-          const { data: insertedMilestones, error } = await supabase
-            .from('milestones')
-            .insert(milestonesToInsert)
-            .select();
-
-          if (error) throw error;
-
-          // Force the parent component to refresh milestone data
-          // We'll trigger a custom event that the ProjectContext can listen to
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('milestonesUpdated', { 
-              detail: { projectId, action: 'batchInsert', count: insertedMilestones?.length || 0 } 
-            }));
-          }
-          
-          // Normalize milestone orders after batch insert
-          try {
-            await normalizeMilestoneOrders(projectId, { silent: true });
-          } catch (e) {
-            console.warn('Milestone order normalization after batch insert failed:', e);
-          }
-          
-          // Refetch milestones to ensure UI is updated
-          try {
-            await refetchMilestones();
-          } catch (e) {
-            console.warn('Milestone refetch after batch insert failed:', e);
-          }
-          
-          // Trigger auto-generation of more milestones if this is a continuous project
-          if (projectContinuous) {
-            await ensureRecurringMilestonesAvailable();
-          }
-        } catch (error) {
-          console.error('Background milestone creation error:', error);
+      // Use ProjectMilestoneOrchestrator for complex workflow
+      const result = await ProjectMilestoneOrchestrator.createRecurringMilestones(
+        projectId,
+        project,
+        orchestratorConfig,
+        {
+          normalizeMilestoneOrders,
+          refetchMilestones
         }
-      }, 100);
-      
-      setShowRecurringConfig(false);
-      setShowRecurringWarning(false);
-      
-      // No toast - instant UX
+      );
+
+      if (result.success && result.recurringMilestone) {
+        // Update UI state with successful result
+        setRecurringMilestone(result.recurringMilestone);
+        
+        // Show success message
+        toast({
+          title: "Recurring milestones created",
+          description: `Generated ${result.generatedCount} of estimated ${result.estimatedTotalCount} milestones`,
+        });
+
+        // Trigger auto-generation for continuous projects
+        if (projectContinuous) {
+          await ensureRecurringMilestonesAvailable();
+        }
+        
+        // Update UI state on success
+        setShowRecurringConfig(false);
+        setShowRecurringWarning(false);
+      } else {
+        throw new Error(result.error || 'Failed to create recurring milestones');
+      }
     } catch (error) {
       console.error('Error creating recurring milestones:', error);
       toast({
         title: "Error",
-        description: "Failed to create recurring milestones",
+        description: error instanceof Error ? error.message : "Failed to create recurring milestones",
         variant: "destructive",
       });
     }

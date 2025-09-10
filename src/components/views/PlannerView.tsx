@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import { Calendar, EventClickArg, EventDropArg, DateSelectArg } from '@fullcalendar/core';
 import moment from 'moment';
@@ -16,6 +16,7 @@ import { TimeTracker } from '@/components/work-hours/TimeTracker';
 import { PlannerInsightCard } from '@/components/planner';
 import { getBaseFullCalendarConfig, getEventStylingConfig } from '@/services';
 import { transformFullCalendarToCalendarEvent } from '@/services';
+import { createPlannerViewOrchestrator, type PlannerInteractionContext } from '@/services/orchestrators/PlannerViewOrchestrator';
 import { useToast } from '@/hooks/use-toast';
 import '../planner/fullcalendar-overrides.css';
 // Modal imports
@@ -63,62 +64,49 @@ export function PlannerView() {
   const calendarRef = useRef<FullCalendar>(null);
   const [calendarDate, setCalendarDate] = useState(new Date(currentDate));
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+
+  // Create orchestrator context
+  const orchestratorContext: PlannerInteractionContext = useMemo(() => ({
+    updateEventWithUndo,
+    events,
+    isTimeTracking,
+    toast
+  }), [updateEventWithUndo, events, isTimeTracking, toast]);
+
+  // Create orchestrator instance
+  const plannerOrchestrator = useMemo(() => 
+    createPlannerViewOrchestrator(orchestratorContext), 
+    [orchestratorContext]
+  );
+
   // FullCalendar event handlers
-    const handleEventClick = (info: any) => {
+  const handleEventClick = (info: any) => {
     setSelectedEventId(info.event.id);
   };
   const handleEventDrop = useCallback(async (dropInfo: EventDropArg) => {
     const eventId = dropInfo.event.id;
-    if (eventId.startsWith('work-')) {
-      // Handle work hour drag - we'll implement this later
-      return;
-    }
-    // Handle calendar event drag
     const updates = transformFullCalendarToCalendarEvent(dropInfo.event);
-    try {
-      await updateEventWithUndo(eventId, updates);
-      toast({
-        title: "Event updated",
-        description: "Press Cmd+Z to undo",
-        duration: 3000,
-      });
-    } catch (error) {
-      console.error('Failed to update event:', error);
-      // Revert the change
-      dropInfo.revert();
-      toast({
-        title: "Failed to update event",
-        description: "Please try again",
-        variant: "destructive",
-      });
-    }
-  }, [updateEventWithUndo, toast]);
+    
+    const result = await plannerOrchestrator.handleEventDragDrop(
+      eventId,
+      updates,
+      () => dropInfo.revert()
+    );
+    
+    // No additional handling needed - orchestrator manages everything
+  }, [plannerOrchestrator]);
   const handleEventResize = useCallback(async (resizeInfo: any) => {
     const eventId = resizeInfo.event.id;
-    if (eventId.startsWith('work-')) {
-      // Handle work hour resize - we'll implement this later
-      return;
-    }
-    // Handle calendar event resize
     const updates = transformFullCalendarToCalendarEvent(resizeInfo.event);
-    try {
-      await updateEventWithUndo(eventId, updates);
-      toast({
-        title: "Event resized",
-        description: "Press Cmd+Z to undo",
-        duration: 3000,
-      });
-    } catch (error) {
-      console.error('Failed to update event:', error);
-      // Revert the change
-      resizeInfo.revert();
-      toast({
-        title: "Failed to resize event",
-        description: "Please try again",
-        variant: "destructive",
-      });
-    }
-  }, [updateEventWithUndo, toast]);
+    
+    const result = await plannerOrchestrator.handleEventResize(
+      eventId,
+      updates,
+      () => resizeInfo.revert()
+    );
+    
+    // No additional handling needed - orchestrator manages everything
+  }, [plannerOrchestrator]);
   const handleDateSelect = useCallback((selectInfo: DateSelectArg) => {
     // Create new event using global context so the modal opens
     setCreatingNewEvent({
@@ -337,23 +325,9 @@ export function PlannerView() {
   }, [projects, isTimeTracking]);
   // Handle completion toggle for events
   const handleCompletionToggle = useCallback(async (eventId: string) => {
-    const event = events.find(e => e.id === eventId);
-    if (!event) return;
-    // Don't allow toggling completion for currently tracking events
-    if (event.type === 'tracked' && isTimeTracking) {
-      return;
-    }
-    try {
-      await updateEventWithUndo(eventId, { completed: !event.completed });
-    } catch (error) {
-      console.error('Failed to toggle completion:', error);
-      toast({
-        title: "Failed to update event",
-        description: "Please try again",
-        variant: "destructive",
-      });
-    }
-  }, [events, isTimeTracking, updateEventWithUndo, toast]);
+    const result = await plannerOrchestrator.handleCompletionToggle(eventId);
+    // No additional handling needed - orchestrator manages everything
+  }, [plannerOrchestrator]);
   // Set up global completion toggle function for HTML onclick events
   useEffect(() => {
     (window as any).plannerToggleCompletion = handleCompletionToggle;

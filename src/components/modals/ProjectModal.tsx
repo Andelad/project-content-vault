@@ -15,7 +15,7 @@ import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 import { useTimelineContext } from '../../contexts/TimelineContext';
-import { calculateProjectTimeMetrics, calculateAutoEstimateHoursPerDay, expandHolidayDates, calculateTotalWorkingDays, clearTimelineCache } from '@/services';
+import { calculateProjectTimeMetrics, calculateAutoEstimateHoursPerDay, expandHolidayDates, calculateTotalWorkingDays, clearTimelineCache, ProjectOrchestrator } from '@/services';
 import { formatTimeHoursMinutes } from '@/utils/timeFormatUtils';
 import { formatDate, formatDateForInput } from '@/utils/dateFormatUtils';
 import { useToast } from '@/hooks/use-toast';
@@ -272,63 +272,55 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
   const handleCreateProject = async () => {
     const gid = resolvedGroupId ?? groupId;
     const rid = resolvedRowId ?? rowId;
-  dlog('🚀 handleCreateProject called - resolvedGroupId:', gid, 'resolvedRowId:', rid);
-  dlog('🚀 isCreating:', isCreating, 'resolved groupId exists:', !!gid, 'value:', gid);
+    
     if (isCreating && gid && gid !== '') {
       try {
-        // Validate that we have a valid rowId
-        if (!rid) {
-          throw new Error('No row selected. Please select a row before creating a project.');
-        }
-  dlog('🚀 About to call addProject with groupId:', gid, 'rowId:', rid);
-        const createdProject = await addProject({
-          name: localValues.name.trim() || 'New Project', // Default to "New Project" if no name provided
-          client: localValues.client.trim() || 'N/A', // Provide default if client is empty
-          startDate: localValues.startDate,
-          endDate: localValues.endDate,
-          estimatedHours: localValues.estimatedHours,
-          groupId: gid,
-          rowId: rid, // Use the resolved rowId without fallback
-          color: localValues.color || OKLCH_PROJECT_COLORS[0],
-          notes: localValues.notes,
-          icon: localValues.icon,
-          continuous: localValues.continuous,
-          autoEstimateDays: localValues.autoEstimateDays
-        });
-        // If project was created successfully and we have milestones or recurring milestone, save them
-        if (createdProject) {
-          // Generate individual milestones from recurring milestone configuration
-          const milestonesToSave = [...localProjectMilestones];
-          // Check if MilestoneManager has a recurring milestone that needs to be converted to individual milestones
-          // This is a bit of a hack - we need access to the recurring milestone state from MilestoneManager
-          // For now, we'll just save the local milestones that were already added
-          if (milestonesToSave.length > 0) {
-            for (const milestone of milestonesToSave) {
-              if (milestone.name.trim()) {
-                try {
-                  await addMilestone({
-                    name: milestone.name,
-                    dueDate: milestone.dueDate,
-                    timeAllocation: milestone.timeAllocation,
-                    projectId: createdProject.id,
-                    order: milestone.order
-                  }, { silent: true }); // Silent mode to prevent individual milestone toasts
-                } catch (error) {
-                  console.error('Failed to save milestone:', error);
-                  // Continue with other milestones even if one fails
-                }
-              }
-            }
+        // Use ProjectOrchestrator for complex creation workflow
+        const result = await ProjectOrchestrator.executeProjectCreationWorkflow(
+          {
+            name: localValues.name.trim(),
+            client: localValues.client.trim(),
+            startDate: localValues.startDate,
+            endDate: localValues.endDate,
+            estimatedHours: localValues.estimatedHours,
+            groupId: gid,
+            rowId: rid,
+            color: localValues.color || OKLCH_PROJECT_COLORS[0],
+            notes: localValues.notes,
+            icon: localValues.icon,
+            continuous: localValues.continuous,
+            autoEstimateDays: localValues.autoEstimateDays,
+            milestones: localProjectMilestones
+          },
+          {
+            addProject,
+            addMilestone
           }
+        );
+
+        if (result.success) {
+          // Show success toast only after everything is complete
+          toast({
+            title: "Success",
+            description: "Project created successfully",
+          });
+          handleClose();
+        } else {
+          // Handle orchestrator errors
+          const errorMessage = result.errors?.join(', ') || 'Project creation failed';
+          toast({
+            title: "Error",
+            description: errorMessage,
+            variant: "destructive",
+          });
         }
-        // Show success toast only after everything is complete
-        toast({
-          title: "Success",
-          description: "Project created successfully",
-        });
-        handleClose();
       } catch (error) {
         console.error('Failed to create project:', error);
+        toast({
+          title: "Error", 
+          description: "An unexpected error occurred",
+          variant: "destructive",
+        });
       }
     }
   };

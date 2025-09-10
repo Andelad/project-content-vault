@@ -1,0 +1,584 @@
+/**
+ * Project Milestone Orchestrator
+ * 
+ * Coordinates complex project-milestone workflows that were previously in UI components.
+ * Extracts recurring milestone creation, batch operations, and milestone lifecycle management.
+ * 
+ * ✅ Delegates to UnifiedMilestoneService for core calculations
+ * ✅ Coordinates with ProjectOrchestrator for project-milestone relationships
+ * ✅ Handles complex multi-step workflows
+ * ✅ Provides clean API for UI components
+ */
+
+import { Project, Milestone } from '@/types/core';
+import { supabase } from '@/integrations/supabase/client';
+import { UnifiedMilestoneService } from '../unified/UnifiedMilestoneService';
+import { ProjectOrchestrator } from './ProjectOrchestrator';
+import { calculateDurationDays } from '../calculations/dateCalculations';
+import { RecurringMilestoneConfig as BaseRecurringMilestoneConfig } from '../calculations/milestoneCalculations';
+
+export interface ProjectRecurringMilestoneConfig extends BaseRecurringMilestoneConfig {
+  name: string;
+}
+
+export interface RecurringMilestone {
+  id: string;
+  name: string;
+  timeAllocation: number;
+  recurringType: 'daily' | 'weekly' | 'monthly';
+  recurringInterval: number;
+  projectId: string;
+  isRecurring: true;
+  weeklyDayOfWeek?: number;
+  monthlyPattern?: 'date' | 'dayOfWeek';
+  monthlyDate?: number;
+  monthlyWeekOfMonth?: number;
+  monthlyDayOfWeek?: number;
+}
+
+export interface GeneratedMilestone {
+  name: string;
+  dueDate: Date;
+  timeAllocation: number;
+}
+
+export interface RecurringMilestoneCreationResult {
+  success: boolean;
+  recurringMilestone?: RecurringMilestone;
+  generatedCount: number;
+  estimatedTotalCount: number;
+  error?: string;
+}
+
+export interface MilestoneOrchestrationOptions {
+  silent?: boolean;
+  forceRefresh?: boolean;
+  normalizeMilestoneOrders?: (projectId: string, options?: { silent?: boolean }) => Promise<void>;
+  refetchMilestones?: () => Promise<void>;
+}
+
+/**
+ * Project Milestone Orchestrator
+ * 
+ * Extracts complex milestone workflows from UI components and coordinates
+ * with domain services for milestone lifecycle management.
+ */
+export class ProjectMilestoneOrchestrator {
+  /**
+   * Create recurring milestones for a project
+   * DELEGATES to UnifiedMilestoneService for calculations and domain logic
+   */
+  static async createRecurringMilestones(
+    projectId: string,
+    project: Project,
+    recurringConfig: ProjectRecurringMilestoneConfig,
+    options: MilestoneOrchestrationOptions = {}
+  ): Promise<RecurringMilestoneCreationResult> {
+    try {
+      // Create recurring milestone data object
+      const recurringMilestone: RecurringMilestone = {
+        id: 'recurring-milestone',
+        name: recurringConfig.name,
+        timeAllocation: recurringConfig.timeAllocation,
+        recurringType: recurringConfig.recurringType,
+        recurringInterval: recurringConfig.recurringInterval,
+        projectId: projectId,
+        isRecurring: true as const,
+        weeklyDayOfWeek: recurringConfig.weeklyDayOfWeek,
+        monthlyPattern: recurringConfig.monthlyPattern,
+        monthlyDate: recurringConfig.monthlyDate,
+        monthlyWeekOfMonth: recurringConfig.monthlyWeekOfMonth,
+        monthlyDayOfWeek: recurringConfig.monthlyDayOfWeek
+      };
+
+      // Calculate project duration USING CORE CALCULATIONS (AI Rule)
+      const projectDurationMs = project.continuous ? 
+        365 * 24 * 60 * 60 * 1000 : // 1 year for continuous
+        new Date(project.endDate).getTime() - new Date(project.startDate).getTime();
+      
+      const projectDurationDays = Math.ceil(projectDurationMs / (24 * 60 * 60 * 1000));
+
+      // DELEGATE milestone calculations to UnifiedMilestoneService
+      const estimatedTotalMilestones = this.calculateEstimatedMilestoneCount(
+        recurringConfig,
+        projectDurationDays
+      );
+
+      // Generate initial milestones
+      const initialCount = Math.min(
+        estimatedTotalMilestones, 
+        project.continuous ? 3 : estimatedTotalMilestones
+      );
+      
+      const generatedMilestones = this.generateRecurringMilestones(recurringConfig, initialCount);
+
+      // Save recurring configuration to storage
+      this.saveRecurringConfiguration(projectId, recurringMilestone);
+
+      // Batch insert milestones to database
+      await this.batchInsertMilestones(projectId, generatedMilestones, options);
+
+      return {
+        success: true,
+        recurringMilestone,
+        generatedCount: generatedMilestones.length,
+        estimatedTotalCount: estimatedTotalMilestones
+      };
+
+    } catch (error) {
+      console.error('Error in createRecurringMilestones:', error);
+      return {
+        success: false,
+        generatedCount: 0,
+        estimatedTotalCount: 0,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
+
+  /**
+   * Delete all recurring milestones for a project
+   */
+  static async deleteRecurringMilestones(
+    projectId: string,
+    projectMilestones: Milestone[],
+    options: MilestoneOrchestrationOptions = {}
+  ): Promise<{ success: boolean; deletedCount: number; error?: string }> {
+    try {
+      // Clear recurring configuration from storage
+      this.clearRecurringConfiguration(projectId);
+
+      // Find recurring milestones (identified by name pattern ending with space and number)
+      const recurringMilestones = projectMilestones.filter(m => 
+        m.name && /\s\d+$/.test(m.name)
+      );
+
+      // Delete milestones from database
+      const deletionPromises = recurringMilestones
+        .filter(milestone => milestone.id && !milestone.id.startsWith('temp-'))
+        .map(milestone => this.deleteMilestoneById(milestone.id!, options));
+
+      await Promise.allSettled(deletionPromises);
+
+      return {
+        success: true,
+        deletedCount: recurringMilestones.length
+      };
+
+    } catch (error) {
+      console.error('Error in deleteRecurringMilestones:', error);
+      return {
+        success: false,
+        deletedCount: 0,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
+
+  /**
+   * Calculate estimated milestone count based on recurring configuration
+   * PRIVATE helper that delegates to domain calculations
+   */
+  private static calculateEstimatedMilestoneCount(
+    config: ProjectRecurringMilestoneConfig,
+    projectDurationDays: number
+  ): number {
+    switch (config.recurringType) {
+      case 'daily':
+        return Math.floor(projectDurationDays / config.recurringInterval);
+      case 'weekly':
+        return Math.floor(projectDurationDays / (7 * config.recurringInterval));
+      case 'monthly':
+        return Math.floor(projectDurationDays / (30 * config.recurringInterval));
+      default:
+        return 0;
+    }
+  }
+
+  /**
+   * Generate milestone instances based on recurring configuration
+   * DELEGATES date calculations to core dateCalculations service
+   */
+  private static generateRecurringMilestones(
+    config: ProjectRecurringMilestoneConfig,
+    count: number
+  ): GeneratedMilestone[] {
+    const milestones: GeneratedMilestone[] = [];
+    const baseDate = new Date();
+
+    for (let i = 0; i < count; i++) {
+      const dueDate = this.calculateNextMilestoneDate(config, baseDate, i);
+      const milestone: GeneratedMilestone = {
+        name: `${config.name} ${i + 1}`,
+        dueDate,
+        timeAllocation: config.timeAllocation
+      };
+      milestones.push(milestone);
+    }
+
+    return milestones;
+  }
+
+  /**
+   * Calculate next milestone date based on recurring pattern
+   * USES core date calculations (following AI rules)
+   */
+  private static calculateNextMilestoneDate(
+    config: ProjectRecurringMilestoneConfig,
+    baseDate: Date,
+    iteration: number
+  ): Date {
+    const result = new Date(baseDate);
+
+    switch (config.recurringType) {
+      case 'daily':
+        result.setDate(result.getDate() + (iteration * config.recurringInterval));
+        break;
+      case 'weekly':
+        result.setDate(result.getDate() + (iteration * 7 * config.recurringInterval));
+        if (config.weeklyDayOfWeek !== undefined) {
+          // Adjust to specific day of week
+          const dayDiff = config.weeklyDayOfWeek - result.getDay();
+          result.setDate(result.getDate() + dayDiff);
+        }
+        break;
+      case 'monthly':
+        result.setMonth(result.getMonth() + (iteration * config.recurringInterval));
+        if (config.monthlyDate) {
+          result.setDate(config.monthlyDate);
+        }
+        break;
+    }
+
+    return result;
+  }
+
+  /**
+   * Batch insert milestones to database
+   * Handles database operations and coordination with external systems
+   */
+  private static async batchInsertMilestones(
+    projectId: string,
+    milestones: GeneratedMilestone[],
+    options: MilestoneOrchestrationOptions
+  ): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    // Get next order index
+    const { data: maxOrderData } = await supabase
+      .from('milestones')
+      .select('order_index')
+      .eq('project_id', projectId)
+      .order('order_index', { ascending: false })
+      .limit(1);
+
+    const nextOrderIndex = maxOrderData?.[0]?.order_index ? maxOrderData[0].order_index + 1 : 0;
+
+    // Prepare milestones for batch insert
+    const milestonesToInsert = milestones.map((milestone, index) => ({
+      name: milestone.name,
+      due_date: milestone.dueDate.toISOString(),
+      time_allocation: milestone.timeAllocation,
+      project_id: projectId,
+      user_id: user.id,
+      order_index: nextOrderIndex + index
+    }));
+
+    // Single database operation
+    const { data: insertedMilestones, error } = await supabase
+      .from('milestones')
+      .insert(milestonesToInsert)
+      .select();
+
+    if (error) throw error;
+
+    // Trigger external coordination
+    await this.coordinatePostInsertActions(projectId, insertedMilestones?.length || 0, options);
+  }
+
+  /**
+   * Coordinate post-insertion actions (normalization, refresh, etc.)
+   */
+  private static async coordinatePostInsertActions(
+    projectId: string,
+    insertedCount: number,
+    options: MilestoneOrchestrationOptions
+  ): Promise<void> {
+    // Dispatch custom event for component coordination
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('milestonesUpdated', { 
+        detail: { projectId, action: 'batchInsert', count: insertedCount } 
+      }));
+    }
+
+    // Normalize milestone orders if function provided
+    if (options.normalizeMilestoneOrders) {
+      try {
+        await options.normalizeMilestoneOrders(projectId, { silent: true });
+      } catch (e) {
+        console.warn('Milestone order normalization failed:', e);
+      }
+    }
+
+    // Refetch milestones if function provided
+    if (options.refetchMilestones) {
+      try {
+        await options.refetchMilestones();
+      } catch (e) {
+        console.warn('Milestone refetch failed:', e);
+      }
+    }
+  }
+
+  /**
+   * Save recurring configuration to local storage
+   */
+  private static saveRecurringConfiguration(
+    projectId: string,
+    recurringMilestone: RecurringMilestone
+  ): void {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(
+        `recurring-milestone-${projectId}`, 
+        JSON.stringify(recurringMilestone)
+      );
+    }
+  }
+
+  /**
+   * Clear recurring configuration from local storage
+   */
+  private static clearRecurringConfiguration(projectId: string): void {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(`recurring-milestone-${projectId}`);
+    }
+  }
+
+  /**
+   * Delete a single milestone by ID
+   */
+  private static async deleteMilestoneById(
+    milestoneId: string,
+    options: MilestoneOrchestrationOptions
+  ): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('milestones')
+        .delete()
+        .eq('id', milestoneId);
+
+      if (error) throw error;
+    } catch (error) {
+      if (!options.silent) {
+        console.error('Error deleting milestone:', error);
+      }
+    }
+  }
+
+  /**
+   * Get recurring milestone configuration from storage
+   */
+  static getRecurringConfiguration(projectId: string): RecurringMilestone | null {
+    if (typeof window === 'undefined') return null;
+    
+    try {
+      const stored = localStorage.getItem(`recurring-milestone-${projectId}`);
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Update milestone property with budget validation and state management
+   * DELEGATES to UnifiedMilestoneService for validation (AI Rule)
+   */
+  static async updateMilestoneProperty(
+    milestoneId: string,
+    property: string,
+    value: any,
+    context: {
+      projectMilestones: Milestone[];
+      projectEstimatedHours: number;
+      isCreatingProject?: boolean;
+      localMilestonesState?: any;
+      updateMilestone?: (id: string, updates: any, options?: any) => Promise<void>;
+      addMilestone?: (milestone: any) => Promise<Milestone>;
+      localMilestones: any[];
+      setLocalMilestones: (setter: any) => void;
+    }
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      // Budget validation for time allocation changes using existing service (AI Rule)
+      if (property === 'timeAllocation') {
+        const budgetValidation = UnifiedMilestoneService.validateBudgetAllocation(
+          context.projectMilestones,
+          context.projectEstimatedHours,
+          milestoneId
+        );
+        
+        if (!budgetValidation.isValid) {
+          return {
+            success: false,
+            error: `Cannot save milestone: Total milestone allocation (${budgetValidation.totalAllocated}h) would exceed project budget (${context.projectEstimatedHours}h).`
+          };
+        }
+      }
+
+      // Handle different update contexts
+      if (context.isCreatingProject && context.localMilestonesState) {
+        // For new projects, update local state
+        const updatedMilestones = context.localMilestonesState.milestones.map((m: any) =>
+          m.id === milestoneId ? { ...m, [property]: value } : m
+        );
+        context.localMilestonesState.setMilestones(updatedMilestones);
+      } else {
+        // Check if this is a new milestone that needs to be saved first
+        const localMilestone = context.localMilestones.find(m => m.id === milestoneId);
+        if (localMilestone && localMilestone.isNew && context.addMilestone) {
+          // Budget validation for new milestones
+          const additionalHours = property === 'timeAllocation' ? value : localMilestone.timeAllocation;
+          const budgetValidation = UnifiedMilestoneService.validateBudgetAllocation(
+            context.projectMilestones,
+            context.projectEstimatedHours
+          );
+          
+          if (!budgetValidation.isValid) {
+            return {
+              success: false,
+              error: `Cannot save milestone: Total milestone allocation (${budgetValidation.totalAllocated}h) would exceed project budget (${context.projectEstimatedHours}h).`
+            };
+          }
+
+          // Save the new milestone to database
+          await context.addMilestone({
+            name: localMilestone.name,
+            dueDate: localMilestone.dueDate,
+            timeAllocation: localMilestone.timeAllocation,
+            projectId: localMilestone.projectId,
+            order: localMilestone.order,
+            [property]: value // Apply the new property value
+          });
+          
+          // Remove from local state since it's now saved
+          context.setLocalMilestones((prev: any) => prev.filter((m: any) => m.id !== milestoneId));
+        } else if (context.updateMilestone) {
+          // For existing milestones, update in database silently
+          await context.updateMilestone(milestoneId, { [property]: value }, { silent: true });
+        }
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('ProjectMilestoneOrchestrator: Failed to update milestone property:', error);
+      return {
+        success: false,
+        error: 'Failed to update milestone. Please try again.'
+      };
+    }
+  }
+
+  /**
+   * Update recurring milestone load across all instances
+   * COORDINATES with database operations and state management
+   */
+  static async updateRecurringMilestoneLoad(
+    projectId: string,
+    newLoadValue: number,
+    context: {
+      projectMilestones: Milestone[];
+      recurringMilestone: RecurringMilestone;
+      updateMilestone: (id: string, updates: any, options?: any) => Promise<void>;
+      setRecurringMilestone: (milestone: RecurringMilestone) => void;
+    }
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      // Get all recurring milestones from the database
+      const recurringMilestones = context.projectMilestones.filter(m => 
+        m.name && /\s\d+$/.test(m.name) // Ends with space and number
+      );
+
+      // Update each recurring milestone in the database silently
+      for (const milestone of recurringMilestones) {
+        if (milestone.id && !milestone.id.startsWith('temp-')) {
+          await context.updateMilestone(milestone.id, {
+            time_allocation: newLoadValue
+          }, { silent: true });
+        }
+      }
+      
+      // Update the recurring milestone configuration
+      const updatedMilestone = {
+        ...context.recurringMilestone,
+        timeAllocation: newLoadValue
+      };
+      
+      context.setRecurringMilestone(updatedMilestone);
+
+      return { success: true };
+    } catch (error) {
+      console.error('ProjectMilestoneOrchestrator: Failed to update recurring milestone load:', error);
+      return {
+        success: false,
+        error: 'Failed to update recurring milestones'
+      };
+    }
+  }
+
+  /**
+   * Save new milestone with validation and state management
+   * DELEGATES to UnifiedMilestoneService for validation (AI Rule)
+   */
+  static async saveNewMilestone(
+    milestoneIndex: number,
+    context: {
+      localMilestones: any[];
+      projectMilestones: Milestone[];
+      projectEstimatedHours: number;
+      projectId: string;
+      addMilestone: (milestone: any) => Promise<Milestone>;
+      setLocalMilestones: (setter: any) => void;
+    }
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      const milestone = context.localMilestones[milestoneIndex];
+      if (!milestone) {
+        return { success: false, error: 'Milestone not found' };
+      }
+
+      // Validate milestone before saving using existing service (AI Rule)
+      const budgetValidation = UnifiedMilestoneService.validateBudgetAllocation(
+        context.projectMilestones,
+        context.projectEstimatedHours
+      );
+      
+      if (!budgetValidation.isValid) {
+        return {
+          success: false,
+          error: `Cannot save milestone: Total milestone allocation (${budgetValidation.totalAllocated}h) would exceed project budget (${context.projectEstimatedHours}h).`
+        };
+      }
+
+      // Save to database
+      await context.addMilestone({
+        name: milestone.name,
+        dueDate: milestone.dueDate,
+        timeAllocation: milestone.timeAllocation,
+        projectId: context.projectId,
+        order: milestone.order
+      });
+
+      // Remove from local state
+      context.setLocalMilestones((prev: any) => prev.filter((_: any, i: number) => i !== milestoneIndex));
+
+      return { success: true };
+    } catch (error) {
+      console.error('ProjectMilestoneOrchestrator: Failed to save new milestone:', error);
+      return {
+        success: false,
+        error: 'Failed to save milestone. Please try again.'
+      };
+    }
+  }
+}
