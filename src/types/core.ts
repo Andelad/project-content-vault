@@ -5,10 +5,13 @@ export type ProjectStatus = 'current' | 'future' | 'archived';
 export interface Milestone {
   id: string;
   name: string;
-  dueDate: Date;
-  timeAllocation: number; // Allocated hours for this milestone
-  projectId: string;
-  order: number; // For sorting milestones within a project
+  dueDate: Date; // Converted from due_date string in repository layer
+  timeAllocation: number; // Maps to time_allocation in database
+  projectId: string; // Maps to project_id in database
+  order: number; // Maps to order_index in database
+  userId: string; // Maps to user_id in database
+  createdAt: Date; // Converted from created_at string in repository layer
+  updatedAt: Date; // Converted from updated_at string in repository layer
 }
 
 export interface Project {
@@ -114,6 +117,21 @@ export interface WorkHour {
   endTime: Date; // Date object for consistency with how it's used in the app  
   duration: number; // Duration in hours
   type?: 'work' | 'meeting' | 'break'; // Optional type for different work hour categories
+}
+
+export interface TimeEntry {
+  id: string;
+  projectId?: string;
+  projectName: string; // Denormalized for reporting efficiency
+  startTime: Date;
+  endTime: Date;
+  duration: number; // Duration in hours
+  description?: string;
+  isPaused?: boolean;
+  totalPausedDuration?: number; // Paused time in milliseconds
+  eventId?: string; // Link to associated calendar event
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface TimelineEntry {

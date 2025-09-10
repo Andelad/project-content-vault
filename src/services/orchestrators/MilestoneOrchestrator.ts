@@ -18,6 +18,8 @@ import {
   MilestoneTimeValidation,
   MilestoneDateValidation
 } from '../unified';
+import { milestoneRepository } from '../repositories/MilestoneRepository';
+import type { SyncResult } from '../repositories/IBaseRepository';
 
 export interface CreateMilestoneRequest {
   name: string;
@@ -377,5 +379,271 @@ export class MilestoneOrchestrator {
         Math.ceil(totalAllocation * 1.2) : projectEstimatedHours,
       remainingBudget: Math.max(0, projectEstimatedHours - totalAllocation)
     };
+  }
+
+  // =====================================================================================
+  // REPOSITORY-BASED MILESTONE WORKFLOWS
+  // =====================================================================================
+
+  /**
+   * Create milestone with validation and repository persistence
+   * Coordinates domain validation with data persistence
+   */
+  static async createMilestone(
+    request: CreateMilestoneRequest,
+    project: Project
+  ): Promise<MilestoneCreationResult> {
+    try {
+      // Get existing milestones for validation
+      const existingMilestones = await milestoneRepository.findByProjectId(project.id);
+      
+      // Validate creation request using domain rules
+      const validationResult = this.validateMilestoneCreation(request, project, existingMilestones);
+      
+      if (!validationResult.isValid) {
+        return {
+          success: false,
+          errors: validationResult.errors,
+          warnings: validationResult.warnings
+        };
+      }
+
+      // Get next order index
+      const nextOrder = request.order ?? await milestoneRepository.getNextOrderIndex(project.id);
+
+      // Create milestone with repository
+      const milestone = await milestoneRepository.create({
+        name: request.name,
+        dueDate: request.dueDate,
+        timeAllocation: request.timeAllocation,
+        projectId: request.projectId,
+        order: nextOrder,
+        userId: 'default-user' // TODO: Get from auth context
+      });
+
+      return {
+        success: true,
+        milestone,
+        warnings: validationResult.warnings
+      };
+
+    } catch (error) {
+      return {
+        success: false,
+        errors: [`Failed to create milestone: ${error instanceof Error ? error.message : 'Unknown error'}`]
+      };
+    }
+  }
+
+  /**
+   * Update milestone with validation and repository persistence
+   * Coordinates domain validation with data persistence
+   */
+  static async updateMilestone(
+    request: UpdateMilestoneRequest,
+    project: Project
+  ): Promise<MilestoneCreationResult> {
+    try {
+      // Get existing milestone
+      const existingMilestone = await milestoneRepository.findById(request.id);
+      if (!existingMilestone) {
+        return {
+          success: false,
+          errors: ['Milestone not found']
+        };
+      }
+
+      // Get other milestones for validation
+      const allMilestones = await milestoneRepository.findByProjectId(project.id);
+      const otherMilestones = allMilestones.filter(m => m.id !== request.id);
+      
+      // Validate update request using domain rules
+      const validationResult = this.validateMilestoneUpdate(request, project, allMilestones);
+      
+      if (!validationResult.isValid) {
+        return {
+          success: false,
+          errors: validationResult.errors,
+          warnings: validationResult.warnings
+        };
+      }
+
+      // Update milestone with repository
+      const milestone = await milestoneRepository.update(request.id, {
+        name: request.name,
+        dueDate: request.dueDate,
+        timeAllocation: request.timeAllocation,
+        order: request.order
+      });
+
+      return {
+        success: true,
+        milestone,
+        warnings: validationResult.warnings
+      };
+
+    } catch (error) {
+      return {
+        success: false,
+        errors: [`Failed to update milestone: ${error instanceof Error ? error.message : 'Unknown error'}`]
+      };
+    }
+  }
+
+  /**
+   * Delete milestone with repository persistence and cleanup
+   */
+  static async deleteMilestone(milestoneId: string): Promise<{success: boolean; error?: string}> {
+    try {
+      const deleted = await milestoneRepository.delete(milestoneId);
+      return { success: deleted };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
+
+  /**
+   * Get project milestones with repository caching
+   */
+  static async getProjectMilestones(projectId: string): Promise<Milestone[]> {
+    return milestoneRepository.findByProjectId(projectId);
+  }
+
+  /**
+   * Reorder project milestones with repository persistence
+   */
+  static async reorderMilestones(
+    projectId: string, 
+    milestoneOrders: Array<{id: string; order: number}>
+  ): Promise<{success: boolean; error?: string}> {
+    try {
+      await milestoneRepository.reorderMilestones(projectId, milestoneOrders);
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
+
+  /**
+   * Get milestone analytics for project
+   */
+  static async getMilestoneAnalytics(projectId: string): Promise<{
+    statistics: any;
+    progress: any;
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      const [statistics, progress] = await Promise.all([
+        milestoneRepository.getMilestoneStatistics(projectId),
+        milestoneRepository.getMilestoneProgress(projectId)
+      ]);
+
+      return {
+        statistics,
+        progress,
+        success: true
+      };
+    } catch (error) {
+      return {
+        statistics: null,
+        progress: null,
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
+
+  /**
+   * Bulk create milestones with validation
+   */
+  static async bulkCreateMilestones(
+    milestones: Omit<Milestone, 'id' | 'createdAt' | 'updatedAt'>[],
+    project: Project
+  ): Promise<{success: boolean; milestones?: Milestone[]; errors?: string[]}> {
+    try {
+      // Get existing milestones for validation
+      const existingMilestones = await milestoneRepository.findByProjectId(project.id);
+      
+      // Validate each milestone
+      const validationErrors: string[] = [];
+      for (const milestone of milestones) {
+        const validationResult = this.validateMilestoneCreation(
+          {
+            name: milestone.name,
+            dueDate: milestone.dueDate,
+            timeAllocation: milestone.timeAllocation,
+            projectId: milestone.projectId,
+            order: milestone.order
+          },
+          project,
+          existingMilestones
+        );
+        
+        if (!validationResult.isValid) {
+          validationErrors.push(...validationResult.errors);
+        }
+      }
+
+      if (validationErrors.length > 0) {
+        return {
+          success: false,
+          errors: validationErrors
+        };
+      }
+
+      // Create milestones in bulk
+      const created = await milestoneRepository.bulkCreateMilestones(milestones);
+
+      return {
+        success: true,
+        milestones: created
+      };
+
+    } catch (error) {
+      return {
+        success: false,
+        errors: [`Failed to bulk create milestones: ${error instanceof Error ? error.message : 'Unknown error'}`]
+      };
+    }
+  }
+
+  /**
+   * Sync milestone data with external systems
+   */
+  static async syncMilestoneData(): Promise<SyncResult> {
+    try {
+      // TODO: Implement external sync logic
+      return {
+        success: true,
+        syncedCount: 0,
+        conflictCount: 0,
+        errors: [],
+        conflicts: [],
+        duration: 0
+      };
+    } catch (error) {
+      return {
+        success: false,
+        syncedCount: 0,
+        conflictCount: 0,
+        errors: [error instanceof Error ? error.message : 'Unknown sync error'],
+        conflicts: [],
+        duration: 0
+      };
+    }
+  }
+
+  /**
+   * Repository health check and diagnostics
+   */
+  static async validateMilestoneRepository(): Promise<{isHealthy: boolean; issues: string[]}> {
+    return milestoneRepository.validateRepositoryHealth();
   }
 }

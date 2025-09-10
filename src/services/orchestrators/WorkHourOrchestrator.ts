@@ -30,6 +30,7 @@ import {
   validateEventForSplit,
   type EventSplitResult
 } from '../validators/eventValidations';
+import { workHourRepository } from '../repositories/WorkHourRepository';
 
 // =====================================================================================
 // ORCHESTRATOR INTERFACES
@@ -578,5 +579,176 @@ export class WorkHourOrchestrator {
 
     recommendations.push('Consider splitting large time blocks or rescheduling conflicts');
     return recommendations;
+  }
+
+  // -------------------------------------------------------------------------------------
+  // REPOSITORY-INTEGRATED WORKFLOWS (Phase 5D)
+  // -------------------------------------------------------------------------------------
+
+  /**
+   * Create work hour with repository persistence
+   * Enhanced workflow that persists to database following repository pattern
+   */
+  static async createWorkHour(workHourData: Omit<WorkHour, 'id'>): Promise<{
+    success: boolean;
+    workHour?: WorkHour;
+    error?: string;
+  }> {
+    try {
+      // Step 1: Validate work hour data
+      const validation = validateWorkHour(workHourData);
+      if (!validation.isValid) {
+        return {
+          success: false,
+          error: `Validation failed: ${validation.errors.join(', ')}`
+        };
+      }
+
+      // Step 2: Create via repository
+      const workHour = await workHourRepository.create(workHourData);
+
+      return {
+        success: true,
+        workHour
+      };
+    } catch (error) {
+      console.error('WorkHourOrchestrator.createWorkHour failed:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
+      };
+    }
+  }
+
+  /**
+   * Update work hour with repository persistence
+   * Enhanced workflow that validates and persists changes to database
+   */
+  static async updateWorkHour(
+    id: string, 
+    updates: Partial<Omit<WorkHour, 'id'>>
+  ): Promise<{
+    success: boolean;
+    workHour?: WorkHour;
+    error?: string;
+  }> {
+    try {
+      // Step 1: Get existing work hour
+      const existing = await workHourRepository.getById(id);
+      if (!existing) {
+        return {
+          success: false,
+          error: 'Work hour not found'
+        };
+      }
+
+      // Step 2: Validate merged data
+      const mergedData = { ...existing, ...updates };
+      const validation = validateWorkHour(mergedData);
+      if (!validation.isValid) {
+        return {
+          success: false,
+          error: `Validation failed: ${validation.errors.join(', ')}`
+        };
+      }
+
+      // Step 3: Update via repository
+      const updatedWorkHour = await workHourRepository.update(id, updates);
+
+      return {
+        success: true,
+        workHour: updatedWorkHour
+      };
+    } catch (error) {
+      console.error('WorkHourOrchestrator.updateWorkHour failed:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
+      };
+    }
+  }
+
+  /**
+   * Delete work hour with repository persistence
+   * Enhanced workflow that removes from database
+   */
+  static async deleteWorkHour(id: string): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      // Step 1: Verify work hour exists
+      const existing = await workHourRepository.getById(id);
+      if (!existing) {
+        return {
+          success: false,
+          error: 'Work hour not found'
+        };
+      }
+
+      // Step 2: Delete via repository
+      await workHourRepository.delete(id);
+
+      return {
+        success: true
+      };
+    } catch (error) {
+      console.error('WorkHourOrchestrator.deleteWorkHour failed:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
+      };
+    }
+  }
+
+  /**
+   * Get work hours with repository data access
+   * Enhanced workflow for retrieving work hour data
+   */
+  static async getWorkHours(): Promise<{
+    success: boolean;
+    workHours?: WorkHour[];
+    error?: string;
+  }> {
+    try {
+      const workHours = await workHourRepository.getAll();
+      return {
+        success: true,
+        workHours
+      };
+    } catch (error) {
+      console.error('WorkHourOrchestrator.getWorkHours failed:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
+      };
+    }
+  }
+
+  /**
+   * Get work hours by date range with repository data access
+   * Enhanced workflow for retrieving filtered work hour data
+   */
+  static async getWorkHoursByDateRange(
+    startDate: Date, 
+    endDate: Date
+  ): Promise<{
+    success: boolean;
+    workHours?: WorkHour[];
+    error?: string;
+  }> {
+    try {
+      const workHours = await workHourRepository.getByDateRange(startDate, endDate);
+      return {
+        success: true,
+        workHours
+      };
+    } catch (error) {
+      console.error('WorkHourOrchestrator.getWorkHoursByDateRange failed:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
+      };
+    }
   }
 }

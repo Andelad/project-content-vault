@@ -2,7 +2,9 @@ import { timeTrackingRepository } from '../repositories/timeTrackingRepository';
 import { timeTrackingValidator } from '../validators/timeTrackingValidator';
 import { timeTrackingCalculations } from '../calculations/timeTrackingCalculations';
 import { TimeTrackerCalculationService } from '../unified/UnifiedTimeTrackerService';
+import { calendarEventRepository } from '../repositories/CalendarEventRepository';
 import type { TimeTrackingState } from '../../types/timeTracking';
+import type { CalendarEvent } from '../../types/core';
 
 export interface TimeTrackerWorkflowContext {
   selectedProject: any;
@@ -433,6 +435,182 @@ class TimeTrackingOrchestrator {
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to load tracking state'
+      };
+    }
+  }
+
+  // -------------------------------------------------------------------------------------
+  // REPOSITORY-INTEGRATED WORKFLOWS (Phase 5E)
+  // -------------------------------------------------------------------------------------
+
+  /**
+   * Create time tracking event with repository persistence
+   * Enhanced workflow that persists calendar events to database
+   */
+  static async createTrackingEvent(eventData: Omit<CalendarEvent, 'id'>): Promise<{
+    success: boolean;
+    event?: CalendarEvent;
+    error?: string;
+  }> {
+    try {
+      // Ensure it's marked as a tracking event
+      const trackingEventData = {
+        ...eventData,
+        type: 'tracked' as const,
+        color: eventData.color || '#10b981' // Green for tracking events
+      };
+
+      // Create via repository
+      const event = await calendarEventRepository.create(trackingEventData);
+
+      return {
+        success: true,
+        event
+      };
+    } catch (error) {
+      console.error('TimeTrackingOrchestrator.createTrackingEvent failed:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
+      };
+    }
+  }
+
+  /**
+   * Update time tracking event with repository persistence
+   * Enhanced workflow for updating calendar events during time tracking
+   */
+  static async updateTrackingEvent(
+    id: string, 
+    updates: Partial<Omit<CalendarEvent, 'id'>>
+  ): Promise<{
+    success: boolean;
+    event?: CalendarEvent;
+    error?: string;
+  }> {
+    try {
+      // Update via repository
+      const event = await calendarEventRepository.update(id, updates);
+
+      return {
+        success: true,
+        event
+      };
+    } catch (error) {
+      console.error('TimeTrackingOrchestrator.updateTrackingEvent failed:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
+      };
+    }
+  }
+
+  /**
+   * Complete time tracking session with repository persistence
+   * Enhanced workflow that finalizes tracking events and marks them as completed
+   */
+  static async completeTrackingSession(
+    eventId: string,
+    endTime: Date,
+    finalData?: Partial<CalendarEvent>
+  ): Promise<{
+    success: boolean;
+    event?: CalendarEvent;
+    error?: string;
+  }> {
+    try {
+      // Prepare completion updates
+      const updates = {
+        endTime,
+        type: 'completed' as const,
+        completed: true,
+        ...finalData
+      };
+
+      // Update via repository
+      const event = await calendarEventRepository.update(eventId, updates);
+
+      return {
+        success: true,
+        event
+      };
+    } catch (error) {
+      console.error('TimeTrackingOrchestrator.completeTrackingSession failed:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
+      };
+    }
+  }
+
+  /**
+   * Get all time tracking sessions with repository data access
+   * Enhanced workflow for retrieving time tracking history
+   */
+  static async getTrackingSessions(): Promise<{
+    success: boolean;
+    sessions?: CalendarEvent[];
+    error?: string;
+  }> {
+    try {
+      const sessions = await calendarEventRepository.getTrackingEvents();
+      return {
+        success: true,
+        sessions
+      };
+    } catch (error) {
+      console.error('TimeTrackingOrchestrator.getTrackingSessions failed:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
+      };
+    }
+  }
+
+  /**
+   * Get time tracking sessions by project with repository data access
+   * Enhanced workflow for project-specific time tracking analysis
+   */
+  static async getTrackingSessionsByProject(projectId: string): Promise<{
+    success: boolean;
+    sessions?: CalendarEvent[];
+    error?: string;
+  }> {
+    try {
+      const allSessions = await calendarEventRepository.getTrackingEvents();
+      const projectSessions = allSessions.filter(session => session.projectId === projectId);
+      
+      return {
+        success: true,
+        sessions: projectSessions
+      };
+    } catch (error) {
+      console.error('TimeTrackingOrchestrator.getTrackingSessionsByProject failed:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
+      };
+    }
+  }
+
+  /**
+   * Delete time tracking session with repository persistence
+   * Enhanced workflow for removing completed time tracking sessions
+   */
+  static async deleteTrackingSession(eventId: string): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      await calendarEventRepository.delete(eventId);
+      return {
+        success: true
+      };
+    } catch (error) {
+      console.error('TimeTrackingOrchestrator.deleteTrackingSession failed:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
       };
     }
   }

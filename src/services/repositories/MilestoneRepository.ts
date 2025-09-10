@@ -1,201 +1,194 @@
 /**
- * Milestone Repository
+ * Milestone Repository Implementation - Phase 5C
  * 
- * Simplified milestone repository implementation that focuses on core functionality
- * and integrates properly with the existing repository system.
+ * Simple repository for Milestone entities following AI Development Rules.
+ * Provides essential CRUD operations without over-engineering.
+ * 
+ * @module MilestoneRepository
  */
 
-import { UnifiedRepository } from './UnifiedRepository';
-import type { IBaseRepository, RepositoryConfig, SyncResult } from './IBaseRepository';
-import type { Milestone } from '../../types';
+import type { Milestone } from '@/types/core';
+import type { Database } from '@/integrations/supabase/types';
+import { supabase } from '@/integrations/supabase/client';
+
+type MilestoneRow = Database['public']['Tables']['milestones']['Row'];
+type MilestoneInsert = Database['public']['Tables']['milestones']['Insert'];
+type MilestoneUpdate = Database['public']['Tables']['milestones']['Update'];
 
 // =====================================================================================
-// MILESTONE REPOSITORY INTERFACES
+// DOMAIN/DATABASE TRANSFORMERS
 // =====================================================================================
 
-export interface IMilestoneRepository extends IBaseRepository<Milestone> {
-  findByProject(projectId: string): Promise<Milestone[]>;
-  findByDateRange(startDate: Date, endDate: Date): Promise<Milestone[]>;
-  findOverdue(): Promise<Milestone[]>;
-  findUpcoming(days?: number): Promise<Milestone[]>;
-  findConflictingDates(projectId: string, date: Date, excludeId?: string): Promise<Milestone[]>;
-  getProgressStats(projectId?: string): Promise<{
-    total: number;
-    completed: number;
-    completionRate: number;
-    overdueCount: number;
-  }>;
+function transformToDomain(dbMilestone: MilestoneRow): Milestone {
+  return {
+    id: dbMilestone.id,
+    name: dbMilestone.name,
+    dueDate: new Date(dbMilestone.due_date),
+    timeAllocation: dbMilestone.time_allocation,
+    projectId: dbMilestone.project_id,
+    order: dbMilestone.order_index,
+    userId: dbMilestone.user_id,
+    createdAt: new Date(dbMilestone.created_at),
+    updatedAt: new Date(dbMilestone.updated_at)
+  };
+}
+
+function transformToInsert(milestone: Omit<Milestone, 'id' | 'createdAt' | 'updatedAt'>): MilestoneInsert {
+  return {
+    name: milestone.name,
+    due_date: milestone.dueDate.toISOString(),
+    time_allocation: milestone.timeAllocation,
+    project_id: milestone.projectId,
+    order_index: milestone.order,
+    user_id: milestone.userId
+  };
+}
+
+function transformToUpdate(updates: Partial<Milestone>): MilestoneUpdate {
+  const dbUpdates: MilestoneUpdate = {};
+  
+  if (updates.name !== undefined) dbUpdates.name = updates.name;
+  if (updates.dueDate !== undefined) dbUpdates.due_date = updates.dueDate.toISOString();
+  if (updates.timeAllocation !== undefined) dbUpdates.time_allocation = updates.timeAllocation;
+  if (updates.order !== undefined) dbUpdates.order_index = updates.order;
+  
+  return dbUpdates;
 }
 
 // =====================================================================================
-// MILESTONE REPOSITORY IMPLEMENTATION
+// MILESTONE REPOSITORY CLASS
 // =====================================================================================
 
-export class MilestoneRepository 
-  extends UnifiedRepository<Milestone, string>
-  implements IMilestoneRepository 
-{
-  protected entityName = 'milestone' as const;
+export class MilestoneRepository {
   
-  constructor(config?: RepositoryConfig) {
-    super('milestone', config);
-  }
-
   // -------------------------------------------------------------------------------------
-  // ABSTRACT METHOD IMPLEMENTATIONS
+  // BASIC CRUD OPERATIONS
   // -------------------------------------------------------------------------------------
 
-  protected async executeCreate(data: Omit<Milestone, 'id'>): Promise<Milestone> {
-    const milestone: Milestone = {
-      id: `milestone_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      ...data
-    };
+  async findById(id: string): Promise<Milestone | null> {
+    const { data, error } = await supabase
+      .from('milestones')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) return null;
+    return transformToDomain(data);
+  }
+
+  async findByProjectId(projectId: string): Promise<Milestone[]> {
+    const { data, error } = await supabase
+      .from('milestones')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('order_index');
+
+    if (error) throw error;
+    return (data || []).map(transformToDomain);
+  }
+
+  async findByUserId(userId: string): Promise<Milestone[]> {
+    const { data, error } = await supabase
+      .from('milestones')
+      .select('*')
+      .eq('user_id', userId)
+      .order('due_date');
+
+    if (error) throw error;
+    return (data || []).map(transformToDomain);
+  }
+
+  async create(milestone: Omit<Milestone, 'id' | 'createdAt' | 'updatedAt'>): Promise<Milestone> {
+    const dbData = transformToInsert(milestone);
     
-    this.cache.set(milestone.id, milestone);
-    return milestone;
+    const { data, error } = await supabase
+      .from('milestones')
+      .insert(dbData)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return transformToDomain(data);
   }
 
-  protected async executeUpdate(id: string, data: Partial<Milestone>): Promise<Milestone> {
-    const existing = await this.executeFindById(id);
-    if (!existing) {
-      throw new Error(`Milestone not found: ${id}`);
-    }
+  async update(id: string, updates: Partial<Milestone>): Promise<Milestone> {
+    const dbUpdates = transformToUpdate(updates);
     
-    const updated: Milestone = { ...existing, ...data };
-    this.cache.set(id, updated);
-    return updated;
+    const { data, error } = await supabase
+      .from('milestones')
+      .update(dbUpdates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return transformToDomain(data);
   }
 
-  protected async executeDelete(id: string): Promise<boolean> {
-    const exists = await this.executeFindById(id);
-    if (!exists) return false;
-    
-    this.cache.delete(id);
-    return true;
-  }
+  async delete(id: string): Promise<void> {
+    const { error } = await supabase
+      .from('milestones')
+      .delete()
+      .eq('id', id);
 
-  protected async executeFindById(id: string): Promise<Milestone | null> {
-    return this.cache.get(id) || null;
-  }
-
-  protected async executeFindByIds(ids: string[]): Promise<Milestone[]> {
-    const results: Milestone[] = [];
-    for (const id of ids) {
-      const milestone = await this.executeFindById(id);
-      if (milestone) {
-        results.push(milestone);
-      }
-    }
-    return results;
-  }
-
-  protected async executeFindAll(): Promise<Milestone[]> {
-    // Simplified implementation - in a real system this would query the database
-    return [];
-  }
-
-  protected async executeCount(): Promise<number> {
-    const all = await this.executeFindAll();
-    return all.length;
-  }
-
-  protected async executeExists(id: string): Promise<boolean> {
-    const milestone = await this.executeFindById(id);
-    return milestone !== null;
-  }
-
-  protected async executeFindBy(criteria: Partial<Milestone>): Promise<Milestone[]> {
-    const all = await this.executeFindAll();
-    return all.filter(milestone => {
-      return Object.entries(criteria).every(([key, value]) => 
-        (milestone as any)[key] === value
-      );
-    });
-  }
-
-  protected async executeSyncToServer(): Promise<SyncResult> {
-    // Sync implementation would go here
-    return { 
-      success: true, 
-      syncedCount: 0, 
-      conflictCount: 0,
-      errors: [], 
-      conflicts: [],
-      duration: 0
-    };
+    if (error) throw error;
   }
 
   // -------------------------------------------------------------------------------------
   // MILESTONE-SPECIFIC QUERIES
   // -------------------------------------------------------------------------------------
 
-  async findByProject(projectId: string): Promise<Milestone[]> {
-    const all = await this.findAll();
-    return all.filter(milestone => milestone.projectId === projectId);
+  async validateMilestoneNameUnique(name: string, projectId: string, excludeId?: string): Promise<boolean> {
+    let query = supabase
+      .from('milestones')
+      .select('id')
+      .eq('project_id', projectId)
+      .eq('name', name);
+
+    if (excludeId) {
+      query = query.neq('id', excludeId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    
+    return (data || []).length === 0;
   }
 
-  async findByDateRange(startDate: Date, endDate: Date): Promise<Milestone[]> {
-    const all = await this.findAll();
-    return all.filter(milestone => 
-      milestone.dueDate >= startDate && milestone.dueDate <= endDate
-    );
-  }
-
-  async findOverdue(): Promise<Milestone[]> {
-    const now = new Date();
-    const all = await this.findAll();
-    return all.filter(milestone => 
-      milestone.dueDate < now && !milestone.name.toLowerCase().includes('completed')
-    );
-  }
-
-  async findUpcoming(days = 7): Promise<Milestone[]> {
-    const now = new Date();
-    const futureDate = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
-    const all = await this.findAll();
-    return all.filter(milestone => 
-      milestone.dueDate >= now && 
-      milestone.dueDate <= futureDate &&
-      !milestone.name.toLowerCase().includes('completed')
-    );
-  }
-
-  async findConflictingDates(projectId: string, date: Date, excludeId?: string): Promise<Milestone[]> {
-    const all = await this.findAll();
-    return all.filter(milestone => 
-      milestone.projectId === projectId &&
-      milestone.dueDate.toDateString() === date.toDateString() &&
-      (excludeId ? milestone.id !== excludeId : true)
-    );
-  }
-
-  async getProgressStats(projectId?: string): Promise<{
-    total: number;
-    completed: number;
-    completionRate: number;
-    overdueCount: number;
+  async findProjectMilestoneStats(projectId: string): Promise<{
+    totalMilestones: number;
+    totalTimeAllocation: number;
+    averageTimeAllocation: number;
+    earliestDueDate: Date | null;
+    latestDueDate: Date | null;
   }> {
-    const milestones = projectId ? 
-      await this.findByProject(projectId) : 
-      await this.findAll();
+    const milestones = await this.findByProjectId(projectId);
+    
+    if (milestones.length === 0) {
+      return {
+        totalMilestones: 0,
+        totalTimeAllocation: 0,
+        averageTimeAllocation: 0,
+        earliestDueDate: null,
+        latestDueDate: null
+      };
+    }
 
-    const total = milestones.length;
-    const completed = milestones.filter(m => 
-      m.name.toLowerCase().includes('completed')
-    ).length;
-    
-    const completionRate = total > 0 ? (completed / total) * 100 : 0;
-    
-    const overdue = await this.findOverdue();
-    const overdueCount = projectId ? 
-      overdue.filter(m => m.projectId === projectId).length :
-      overdue.length;
-    
+    const totalTimeAllocation = milestones.reduce((sum, m) => sum + m.timeAllocation, 0);
+    const dueDates = milestones.map(m => m.dueDate).sort((a, b) => a.getTime() - b.getTime());
+
     return {
-      total,
-      completed,
-      completionRate,
-      overdueCount
+      totalMilestones: milestones.length,
+      totalTimeAllocation,
+      averageTimeAllocation: totalTimeAllocation / milestones.length,
+      earliestDueDate: dueDates[0],
+      latestDueDate: dueDates[dueDates.length - 1]
     };
   }
 }
+
+// =====================================================================================
+// SINGLETON EXPORT
+// =====================================================================================
+
+export const milestoneRepository = new MilestoneRepository();
