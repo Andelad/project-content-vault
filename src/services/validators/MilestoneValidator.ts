@@ -11,12 +11,12 @@
 
 import { Milestone, Project } from '@/types/core';
 import { UnifiedMilestoneEntity, UnifiedProjectEntity } from '../unified';
-import { IMilestoneRepository } from '../repositories/MilestoneRepository';
+import { MilestoneRepository } from '../repositories/MilestoneRepository';
 
 export interface ValidationContext {
   project: Project;
   existingMilestones: Milestone[];
-  repository?: IMilestoneRepository;
+  repository?: MilestoneRepository;
 }
 
 export interface DetailedValidationResult {

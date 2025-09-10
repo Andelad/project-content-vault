@@ -1,112 +1,68 @@
 /**
- * Group Repository Implementation
+ * Group Repository Implementation - Simplified Pattern
  * 
- * Specialized repository for Group entities with optimized caching,
- * offline support, and group-specific query patterns.
- * 
- * Features:
- * - Intelligent group caching with dependency tracking
- * - Offline-first CRUD operations
- * - Project relationship management
- * - Performance optimization for group workflows
+ * Simple repository for Group entities following AI Development Rules.
+ * Provides essential CRUD operations without over-engineering.
  * 
  * @module GroupRepository
  */
 
-import { UnifiedRepository } from './UnifiedRepository';
 import type { Group } from '@/types/core';
 import type { Database } from '@/integrations/supabase/types';
 import { supabase } from '@/integrations/supabase/client';
-import type { SyncResult } from './IBaseRepository';
 
 type GroupRow = Database['public']['Tables']['groups']['Row'];
 type GroupInsert = Database['public']['Tables']['groups']['Insert'];
 type GroupUpdate = Database['public']['Tables']['groups']['Update'];
 
-/**
- * Group-specific repository extending UnifiedRepository
- * with optimized patterns for group management workflows
- */
-export class GroupRepository extends UnifiedRepository<Group, string> {
+// =====================================================================================
+// DOMAIN/DATABASE TRANSFORMERS
+// =====================================================================================
+
+function transformToDomain(dbGroup: GroupRow): Group {
+  return {
+    id: dbGroup.id,
+    name: dbGroup.name,
+    color: dbGroup.color,
+    description: dbGroup.description || undefined,
+    userId: dbGroup.user_id,
+    createdAt: new Date(dbGroup.created_at),
+    updatedAt: new Date(dbGroup.updated_at)
+  };
+}
+
+function transformToInsert(group: Omit<Group, 'id' | 'createdAt' | 'updatedAt'>): GroupInsert {
+  return {
+    name: group.name,
+    color: group.color,
+    description: group.description || null,
+    user_id: group.userId
+  };
+}
+
+function transformToUpdate(updates: Partial<Group>): GroupUpdate {
+  const dbUpdates: GroupUpdate = {};
   
-  constructor() {
-    super('groups', {
-      cache: {
-        maxSize: 200, // Groups are relatively few but frequently accessed
-        ttl: 300000,  // 5 minutes - groups change infrequently
-        enabled: true,
-        strategy: 'lru',
-        compression: false
-      },
-      offline: {
-        enabled: true,
-        maxOfflineOperations: 50,
-        autoSync: true,
-        syncInterval: 30000, // 30 seconds
-        conflictResolution: 'server-wins'
-      },
-      performance: {
-        batchSize: 20,
-        maxConcurrentRequests: 5,
-        requestTimeout: 10000,
-        retryAttempts: 3,
-        retryDelay: 1000
-      }
-    });
-  }
-
-  // -------------------------------------------------------------------------------------
-  // ABSTRACT METHOD IMPLEMENTATIONS
-  // -------------------------------------------------------------------------------------
+  if (updates.name !== undefined) dbUpdates.name = updates.name;
+  if (updates.color !== undefined) dbUpdates.color = updates.color;
+  if (updates.description !== undefined) dbUpdates.description = updates.description || null;
   
-  protected async executeCreate(entity: Omit<Group, 'id'>): Promise<Group> {
-    const insert: GroupInsert = {
-      name: entity.name,
-      description: entity.description || null,
-      color: entity.color,
-      user_id: await this.getCurrentUserId()
-    };
+  dbUpdates.updated_at = new Date().toISOString();
+  
+  return dbUpdates;
+}
 
-    const { data, error } = await supabase
-      .from('groups')
-      .insert(insert)
-      .select()
-      .single();
+// =====================================================================================
+// GROUP REPOSITORY CLASS
+// =====================================================================================
 
-    if (error) throw error;
-    return this.transformFromDb(data);
-  }
+export class GroupRepository {
+  
+  // -------------------------------------------------------------------------------------
+  // BASIC CRUD OPERATIONS
+  // -------------------------------------------------------------------------------------
 
-  protected async executeUpdate(id: string, updates: Partial<Group>): Promise<Group> {
-    const update: GroupUpdate = {
-      ...(updates.name && { name: updates.name }),
-      ...(updates.description !== undefined && { description: updates.description || null }),
-      ...(updates.color && { color: updates.color }),
-      updated_at: new Date().toISOString()
-    };
-
-    const { data, error } = await supabase
-      .from('groups')
-      .update(update)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return this.transformFromDb(data);
-  }
-
-  protected async executeDelete(id: string): Promise<boolean> {
-    const { error } = await supabase
-      .from('groups')
-      .delete()
-      .eq('id', id);
-
-    if (error) throw error;
-    return true;
-  }
-
-  protected async executeFindById(id: string): Promise<Group | null> {
+  async findById(id: string): Promise<Group | null> {
     const { data, error } = await supabase
       .from('groups')
       .select('*')
@@ -117,259 +73,148 @@ export class GroupRepository extends UnifiedRepository<Group, string> {
       if (error.code === 'PGRST116') return null; // Not found
       throw error;
     }
-
-    return this.transformFromDb(data);
+    return transformToDomain(data);
   }
 
-  protected async executeFindAll(): Promise<Group[]> {
+  async findAll(): Promise<Group[]> {
     const { data, error } = await supabase
       .from('groups')
       .select('*')
       .order('name', { ascending: true });
 
     if (error) throw error;
-    return (data || []).map(row => this.transformFromDb(row));
+    return (data || []).map(transformToDomain);
   }
 
-  protected async executeFindBy(criteria: Partial<Group>): Promise<Group[]> {
-    let query = supabase.from('groups').select('*');
-
-    if (criteria.name) {
-      query = query.eq('name', criteria.name);
-    }
-    if (criteria.color) {
-      query = query.eq('color', criteria.color);
-    }
-    if (criteria.description) {
-      query = query.eq('description', criteria.description);
-    }
-
-    const { data, error } = await query.order('name', { ascending: true });
-
-    if (error) throw error;
-    return (data || []).map(row => this.transformFromDb(row));
-  }
-
-  protected async executeCount(criteria?: Partial<Group>): Promise<number> {
-    let query = supabase.from('groups').select('*', { count: 'exact', head: true });
-
-    if (criteria?.name) {
-      query = query.eq('name', criteria.name);
-    }
-    if (criteria?.color) {
-      query = query.eq('color', criteria.color);
-    }
-    if (criteria?.description) {
-      query = query.eq('description', criteria.description);
-    }
-
-    const { count, error } = await query;
-
-    if (error) throw error;
-    return count || 0;
-  }
-
-  protected async executeSyncToServer(): Promise<SyncResult> {
-    const result: SyncResult = {
-      success: true,
-      syncedCount: 0,
-      conflictCount: 0,
-      errors: [],
-      conflicts: [],
-      duration: 0
-    };
-
-    const startTime = Date.now();
-
-    try {
-      // Process offline changes
-      for (const change of this.offlineChanges) {
-        try {
-          switch (change.operation) {
-            case 'create':
-              if (change.data) {
-                await this.executeCreate(change.data as Omit<Group, 'id'>);
-                result.syncedCount++;
-              }
-              break;
-            case 'update':
-              if (change.data) {
-                await this.executeUpdate(change.entityId, change.data);
-                result.syncedCount++;
-              }
-              break;
-            case 'delete':
-              await this.executeDelete(change.entityId);
-              result.syncedCount++;
-              break;
-          }
-          change.synced = true;
-        } catch (error) {
-          result.errors.push(`Failed to sync ${change.operation} for ${change.entityId}: ${error}`);
-        }
-      }
-
-      // Remove synced changes
-      this.offlineChanges = this.offlineChanges.filter(change => !change.synced);
-
-    } catch (error) {
-      result.success = false;
-      result.errors.push(`Sync failed: ${error}`);
-    }
-
-    result.duration = Date.now() - startTime;
-    return result;
-  }
-
-  // -------------------------------------------------------------------------------------
-  // UTILITY METHODS
-  // -------------------------------------------------------------------------------------
-  
-  private transformFromDb(row: GroupRow): Group {
-    return {
-      id: row.id,
-      name: row.name,
-      description: row.description || '',
-      color: row.color
-    };
-  }
-
-  private async getCurrentUserId(): Promise<string> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated');
-    return user.id;
-  }
-
-  // -------------------------------------------------------------------------------------
-  // GROUP-SPECIFIC QUERY METHODS
-  // -------------------------------------------------------------------------------------
-
-  /**
-   * Find groups by user with caching
-   */
   async findByUser(userId: string): Promise<Group[]> {
-    const cacheKey = `user:${userId}`;
-    
-    try {
-      const { data, error } = await supabase
-        .from('groups')
-        .select('*')
-        .eq('user_id', userId)
-        .order('name', { ascending: true });
+    const { data, error } = await supabase
+      .from('groups')
+      .select('*')
+      .eq('user_id', userId)
+      .order('name', { ascending: true });
 
-      if (error) throw error;
-
-      const groups = (data || []).map(row => this.transformFromDb(row));
-      
-      // Cache each group individually
-      groups.forEach(group => {
-        this.cache.set(`${this.entityType}:${group.id}`, group);
-      });
-      
-      this.eventManager.emit({
-        type: 'synced',
-        entityType: 'groups',
-        entityId: cacheKey,
-        timestamp: new Date(),
-        metadata: { operation: 'findByUser', count: groups.length }
-      });
-
-      return groups;
-    } catch (error) {
-      console.error('Error finding groups by user:', error);
-      throw error;
-    }
+    if (error) throw error;
+    return (data || []).map(transformToDomain);
   }
 
-  /**
-   * Find groups with project counts (for dashboard views)
-   */
+  async create(group: Omit<Group, 'id' | 'createdAt' | 'updatedAt'>): Promise<Group> {
+    const dbData = transformToInsert(group);
+    
+    const { data, error } = await supabase
+      .from('groups')
+      .insert(dbData)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return transformToDomain(data);
+  }
+
+  async update(id: string, updates: Partial<Group>): Promise<Group> {
+    const dbUpdates = transformToUpdate(updates);
+    
+    const { data, error } = await supabase
+      .from('groups')
+      .update(dbUpdates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return transformToDomain(data);
+  }
+
+  async delete(id: string): Promise<void> {
+    const { error } = await supabase
+      .from('groups')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+  }
+
+  // -------------------------------------------------------------------------------------
+  // GROUP-SPECIFIC QUERIES
+  // -------------------------------------------------------------------------------------
+
   async findWithProjectCounts(userId: string): Promise<Array<Group & { projectCount: number }>> {
-    const cacheKey = `user:${userId}:with-counts`;
-    const cached = this.cache.get(cacheKey);
-    
-    if (cached) {
-      this.eventManager.emit({
-        type: 'synced',
-        entityType: 'groups',
-        entityId: cacheKey,
-        timestamp: new Date(),
-        metadata: { cacheHit: true }
-      });
-      return [cached as Group & { projectCount: number }];
-    }
+    const { data, error } = await supabase
+      .from('groups')
+      .select(`
+        *,
+        projects(count)
+      `)
+      .eq('user_id', userId)
+      .order('name', { ascending: true });
 
-    try {
-      const { data, error } = await supabase
-        .from('groups')
-        .select(`
-          *,
-          projects(count)
-        `)
-        .eq('user_id', userId)
-        .order('name', { ascending: true });
+    if (error) throw error;
 
-      if (error) throw error;
-
-      const groupsWithCounts = (data || []).map(row => ({
-        ...this.transformFromDb(row),
-        projectCount: Array.isArray(row.projects) ? row.projects.length : 0
-      }));
-      
-      // Cache the results individually
-      groupsWithCounts.forEach(group => {
-        const baseGroup = { ...group };
-        delete (baseGroup as any).projectCount;
-        this.cache.set(`${this.entityType}:${group.id}`, baseGroup);
-      });
-      
-      this.eventManager.emit({
-        type: 'synced',
-        entityType: 'groups',
-        entityId: cacheKey,
-        timestamp: new Date(),
-        metadata: { cacheMiss: true }
-      });
-
-      return groupsWithCounts;
-    } catch (error) {
-      console.error('Error finding groups with project counts:', error);
-      throw error;
-    }
+    return (data || []).map(row => ({
+      ...transformToDomain(row),
+      projectCount: Array.isArray(row.projects) ? row.projects.length : 0
+    }));
   }
 
-  /**
-   * Validate group name uniqueness within user's groups
-   */
   async validateGroupNameUnique(name: string, userId: string, excludeId?: string): Promise<boolean> {
-    try {
-      let query = supabase
-        .from('groups')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('name', name);
+    let query = supabase
+      .from('groups')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('name', name);
 
-      if (excludeId) {
-        query = query.neq('id', excludeId);
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      return !data || data.length === 0;
-    } catch (error) {
-      console.error('Error validating group name uniqueness:', error);
-      throw error;
+    if (excludeId) {
+      query = query.neq('id', excludeId);
     }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    
+    return (data || []).length === 0;
+  }
+
+  async findByCreatedDate(startDate: Date, endDate?: Date): Promise<Group[]> {
+    let query = supabase
+      .from('groups')
+      .select('*')
+      .gte('created_at', startDate.toISOString());
+
+    if (endDate) {
+      query = query.lte('created_at', endDate.toISOString());
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data || []).map(transformToDomain);
+  }
+
+  async findByUpdatedDate(startDate: Date, endDate?: Date): Promise<Group[]> {
+    let query = supabase
+      .from('groups')
+      .select('*')
+      .gte('updated_at', startDate.toISOString());
+
+    if (endDate) {
+      query = query.lte('updated_at', endDate.toISOString());
+    }
+
+    const { data, error } = await query.order('updated_at', { ascending: false });
+    if (error) throw error;
+    return (data || []).map(transformToDomain);
+  }
+
+  async findRecentlyCreated(hours: number = 24): Promise<Group[]> {
+    const since = new Date(Date.now() - hours * 60 * 60 * 1000);
+    return this.findByCreatedDate(since);
+  }
+
+  async findRecentlyUpdated(hours: number = 24): Promise<Group[]> {
+    const since = new Date(Date.now() - hours * 60 * 60 * 1000);
+    return this.findByUpdatedDate(since);
   }
 }
 
-// -------------------------------------------------------------------------------------
-// SINGLETON INSTANCE
-// -------------------------------------------------------------------------------------
+// =====================================================================================
+// SINGLETON EXPORT
+// =====================================================================================
 
-/**
- * Singleton instance of GroupRepository
- */
 export const groupRepository = new GroupRepository();

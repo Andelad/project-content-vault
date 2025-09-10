@@ -15,9 +15,7 @@
  */
 
 import { Project, Milestone } from '@/types/core';
-import { UnifiedProjectEntity, UnifiedMilestoneEntity, ProjectBudgetAnalysis } from '../unified';
 import { projectRepository } from '../repositories/ProjectRepository';
-import type { SyncResult } from '../repositories/IBaseRepository';
 
 export interface ProjectValidationResult {
   isValid: boolean;
@@ -554,41 +552,4 @@ export class ProjectOrchestrator {
     }
   }
 
-  /**
-   * Sync offline project changes
-   */
-  static async syncOfflineChanges(): Promise<SyncResult> {
-    try {
-      return await projectRepository.syncToServer();
-    } catch (error) {
-      console.error('Sync offline changes failed:', error);
-      return {
-        success: false,
-        syncedCount: 0,
-        conflictCount: 0,
-        errors: [`Sync failed: ${error}`],
-        conflicts: [],
-        duration: 0
-      };
-    }
-  }
-
-  /**
-   * Get repository cache statistics
-   */
-  static getRepositoryCacheStats() {
-    return projectRepository.getCacheStats();
-  }
-
-  /**
-   * Get repository offline status
-   */
-  static async getRepositoryOfflineStatus() {
-    const offlineChanges = await projectRepository.getOfflineChanges();
-    return {
-      hasOfflineChanges: offlineChanges.length > 0,
-      offlineChangeCount: offlineChanges.length,
-      lastSyncTime: null // Repository doesn't track last sync time yet
-    };
-  }
 }

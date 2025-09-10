@@ -19,7 +19,6 @@ import {
   MilestoneDateValidation
 } from '../unified';
 import { milestoneRepository } from '../repositories/MilestoneRepository';
-import type { SyncResult } from '../repositories/IBaseRepository';
 
 export interface CreateMilestoneRequest {
   name: string;

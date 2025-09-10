@@ -38,6 +38,9 @@ export interface Project {
     saturday: boolean;
     sunday: boolean;
   }; // Days to include in auto-estimation (default: all true)
+  userId: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface Row {
@@ -52,6 +55,9 @@ export interface Group {
   name: string;
   description: string;
   color: string;
+  userId: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface CalendarEvent {
