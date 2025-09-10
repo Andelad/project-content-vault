@@ -1,12 +1,12 @@
 /**
- * Drag Calculations Service
+ * Timeline Drag Math Service
  * 
  * Pure drag calculation functions for timeline interactions.
  * Handles drag positioning, validation, and state management calculations.
  * 
  * Migrated from: services/legacy/events/dragCalculationService.ts
  * Migration Date: September 8, 2025
- * Renamed for clarity: dragCalculations.ts (September 10, 2025) - Follows calculation file naming convention
+ * Renamed to: dragMath.ts (September 10, 2025) - Clarified as pure math calculations
  */
 
 /**

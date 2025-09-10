@@ -23,7 +23,6 @@ import {
   MilestoneOrchestrator,
   ProjectOrchestrator
 } from '@/services';
-import { MilestoneCalculationService } from '@/services';
 import { supabase } from '@/integrations/supabase/client';
 
 // Helper functions for day and date patterns

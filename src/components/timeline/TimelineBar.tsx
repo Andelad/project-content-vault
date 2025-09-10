@@ -5,6 +5,7 @@ import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 import { isSameDate } from '@/utils/dateFormatUtils';
+import type { Project } from '@/types/core';
 import { 
   calculateWorkHourCapacity, 
   isHolidayDateCapacity as isHolidayDate,
@@ -23,8 +24,7 @@ import {
   calculateLegacyProjectMetrics
 } from '@/services';
 import { ProjectIconIndicator, ProjectMilestones } from '@/components';
-import { useCachedWorkingDayChecker } from '@/services';
-import { getTimelinePositions } from '@/services/ui/TimelinePositioning';
+import { useCachedWorkingDayChecker, getTimelinePositions } from '@/services';
 
 interface TimelineBarProps {
   project: any;
@@ -193,14 +193,26 @@ export const TimelineBar = memo(function TimelineBar({
 
   // Memoize project metrics calculation using service
   const projectMetrics = useMemo(() => {
+    // Create a mock project for the legacy function
+    const mockProject = {
+      id: project.id || 'timeline-project',
+      name: project.name || 'Timeline Project',
+      client: '',
+      color: project.color || '#3b82f6',
+      groupId: project.groupId || 'default-group',
+      rowId: project.rowId || 'default-row',
+      startDate: project.startDate,
+      endDate: project.endDate,
+      estimatedHours: project.estimatedHours,
+      notes: '',
+      continuous: false
+    } as Project;
+    
     return calculateLegacyProjectMetrics(
-      project.startDate,
-      project.endDate,
-      project.estimatedHours,
-      isWorkingDay,
-      project.autoEstimateDays, // Pass auto-estimate days for proper filtering
-      settings, // Pass settings for working day calculation
-      holidays // Pass holidays for working day calculation
+      mockProject,
+      [], // empty events array
+      holidays,
+      new Date()
     );
   }, [project.startDate, project.endDate, project.estimatedHours, isWorkingDay, project.autoEstimateDays, settings, holidays]);
   

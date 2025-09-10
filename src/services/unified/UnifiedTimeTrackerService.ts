@@ -1,13 +1,20 @@
 /**
  * Time Tracker Calculation Service
  *
- * Centralizes all time tracking business logic, calculations, and transformations.
+ * Centralizes a  static calculateActiveTimeSpent(startTime: Date): { totalSeconds: number; duration: number } {
+    const now = new Date();
+    const totalSeconds = Math.floor((now.getTime() - startTime.getTime()) / 1000);
+    // ✅ DELEGATE to domain layer instead of manual calculation
+    const duration = calculateDurationHours(startTime, now);
+    return { totalSeconds, duration };
+  }e tracking business logic, calculations, and transformations.
  * Extracted from TimeTracker component to follow architectural pattern of keeping
  * calculations in services rather than components.
  */
 
 import { CalendarEvent } from '@/types/core';
 import { calculateOverlapActions, findOverlappingEvents } from '@/services';
+import { calculateDurationHours } from '@/services/calculations/dateCalculations';
 import {
   processEventOverlaps,
   calculateElapsedTime,
@@ -59,7 +66,8 @@ export class TimeTrackerCalculationService {
   static calculateElapsedTime(startTime: Date): { totalSeconds: number; duration: number } {
     const now = new Date();
     const totalSeconds = Math.floor((now.getTime() - startTime.getTime()) / 1000);
-    const duration = (now.getTime() - startTime.getTime()) / (1000 * 60 * 60); // hours
+    // ✅ DELEGATE to domain layer instead of manual calculation
+    const duration = calculateDurationHours(startTime, now);
     return { totalSeconds, duration };
   }
 
@@ -67,7 +75,8 @@ export class TimeTrackerCalculationService {
    * Calculate duration between two dates in hours
    */
   static calculateDurationInHours(startTime: Date, endTime: Date): number {
-    return (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
+    // ✅ DELEGATE to domain layer - no manual date math!
+    return calculateDurationHours(startTime, endTime);
   }
 
   /**

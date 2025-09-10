@@ -389,3 +389,205 @@ export function validateRecurringConfig(recurring: CalendarEvent['recurring']): 
 
   return null;
 }
+
+// =====================================================================================
+// EVENT OVERLAP CALCULATIONS
+// =====================================================================================
+
+/**
+ * Consolidated event overlap calculations from eventOverlapCalculations.ts
+ * Added: September 10, 2025
+ */
+
+export interface EventOverlapParams {
+  events: Array<{
+    id: string;
+    type: 'planned' | 'tracked' | string;
+    startTime: Date;
+    endTime: Date;
+  }>;
+  trackingStart: Date;
+  trackingEnd: Date;
+  currentEventId?: string;
+}
+
+export interface OverlapAction {
+  type: 'delete' | 'split' | 'trim_start' | 'trim_end';
+  eventId: string;
+  originalEvent: {
+    id: string;
+    startTime: Date;
+    endTime: Date;
+  };
+  newEvent?: {
+    startTime: Date;
+    endTime: Date;
+  };
+}
+
+export interface TimeOverlapResult {
+  hasOverlap: boolean;
+  overlapDuration: number; // in milliseconds
+  overlapStart?: Date;
+  overlapEnd?: Date;
+}
+
+/**
+ * Find all events that overlap with a tracking period
+ */
+export function findOverlappingEvents(params: EventOverlapParams): Array<EventOverlapParams['events'][0]> {
+  const { events, trackingStart, trackingEnd, currentEventId } = params;
+  
+  if (!events.length || trackingStart >= trackingEnd) {
+    return [];
+  }
+  
+  return events.filter(event => 
+    event.type === 'planned' && 
+    event.id !== currentEventId &&
+    (
+      (event.startTime >= trackingStart && event.startTime < trackingEnd) ||
+      (event.endTime > trackingStart && event.endTime <= trackingEnd) ||
+      (event.startTime <= trackingStart && event.endTime >= trackingEnd) ||
+      (trackingStart <= event.startTime && trackingEnd >= event.endTime)
+    )
+  );
+}
+
+/**
+ * Calculate the appropriate action for each overlapping event
+ */
+export function calculateOverlapActions(params: EventOverlapParams): OverlapAction[] {
+  const { trackingStart, trackingEnd } = params;
+  
+  if (trackingStart >= trackingEnd) {
+    return [];
+  }
+  
+  const overlappingEvents = findOverlappingEvents(params);
+  
+  return overlappingEvents.map(event => {
+    const eventStart = new Date(event.startTime);
+    const eventEnd = new Date(event.endTime);
+    
+    if (trackingStart <= eventStart && trackingEnd >= eventEnd) {
+      return {
+        type: 'delete',
+        eventId: event.id,
+        originalEvent: { id: event.id, startTime: eventStart, endTime: eventEnd }
+      };
+    } else if (trackingStart > eventStart && trackingEnd < eventEnd) {
+      return {
+        type: 'split',
+        eventId: event.id,
+        originalEvent: { id: event.id, startTime: eventStart, endTime: eventEnd },
+        newEvent: { startTime: trackingEnd, endTime: eventEnd }
+      };
+    } else if (trackingStart <= eventStart && trackingEnd > eventStart && trackingEnd < eventEnd) {
+      return {
+        type: 'trim_start',
+        eventId: event.id,
+        originalEvent: { id: event.id, startTime: eventStart, endTime: eventEnd },
+        newEvent: { startTime: trackingEnd, endTime: eventEnd }
+      };
+    } else if (trackingStart > eventStart && trackingStart < eventEnd && trackingEnd >= eventEnd) {
+      return {
+        type: 'trim_end',
+        eventId: event.id,
+        originalEvent: { id: event.id, startTime: eventStart, endTime: eventEnd },
+        newEvent: { startTime: eventStart, endTime: trackingStart }
+      };
+    }
+    
+    return {
+      type: 'delete',
+      eventId: event.id,
+      originalEvent: { id: event.id, startTime: eventStart, endTime: eventEnd }
+    };
+  });
+}
+
+/**
+ * Check if two time periods overlap
+ */
+export function isTimeOverlap(
+  start1: Date, 
+  end1: Date, 
+  start2: Date, 
+  end2: Date
+): boolean {
+  if (!start1 || !end1 || !start2 || !end2) {
+    return false;
+  }
+  
+  return start1 < end2 && end1 > start2;
+}
+
+/**
+ * Get the overlap duration between two time periods (in milliseconds)
+ */
+export function getOverlapDuration(
+  start1: Date, 
+  end1: Date, 
+  start2: Date, 
+  end2: Date
+): number {
+  if (!isTimeOverlap(start1, end1, start2, end2)) {
+    return 0;
+  }
+  
+  const overlapStart = new Date(Math.max(start1.getTime(), start2.getTime()));
+  const overlapEnd = new Date(Math.min(end1.getTime(), end2.getTime()));
+  
+  return Math.max(0, overlapEnd.getTime() - overlapStart.getTime());
+}
+
+/**
+ * Get detailed overlap information between two time periods
+ */
+export function getOverlapDetails(
+  start1: Date, 
+  end1: Date, 
+  start2: Date, 
+  end2: Date
+): TimeOverlapResult {
+  if (!isTimeOverlap(start1, end1, start2, end2)) {
+    return {
+      hasOverlap: false,
+      overlapDuration: 0
+    };
+  }
+  
+  const overlapStart = new Date(Math.max(start1.getTime(), start2.getTime()));
+  const overlapEnd = new Date(Math.min(end1.getTime(), end2.getTime()));
+  const overlapDuration = overlapEnd.getTime() - overlapStart.getTime();
+  
+  return {
+    hasOverlap: true,
+    overlapDuration,
+    overlapStart,
+    overlapEnd
+  };
+}
+
+/**
+ * Check if an event overlaps with multiple other events
+ */
+export function findMultipleOverlaps(
+  targetEvent: { startTime: Date; endTime: Date; id: string },
+  otherEvents: Array<{ startTime: Date; endTime: Date; id: string }>
+): Array<{ event: typeof otherEvents[0]; overlapDuration: number }> {
+  return otherEvents
+    .filter(event => event.id !== targetEvent.id)
+    .map(event => ({
+      event,
+      overlapDuration: getOverlapDuration(
+        targetEvent.startTime,
+        targetEvent.endTime,
+        event.startTime,
+        event.endTime
+      )
+    }))
+    .filter(result => result.overlapDuration > 0)
+    .sort((a, b) => b.overlapDuration - a.overlapDuration);
+}

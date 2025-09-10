@@ -6,32 +6,26 @@
 // Availability calculations
 export * from './availabilityCalculations';
 
-// Completion calculations
-export * from './completionCalculations';
+// Analytics calculations (consolidation of insights + completion)
+export * from './analyticsCalculations';
 
 // Date calculations - core date/time functions
 export * from './dateCalculations';
 
-// Drag calculations - timeline interaction logic
+// Drag calculations - pure timeline interaction calculations
 export * from './dragCalculations';
 
-// Event calculations
+// Event calculations (includes event overlap functionality)
 export * from './eventCalculations';
-
-// Event overlap calculations
-export * from './eventOverlapCalculations';
 
 // Holiday calculations
 export * from './holidayCalculations';
-
-// Insight calculations
-export * from './insightCalculations';
 
 // Milestone calculations  
 export * from './milestoneCalculations';
 
 // Planner calculations
-export * from './plannerCalculations';
+export * from './plannerInsights';
 
 // Project calculations - excluding conflicting exports
 export {
@@ -41,23 +35,8 @@ export {
   DurationFormattingService
 } from './projectCalculations';
 
-// Project overlap calculations - explicit exports to avoid conflicts
-export {
-  checkProjectOverlap,
-  detectLiveDragConflicts,
-  resolveDragConflicts,
-  findNearestAvailableSlot,
-  adjustProjectDatesForDrag,
-  calculateOverlapPercentage
-} from './projectOverlapCalculations';
-
-export type {
-  ConflictDetectionResult,
-  DateAdjustmentResult
-} from './projectOverlapCalculations';
-
-// Project status calculations
-export * from './projectStatusCalculations';
+// Project operations - consolidated progress, status, conflicts, and drag operations
+export * from './projectOperations';
 
 // Settings calculations
 export * from './settingsCalculations';
@@ -72,10 +51,4 @@ export * from './timeTrackingCalculations';
 export * from './timelineCalculations';
 
 // Timeline position calculations - migrated from timelinePositionService
-export * from './timelinePositionCalculations';
-
-// Project progress calculations - migrated from projectProgressService
-export * from './projectProgressCalculations';
-
-// Calendar insight calculations
-export * from './calendarInsightCalculations';
+export * from './timelinePositioning';

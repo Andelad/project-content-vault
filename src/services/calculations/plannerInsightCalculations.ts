@@ -1,6 +1,7 @@
 /**
- * Calendar insight calculations
+ * Planner Insight Calculations
  * Extracted from CalendarInsightCard component
+ * Renamed from calendarInsightCalculations.ts to plannerInsightCalculations.ts
  */
 
 import moment from 'moment';

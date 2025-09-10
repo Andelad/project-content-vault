@@ -1,6 +1,7 @@
 import ICAL from 'ical.js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { calculateDurationHours } from '@/services/calculations/dateCalculations';
 
 export interface ExternalEvent {
   title: string;
@@ -106,7 +107,8 @@ export class CalendarIntegrationService {
             external_url: event.externalUrl,
             external_last_modified: event.externalLastModified?.toISOString(),
             is_external_event: true,
-            duration: (event.endTime.getTime() - event.startTime.getTime()) / (1000 * 60 * 60) // hours
+            // ✅ DELEGATE to domain layer - no manual date math!
+            duration: calculateDurationHours(event.startTime, event.endTime)
           };
 
           if (existingEvent) {

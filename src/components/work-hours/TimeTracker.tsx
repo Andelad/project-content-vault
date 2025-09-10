@@ -14,8 +14,7 @@ import {
   createTimeRange,
   type EventSplitResult 
 } from '@/services';
-import { TimeTrackerCalculationService } from '@/services';
-import { timeTrackingService } from '@/services/unified/timeTrackingService';
+import { TimeTrackerCalculationService, timeTrackingService } from '@/services';
 import { supabase } from '@/integrations/supabase/client';
 
 interface TimeTrackerProps {

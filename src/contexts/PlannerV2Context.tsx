@@ -7,7 +7,7 @@ import { EventInput } from '@fullcalendar/core';
 
 // Try direct import from the specific file instead of barrel export
 console.log('🔍 PlannerV2Context: Attempting to import PlannerV2CalculationService...');
-import { PlannerV2CalculationService } from '@/services/calculations/plannerCalculations';
+import { PlannerV2CalculationService } from '@/services/calculations/plannerInsights';
 
 interface PlannerV2ContextType {
   // Calendar Events

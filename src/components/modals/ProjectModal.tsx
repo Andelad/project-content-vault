@@ -438,7 +438,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
   };
 
   const metrics = useMemo(() => (
-    calculateProjectTimeMetrics(currentProject, events as any, holidays, settings)
+    calculateProjectTimeMetrics(currentProject, events as any, holidays, new Date())
   ), [
     currentProject.id,
     currentProject.startDate?.toString?.() ?? '',

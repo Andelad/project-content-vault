@@ -20,8 +20,8 @@ export const ProjectInsightsSection: React.FC<ProjectInsightsSectionProps> = ({
   // Calculate project metrics using the standard function
   const metrics = React.useMemo(() => {
     if (!project || !events || !holidays) return null;
-    return calculateProjectTimeMetrics(project, events, holidays, settings);
-  }, [project, events, holidays, settings]);
+    return calculateProjectTimeMetrics(project, events, holidays, new Date());
+  }, [project, events, holidays]);
 
   const projectEvents = React.useMemo(() => {
     return events?.filter((event: any) =>

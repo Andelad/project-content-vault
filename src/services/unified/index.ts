@@ -5,3 +5,4 @@ export * from './UnifiedEventWorkHourService';
 export * from './UnifiedTimeTrackerService';
 export * from './UnifiedCalendarService';
 export * from './UnifiedMilestoneService';
+export * from './timeTrackingService';

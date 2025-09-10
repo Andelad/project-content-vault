@@ -7,10 +7,10 @@
  * 🚨 ARCHITECTURAL RULE: Services calculate, Components coordinate
  */
 
-import * as DragCalculationService from '../calculations/dragCalculations';
+import * as DragCalculationsService from '../calculations/dragCalculations';
 import { DragState, DragPositionResult } from '../calculations/dragCalculations';
-import * as ProjectOverlapService from '../calculations/projectOverlapCalculations';
-import { ConflictDetectionResult, DateAdjustmentResult } from '../calculations/projectOverlapCalculations';
+import * as ProjectOverlapService from '../calculations/projectOperations';
+import { ConflictDetectionResult, DateAdjustmentResult } from '../calculations/projectOperations';
 import { TimelineViewport as TimelineViewportService } from '../ui/TimelineViewport';
 import type { Project } from '@/types/core';
 
@@ -63,7 +63,7 @@ export class TimelineDragCoordinatorService {
     const { projects, viewportStart, viewportEnd, timelineMode, dates } = timelineContext;
 
     // 1. Calculate position update
-    const positionResult = DragCalculationService.calculateDragPositionUpdate(
+    const positionResult = DragCalculationsService.calculateDragPositionUpdate(
       mouseEvent.clientX,
       mouseEvent.clientY,
       dragState,
@@ -92,7 +92,7 @@ export class TimelineDragCoordinatorService {
     const newDates = this.calculateNewDates(dragState, positionResult);
 
     // 4. Validate bounds
-    const boundsValidation = DragCalculationService.validateDragBounds(
+    const boundsValidation = DragCalculationsService.validateDragBounds(
       newDates.startDate,
       newDates.endDate,
       viewportStart,

@@ -8,6 +8,7 @@
  */
 
 import { Project, CalendarEvent, Holiday, Settings, Milestone } from '@/types/core';
+import { calculateDurationDays } from '@/services/calculations/dateCalculations';
 import { APP_LOCALE } from '@/utils/dateFormatUtils';
 import {
   ProjectEvent,
@@ -23,7 +24,7 @@ import {
   getRelevantMilestones,
   calculateProgressPercentage,
   calculateProjectTimeMetrics
-} from '../calculations/projectProgressCalculations';
+} from '../calculations/projectOperations';
 
 // =====================================================================================
 // TYPES & INTERFACES
@@ -60,8 +61,9 @@ export function getEstimatedProgressForDate(
   
   if (relevantMilestones.length === 0) {
     // No milestones, use linear interpolation
-    const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-    const targetDays = Math.ceil((targetDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    // ✅ DELEGATE to domain layer - no manual date math!
+    const totalDays = calculateDurationDays(startDate, endDate);
+    const targetDays = calculateDurationDays(startDate, targetDate);
     
     if (totalDays === 0) return 0;
     const progressRatio = Math.min(1, Math.max(0, targetDays / totalDays));
@@ -77,8 +79,9 @@ export function getEstimatedProgressForDate(
     
     if (targetDate <= milestoneDate) {
       // Target date is within this segment, interpolate
-      const segmentDays = Math.ceil((milestoneDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
-      const targetDays = Math.ceil((targetDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
+      // ✅ DELEGATE to domain layer - no manual date math!
+      const segmentDays = calculateDurationDays(prevDate, milestoneDate);
+      const targetDays = calculateDurationDays(prevDate, targetDate);
       
       if (segmentDays === 0) return prevHours + milestone.timeAllocation;
       
@@ -119,17 +122,16 @@ export function calculateProjectProgressData(
   
   const projectEvents = getProjectEvents(events, project.id);
   const relevantMilestones = getRelevantMilestones(milestones, project.id);
-  const plannedTimeMap = buildPlannedTimeMap(projectEvents, project.id, startDate, endDate);
   const data: DataPoint[] = [];
   
   // Add starting point
-  const completedTimeAtStart = getCompletedTimeUpToDate(startDate, plannedTimeMap);
+  const completedTimeAtStart = getCompletedTimeUpToDate(projectEvents, project.id, startDate);
   
   data.push({
     date: new Date(startDate),
     estimatedProgress: 0,
     completedTime: completedTimeAtStart,
-    plannedTime: getPlannedTimeUpToDate(startDate, plannedTimeMap)
+    plannedTime: getPlannedTimeUpToDate(events, project.id, startDate)
   });
   
   if (relevantMilestones.length > 0) {
@@ -146,7 +148,7 @@ export function calculateProjectProgressData(
         date: new Date(milestoneDate),
         estimatedProgress: cumulativeEstimatedHours,
         completedTime: completedTimeAtMilestone,
-        plannedTime: getPlannedTimeUpToDate(milestoneDate, plannedTimeMap)
+        plannedTime: getPlannedTimeUpToDate(events, project.id, milestoneDate)
       });
     });
   }
@@ -158,7 +160,7 @@ export function calculateProjectProgressData(
     date: new Date(endDate),
     estimatedProgress: project.estimatedHours,
     completedTime: completedTimeAtEnd,
-    plannedTime: getPlannedTimeUpToDate(endDate, plannedTimeMap)
+    plannedTime: getPlannedTimeUpToDate(events, project.id, endDate)
   });
   
   return data;
@@ -283,7 +285,7 @@ export function analyzeProjectProgress(
       completed: event.completed || false
     }));
 
-  const timeMetrics = calculateProjectTimeMetrics(project, projectEvents, holidays, settings);
+  const timeMetrics = calculateProjectTimeMetrics(project, projectEvents, holidays, new Date());
   const progressData = calculateProjectProgressData(project, projectEvents, milestones);
   const status = calculateProjectStatus(project);
   const isOnTrack = isProjectOnTrack(project, projectEvents, milestones);
@@ -296,7 +298,7 @@ export function analyzeProjectProgress(
     const dueDate = new Date(milestone.dueDate);
     const daysUntilDue = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     const expectedProgress = getEstimatedProgressForDate(today, project, milestones);
-    const actualProgress = getCompletedTimeUpToDate(today, new Map()); // Use empty map for now
+    const actualProgress = getCompletedTimeUpToDate(projectEvents, project.id, today); // Fix function call
     
     return {
       milestone,
@@ -395,7 +397,7 @@ export function analyzeProjectProgressLegacy(options: ProgressGraphCalculationOp
       date: new Date(startDate),
       estimatedProgress: 0,
       completedTime: getCompletedTimeUpToDate(projectEvents, project.id, startDate),
-      plannedTime: getPlannedTimeUpToDate(startDate, plannedTimeMap)
+      plannedTime: getPlannedTimeUpToDate(projectEvents, project.id, startDate)
     });
     
     // Add milestone points
@@ -407,7 +409,7 @@ export function analyzeProjectProgressLegacy(options: ProgressGraphCalculationOp
         date: new Date(milestoneDate),
         estimatedProgress: cumulativeHours,
         completedTime: getCompletedTimeUpToDate(projectEvents, project.id, milestoneDate),
-        plannedTime: getPlannedTimeUpToDate(milestoneDate, plannedTimeMap)
+        plannedTime: getPlannedTimeUpToDate(projectEvents, project.id, milestoneDate)
       });
     });
     
@@ -416,7 +418,7 @@ export function analyzeProjectProgressLegacy(options: ProgressGraphCalculationOp
       date: new Date(endDate),
       estimatedProgress: project.estimatedHours,
       completedTime: getCompletedTimeUpToDate(projectEvents, project.id, endDate),
-      plannedTime: getPlannedTimeUpToDate(endDate, plannedTimeMap)
+      plannedTime: getPlannedTimeUpToDate(projectEvents, project.id, endDate)
     });
   } else {
     // Linear progression
@@ -435,7 +437,7 @@ export function analyzeProjectProgressLegacy(options: ProgressGraphCalculationOp
         date: new Date(currentDate),
         estimatedProgress,
         completedTime: getCompletedTimeUpToDate(projectEvents, project.id, currentDate),
-        plannedTime: getPlannedTimeUpToDate(currentDate, plannedTimeMap)
+        plannedTime: getPlannedTimeUpToDate(projectEvents, project.id, currentDate)
       });
     }
   }
@@ -526,4 +528,4 @@ export {
   calculateProgressPercentage,
   getRelevantMilestones,
   calculateProjectTimeMetrics
-} from '../calculations/projectProgressCalculations';
+} from '../calculations/projectOperations';

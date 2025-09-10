@@ -3,6 +3,7 @@ import { EventInput } from '@fullcalendar/core';
 import { calculateEventStyle } from './UnifiedEventWorkHourService';
 import { OKLCH_FALLBACK_GRAY } from '@/constants/colors';
 import { type EventStyleConfig } from './UnifiedEventWorkHourService';
+import { calculateDurationHours } from '@/services/calculations/dateCalculations';
 
 /**
  * Transform CalendarEvent to FullCalendar EventInput format
@@ -105,7 +106,8 @@ export function transformFullCalendarToCalendarEvent(fcEvent: any): Partial<Cale
     title: fcEvent.title,
     startTime: new Date(fcEvent.start),
     endTime: new Date(fcEvent.end),
-    duration: (new Date(fcEvent.end).getTime() - new Date(fcEvent.start).getTime()) / (1000 * 60 * 60)
+    // ✅ DELEGATE to domain layer - no manual date math!
+    duration: calculateDurationHours(new Date(fcEvent.start), new Date(fcEvent.end))
   };
 }
 

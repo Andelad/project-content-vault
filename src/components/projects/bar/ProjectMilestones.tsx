@@ -2,7 +2,7 @@ import React, { memo, useMemo, useState } from 'react';
 import { Flag } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../../ui/tooltip';
 import { useProjectContext } from '../../../contexts/ProjectContext';
-import { type TimelinePositionCalculation } from '@/services/ui/TimelinePositioning';
+import { type TimelinePositionCalculation } from '@/services';
 import { Milestone } from '@/types/core';
 import { useToast } from '@/hooks/use-toast';
 

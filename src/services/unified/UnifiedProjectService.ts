@@ -5,6 +5,7 @@
  */
 
 import { Project, Milestone } from '@/types';
+import { calculateDurationDays } from '@/services/calculations/dateCalculations';
 
 // ============================================================================
 // PROJECT BUSINESS LOGIC CONSOLIDATION
@@ -18,8 +19,8 @@ import { Project, Milestone } from '@/types';
  * - ProjectMetricsCalculationService methods
  */
 export function calculateProjectDuration(startDate: Date, endDate: Date): number {
-  const msPerDay = 24 * 60 * 60 * 1000;
-  return Math.ceil((endDate.getTime() - startDate.getTime()) / msPerDay);
+  // ✅ DELEGATE to domain layer - no manual date math!
+  return calculateDurationDays(startDate, endDate);
 }
 
 /**
