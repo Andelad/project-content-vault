@@ -1,17 +1,14 @@
-// Barrel export for all lib utilities
-// Note: Some utilities have naming conflicts, import specific functions when needed
+// Barrel export for lib utilities - Framework utilities only
+// 
+// ✅ ALLOWED: Framework utilities (shadcn className merging)
+// ✅ ALLOWED: Pure formatting (currency, date display) 
+// ✅ ALLOWED: Generic algorithms (debounce, throttle)
+// ✅ ALLOWED: Validation helpers (email, phone format)
+//
+// ❌ FORBIDDEN: Business calculations (moved to @/services)
+// ❌ FORBIDDEN: Domain-specific logic (moved to @/services)
+// ❌ FORBIDDEN: Application workflows (moved to @/services)
+// ❌ FORBIDDEN: Performance caching (moved to @/services/infrastructure)
 
-// Date utilities
-// Removed - functions moved to @/services/core/DateCalculationService and @/services/projects/ProjectCalculationService
-// export * from './dateUtils';
-
-// Project utilities
-// Removed - functions moved to @/services/projects/projectStatusService
-// export * from './projectUtils';
-
-// Timeline and positioning
-// Removed - functions moved to @/services/timeline/TimelineViewportService (already existed)
-// export * from './viewportUtils';
-
-// General utilities
+// Framework utilities
 export * from './utils';

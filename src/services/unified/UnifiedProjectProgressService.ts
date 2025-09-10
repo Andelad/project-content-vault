@@ -8,6 +8,7 @@
  */
 
 import { Project, CalendarEvent, Holiday, Settings, Milestone } from '@/types/core';
+import { APP_LOCALE } from '@/utils/dateFormatUtils';
 import {
   ProjectEvent,
   MilestoneWithProgress,
@@ -240,8 +241,8 @@ export function formatProjectDateRange(project: Project): string {
     year: 'numeric' 
   };
   
-  const start = startDate.toLocaleDateString('en-US', formatOptions);
-  const end = endDate.toLocaleDateString('en-US', formatOptions);
+  const start = startDate.toLocaleDateString(APP_LOCALE, formatOptions);
+  const end = endDate.toLocaleDateString(APP_LOCALE, formatOptions);
   
   return `${start} - ${end}`;
 }

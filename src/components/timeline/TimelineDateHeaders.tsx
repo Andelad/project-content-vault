@@ -1,5 +1,6 @@
 import React, { memo } from 'react';
 import { HoverableDateCell } from './HoverableDateCell';
+import { formatMonthYear } from '@/utils/dateFormatUtils';
 
 interface TimelineDateHeadersProps {
   dates: Date[];
@@ -24,7 +25,7 @@ export const TimelineDateHeaders = memo(function TimelineDateHeaders({ dates, mo
         }
         
         // Start a new month group
-        const monthName = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        const monthName = formatMonthYear(date);
         monthGroups.push({
           monthName,
           startIndex: index,
@@ -127,7 +128,7 @@ export const TimelineDateHeaders = memo(function TimelineDateHeaders({ dates, mo
       }
       
       // Start a new month group
-      const monthName = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      const monthName = formatMonthYear(date);
       monthGroups.push({
         monthName,
         startIndex: index,

@@ -10,8 +10,8 @@ console.log('🔍 Attempting to import PlannerV2CalculationService...');
 import { PlannerV2CalculationService } from '@/services/calculations/plannerCalculations';
 
 import { supabase } from '@/integrations/supabase/client';
-import { generateRecurringEvents } from '@/utils/recurringEvents';
-import { ensureRecurringEventsExist } from '@/utils/recurringEventsMaintenance';
+import { generateRecurringEvents } from '@/services';
+import { ensureRecurringEventsExist } from '@/services';
 
 interface PlannerContextType {
   // Calendar Events

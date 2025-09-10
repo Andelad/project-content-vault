@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
 import { Project, CalendarEvent, Milestone } from '@/types/core';
 import { analyzeProjectProgress } from '@/services';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../../components/ui/tooltip';
+import { formatDateShort } from '@/utils/dateFormatUtils';
 
 interface ProjectProgressGraphProps {
   project: Project;
@@ -49,7 +50,7 @@ export function ProjectProgressGraph({ project, events, milestones = [] }: Proje
       dateLabels.push({
         date: point.date,
         x,
-        label: point.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        label: formatDateShort(point.date)
       });
     }
   }

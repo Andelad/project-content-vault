@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Plus, Move } from 'lucide-react';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
-import BeachAccess from '@/imports/BeachAccess';
+import { ParasolIcon } from '@/assets';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import { Button } from '../ui/button';
 import { wouldOverlapHolidays } from '@/services';
@@ -648,12 +648,7 @@ export function AddHolidayRow({ dates, collapsed, isDragging, dragState, handleH
             }}
             className="hover:bg-gray-50 transition-colors p-1 rounded -m-1" 
           >
-            <div 
-              className="w-4 h-4" 
-              style={{ '--fill-0': '#6b7280' } as React.CSSProperties}
-            >
-              <BeachAccess />
-            </div>
+            <ParasolIcon className="w-4 h-4 text-gray-600" />
           </button>
         ) : (
           <button 
@@ -665,12 +660,7 @@ export function AddHolidayRow({ dates, collapsed, isDragging, dragState, handleH
             }}
             className="flex items-center gap-3 hover:bg-gray-50 transition-colors px-2 py-1 rounded-md -mx-2 -my-1"
           >
-            <div 
-              className="w-4 h-4" 
-              style={{ '--fill-0': '#6b7280' } as React.CSSProperties}
-            >
-              <BeachAccess />
-            </div>
+            <ParasolIcon className="w-4 h-4 text-gray-600" />
             <span className="text-sm font-medium text-gray-800">Add holiday</span>
           </button>
         )}

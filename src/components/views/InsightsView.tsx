@@ -28,6 +28,7 @@ import { Badge } from '../ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Checkbox } from '../ui/checkbox';
 import { AverageDayHeatmapCard } from '../insights/AverageDayHeatmapCard';
+import { formatMonthYear, formatMonthLongYear, formatMonth, formatDateShort, APP_LOCALE } from '@/utils/dateFormatUtils';
 import { 
   calculateFutureCommitments,
   calculateWeeklyCapacity
@@ -163,7 +164,7 @@ export function InsightsView() {
         
         periods.push({
           label: `${weekStart.getDate()}-${weekEnd.getDate()}`,
-          monthYear: `${weekStart.toLocaleDateString('en-US', { month: 'short' })} ${weekStart.getFullYear()}`,
+          monthYear: `${weekStart.toLocaleDateString(APP_LOCALE, { month: 'short' })} ${weekStart.getFullYear()}`,
           year: weekStart.getFullYear(),
           start: weekStart,
           end: weekEnd
@@ -180,8 +181,8 @@ export function InsightsView() {
         const monthEnd = new Date(baseYear, adjustedMonth - i + 1, 0);
         
         periods.push({
-          label: `${monthStart.toLocaleDateString('en-US', { month: 'short' })}`,
-          monthYear: `${monthStart.toLocaleDateString('en-US', { month: 'long' })} ${monthStart.getFullYear()}`,
+          label: `${monthStart.toLocaleDateString(APP_LOCALE, { month: 'short' })}`,
+          monthYear: `${monthStart.toLocaleDateString(APP_LOCALE, { month: 'long' })} ${monthStart.getFullYear()}`,
           year: monthStart.getFullYear(),
           start: monthStart,
           end: monthEnd
@@ -607,7 +608,7 @@ export function InsightsView() {
                                 
                                 <div className="text-center">
                                   <div className="font-medium">
-                                    {new Date(project.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                    {formatDateShort(new Date(project.startDate))}
                                   </div>
                                   <div className="text-gray-500">Start Date</div>
                                 </div>

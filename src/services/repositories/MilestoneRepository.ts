@@ -18,6 +18,7 @@ export interface IMilestoneRepository extends IBaseRepository<Milestone> {
   findByDateRange(startDate: Date, endDate: Date): Promise<Milestone[]>;
   findOverdue(): Promise<Milestone[]>;
   findUpcoming(days?: number): Promise<Milestone[]>;
+  findConflictingDates(projectId: string, date: Date, excludeId?: string): Promise<Milestone[]>;
   getProgressStats(projectId?: string): Promise<{
     total: number;
     completed: number;
@@ -156,6 +157,15 @@ export class MilestoneRepository
       milestone.dueDate >= now && 
       milestone.dueDate <= futureDate &&
       !milestone.name.toLowerCase().includes('completed')
+    );
+  }
+
+  async findConflictingDates(projectId: string, date: Date, excludeId?: string): Promise<Milestone[]> {
+    const all = await this.findAll();
+    return all.filter(milestone => 
+      milestone.projectId === projectId &&
+      milestone.dueDate.toDateString() === date.toDateString() &&
+      (excludeId ? milestone.id !== excludeId : true)
     );
   }
 

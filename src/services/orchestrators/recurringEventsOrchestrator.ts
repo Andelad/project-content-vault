@@ -1,6 +1,14 @@
-import { CalendarEvent } from '../types';
+/**
+ * Recurring Events Orchestrator
+ * Handles database operations and maintenance of recurring calendar event series
+ * 
+ * Migrated from utils/recurringEventsMaintenance
+ * Following AI Development Rules - orchestrators handle multi-step processes with database operations
+ */
+
+import { CalendarEvent } from '@/types/core';
 import { supabase } from '@/integrations/supabase/client';
-import { generateRecurringEvents } from './recurringEvents';
+import { generateRecurringEvents } from '../calculations/eventCalculations';
 
 /**
  * Checks if a recurring series needs more events generated and creates them if necessary

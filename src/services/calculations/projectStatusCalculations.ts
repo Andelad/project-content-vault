@@ -1,4 +1,5 @@
 import type { Project } from '@/types';
+import { formatDateShort } from '@/utils/dateFormatUtils';
 
 /**
  * Project Status Calculations
@@ -65,10 +66,7 @@ export function formatProjectDateRange(project: Project): string {
   const start = new Date(project.startDate);
   const end = new Date(project.endDate);
 
-  const startFormatted = start.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric'
-  });
+  const startFormatted = formatDateShort(start);
 
   if (project.continuous) {
     return `${startFormatted} - ongoing`;
@@ -78,10 +76,10 @@ export function formatProjectDateRange(project: Project): string {
   const startYear = start.getFullYear();
   const endYear = end.getFullYear();
 
-  const endFormatted = end.toLocaleDateString('en-US', {
+  const endFormatted = startYear === endYear ? formatDateShort(end) : end.toLocaleDateString('en-GB', {
     month: 'short',
     day: 'numeric',
-    year: startYear === endYear ? undefined : 'numeric'
+    year: 'numeric'
   });
 
   return `${startFormatted} - ${endFormatted}`;

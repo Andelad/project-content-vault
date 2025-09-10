@@ -1,4 +1,4 @@
-import svgPaths from "./svg-ys3snjpkkk";
+import svgPaths from "../svg/svg-ys3snjpkkk";
 
 export default function BeachAccess() {
   return (

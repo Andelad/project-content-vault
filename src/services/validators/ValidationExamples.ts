@@ -18,14 +18,14 @@ import type {
 
 import { 
   ValidationOrchestrator,
-  type SystemValidationContext,
   type ValidationWorkflowOptions,
   type ComprehensiveValidationResult
 } from './ValidationOrchestrator';
 
 import { 
   CrossEntityValidator,
-  type CrossEntityValidationResult 
+  type CrossEntityValidationResult,
+  type SystemValidationContext
 } from './CrossEntityValidator';
 
 import { ProjectValidator } from './ProjectValidator';
@@ -427,25 +427,3 @@ export async function exampleRobustValidation(
     }
   }
 }
-
-// Export all examples for easy testing
-export {
-  // Main examples
-  exampleSystemHealthCheck,
-  exampleProjectFocusedValidation,
-  exampleQuickValidation,
-  
-  // Cross-entity examples
-  exampleProjectMilestoneValidation,
-  exampleEventWorkHourValidation,
-  
-  // Individual validation examples
-  exampleIndividualProjectValidation,
-  exampleIndividualMilestoneValidation,
-  
-  // Performance examples
-  examplePerformanceValidation,
-  
-  // Error handling examples
-  exampleRobustValidation
-};

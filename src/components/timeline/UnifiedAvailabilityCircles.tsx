@@ -2,6 +2,7 @@ import React, { memo, useMemo } from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { isHolidayDateCapacity as isHolidayDate } from '@/services';
+import { formatWeekdayDate, formatDateShort } from '@/utils/dateFormatUtils';
 import { 
   calculateAvailabilityReduction, 
   generateWorkHoursForDate,
@@ -342,11 +343,11 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
                     </div>
                     {mode === 'weeks' ? (
                       <div className="text-xs text-gray-400">
-                        {getWeekDates(date).map(d => d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' })).join(', ')}
+                        {getWeekDates(date).map(d => formatDateShort(d)).join(', ')}
                       </div>
                     ) : (
                       <div className="text-xs text-gray-400">
-                        {date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                        {formatWeekdayDate(date)}
                       </div>
                     )}
                     {(type === 'available' || type === 'busy') && (

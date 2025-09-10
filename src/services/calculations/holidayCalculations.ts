@@ -4,6 +4,7 @@
  */
 
 import { calculateDurationDays } from './dateCalculations';
+import { APP_LOCALE } from '@/utils/dateFormatUtils';
 
 export interface Holiday {
   startDate: Date;
@@ -152,7 +153,7 @@ export function formatDateRange(
   endDate: Date, 
   options: DateRangeFormatOptions = {}
 ): string {
-  const { format = 'short', locale = 'en-US' } = options;
+  const { format = 'short', locale = APP_LOCALE } = options;
   
   const sameMonth = startDate.getMonth() === endDate.getMonth();
   const sameYear = startDate.getFullYear() === endDate.getFullYear();

@@ -4,6 +4,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
+import { isSameDate } from '@/utils/dateFormatUtils';
 import { 
   calculateWorkHourCapacity, 
   isHolidayDateCapacity as isHolidayDate,
@@ -22,7 +23,7 @@ import {
   calculateLegacyProjectMetrics
 } from '@/services';
 import { ProjectIconIndicator, ProjectMilestones } from '@/components';
-import { useCachedWorkingDayChecker } from '@/lib/workingDayCache';
+import { useCachedWorkingDayChecker } from '@/services';
 import { getTimelinePositions } from '@/services/ui/TimelinePositioning';
 
 interface TimelineBarProps {
@@ -504,14 +505,14 @@ export const TimelineBar = memo(function TimelineBar({
               
               // Find the position of this date among visible working project days
               const visibleWorkingDays = dates.filter((d, i) => {
-                const isInProject = projectDays.some(pd => pd.toDateString() === d.toDateString());
+                const isInProject = projectDays.some(pd => isSameDate(pd, d));
                 const wh = generateWorkHoursForDate(d, settings);
                 const total = calculateWorkHoursTotalNew(wh);
                 const holiday = isHolidayDate(d, holidays);
                 return isInProject && !holiday && total > 0;
               });
               
-              const workingDayIndex = visibleWorkingDays.findIndex(d => d.toDateString() === date.toDateString());
+              const workingDayIndex = visibleWorkingDays.findIndex(d => isSameDate(d, date));
               const isFirstWorkingDay = workingDayIndex === 0;
               const isLastWorkingDay = workingDayIndex === visibleWorkingDays.length - 1;
 

@@ -68,6 +68,17 @@ export const TimelineColumnMarkers = memo(function TimelineColumnMarkers({ dates
                   );
                 })}
 
+                {/* Today column overlay - blue transparent background similar to date circle */}
+                {isToday && (
+                  <div 
+                    className="absolute top-0 bottom-0 left-0 right-0 pointer-events-none"
+                    style={{
+                      backgroundColor: 'rgba(219, 234, 254, 0.4)', // bg-blue-100 with 40% opacity
+                      zIndex: 2
+                    }}
+                  />
+                )}
+
                 {isToday && (
                   <div 
                     className="absolute top-0 bottom-0 pointer-events-none border-l-2 border-dashed border-gray-500"
@@ -102,6 +113,17 @@ export const TimelineColumnMarkers = memo(function TimelineColumnMarkers({ dates
                   width: `${columnWidth}px`
                 }} 
               >
+                {/* Today column overlay - blue transparent background similar to date circle */}
+                {isToday && (
+                  <div 
+                    className="absolute top-0 bottom-0 left-0 right-0 pointer-events-none"
+                    style={{
+                      backgroundColor: 'rgba(219, 234, 254, 0.4)', // bg-blue-100 with 40% opacity
+                      zIndex: 2
+                    }}
+                  />
+                )}
+                
                 {/* no-op: holiday overlays are rendered at row level */}
                 {isToday && (
                   <div 

@@ -11,9 +11,17 @@
 
 import * as DateCalculations from '../calculations/dateCalculations';
 
+interface CacheStats {
+  hits: number;
+  misses: number;
+  checks: number;
+}
+
 export class DateCache {
   private static dateCache = new Map<string, Date>();
   private static calculationCache = new Map<string, any>();
+  private static workingDayCache = new Map<string, boolean>();
+  private static cacheStats: CacheStats = { hits: 0, misses: 0, checks: 0 };
 
   /**
    * Get cached date instance to avoid repeated parsing
@@ -138,4 +146,109 @@ export class CachedDateCalculationService {
 
   // Expose all pure calculation methods for direct access when caching isn't needed
   static readonly pure = DateCalculations;
+}
+
+/**
+ * Working Day Cache Service
+ * Handles caching specifically for working day calculations
+ */
+export class WorkingDayCache {
+  private static workingDayCache = new Map<string, boolean>();
+  private static cacheStats: CacheStats = { hits: 0, misses: 0, checks: 0 };
+
+  /**
+   * Generate cache key for working day calculations
+   */
+  static generateWorkingDayKey(
+    date: Date,
+    settingsHash: string,
+    holidaysHash: string
+  ): string {
+    const dateKey = date.toDateString();
+    return `${dateKey}-${settingsHash}-${holidaysHash}`;
+  }
+
+  /**
+   * Create hash from work schedule settings
+   */
+  static hashSettings(weeklyWorkHours: any): string {
+    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    return days.map(day => {
+      const slots = weeklyWorkHours[day] || [];
+      return Array.isArray(slots)
+        ? slots.reduce((sum: number, slot: any) => sum + (slot.duration || 0), 0)
+        : 0;
+    }).join('-');
+  }
+
+  /**
+   * Create hash from holidays list
+   */
+  static hashHolidays(holidays: any[]): string {
+    return holidays.map(h => h.id).sort().join(',');
+  }
+
+  /**
+   * Cached working day checker - wraps existing logic with caching
+   */
+  static isWorkingDay(
+    date: Date,
+    weeklyWorkHours: any,
+    holidays: any[],
+    originalChecker?: (date: Date, weeklyWorkHours: any, holidays: any[]) => boolean
+  ): boolean {
+    this.cacheStats.checks++;
+
+    const settingsHash = this.hashSettings(weeklyWorkHours);
+    const holidaysHash = this.hashHolidays(holidays);
+    const cacheKey = this.generateWorkingDayKey(date, settingsHash, holidaysHash);
+
+    if (this.workingDayCache.has(cacheKey)) {
+      this.cacheStats.hits++;
+      return this.workingDayCache.get(cacheKey)!;
+    }
+
+    this.cacheStats.misses++;
+
+    // Use provided checker or fall back to DateCalculations
+    const isWorking = originalChecker ? 
+      originalChecker(date, weeklyWorkHours, holidays) :
+      DateCalculations.isWorkingDay(date, weeklyWorkHours, holidays);
+
+    this.workingDayCache.set(cacheKey, isWorking);
+
+    // Auto-cleanup when cache gets too large
+    if (this.workingDayCache.size > 5000) {
+      const keysToDelete = Array.from(this.workingDayCache.keys()).slice(0, 1000);
+      keysToDelete.forEach(key => this.workingDayCache.delete(key));
+    }
+
+    return isWorking;
+  }
+
+  /**
+   * Create a hook-compatible cached working day checker
+   */
+  static createCachedWorkingDayChecker(
+    weeklyWorkHours: any,
+    holidays: any[],
+    originalChecker?: (date: Date, weeklyWorkHours: any, holidays: any[]) => boolean
+  ) {
+    return (date: Date) => this.isWorkingDay(date, weeklyWorkHours, holidays, originalChecker);
+  }
+
+  /**
+   * Get working day cache statistics
+   */
+  static getWorkingDayStats(): CacheStats {
+    return { ...this.cacheStats };
+  }
+
+  /**
+   * Clear working day cache (for testing or memory management)
+   */
+  static clearWorkingDayCache(): void {
+    this.workingDayCache.clear();
+    this.cacheStats = { hits: 0, misses: 0, checks: 0 };
+  }
 }

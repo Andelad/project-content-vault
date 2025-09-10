@@ -3,6 +3,7 @@
  * Handles all viewport positioning, navigation, and animation calculations for timeline views
  * Migrated from legacy/timeline/timelineViewportService.ts
  */
+import { formatDateRange } from '@/utils/dateFormatUtils';
 
 // Types for viewport operations
 export interface ViewportPosition {
@@ -476,15 +477,6 @@ export class TimelineViewport {
    * Format date range for display
    */
   static formatDateRange(startDate: Date, endDate: Date): string {
-    const formatOptions: Intl.DateTimeFormatOptions = {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    };
-    
-    const startFormatted = startDate.toLocaleDateString('en-US', formatOptions);
-    const endFormatted = endDate.toLocaleDateString('en-US', formatOptions);
-    
-    return `${startFormatted} - ${endFormatted}`;
+    return formatDateRange(startDate, endDate);
   }
 }

@@ -6,6 +6,7 @@ import { usePlannerContext } from '@/contexts/PlannerContext';
 import { useProjectContext } from '@/contexts/ProjectContext';
 import { useTimelineContext } from '@/contexts/TimelineContext';
 import { useSettingsContext } from '@/contexts/SettingsContext';
+import { formatDateLong, formatDateRange as formatDateRangeUtil } from '@/utils/dateFormatUtils';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { ChevronLeft, ChevronRight, MapPin, CalendarSearch, CheckCircle2, Circle } from 'lucide-react';
@@ -194,35 +195,19 @@ export function PlannerView() {
   const formatDateRange = useCallback(() => {
     const calendarApi = calendarRef.current?.getApi();
     if (!calendarApi) return '';
-
+    
     const view = calendarApi.view;
     const start = view.activeStart;
     const end = view.activeEnd;
 
     if (currentView === 'day') {
-      return start.toLocaleDateString('en-GB', { 
-        weekday: 'long',
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-      });
+      return formatDateLong(start);
     } else {
-      // Format as "1 Sept - 7 Sept 2025"
-      const startFormatted = start.toLocaleDateString('en-GB', { 
-        day: 'numeric', 
-        month: 'short' 
-      });
+      // Calculate the actual end date (FullCalendar's end is exclusive)
       const endDate = new Date(end.getTime() - 24 * 60 * 60 * 1000);
-      const endFormatted = endDate.toLocaleDateString('en-GB', { 
-        day: 'numeric', 
-        month: 'short',
-        year: 'numeric'
-      });
-      return `${startFormatted} - ${endFormatted}`;
+      return formatDateRangeUtil(start, endDate);
     }
-  }, [currentView]);
-
-  // Keyboard shortcuts
+  }, [currentView]);  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't trigger shortcuts if user is typing in an input/textarea

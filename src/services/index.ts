@@ -122,13 +122,52 @@ export {
 } from './calculations/timeCalculations';
 
 // Legacy event calculation wrappers for backward compatibility
+// ===================================
+// STANDARDIZED DATE/TIME FORMATTING
+// ===================================
+
+// Primary date/time formatting - import from utils (single source of truth)
+export { 
+  formatDate, 
+  formatDateShort, 
+  formatDateLong,
+  formatDateWithYear,
+  formatMonthYear,
+  formatMonthLongYear,
+  formatWeekdayDate,
+  formatMonth,
+  formatMonthLong, 
+  formatDay,
+  formatDateRange,
+  formatProjectDateRange,
+  formatChartDate,
+  formatTooltipDate,
+  formatDateForInput,
+  formatTimeRange,
+  isSameDate,
+  APP_LOCALE
+} from '@/utils/dateFormatUtils';
+
+export { 
+  formatTimeHoursMinutes,
+  formatDuration,
+  formatDurationFromMinutes,
+  formatDurationFromHours,
+  formatDurationPreview
+} from '@/utils/timeFormatUtils';
+
+// ===================================
+// EVENT CALCULATIONS
+// ===================================
+
 export {
   aggregateEventDurationsByDate,
   calculateEventDurationOnDate,
-  formatEventDuration as formatDuration,
   calculateEventTotalDuration,
   calculateLiveTrackingDuration,
-  EVENT_DURATION_CONSTANTS as DURATION_CONSTANTS
+  EVENT_DURATION_CONSTANTS as DURATION_CONSTANTS,
+  generateRecurringEvents,
+  validateRecurringConfig
 } from './calculations/eventCalculations';
 
 // Import the new function to create legacy wrapper
@@ -147,7 +186,6 @@ export { processEventOverlaps, calculateElapsedTime, createTimeRange, validateEv
 // Additional legacy exports (organized by domain)
 export { 
   calculateProjectStatus,
-  formatProjectDateRange,
   determineProjectStatus,
   getEffectiveProjectStatus,
   organizeProjectsByStatus
@@ -188,10 +226,8 @@ export {
 } from './calculations/insightCalculations';
 export { calculateDaysDelta, createSmoothDragAnimation, debounceDragUpdate, type SmoothAnimationConfig } from './calculations/dragCalculations';
 export { formatTimeForDisplay } from './calculations/workHourCalculations';
-export { formatDuration as formatDurationFromHours } from './calculations/dateCalculations';
 export { handleWorkHourCreationStart, handleWorkHourCreationMove, handleWorkHourCreationComplete } from './calculations/workHourCalculations';
 export { getWorkHourOverlapInfo, generateWorkHourPreviewStyle, getWorkHourCreationCursor, shouldAllowWorkHourCreation, type WorkHourCreateState } from './calculations/workHourCalculations';
-export { formatDuration as formatDurationPreview } from './calculations/dateCalculations';
 // PositionCalculation type migrated to ui/TimelinePositioning.ts
 export { type ComprehensiveProjectTimeMetrics, type ProjectEvent as ProgressProjectEvent } from './calculations/projectProgressCalculations';
 export { 
@@ -224,3 +260,100 @@ export { checkProjectOverlap, adjustProjectDatesForDrag, detectLiveDragConflicts
  * Migration Status: ~70% complete
  * Next: Migrate remaining legacy services to unified/orchestrator pattern
  */
+
+// 🔄 Compatibility Wrappers for Migrated /lib Functionality
+// These provide the same interface as the old /lib files but use the new services architecture
+
+import { CalculationCacheService, WorkingDayCache } from './infrastructure';
+import * as React from 'react';
+
+/**
+ * Working day cache compatibility - migrated from /lib/workingDayCache
+ */
+export const workingDayStats = {
+  getStats: () => {
+    const stats = WorkingDayCache.getWorkingDayStats();
+    return {
+      totalChecks: stats.checks,
+      hits: stats.hits,
+      misses: stats.misses,
+      hitRate: stats.checks > 0 ? (stats.hits / stats.checks * 100).toFixed(1) : '0',
+      cacheSize: 'N/A' // Cache size is managed internally
+    };
+  },
+  
+  logStats: () => {
+    const stats = workingDayStats.getStats();
+    // Stats available for debugging if needed
+  },
+  
+  clear: () => {
+    WorkingDayCache.clearWorkingDayCache();
+  }
+};
+
+/**
+ * Cached working day checker hook - migrated from /lib/workingDayCache
+ */
+export function useCachedWorkingDayChecker(
+  weeklyWorkHours: any,
+  holidays: any[]
+) {
+  return React.useCallback((date: Date) => {
+    return WorkingDayCache.isWorkingDay(
+      date,
+      weeklyWorkHours,
+      holidays,
+      // Embedded working day logic - preserving original behavior
+      (date: Date, weeklyWorkHours: any, holidays: any[]) => {
+        // Normalize date to avoid time component issues
+        const checkDate = new Date(date);
+        checkDate.setHours(0, 0, 0, 0);
+
+        // Check holidays first (fastest rejection)
+        const isHoliday = holidays.some((holiday: any) => {
+          const startDate = new Date(holiday.startDate);
+          const endDate = new Date(holiday.endDate);
+          startDate.setHours(0, 0, 0, 0);
+          endDate.setHours(0, 0, 0, 0);
+          return checkDate >= startDate && checkDate <= endDate;
+        });
+
+        if (isHoliday) return false;
+
+        // Check work hours for this day of week
+        const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const dayName = dayNames[checkDate.getDay()];
+        const workSlots = weeklyWorkHours[dayName] || [];
+
+        // Sum total work hours for this day
+        const totalHours = Array.isArray(workSlots)
+          ? workSlots.reduce((sum: number, slot: any) => sum + (slot.duration || 0), 0)
+          : 0;
+
+        return totalHours > 0;
+      }
+    );
+  }, [weeklyWorkHours, holidays]);
+}
+
+/**
+ * Milestone cache compatibility - migrated from /lib/milestoneCache
+ */
+export const milestoneStats = {
+  getStats: () => {
+    const stats = CalculationCacheService.getMilestoneStats();
+    return {
+      totalChecks: stats.checks,
+      hits: stats.hits,
+      misses: stats.misses,
+      hitRate: stats.checks > 0 ? (stats.hits / stats.checks * 100).toFixed(1) : '0',
+      cacheSize: 'N/A' // Cache size is managed internally
+    };
+  },
+  
+  logStats: () => {
+    const stats = milestoneStats.getStats();
+    // Stats available for debugging if needed
+  }
+};

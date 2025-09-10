@@ -27,8 +27,7 @@ import {
 import { TIMELINE_CONSTANTS } from '@/constants';
 import { PerformanceMetrics, throttledDragUpdate, clearDragQueue, throttledVisualUpdate } from '@/services';
 import { checkProjectOverlap, adjustProjectDatesForDrag } from '@/services';
-import { workingDayStats } from '@/lib/workingDayCache';
-import { milestoneStats } from '@/lib/milestoneCache';
+import { workingDayStats, milestoneStats } from '@/services';
 
 // Import timeline components
 import { TimelineHeader } from '../timeline/TimelineHeader';

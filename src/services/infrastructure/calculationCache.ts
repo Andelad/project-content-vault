@@ -15,6 +15,12 @@ interface CacheConfig {
   name: string;
 }
 
+interface CacheStats {
+  hits: number;
+  misses: number;
+  checks: number;
+}
+
 export class CalculationCacheService {
   private static caches = new Map<string, Map<string, CacheEntry<any>>>();
   private static configs = new Map<string, CacheConfig>();
@@ -198,6 +204,80 @@ export class CalculationCacheService {
       ttl: 3 * 60 * 1000, // 3 minutes
       name: 'Milestone Calculations'
     });
+  }
+
+  /**
+   * Generate cache key for milestone calculations
+   */
+  static generateMilestoneCacheKey(
+    milestoneId: string,
+    projectId: string,
+    additionalParams: string
+  ): string {
+    return `milestone-${milestoneId}-${projectId}-${additionalParams}`;
+  }
+
+  /**
+   * Create hash from milestone-relevant parameters
+   */
+  static hashMilestoneParams(
+    milestone: any,
+    project: any,
+    settings: any,
+    holidays: any[],
+    workHours: any[],
+    events: any[]
+  ): string {
+    // Create a hash based on parameters that affect milestone calculations
+    const milestoneHash = milestone ? `${milestone.id}-${milestone.targetDate}-${milestone.estimatedHours}-${milestone.completionDate || 'null'}` : 'null';
+    const projectHash = project ? `${project.id}-${project.startDate}-${project.endDate}-${project.estimatedHours}` : 'null';
+
+    // Settings that might affect milestone calculations
+    const settingsHash = settings?.weeklyWorkHours ?
+      Object.keys(settings.weeklyWorkHours).map(day => {
+        const slots = settings.weeklyWorkHours[day] || [];
+        return Array.isArray(slots)
+          ? slots.reduce((sum: number, slot: any) => sum + (slot.duration || 0), 0)
+          : 0;
+      }).join('-') : 'nosettings';
+
+    // Holidays that might affect calculations
+    const holidaysHash = holidays?.length ?
+      holidays.map(h => `${h.id}-${h.startDate}-${h.endDate}`).sort().join(',') : 'noholidays';
+
+    // Work hours that might affect calculations  
+    const workHoursHash = workHours?.length ?
+      workHours.map(wh => `${wh.id}-${wh.date}-${wh.duration}`).sort().join(',') : 'noworkhours';
+
+    // Events that might affect calculations
+    const eventsHash = events?.length ?
+      events.map(e => `${e.id}-${e.startTime}-${e.endTime}`).sort().join(',') : 'noevents';
+
+    return `${milestoneHash}|${projectHash}|${settingsHash}|${holidaysHash}|${workHoursHash}|${eventsHash}`;
+  }
+
+  /**
+   * Get milestone cache statistics
+   */
+  static getMilestoneStats(): CacheStats {
+    const cache = this.caches.get('milestoneCalculations');
+    if (!cache) {
+      return { hits: 0, misses: 0, checks: 0 };
+    }
+
+    let hits = 0;
+    let totalChecks = 0;
+    
+    cache.forEach(entry => {
+      hits += entry.hits;
+      totalChecks += entry.hits + 1; // +1 for initial miss
+    });
+
+    return {
+      hits,
+      misses: totalChecks - hits,
+      checks: totalChecks
+    };
   }
 }
 

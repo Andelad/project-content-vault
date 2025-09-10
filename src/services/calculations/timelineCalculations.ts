@@ -3,6 +3,7 @@
  * Migrated from legacy TimelineCalculationService
  * Pure calculation functions for timeline positioning and sizing
  */
+import { formatDateShort, formatWeekdayDate } from '@/utils/dateFormatUtils';
 
 export interface TimelinePosition {
   left: number;
@@ -78,18 +79,9 @@ export function addDateOffset(
  */
 export function formatDateLabel(date: Date, mode: 'days' | 'weeks'): string {
   if (mode === 'weeks') {
-    const options: Intl.DateTimeFormatOptions = {
-      month: 'short',
-      day: 'numeric'
-    };
-    return date.toLocaleDateString('en-US', options);
+    return formatDateShort(date);
   } else {
-    const options: Intl.DateTimeFormatOptions = {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric'
-    };
-    return date.toLocaleDateString('en-US', options);
+    return formatWeekdayDate(date);
   }
 }
 

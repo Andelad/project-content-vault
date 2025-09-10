@@ -3,8 +3,6 @@ import { Sidebar } from './Sidebar';
 import { useTimelineContext } from '../../contexts/TimelineContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 import { useFavicon } from '../../hooks/useFavicon';
-// Import test utility for development testing
-import '../../utils/testFavicon';
 
 // Import all views
 import { PlannerView } from '../views/PlannerView';
