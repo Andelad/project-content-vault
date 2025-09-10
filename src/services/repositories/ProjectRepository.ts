@@ -1,119 +1,99 @@
 /**
- * Project Repository Implementation
+ * Project Repository Implementation - Phase 5B
  * 
- * Domain-specific repository for Project entities with:
- * - Advanced project querying capabilities
- * - Timeline-based filtering and optimization
- * - Project-milestone relationship management
- * - Status and progress tracking integration
+ * Specialized repository for Project entities with optimized caching,
+ * offline support, and project-specific query patterns.
+ * 
+ * Features:
+ * - Intelligent project caching with relationship tracking
+ * - Offline-first CRUD operations with milestone coordination
+ * - Performance optimization for project workflows
+ * - Real-time cross-window project synchronization
  * 
  * @module ProjectRepository
  */
 
-import type { Project, Milestone } from '@/types/core';
 import { UnifiedRepository } from './UnifiedRepository';
-import type { ITimestampedRepository, RepositoryConfig, SyncResult } from './IBaseRepository';
-import { ProjectValidator, type ProjectValidationContext } from '../validators/ProjectValidator';
+import type { Project } from '@/types/core';
+import type { Database } from '@/integrations/supabase/types';
+import { supabase } from '@/integrations/supabase/client';
+import type { SyncResult, ITimestampedRepository } from './IBaseRepository';
+
+type ProjectRow = Database['public']['Tables']['projects']['Row'];
+type ProjectInsert = Database['public']['Tables']['projects']['Insert'];
+type ProjectUpdate = Database['public']['Tables']['projects']['Update'];
 
 // =====================================================================================
-// PROJECT-SPECIFIC INTERFACES
+// PROJECT REPOSITORY INTERFACE
 // =====================================================================================
 
-export interface IProjectRepository extends ITimestampedRepository<Project & { createdAt: Date; updatedAt: Date }> {
-  // Project-specific queries
-  findByStatus(status: string): Promise<(Project & { createdAt: Date; updatedAt: Date })[]>;
-  findByDateRange(startDate: Date, endDate: Date): Promise<(Project & { createdAt: Date; updatedAt: Date })[]>;
-  findOverlapping(startDate: Date, endDate: Date): Promise<(Project & { createdAt: Date; updatedAt: Date })[]>;
-  findByGroup(groupId: string): Promise<(Project & { createdAt: Date; updatedAt: Date })[]>;
-  findByRow(rowId: string): Promise<(Project & { createdAt: Date; updatedAt: Date })[]>;
+export interface IProjectRepository {
+  // Base repository methods
+  create(entity: Omit<Project, 'id'>): Promise<Project>;
+  update(id: string, updates: Partial<Project>): Promise<Project | null>;
+  delete(id: string): Promise<boolean>;
+  findById(id: string): Promise<Project | null>;
+  findAll(): Promise<Project[]>;
+  findBy(criteria: Partial<Project>): Promise<Project[]>;
+  count(criteria?: Partial<Project>): Promise<number>;
+  syncToServer(): Promise<SyncResult>;
   
-  // Project analytics
-  getProjectStats(): Promise<ProjectStats>;
-  getBudgetAnalysis(projectId: string): Promise<ProjectBudgetAnalysis>;
-  getTimelineAnalysis(projectIds: string[]): Promise<TimelineAnalysis>;
+  // Timestamp methods
+  findByCreatedDate(startDate: Date, endDate?: Date): Promise<Project[]>;
+  findByUpdatedDate(startDate: Date, endDate?: Date): Promise<Project[]>;
+  findRecentlyCreated(hours?: number): Promise<Project[]>;
+  findRecentlyUpdated(hours?: number): Promise<Project[]>;
   
-  // Project relationships
-  findWithMilestones(projectId: string): Promise<ProjectWithMilestones>;
-  findProjectsByMilestone(milestoneId: string): Promise<(Project & { createdAt: Date; updatedAt: Date })[]>;
-  
-  // Advanced operations
-  archiveProject(projectId: string): Promise<boolean>;
-  restoreProject(projectId: string): Promise<boolean>;
-  duplicateProject(projectId: string, newName: string): Promise<Project & { createdAt: Date; updatedAt: Date }>;
-}
-
-export interface ProjectStats {
-  totalProjects: number;
-  activeProjects: number;
-  completedProjects: number;
-  onTrackProjects: number;
-  delayedProjects: number;
-  averageDuration: number;
-  totalBudgetHours: number;
-  utilizationRate: number;
-}
-
-export interface ProjectBudgetAnalysis {
-  projectId: string;
-  estimatedHours: number;
-  allocatedHours: number;
-  remainingHours: number;
-  utilizationPercentage: number;
-  isOverBudget: boolean;
-  milestoneBreakdown: Array<{
-    milestoneId: string;
-    name: string;
-    allocatedHours: number;
-    percentage: number;
+  // Project-specific query methods
+  findByGroup(groupId: string): Promise<Project[]>;
+  findByUser(userId: string, options?: {
+    status?: Project['status'];
+    groupId?: string;
+    continuous?: boolean;
+    limit?: number;
+  }): Promise<Project[]>;
+  findWithMilestoneCounts(userId: string): Promise<Array<Project & { milestoneCount: number }>>;
+  validateProjectNameUnique(name: string, userId: string, excludeId?: string): Promise<boolean>;
+  getProjectStatistics(userId: string): Promise<{
+    totalProjects: number;
+    currentProjects: number;
+    archivedProjects: number;
+    totalEstimatedHours: number;
+    avgProjectDuration: number;
   }>;
 }
 
-export interface TimelineAnalysis {
-  totalDuration: number;
-  criticalPath: string[];
-  parallelProjects: string[][];
-  resourceConflicts: Array<{
-    date: Date;
-    conflictingProjects: string[];
-    severity: 'low' | 'medium' | 'high';
-  }>;
-  recommendedScheduleAdjustments: Array<{
-    projectId: string;
-    currentStart: Date;
-    recommendedStart: Date;
-    reason: string;
-  }>;
-}
-
-export interface ProjectWithMilestones extends Project {
-  milestones: Milestone[];
-  milestoneCount: number;
-  completedMilestoneCount: number;
-  totalMilestoneHours: number;
-  nextMilestone: Milestone | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-// =====================================================================================
-// PROJECT REPOSITORY IMPLEMENTATION
-// =====================================================================================
-
-export class ProjectRepository extends UnifiedRepository<Project & { createdAt: Date; updatedAt: Date }> implements IProjectRepository {
+/**
+ * Project-specific repository extending UnifiedRepository
+ * with optimized patterns for project management workflows
+ */
+export class ProjectRepository extends UnifiedRepository<Project, string> implements IProjectRepository {
   
-  constructor(config?: Partial<RepositoryConfig>) {
-    super('Project', {
+  constructor(config?: any) {
+    super('projects', {
       cache: {
+        maxSize: 1000, // Projects are more numerous and frequently accessed
+        ttl: 180000,   // 3 minutes - projects change more frequently than groups
         enabled: true,
-        ttl: 10 * 60 * 1000, // 10 minutes for projects
-        maxSize: 500,
-        ...config?.cache
+        strategy: 'lru',
+        compression: false,
+        ...(config?.cache || {})
       },
-      validation: {
+      offline: {
         enabled: true,
-        validateOnCreate: true,
-        validateOnUpdate: true,
-        ...config?.validation
+        maxOfflineOperations: 100, // More operations for projects
+        autoSync: true,
+        syncInterval: 20000, // 20 seconds - faster sync for active project management
+        conflictResolution: 'server-wins',
+        ...(config?.offline || {})
+      },
+      performance: {
+        batchSize: 25,
+        maxConcurrentRequests: 5,
+        requestTimeout: 10000,
+        retryAttempts: 3,
+        retryDelay: 1000,
+        ...(config?.performance || {})
       },
       ...config
     });
@@ -122,311 +102,503 @@ export class ProjectRepository extends UnifiedRepository<Project & { createdAt: 
   // -------------------------------------------------------------------------------------
   // ABSTRACT METHOD IMPLEMENTATIONS
   // -------------------------------------------------------------------------------------
-
-  protected async executeCreate(entity: Omit<Project & { createdAt: Date; updatedAt: Date }, 'id'>): Promise<Project & { createdAt: Date; updatedAt: Date }> {
-    const project = {
-      id: this.generateId(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      ...entity
+  
+  protected async executeCreate(entity: Omit<Project, 'id'>): Promise<Project> {
+    const insert: ProjectInsert = {
+      name: entity.name,
+      client: entity.client,
+      start_date: entity.startDate.toISOString(),
+      end_date: entity.endDate?.toISOString() || entity.startDate.toISOString(),
+      estimated_hours: entity.estimatedHours,
+      continuous: entity.continuous || false,
+      color: entity.color,
+      group_id: entity.groupId,
+      row_id: entity.rowId,
+      notes: entity.notes || null,
+      icon: entity.icon || 'folder',
+      auto_estimate_days: entity.autoEstimateDays ? JSON.stringify(entity.autoEstimateDays) : null,
+      user_id: await this.getCurrentUserId()
     };
-    
-    await this.simulateDelay();
-    return project as Project & { createdAt: Date; updatedAt: Date };
+
+    const { data, error } = await supabase
+      .from('projects')
+      .insert(insert)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return this.transformFromDb(data);
   }
 
-  protected async executeUpdate(id: string, updates: Partial<Project & { createdAt: Date; updatedAt: Date }>): Promise<Project & { createdAt: Date; updatedAt: Date }> {
-    const existing = await this.executeFindById(id);
-    if (!existing) {
-      throw new Error(`Project with id ${id} not found`);
-    }
-    
-    const updated = {
-      ...existing,
-      ...updates,
-      updatedAt: new Date()
+  protected async executeUpdate(id: string, updates: Partial<Project>): Promise<Project> {
+    const update: ProjectUpdate = {
+      ...(updates.name && { name: updates.name }),
+      ...(updates.client && { client: updates.client }),
+      ...(updates.startDate && { start_date: updates.startDate.toISOString() }),
+      ...(updates.endDate !== undefined && { end_date: updates.endDate?.toISOString() || new Date().toISOString() }),
+      ...(updates.estimatedHours !== undefined && { estimated_hours: updates.estimatedHours }),
+      ...(updates.continuous !== undefined && { continuous: updates.continuous }),
+      ...(updates.color && { color: updates.color }),
+      ...(updates.groupId && { group_id: updates.groupId }),
+      ...(updates.rowId && { row_id: updates.rowId }),
+      ...(updates.notes !== undefined && { notes: updates.notes || null }),
+      ...(updates.icon && { icon: updates.icon }),
+      ...(updates.autoEstimateDays && { auto_estimate_days: JSON.stringify(updates.autoEstimateDays) }),
+      updated_at: new Date().toISOString()
     };
-    
-    await this.simulateDelay();
-    return updated;
+
+    const { data, error } = await supabase
+      .from('projects')
+      .update(update)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return this.transformFromDb(data);
   }
 
   protected async executeDelete(id: string): Promise<boolean> {
-    await this.simulateDelay();
+    const { error } = await supabase
+      .from('projects')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
     return true;
   }
 
-  protected async executeFindById(id: string): Promise<(Project & { createdAt: Date; updatedAt: Date }) | null> {
-    await this.simulateDelay();
-    return null; // Would implement actual data source lookup
+  protected async executeFindById(id: string): Promise<Project | null> {
+    const { data, error } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') return null; // Not found
+      throw error;
+    }
+
+    return this.transformFromDb(data);
   }
 
-  protected async executeFindAll(): Promise<(Project & { createdAt: Date; updatedAt: Date })[]> {
-    await this.simulateDelay();
-    return [];
+  protected async executeFindAll(): Promise<Project[]> {
+    const { data, error } = await supabase
+      .from('projects')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return (data || []).map(row => this.transformFromDb(row));
   }
 
-  protected async executeFindBy(criteria: Partial<Project & { createdAt: Date; updatedAt: Date }>): Promise<(Project & { createdAt: Date; updatedAt: Date })[]> {
-    await this.simulateDelay();
-    return [];
+  protected async executeFindBy(criteria: Partial<Project>): Promise<Project[]> {
+    let query = supabase.from('projects').select('*');
+
+    if (criteria.name) {
+      query = query.eq('name', criteria.name);
+    }
+    if (criteria.client) {
+      query = query.eq('client', criteria.client);
+    }
+    if (criteria.groupId) {
+      query = query.eq('group_id', criteria.groupId);
+    }
+    if (criteria.rowId) {
+      query = query.eq('row_id', criteria.rowId);
+    }
+    if (criteria.continuous !== undefined) {
+      query = query.eq('continuous', criteria.continuous);
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return (data || []).map(row => this.transformFromDb(row));
   }
 
-  protected async executeCount(criteria?: Partial<Project & { createdAt: Date; updatedAt: Date }>): Promise<number> {
-    await this.simulateDelay();
-    return 0;
+  protected async executeCount(criteria?: Partial<Project>): Promise<number> {
+    let query = supabase.from('projects').select('*', { count: 'exact', head: true });
+
+    if (criteria?.name) {
+      query = query.eq('name', criteria.name);
+    }
+    if (criteria?.client) {
+      query = query.eq('client', criteria.client);
+    }
+    if (criteria?.groupId) {
+      query = query.eq('group_id', criteria.groupId);
+    }
+    if (criteria?.rowId) {
+      query = query.eq('row_id', criteria.rowId);
+    }
+
+    const { count, error } = await query;
+
+    if (error) throw error;
+    return count || 0;
   }
 
   protected async executeSyncToServer(): Promise<SyncResult> {
-    const offlineChanges = await this.getOfflineChanges();
-    await this.simulateDelay(1000);
-    
-    return {
+    const result: SyncResult = {
       success: true,
-      syncedCount: offlineChanges.length,
+      syncedCount: 0,
       conflictCount: 0,
       errors: [],
       conflicts: [],
-      duration: 1000
+      duration: 0
+    };
+
+    const startTime = Date.now();
+
+    try {
+      // Process offline changes
+      for (const change of this.offlineChanges) {
+        try {
+          switch (change.operation) {
+            case 'create':
+              if (change.data) {
+                await this.executeCreate(change.data as Omit<Project, 'id'>);
+                result.syncedCount++;
+              }
+              break;
+            case 'update':
+              if (change.data) {
+                await this.executeUpdate(change.entityId, change.data);
+                result.syncedCount++;
+              }
+              break;
+            case 'delete':
+              await this.executeDelete(change.entityId);
+              result.syncedCount++;
+              break;
+          }
+          change.synced = true;
+        } catch (error) {
+          result.errors.push(`Failed to sync ${change.operation} for ${change.entityId}: ${error}`);
+        }
+      }
+
+      // Remove synced changes
+      this.offlineChanges = this.offlineChanges.filter(change => !change.synced);
+
+    } catch (error) {
+      result.success = false;
+      result.errors.push(`Sync failed: ${error}`);
+    }
+
+    result.duration = Date.now() - startTime;
+    return result;
+  }
+
+  // -------------------------------------------------------------------------------------
+  // UTILITY METHODS
+  // -------------------------------------------------------------------------------------
+  
+  private transformFromDb(row: ProjectRow): Project {
+    // Compute status based on dates
+    const now = new Date();
+    const endDate = new Date(row.end_date);
+    const startDate = new Date(row.start_date);
+    
+    let status: Project['status'] = 'current';
+    if (startDate > now) {
+      status = 'future';
+    } else if (endDate < now && !row.continuous) {
+      status = 'archived';
+    }
+
+    return {
+      id: row.id,
+      name: row.name,
+      client: row.client,
+      startDate,
+      endDate,
+      estimatedHours: row.estimated_hours,
+      continuous: row.continuous || false,
+      color: row.color,
+      groupId: row.group_id,
+      rowId: row.row_id,
+      notes: row.notes || undefined,
+      icon: row.icon || 'folder',
+      autoEstimateDays: row.auto_estimate_days ? 
+        JSON.parse(typeof row.auto_estimate_days === 'string' ? row.auto_estimate_days : JSON.stringify(row.auto_estimate_days)) : 
+        undefined,
+      status
     };
   }
 
-  // -------------------------------------------------------------------------------------
-  // TIMESTAMPED REPOSITORY METHODS
-  // -------------------------------------------------------------------------------------
-
-  async findByCreatedDate(startDate: Date, endDate?: Date): Promise<(Project & { createdAt: Date; updatedAt: Date })[]> {
-    const allProjects = await this.findAll();
-    return allProjects.filter(project => {
-      const created = project.createdAt;
-      return created >= startDate && (!endDate || created <= endDate);
-    });
+  private async getCurrentUserId(): Promise<string> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+    return user.id;
   }
 
-  async findByUpdatedDate(startDate: Date, endDate?: Date): Promise<(Project & { createdAt: Date; updatedAt: Date })[]> {
-    const allProjects = await this.findAll();
-    return allProjects.filter(project => {
-      const updated = project.updatedAt;
-      return updated >= startDate && (!endDate || updated <= endDate);
-    });
+  // -------------------------------------------------------------------------------------
+  // TIMESTAMP REPOSITORY METHODS
+  // -------------------------------------------------------------------------------------
+
+  async findByCreatedDate(startDate: Date, endDate?: Date): Promise<Project[]> {
+    try {
+      let query = supabase.from('projects').select('*');
+      
+      query = query.gte('created_at', startDate.toISOString());
+      if (endDate) {
+        query = query.lte('created_at', endDate.toISOString());
+      }
+      
+      const { data, error } = await query.order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return (data || []).map(row => this.transformFromDb(row));
+    } catch (error) {
+      console.error('Error finding projects by created date:', error);
+      throw error;
+    }
   }
 
-  async findRecentlyCreated(hours: number): Promise<(Project & { createdAt: Date; updatedAt: Date })[]> {
+  async findByUpdatedDate(startDate: Date, endDate?: Date): Promise<Project[]> {
+    try {
+      let query = supabase.from('projects').select('*');
+      
+      query = query.gte('updated_at', startDate.toISOString());
+      if (endDate) {
+        query = query.lte('updated_at', endDate.toISOString());
+      }
+      
+      const { data, error } = await query.order('updated_at', { ascending: false });
+      
+      if (error) throw error;
+      return (data || []).map(row => this.transformFromDb(row));
+    } catch (error) {
+      console.error('Error finding projects by updated date:', error);
+      throw error;
+    }
+  }
+
+  async findRecentlyCreated(hours: number = 24): Promise<Project[]> {
     const cutoffDate = new Date(Date.now() - (hours * 60 * 60 * 1000));
-    return await this.findByCreatedDate(cutoffDate);
+    return this.findByCreatedDate(cutoffDate);
   }
 
-  async findRecentlyUpdated(hours: number): Promise<(Project & { createdAt: Date; updatedAt: Date })[]> {
+  async findRecentlyUpdated(hours: number = 24): Promise<Project[]> {
     const cutoffDate = new Date(Date.now() - (hours * 60 * 60 * 1000));
-    return await this.findByUpdatedDate(cutoffDate);
+    return this.findByUpdatedDate(cutoffDate);
   }
 
   // -------------------------------------------------------------------------------------
-  // PROJECT-SPECIFIC METHODS
+  // PROJECT-SPECIFIC QUERY METHODS
   // -------------------------------------------------------------------------------------
 
-  async findByStatus(status: string): Promise<(Project & { createdAt: Date; updatedAt: Date })[]> {
-    return await this.findBy({ status } as any);
-  }
-
-  async findByDateRange(startDate: Date, endDate: Date): Promise<(Project & { createdAt: Date; updatedAt: Date })[]> {
-    const allProjects = await this.findAll();
-    return allProjects.filter(project =>
-      project.startDate >= startDate && 
-      (project.endDate ? project.endDate <= endDate : project.startDate <= endDate)
-    );
-  }
-
-  async findOverlapping(startDate: Date, endDate: Date): Promise<(Project & { createdAt: Date; updatedAt: Date })[]> {
-    const allProjects = await this.findAll();
-    return allProjects.filter(project =>
-      project.startDate < endDate && 
-      (project.endDate ? project.endDate > startDate : project.startDate >= startDate)
-    );
-  }
-
-  async findByGroup(groupId: string): Promise<(Project & { createdAt: Date; updatedAt: Date })[]> {
-    return await this.findBy({ groupId } as any);
-  }
-
-  async findByRow(rowId: string): Promise<(Project & { createdAt: Date; updatedAt: Date })[]> {
-    return await this.findBy({ rowId } as any);
-  }
-
-  // -------------------------------------------------------------------------------------
-  // PROJECT ANALYTICS
-  // -------------------------------------------------------------------------------------
-
-  async getProjectStats(): Promise<ProjectStats> {
-    const allProjects = await this.findAll();
+  /**
+   * Find projects by group with caching
+   */
+  async findByGroup(groupId: string): Promise<Project[]> {
+    const cacheKey = `group:${groupId}`;
     
-    return {
-      totalProjects: allProjects.length,
-      activeProjects: allProjects.filter(p => p.status === 'current').length,
-      completedProjects: allProjects.filter(p => p.status === 'archived').length,
-      onTrackProjects: allProjects.filter(p => this.isProjectOnTrack(p)).length,
-      delayedProjects: allProjects.filter(p => this.isProjectDelayed(p)).length,
-      averageDuration: this.calculateAverageDuration(allProjects),
-      totalBudgetHours: allProjects.reduce((sum, p) => sum + p.estimatedHours, 0),
-      utilizationRate: this.calculateUtilizationRate(allProjects)
-    };
-  }
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('group_id', groupId)
+        .order('created_at', { ascending: false });
 
-  async getBudgetAnalysis(projectId: string): Promise<ProjectBudgetAnalysis> {
-    const project = await this.findById(projectId);
-    if (!project) {
-      throw new Error(`Project ${projectId} not found`);
+      if (error) throw error;
+
+      const projects = (data || []).map(row => this.transformFromDb(row));
+      
+      // Cache each project individually
+      projects.forEach(project => {
+        this.cache.set(`${this.entityType}:${project.id}`, project);
+      });
+      
+      this.eventManager.emit({
+        type: 'synced',
+        entityType: 'projects',
+        entityId: cacheKey,
+        timestamp: new Date(),
+        metadata: { operation: 'findByGroup', count: projects.length }
+      });
+
+      return projects;
+    } catch (error) {
+      console.error('Error finding projects by group:', error);
+      throw error;
     }
-
-    const milestones: Milestone[] = []; // Would fetch from MilestoneRepository
-    const allocatedHours = milestones.reduce((sum, m) => sum + m.timeAllocation, 0);
-    const remainingHours = Math.max(0, project.estimatedHours - allocatedHours);
-    const utilizationPercentage = (allocatedHours / project.estimatedHours) * 100;
-
-    return {
-      projectId,
-      estimatedHours: project.estimatedHours,
-      allocatedHours,
-      remainingHours,
-      utilizationPercentage,
-      isOverBudget: allocatedHours > project.estimatedHours,
-      milestoneBreakdown: milestones.map(milestone => ({
-        milestoneId: milestone.id,
-        name: milestone.name,
-        allocatedHours: milestone.timeAllocation,
-        percentage: (milestone.timeAllocation / project.estimatedHours) * 100
-      }))
-    };
   }
 
-  async getTimelineAnalysis(projectIds: string[]): Promise<TimelineAnalysis> {
-    const projects = await Promise.all(projectIds.map(id => this.findById(id)));
-    const validProjects = projects.filter((p): p is Project & { createdAt: Date; updatedAt: Date } => p !== null);
+  /**
+   * Find projects by user with advanced filtering
+   */
+  async findByUser(userId: string, options?: {
+    status?: Project['status'];
+    groupId?: string;
+    continuous?: boolean;
+    limit?: number;
+  }): Promise<Project[]> {
+    try {
+      let query = supabase
+        .from('projects')
+        .select('*')
+        .eq('user_id', userId);
 
-    return {
-      totalDuration: this.calculateTotalDuration(validProjects),
-      criticalPath: this.calculateCriticalPath(validProjects),
-      parallelProjects: [],
-      resourceConflicts: [],
-      recommendedScheduleAdjustments: []
-    };
-  }
+      if (options?.groupId) {
+        query = query.eq('group_id', options.groupId);
+      }
+      if (options?.continuous !== undefined) {
+        query = query.eq('continuous', options.continuous);
+      }
 
-  // -------------------------------------------------------------------------------------
-  // PROJECT RELATIONSHIPS
-  // -------------------------------------------------------------------------------------
+      query = query.order('created_at', { ascending: false });
 
-  async findWithMilestones(projectId: string): Promise<ProjectWithMilestones> {
-    const project = await this.findById(projectId);
-    if (!project) {
-      throw new Error(`Project ${projectId} not found`);
+      if (options?.limit) {
+        query = query.limit(options.limit);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      let projects = (data || []).map(row => this.transformFromDb(row));
+      
+      // Filter by status after transformation since it's computed
+      if (options?.status) {
+        projects = projects.filter(p => p.status === options.status);
+      }
+      
+      // Cache individual projects
+      projects.forEach(project => {
+        this.cache.set(`${this.entityType}:${project.id}`, project);
+      });
+
+      return projects;
+    } catch (error) {
+      console.error('Error finding projects by user:', error);
+      throw error;
     }
-
-    const milestones: Milestone[] = [];
-    const completedMilestones = milestones.filter(m => m.dueDate < new Date()); // Use due date as completion indicator
-    const totalMilestoneHours = milestones.reduce((sum, m) => sum + m.timeAllocation, 0);
-    const nextMilestone = milestones
-      .filter(m => m.dueDate >= new Date()) // Future milestones
-      .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())[0] || null;
-
-    return {
-      ...project,
-      milestones,
-      milestoneCount: milestones.length,
-      completedMilestoneCount: completedMilestones.length,
-      totalMilestoneHours,
-      nextMilestone
-    };
   }
 
-  async findProjectsByMilestone(milestoneId: string): Promise<(Project & { createdAt: Date; updatedAt: Date })[]> {
-    // Would implement actual milestone-project relationship lookup
-    return [];
-  }
+  /**
+   * Find projects with milestone counts (for dashboard views)
+   */
+  async findWithMilestoneCounts(userId: string): Promise<Array<Project & { milestoneCount: number }>> {
+    const cacheKey = `user:${userId}:with-milestone-counts`;
+    
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select(`
+          *,
+          milestones(count)
+        `)
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
 
-  // -------------------------------------------------------------------------------------
-  // ADVANCED OPERATIONS
-  // -------------------------------------------------------------------------------------
+      if (error) throw error;
 
-  async archiveProject(projectId: string): Promise<boolean> {
-    const updated = await this.update(projectId, { status: 'archived' } as any);
-    return updated !== null;
-  }
+      const projectsWithCounts = (data || []).map(row => ({
+        ...this.transformFromDb(row),
+        milestoneCount: Array.isArray(row.milestones) ? row.milestones.length : 0
+      }));
+      
+      // Cache base projects individually
+      projectsWithCounts.forEach(project => {
+        const baseProject = { ...project };
+        delete (baseProject as any).milestoneCount;
+        this.cache.set(`${this.entityType}:${project.id}`, baseProject);
+      });
 
-  async restoreProject(projectId: string): Promise<boolean> {
-    const updated = await this.update(projectId, { status: 'current' } as any);
-    return updated !== null;
-  }
+      this.eventManager.emit({
+        type: 'synced',
+        entityType: 'projects',
+        entityId: cacheKey,
+        timestamp: new Date(),
+        metadata: { operation: 'findWithMilestoneCounts', count: projectsWithCounts.length }
+      });
 
-  async duplicateProject(projectId: string, newName: string): Promise<Project & { createdAt: Date; updatedAt: Date }> {
-    const original = await this.findById(projectId);
-    if (!original) {
-      throw new Error(`Project ${projectId} not found`);
+      return projectsWithCounts;
+    } catch (error) {
+      console.error('Error finding projects with milestone counts:', error);
+      throw error;
     }
-
-    const { id, createdAt, updatedAt, ...duplicateData } = original;
-    
-    return await this.create({
-      ...duplicateData,
-      name: newName,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    });
   }
 
-  // -------------------------------------------------------------------------------------
-  // PRIVATE HELPER METHODS
-  // -------------------------------------------------------------------------------------
+  /**
+   * Validate project name uniqueness within user's projects
+   */
+  async validateProjectNameUnique(name: string, userId: string, excludeId?: string): Promise<boolean> {
+    try {
+      let query = supabase
+        .from('projects')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('name', name);
 
-  private generateId(): string {
-    return `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      if (excludeId) {
+        query = query.neq('id', excludeId);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      return !data || data.length === 0;
+    } catch (error) {
+      console.error('Error validating project name uniqueness:', error);
+      throw error;
+    }
   }
 
-  private async simulateDelay(ms: number = 100): Promise<void> {
-    await new Promise(resolve => setTimeout(resolve, ms));
-  }
+  /**
+   * Get project statistics for dashboard
+   */
+  async getProjectStatistics(userId: string): Promise<{
+    totalProjects: number;
+    currentProjects: number;
+    archivedProjects: number;
+    totalEstimatedHours: number;
+    avgProjectDuration: number;
+  }> {
+    try {
+      const projects = await this.findByUser(userId);
+      
+      const now = new Date();
+      const currentProjects = projects.filter(p => 
+        p.status === 'current' || (p.endDate && p.endDate >= now)
+      );
+      const archivedProjects = projects.filter(p => p.status === 'archived');
+      
+      const totalEstimatedHours = projects.reduce((sum, p) => sum + (p.estimatedHours || 0), 0);
+      
+      // Calculate average project duration for non-continuous projects
+      const finiteProjects = projects.filter(p => !p.continuous && p.endDate);
+      const avgDuration = finiteProjects.length > 0 
+        ? finiteProjects.reduce((sum, p) => {
+            const duration = p.endDate!.getTime() - p.startDate.getTime();
+            return sum + duration;
+          }, 0) / finiteProjects.length / (1000 * 60 * 60 * 24) // Convert to days
+        : 0;
 
-  private isProjectOnTrack(project: Project): boolean {
-    return project.status === 'current';
-  }
-
-  private isProjectDelayed(project: Project): boolean {
-    if (!project.endDate) return false;
-    return project.endDate < new Date() && project.status !== 'archived';
-  }
-
-  private calculateAverageDuration(projects: (Project & { createdAt: Date; updatedAt: Date })[]): number {
-    if (projects.length === 0) return 0;
-    
-    const totalDuration = projects
-      .filter(p => p.endDate)
-      .reduce((sum, p) => {
-        const duration = p.endDate!.getTime() - p.startDate.getTime();
-        return sum + (duration / (1000 * 60 * 60 * 24)); // Convert to days
-      }, 0);
-    
-    return totalDuration / projects.length;
-  }
-
-  private calculateUtilizationRate(projects: (Project & { createdAt: Date; updatedAt: Date })[]): number {
-    const totalHours = projects.reduce((sum, p) => sum + p.estimatedHours, 0);
-    const completedProjects = projects.filter(p => p.status === 'archived');
-    const completedHours = completedProjects.reduce((sum, p) => sum + p.estimatedHours, 0);
-    
-    return totalHours > 0 ? (completedHours / totalHours) * 100 : 0;
-  }
-
-  private calculateTotalDuration(projects: (Project & { createdAt: Date; updatedAt: Date })[]): number {
-    if (projects.length === 0) return 0;
-    
-    const earliestStart = Math.min(...projects.map(p => p.startDate.getTime()));
-    const latestEnd = Math.max(...projects.map(p => (p.endDate || new Date()).getTime()));
-    
-    return (latestEnd - earliestStart) / (1000 * 60 * 60 * 24); // Days
-  }
-
-  private calculateCriticalPath(projects: (Project & { createdAt: Date; updatedAt: Date })[]): string[] {
-    return projects
-      .filter(p => this.isProjectDelayed(p) || p.status === 'current')
-      .map(p => p.id);
+      return {
+        totalProjects: projects.length,
+        currentProjects: currentProjects.length,
+        archivedProjects: archivedProjects.length,
+        totalEstimatedHours,
+        avgProjectDuration: Math.round(avgDuration)
+      };
+    } catch (error) {
+      console.error('Error getting project statistics:', error);
+      throw error;
+    }
   }
 }
+
+// -------------------------------------------------------------------------------------
+// SINGLETON INSTANCE
+// -------------------------------------------------------------------------------------
+
+/**
+ * Singleton instance of ProjectRepository
+ */
+export const projectRepository = new ProjectRepository();

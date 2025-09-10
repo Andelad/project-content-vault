@@ -3,6 +3,8 @@ import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { useGroups } from '../../hooks/useGroups';
+import { useToast } from '../../hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import { Plus, Edit, Trash2, Calendar, Clock, Users, FolderPlus, Grid3X3, List, GripVertical, Archive, PlayCircle, Clock4, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
@@ -130,7 +132,8 @@ function DraggableProject({
 
 export function ProjectsView() {
   const { groups, projects, deleteGroup, addProject, updateProject, deleteProject, reorderGroups, reorderProjects, setSelectedProjectId } = useProjectContext();
-  const { addGroup, updateGroup } = useGroups();
+  const { addGroup, updateGroup, refetch: fetchGroups } = useGroups();
+  const { toast } = useToast();
 
   // View toggle state
   const [viewType, setViewType] = useState<ViewType>('list');
@@ -187,55 +190,105 @@ export function ProjectsView() {
     if (!groupName.trim()) return;
 
     try {
+      // Get current user for Phase 5A API
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({
+          title: "Error",
+          description: "User not authenticated",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      let result;
+
       if (editingGroup) {
-        // Use GroupOrchestrator for update workflow
-        const result = await GroupOrchestrator.executeGroupUpdateWorkflow(
+        // Use GroupOrchestrator Phase 5A update workflow
+        result = await GroupOrchestrator.executeGroupUpdateWorkflow(
           {
             id: editingGroup.id,
             name: groupName,
             description: groupDescription,
             color: groupColor
           },
-          editingGroup,
-          { updateGroup }
+          user.id
         );
 
         if (!result.success) {
           console.error('Group update failed:', result.errors);
-          // Show first error to user - toast handling is in updateGroup
+          toast({
+            title: "Error",
+            description: result.errors?.[0] || "Failed to update group",
+            variant: "destructive",
+          });
           return;
         }
 
         if (result.warnings && result.warnings.length > 0) {
           console.warn('Group update warnings:', result.warnings);
+          toast({
+            title: "Warning",
+            description: result.warnings[0],
+            variant: "default",
+          });
         }
+
+        // Refresh groups to get updated data from repository
+        await fetchGroups();
+        
       } else {
-        // Use GroupOrchestrator for creation workflow
-        const result = await GroupOrchestrator.executeGroupCreationWorkflow(
+        // Use GroupOrchestrator Phase 5A creation workflow
+        result = await GroupOrchestrator.executeGroupCreationWorkflow(
           {
             name: groupName,
             description: groupDescription,
             color: groupColor
           },
-          { addGroup }
+          user.id
         );
 
         if (!result.success) {
           console.error('Group creation failed:', result.errors);
-          // Show first error to user - toast handling is in addGroup
+          toast({
+            title: "Error",
+            description: result.errors?.[0] || "Failed to create group",
+            variant: "destructive",
+          });
           return;
         }
 
         if (result.warnings && result.warnings.length > 0) {
           console.warn('Group creation warnings:', result.warnings);
+          toast({
+            title: "Warning",
+            description: result.warnings[0],
+            variant: "default",
+          });
         }
+
+        // Refresh groups to get new data from repository
+        await fetchGroups();
+      }
+
+      // Show offline/sync status if relevant
+      if (result.metadata?.offlineMode) {
+        toast({
+          title: "Offline Mode",
+          description: "Changes saved locally and will sync when online",
+          variant: "default",
+        });
       }
 
       setIsGroupDialogOpen(false);
       resetGroupForm();
     } catch (error) {
       console.error('Group operation failed:', error);
-      // Let the underlying hooks handle toast notifications
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Operation failed",
+        variant: "destructive",
+      });
     }
   };
 

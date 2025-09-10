@@ -1,16 +1,23 @@
 /**
- * Project Orchestrator
+ * Project Orchestrator - Phase 5B Enhanced
  * 
- * Coordinates project domain rules with milestone management and external systems.
- * Handles complex project workflows that involve multiple entities.
+ * Coordinates project domain rules with milestone management and external systems,
+ * now enhanced with repository integration for offline-first operations and
+ * performance optimization.
  * 
- * ✅ Coordinates project and milestone entities
- * ✅ Handles project-milestone relationship logic
- * ✅ Manages project lifecycle workflows
+ * Enhanced Features:
+ * - Repository-based project management with intelligent caching
+ * - Offline-first project operations with automatic sync
+ * - Performance-optimized project workflows
+ * - Coordinated project-milestone lifecycle management
+ * 
+ * @module ProjectOrchestrator
  */
 
 import { Project, Milestone } from '@/types/core';
 import { UnifiedProjectEntity, UnifiedMilestoneEntity, ProjectBudgetAnalysis } from '../unified';
+import { projectRepository } from '../repositories/ProjectRepository';
+import type { SyncResult } from '../repositories/IBaseRepository';
 
 export interface ProjectValidationResult {
   isValid: boolean;
@@ -482,5 +489,106 @@ export class ProjectOrchestrator {
         }
       }
     }
+  }
+
+  // -------------------------------------------------------------------------------------
+  // PHASE 5B: REPOSITORY-INTEGRATED WORKFLOWS
+  // -------------------------------------------------------------------------------------
+
+  /**
+   * Get user projects with repository optimization
+   */
+  static async getUserProjectsWorkflow(userId: string, options?: {
+    status?: Project['status'];
+    groupId?: string;
+    continuous?: boolean;
+    limit?: number;
+  }): Promise<Project[]> {
+    try {
+      return await projectRepository.findByUser(userId, options);
+    } catch (error) {
+      console.error('Get user projects workflow failed:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get projects by group with repository optimization
+   */
+  static async getGroupProjectsWorkflow(groupId: string): Promise<Project[]> {
+    try {
+      return await projectRepository.findByGroup(groupId);
+    } catch (error) {
+      console.error('Get group projects workflow failed:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get project statistics with repository optimization
+   */
+  static async getProjectStatisticsWorkflow(userId: string) {
+    try {
+      return await projectRepository.getProjectStatistics(userId);
+    } catch (error) {
+      console.error('Get project statistics workflow failed:', error);
+      return {
+        totalProjects: 0,
+        currentProjects: 0,
+        archivedProjects: 0,
+        totalEstimatedHours: 0,
+        avgProjectDuration: 0
+      };
+    }
+  }
+
+  /**
+   * Validate project name uniqueness
+   */
+  static async validateProjectNameUniqueWorkflow(name: string, userId: string, excludeId?: string): Promise<boolean> {
+    try {
+      return await projectRepository.validateProjectNameUnique(name, userId, excludeId);
+    } catch (error) {
+      console.error('Validate project name uniqueness failed:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Sync offline project changes
+   */
+  static async syncOfflineChanges(): Promise<SyncResult> {
+    try {
+      return await projectRepository.syncToServer();
+    } catch (error) {
+      console.error('Sync offline changes failed:', error);
+      return {
+        success: false,
+        syncedCount: 0,
+        conflictCount: 0,
+        errors: [`Sync failed: ${error}`],
+        conflicts: [],
+        duration: 0
+      };
+    }
+  }
+
+  /**
+   * Get repository cache statistics
+   */
+  static getRepositoryCacheStats() {
+    return projectRepository.getCacheStats();
+  }
+
+  /**
+   * Get repository offline status
+   */
+  static async getRepositoryOfflineStatus() {
+    const offlineChanges = await projectRepository.getOfflineChanges();
+    return {
+      hasOfflineChanges: offlineChanges.length > 0,
+      offlineChangeCount: offlineChanges.length,
+      lastSyncTime: null // Repository doesn't track last sync time yet
+    };
   }
 }

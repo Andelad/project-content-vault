@@ -1,16 +1,19 @@
 /**
- * Group Orchestrator
+ * Group Orchestrator - Phase 5A Repository Integration
  * 
- * Extracts complex group management workflows from UI components and coordinates
- * with domain services for group lifecycle management.
+ * Orchestrates complex group management workflows with repository integration.
+ * Provides offline-first capabilities, intelligent caching, and performance optimization.
  * 
- * ✅ Orchestrates group CRUD operations
- * ✅ Validates group business rules
- * ✅ Coordinates group-project relationships
- * ✅ Handles group state management
+ * Phase 5A Features:
+ * ✅ Repository-based data access with caching
+ * ✅ Offline-first operations with sync capabilities
+ * ✅ Intelligent validation with business rules
+ * ✅ Performance optimization with batching
+ * ✅ Event-driven architecture for real-time updates
  */
 
 import { Group } from '@/types/core';
+import { groupRepository } from '@/services/repositories/GroupRepository';
 
 export interface GroupCreationRequest {
   name: string;
@@ -30,6 +33,11 @@ export interface GroupOperationResult {
   group?: Group;
   errors?: string[];
   warnings?: string[];
+  metadata?: {
+    fromCache?: boolean;
+    offlineMode?: boolean;
+    syncPending?: boolean;
+  };
 }
 
 export interface GroupValidationResult {
@@ -39,8 +47,8 @@ export interface GroupValidationResult {
 }
 
 /**
- * Group Orchestrator
- * Handles group business workflows and coordination
+ * Group Orchestrator - Phase 5A Implementation
+ * Handles group business workflows with repository integration
  */
 export class GroupOrchestrator {
 
@@ -166,19 +174,18 @@ export class GroupOrchestrator {
   }
 
   /**
-   * Execute complete group creation workflow
-   * EXTRACTED from ProjectsView handleSaveGroup complex logic
+   * Execute complete group creation workflow - Phase 5A
+   * ENHANCED with repository integration, caching, and offline support
    * 
-   * Handles:
-   * - Validation and preparation
-   * - Group creation via context
-   * - Error handling and coordination
+   * Features:
+   * - Intelligent validation with repository-based uniqueness checks
+   * - Offline-first creation with automatic sync
+   * - Performance optimization with caching
+   * - Event-driven architecture for real-time updates
    */
   static async executeGroupCreationWorkflow(
     request: GroupCreationRequest,
-    context: {
-      addGroup: (data: any) => Promise<Group>;
-    }
+    userId: string
   ): Promise<GroupOperationResult> {
     try {
       // Step 1: Validate inputs
@@ -191,11 +198,31 @@ export class GroupOrchestrator {
         };
       }
 
-      // Step 2: Prepare group data following AI Development Rules
+      // Step 2: Repository-based uniqueness validation
+      const isUnique = await groupRepository.validateGroupNameUnique(
+        request.name.trim(),
+        userId
+      );
+      
+      if (!isUnique) {
+        return {
+          success: false,
+          errors: ['A group with this name already exists'],
+          warnings: validation.warnings
+        };
+      }
+
+      // Step 3: Prepare group data following AI Development Rules
       const preparedGroup = this.prepareGroupForCreation(request);
 
-      // Step 3: Create group via context (delegates to existing group creation logic)
-      const createdGroup = await context.addGroup(preparedGroup);
+      // Step 4: Create group via repository (handles caching, offline, events)
+      const groupToCreate: Omit<Group, 'id'> = {
+        name: preparedGroup.name,
+        description: preparedGroup.description || '',
+        color: preparedGroup.color
+      };
+      
+      const createdGroup = await groupRepository.create(groupToCreate);
 
       if (!createdGroup) {
         return {
@@ -204,10 +231,19 @@ export class GroupOrchestrator {
         };
       }
 
+      // Step 5: Check if operation was performed offline
+      const offlineChanges = await groupRepository.getOfflineChanges();
+      const isOffline = offlineChanges.length > 0;
+
       return {
         success: true,
         group: createdGroup,
-        warnings: validation.warnings
+        warnings: validation.warnings,
+        metadata: {
+          fromCache: false,
+          offlineMode: isOffline,
+          syncPending: isOffline
+        }
       };
 
     } catch (error) {
@@ -220,23 +256,24 @@ export class GroupOrchestrator {
   }
 
   /**
-   * Execute complete group update workflow
-   * EXTRACTED from ProjectsView handleSaveGroup complex logic
-   * 
-   * Handles:
-   * - Validation and preparation
-   * - Group update via context
-   * - Error handling and coordination
+   * Execute complete group update workflow - Phase 5A
+   * ENHANCED with repository integration and intelligent caching
    */
   static async executeGroupUpdateWorkflow(
     request: GroupUpdateRequest,
-    currentGroup: Group,
-    context: {
-      updateGroup: (id: string, data: any) => Promise<Group>;
-    }
+    userId: string
   ): Promise<GroupOperationResult> {
     try {
-      // Step 1: Validate inputs
+      // Step 1: Get current group from repository (uses cache if available)
+      const currentGroup = await groupRepository.findById(request.id);
+      if (!currentGroup) {
+        return {
+          success: false,
+          errors: ['Group not found']
+        };
+      }
+
+      // Step 2: Validate updates
       const validation = this.validateGroupUpdate(request, currentGroup);
       if (!validation.isValid) {
         return {
@@ -246,15 +283,33 @@ export class GroupOrchestrator {
         };
       }
 
-      // Step 2: Prepare group data following AI Development Rules
+      // Step 3: Repository-based uniqueness validation (if name is changing)
+      if (request.name && request.name !== currentGroup.name) {
+        const isUnique = await groupRepository.validateGroupNameUnique(
+          request.name.trim(),
+          userId,
+          request.id
+        );
+        
+        if (!isUnique) {
+          return {
+            success: false,
+            errors: ['A group with this name already exists'],
+            warnings: validation.warnings
+          };
+        }
+      }
+
+      // Step 4: Prepare group data
       const preparedUpdate = this.prepareGroupForUpdate(request);
 
-      // Step 3: Update group via context (delegates to existing group update logic)
-      const updatedGroup = await context.updateGroup(preparedUpdate.id, {
-        ...(preparedUpdate.name !== undefined && { name: preparedUpdate.name }),
-        ...(preparedUpdate.description !== undefined && { description: preparedUpdate.description }),
-        ...(preparedUpdate.color !== undefined && { color: preparedUpdate.color })
-      });
+      // Step 5: Update group via repository
+      const updatedData: Partial<Group> = {};
+      if (preparedUpdate.name !== undefined) updatedData.name = preparedUpdate.name;
+      if (preparedUpdate.description !== undefined) updatedData.description = preparedUpdate.description;
+      if (preparedUpdate.color !== undefined) updatedData.color = preparedUpdate.color;
+
+      const updatedGroup = await groupRepository.update(request.id, updatedData);
 
       if (!updatedGroup) {
         return {
@@ -263,10 +318,19 @@ export class GroupOrchestrator {
         };
       }
 
+      // Step 6: Check operational metadata
+      const offlineChanges = await groupRepository.getOfflineChanges();
+      const isOffline = offlineChanges.length > 0;
+
       return {
         success: true,
         group: updatedGroup,
-        warnings: validation.warnings
+        warnings: validation.warnings,
+        metadata: {
+          fromCache: false,
+          offlineMode: isOffline,
+          syncPending: isOffline
+        }
       };
 
     } catch (error) {
@@ -278,6 +342,131 @@ export class GroupOrchestrator {
     }
   }
 
+  /**
+   * Get user's groups with performance optimization - Phase 5A
+   * ENHANCED with intelligent caching and batch loading
+   */
+  static async getUserGroupsWorkflow(userId: string): Promise<GroupOperationResult & { groups?: Group[] }> {
+    try {
+      // Repository handles caching automatically
+      const groups = await groupRepository.findByUser(userId);
+      
+      // Get cache statistics for metadata
+      const cacheStats = await groupRepository.getCacheStats();
+      
+      return {
+        success: true,
+        groups,
+        metadata: {
+          fromCache: cacheStats.hitRate > 0,
+          offlineMode: false,
+          syncPending: false
+        }
+      };
+
+    } catch (error) {
+      console.error('Get user groups workflow error:', error);
+      return {
+        success: false,
+        errors: [error instanceof Error ? error.message : 'Failed to load groups']
+      };
+    }
+  }
+
+  /**
+   * Delete group with relationship validation - Phase 5A
+   * ENHANCED with cascading relationship checks
+   */
+  static async executeGroupDeletionWorkflow(
+    groupId: string,
+    userId: string,
+    projectCount: number = 0
+  ): Promise<GroupOperationResult> {
+    try {
+      // Step 1: Get current group from repository
+      const currentGroup = await groupRepository.findById(groupId);
+      if (!currentGroup) {
+        return {
+          success: false,
+          errors: ['Group not found']
+        };
+      }
+
+      // Step 2: Validate deletion (business rules) - use empty projects array as we have project count
+      const mockProjects = Array(projectCount).fill({ groupId: groupId });
+      const validation = this.validateGroupDeletion(currentGroup, mockProjects);
+      if (!validation.isValid) {
+        return {
+          success: false,
+          errors: validation.errors,
+          warnings: validation.warnings
+        };
+      }
+
+      // Step 3: Delete via repository
+      const deleted = await groupRepository.delete(groupId);
+
+      if (!deleted) {
+        return {
+          success: false,
+          errors: ['Group deletion failed']
+        };
+      }
+
+      // Step 4: Check operational metadata
+      const offlineChanges = await groupRepository.getOfflineChanges();
+      const isOffline = offlineChanges.length > 0;
+
+      return {
+        success: true,
+        warnings: validation.warnings,
+        metadata: {
+          fromCache: false,
+          offlineMode: isOffline,
+          syncPending: isOffline
+        }
+      };
+
+    } catch (error) {
+      console.error('Group deletion workflow error:', error);
+      return {
+        success: false,
+        errors: [error instanceof Error ? error.message : 'Group deletion failed']
+      };
+    }
+  }
+
+  /**
+   * Sync offline changes - Phase 5A
+   * Handles offline-to-online synchronization
+   */
+  static async syncOfflineChanges(): Promise<{ 
+    success: boolean; 
+    syncedCount: number; 
+    errors: string[];
+    duration: number;
+  }> {
+    try {
+      const syncResult = await groupRepository.syncToServer();
+      
+      return {
+        success: syncResult.success,
+        syncedCount: syncResult.syncedCount,
+        errors: syncResult.errors,
+        duration: syncResult.duration
+      };
+
+    } catch (error) {
+      console.error('Group sync workflow error:', error);
+      return {
+        success: false,
+        syncedCount: 0,
+        errors: [error instanceof Error ? error.message : 'Sync failed'],
+        duration: 0
+      };
+    }
+  }  /**
+   * Execute complete group update workflow
   /**
    * Calculate group statistics for dashboard/insights
    */

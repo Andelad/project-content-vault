@@ -1,7 +1,7 @@
-# 🚨 AI RULES - STOP AND READ
+# 🚨 AI Development Guide
 
 ## INSTRUCTION FOR AI COPILOT
-Create a file called `AI_DEVELOPMENT_RULES.md` in the project root directory with this exact content. This guide must be followed for ALL code changes.
+This guide must be followed for ALL code changes in this project.
 
 > **🤖 AI REMINDER**: For complex features involving multiple service layers, workflows, or architectural decisions, ALSO read `Architecture Guide.md` to understand the complete services architecture, service layer responsibilities, and development workflow patterns.
 

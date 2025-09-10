@@ -347,7 +347,7 @@ export function getRepository<TEntity>(
  */
 export function getProjectRepository(config?: Partial<RepositoryConfig>): IProjectRepository {
   const factory = getRepositoryFactory();
-  return factory.createTimestampedRepository<any>('project', config) as IProjectRepository;
+  return factory.createRepository<any>('project', config) as unknown as IProjectRepository;
 }
 
 /**
