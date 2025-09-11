@@ -107,7 +107,16 @@ export {
   isValidDate,
   isBusinessDay,
   isBusinessHour,
-  isWorkingDay
+  isWorkingDay,
+  // New pure date calculation functions
+  isToday,
+  isTodayInWeek,
+  formatWeekDateRange,
+  groupDatesByMonth,
+  getDayOfWeek,
+  getDayName,
+  generateDateRange,
+  isDateInArray
 } from './calculations/dateCalculations';
 export {
   getCurrentTimezone,

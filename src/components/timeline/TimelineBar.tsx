@@ -6,25 +6,18 @@ import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 import { isSameDate } from '@/utils/dateFormatUtils';
 import type { Project } from '@/types/core';
+import { UnifiedTimelineService } from '@/services';
 import { 
-  calculateWorkHourCapacity, 
-  isHolidayDateCapacity as isHolidayDate,
-  getProjectTimeAllocation, 
-  memoizedGetProjectTimeAllocation, 
+  calculateWeekProjectIntersection,
   generateWorkHoursForDate,
-  calculateMilestoneSegments, 
+  calculateWorkHoursTotal,
+  isHolidayDateCapacity,
+  TimeAllocationService,
   getMilestoneSegmentForDate,
-  TimeAllocationService, 
-  ColorCalculationService,
-  calculateBaselineVisualOffsets as calculateBaselineVisualOffsetsNew,
-  calculateVisualProjectDates as calculateVisualProjectDatesNew,
-  calculateWeekProjectIntersection as calculateWeekProjectIntersectionNew,
-  calculateWorkHoursTotal as calculateWorkHoursTotalNew,
-  calculateProjectDays,
-  calculateLegacyProjectMetrics
+  memoizedGetProjectTimeAllocation,
+  getTimelinePositions
 } from '@/services';
 import { ProjectIconIndicator, ProjectMilestones } from '@/components';
-import { useCachedWorkingDayChecker, getTimelinePositions } from '@/services';
 interface TimelineBarProps {
   project: any;
   dates: Date[];
@@ -42,7 +35,7 @@ interface TimelineBarProps {
 // Helper function to calculate baseline visual offsets
 function calculateBaselineVisualOffsets(positions: any, isDragging: boolean, dragState: any, projectId: string, mode: 'days' | 'weeks' = 'days') {
   try {
-    return calculateBaselineVisualOffsetsNew(positions, isDragging, dragState, projectId, mode);
+    return UnifiedTimelineService.calculateBaselineVisualOffsets(positions, isDragging, dragState, projectId, mode);
   } catch (error) {
     console.error('Error in calculateBaselineVisualOffsets:', error);
     return positions; // fallback to original positions
@@ -51,7 +44,7 @@ function calculateBaselineVisualOffsets(positions: any, isDragging: boolean, dra
 // Helper function to calculate visual project dates with consolidated offset logic
 function calculateVisualProjectDates(project: any, isDragging: boolean, dragState: any) {
   try {
-    return calculateVisualProjectDatesNew(project, isDragging, dragState);
+    return UnifiedTimelineService.calculateVisualProjectDates(project, isDragging, dragState);
   } catch (error) {
     console.error('Error in calculateVisualProjectDates:', error);
     return { visualProjectStart: new Date(project.startDate), visualProjectEnd: new Date(project.endDate) }; // fallback
@@ -127,86 +120,33 @@ export const TimelineBar = memo(function TimelineBar({
   const { milestones } = useProjectContext();
   const { events, holidays } = usePlannerContext();
   const { settings } = useSettingsContext();
-  // Memoize project days calculation using service
-  const projectDays = useMemo(() => {
-    try {
-      return calculateProjectDays(
-        project.startDate,
-        project.endDate,
-        project.continuous,
-        viewportStart,
-        viewportEnd
-      );
-    } catch (error) {
-      console.error('Error calculating project days:', error);
-      return [];
-    }
-  }, [project.startDate, project.endDate, project.continuous, viewportStart, viewportEnd]);
-  // Cached working day checker - eliminates duplicate calculations
-  const isWorkingDay = useCachedWorkingDayChecker(settings.weeklyWorkHours, holidays);
-  // Memoize work hours for the project period
-  const workHoursForPeriod = useMemo(() => {
-    try {
-      const workHours = [];
-      const projectStart = new Date(project.startDate);
-      const projectEnd = project.continuous ? new Date(viewportEnd) : new Date(project.endDate);
-      for (let d = new Date(projectStart); d <= projectEnd; d.setDate(d.getDate() + 1)) {
-        const dayWorkHours = generateWorkHoursForDate(new Date(d), settings);
-        workHours.push(...dayWorkHours);
-      }
-      return workHours;
-    } catch (error) {
-      console.error('Error calculating work hours for period:', error);
-      return [];
-    }
-  }, [project.startDate, project.endDate, project.continuous, viewportEnd, settings]);
-  // Memoize milestone segments calculation
-  const milestoneSegments = useMemo(() => {
-    return calculateMilestoneSegments(
+
+  // Get comprehensive timeline bar data from UnifiedTimelineService
+  const timelineData = useMemo(() => {
+    return UnifiedTimelineService.getTimelineBarData(
+      project,
+      dates,
+      viewportStart,
+      viewportEnd,
       milestones,
-      new Date(project.startDate),
-      new Date(project.endDate)
-    );
-  }, [milestones, project.startDate, project.endDate]);
-  // Memoize project metrics calculation using service
-  const projectMetrics = useMemo(() => {
-    // Create a mock project for the legacy function
-    const mockProject = {
-      id: project.id || 'timeline-project',
-      name: project.name || 'Timeline Project',
-      client: '',
-      color: project.color || '#3b82f6',
-      groupId: project.groupId || 'default-group',
-      rowId: project.rowId || 'default-row',
-      startDate: project.startDate,
-      endDate: project.endDate,
-      estimatedHours: project.estimatedHours,
-      notes: '',
-      continuous: false
-    } as Project;
-    return calculateLegacyProjectMetrics(
-      mockProject,
-      [], // empty events array
       holidays,
-      new Date()
+      settings,
+      isDragging,
+      dragState
     );
-  }, [project.startDate, project.endDate, project.estimatedHours, isWorkingDay, project.autoEstimateDays, settings, holidays]);
-  // Memoize color calculations to avoid repeated parsing
-  const colorScheme = useMemo(() => {
-    const baselineColor = ColorCalculationService.getBaselineColor(project.color);
-    const completedPlannedColor = ColorCalculationService.getCompletedPlannedColor(project.color);
-    const midToneColor = ColorCalculationService.getMidToneColor(project.color);
-    const hoverColor = ColorCalculationService.getHoverColor(project.color);
-    const autoEstimateColor = ColorCalculationService.getAutoEstimateColor(project.color);
-    return {
-      baseline: baselineColor,
-      completedPlanned: completedPlannedColor,
-      main: project.color,
-      midTone: midToneColor,
-      hover: hoverColor,
-      autoEstimate: autoEstimateColor
-    };
-  }, [project.color]);
+  }, [project, dates, viewportStart, viewportEnd, milestones, holidays, settings, isDragging, dragState]);
+
+  // Extract data for use in component
+  const {
+    projectDays,
+    workHoursForPeriod,
+    milestoneSegments,
+    projectMetrics,
+    colorScheme,
+    visualDates,
+    isWorkingDay
+  } = timelineData;
+
   const { exactDailyHours, dailyHours, dailyMinutes, heightInPixels, workingDaysCount } = projectMetrics;
   if (projectDays.length === 0) {
     return null; // Don't render anything for projects with no duration
@@ -232,7 +172,7 @@ export const TimelineBar = memo(function TimelineBar({
               // Use service to calculate week-project intersection (no hooks in loop)
               const weekCalculations = (() => {
                 try {
-                  return calculateWeekProjectIntersectionNew(
+                  return calculateWeekProjectIntersection(
                     date, visualProjectStart, visualProjectEnd, isWorkingDay
                   );
                 } catch (error) {
@@ -263,8 +203,8 @@ export const TimelineBar = memo(function TimelineBar({
                       const isDayInProject = currentDay >= normalizedProjectStart && currentDay <= normalizedProjectEnd;
                       // Determine if this specific date actually has work capacity (honors overrides + holidays)
                       const dayWorkHours = generateWorkHoursForDate(currentDay, settings);
-                      const totalDayWork = calculateWorkHoursTotalNew(dayWorkHours);
-                      const isHoliday = isHolidayDate(currentDay, holidays);
+                      const totalDayWork = calculateWorkHoursTotal(dayWorkHours);
+                      const isHoliday = isHolidayDateCapacity(currentDay, holidays);
                       const isDayWorking = !isHoliday && totalDayWork > 0;
                       // Check if this day is enabled for auto-estimation in project settings
                       const dayOfWeekName = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][currentDay.getDay()];
@@ -421,8 +361,8 @@ export const TimelineBar = memo(function TimelineBar({
               });
               // Don't render rectangle if not a project day OR if it's a 0-hour day OR if it's a holiday (respect overrides)
               const dayWorkHours = generateWorkHoursForDate(date, settings);
-              const totalDayWork = calculateWorkHoursTotalNew(dayWorkHours);
-              const isHoliday = isHolidayDate(date, holidays);
+              const totalDayWork = calculateWorkHoursTotal(dayWorkHours);
+              const isHoliday = isHolidayDateCapacity(date, holidays);
               // Check if this day is enabled for auto-estimation in project settings
               const dayOfWeekName = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][date.getDay()];
               const autoEstimateDays = project.autoEstimateDays || {
@@ -462,8 +402,8 @@ export const TimelineBar = memo(function TimelineBar({
               const visibleWorkingDays = dates.filter((d, i) => {
                 const isInProject = projectDays.some(pd => isSameDate(pd, d));
                 const wh = generateWorkHoursForDate(d, settings);
-                const total = calculateWorkHoursTotalNew(wh);
-                const holiday = isHolidayDate(d, holidays);
+                const total = calculateWorkHoursTotal(wh);
+                const holiday = isHolidayDateCapacity(d, holidays);
                 return isInProject && !holiday && total > 0;
               });
               const workingDayIndex = visibleWorkingDays.findIndex(d => isSameDate(d, date));

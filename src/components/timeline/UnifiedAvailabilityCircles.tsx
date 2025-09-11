@@ -1,20 +1,8 @@
 import React, { memo, useMemo } from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import { usePlannerContext } from '../../contexts/PlannerContext';
-import { isHolidayDateCapacity as isHolidayDate } from '@/services';
+import { UnifiedTimelineService } from '@/services';
 import { formatWeekdayDate, formatDateShort } from '@/utils/dateFormatUtils';
-import { 
-  calculateAvailabilityReduction, 
-  generateWorkHoursForDate,
-  calculateOvertimePlannedHours,
-  calculateTotalPlannedHours,
-  calculateOtherTime,
-  calculateProjectWorkingDays,
-  getProjectTimeAllocation
-} from '@/services';
-import { calculateWorkHoursTotal, expandHolidayDates } from '@/services';
-import { calculateAvailabilityCircleSize, getMinimumCircleDimensions } from '@/services';
-import { calculateAutoEstimateHoursPerDay, calculateAutoEstimateWorkingDays } from '@/services';
 
 type AvailabilityType = 
   | 'available' 
@@ -43,16 +31,9 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
   const { holidays, events } = usePlannerContext();
   const columnWidth = mode === 'weeks' ? 77 : 40;
   
-  // Helper function to check if a day has working hours
+  // Helper function to check if a day has working hours - using service
   const isWorkingDay = (date: Date) => {
-    if (isHolidayDate(date, holidays)) {
-      return false;
-    }
-    
-    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    const dayName = dayNames[date.getDay()] as keyof typeof settings.weeklyWorkHours;
-    const daySlots = settings.weeklyWorkHours[dayName] || [];
-    return Array.isArray(daySlots) ? daySlots.length > 0 : daySlots > 0;
+    return UnifiedTimelineService.isWorkingDay(date, holidays, settings);
   };
 
   // For weeks mode, get all days in the week
@@ -66,85 +47,25 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
     return weekDates;
   };
 
-  // Memoized calculation of project hours for a specific date - using proper auto-estimate calculations
+  // Memoized calculation of project hours for a specific date - using service
   const getDailyProjectHours = useMemo(() => {
-    // Convert holidays to Date array for the new calculation functions
-    const holidaysWithName = holidays.map(holiday => ({
-      startDate: new Date(holiday.startDate),
-      endDate: new Date(holiday.endDate),
-      name: holiday.title || 'Holiday',
-      id: holiday.id
-    }));
-    const holidayDates = expandHolidayDates(holidaysWithName);
-    
     return (date: Date) => {
-      let totalHours = 0;
-      
       if (!isWorkingDay(date)) {
         return 0;
       }
       
-      // Use the proper auto-estimate calculation for each project
-      projects.forEach((project: any) => {
-        const projectStart = new Date(project.startDate);
-        const projectEnd = project.continuous ? new Date() : new Date(project.endDate);
-        
-        if (date >= projectStart && date <= projectEnd) {
-          // Check if this specific date is a valid auto-estimate day for this project
-          const workingDays = calculateAutoEstimateWorkingDays(
-            projectStart,
-            projectEnd,
-            project.autoEstimateDays,
-            settings,
-            holidayDates
-          );
-          
-          // Check if the current date is in the working days for this project
-          const isProjectWorkingDay = workingDays.some(workingDay => 
-            workingDay.toDateString() === date.toDateString()
-          );
-          
-          if (isProjectWorkingDay) {
-            const hoursPerDay = calculateAutoEstimateHoursPerDay(project, settings, holidayDates);
-            const roundedHoursPerDay = Math.ceil(hoursPerDay);
-            totalHours += roundedHoursPerDay;
-          }
-        }
-      });
-      
-      return totalHours;
+      return UnifiedTimelineService.calculateDailyProjectHours(date, projects, settings, holidays);
     };
   }, [projects, settings, holidays, isWorkingDay]);
 
-  // Get work hours for a specific day
+  // Get work hours for a specific day - using service
   const getWorkHoursForDay = (date: Date) => {
-    if (isHolidayDate(date, holidays)) {
-      return 0;
-    }
-    
-    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    const dayName = dayNames[date.getDay()] as keyof typeof settings.weeklyWorkHours;
-    const dayData = settings.weeklyWorkHours[dayName];
-    
-    if (Array.isArray(dayData)) {
-      return calculateWorkHoursTotal(dayData);
-    }
-    
-    return typeof dayData === 'number' ? dayData : 0;
+    return UnifiedTimelineService.getWorkHoursForDay(date, holidays, settings);
   };
 
-  // Calculate available hours for a specific day after accounting for events
+  // Calculate available hours for a specific day after accounting for events - using service
   const getDailyAvailableHours = (date: Date) => {
-    const workHours = getWorkHoursForDay(date);
-    
-    if (workHours === 0) {
-      return 0;
-    }
-    
-    const workHourObjects = generateWorkHoursForDate(date, settings);
-    const eventReduction = calculateAvailabilityReduction(date, events, workHourObjects);
-    
-    return Math.max(0, workHours - eventReduction);
+    return UnifiedTimelineService.calculateDailyAvailableHours(date, events, settings, holidays);
   };
 
   // Calculate hours for a date or week based on type
@@ -157,7 +78,7 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
     }
   };
 
-  // Calculate hours for a specific day based on type
+  // Calculate hours for a specific day based on type using service
   const getDailyHours = (date: Date) => {
     switch (type) {
       case 'available': {
@@ -171,21 +92,18 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
         return Math.max(0, projectHours - availableHours);
       }
       case 'overtime-planned': {
-        const workHours = generateWorkHoursForDate(date, settings);
-        return calculateOvertimePlannedHours(date, events, workHours);
+        return UnifiedTimelineService.calculateOvertimePlannedHours(date, events, settings);
       }
       case 'total-planned': {
-        return calculateTotalPlannedHours(date, events);
+        return UnifiedTimelineService.calculateTotalPlannedHours(date, events);
       }
       case 'other-time': {
-        return calculateOtherTime(date, events);
+        return UnifiedTimelineService.calculateOtherTime(date, events);
       }
       default:
         return 0;
     }
-  };
-
-  // Get color classes and label based on type
+  };  // Get color classes and label based on type
   const getColorData = () => {
     switch (type) {
       case 'available':
@@ -281,7 +199,7 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
                         {/* Split hours: first 8 hours (main circle), then up to 7 more hours (inner circle) */}
                         {(() => {
                           // Use service for circle sizing calculation
-                          const { outerDiameter, innerDiameter } = calculateAvailabilityCircleSize(targetHours, mode || 'days');
+                          const { outerDiameter, innerDiameter } = UnifiedTimelineService.calculateAvailabilityCircleSize(targetHours, mode || 'days');
                           
                           return (
                             <>

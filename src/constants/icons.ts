@@ -1,28 +1,8 @@
-// Project modal constants and utilities
+// Project icons mapping
 import {
   Folder, Briefcase, Zap, Target, Lightbulb, Rocket, Star, Heart, Gift, Music, Camera, Code, Book, Gamepad2, Coffee, Home, Building, Car, Plane, Map, Globe, Infinity
 } from 'lucide-react';
 
-// Project colors using OKLCH color space for better accessibility
-export const OKLCH_PROJECT_COLORS = [
-  'oklch(0.65 0.15 25)',   // Warm red
-  'oklch(0.65 0.15 45)',   // Orange
-  'oklch(0.65 0.15 85)',   // Yellow
-  'oklch(0.65 0.15 145)',  // Lime green
-  'oklch(0.65 0.15 165)',  // Green
-  'oklch(0.65 0.15 205)',  // Teal
-  'oklch(0.65 0.15 245)',  // Blue
-  'oklch(0.65 0.15 285)',  // Purple
-  'oklch(0.65 0.15 325)',  // Pink
-  'oklch(0.65 0.15 15)',   // Deep red
-  'oklch(0.55 0.08 25)',   // Muted red
-  'oklch(0.55 0.08 85)',   // Muted yellow
-  'oklch(0.55 0.08 165)',  // Muted green
-  'oklch(0.55 0.08 245)',  // Muted blue
-  'oklch(0.55 0.08 325)',  // Muted pink
-];
-
-// Project icons mapping
 export const PROJECT_ICONS = [
   { name: 'folder', label: 'Folder', component: Folder },
   { name: 'briefcase', label: 'Briefcase', component: Briefcase },
@@ -46,4 +26,7 @@ export const PROJECT_ICONS = [
   { name: 'map', label: 'Map', component: Map },
   { name: 'globe', label: 'Globe', component: Globe },
   { name: 'infinity', label: 'Infinity', component: Infinity },
-];
+] as const;
+
+// Type for project icon names
+export type ProjectIconName = typeof PROJECT_ICONS[number]['name'];

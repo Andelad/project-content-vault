@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar as CalendarIcon, Clock, User, Palette, Trash2, Info, Folder, Briefcase, Zap, Target, Lightbulb, Rocket, Star, Heart, Gift, Music, Camera, Code, Book, Gamepad2, Coffee, Home, Building, Car, Plane, Map, Globe, Infinity, ChevronDown, ChevronRight } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, User, Palette, Trash2, Info, ChevronDown, ChevronRight, Folder, Infinity } from 'lucide-react';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { Label } from '../ui/label';
@@ -20,45 +20,7 @@ import { formatTimeHoursMinutes } from '@/utils/timeFormatUtils';
 import { formatDate, formatDateForInput } from '@/utils/dateFormatUtils';
 import { useToast } from '@/hooks/use-toast';
 import { StandardModal } from './StandardModal';
-// OKLCH color palette - matches the one defined in AppContext
-const OKLCH_PROJECT_COLORS = [
-  'oklch(0.8 0.12 0)',      // Red
-  'oklch(0.8 0.12 30)',     // Orange
-  'oklch(0.8 0.12 60)',     // Yellow-Orange
-  'oklch(0.8 0.12 90)',     // Yellow
-  'oklch(0.8 0.12 120)',    // Yellow-Green
-  'oklch(0.8 0.12 150)',    // Green
-  'oklch(0.8 0.12 180)',    // Cyan-Green
-  'oklch(0.8 0.12 210)',    // Cyan
-  'oklch(0.8 0.12 240)',    // Blue
-  'oklch(0.8 0.12 270)',    // Purple
-  'oklch(0.8 0.12 300)',    // Magenta
-  'oklch(0.8 0.12 330)',    // Pink
-];
-// Available icons for projects
-const PROJECT_ICONS = [
-  { name: 'folder', component: Folder, label: 'Folder' },
-  { name: 'briefcase', component: Briefcase, label: 'Briefcase' },
-  { name: 'target', component: Target, label: 'Target' },
-  { name: 'rocket', component: Rocket, label: 'Rocket' },
-  { name: 'lightbulb', component: Lightbulb, label: 'Lightbulb' },
-  { name: 'zap', component: Zap, label: 'Zap' },
-  { name: 'star', component: Star, label: 'Star' },
-  { name: 'heart', component: Heart, label: 'Heart' },
-  { name: 'gift', component: Gift, label: 'Gift' },
-  { name: 'code', component: Code, label: 'Code' },
-  { name: 'book', component: Book, label: 'Book' },
-  { name: 'camera', component: Camera, label: 'Camera' },
-  { name: 'music', component: Music, label: 'Music' },
-  { name: 'gamepad2', component: Gamepad2, label: 'Gaming' },
-  { name: 'coffee', component: Coffee, label: 'Coffee' },
-  { name: 'home', component: Home, label: 'Home' },
-  { name: 'building', component: Building, label: 'Building' },
-  { name: 'car', component: Car, label: 'Car' },
-  { name: 'plane', component: Plane, label: 'Plane' },
-  { name: 'map', component: Map, label: 'Map' },
-  { name: 'globe', component: Globe, label: 'Globe' }
-];
+import { OKLCH_PROJECT_COLORS, PROJECT_ICONS } from '@/constants';
 interface ProjectModalProps {
   isOpen: boolean;
   onClose: () => void;

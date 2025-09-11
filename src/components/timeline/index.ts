@@ -23,12 +23,22 @@ export { TimelineScrollbar } from './TimelineScrollbar';
 export { TimelineSidebar } from './TimelineSidebar';
 export { UnifiedAvailabilityCircles } from './UnifiedAvailabilityCircles';
 
-// Note: Excluded empty/deprecated files:
-// - DraggableHolidayBar.tsx (deprecated, functionality moved to AddProjectRow)
-// - HolidayOverlay.tsx (empty)
-// - TodayColumnOverlay.tsx (empty)
-// - StickyScrollIndicators.tsx (empty)
-// - WeekendOverlay.tsx (duplicate of TimelineColumnMarkers, removed)
-// - Project-related components moved to projects feature:
-//   - DraggableProjectRow, ProjectIconIndicator, ProjectMilestones,
-//     SmartHoverAddProjectBar, HoverAddProjectBar, StickyRightProjectIndicator
+// Cleaned up - removed empty/deprecated files:
+// ✅ Removed: DraggableHolidayBar.tsx (deprecated, functionality moved to AddProjectRow)
+// ✅ Removed: HolidayOverlay.tsx (empty)
+// ✅ Removed: TodayColumnOverlay.tsx (empty)
+// ✅ Removed: StickyScrollIndicators.tsx (empty)
+// ✅ Removed: TimelineAvailabilityContent.tsx (empty)
+// ✅ Removed: TimelineInteractions.tsx (empty)
+// ✅ Removed: TimelineProjectRenderer.tsx (empty)
+// ✅ Removed: sections/TimelineContent.tsx (empty)
+// ✅ Removed: sections/AvailabilityContent.tsx (empty)
+// ✅ Removed: TimelineBar.tsx.backup (backup file)
+// ✅ Removed: DraggableRowComponent.tsx.backup (backup file)
+
+// Business logic extracted to UnifiedTimelineService:
+// ✅ TimelineBar.tsx - major calculations moved to service
+// ✅ ProjectTimeline.tsx - project duration calculation delegated
+// ✅ UnifiedAvailabilityCircles.tsx - availability calculations delegated  
+// ✅ TimelineDateHeaders.tsx - date grouping logic delegated
+// ✅ TimelineColumnMarkers.tsx - column marker calculations delegated

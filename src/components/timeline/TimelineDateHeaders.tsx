@@ -1,6 +1,7 @@
 import React, { memo } from 'react';
 import { HoverableDateCell } from './HoverableDateCell';
 import { formatMonthYear } from '@/utils/dateFormatUtils';
+import { UnifiedTimelineService } from '@/services';
 
 interface TimelineDateHeadersProps {
   dates: Date[];
@@ -9,33 +10,8 @@ interface TimelineDateHeadersProps {
 
 export const TimelineDateHeaders = memo(function TimelineDateHeaders({ dates, mode = 'days' }: TimelineDateHeadersProps) {
   if (mode === 'weeks') {
-    // Group dates by month to create sticky headers
-    const monthGroups: { monthName: string; startIndex: number; endIndex: number; }[] = [];
-    let currentMonth = -1;
-    let currentYear = -1;
-    
-    dates.forEach((date, index) => {
-      const month = date.getMonth();
-      const year = date.getFullYear();
-      
-      if (month !== currentMonth || year !== currentYear) {
-        // End the previous month group
-        if (monthGroups.length > 0) {
-          monthGroups[monthGroups.length - 1].endIndex = index - 1;
-        }
-        
-        // Start a new month group
-        const monthName = formatMonthYear(date);
-        monthGroups.push({
-          monthName,
-          startIndex: index,
-          endIndex: dates.length - 1 // Will be updated when next month starts
-        });
-        
-        currentMonth = month;
-        currentYear = year;
-      }
-    });
+    // Group dates by month to create sticky headers using service
+    const monthGroups = UnifiedTimelineService.groupDatesByMonth(dates);
 
     return (
       <div className="h-12 border-b border-gray-200 bg-gray-50 relative">
@@ -44,10 +20,7 @@ export const TimelineDateHeaders = memo(function TimelineDateHeaders({ dates, mo
           {monthGroups.map((group, groupIndex) => {
             const isToday = dates.some((weekStart, index) => {
               if (index >= group.startIndex && index <= group.endIndex) {
-                const today = new Date();
-                const weekEnd = new Date(weekStart);
-                weekEnd.setDate(weekStart.getDate() + 6);
-                return today >= weekStart && today <= weekEnd;
+                return UnifiedTimelineService.isTodayInWeek(weekStart);
               }
               return false;
             });
@@ -85,16 +58,10 @@ export const TimelineDateHeaders = memo(function TimelineDateHeaders({ dates, mo
         {/* Week date ranges layer - aligned to bottom */}
         <div className="flex h-full items-end pb-2" style={{ minWidth: 'fit-content' }}>
           {dates.map((weekStart, index) => {
-            const weekEnd = new Date(weekStart);
-            weekEnd.setDate(weekStart.getDate() + 6);
+            const isCurrentWeek = UnifiedTimelineService.isTodayInWeek(weekStart);
             
-            const today = new Date();
-            const isCurrentWeek = today >= weekStart && today <= weekEnd;
-            
-            // Format the date range as "4 - 11"
-            const startDate = weekStart.getDate();
-            const endDate = weekEnd.getDate();
-            const dateRange = `${startDate} - ${endDate}`;
+            // Format the date range using service
+            const dateRange = UnifiedTimelineService.formatWeekDateRange(weekStart);
             
             return (
               <div key={index} className="text-center" style={{ minWidth: '77px', width: '77px' }}>
@@ -111,34 +78,8 @@ export const TimelineDateHeaders = memo(function TimelineDateHeaders({ dates, mo
     );
   }
 
-  // Original days mode logic
-  // Group dates by month to create sticky headers
-  const monthGroups: { monthName: string; startIndex: number; endIndex: number; }[] = [];
-  let currentMonth = -1;
-  let currentYear = -1;
-  
-  dates.forEach((date, index) => {
-    const month = date.getMonth();
-    const year = date.getFullYear();
-    
-    if (month !== currentMonth || year !== currentYear) {
-      // End the previous month group
-      if (monthGroups.length > 0) {
-        monthGroups[monthGroups.length - 1].endIndex = index - 1;
-      }
-      
-      // Start a new month group
-      const monthName = formatMonthYear(date);
-      monthGroups.push({
-        monthName,
-        startIndex: index,
-        endIndex: dates.length - 1 // Will be updated when next month starts
-      });
-      
-      currentMonth = month;
-      currentYear = year;
-    }
-  });
+  // Original days mode logic using service
+  const monthGroups = UnifiedTimelineService.groupDatesByMonth(dates);
 
   return (
     <div className="h-12 border-b border-gray-200 bg-gray-50 relative">
@@ -148,12 +89,11 @@ export const TimelineDateHeaders = memo(function TimelineDateHeaders({ dates, mo
           const isToday = dates.some((date, index) => 
             index >= group.startIndex && 
             index <= group.endIndex && 
-            date.toDateString() === new Date().toDateString()
+            UnifiedTimelineService.isTodayDate(date)
           );
           const hasWeekend = dates.some((date, index) => {
             if (index >= group.startIndex && index <= group.endIndex) {
-              const dayOfWeek = date.getDay();
-              return dayOfWeek === 0 || dayOfWeek === 6;
+              return UnifiedTimelineService.isWeekendDate(date);
             }
             return false;
           });
@@ -191,9 +131,8 @@ export const TimelineDateHeaders = memo(function TimelineDateHeaders({ dates, mo
       {/* Date numbers layer - aligned to bottom */}
       <div className="flex h-full items-end pb-2" style={{ minWidth: 'fit-content' }}>
         {dates.map((date, index) => {
-          const isToday = date.toDateString() === new Date().toDateString();
-          const dayOfWeek = date.getDay();
-          const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+          const isToday = UnifiedTimelineService.isTodayDate(date);
+          const isWeekend = UnifiedTimelineService.isWeekendDate(date);
           
           return (
             <div key={index} className="text-center" style={{ minWidth: '40px', width: '40px' }}>

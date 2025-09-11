@@ -4,6 +4,7 @@
  * Pure calculation functions for timeline positioning and sizing
  */
 import { formatDateShort, formatWeekdayDate } from '@/utils/dateFormatUtils';
+import { isToday, isTodayInWeek, isWeekendDate } from './dateCalculations';
 
 export interface TimelinePosition {
   left: number;
@@ -559,4 +560,114 @@ export function calculateDayWorkHours(date: Date, settings: any): any[] {
 export function calculateTotalDayWorkHours(date: Date, settings: any): number {
   const dayWorkHours = calculateDayWorkHours(date, settings);
   return calculateWorkHoursTotal(dayWorkHours);
+}
+
+/**
+ * SINGLE SOURCE OF TRUTH - Timeline Column Marker Calculations
+ * All column marker data calculations MUST use these functions
+ */
+
+export interface TimelineColumnData {
+  date: Date;
+  index: number;
+  columnWidth: number;
+  isToday: boolean;
+  isNewMonth: boolean;
+  isNewWeek: boolean;
+  mode: 'days' | 'weeks';
+  isWeekend?: boolean;
+  weekendDays?: Array<{
+    leftPx: number;
+    dayWidthPx: number;
+    date: Date;
+  }>;
+  todayPositionPx?: number;
+}
+
+/**
+ * Calculate column marker data for timeline columns
+ * THE authoritative column marker calculation used everywhere
+ */
+export function calculateTimelineColumnMarkerData(
+  dates: Date[], 
+  mode: 'days' | 'weeks' = 'days'
+): TimelineColumnData[] {
+  const columnWidth = mode === 'weeks' ? 77 : 40;
+  const today = new Date();
+  
+  return dates.map((date, index) => {
+    // Check if this column represents today
+    let isCurrentDay = false;
+    if (mode === 'days') {
+      isCurrentDay = isToday(date);
+    } else {
+      isCurrentDay = isTodayInWeek(date);
+    }
+    
+    if (mode === 'weeks') {
+      // Week mode: calculate month and week separators
+      const prevDate = index > 0 ? dates[index - 1] : null;
+      const isNewMonth = index > 0 && prevDate && date.getMonth() !== prevDate.getMonth();
+      const isNewWeek = index > 0; // Every column is a new week in weeks mode
+      
+      // Calculate weekend day positions within week
+      const weekendDays = Array.from({ length: 7 }).map((_, dayOffset) => {
+        const dayDate = new Date(date);
+        dayDate.setDate(date.getDate() + dayOffset);
+        const isWeekendDay = isWeekendDate(dayDate);
+        
+        if (!isWeekendDay) return null;
+        
+        const leftPx = (dayOffset / 7) * columnWidth;
+        const dayWidthPx = 11; // 77px ÷ 7 days
+        
+        return {
+          leftPx,
+          dayWidthPx,
+          date: dayDate
+        };
+      }).filter(Boolean) as Array<{
+        leftPx: number;
+        dayWidthPx: number;
+        date: Date;
+      }>;
+      
+      // Calculate today position within week
+      let todayPositionPx = 0;
+      if (isCurrentDay) {
+        const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+        const daysFromWeekStart = (dayOfWeek + 6) % 7; // Convert to Monday = 0 system
+        todayPositionPx = (daysFromWeekStart / 7) * columnWidth;
+      }
+      
+      return {
+        date,
+        index,
+        columnWidth,
+        isToday: isCurrentDay,
+        isNewMonth,
+        isNewWeek,
+        weekendDays,
+        todayPositionPx,
+        mode: 'weeks' as const
+      };
+    } else {
+      // Days mode: calculate weekend and month separators
+      const isWeekend = isWeekendDate(date);
+      const prevDate = index > 0 ? dates[index - 1] : null;
+      const isNewMonth = index > 0 && prevDate && date.getMonth() !== prevDate.getMonth();
+      const isNewWeek = index > 0 && prevDate && date.getDay() === 1; // Monday starts new week
+      
+      return {
+        date,
+        index,
+        columnWidth,
+        isToday: isCurrentDay,
+        isWeekend,
+        isNewMonth,
+        isNewWeek,
+        mode: 'days' as const
+      };
+    }
+  });
 }

@@ -409,3 +409,143 @@ export function isWorkingDay(date: Date, settings: any, holidays: Date[] = []): 
   return Array.isArray(workSlots) && 
          workSlots.reduce((total, slot) => total + (slot.duration || 0), 0) > 0;
 }
+
+/**
+ * SINGLE SOURCE OF TRUTH - Timeline Date Operations
+ * All timeline date operations MUST use these functions
+ */
+
+/**
+ * Check if a date is today
+ * THE authoritative today check used everywhere
+ */
+export function isToday(date: Date): boolean {
+  const today = new Date();
+  return date.toDateString() === today.toDateString();
+}
+
+/**
+ * Check if today falls within a week range
+ * THE authoritative week-today check used everywhere
+ */
+export function isTodayInWeek(weekStart: Date): boolean {
+  const today = new Date();
+  const weekEnd = addDays(weekStart, 6);
+  return today >= weekStart && today <= weekEnd;
+}
+
+/**
+ * Check if a date is weekend (Saturday or Sunday)
+ * THE authoritative weekend check used everywhere
+ */
+export function isWeekendDate(date: Date): boolean {
+  return isWeekend(date);
+}
+
+/**
+ * Get week end date from week start
+ * THE authoritative week end calculation used everywhere
+ */
+export function getWeekEndDate(weekStart: Date): Date {
+  return addDays(weekStart, 6);
+}
+
+/**
+ * Format week date range (e.g., "4 - 11")
+ * THE authoritative week range formatting used everywhere
+ */
+export function formatWeekDateRange(weekStart: Date): string {
+  const weekEnd = getWeekEndDate(weekStart);
+  const startDate = weekStart.getDate();
+  const endDate = weekEnd.getDate();
+  return `${startDate} - ${endDate}`;
+}
+
+/**
+ * Get day of week for a date (0 = Sunday, 6 = Saturday)
+ * Pure calculation function for date operations
+ */
+export function getDayOfWeek(date: Date): number {
+  return date.getDay();
+}
+
+/**
+ * Get day name from date
+ * Pure calculation function returning day names array index
+ */
+export function getDayName(date: Date): string {
+  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  return dayNames[date.getDay()];
+}
+
+/**
+ * Generate date range between two dates
+ * Pure calculation function for date iteration
+ */
+export function generateDateRange(startDate: Date, endDate: Date): Date[] {
+  const dates: Date[] = [];
+  const current = new Date(startDate);
+  
+  while (current <= endDate) {
+    dates.push(new Date(current));
+    current.setDate(current.getDate() + 1);
+  }
+  
+  return dates;
+}
+
+/**
+ * Check if date matches any date in array
+ * Pure calculation function for date matching
+ */
+export function isDateInArray(targetDate: Date, dates: Date[]): boolean {
+  return dates.some(date => targetDate.toDateString() === date.toDateString());
+}
+
+/**
+ * Group dates by month for timeline display
+ * Pure calculation function following single source of truth pattern
+ */
+export function groupDatesByMonth(dates: Date[]): Array<{
+  monthName: string;
+  startIndex: number;
+  endIndex: number;
+}> {
+  const monthGroups: Array<{
+    monthName: string;
+    startIndex: number;
+    endIndex: number;
+  }> = [];
+  let currentMonth = -1;
+  let currentYear = -1;
+  
+  dates.forEach((date, index) => {
+    const month = date.getMonth();
+    const year = date.getFullYear();
+    
+    if (month !== currentMonth || year !== currentYear) {
+      // End the previous month group
+      if (monthGroups.length > 0) {
+        monthGroups[monthGroups.length - 1].endIndex = index - 1;
+      }
+      
+      // Start a new month group
+      const monthNames = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      const monthName = `${monthNames[month]} ${year}`;
+      
+      monthGroups.push({
+        monthName,
+        startIndex: index,
+        endIndex: dates.length - 1 // Will be updated when next month starts
+      });
+      
+      currentMonth = month;
+      currentYear = year;
+    }
+  });
+  
+  return monthGroups;
+}

@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { Project } from '../../types';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useTimelineContext } from '../../contexts/TimelineContext';
-import { calculateProjectDuration } from '@/services';
-import { calculateProjectHeight } from '@/services';
-import { calculateCommittedHoursForDate } from '@/services';
-import { calculateProjectBarPosition } from '@/services';
+import { UnifiedTimelineService } from '../../services/unified/UnifiedTimelineService';
+import { 
+  calculateCommittedHoursForDate,
+  calculateProjectHeight,
+  calculateProjectBarPosition
+} from '@/services';
 
 interface ProjectTimelineProps {
   project: Project;
@@ -25,7 +27,7 @@ export function ProjectTimeline({ project, dates, currentDate }: ProjectTimeline
 
   // Calculate project duration in days
   const getProjectDuration = () => {
-    return calculateProjectDuration(project);
+    return UnifiedTimelineService.calculateProjectDuration(project);
   };
 
   // Calculate default hours per day
