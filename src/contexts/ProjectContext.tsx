@@ -55,21 +55,21 @@ interface ProjectContextType {
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
 
-// Global color counter for assigning colors to new projects/groups
-let colorIndex = 0;
-const getNextProjectColor = () => {
-  const color = getProjectColor(colorIndex);
-  colorIndex++;
-  return color;
-};
-
-const getNextGroupColor = () => {
-  const color = getGroupColor(colorIndex);
-  colorIndex++;
-  return color;
-};
-
 export function ProjectProvider({ children }: { children: React.ReactNode }) {
+  // Move color index inside the provider to avoid module-level state issues
+  const [colorIndex, setColorIndex] = useState(0);
+  
+  const getNextProjectColor = useCallback(() => {
+    const color = getProjectColor(colorIndex);
+    setColorIndex(prev => prev + 1);
+    return color;
+  }, [colorIndex]);
+
+  const getNextGroupColor = useCallback(() => {
+    const color = getGroupColor(colorIndex);
+    setColorIndex(prev => prev + 1);
+    return color;
+  }, [colorIndex]);
   // Database hooks
   const { 
     projects: dbProjects, 
@@ -277,6 +277,9 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 export function useProjectContext() {
   const context = useContext(ProjectContext);
   if (context === undefined) {
+    // Add more debugging information
+    console.error('useProjectContext was called outside of ProjectProvider. Current context:', context);
+    console.error('Stack trace:', new Error().stack);
     throw new Error('useProjectContext must be used within a ProjectProvider');
   }
   return context;
