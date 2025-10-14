@@ -6,7 +6,6 @@
  * Enhanced with better type safety and comprehensive documentation
  */
 
-import { formatDuration as coreFormatDuration } from './dateCalculations';
 import type { CalendarEvent } from '@/types';
 
 export interface EventDurationParams {
@@ -158,21 +157,6 @@ export function aggregateEventDurationsByDate(
   });
   
   return totals;
-}
-
-/**
- * Format duration from hours to human-readable string
- * Delegates to the centralized duration formatting function
- * 
- * @param hours - Duration in hours
- * @returns Human-readable duration string
- */
-export function formatEventDuration(hours: number): string {
-  if (hours < 0) {
-    throw new Error('Duration cannot be negative');
-  }
-  
-  return coreFormatDuration(hours);
 }
 
 /**

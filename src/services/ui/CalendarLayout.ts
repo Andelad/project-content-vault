@@ -5,11 +5,9 @@
  */
 
 import { 
-  formatDuration as coreFormatDuration,
   calculateDurationHours as coreCalculateDurationHours
 } from '@/services/calculations/dateCalculations';
 import { 
-  formatTime as coreFormatTime,
   snapToTimeSlot as coreSnapToTimeSlot
 } from '@/services/calculations/timeCalculations';
 
@@ -89,22 +87,6 @@ export class CalendarPositioningService {
     const minutes = time.getMinutes();
     const totalSlots = hours * config.slotsPerHour + Math.floor(minutes / config.minutesPerSlot);
     return totalSlots * config.slotHeight;
-  }
-
-  /**
-   * Format duration in hours to "Xh Ym" format
-   * DELEGATES to single source of truth
-   */
-  static formatDuration(durationHours: number): string {
-    return coreFormatDuration(durationHours);
-  }
-
-  /**
-   * Format time to display format
-   * DELEGATES to single source of truth
-   */
-  static formatTime(date: Date, use12Hour: boolean = true): string {
-    return coreFormatTime(date, use12Hour);
   }
 
   /**

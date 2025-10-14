@@ -13,6 +13,7 @@ import { useSettingsContext } from '../../contexts/SettingsContext';
 import { WorkSlot } from '@/types/core';
 import { CalendarImport } from './CalendarImport';
 import { useToast } from '../../hooks/use-toast';
+import { formatDuration } from '@/services';
 import { AppPageLayout } from '../layout/AppPageLayout';
 import { formatWorkSlotDurationDisplay } from '@/services';
 import { SettingsOrchestrator } from '@/services/orchestrators/SettingsOrchestrator';
@@ -292,7 +293,7 @@ export function SettingsView() {
                 <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
                   <span className="text-sm font-medium text-blue-900">Total weekly hours:</span>
                   <span className="text-lg font-semibold text-blue-600">
-                    {getWeekTotal().toFixed(2)} hours
+                    {formatDuration(getWeekTotal())}
                   </span>
                 </div>
                 

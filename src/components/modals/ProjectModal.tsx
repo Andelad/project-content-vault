@@ -15,8 +15,7 @@ import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 import { useTimelineContext } from '../../contexts/TimelineContext';
-import { calculateProjectTimeMetrics, calculateAutoEstimateHoursPerDay, expandHolidayDates, calculateTotalWorkingDays, clearTimelineCache, ProjectOrchestrator } from '@/services';
-import { formatTimeHoursMinutes } from '@/utils/timeFormatUtils';
+import { calculateProjectTimeMetrics, calculateAutoEstimateHoursPerDay, expandHolidayDates, calculateTotalWorkingDays, clearTimelineCache, ProjectOrchestrator, formatDuration } from '@/services';
 import { formatDate, formatDateForInput } from '@/utils/dateFormatUtils';
 import { useToast } from '@/hooks/use-toast';
 import { StandardModal } from './StandardModal';
@@ -424,7 +423,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
   }) => {
     const isEditing = editable && editingProperty === property;
     // Format the display value based on whether it should be formatted as time
-    const displayValue = formatAsTime ? formatTimeHoursMinutes(value) : value;
+    const displayValue = formatAsTime ? formatDuration(value) : value;
     const displayUnit = formatAsTime ? '' : unit; // Don't show unit if we're showing formatted time
     return (
       <div className="bg-white rounded-lg p-4 border border-border">
@@ -1073,7 +1072,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
                       name: h.title || 'Holiday' 
                     })))
                   );
-                  return avgHoursPerDay > 0 ? `Avg ${formatTimeHoursMinutes(avgHoursPerDay)} per day` : 'Avg -';
+                  return avgHoursPerDay > 0 ? `Avg ${formatDuration(avgHoursPerDay)} per day` : 'Avg -';
                 })()}
               </div>
               {/* Working days insight */}

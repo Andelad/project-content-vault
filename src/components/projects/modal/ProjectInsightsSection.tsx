@@ -1,7 +1,8 @@
 import React from 'react';
 import { Clock, TrendingUp, Calendar, Target } from 'lucide-react';
 import { ProjectProgressGraph } from './ProjectProgressGraph';
-import { formatTimeHoursMinutes } from '../../../utils/timeFormatUtils';
+import { Project } from '../../../types';
+import { formatDuration } from '@/services';
 import { calculateProjectTimeMetrics } from '@/services';
 import { useSettingsContext } from '../../../contexts/SettingsContext';
 
@@ -65,11 +66,11 @@ export const ProjectInsightsSection: React.FC<ProjectInsightsSectionProps> = ({
           <div className="space-y-1">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Logged:</span>
-              <span className="font-medium">{formatTimeHoursMinutes(metrics.completedTime)}</span>
+              <span className="font-medium">{formatDuration(metrics.completedTime)}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Remaining:</span>
-              <span className="font-medium">{formatTimeHoursMinutes(Math.max(0, metrics.totalBudgetedTime - metrics.completedTime))}</span>
+              <span className="font-medium">{formatDuration(Math.max(0, metrics.totalBudgetedTime - metrics.completedTime))}</span>
             </div>
           </div>
         </div>
@@ -98,7 +99,7 @@ export const ProjectInsightsSection: React.FC<ProjectInsightsSectionProps> = ({
 
         <div className="bg-card rounded-lg p-4 border text-center">
           <div className="text-lg font-bold text-foreground mb-1">
-            {formatTimeHoursMinutes(metrics.totalBudgetedTime)}
+            {formatDuration(metrics.totalBudgetedTime)}
           </div>
           <div className="text-sm text-muted-foreground">Estimated</div>
         </div>

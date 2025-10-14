@@ -1,29 +1,23 @@
-// Time formatting utilities - Single source of truth for time display
-export const formatTimeHoursMinutes = (hours: number): string => {
-  const wholeHours = Math.floor(hours);
-  const minutes = Math.round((hours - wholeHours) * 60);
+// ⚠️ DEPRECATED: Time formatting utilities
+// 
+// ❌ ARCHITECTURAL VIOLATION: Business logic should not be in utils/
+// ✅ MIGRATE TO: Import from '@/services' instead
+//
+// This file will be removed in future versions.
+// All time formatting has been consolidated to services/calculations/dateCalculations.ts
 
-  if (wholeHours === 0 && minutes === 0) {
-    return '0h';
-  } else if (wholeHours === 0) {
-    return `${minutes}m`;
-  } else if (minutes === 0) {
-    return `${wholeHours}h`;
-  } else {
-    return `${wholeHours}h ${minutes}m`;
-  }
-};
+// Re-export from the authoritative source for backward compatibility
+export { 
+  formatDuration as formatTimeHoursMinutes,
+  formatDuration,
+  formatDurationFromMinutes,
+  formatDuration as formatDurationFromHours,
+  formatDuration as formatDurationPreview
+} from '@/services/calculations/dateCalculations';
 
-// Alias for consistency (this is the primary time formatting function)
-export const formatDuration = formatTimeHoursMinutes;
-
-// Format duration from minutes to match the hours format
-export const formatDurationFromMinutes = (minutes: number): string => {
-  return formatTimeHoursMinutes(minutes / 60);
-};
-
-// Format duration from hours (alias for the main function)
-export const formatDurationFromHours = formatTimeHoursMinutes;
-
-// Format duration preview (alias for consistency)
-export const formatDurationPreview = formatTimeHoursMinutes;
+// ⚠️ DEPRECATED NOTICE:
+// These functions are deprecated. Use imports from '@/services' instead:
+// 
+// ❌ OLD: import { formatTimeHoursMinutes } from '@/utils/timeFormatUtils';
+// ✅ NEW: import { formatDuration } from '@/services';
+//

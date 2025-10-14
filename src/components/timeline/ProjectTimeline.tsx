@@ -6,7 +6,8 @@ import { UnifiedTimelineService } from '../../services/unified/UnifiedTimelineSe
 import { 
   calculateCommittedHoursForDate,
   calculateProjectHeight,
-  calculateProjectBarPosition
+  calculateProjectBarPosition,
+  formatDuration
 } from '@/services';
 
 interface ProjectTimelineProps {
@@ -180,7 +181,7 @@ export function ProjectTimeline({ project, dates, currentDate }: ProjectTimeline
                         backgroundColor: `${project.color}40` // 40 = 25% opacity
                       }}
                       onMouseDown={(e) => handleDragStart(date, e)}
-                      title={`${allocatedHours.toFixed(1)} hours allocated`}
+                      title={`${formatDuration(allocatedHours)} allocated`}
                     ></div>
                   )}
                   
@@ -193,7 +194,7 @@ export function ProjectTimeline({ project, dates, currentDate }: ProjectTimeline
                         borderColor: project.color,
                         backgroundColor: 'transparent'
                       }}
-                      title={`${committedHours.toFixed(1)} hours scheduled`}
+                      title={`${formatDuration(committedHours)} scheduled`}
                     ></div>
                   )}
                   
@@ -205,18 +206,18 @@ export function ProjectTimeline({ project, dates, currentDate }: ProjectTimeline
                         height: `${getBarHeight(committedHours - allocatedHours)}px`,
                         transform: `translateY(-${barHeight}px)`
                       }}
-                      title={`${(committedHours - allocatedHours).toFixed(1)} hours overcommitted`}
+                      title={`${formatDuration(committedHours - allocatedHours)} overcommitted`}
                     ></div>
                   )}
                   
                   {/* Hours display on hover */}
                   {(allocatedHours > 0 || committedHours > 0) && (
                     <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 opacity-0 hover:opacity-100 transition-opacity bg-black text-white text-xs px-2 py-1 rounded whitespace-nowrap pointer-events-none">
-                      {allocatedHours > 0 && `${allocatedHours.toFixed(1)}h allocated`}
+                      {allocatedHours > 0 && `${formatDuration(allocatedHours)} allocated`}
                       {committedHours > 0 && (
                         <>
                           {allocatedHours > 0 && <br />}
-                          {`${committedHours.toFixed(1)}h scheduled`}
+                          {`${formatDuration(committedHours)} scheduled`}
                         </>
                       )}
                     </div>

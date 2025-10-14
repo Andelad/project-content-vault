@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Clock, Move, GripVertical } from 'lucide-react';
 import { WorkHour } from '../../types';
-import { calculateTimeFromPosition as calculateTimeFromPositionService, formatTimeForDisplay, formatDurationFromHours } from '@/services';
+import { calculateTimeFromPosition as calculateTimeFromPositionService, formatTimeForDisplay, formatDuration as formatDurationService } from '@/services';
 
 interface DraggableWorkHourProps {
   workHour: WorkHour;
@@ -73,7 +73,7 @@ export function DraggableWorkHour({
   };
 
   const formatDuration = (duration: number) => {
-    return formatDurationFromHours(duration);
+    return formatDurationService(duration);
   };
 
   const snapToTimeSlot = (date: Date) => {

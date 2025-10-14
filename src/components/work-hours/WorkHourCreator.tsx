@@ -7,7 +7,7 @@ import {
   handleWorkHourCreationComplete,
   getWorkHourOverlapInfo,
   generateWorkHourPreviewStyle,
-  formatDurationPreview,
+  formatDuration,
   getWorkHourCreationCursor,
   shouldAllowWorkHourCreation,
   calculateDurationHours,
@@ -214,7 +214,7 @@ export function WorkHourCreator({
             ) : (
               <>
                 <Plus className="w-3 h-3" />
-                <span>New Work Hours ({formatDurationPreview(calculateDurationHours(createState.startTime as Date, createState.endTime as Date))})</span>
+                <span>New Work Hours ({formatDuration(calculateDurationHours(createState.startTime as Date, createState.endTime as Date))})</span>
               </>
             )}
           </div>

@@ -112,17 +112,32 @@ export const TimelineBar = memo(function TimelineBar({
   onMilestoneDrag,
   onMilestoneDragEnd
 }: TimelineBarProps) {
-  if (!project) {
-    console.warn('TimelineBar: No project provided');
-    return null;
-  }
-  try {
+  // Always call hooks first, before any early returns
   const { milestones } = useProjectContext();
   const { events, holidays } = usePlannerContext();
   const { settings } = useSettingsContext();
 
   // Get comprehensive timeline bar data from UnifiedTimelineService
   const timelineData = useMemo(() => {
+    if (!project) {
+      return {
+        projectDays: [],
+        workHoursForPeriod: [],
+        milestoneSegments: [],
+        projectMetrics: { exactDailyHours: [], dailyHours: [], dailyMinutes: [], heightInPixels: [], workingDaysCount: 0 },
+        colorScheme: { 
+          baseline: '#666666', 
+          completedPlanned: '#cccccc', 
+          main: '#888888', 
+          midTone: '#aaaaaa', 
+          hover: '#999999', 
+          autoEstimate: '#dddddd' 
+        },
+        visualDates: { visualProjectStart: new Date(), visualProjectEnd: new Date() },
+        isWorkingDay: () => false
+      };
+    }
+    
     return UnifiedTimelineService.getTimelineBarData(
       project,
       dates,
@@ -148,20 +163,30 @@ export const TimelineBar = memo(function TimelineBar({
   } = timelineData;
 
   const { exactDailyHours, dailyHours, dailyMinutes, heightInPixels, workingDaysCount } = projectMetrics;
+  
+  // Now do early returns after all hooks have been called
+  if (!project) {
+    console.warn('TimelineBar: No project provided');
+    return null;
+  }
+  
   if (projectDays.length === 0) {
     return null; // Don't render anything for projects with no duration
   }
-  return (
-    <div className="relative h-[52px] group pointer-events-none">
-      <div className="h-full relative flex flex-col pointer-events-none">
-        {/* Project rectangles area - positioned to rest bottom edge on top of baseline */}
-        <div 
-          className="flex w-full relative z-20 flex-1 pointer-events-none" 
-          style={{ 
-            minWidth: `${dates.length * (mode === 'weeks' ? 77 : 40)}px`,
-            zIndex: 20
-          }}
-        >
+  
+  // Wrap only the JSX return in try-catch, not the hooks
+  try {
+    return (
+      <div className="relative h-[52px] group pointer-events-none">
+        <div className="h-full relative flex flex-col pointer-events-none">
+          {/* Project rectangles area - positioned to rest bottom edge on top of baseline */}
+          <div 
+            className="flex w-full relative z-20 flex-1 pointer-events-none" 
+            style={{ 
+              minWidth: `${dates.length * (mode === 'weeks' ? 77 : 40)}px`,
+              zIndex: 20
+            }}
+          >
           {(() => {
             // Calculate visually adjusted project dates using consolidated offset logic
             const { visualProjectStart, visualProjectEnd } = calculateVisualProjectDates(
@@ -752,7 +777,7 @@ export const TimelineBar = memo(function TimelineBar({
         })()}
       </div>
     </div>
-  );
+    );
   } catch (error) {
     console.error('Error rendering TimelineBar for project:', project?.id, error);
     return <div style={{ height: '40px', background: '#ffebee' }}>Error rendering project bar</div>;

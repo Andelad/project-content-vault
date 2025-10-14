@@ -1,7 +1,7 @@
 import React, { memo, useMemo } from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import { usePlannerContext } from '../../contexts/PlannerContext';
-import { UnifiedTimelineService } from '@/services';
+import { UnifiedTimelineService, formatDuration } from '@/services';
 import { formatWeekdayDate, formatDateShort } from '@/utils/dateFormatUtils';
 
 type AvailabilityType = 
@@ -176,8 +176,8 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
                           </div>
                           <div className="text-gray-500">
                             {type === 'available' 
-                              ? `${getDailyAvailableHours(date).toFixed(1)}h available, ${getDailyProjectHours(date)}h scheduled`
-                              : `${getDailyProjectHours(date)}h scheduled, ${getDailyAvailableHours(date).toFixed(1)}h available`
+                              ? `${formatDuration(getDailyAvailableHours(date))} available, ${formatDuration(getDailyProjectHours(date))} scheduled`
+                              : `${formatDuration(getDailyProjectHours(date))} scheduled, ${formatDuration(getDailyAvailableHours(date))} available`
                             }
                           </div>
                         </div>
@@ -238,7 +238,7 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
                           type === 'busy' ? 'text-red-600' : 
                           'text-gray-600'
                         }`}>
-                          {targetHours.toFixed(1)}
+                          {formatDuration(targetHours)}
                         </span>
                       </div>
                     )}
@@ -254,7 +254,7 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
                       {label}
                     </div>
                     <div className="text-gray-500">
-                      {targetHours.toFixed(1)} hour{Math.round(targetHours * 10) !== 10 ? 's' : ''} {
+                      {formatDuration(targetHours)} {
                         type === 'available' ? 'free' : 
                         type === 'busy' ? 'over' : ''
                       }
@@ -270,7 +270,7 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
                     )}
                     {(type === 'available' || type === 'busy') && (
                       <div className="text-xs text-gray-400">
-                        {getDailyAvailableHours(date).toFixed(1)}h available, {getDailyProjectHours(date)}h scheduled
+                        {formatDuration(getDailyAvailableHours(date))} available, {formatDuration(getDailyProjectHours(date))} scheduled
                       </div>
                     )}
                   </div>

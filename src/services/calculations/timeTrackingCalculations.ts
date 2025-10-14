@@ -1,5 +1,6 @@
 import type { TimeTrackingState } from '../../types/timeTracking';
 import { calculateDurationMinutes } from './dateCalculations';
+import { formatDuration } from './dateCalculations';
 
 /**
  * Time Tracking Calculations
@@ -72,17 +73,11 @@ class TimeTrackingCalculations {
 
   /**
    * Format duration to hours and minutes only
+   * DELEGATES to single source of truth
    */
   formatDurationHoursMinutes(durationMs: number): string {
-    const totalMinutes = Math.floor(durationMs / (1000 * 60));
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-
-    if (hours > 0) {
-      return `${hours}h ${minutes}m`;
-    } else {
-      return `${minutes}m`;
-    }
+    const hours = this.durationToHours(durationMs);
+    return formatDuration(hours);
   }
 
   /**

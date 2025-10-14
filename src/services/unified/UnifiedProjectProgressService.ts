@@ -230,25 +230,6 @@ export function calculateProjectStatus(project: Project): ProjectStatus {
   };
 }
 
-/**
- * Format project date range for display
- */
-export function formatProjectDateRange(project: Project): string {
-  const startDate = new Date(project.startDate);
-  const endDate = new Date(project.endDate);
-  
-  const formatOptions: Intl.DateTimeFormatOptions = { 
-    month: 'short', 
-    day: 'numeric', 
-    year: 'numeric' 
-  };
-  
-  const start = startDate.toLocaleDateString(APP_LOCALE, formatOptions);
-  const end = endDate.toLocaleDateString(APP_LOCALE, formatOptions);
-  
-  return `${start} - ${end}`;
-}
-
 // =====================================================================================
 // PROGRESS ANALYSIS FUNCTIONS
 // =====================================================================================

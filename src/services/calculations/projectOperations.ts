@@ -397,24 +397,6 @@ export function calculateProjectStatus(project: Project): {
 }
 
 /**
- * Format project date range for display
- */
-export function formatProjectDateRange(project: Project): string {
-  if (!project.startDate || !project.endDate) {
-    return 'No dates set';
-  }
-
-  const start = formatDateShort(new Date(project.startDate));
-  const end = formatDateShort(new Date(project.endDate));
-  
-  if (project.continuous) {
-    return `${start} - Ongoing`;
-  }
-  
-  return `${start} - ${end}`;
-}
-
-/**
  * Determine project status for organization
  */
 export function determineProjectStatus(project: Project): 'future' | 'current' | 'archived' {

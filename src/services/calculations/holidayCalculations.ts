@@ -19,12 +19,6 @@ export interface HolidayDate {
   holidayId: string;
 }
 
-export interface DateRangeFormatOptions {
-  includeYear?: boolean;
-  format?: 'short' | 'long';
-  locale?: string;
-}
-
 /**
  * Expand holiday ranges into individual Date objects for fast lookup
  */
@@ -143,49 +137,6 @@ export function countHolidayDaysInRange(
   holidays: Holiday[]
 ): number {
   return getHolidaysInRangeDetailed(startDate, endDate, holidays).length;
-}
-
-/**
- * Format a date range with intelligent formatting
- */
-export function formatDateRange(
-  startDate: Date, 
-  endDate: Date, 
-  options: DateRangeFormatOptions = {}
-): string {
-  const { format = 'short', locale = APP_LOCALE } = options;
-  
-  const sameMonth = startDate.getMonth() === endDate.getMonth();
-  const sameYear = startDate.getFullYear() === endDate.getFullYear();
-  
-  if (sameMonth && sameYear) {
-    return `${startDate.toLocaleDateString(locale, { 
-      month: format === 'long' ? 'long' : 'short',
-      day: 'numeric'
-    })} - ${endDate.toLocaleDateString(locale, { 
-      day: 'numeric',
-      year: 'numeric'
-    })}`;
-  } else if (sameYear) {
-    return `${startDate.toLocaleDateString(locale, { 
-      month: 'short',
-      day: 'numeric'
-    })} - ${endDate.toLocaleDateString(locale, { 
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    })}`;
-  } else {
-    return `${startDate.toLocaleDateString(locale, { 
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    })} - ${endDate.toLocaleDateString(locale, { 
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    })}`;
-  }
 }
 
 /**

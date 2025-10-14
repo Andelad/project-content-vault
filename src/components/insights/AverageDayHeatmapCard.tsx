@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Checkbox } from '../ui/checkbox';
 import { CalendarEvent, Group, Project } from '../../types';
 import { FilterModal } from './FilterModal';
+import { formatDuration } from '@/services';
 
 interface FilterRule {
   id: string;
@@ -329,7 +330,7 @@ export const AverageDayHeatmapCard: React.FC<AverageDayHeatmapCardProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 py-4 border-t border-gray-100">
               <div className="text-center">
                 <div className="text-2xl font-bold text-foreground mb-1">
-                  {summaryStats.averageDailyHours.toFixed(1)}h
+                  {formatDuration(summaryStats.averageDailyHours)}
                 </div>
                 <div className="text-sm text-gray-600">Average daily hours</div>
               </div>

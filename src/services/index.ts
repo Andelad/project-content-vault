@@ -152,13 +152,14 @@ export {
   APP_LOCALE
 } from '@/utils/dateFormatUtils';
 
+// ===================================
+// TIME FORMATTING - SINGLE SOURCE OF TRUTH
+// ===================================
+
 export { 
-  formatTimeHoursMinutes,
   formatDuration,
-  formatDurationFromMinutes,
-  formatDurationFromHours,
-  formatDurationPreview
-} from '@/utils/timeFormatUtils';
+  formatDurationFromMinutes
+} from './calculations/dateCalculations';
 
 // ===================================
 // EVENT CALCULATIONS

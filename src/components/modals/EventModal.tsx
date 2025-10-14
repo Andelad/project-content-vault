@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { CalendarEvent } from '../../types';
-import { calculateDurationHours } from '@/services';
+import { calculateDurationHours, formatDuration } from '@/services';
 import { eventModalOrchestrator, type EventFormData, type EventFormErrors } from '@/services/orchestrators/EventModalOrchestrator';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -683,7 +683,7 @@ export function EventModal({
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Clock className="w-4 h-4" />
               <span>
-                Duration: {calculateDurationHours(getStartDateTime(), getEndDateTime()).toFixed(1)} hours
+                Duration: {formatDuration(calculateDurationHours(getStartDateTime(), getEndDateTime()))}
               </span>
             </div>
           )}
