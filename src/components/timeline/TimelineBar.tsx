@@ -112,7 +112,7 @@ export const TimelineBar = memo(function TimelineBar({
   onMilestoneDrag,
   onMilestoneDragEnd
 }: TimelineBarProps) {
-  // Always call ALL hooks first, before any early returns
+  // Always call ALL hooks first, before any early returns (React Rules of Hooks)
   const { milestones } = useProjectContext();
   const { events, holidays } = usePlannerContext();
   const { settings } = useSettingsContext();
