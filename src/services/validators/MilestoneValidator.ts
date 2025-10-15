@@ -101,17 +101,14 @@ export class MilestoneValidator {
       errors.push(`Adding this milestone would exceed project budget by ${budgetValidation.overageAmount}h`);
     }
 
-    // Repository-based validations (if available)
-    let conflictingMilestones: Milestone[] = [];
-    if (context.repository) {
-      conflictingMilestones = await context.repository.findConflictingDates(
-        request.projectId,
-        request.dueDate
-      );
-      
-      if (conflictingMilestones.length > 0) {
-        errors.push(`${conflictingMilestones.length} milestone(s) already exist on this date`);
-      }
+    // Check for conflicting milestone dates
+    const conflictingMilestones = context.existingMilestones.filter(m => 
+      m.projectId === request.projectId && 
+      m.dueDate.getTime() === request.dueDate.getTime()
+    );
+    
+    if (conflictingMilestones.length > 0) {
+      errors.push(`${conflictingMilestones.length} milestone(s) already exist on this date`);
     }
 
     // Advanced business rule validations
@@ -231,17 +228,15 @@ export class MilestoneValidator {
       );
       errors.push(...dateValidation.errors);
 
-      // Check for repository conflicts if available
-      if (context.repository) {
-        const conflictingMilestones = await context.repository.findConflictingDates(
-          context.project.id,
-          request.dueDate,
-          request.id
-        );
-        
-        if (conflictingMilestones.length > 0) {
-          errors.push(`Date conflicts with ${conflictingMilestones.length} other milestone(s)`);
-        }
+      // Check for conflicting milestone dates
+      const conflictingMilestones = context.existingMilestones.filter(m => 
+        m.projectId === context.project.id && 
+        m.id !== request.id && 
+        m.dueDate.getTime() === request.dueDate.getTime()
+      );
+      
+      if (conflictingMilestones.length > 0) {
+        errors.push(`Date conflicts with ${conflictingMilestones.length} other milestone(s)`);
       }
     }
 

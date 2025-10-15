@@ -42,6 +42,9 @@ function transformDatabaseProject(dbProject: DatabaseProject): Project {
         saturday: true,
         sunday: true,
       },
+    userId: dbProject.user_id || '',
+    createdAt: dbProject.created_at ? new Date(dbProject.created_at) : new Date(),
+    updatedAt: dbProject.updated_at ? new Date(dbProject.updated_at) : new Date()
   };
 }
 

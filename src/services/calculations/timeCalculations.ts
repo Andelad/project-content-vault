@@ -115,17 +115,9 @@ export function getCurrentWeekStart(): Date {
 }
 
 /**
- * Get day name from date
- * THE authoritative day name calculation used everywhere
- */
-export function getDayName(date: Date): string {
-  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-  return dayNames[date.getDay()];
-}
-
-/**
  * SINGLE SOURCE OF TRUTH - Time Zone Utilities
  * All timezone handling throughout the app MUST use these functions
+ * Note: getDayName is now in dateCalculations.ts as the authoritative implementation
  */
 
 /**

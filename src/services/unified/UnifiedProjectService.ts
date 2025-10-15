@@ -180,12 +180,16 @@ export function calculateProjectDuration_LEGACY(project: Project): number {
 // ============================================================================
 
 export interface ProjectBudgetAnalysis {
-  totalEstimatedHours: number;
-  totalAllocatedHours: number;
-  remainingHours: number;
-  utilizationPercent: number;
-  isOverBudget: boolean;
-  overageHours: number;
+  totalAllocation: number;          // Total hours allocated to milestones
+  suggestedBudget: number;           // Suggested project budget
+  isOverBudget: boolean;             // Whether allocation exceeds budget
+  overageHours: number;              // Hours over budget
+  utilizationPercentage: number;     // Percentage of budget utilized
+  // Legacy aliases for backward compatibility
+  totalEstimatedHours?: number;
+  totalAllocatedHours?: number;
+  remainingHours?: number;
+  utilizationPercent?: number;
 }
 
 export interface ProjectTimeValidation {
@@ -250,14 +254,19 @@ export class UnifiedProjectEntity {
       (totalAllocatedHours / totalEstimatedHours) * 100 : 0;
     const isOverBudget = totalAllocatedHours > totalEstimatedHours;
     const overageHours = Math.max(0, totalAllocatedHours - totalEstimatedHours);
+    const suggestedBudget = Math.max(totalEstimatedHours, totalAllocatedHours);
 
     return {
+      totalAllocation: totalAllocatedHours,
+      suggestedBudget,
+      isOverBudget,
+      overageHours,
+      utilizationPercentage: utilizationPercent,
+      // Legacy properties for backward compatibility
       totalEstimatedHours,
       totalAllocatedHours,
       remainingHours,
-      utilizationPercent,
-      isOverBudget,
-      overageHours
+      utilizationPercent
     };
   }
 

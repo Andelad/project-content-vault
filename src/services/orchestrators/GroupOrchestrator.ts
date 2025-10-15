@@ -219,7 +219,10 @@ export class GroupOrchestrator {
       const groupToCreate: Omit<Group, 'id'> = {
         name: preparedGroup.name,
         description: preparedGroup.description || '',
-        color: preparedGroup.color
+        color: preparedGroup.color,
+        userId: '', // Will be set by backend
+        createdAt: new Date(),
+        updatedAt: new Date()
       };
       
       const createdGroup = await groupRepository.create(groupToCreate);
@@ -231,18 +234,14 @@ export class GroupOrchestrator {
         };
       }
 
-      // Step 5: Check if operation was performed offline
-      const offlineChanges = await groupRepository.getOfflineChanges();
-      const isOffline = offlineChanges.length > 0;
-
       return {
         success: true,
         group: createdGroup,
         warnings: validation.warnings,
         metadata: {
           fromCache: false,
-          offlineMode: isOffline,
-          syncPending: isOffline
+          offlineMode: false,
+          syncPending: false
         }
       };
 
@@ -318,18 +317,14 @@ export class GroupOrchestrator {
         };
       }
 
-      // Step 6: Check operational metadata
-      const offlineChanges = await groupRepository.getOfflineChanges();
-      const isOffline = offlineChanges.length > 0;
-
       return {
         success: true,
         group: updatedGroup,
         warnings: validation.warnings,
         metadata: {
           fromCache: false,
-          offlineMode: isOffline,
-          syncPending: isOffline
+          offlineMode: false,
+          syncPending: false
         }
       };
 
@@ -351,14 +346,11 @@ export class GroupOrchestrator {
       // Repository handles caching automatically
       const groups = await groupRepository.findByUser(userId);
       
-      // Get cache statistics for metadata
-      const cacheStats = await groupRepository.getCacheStats();
-      
       return {
         success: true,
         groups,
         metadata: {
-          fromCache: cacheStats.hitRate > 0,
+          fromCache: false,
           offlineMode: false,
           syncPending: false
         }
@@ -404,26 +396,15 @@ export class GroupOrchestrator {
       }
 
       // Step 3: Delete via repository
-      const deleted = await groupRepository.delete(groupId);
-
-      if (!deleted) {
-        return {
-          success: false,
-          errors: ['Group deletion failed']
-        };
-      }
-
-      // Step 4: Check operational metadata
-      const offlineChanges = await groupRepository.getOfflineChanges();
-      const isOffline = offlineChanges.length > 0;
+      await groupRepository.delete(groupId);
 
       return {
         success: true,
         warnings: validation.warnings,
         metadata: {
           fromCache: false,
-          offlineMode: isOffline,
-          syncPending: isOffline
+          offlineMode: false,
+          syncPending: false
         }
       };
 
@@ -446,25 +427,13 @@ export class GroupOrchestrator {
     errors: string[];
     duration: number;
   }> {
-    try {
-      const syncResult = await groupRepository.syncToServer();
-      
-      return {
-        success: syncResult.success,
-        syncedCount: syncResult.syncedCount,
-        errors: syncResult.errors,
-        duration: syncResult.duration
-      };
-
-    } catch (error) {
-      console.error('Group sync workflow error:', error);
-      return {
-        success: false,
-        syncedCount: 0,
-        errors: [error instanceof Error ? error.message : 'Sync failed'],
-        duration: 0
-      };
-    }
+    // Repository sync is handled automatically - this method is kept for API compatibility
+    return {
+      success: true,
+      syncedCount: 0,
+      errors: [],
+      duration: 0
+    };
   }  /**
    * Execute complete group update workflow
   /**

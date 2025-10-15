@@ -117,7 +117,10 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     dueDate: new Date(m.due_date),
     timeAllocation: m.time_allocation,
     projectId: m.project_id,
-    order: m.order_index
+    order: m.order_index,
+    userId: m.user_id || '',
+    createdAt: m.created_at ? new Date(m.created_at) : new Date(),
+    updatedAt: m.updated_at ? new Date(m.updated_at) : new Date()
   })) || []).sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime()), [dbMilestones]);
 
   // Local state

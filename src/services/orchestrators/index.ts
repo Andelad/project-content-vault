@@ -1,6 +1,6 @@
 // Orchestrators - Workflow coordination (centralized)
 export * from './ProjectOrchestrator';
-export * from './MilestoneOrchestrator';
+// export * from './MilestoneOrchestrator'; // Deprecated - use ProjectMilestoneOrchestrator instead
 export * from './ProjectMilestoneOrchestrator';
 export * from './TimeAllocationOrchestrator';
 export * from './CalendarOrchestrator';

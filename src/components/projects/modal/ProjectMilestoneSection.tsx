@@ -581,7 +581,10 @@ export function ProjectMilestoneSection({
       continuous: projectContinuous,
       color: '',
       groupId: '',
-      rowId: ''
+      rowId: '',
+      userId: '',
+      createdAt: new Date(),
+      updatedAt: new Date()
     };
 
     return ProjectOrchestrator.analyzeProjectMilestones(project, validMilestones);
@@ -610,6 +613,9 @@ export function ProjectMilestoneSection({
       timeAllocation: 8, // Default to 8 hours (1 day)
       projectId: projectId || 'temp', // Use temp for new projects
       order: projectMilestones.length,
+      userId: '', // Will be set by backend
+      createdAt: new Date(),
+      updatedAt: new Date(),
       isNew: true
     };
     
@@ -957,7 +963,7 @@ export function ProjectMilestoneSection({
     
     try {
       // Create project object for orchestrator (with minimal required fields)
-      const project: Pick<Project, 'id' | 'startDate' | 'endDate' | 'continuous' | 'name' | 'client' | 'estimatedHours' | 'color' | 'groupId' | 'rowId'> = {
+      const project: Project = {
         id: projectId,
         startDate: projectStartDate,
         endDate: projectEndDate,
@@ -967,7 +973,10 @@ export function ProjectMilestoneSection({
         estimatedHours: projectEstimatedHours || 0,
         color: '#000000', // Placeholder
         groupId: 'group', // Placeholder
-        rowId: 'row' // Placeholder
+        rowId: 'row', // Placeholder
+        userId: '',
+        createdAt: new Date(),
+        updatedAt: new Date()
       };
 
       // Convert component config to orchestrator config
