@@ -20,8 +20,18 @@
  */
 
 // 🎯 Core Architecture Layers (New Structure)
-export * from './unified';           // Main API - UnifiedProjectService, UnifiedMilestoneService, etc.
-export * from './orchestrators';     // Workflow coordination - ProjectOrchestrator, TimeTrackingOrchestrator
+export * from './unified';           // Main API - UnifiedProjectService, UnifiedMilestoneService, etc. (includes ProjectBudgetAnalysis)
+// Export orchestrators but exclude ProjectBudgetAnalysis to avoid naming conflict with unified
+export { ProjectOrchestrator } from './orchestrators/ProjectOrchestrator';
+export type { ProjectValidationResult, ProjectMilestoneAnalysis, ProjectCreationRequest, ProjectCreationResult, ProjectMilestone, ProjectCreationWithMilestonesRequest, ProjectUpdateRequest } from './orchestrators/ProjectOrchestrator';
+export * from './orchestrators/ProjectMilestoneOrchestrator';
+export * from './orchestrators/TimeAllocationOrchestrator';
+export * from './orchestrators/CalendarOrchestrator';
+export * from './orchestrators/WorkHourOrchestrator';
+export * from './orchestrators/recurringEventsOrchestrator';
+export * from './orchestrators/EventModalOrchestrator';
+export * from './orchestrators/PlannerViewOrchestrator';
+export * from './orchestrators/SettingsOrchestrator';
 export * from './calculations';      // Pure business calculations - projectCalculations, timeCalculations, dragCalculations
 export * from './validators';        // Business rules - ProjectValidator, TimeTrackingValidator  
 // export * from './repositories';      // Data access - ProjectRepository, MilestoneRepository (conflicts with orchestrators)

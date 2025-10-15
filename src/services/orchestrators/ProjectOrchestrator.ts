@@ -17,6 +17,14 @@
 import { Project, Milestone } from '@/types/core';
 import { projectRepository } from '../repositories/ProjectRepository';
 
+export interface ProjectBudgetAnalysis {
+  totalAllocation: number;
+  suggestedBudget: number;
+  isOverBudget: boolean;
+  overageHours: number;
+  utilizationPercentage: number;
+}
+
 export interface ProjectValidationResult {
   isValid: boolean;
   errors: string[];
@@ -87,6 +95,62 @@ export interface ProjectUpdateRequest {
   icon?: string;
 }
 
+// Helper class to replace UnifiedProjectEntity
+class UnifiedProjectEntity {
+  static validateProjectTime(estimatedHours: number): { isValid: boolean; errors: string[]; warnings: string[] } {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+    if (estimatedHours <= 0) {
+      errors.push('Estimated hours must be greater than 0');
+    }
+    return { isValid: errors.length === 0, errors, warnings };
+  }
+
+  static validateProjectDates(startDate: Date, endDate?: Date, continuous?: boolean): { isValid: boolean; errors: string[] } {
+    const errors: string[] = [];
+    if (!continuous && endDate && endDate < startDate) {
+      errors.push('End date must be after start date');
+    }
+    return { isValid: errors.length === 0, errors };
+  }
+
+  static isDateWithinProject(date: Date, project: Project): boolean {
+    if (project.continuous) return true;
+    return date >= project.startDate && (!project.endDate || date <= project.endDate);
+  }
+
+  static analyzeBudget(project: Project, milestones: Milestone[]): ProjectBudgetAnalysis {
+    const totalAllocation = milestones.reduce((sum, m) => sum + m.timeAllocation, 0);
+    const suggestedBudget = Math.max(project.estimatedHours, totalAllocation);
+    const isOverBudget = totalAllocation > project.estimatedHours;
+    const overageHours = Math.max(0, totalAllocation - project.estimatedHours);
+    const utilizationPercentage = project.estimatedHours > 0 ? (totalAllocation / project.estimatedHours) * 100 : 0;
+    
+    return {
+      totalAllocation,
+      suggestedBudget,
+      isOverBudget,
+      overageHours,
+      utilizationPercentage
+    };
+  }
+
+  static calculateTotalMilestoneAllocation(milestones: Milestone[]): number {
+    return milestones.reduce((sum, m) => sum + m.timeAllocation, 0);
+  }
+}
+
+// Helper class to replace UnifiedMilestoneEntity
+class UnifiedMilestoneEntity {
+  static isRegularMilestone(milestone: Milestone): boolean {
+    return !('isRecurring' in milestone && (milestone as any).isRecurring);
+  }
+
+  static isRecurringMilestone(milestone: Milestone): boolean {
+    return 'isRecurring' in milestone && (milestone as any).isRecurring === true;
+  }
+}
+
 /**
  * Project Orchestrator
  * Handles project business workflows and project-milestone coordination
@@ -105,8 +169,7 @@ export class ProjectOrchestrator {
 
     // Validate project time constraints
     const timeValidation = UnifiedProjectEntity.validateProjectTime(
-      request.estimatedHours,
-      existingMilestones
+      request.estimatedHours
     );
     errors.push(...timeValidation.errors);
     warnings.push(...timeValidation.warnings);
@@ -230,7 +293,7 @@ export class ProjectOrchestrator {
       suggestions.push('Consider adding milestones to track project progress');
     }
 
-    if (projectBudget.utilizationPercent < 50) {
+    if (projectBudget.utilizationPercentage < 50) {
       suggestions.push('Project has significant unallocated budget - consider adding more milestones');
     }
 
@@ -332,7 +395,7 @@ export class ProjectOrchestrator {
       details.push('Milestone date conflicts detected');
     }
     
-    if (analysis.projectBudget.utilizationPercent > 95) {
+    if (analysis.projectBudget.utilizationPercentage > 95) {
       status = status === 'critical' ? 'critical' : 'warning';
       details.push('Very high budget utilization (>95%)');
     }
@@ -346,7 +409,7 @@ export class ProjectOrchestrator {
     let summary = '';
     switch (status) {
       case 'healthy':
-        summary = `Project is well-configured with ${analysis.milestoneCount} milestone(s) and ${analysis.projectBudget.utilizationPercent.toFixed(1)}% budget utilization`;
+        summary = `Project is well-configured with ${analysis.milestoneCount} milestone(s) and ${analysis.projectBudget.utilizationPercentage.toFixed(1)}% budget utilization`;
         break;
       case 'warning':
         summary = `Project needs attention: ${details.length} issue(s) detected`;

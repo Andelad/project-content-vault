@@ -112,20 +112,47 @@ export const TimelineBar = memo(function TimelineBar({
   onMilestoneDrag,
   onMilestoneDragEnd
 }: TimelineBarProps) {
-  // Always call hooks first, before any early returns
+  // Always call ALL hooks first, before any early returns
   const { milestones } = useProjectContext();
   const { events, holidays } = usePlannerContext();
   const { settings } = useSettingsContext();
+  
+  // CRITICAL: Call this hook at top level, NOT inside useMemo
+  // This was causing "Do not call Hooks inside useMemo" error
+  const isWorkingDayChecker = UnifiedTimelineService.getCachedWorkingDayChecker(
+    settings.weeklyWorkHours, 
+    holidays
+  );
 
-  // Now we can do early returns
-  if (!project) {
-    console.warn('TimelineBar: No project provided');
-    return null;
-  }
-
-  try {
-    // Get comprehensive timeline bar data from UnifiedTimelineService
-    const timelineData = useMemo(() => {
+  // Get comprehensive timeline bar data from UnifiedTimelineService - MUST be before early returns
+  const timelineData = useMemo(() => {
+    if (!project) {
+      // Return a minimal default structure that matches UnifiedTimelineService.getTimelineBarData
+      return {
+        projectData: null,
+        projectDays: [],
+        workHoursForPeriod: [],
+        milestoneSegments: [],
+        projectMetrics: { 
+          exactDailyHours: [], 
+          dailyHours: [], 
+          dailyMinutes: [], 
+          heightInPixels: [], 
+          workingDaysCount: 0 
+        },
+        colorScheme: { 
+          baseline: '#666666', 
+          completedPlanned: '#cccccc', 
+          main: '#888888', 
+          midTone: '#aaaaaa', 
+          hover: '#999999', 
+          autoEstimate: '#dddddd' 
+        },
+        visualDates: null,
+        isWorkingDay: () => false
+      };
+    }
+    
     return UnifiedTimelineService.getTimelineBarData(
       project,
       dates,
@@ -135,7 +162,8 @@ export const TimelineBar = memo(function TimelineBar({
       holidays,
       settings,
       isDragging,
-      dragState
+      dragState,
+      isWorkingDayChecker // Pass the hook result, don't call hook inside service
     );
   }, [project, dates, viewportStart, viewportEnd, milestones, holidays, settings, isDragging, dragState]);
 
@@ -150,10 +178,19 @@ export const TimelineBar = memo(function TimelineBar({
     isWorkingDay
   } = timelineData;
 
-    const { exactDailyHours, dailyHours, dailyMinutes, heightInPixels, workingDaysCount } = projectMetrics;
-    if (projectDays.length === 0) {
-      return null; // Don't render anything for projects with no duration
-    }
+  const { exactDailyHours, dailyHours, dailyMinutes, heightInPixels, workingDaysCount } = projectMetrics;
+  
+  // Now we can do early returns - AFTER all hooks
+  if (!project) {
+    console.warn('TimelineBar: No project provided');
+    return null;
+  }
+  
+  if (projectDays.length === 0) {
+    return null; // Don't render anything for projects with no duration
+  }
+
+  try {
     return (
       <div className="relative h-[52px] group pointer-events-none">
       <div className="h-full relative flex flex-col pointer-events-none">
@@ -755,7 +792,7 @@ export const TimelineBar = memo(function TimelineBar({
           })()}
         </div>
       </div>
-    );
+    )
   } catch (error) {
     console.error('Error rendering TimelineBar for project:', project?.id, error);
     return <div style={{ height: '40px', background: '#ffebee' }}>Error rendering project bar</div>;

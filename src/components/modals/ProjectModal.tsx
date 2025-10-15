@@ -98,6 +98,9 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
     timeAllocation: number;
     projectId: string;
     order: number;
+    userId: string;
+    createdAt: Date;
+    updatedAt: Date;
     isNew?: boolean;
   }>>([]);
   // State to track recurring milestone from MilestoneManager

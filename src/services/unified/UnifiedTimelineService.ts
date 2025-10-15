@@ -292,7 +292,8 @@ export class UnifiedTimelineService {
     holidays: any[],
     settings: any,
     isDragging: boolean = false,
-    dragState: any = null
+    dragState: any = null,
+    isWorkingDayChecker?: (date: Date) => boolean // Accept the hook result as parameter
   ) {
     return {
       // Project basics
@@ -326,8 +327,8 @@ export class UnifiedTimelineService {
       // Visual calculations (if dragging)
       visualDates: isDragging ? this.calculateVisualProjectDates(project, isDragging, dragState) : null,
       
-      // Working day checker
-      isWorkingDay: this.getCachedWorkingDayChecker(settings.weeklyWorkHours, holidays)
+      // Working day checker - use provided one or fall back to calling the hook (for backwards compatibility)
+      isWorkingDay: isWorkingDayChecker || this.getCachedWorkingDayChecker(settings.weeklyWorkHours, holidays)
     };
   }
 

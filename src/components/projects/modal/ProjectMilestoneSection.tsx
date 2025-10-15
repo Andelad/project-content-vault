@@ -21,7 +21,7 @@ import {
   UnifiedMilestoneService,
   UnifiedMilestoneEntity,
   UnifiedProjectEntity,
-  MilestoneOrchestrator,
+  // MilestoneOrchestrator, // Deprecated - using ProjectMilestoneOrchestrator instead
   ProjectOrchestrator,
   ProjectMilestoneOrchestrator
 } from '@/services';
@@ -559,13 +559,18 @@ export function ProjectMilestoneSection({
     return 0;
   }, [recurringMilestone, projectStartDate, projectEndDate, projectContinuous]);
 
-  // Calculate budget analysis using unified orchestrator
+  // Calculate budget analysis inline (MilestoneOrchestrator is deprecated)
   const budgetAnalysis = useMemo(() => {
-    return MilestoneOrchestrator.analyzeMilestoneBudget(
-      projectMilestones,
-      projectEstimatedHours,
-      totalRecurringAllocation
-    );
+    const totalAllocated = projectMilestones.reduce((sum, m) => sum + m.timeAllocation, 0) + totalRecurringAllocation;
+    const remainingBudget = projectEstimatedHours - totalAllocated;
+    const isOverBudget = totalAllocated > projectEstimatedHours;
+    
+    return {
+      totalAllocated,
+      remainingBudget,
+      isOverBudget,
+      utilizationPercent: projectEstimatedHours > 0 ? (totalAllocated / projectEstimatedHours) * 100 : 0
+    };
   }, [projectMilestones, projectEstimatedHours, totalRecurringAllocation]);
 
   // NEW: Enhanced project analysis using domain entities
@@ -591,10 +596,10 @@ export function ProjectMilestoneSection({
   }, [projectMilestones, projectEstimatedHours, projectStartDate, projectEndDate, projectContinuous, projectId]);
 
   // Calculate total time allocation in hours (for backward compatibility)
-  const totalTimeAllocation = budgetAnalysis.totalAllocation;
+  const totalTimeAllocation = budgetAnalysis.totalAllocated;
 
   // Calculate suggested budget based on milestones (for backward compatibility)
-  const suggestedBudgetFromMilestones = budgetAnalysis.suggestedBudget;
+  const suggestedBudgetFromMilestones = Math.max(projectEstimatedHours, budgetAnalysis.totalAllocated);
 
   const addNewMilestone = () => {
     // Calculate the appropriate default date for the new milestone using unified service
