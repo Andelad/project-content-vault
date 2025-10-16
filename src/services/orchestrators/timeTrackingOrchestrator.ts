@@ -412,13 +412,7 @@ class TimeTrackingOrchestrator {
           startTime: null,
           pausedAt: null,
           totalPausedDuration: 0,
-          lastUpdateTime: new Date(),
-          // Clear UI state fields as well
-          eventId: null,
-          selectedProject: null,
-          searchQuery: '',
-          affectedEvents: [],
-          currentSeconds: 0
+          lastUpdateTime: new Date()
         };
         await this.syncState(stoppedState, true);
         
@@ -458,13 +452,7 @@ class TimeTrackingOrchestrator {
         startTime: null,
         pausedAt: null,
         totalPausedDuration: 0,
-        lastUpdateTime: new Date(),
-        // Clear UI state fields as well
-        eventId: null,
-        selectedProject: null,
-        searchQuery: '',
-        affectedEvents: [],
-        currentSeconds: 0
+        lastUpdateTime: new Date()
       };
       await this.syncState(stoppedState, true);
 
