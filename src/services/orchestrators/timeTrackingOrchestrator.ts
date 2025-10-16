@@ -404,8 +404,23 @@ class TimeTrackingOrchestrator {
         startTimeRef.current = null;
         currentStateRef.current = null; // Clear the ref
         
-        // Update tracking state in repository
-        await this.stopTracking();
+        // Update tracking state in repository - use syncState directly with proper state
+        const stoppedState: TimeTrackingState = {
+          isTracking: false,
+          isPaused: false,
+          projectId: null,
+          startTime: null,
+          pausedAt: null,
+          totalPausedDuration: 0,
+          lastUpdateTime: new Date(),
+          // Clear UI state fields as well
+          eventId: null,
+          selectedProject: null,
+          searchQuery: '',
+          affectedEvents: [],
+          currentSeconds: 0
+        };
+        await this.syncState(stoppedState, true);
         
         return {
           success: true
@@ -435,8 +450,23 @@ class TimeTrackingOrchestrator {
       startTimeRef.current = null;
       currentStateRef.current = null; // Clear the ref
 
-      // Update tracking state in repository
-      await this.stopTracking();
+      // Update tracking state in repository - use syncState directly with proper state
+      const stoppedState: TimeTrackingState = {
+        isTracking: false,
+        isPaused: false,
+        projectId: null,
+        startTime: null,
+        pausedAt: null,
+        totalPausedDuration: 0,
+        lastUpdateTime: new Date(),
+        // Clear UI state fields as well
+        eventId: null,
+        selectedProject: null,
+        searchQuery: '',
+        affectedEvents: [],
+        currentSeconds: 0
+      };
+      await this.syncState(stoppedState, true);
 
       return {
         success: true,
