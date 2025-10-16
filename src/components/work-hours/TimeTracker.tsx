@@ -295,6 +295,8 @@ export function TimeTracker({ className }: TimeTrackerProps) {
 
       // Handle post-toggle actions for start tracking
       if (result.eventId) {
+        // Update global tracking event ID
+        setGlobalTrackingEventId(result.eventId);
         // Start live updates immediately
         startLiveUpdates(result.eventId, startTimeRef.current || new Date());
       }
@@ -361,12 +363,16 @@ export function TimeTracker({ className }: TimeTrackerProps) {
 
     // Handle post-toggle actions for start tracking
     if (result.eventId && !isTimeTracking) {
+      // Update global tracking event ID
+      setGlobalTrackingEventId(result.eventId);
       // Start live updates immediately
       startLiveUpdates(result.eventId, startTimeRef.current || new Date());
     }
 
     // Handle post-toggle actions for stop tracking
     if (!result.eventId && isTimeTracking) {
+      // Clear global tracking event ID
+      setGlobalTrackingEventId(null);
       // Clear live updates
       if (liveUpdateIntervalRef.current) {
         clearInterval(liveUpdateIntervalRef.current);

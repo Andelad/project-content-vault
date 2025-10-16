@@ -380,8 +380,8 @@ class TimeTrackingOrchestrator {
   }
 
   private async stopTrackingWorkflow(context: TimeTrackerWorkflowContext): Promise<TimeTrackerWorkflowResult> {
-    const { setCurrentEventId, setIsTimeTracking, setSeconds, startTimeRef, 
-            intervalRef, currentStateRef } = context;
+    const { setCurrentEventId, setIsTimeTracking, setSeconds, setSelectedProject, 
+            setSearchQuery, startTimeRef, intervalRef, currentStateRef } = context;
 
     try {
       const currentState = currentStateRef.current;
@@ -397,24 +397,26 @@ class TimeTrackingOrchestrator {
           intervalRef.current = null;
         }
         
-        // Reset tracking state
-        setCurrentEventId(null);
-        setIsTimeTracking(false);
-        setSeconds(0);
-        startTimeRef.current = null;
-        currentStateRef.current = null; // Clear the ref
-        
-        // Update tracking state in repository - use syncState directly with proper state
-        const stoppedState = {
-          isTracking: false,
-          isPaused: false,
-          projectId: null,
-          startTime: null,
-          pausedAt: null,
-          totalPausedDuration: 0,
-          lastUpdateTime: new Date()
-        } as TimeTrackingState;
-        await this.syncState(stoppedState, true);
+      // Reset tracking state
+      setCurrentEventId(null);
+      setIsTimeTracking(false);
+      setSeconds(0);
+      setSelectedProject(null);
+      setSearchQuery('');
+      startTimeRef.current = null;
+      currentStateRef.current = null; // Clear the ref
+      
+      // Update tracking state in repository - use syncState directly with proper state
+      const stoppedState = {
+        isTracking: false,
+        isPaused: false,
+        projectId: null,
+        startTime: null,
+        pausedAt: null,
+        totalPausedDuration: 0,
+        lastUpdateTime: new Date()
+      } as TimeTrackingState;
+      await this.syncState(stoppedState, true);
         
         return {
           success: true
@@ -441,6 +443,8 @@ class TimeTrackingOrchestrator {
       setCurrentEventId(null);
       setIsTimeTracking(false);
       setSeconds(0);
+      setSelectedProject(null);
+      setSearchQuery('');
       startTimeRef.current = null;
       currentStateRef.current = null; // Clear the ref
 
