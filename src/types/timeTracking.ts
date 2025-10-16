@@ -34,6 +34,13 @@ export interface SerializedTimeTrackingState {
   pausedAt: string | null; // ISO string
   totalPausedDuration: number;
   lastUpdateTime: string | null; // ISO string
+  
+  // UI state fields for persistence across views
+  eventId?: string | null;
+  selectedProject?: any;
+  searchQuery?: string;
+  affectedEvents?: string[];
+  currentSeconds?: number;
 }
 
 /**

@@ -59,7 +59,7 @@ export function PlannerView() {
     setCurrentDate,
     setCurrentView: setTimelineView 
   } = useTimelineContext();
-  const { isTimeTracking } = useSettingsContext();
+  const { isTimeTracking, currentTrackingEventId } = useSettingsContext();
   const { toast } = useToast();
   const calendarRef = useRef<FullCalendar>(null);
   const [calendarDate, setCalendarDate] = useState(new Date(currentDate));
@@ -290,8 +290,8 @@ export function PlannerView() {
     const projectLine = project 
       ? `${project.name}${project.client ? ` • ${project.client}` : ''}`
       : 'No Project';
-    // Check if this is a currently tracking event
-    const isCurrentlyTracking = eventType === 'tracked' && isTimeTracking;
+    // Check if this is a currently tracking event - must match the specific event ID
+    const isCurrentlyTracking = eventType === 'tracked' && isTimeTracking && event.id === currentTrackingEventId;
     const isCompleted = extendedProps.completed;
     // Create the icon HTML
     let iconHtml = '';
@@ -523,7 +523,6 @@ export function PlannerView() {
             </div>
           )}
         </div>
-        {/* Time Tracker in top right */}
         <TimeTracker />
       </div>
       {/* Calendar Controls */}

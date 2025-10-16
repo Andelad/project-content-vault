@@ -14,8 +14,7 @@ import {
   createTimeRange,
   type EventSplitResult 
 } from '@/services';
-import { TimeTrackerCalculationService, timeTrackingService } from '@/services';
-import { timeTrackingOrchestrator } from '@/services/orchestrators/timeTrackingOrchestrator';
+import { UnifiedTimeTrackerService } from '@/services';
 import type { TimeTrackerWorkflowContext } from '@/services/orchestrators/timeTrackingOrchestrator';
 import { supabase } from '@/integrations/supabase/client';
 interface TimeTrackerProps {
@@ -24,7 +23,7 @@ interface TimeTrackerProps {
 export function TimeTracker({ className }: TimeTrackerProps) {
   const { projects } = useProjectContext();
   const { events, addEvent, updateEvent, deleteEvent } = usePlannerContext();
-  const { isTimeTracking, setIsTimeTracking } = useSettingsContext();
+  const { isTimeTracking, setIsTimeTracking, currentTrackingEventId, setCurrentTrackingEventId: setGlobalTrackingEventId } = useSettingsContext();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProject, setSelectedProject] = useState<any>(null);
   const [seconds, setSeconds] = useState(0);
@@ -37,93 +36,150 @@ export function TimeTracker({ className }: TimeTrackerProps) {
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const currentStateRef = useRef<any>(null); // Track current state for sync
   // Storage keys from service
-  const STORAGE_KEYS = TimeTrackerCalculationService.getStorageKeys();
-  // Load tracking state from localStorage and database on mount
+  const STORAGE_KEYS = UnifiedTimeTrackerService.getStorageKeys();
+    // Load tracking state from database on mount - REVERTED TO WORKING PRE-ORCHESTRATION APPROACH
   useEffect(() => {
+    console.log('🔍 TIMETRACKER - useEffect mount running');
     const loadTrackingState = async () => {
-      const context: TimeTrackerWorkflowContext = {
-        selectedProject,
-        searchQuery,
-        addEvent,
-        setCurrentEventId,
-        setIsTimeTracking,
-        setSeconds,
-        startTimeRef,
-        intervalRef,
-        currentStateRef
-      };
-
-      const result = await timeTrackingOrchestrator.loadTrackingStateWorkflow(context);
+      // Load from database (authoritative source)
+      const dbState = await UnifiedTimeTrackerService.loadState();
       
-      if (result.success && result.eventId) {
-        // Update component state based on loaded tracking state
-        const state = await timeTrackingOrchestrator.loadState();
-        if (state?.selectedProject) {
-          setSelectedProject(state.selectedProject);
+      console.log('🔍 TIMETRACKER - Loaded state on mount:', {
+        hasState: !!dbState,
+        isTracking: dbState?.isTracking,
+        eventId: dbState?.eventId,
+        selectedProject: dbState?.selectedProject,
+        searchQuery: dbState?.searchQuery,
+        startTime: dbState?.startTime
+      });
+      
+      // FORCE: If tracking is on but we don't have UI fields, try localStorage
+      if (dbState && dbState.isTracking && (!dbState.eventId || !dbState.selectedProject || !dbState.startTime)) {
+        console.log('🔍 TIMETRACKER - DB state incomplete, checking localStorage');
+        const lsData = localStorage.getItem('timeTracker_crossWindowSync');
+        if (lsData) {
+          const parsed = JSON.parse(lsData);
+          console.log('🔍 TIMETRACKER - localStorage has:', parsed.state);
+          if (parsed.state && parsed.state.eventId && parsed.state.selectedProject && parsed.state.startTime) {
+            console.log('🔍 TIMETRACKER - Using localStorage data instead');
+            // Use localStorage data
+            dbState.eventId = parsed.state.eventId;
+            dbState.selectedProject = parsed.state.selectedProject;
+            dbState.searchQuery = parsed.state.searchQuery;
+            dbState.startTime = new Date(parsed.state.startTime);
+            dbState.affectedEvents = parsed.state.affectedEvents;
+          }
         }
-        if (state?.searchQuery) {
-          setSearchQuery(state.searchQuery);
+      }
+      
+      if (dbState && dbState.isTracking && dbState.startTime && dbState.eventId) {
+        // Calculate elapsed time from start
+        const elapsedSeconds = dbState.currentSeconds ?? 
+          Math.floor((Date.now() - new Date(dbState.startTime).getTime()) / 1000);
+        
+        // DIRECTLY SET ALL STATE - this is what worked before
+        setIsTimeTracking(true);
+        setSeconds(elapsedSeconds);
+        setCurrentEventId(dbState.eventId);
+        startTimeRef.current = new Date(dbState.startTime);
+        
+        // Set UI state
+        if (dbState.selectedProject) {
+          setSelectedProject(dbState.selectedProject);
         }
-        if (state?.affectedEvents) {
-          setAffectedPlannedEvents(state.affectedEvents);
+        if (dbState.searchQuery) {
+          setSearchQuery(dbState.searchQuery);
         }
-
-        // Start live updates
-        startLiveUpdates(result.eventId, startTimeRef.current || new Date());
-      } else if (!result.success && result.error) {
-        console.error('Failed to load tracking state:', result.error);
+        if (dbState.affectedEvents) {
+          setAffectedPlannedEvents(dbState.affectedEvents);
+        }
+        
+        // Store state for sync
+        currentStateRef.current = {
+          isTracking: true,
+          startTime: new Date(dbState.startTime),
+          eventId: dbState.eventId,
+          selectedProject: dbState.selectedProject,
+          searchQuery: dbState.searchQuery,
+          affectedEvents: dbState.affectedEvents || []
+        };
+        
+        // START THE TIMER INTERVAL IMMEDIATELY
+        intervalRef.current = setInterval(() => {
+          if (startTimeRef.current) {
+            const elapsed = Math.floor((Date.now() - startTimeRef.current.getTime()) / 1000);
+            setSeconds(elapsed);
+          }
+        }, 1000);
+        
+        // START LIVE UPDATES IMMEDIATELY
+        startLiveUpdates(dbState.eventId, new Date(dbState.startTime));
       }
     };
     loadTrackingState();
-    // Set up cross-window timer sync listener
-    const handleStateChange = (newState: any) => {
-      if (newState.isTracking) {
-        // Sync to tracking state
-        setIsTimeTracking(true);
-        if (newState.currentSeconds !== undefined) {
-          setSeconds(newState.currentSeconds);
-        }
-        if (newState.eventId) {
-          setCurrentEventId(newState.eventId);
-        }
-        if (newState.startTime) {
-          startTimeRef.current = new Date(newState.startTime);
-        }
-        // Update current state ref
-        currentStateRef.current = {
-          isTracking: true,
-          startTime: newState.startTime ? new Date(newState.startTime) : null,
-          eventId: newState.eventId,
-          selectedProject: newState.selectedProject,
-          searchQuery: newState.searchQuery,
-          affectedEvents: newState.affectedEvents || []
-        };
-        // Start timer if not already running
-        if (!intervalRef.current && newState.startTime) {
-          let syncCounter = 0;
-          intervalRef.current = setInterval(() => {
-            setSeconds(prev => {
-              const newSeconds = prev + 1;
-              // Sync timer state every 5 seconds to other windows
-              syncCounter++;
-              if (syncCounter >= 5 && currentStateRef.current) {
-                syncCounter = 0;
-                saveTrackingState({
-                  ...currentStateRef.current,
-                  currentSeconds: newSeconds,
-                });
+  }, []); // Only run once on mount
+
+  // React to global state changes - CROSS-WINDOW SYNC
+  useEffect(() => {
+    const syncWithGlobalState = async () => {
+      if (isTimeTracking && currentTrackingEventId) {
+        // If tracking is active but we don't have local state, load it
+        if (!selectedProject || !currentStateRef.current || !intervalRef.current) {
+          const dbState = await UnifiedTimeTrackerService.loadState();
+          
+          if (dbState && dbState.selectedProject) {
+            // Restore UI state
+            setSelectedProject(dbState.selectedProject);
+            setSearchQuery(dbState.searchQuery || '');
+            setCurrentEventId(dbState.eventId || currentTrackingEventId);
+            
+            // Calculate and set elapsed time
+            if (dbState.startTime) {
+              const startTime = new Date(dbState.startTime);
+              const elapsed = Math.floor((Date.now() - startTime.getTime()) / 1000);
+              setSeconds(elapsed);
+              startTimeRef.current = startTime;
+              
+              // START intervals if not running
+              if (!intervalRef.current) {
+                intervalRef.current = setInterval(() => {
+                  if (startTimeRef.current) {
+                    const elapsed = Math.floor((Date.now() - startTimeRef.current.getTime()) / 1000);
+                    setSeconds(elapsed);
+                  }
+                }, 1000);
               }
-              return newSeconds;
-            });
-          }, 1000);
+              
+              if (!liveUpdateIntervalRef.current) {
+                startLiveUpdates(currentTrackingEventId, startTime);
+              }
+            }
+            
+            // Update state ref
+            currentStateRef.current = {
+              isTracking: true,
+              eventId: currentTrackingEventId,
+              startTime: dbState.startTime,
+              selectedProject: dbState.selectedProject,
+              searchQuery: dbState.searchQuery,
+              affectedEvents: dbState.affectedEvents || []
+            };
+            
+            if (dbState.affectedEvents) {
+              setAffectedPlannedEvents(dbState.affectedEvents);
+            }
+          }
         }
-      } else {
-        // Stop tracking in this tab
-        setIsTimeTracking(false);
+      } else if (!isTimeTracking && currentStateRef.current) {
+        // Tracking stopped, clear everything
+        setSelectedProject(null);
+        setSearchQuery('');
         setSeconds(0);
         setCurrentEventId(null);
         startTimeRef.current = null;
         currentStateRef.current = null;
+        setAffectedPlannedEvents([]);
+        
         // Clear intervals
         if (intervalRef.current) {
           clearInterval(intervalRef.current);
@@ -135,15 +191,12 @@ export function TimeTracker({ className }: TimeTrackerProps) {
         }
       }
     };
-    timeTrackingService.setOnStateChangeCallback(handleStateChange);
-    return () => {
-      // Cleanup listener
-      timeTrackingService.setOnStateChangeCallback(undefined);
-    };
-  }, []); // Remove dependency on isTimeTracking to prevent multiple re-registrations
+    
+    syncWithGlobalState();
+  }, [isTimeTracking, currentTrackingEventId]); // React to global state changes
   // Check for overlapping planned events and adjust them
   const handlePlannedEventOverlaps = (trackingStart: Date, trackingEnd: Date) => {
-    const affectedEvents = TimeTrackerCalculationService.handlePlannedEventOverlaps(
+    const affectedEvents = UnifiedTimeTrackerService.handlePlannedEventOverlaps(
       events,
       trackingStart,
       trackingEnd,
@@ -157,53 +210,35 @@ export function TimeTracker({ className }: TimeTrackerProps) {
   };
   // Start live updates for the tracking event
   const startLiveUpdates = (eventId: string, startTime: Date) => {
+    console.log('🔍 Starting live updates for event:', eventId);
     if (liveUpdateIntervalRef.current) {
       clearInterval(liveUpdateIntervalRef.current);
     }
-    liveUpdateIntervalRef.current = setInterval(() => {
-      const { duration } = TimeTrackerCalculationService.calculateElapsedTime(startTime);
+    liveUpdateIntervalRef.current = setInterval(async () => {
+      const { duration } = UnifiedTimeTrackerService.calculateElapsedTime(startTime);
+      console.log('🔍 Live update - updating event:', eventId, 'duration:', duration);
       // Update the tracking event silently (no toast notifications)
       // Keep completed: true during tracking
-      updateEvent(eventId, {
-        endTime: new Date(),
-        duration,
-        completed: true
-      }, { silent: true });
+      try {
+        await updateEvent(eventId, {
+          endTime: new Date(),
+          duration,
+          completed: true
+        }, { silent: true });
+        console.log('🔍 Live update - success');
+      } catch (error) {
+        console.error('🔍 Live update - failed:', error);
+      }
       // Check for new overlaps as the event grows
       const affected = handlePlannedEventOverlaps(startTime, new Date());
       // Save affected events to localStorage
       localStorage.setItem(STORAGE_KEYS.affectedEvents, JSON.stringify(affected));
     }, 5000); // Update every 5 seconds
   };
-  // Save tracking state to both localStorage and database with cross-window sync
-  const saveTrackingState = async (trackingData: {
-    isTracking: boolean;
-    startTime?: Date;
-    currentSeconds?: number;
-    eventId?: string | null;
-    selectedProject?: any;
-    searchQuery?: string;
-    affectedEvents?: string[];
-  }) => {
-    // Save to localStorage (existing functionality)
-    TimeTrackerCalculationService.saveTrackingState(trackingData);
-    // Sync to database and other windows
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user?.id) {
-      try {
-        await timeTrackingService.syncState({
-          ...trackingData,
-          lastUpdateTime: new Date()
-        });
-      } catch (error) {
-        console.error('❌ syncState failed:', error);
-      }
-    } else {
-    }
-  };
+  
   // Filter projects and clients based on search query
   const searchResults = useMemo(() => {
-    return TimeTrackerCalculationService.filterSearchResults(projects, searchQuery);
+    return UnifiedTimeTrackerService.filterSearchResults(projects, searchQuery);
   }, [searchQuery, projects]);
   // Format time display (simple inline function)
   const formatTime = (seconds: number): string => {
@@ -215,80 +250,53 @@ export function TimeTracker({ className }: TimeTrackerProps) {
   // Handle search selection
   const handleSelectItem = async (item: any) => {
     let selectedProjectData;
+    let searchQueryText;
+    
     if (item.type === 'project') {
       const project = projects.find(p => p.id === item.id);
       setSelectedProject(project);
-      setSearchQuery(project ? `${project.name} • ${project.client}` : '');
+      searchQueryText = project ? `${project.name} • ${project.client}` : '';
+      setSearchQuery(searchQueryText);
       selectedProjectData = project;
     } else {
       // Client selected - use just client name
       const clientProject = { client: item.name, name: item.name };
       setSelectedProject(clientProject);
-      setSearchQuery(item.name);
+      searchQueryText = item.name;
+      setSearchQuery(searchQueryText);
       selectedProjectData = clientProject;
     }
     setShowSearchDropdown(false);
+    
     // Automatically start tracking if not already tracking
-    if (!isTimeTracking) {
-      const now = new Date();
-      startTimeRef.current = now;
-      setSeconds(0);
-      setIsTimeTracking(true);
-      // Create tracking event with distinctive styling
-      const eventData = TimeTrackerCalculationService.createTrackingEventData(
-        selectedProjectData,
-        item.name,
-        now
-      );
-      try {
-        // Create the tracking event
-        const createdEvent = await addEvent(eventData);
-        // Use the actual event ID from the database
-        setCurrentEventId(createdEvent.id);
-        // Start the timer interval
-        intervalRef.current = setInterval(() => {
-          setSeconds(prev => prev + 1);
-        }, 1000);
-        // Start live updates immediately
-        startLiveUpdates(createdEvent.id, now);
-        // Handle any planned event overlaps
-        handlePlannedEventOverlaps(now, new Date(now.getTime() + 60000));
-        // Store current state for sync
-        currentStateRef.current = {
-          isTracking: true,
-          startTime: now,
-          eventId: createdEvent.id,
-          selectedProject: selectedProjectData,
-          searchQuery: selectedProjectData?.name || item.name,
-          affectedEvents: []
-        };
-        // Save tracking state
-        await saveTrackingState({
-          ...currentStateRef.current,
-          currentSeconds: 0
-        });
-        // Start the timer interval with cross-window sync
-        let syncCounter = 0;
-        intervalRef.current = setInterval(() => {
-          setSeconds(prev => {
-            const newSeconds = prev + 1;
-            // Sync timer state every 5 seconds to other windows
-            syncCounter++;
-            if (syncCounter >= 5 && currentStateRef.current) {
-              syncCounter = 0;
-              saveTrackingState({
-                ...currentStateRef.current,
-                currentSeconds: newSeconds,
-              });
-            }
-            return newSeconds;
-          });
-        }, 1000);
-      } catch (error) {
-        console.error('Failed to create tracking event:', error);
-        setIsTimeTracking(false);
-        startTimeRef.current = null;
+    // Use the orchestrator workflow to ensure proper state management
+    if (!isTimeTracking && selectedProjectData) {
+      // Create context with the selected project data directly (don't wait for state update)
+      const context: TimeTrackerWorkflowContext = {
+        selectedProject: selectedProjectData,
+        searchQuery: searchQueryText,
+        addEvent,
+        setCurrentEventId,
+        setIsTimeTracking,
+        setSeconds,
+        setSelectedProject,
+        setSearchQuery,
+        startTimeRef,
+        intervalRef,
+        currentStateRef
+      };
+
+      const result = await UnifiedTimeTrackerService.handleTimeTrackingToggle(context);
+      
+      if (!result.success && result.error) {
+        console.error('Time tracking toggle failed:', result.error);
         return;
+      }
+
+      // Handle post-toggle actions for start tracking
+      if (result.eventId) {
+        // Start live updates immediately
+        startLiveUpdates(result.eventId, startTimeRef.current || new Date());
       }
     }
   };
@@ -307,15 +315,47 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       setCurrentEventId,
       setIsTimeTracking,
       setSeconds,
+      setSelectedProject,
+      setSearchQuery,
       startTimeRef,
       intervalRef,
       currentStateRef
     };
 
-    const result = await timeTrackingOrchestrator.handleTimeTrackingToggle(context);
+    const result = await UnifiedTimeTrackerService.handleTimeTrackingToggle(context);
     
     if (!result.success && result.error) {
       console.error('Time tracking toggle failed:', result.error);
+      
+      // If we were trying to stop tracking and it failed, force reset everything
+      if (isTimeTracking) {
+        console.warn('Force resetting time tracking state due to error');
+        
+        // Clear all intervals
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+        if (liveUpdateIntervalRef.current) {
+          clearInterval(liveUpdateIntervalRef.current);
+          liveUpdateIntervalRef.current = null;
+        }
+        
+        // Reset all state
+        setCurrentEventId(null);
+        setIsTimeTracking(false);
+        setSeconds(0);
+        startTimeRef.current = null;
+        currentStateRef.current = null;
+        setSelectedProject(null);
+        setSearchQuery('');
+        setAffectedPlannedEvents([]);
+        
+        // Clear storage
+        await UnifiedTimeTrackerService.stopTracking().catch(err => {
+          console.error('Failed to clear storage:', err);
+        });
+      }
       return;
     }
 
@@ -336,10 +376,10 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       // Handle final event completion logic
       if (currentEventId && startTimeRef.current) {
         const endTime = new Date();
-        const duration = TimeTrackerCalculationService.calculateDurationInHours(startTimeRef.current, endTime);
+        const duration = UnifiedTimeTrackerService.calculateDurationInHours(startTimeRef.current, endTime);
         
         try {
-          const completedEventData = TimeTrackerCalculationService.createCompletedEventData(
+          const completedEventData = UnifiedTimeTrackerService.createCompletedEventData(
             selectedProject,
             searchQuery,
             startTimeRef.current,

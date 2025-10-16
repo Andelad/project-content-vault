@@ -50,7 +50,7 @@ export { WorkHourCalculationService } from './calculations/workHourCalculations'
 // Timeline positioning functions moved to ui/TimelinePositioning.ts
 
 // 🎯 Unified Services (Main API Layer)
-export { TimeTrackerCalculationService } from './unified/UnifiedTimeTrackerService';
+export { UnifiedTimeTrackerService } from './unified/UnifiedTimeTrackerService';
 export { UnifiedMilestoneService } from './unified/UnifiedMilestoneService';
 export { CalendarIntegrationService, type ImportResult } from './unified/UnifiedCalendarService';
 export { transformFullCalendarToCalendarEvent } from './unified/UnifiedEventTransformService';

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { Settings } from '@/types/core';
 import { useSettings as useSettingsHook } from '@/hooks/useSettings';
-import { timeTrackingService } from '@/services/unified/timeTrackingService';
+import { UnifiedTimeTrackerService } from '@/services';
 import { supabase } from '@/integrations/supabase/client';
 
 // Individual work hour override for specific dates
@@ -33,6 +33,8 @@ interface SettingsContextType {
   // Time tracking state
   isTimeTracking: boolean;
   setIsTimeTracking: (isTracking: boolean) => void;
+  currentTrackingEventId: string | null;
+  setCurrentTrackingEventId: (eventId: string | null) => void;
   
   // Loading states
   isLoading: boolean;
@@ -53,6 +55,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [workHours] = useState<any[]>([]);
   const [timelineEntries, setTimelineEntries] = useState<any[]>([]);
   const [isTimeTracking, setIsTimeTracking] = useState<boolean>(false);
+  const [currentTrackingEventId, setCurrentTrackingEventId] = useState<string | null>(null);
   const [realtimeSubscription, setRealtimeSubscription] = useState<any>(null);
 
   // Initialize sync service when user is available
@@ -61,23 +64,33 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (user?.id) {
-        timeTrackingService.setUserId(user.id);
+        UnifiedTimeTrackerService.setUserId(user.id);
         
         // Set up callback to sync state changes from other windows
-        timeTrackingService.setOnStateChangeCallback((syncedState) => {
+        UnifiedTimeTrackerService.setOnStateChangeCallback(async (syncedState) => {
           setIsTimeTracking(syncedState.isTracking);
-          // Update other relevant state if needed
+          setCurrentTrackingEventId(syncedState.eventId || null);
+          
+          // If tracking started, ensure UI state is synced by triggering a re-render
+          // The TimeTracker components will react to the global state change
+          if (syncedState.isTracking && syncedState.eventId) {
+            // Force a small delay to ensure state propagation
+            setTimeout(() => {
+              // This will trigger the TimeTracker useEffect that reacts to global state
+            }, 0);
+          }
         });
 
         // Load initial state from database
-        const dbState = await timeTrackingService.loadState();
+        const dbState = await UnifiedTimeTrackerService.loadState();
         if (dbState) {
           setIsTimeTracking(dbState.isTracking);
+          setCurrentTrackingEventId(dbState.eventId || null);
           // Set other state values as needed
         }
 
         // Set up real-time subscription
-        const subscription = await timeTrackingService.setupRealtimeSubscription();
+        const subscription = await UnifiedTimeTrackerService.setupRealtimeSubscription();
         setRealtimeSubscription(subscription);
       }
     };
@@ -91,18 +104,12 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Update setIsTimeTracking to sync to database
+  // Update setIsTimeTracking - DO NOT sync to database here
+  // The workflow handlers already save complete state to the database
+  // This would overwrite with incomplete state
   const setIsTimeTrackingWithSync = useCallback(async (isTracking: boolean) => {
     setIsTimeTracking(isTracking);
-    
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user?.id) {
-      await timeTrackingService.syncState({
-        isTracking,
-        lastUpdateTime: new Date()
-        // Add other relevant state
-      });
-    }
+    // No database sync here - workflows handle that with complete state
   }, []);
 
   // Default settings fallback if not loaded from database
@@ -201,6 +208,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     // Time tracking state
     isTimeTracking,
     setIsTimeTracking: setIsTimeTrackingWithSync,
+    currentTrackingEventId,
+    setCurrentTrackingEventId,
     
     // Loading states
     isLoading: settingsLoading,

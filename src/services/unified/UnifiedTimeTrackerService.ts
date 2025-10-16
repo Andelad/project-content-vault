@@ -50,7 +50,20 @@ export interface TrackingEventData {
   completed?: boolean;
 }
 
-export class TimeTrackerCalculationService {
+import { timeTrackingOrchestrator } from '../orchestrators/timeTrackingOrchestrator';
+import type { TimeTrackingState } from '../../types/timeTracking';
+
+/**
+ * Unified Time Tracker Service
+ * 
+ * Main API for time tracking functionality following the architecture pattern:
+ * Components → Unified Services → Orchestrators → Validators/Calculations/Repositories
+ * 
+ * This service provides both:
+ * - Calculation/transformation methods (static)
+ * - Workflow coordination (delegates to orchestrator)
+ */
+export class UnifiedTimeTrackerService {
   private static readonly STORAGE_KEYS = {
     isTracking: 'timeTracker_isTracking',
     startTime: 'timeTracker_startTime',
@@ -59,6 +72,62 @@ export class TimeTrackerCalculationService {
     searchQuery: 'timeTracker_searchQuery',
     affectedEvents: 'timeTracker_affectedEvents'
   };
+
+  // ===================================================================================
+  // ORCHESTRATOR DELEGATION METHODS (for workflow coordination)
+  // ===================================================================================
+
+  static async startTracking(projectId: string): Promise<void> {
+    return timeTrackingOrchestrator.startTracking(projectId);
+  }
+
+  static async stopTracking(): Promise<void> {
+    return timeTrackingOrchestrator.stopTracking();
+  }
+
+  static async pauseTracking(): Promise<void> {
+    return timeTrackingOrchestrator.pauseTracking();
+  }
+
+  static async resumeTracking(): Promise<void> {
+    return timeTrackingOrchestrator.resumeTracking();
+  }
+
+  static async loadState(): Promise<TimeTrackingState | null> {
+    return timeTrackingOrchestrator.loadState();
+  }
+
+  static async syncState(state: Partial<TimeTrackingState>, skipLocalCallback?: boolean): Promise<void> {
+    return timeTrackingOrchestrator.syncState(state, skipLocalCallback);
+  }
+
+  static async handleTimeTrackingToggle(context: any): Promise<any> {
+    return timeTrackingOrchestrator.handleTimeTrackingToggle(context);
+  }
+
+  static async loadTrackingStateWorkflow(context: any): Promise<any> {
+    return timeTrackingOrchestrator.loadTrackingStateWorkflow(context);
+  }
+
+  static setUserId(userId: string): void {
+    timeTrackingOrchestrator.setUserId(userId);
+  }
+
+  static setOnStateChangeCallback(callback?: (state: TimeTrackingState) => void): void {
+    timeTrackingOrchestrator.setOnStateChangeCallback(callback);
+  }
+
+  static async setupRealtimeSubscription(): Promise<any> {
+    return timeTrackingOrchestrator.setupRealtimeSubscription();
+  }
+
+  static cleanup(): void {
+    timeTrackingOrchestrator.cleanup();
+  }
+
+  // ===================================================================================
+  // CALCULATION & TRANSFORMATION METHODS (static utilities)
+  // ===================================================================================
 
   /**
    * Calculate elapsed time from start time to now
@@ -87,7 +156,7 @@ export class TimeTrackerCalculationService {
     trackingStart: Date,
     trackingEnd: Date,
     currentEventId: string | null,
-    onDeleteEvent: (eventId: string) => void,
+    onDeleteEvent: (eventId: string, options?: { silent?: boolean }) => void,
     onUpdateEvent: (eventId: string, updates: any, options?: any) => void,
     onAddEvent: (event: any) => Promise<any>
   ): string[] {
@@ -100,7 +169,7 @@ export class TimeTrackerCalculationService {
     splitResults.forEach((result: EventSplitResult) => {
       switch (result.action) {
         case 'delete':
-          onDeleteEvent(result.originalEvent.id);
+          onDeleteEvent(result.originalEvent.id, { silent: true });
           break;
 
         case 'split':

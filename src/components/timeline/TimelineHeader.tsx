@@ -24,7 +24,6 @@ export const TimelineHeader = memo(function TimelineHeader({
         <h1 className="text-lg font-semibold text-[#595956]">Timeline</h1>
       </div>
       
-      {/* Time Tracker in top right */}
       <TimeTracker />
     </>
   );

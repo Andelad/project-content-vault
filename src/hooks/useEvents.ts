@@ -105,7 +105,7 @@ export function useEvents() {
     }
   };
 
-  const deleteEvent = async (id: string) => {
+  const deleteEvent = async (id: string, options?: { silent?: boolean }) => {
     try {
       const { error } = await supabase
         .from('calendar_events')
@@ -114,17 +114,22 @@ export function useEvents() {
 
       if (error) throw error;
       setEvents(prev => prev.filter(event => event.id !== id));
-      toast({
-        title: "Success",
-        description: "Event deleted successfully",
-      });
+      
+      if (!options?.silent) {
+        toast({
+          title: "Success",
+          description: "Event deleted successfully",
+        });
+      }
     } catch (error) {
       console.error('Error deleting event:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete event",
-        variant: "destructive",
-      });
+      if (!options?.silent) {
+        toast({
+          title: "Error",
+          description: "Failed to delete event",
+          variant: "destructive",
+        });
+      }
       throw error;
     }
   };

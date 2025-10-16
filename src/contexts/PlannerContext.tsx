@@ -18,7 +18,7 @@ interface PlannerContextType {
   isEventsLoading: boolean;
   addEvent: (event: Omit<CalendarEvent, 'id' | 'created_at' | 'updated_at'>) => Promise<CalendarEvent>;
   updateEvent: (id: string, updates: Partial<CalendarEvent>, options?: { silent?: boolean }) => Promise<void>;
-  deleteEvent: (id: string) => Promise<void>;
+  deleteEvent: (id: string, options?: { silent?: boolean }) => Promise<void>;
   
   // Recurring Events
   getRecurringGroupEvents: (eventId: string) => Promise<CalendarEvent[]>;
@@ -275,8 +275,8 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
     await dbUpdateEvent(id, dbUpdates, options);
   }, [dbUpdateEvent]);
 
-  const deleteEvent = useCallback(async (id: string): Promise<void> => {
-    await dbDeleteEvent(id);
+  const deleteEvent = useCallback(async (id: string, options?: { silent?: boolean }): Promise<void> => {
+    await dbDeleteEvent(id, options);
   }, [dbDeleteEvent]);
 
   // Utility functions
@@ -590,6 +590,11 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
 
   // Prepare FullCalendar events
   const fullCalendarEvents = useMemo(() => {
+    console.log('🔍 PLANNER - Preparing events for calendar:', {
+      totalEvents: processedEvents.length,
+      trackedEvents: processedEvents.filter(e => e.type === 'tracked').length,
+      layerMode
+    });
     return PlannerV2CalculationService.prepareEventsForFullCalendar(
       processedEvents,
       workHours || [],

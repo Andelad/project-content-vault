@@ -1,7 +1,7 @@
 import { timeTrackingRepository } from '../repositories/timeTrackingRepository';
 import { timeTrackingValidator } from '../validators/timeTrackingValidator';
 import { timeTrackingCalculations } from '../calculations/timeTrackingCalculations';
-import { TimeTrackerCalculationService } from '../unified/UnifiedTimeTrackerService';
+import { UnifiedTimeTrackerService } from '../unified/UnifiedTimeTrackerService';
 import { calendarEventRepository } from '../repositories/CalendarEventRepository';
 import type { TimeTrackingState } from '../../types/timeTracking';
 import type { CalendarEvent } from '../../types/core';
@@ -13,6 +13,8 @@ export interface TimeTrackerWorkflowContext {
   setCurrentEventId: (id: string | null) => void;
   setIsTimeTracking: (tracking: boolean) => void;
   setSeconds: (seconds: number) => void;
+  setSelectedProject: (project: any) => void;
+  setSearchQuery: (query: string) => void;
   startTimeRef: React.MutableRefObject<Date | null>;
   intervalRef: React.MutableRefObject<NodeJS.Timeout | null>;
   currentStateRef: React.MutableRefObject<any>;
@@ -35,8 +37,11 @@ class TimeTrackingOrchestrator {
   private onStateChangeCallback?: (state: TimeTrackingState) => void;
   private broadcastChannel?: BroadcastChannel;
   private realtimeSubscription?: any;
+  private windowId: string;
 
   constructor() {
+    // Generate unique window ID to prevent processing our own broadcasts
+    this.windowId = `window_${Date.now()}_${Math.random()}`;
     this.initializeCrossWindowSync();
   }
 
@@ -64,6 +69,12 @@ class TimeTrackingOrchestrator {
 
   private handleCrossWindowMessage(data: any): void {
     if (data.type === 'TIME_TRACKING_STATE_UPDATED' && data.state) {
+      // Ignore messages from our own window to prevent feedback loops
+      if (data.windowId === this.windowId) {
+        return;
+      }
+      
+      // Only process messages from OTHER windows/tabs
       const deserializedState = this.deserializeState(data.state);
       if (this.onStateChangeCallback) {
         this.onStateChangeCallback(deserializedState);
@@ -76,7 +87,8 @@ class TimeTrackingOrchestrator {
     const message = {
       type: 'TIME_TRACKING_STATE_UPDATED',
       state: serializedState,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      windowId: this.windowId // Include window ID to filter out own messages
     };
 
     // Use BroadcastChannel if available
@@ -132,7 +144,8 @@ class TimeTrackingOrchestrator {
       lastUpdateTime: new Date()
     };
 
-    await this.syncState(newState);
+    // Skip local callback to prevent feedback loop - workflow already updated UI
+    await this.syncState(newState, true);
   }
 
   async stopTracking(): Promise<void> {
@@ -152,7 +165,8 @@ class TimeTrackingOrchestrator {
       lastUpdateTime: new Date()
     };
 
-    await this.syncState(newState);
+    // Skip local callback to prevent feedback loop - workflow already updated UI
+    await this.syncState(newState, true);
   }
 
   async pauseTracking(): Promise<void> {
@@ -169,7 +183,8 @@ class TimeTrackingOrchestrator {
       lastUpdateTime: new Date()
     };
 
-    await this.syncState(newState);
+    // Skip local callback to prevent feedback loop - workflow already updated UI
+    await this.syncState(newState, true);
   }
 
   async resumeTracking(): Promise<void> {
@@ -190,24 +205,25 @@ class TimeTrackingOrchestrator {
       lastUpdateTime: new Date()
     };
 
-    await this.syncState(newState);
+    // Skip local callback to prevent feedback loop - workflow already updated UI
+    await this.syncState(newState, true);
   }
 
   async loadState(): Promise<TimeTrackingState | null> {
     return timeTrackingRepository.loadState();
   }
 
-  async syncState(state: Partial<TimeTrackingState>): Promise<void> {
+  async syncState(state: Partial<TimeTrackingState>, skipLocalCallback: boolean = false): Promise<void> {
     const validatedState = timeTrackingValidator.validateState(state);
     
     // Save to database
     await timeTrackingRepository.saveState(validatedState);
     
-    // Broadcast to other windows
+    // Broadcast to other windows (they need to know)
     this.broadcastStateChange(validatedState);
     
-    // Trigger local callback
-    if (this.onStateChangeCallback) {
+    // Only trigger local callback if not skipping (to prevent feedback loops)
+    if (!skipLocalCallback && this.onStateChangeCallback) {
       this.onStateChangeCallback(validatedState);
     }
   }
@@ -264,7 +280,7 @@ class TimeTrackingOrchestrator {
 
   private async startTrackingWorkflow(context: TimeTrackerWorkflowContext): Promise<TimeTrackerWorkflowResult> {
     const { selectedProject, searchQuery, addEvent, setCurrentEventId, 
-            setIsTimeTracking, setSeconds, startTimeRef, intervalRef } = context;
+            setIsTimeTracking, setSeconds, startTimeRef, intervalRef, currentStateRef } = context;
 
     if (!selectedProject) {
       return {
@@ -274,30 +290,46 @@ class TimeTrackingOrchestrator {
     }
 
     try {
-      // Create event data
+      const now = new Date();
+      
+      // Use the same format as the original working implementation
+      const projectName = selectedProject?.name || searchQuery || 'Time Tracking';
       const eventData = {
-        name: searchQuery || `Work on ${selectedProject.name}`,
-        project_id: selectedProject.id,
-        planned_start: new Date(),
-        planned_end: null,
-        actual_start: new Date(),
-        actual_end: null,
-        is_time_tracking: true,
-        event_type: 'time_tracking' as const
+        title: `🔴 ${projectName}`,
+        startTime: now,
+        endTime: new Date(now.getTime() + 60000), // Start with 1 minute
+        projectId: selectedProject?.id,
+        color: selectedProject?.color || '#DC2626', // Red color for tracking
+        description: `Active time tracking${selectedProject ? ` for ${selectedProject.name}` : ''}`,
+        duration: 0.0167, // 1 minute in hours
+        type: 'tracked' as const,
+        completed: true // Time being tracked is considered completed by default
       };
 
       // Add the event
+      console.log('🔍 WORKFLOW - Creating event:', eventData);
       const newEvent = await addEvent(eventData);
+      console.log('🔍 WORKFLOW - Event created:', newEvent);
       
       if (!newEvent?.id) {
         throw new Error('Failed to create tracking event');
       }
-
+      
       // Set up tracking state
       setCurrentEventId(newEvent.id);
       setIsTimeTracking(true);
       setSeconds(0);
-      startTimeRef.current = new Date();
+      startTimeRef.current = now;
+
+      // Update the currentStateRef so stop tracking can find it
+      currentStateRef.current = {
+        isTracking: true,
+        startTime: now,
+        eventId: newEvent.id,
+        selectedProject: selectedProject,
+        searchQuery: searchQuery,
+        affectedEvents: []
+      };
 
       // Start the timer
       intervalRef.current = setInterval(() => {
@@ -307,8 +339,32 @@ class TimeTrackingOrchestrator {
         }
       }, 1000);
 
-      // Update tracking state in repository
-      await this.startTracking(selectedProject.id);
+      // Update tracking state in repository with FULL state including UI data
+      const fullState: TimeTrackingState = {
+        isTracking: true,
+        isPaused: false,
+        projectId: selectedProject.id || null,
+        startTime: now,
+        pausedAt: null,
+        totalPausedDuration: 0,
+        lastUpdateTime: now,
+        // UI state for persistence across views
+        eventId: newEvent.id,
+        selectedProject: selectedProject,
+        searchQuery: searchQuery,
+        affectedEvents: [],
+        currentSeconds: 0
+      };
+      
+      console.log('🔍 WORKFLOW - Saving fullState:', {
+        eventId: fullState.eventId,
+        selectedProject: fullState.selectedProject?.name || fullState.selectedProject,
+        searchQuery: fullState.searchQuery,
+        startTime: fullState.startTime,
+        hasAllFields: !!(fullState.eventId && fullState.selectedProject && fullState.startTime)
+      });
+      
+      await this.syncState(fullState, true); // Skip local callback to prevent loop
 
       return {
         success: true,
@@ -329,12 +385,30 @@ class TimeTrackingOrchestrator {
 
     try {
       const currentState = currentStateRef.current;
-      const currentEventId = currentState?.currentEventId;
+      const currentEventId = currentState?.eventId; // Fixed: was currentEventId, should be eventId
 
       if (!currentEventId) {
+        // Even if no event ID, we should still reset the state
+        console.warn('No active tracking session found, but resetting state anyway');
+        
+        // Clear the timer
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+        
+        // Reset tracking state
+        setCurrentEventId(null);
+        setIsTimeTracking(false);
+        setSeconds(0);
+        startTimeRef.current = null;
+        currentStateRef.current = null; // Clear the ref
+        
+        // Update tracking state in repository
+        await this.stopTracking();
+        
         return {
-          success: false,
-          error: 'No active tracking session found'
+          success: true
         };
       }
 
@@ -359,6 +433,7 @@ class TimeTrackingOrchestrator {
       setIsTimeTracking(false);
       setSeconds(0);
       startTimeRef.current = null;
+      currentStateRef.current = null; // Clear the ref
 
       // Update tracking state in repository
       await this.stopTracking();
@@ -369,6 +444,18 @@ class TimeTrackingOrchestrator {
       };
     } catch (error) {
       console.error('Stop tracking workflow failed:', error);
+      
+      // Even on error, try to reset the UI state
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      setCurrentEventId(null);
+      setIsTimeTracking(false);
+      setSeconds(0);
+      startTimeRef.current = null;
+      currentStateRef.current = null;
+      
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to stop tracking'
@@ -377,31 +464,74 @@ class TimeTrackingOrchestrator {
   }
 
   async loadTrackingStateWorkflow(context: TimeTrackerWorkflowContext): Promise<TimeTrackerWorkflowResult> {
-    const { setCurrentEventId, setIsTimeTracking, setSeconds, startTimeRef, 
-            intervalRef, currentStateRef } = context;
+    const { setCurrentEventId, setIsTimeTracking, setSeconds, setSelectedProject, setSearchQuery,
+            startTimeRef, intervalRef, currentStateRef } = context;
 
     try {
       // Load state from repository
       const state = await this.loadState();
       
       if (!state || !state.isTracking || !state.eventId) {
-        // No active tracking session
+        // No active tracking session - ensure everything is cleaned up
+        setCurrentEventId(null);
+        setIsTimeTracking(false);
+        setSeconds(0);
+        startTimeRef.current = null;
+        currentStateRef.current = null;
         return { success: true };
       }
 
-      // Check if event still exists and is trackable
-      // Note: Session validation should be handled by the component context
       const currentEventId = state.eventId;
       
       if (!currentEventId) {
         // Clean up invalid session
         await this.stopTracking();
+        setCurrentEventId(null);
+        setIsTimeTracking(false);
+        setSeconds(0);
+        startTimeRef.current = null;
+        currentStateRef.current = null;
         return { success: true };
       }
 
-      // Restore tracking state
+      // Validate that the event actually exists in the database
+      try {
+        const eventExists = await calendarEventRepository.getById(currentEventId);
+        
+        if (!eventExists) {
+          // Event doesn't exist anymore, clean up the tracking state
+          console.warn(`Tracking event ${currentEventId} no longer exists, cleaning up state`);
+          await this.stopTracking();
+          setCurrentEventId(null);
+          setIsTimeTracking(false);
+          setSeconds(0);
+          startTimeRef.current = null;
+          currentStateRef.current = null;
+          return { success: true };
+        }
+      } catch (error) {
+        // Error checking event, assume it doesn't exist and clean up
+        console.error('Error validating tracking event:', error);
+        await this.stopTracking();
+        setCurrentEventId(null);
+        setIsTimeTracking(false);
+        setSeconds(0);
+        startTimeRef.current = null;
+        currentStateRef.current = null;
+        return { success: true };
+      }
+
+      // Restore tracking state - including UI state
       setCurrentEventId(currentEventId);
       setIsTimeTracking(true);
+      
+      // Restore UI state (project and search query)
+      if (state.selectedProject) {
+        setSelectedProject(state.selectedProject);
+      }
+      if (state.searchQuery) {
+        setSearchQuery(state.searchQuery);
+      }
       
       // Calculate elapsed time since start
       if (state.startTime) {
@@ -419,11 +549,14 @@ class TimeTrackingOrchestrator {
         }
       }, 1000);
 
-      // Update current state ref
+      // Update current state ref - use eventId not currentEventId for consistency
       currentStateRef.current = {
         isTracking: true,
-        currentEventId: currentEventId,
-        startTime: state.startTime
+        eventId: currentEventId, // Fixed: was currentEventId, should be eventId
+        startTime: state.startTime,
+        selectedProject: state.selectedProject,
+        searchQuery: state.searchQuery,
+        affectedEvents: state.affectedEvents || []
       };
 
       return {
@@ -432,6 +565,14 @@ class TimeTrackingOrchestrator {
       };
     } catch (error) {
       console.error('Load tracking state workflow failed:', error);
+      
+      // On any error, ensure UI is in a clean state
+      setCurrentEventId(null);
+      setIsTimeTracking(false);
+      setSeconds(0);
+      startTimeRef.current = null;
+      currentStateRef.current = null;
+      
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to load tracking state'
