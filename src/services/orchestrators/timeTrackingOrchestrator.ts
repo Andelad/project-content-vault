@@ -5,6 +5,7 @@ import { UnifiedTimeTrackerService } from '../unified/UnifiedTimeTrackerService'
 import { calendarEventRepository } from '../repositories/CalendarEventRepository';
 import type { TimeTrackingState } from '../../types/timeTracking';
 import type { CalendarEvent } from '../../types/core';
+import { supabase } from '../../integrations/supabase/client';
 
 export interface TimeTrackerWorkflowContext {
   selectedProject: any;
@@ -310,6 +311,19 @@ class TimeTrackingOrchestrator {
       console.log('🔍 WORKFLOW - Creating event:', eventData);
       const newEvent = await addEvent(eventData);
       console.log('🔍 WORKFLOW - Event created:', newEvent);
+      
+      // Verify event exists in database immediately
+      const { data: verifyData, error: verifyError } = await supabase
+        .from('calendar_events')
+        .select('*')
+        .eq('id', newEvent.id)
+        .single();
+      
+      console.log('🔍 WORKFLOW - Event verification:', { 
+        exists: !!verifyData, 
+        error: verifyError,
+        eventData: verifyData 
+      });
       
       if (!newEvent?.id) {
         throw new Error('Failed to create tracking event');
