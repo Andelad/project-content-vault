@@ -227,24 +227,6 @@ export function TimeTracker({ className }: TimeTrackerProps) {
         }, { silent: true });
         console.log('🔍 Live update - success');
       } catch (error: any) {
-        // If event doesn't exist (PGRST116), stop live updates and clear state
-        if (error?.code === 'PGRST116') {
-          console.error('🔍 Live update - event no longer exists, stopping updates');
-          if (liveUpdateIntervalRef.current) {
-            clearInterval(liveUpdateIntervalRef.current);
-            liveUpdateIntervalRef.current = null;
-          }
-          // Force reset tracking state
-          setCurrentEventId(null);
-          setIsTimeTracking(false);
-          setGlobalTrackingEventId(null);
-          setSeconds(0);
-          setSelectedProject(null);
-          setSearchQuery('');
-          startTimeRef.current = null;
-          currentStateRef.current = null;
-          return;
-        }
         console.error('🔍 Live update - failed:', error);
       }
       // Check for new overlaps as the event grows

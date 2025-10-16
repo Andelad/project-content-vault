@@ -30,7 +30,7 @@ function transformFromDatabase(dbRecord: any): CalendarEvent {
     projectId: dbRecord.project_id || undefined,
     color: dbRecord.color || '#3b82f6',
     completed: dbRecord.completed || false,
-    type: dbRecord.type || 'planned'
+    type: dbRecord.event_type || 'planned'
   };
 }
 
@@ -46,7 +46,7 @@ function transformToDatabase(event: Omit<CalendarEvent, 'id'> | CalendarEvent): 
     project_id: event.projectId || null,
     color: event.color,
     completed: event.completed,
-    type: event.type
+    event_type: event.type
   };
 }
 
@@ -200,11 +200,11 @@ export class CalendarEventRepository {
       throw new Error('User not authenticated');
     }
 
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('calendar_events')
       .select('*')
       .eq('user_id', user.id)
-      .eq('type', 'tracked')
+      .eq('event_type', 'tracked')
       .order('start_time', { ascending: true });
 
     if (error) {

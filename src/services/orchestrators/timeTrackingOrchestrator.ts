@@ -312,22 +312,23 @@ class TimeTrackingOrchestrator {
       const newEvent = await addEvent(eventData);
       console.log('🔍 WORKFLOW - Event created:', newEvent);
       
-      // Verify event exists in database immediately
+      if (!newEvent?.id) {
+        throw new Error('Failed to create tracking event');
+      }
+      
+      // Verify event exists in database immediately after creation
       const { data: verifyData, error: verifyError } = await supabase
         .from('calendar_events')
         .select('*')
         .eq('id', newEvent.id)
         .single();
       
-      console.log('🔍 WORKFLOW - Event verification:', { 
-        exists: !!verifyData, 
-        error: verifyError,
-        eventData: verifyData 
-      });
-      
-      if (!newEvent?.id) {
-        throw new Error('Failed to create tracking event');
+      if (verifyError || !verifyData) {
+        console.error('🔍 WORKFLOW - Event verification FAILED:', verifyError);
+        throw new Error('Event was not properly saved to database');
       }
+      
+      console.log('🔍 WORKFLOW - Event verified in database successfully');
       
       // Set up tracking state
       setCurrentEventId(newEvent.id);
