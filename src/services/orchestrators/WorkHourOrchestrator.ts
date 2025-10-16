@@ -23,9 +23,6 @@ import {
   calculateTimeFromPosition
 } from '../calculations/workHourCalculations';
 import {
-  TimeTrackerCalculationService
-} from '../unified/UnifiedTimeTrackerService';
-import {
   processEventOverlaps,
   validateEventForSplit,
   type EventSplitResult
