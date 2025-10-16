@@ -30,9 +30,10 @@ export function TimeTracker({ className }: TimeTrackerProps) {
   const [currentEventId, setCurrentEventId] = useState<string | null>(null);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const [affectedPlannedEvents, setAffectedPlannedEvents] = useState<string[]>([]);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null); // UI timer (1s)
+  const dbSyncIntervalRef = useRef<NodeJS.Timeout | null>(null); // DB sync (30s)
+  const overlapCheckIntervalRef = useRef<NodeJS.Timeout | null>(null); // Overlap check (60s)
   const startTimeRef = useRef<Date | null>(null);
-  const liveUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const currentStateRef = useRef<any>(null); // Track current state for sync
   // Storage keys from service
@@ -104,7 +105,7 @@ export function TimeTracker({ className }: TimeTrackerProps) {
           affectedEvents: dbState.affectedEvents || []
         };
         
-        // START THE TIMER INTERVAL IMMEDIATELY
+        // START UI TIMER IMMEDIATELY (1 second updates)
         intervalRef.current = setInterval(() => {
           if (startTimeRef.current) {
             const elapsed = Math.floor((Date.now() - startTimeRef.current.getTime()) / 1000);
@@ -112,8 +113,8 @@ export function TimeTracker({ className }: TimeTrackerProps) {
           }
         }, 1000);
         
-        // START LIVE UPDATES IMMEDIATELY
-        startLiveUpdates(dbState.eventId, new Date(dbState.startTime));
+        // START OPTIMIZED INTERVALS
+        startOptimizedIntervals(dbState.eventId, new Date(dbState.startTime));
       }
     };
     loadTrackingState();
@@ -150,8 +151,8 @@ export function TimeTracker({ className }: TimeTrackerProps) {
                 }, 1000);
               }
               
-              if (!liveUpdateIntervalRef.current) {
-                startLiveUpdates(currentTrackingEventId, startTime);
+              if (!dbSyncIntervalRef.current || !overlapCheckIntervalRef.current) {
+                startOptimizedIntervals(currentTrackingEventId, startTime);
               }
             }
             
@@ -180,14 +181,18 @@ export function TimeTracker({ className }: TimeTrackerProps) {
         currentStateRef.current = null;
         setAffectedPlannedEvents([]);
         
-        // Clear intervals
+        // Clear all intervals
         if (intervalRef.current) {
           clearInterval(intervalRef.current);
           intervalRef.current = null;
         }
-        if (liveUpdateIntervalRef.current) {
-          clearInterval(liveUpdateIntervalRef.current);
-          liveUpdateIntervalRef.current = null;
+        if (dbSyncIntervalRef.current) {
+          clearInterval(dbSyncIntervalRef.current);
+          dbSyncIntervalRef.current = null;
+        }
+        if (overlapCheckIntervalRef.current) {
+          clearInterval(overlapCheckIntervalRef.current);
+          overlapCheckIntervalRef.current = null;
         }
       }
     };
@@ -208,32 +213,48 @@ export function TimeTracker({ className }: TimeTrackerProps) {
     setAffectedPlannedEvents(affectedEvents);
     return affectedEvents;
   };
-  // Start live updates for the tracking event
-  const startLiveUpdates = (eventId: string, startTime: Date) => {
-    console.log('🔍 Starting live updates for event:', eventId);
-    if (liveUpdateIntervalRef.current) {
-      clearInterval(liveUpdateIntervalRef.current);
+  // Start optimized intervals for tracking event
+  // Separate UI updates, DB syncs, and overlap checks for efficiency
+  const startOptimizedIntervals = (eventId: string, startTime: Date) => {
+    console.log('🔍 Starting optimized intervals for event:', eventId);
+    
+    // Clear any existing intervals
+    if (dbSyncIntervalRef.current) {
+      clearInterval(dbSyncIntervalRef.current);
     }
-    liveUpdateIntervalRef.current = setInterval(async () => {
+    if (overlapCheckIntervalRef.current) {
+      clearInterval(overlapCheckIntervalRef.current);
+    }
+    
+    // DB Sync: Update database every 30 seconds
+    dbSyncIntervalRef.current = setInterval(async () => {
       const { duration } = UnifiedTimeTrackerService.calculateElapsedTime(startTime);
-      console.log('🔍 Live update - updating event:', eventId, 'duration:', duration);
-      // Update the tracking event silently (no toast notifications)
-      // Keep completed: true during tracking
+      console.log('💾 DB sync - updating event:', eventId, 'duration:', duration);
+      
       try {
         await updateEvent(eventId, {
           endTime: new Date(),
           duration,
           completed: true
         }, { silent: true });
-        console.log('🔍 Live update - success');
+        console.log('💾 DB sync - success');
       } catch (error: any) {
-        console.error('🔍 Live update - failed:', error);
+        console.error('💾 DB sync - failed:', error);
       }
-      // Check for new overlaps as the event grows
+    }, 30000); // 30 seconds
+    
+    // Overlap Check: Check for overlaps every 60 seconds
+    overlapCheckIntervalRef.current = setInterval(() => {
+      console.log('🔍 Overlap check - running');
       const affected = handlePlannedEventOverlaps(startTime, new Date());
-      // Save affected events to localStorage
       localStorage.setItem(STORAGE_KEYS.affectedEvents, JSON.stringify(affected));
-    }, 5000); // Update every 5 seconds
+      console.log('🔍 Overlap check - complete, affected events:', affected.length);
+    }, 60000); // 60 seconds
+    
+    // Run initial checks immediately
+    setTimeout(() => {
+      handlePlannedEventOverlaps(startTime, new Date());
+    }, 1000); // Wait 1 second after start
   };
   
   // Filter projects and clients based on search query
@@ -297,8 +318,8 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       if (result.eventId) {
         // Update global tracking event ID
         setGlobalTrackingEventId(result.eventId);
-        // Start live updates immediately
-        startLiveUpdates(result.eventId, startTimeRef.current || new Date());
+        // Start optimized intervals immediately
+        startOptimizedIntervals(result.eventId, startTimeRef.current || new Date());
       }
     }
   };
@@ -338,9 +359,13 @@ export function TimeTracker({ className }: TimeTrackerProps) {
           clearInterval(intervalRef.current);
           intervalRef.current = null;
         }
-        if (liveUpdateIntervalRef.current) {
-          clearInterval(liveUpdateIntervalRef.current);
-          liveUpdateIntervalRef.current = null;
+        if (dbSyncIntervalRef.current) {
+          clearInterval(dbSyncIntervalRef.current);
+          dbSyncIntervalRef.current = null;
+        }
+        if (overlapCheckIntervalRef.current) {
+          clearInterval(overlapCheckIntervalRef.current);
+          overlapCheckIntervalRef.current = null;
         }
         
         // Reset all state
@@ -365,18 +390,22 @@ export function TimeTracker({ className }: TimeTrackerProps) {
     if (result.eventId && !isTimeTracking) {
       // Update global tracking event ID
       setGlobalTrackingEventId(result.eventId);
-      // Start live updates immediately
-      startLiveUpdates(result.eventId, startTimeRef.current || new Date());
+      // Start optimized intervals immediately
+      startOptimizedIntervals(result.eventId, startTimeRef.current || new Date());
     }
 
     // Handle post-toggle actions for stop tracking
     if (!result.eventId && isTimeTracking) {
       // Clear global tracking event ID
       setGlobalTrackingEventId(null);
-      // Clear live updates
-      if (liveUpdateIntervalRef.current) {
-        clearInterval(liveUpdateIntervalRef.current);
-        liveUpdateIntervalRef.current = null;
+      // Clear all tracking intervals
+      if (dbSyncIntervalRef.current) {
+        clearInterval(dbSyncIntervalRef.current);
+        dbSyncIntervalRef.current = null;
+      }
+      if (overlapCheckIntervalRef.current) {
+        clearInterval(overlapCheckIntervalRef.current);
+        overlapCheckIntervalRef.current = null;
       }
 
       // Handle final event completion logic
@@ -427,8 +456,11 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
-      if (liveUpdateIntervalRef.current) {
-        clearInterval(liveUpdateIntervalRef.current);
+      if (dbSyncIntervalRef.current) {
+        clearInterval(dbSyncIntervalRef.current);
+      }
+      if (overlapCheckIntervalRef.current) {
+        clearInterval(overlapCheckIntervalRef.current);
       }
     };
   }, []);

@@ -161,12 +161,25 @@ export class UnifiedTimeTrackerService {
     onAddEvent: (event: any) => Promise<any>
   ): string[] {
     const trackingRange = createTimeRange(trackingStart, trackingEnd);
-    // CRITICAL: Only process planned events, exclude the current tracking event and any other tracked events
-    const eventsToProcess = events.filter(event => 
-      event.id !== currentEventId && 
-      event.type !== 'tracked' && 
-      event.type !== 'completed'
-    );
+    
+    // CRITICAL OPTIMIZATION: Only process planned events in the tracking time window
+    const eventsToProcess = events.filter(event => {
+      // Skip current tracking event and other tracked events
+      if (event.id === currentEventId || event.type === 'tracked' || event.type === 'completed') {
+        return false;
+      }
+      
+      // TEMPORAL FILTERING: Only check events that overlap with tracking window
+      const eventStart = new Date(event.startTime);
+      const eventEnd = new Date(event.endTime);
+      return eventEnd >= trackingStart && eventStart <= trackingEnd;
+    });
+    
+    // Early exit if no relevant events
+    if (eventsToProcess.length === 0) {
+      return [];
+    }
+    
     const splitResults = eventsToProcess.map(event => processEventOverlaps(event as any, trackingRange));
 
     const newAffectedEvents: string[] = [];

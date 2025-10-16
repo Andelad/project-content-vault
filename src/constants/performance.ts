@@ -55,3 +55,17 @@ export const CALENDAR_CONSTANTS = {
   MONTH_DAY_HEIGHT: 120,
   MONTH_CELL_WIDTH: 200,
 } as const;
+
+export const TIME_TRACKING_CONSTANTS = {
+  // UI updates frequently for smooth timer display (like Toggl)
+  UI_UPDATE_INTERVAL: 1000, // 1 second
+  
+  // Database syncs less frequently to reduce writes (like Harvest)
+  DB_SYNC_INTERVAL: 30000, // 30 seconds
+  
+  // Overlap checks only when needed
+  OVERLAP_CHECK_INTERVAL: 60000, // 1 minute
+  
+  // Minimum duration for planned events
+  MIN_EVENT_DURATION_MINUTES: 15,
+} as const;
