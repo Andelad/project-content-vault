@@ -14,6 +14,72 @@ export function useEvents() {
 
   useEffect(() => {
     fetchEvents();
+    
+    // Set up realtime subscription for cross-window sync
+    let channel: any = null;
+    
+    const setupRealtimeSubscription = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      channel = supabase
+        .channel('calendar_events_changes')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'calendar_events',
+            filter: `user_id=eq.${user.id}`
+          },
+          (payload) => {
+            console.log('🔄 Event inserted (realtime):', payload.new);
+            setEvents(prev => {
+              // Prevent duplicates - only add if not already in state
+              const exists = prev.some(e => e.id === payload.new.id);
+              if (exists) return prev;
+              return [...prev, payload.new as CalendarEvent];
+            });
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'calendar_events',
+            filter: `user_id=eq.${user.id}`
+          },
+          (payload) => {
+            console.log('🔄 Event updated (realtime):', payload.new);
+            setEvents(prev => 
+              prev.map(event => event.id === payload.new.id ? payload.new as CalendarEvent : event)
+            );
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'DELETE',
+            schema: 'public',
+            table: 'calendar_events',
+            filter: `user_id=eq.${user.id}`
+          },
+          (payload) => {
+            console.log('🔄 Event deleted (realtime):', payload.old);
+            setEvents(prev => prev.filter(event => event.id !== payload.old.id));
+          }
+        )
+        .subscribe();
+    };
+    
+    setupRealtimeSubscription();
+
+    return () => {
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+    };
   }, []);
 
   const fetchEvents = async () => {
