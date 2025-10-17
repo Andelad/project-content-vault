@@ -197,8 +197,14 @@ export class TimelineViewport {
         actualViewportStart: weekStart
       };
     } else {
-      // Days mode - show visible day columns
+      // Days mode - show visible day columns + partial column
       const actualDays = visibleColumns;
+      
+      console.log('🔍 Timeline Viewport Days Mode:', {
+        visibleColumns,
+        actualDays,
+        calculatedAvailableWidth: availableWidth ?? window.innerWidth,
+      });
       
       // Generate array of dates for visible days only
       const dates = [];
@@ -211,6 +217,12 @@ export class TimelineViewport {
         date.setHours(0, 0, 0, 0);
         dates.push(date);
       }
+      
+      console.log('🔍 Generated dates:', {
+        count: dates.length,
+        first: dates[0]?.toDateString(),
+        last: dates[dates.length - 1]?.toDateString()
+      });
       
       // Calculate viewport end
       const viewportEnd = new Date(actualViewportStart);
