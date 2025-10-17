@@ -545,15 +545,6 @@ export function TimeTracker({ className }: TimeTrackerProps) {
     }
   };
 
-  const handleViewSession = () => {
-    setShowConflictDialog(false);
-    // Load the conflicting session state
-    if (conflictingSession) {
-      setSelectedProject(conflictingSession.selectedProject);
-      setSearchQuery(conflictingSession.searchQuery || '');
-    }
-  };
-
   return (
     <Card className={`bg-transparent shadow-none ${className}`}>
       <CardContent className="p-3">
@@ -644,7 +635,6 @@ export function TimeTracker({ className }: TimeTrackerProps) {
             onClose={() => setShowConflictDialog(false)}
             activeSession={conflictingSession}
             onStopAndStart={handleStopAndStartNew}
-            onViewSession={handleViewSession}
           />
         )}
       </CardContent>

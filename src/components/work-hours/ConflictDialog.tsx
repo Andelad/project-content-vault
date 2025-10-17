@@ -17,15 +17,13 @@ interface ConflictDialogProps {
   onClose: () => void;
   activeSession: TimeTrackingState;
   onStopAndStart: () => void;
-  onViewSession: () => void;
 }
 
 export function ConflictDialog({ 
   isOpen, 
   onClose, 
   activeSession, 
-  onStopAndStart,
-  onViewSession 
+  onStopAndStart
 }: ConflictDialogProps) {
   const projectName = activeSession.selectedProject?.name || activeSession.searchQuery || 'Unknown Project';
   const elapsed = activeSession.startTime 
@@ -62,13 +60,6 @@ export function ConflictDialog({
           <AlertDialogCancel onClick={onClose}>
             Cancel
           </AlertDialogCancel>
-          <AlertDialogAction 
-            onClick={onViewSession}
-            className="bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-950 dark:hover:bg-blue-900 dark:text-blue-300"
-          >
-            <Clock className="h-4 w-4 mr-2" />
-            View Session
-          </AlertDialogAction>
           <AlertDialogAction 
             onClick={onStopAndStart}
             className="bg-red-600 hover:bg-red-700 text-white"
