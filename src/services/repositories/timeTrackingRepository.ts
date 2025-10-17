@@ -9,6 +9,7 @@ import type { TimeTrackingState, SerializedTimeTrackingState } from '../../types
 class TimeTrackingRepository {
   private userId: string | null = null;
   private readonly STORAGE_KEY = 'timeTracker_crossWindowSync';
+  private readonly BACKUP_STORAGE_KEY = 'timeTracker_backup';
   setUserId(userId: string): void {
     this.userId = userId;
   }
@@ -53,21 +54,10 @@ class TimeTrackingRepository {
       throw new Error('User ID must be set before saving state');
     }
     
-    // Log the stack trace to see WHO is calling saveState
-    console.log('🔍 SAVE STATE - Called from:', new Error().stack?.split('\n').slice(2, 5).join('\n'));
-    
-    console.log('🔍 SAVE STATE - Input state:', {
-      isTracking: state.isTracking,
-      startTime: state.startTime,
-      eventId: state.eventId,
-      selectedProject: state.selectedProject?.name || state.selectedProject,
-      searchQuery: state.searchQuery,
-      hasAllFields: !!(state.eventId && state.selectedProject && state.startTime)
-    });
     const serializedState = this.serializeState(state);
-    console.log('🔍 SAVE STATE - Serialized state:', serializedState);
+    
     try {
-      // Save to database
+      // Try to save to database first
       const { error } = await supabase
         .from('settings')
         .upsert({
@@ -76,53 +66,49 @@ class TimeTrackingRepository {
         }, {
           onConflict: 'user_id'
         });
+      
       if (error) {
-        console.error('Error saving time tracking state to database:', error);
+        console.warn('⚠️ DB save failed, using localStorage fallback:', error);
+        // DB failed, still save to localStorage as backup
+        this.saveToLocalStorage(serializedState);
         throw error;
       }
       
-      // Verify what was actually saved
-      const { data: verifyData } = await supabase
-        .from('settings')
-        .select('time_tracking_state')
-        .eq('user_id', this.userId)
-        .single();
-      console.log('🔍 VERIFY - What is actually in DB:', verifyData?.time_tracking_state);
+      // DB save succeeded - also save to localStorage as write-through cache
+      this.saveToLocalStorage(serializedState);
+      console.log('✅ State saved to both DB and localStorage');
+      
     } catch (error) {
       console.error('❌ Failed to save time tracking state:', error);
       throw error;
     }
   }
   async loadState(): Promise<TimeTrackingState | null> {
-    console.log('🔍 LOAD STATE - userId:', this.userId);
-    
     if (!this.userId) {
       console.warn('⚠️ No user ID - cannot load state');
       return null;
     }
     
+    let state: TimeTrackingState | null = null;
+    
     try {
-      // Load from Supabase (only source of truth)
+      // Try to load from Supabase first (primary source)
       const { data, error } = await supabase
         .from('settings')
         .select('time_tracking_state')
         .eq('user_id', this.userId)
         .single();
       
-      console.log('🔍 LOAD STATE - DB data:', data?.time_tracking_state);
-      
       if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
-        console.error('Error loading time tracking state from database:', error);
-        return null;
-      }
-      
-      if (data?.time_tracking_state) {
+        console.warn('⚠️ DB load failed, trying localStorage fallback:', error);
+        // DB failed, try localStorage fallback
+        state = this.loadFromLocalStorage();
+      } else if (data?.time_tracking_state) {
         const stateData = data.time_tracking_state as any;
-        let deserializedState: TimeTrackingState;
         
         // Check if it's already a full state object or just serialized
         if (stateData.eventId !== undefined || stateData.selectedProject !== undefined) {
-          deserializedState = {
+          state = {
             isTracking: stateData.isTracking,
             isPaused: stateData.isPaused ?? false,
             projectId: stateData.projectId ?? null,
@@ -138,24 +124,86 @@ class TimeTrackingRepository {
             lastUpdated: stateData.lastUpdateTime ? new Date(stateData.lastUpdateTime) : undefined
           };
         } else {
-          deserializedState = this.deserializeState(stateData as SerializedTimeTrackingState);
+          state = this.deserializeState(stateData as SerializedTimeTrackingState);
         }
         
-        console.log('🔍 LOAD STATE - Returning state:', {
-          isTracking: deserializedState.isTracking,
-          eventId: deserializedState.eventId,
-          selectedProject: deserializedState.selectedProject,
-          searchQuery: deserializedState.searchQuery,
-          startTime: deserializedState.startTime
-        });
-        
-        return deserializedState;
+        // Clear localStorage cache since DB has the data
+        this.clearBackupStorage();
+        console.log('✅ Loaded state from DB, cleared localStorage cache');
+      } else {
+        // No data in DB, try localStorage fallback
+        console.log('ℹ️ No state in DB, trying localStorage fallback');
+        state = this.loadFromLocalStorage();
       }
       
-      return null;
     } catch (error) {
-      console.error('❌ Failed to load time tracking state from database:', error);
+      console.error('❌ Error loading state from DB, trying localStorage:', error);
+      state = this.loadFromLocalStorage();
+    }
+    
+    // Validate state completeness before returning
+    if (state && !this.validateStateCompleteness(state)) {
+      console.warn('⚠️ Incomplete state detected, discarding to prevent flashing bug');
       return null;
+    }
+    
+    return state;
+  }
+
+  /**
+   * Save state to localStorage as backup
+   */
+  private saveToLocalStorage(state: SerializedTimeTrackingState): void {
+    try {
+      localStorage.setItem(this.BACKUP_STORAGE_KEY, JSON.stringify(state));
+    } catch (error) {
+      console.warn('⚠️ Failed to save to localStorage (quota exceeded?):', error);
+    }
+  }
+
+  /**
+   * Load state from localStorage backup
+   */
+  private loadFromLocalStorage(): TimeTrackingState | null {
+    try {
+      const stored = localStorage.getItem(this.BACKUP_STORAGE_KEY);
+      if (!stored) return null;
+      
+      const parsed = JSON.parse(stored) as SerializedTimeTrackingState;
+      const state = this.deserializeState(parsed);
+      console.log('📦 Loaded state from localStorage backup');
+      return state;
+    } catch (error) {
+      console.warn('⚠️ Failed to load from localStorage:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Validate that tracking state is complete to prevent "flashing" bug
+   */
+  private validateStateCompleteness(state: TimeTrackingState): boolean {
+    // If not tracking, state is always valid
+    if (!state.isTracking) return true;
+    
+    // If tracking, all required fields must exist
+    const isComplete = !!(
+      state.startTime && 
+      state.eventId && 
+      state.selectedProject
+    );
+    
+    return isComplete;
+  }
+
+  /**
+   * Clear localStorage backup cache
+   */
+  private clearBackupStorage(): void {
+    try {
+      localStorage.removeItem(this.BACKUP_STORAGE_KEY);
+    } catch (error) {
+      console.warn('⚠️ Failed to clear localStorage backup:', error);
     }
   }
 
@@ -165,6 +213,7 @@ class TimeTrackingRepository {
   clearLegacyLocalStorage(): void {
     try {
       localStorage.removeItem(this.STORAGE_KEY);
+      localStorage.removeItem(this.BACKUP_STORAGE_KEY);
       console.log('✅ Cleared legacy localStorage time tracking data');
     } catch (error) {
       console.error('❌ Failed to clear localStorage:', error);
