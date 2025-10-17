@@ -47,14 +47,23 @@ class TimeTrackingOrchestrator {
   }
 
   private initializeCrossWindowSync(): void {
+    console.log('🔧 INIT - Initializing cross-window sync for window:', this.windowId);
+    
     // Try to use BroadcastChannel for modern browsers
     if (typeof BroadcastChannel !== 'undefined') {
       this.broadcastChannel = new BroadcastChannel('timeTracker_crossWindowSync');
       this.broadcastChannel.addEventListener('message', (event) => {
+        console.log('🔧 INIT - BroadcastChannel received message:', {
+          type: event.data?.type,
+          fromWindow: event.data?.windowId,
+          thisWindow: this.windowId
+        });
         this.handleCrossWindowMessage(event.data);
       });
+      console.log('🔧 INIT - BroadcastChannel initialized successfully');
+    } else {
+      console.warn('🔧 INIT - BroadcastChannel not supported in this browser');
     }
-
   }
 
   private handleCrossWindowMessage(data: any): void {
@@ -124,6 +133,10 @@ class TimeTrackingOrchestrator {
   }
 
   setOnStateChangeCallback(callback?: (state: TimeTrackingState) => void): void {
+    console.log('🔧 CALLBACK - Setting onStateChangeCallback:', {
+      hasCallback: !!callback,
+      windowId: this.windowId
+    });
     this.onStateChangeCallback = callback;
   }
 
