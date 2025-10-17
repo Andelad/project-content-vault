@@ -1,7 +1,6 @@
 import React, { memo, useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '../ui/button';
-import { TimeTracker } from '../work-hours/TimeTracker';
 
 interface TimelineHeaderProps {
   currentDate: Date;
@@ -18,13 +17,5 @@ export const TimelineHeader = memo(function TimelineHeader({
   onNavigate, 
   onGoToToday 
 }: TimelineHeaderProps) {
-  return (
-    <>
-      <div className="flex items-center">
-        <h1 className="text-lg font-semibold text-[#595956]">Timeline</h1>
-      </div>
-      
-      <TimeTracker />
-    </>
-  );
+  return null; // Header now handled by AppHeader in MainAppLayout
 });

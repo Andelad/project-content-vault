@@ -1,8 +1,10 @@
 import React, { Suspense } from 'react';
 import { Sidebar } from './Sidebar';
+import { AppHeader } from './AppHeader';
 import { useTimelineContext } from '../../contexts/TimelineContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 import { useFavicon } from '../../hooks/useFavicon';
+import { usePlannerContext } from '../../contexts/PlannerContext';
 
 // Lazy load views for better performance
 const PlannerView = React.lazy(() => import('../views/PlannerView').then(module => ({ default: module.PlannerView })));
@@ -24,9 +26,22 @@ const ViewLoader = () => (
 export function MainAppLayout() {
   const { currentView } = useTimelineContext();
   const { isTimeTracking } = useSettingsContext();
+  const { lastAction } = usePlannerContext();
   
   // Use favicon hook to monitor global time tracking state
   useFavicon(isTimeTracking);
+
+  const getViewTitle = () => {
+    switch (currentView) {
+      case 'timeline': return 'Timeline';
+      case 'calendar': return 'Planner';
+      case 'insights': return 'Insights';
+      case 'projects': return 'Projects';
+      case 'profile': return 'Profile';
+      case 'settings': return 'Settings';
+      default: return 'Planner';
+    }
+  };
 
   const renderCurrentView = () => {
     switch (currentView) {
@@ -50,10 +65,17 @@ export function MainAppLayout() {
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
       <Sidebar />
-      <div className="flex-1 overflow-hidden">
-        <Suspense fallback={<ViewLoader />}>
-          {renderCurrentView()}
-        </Suspense>
+      <div className="flex-1 overflow-hidden flex flex-col">
+        <AppHeader 
+          currentView={currentView}
+          viewTitle={getViewTitle()}
+          lastAction={lastAction}
+        />
+        <div className="flex-1 overflow-hidden">
+          <Suspense fallback={<ViewLoader />}>
+            {renderCurrentView()}
+          </Suspense>
+        </div>
       </div>
     </div>
   );

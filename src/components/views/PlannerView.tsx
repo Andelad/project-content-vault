@@ -12,7 +12,6 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { ChevronLeft, ChevronRight, MapPin, CalendarSearch, CheckCircle2, Circle } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as DatePicker } from '@/components/ui/calendar';
-import { TimeTracker } from '@/components/work-hours/TimeTracker';
 import { PlannerInsightCard } from '@/components/planner';
 import { getBaseFullCalendarConfig, getEventStylingConfig } from '@/services';
 import { transformFullCalendarToCalendarEvent } from '@/services';
@@ -513,18 +512,6 @@ export function PlannerView() {
   }, [calendarDate, currentView, setCurrentDate, setTimelineView]);
   return (
     <div className="h-full flex flex-col bg-gray-50 overflow-hidden">
-      {/* Header */}
-      <div className="h-20 border-b border-[#e2e2e2] flex items-center justify-between px-8">
-        <div className="flex items-center space-x-4">
-          <h1 className="text-lg font-semibold text-[#595956]">Planner</h1>
-          {lastAction && (
-            <div className="flex items-center text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-              <span>Press Cmd+Z to undo</span>
-            </div>
-          )}
-        </div>
-        <TimeTracker />
-      </div>
       {/* Calendar Controls */}
       <div className="px-6 p-[21px]">
         <div className="flex items-center justify-between">
