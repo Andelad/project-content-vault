@@ -127,10 +127,18 @@ export function TimeTracker({ className }: TimeTrackerProps) {
 
   // React to global state changes - CROSS-WINDOW SYNC
   useEffect(() => {
+    console.log('🔍 CROSS-WINDOW SYNC - Effect triggered:', { 
+      isTimeTracking, 
+      currentTrackingEventId,
+      hasCurrentState: !!currentStateRef.current,
+      hasInterval: !!intervalRef.current 
+    });
+    
     const syncWithGlobalState = async () => {
       if (isTimeTracking && currentTrackingEventId) {
         // If tracking is active but we don't have local state, load it
         if (!selectedProject || !currentStateRef.current || !intervalRef.current) {
+          console.log('🔍 CROSS-WINDOW SYNC - Loading state from DB');
           const dbState = await UnifiedTimeTrackerService.loadState();
           
           if (dbState && dbState.selectedProject) {
@@ -148,6 +156,7 @@ export function TimeTracker({ className }: TimeTrackerProps) {
               
               // START intervals if not running
               if (!intervalRef.current) {
+                console.log('🔍 CROSS-WINDOW SYNC - Starting UI interval');
                 intervalRef.current = setInterval(() => {
                   if (startTimeRef.current) {
                     const elapsed = Math.floor((Date.now() - startTimeRef.current.getTime()) / 1000);
@@ -157,6 +166,7 @@ export function TimeTracker({ className }: TimeTrackerProps) {
               }
               
               if (!dbSyncIntervalRef.current || !overlapCheckIntervalRef.current) {
+                console.log('🔍 CROSS-WINDOW SYNC - Starting optimized intervals');
                 startOptimizedIntervals(currentTrackingEventId, startTime);
               }
             }
@@ -176,8 +186,10 @@ export function TimeTracker({ className }: TimeTrackerProps) {
             }
           }
         }
-      } else if (!isTimeTracking && currentStateRef.current) {
-        // Tracking stopped, clear everything
+      } else if (!isTimeTracking) {
+        // Tracking stopped - ALWAYS clear intervals regardless of currentStateRef
+        console.log('🔍 CROSS-WINDOW SYNC - Tracking stopped, clearing everything');
+        
         setSelectedProject(null);
         setSearchQuery('');
         setSeconds(0);
@@ -186,16 +198,19 @@ export function TimeTracker({ className }: TimeTrackerProps) {
         currentStateRef.current = null;
         setAffectedPlannedEvents([]);
         
-        // Clear all intervals
+        // Clear all intervals - CRITICAL FIX: Always clear when tracking stops
         if (intervalRef.current) {
+          console.log('🔍 CROSS-WINDOW SYNC - Clearing UI interval');
           clearInterval(intervalRef.current);
           intervalRef.current = null;
         }
         if (dbSyncIntervalRef.current) {
+          console.log('🔍 CROSS-WINDOW SYNC - Clearing DB sync interval');
           clearInterval(dbSyncIntervalRef.current);
           dbSyncIntervalRef.current = null;
         }
         if (overlapCheckIntervalRef.current) {
+          console.log('🔍 CROSS-WINDOW SYNC - Clearing overlap check interval');
           clearInterval(overlapCheckIntervalRef.current);
           overlapCheckIntervalRef.current = null;
         }

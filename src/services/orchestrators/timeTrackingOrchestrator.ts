@@ -61,8 +61,15 @@ class TimeTrackingOrchestrator {
     if (data.type === 'TIME_TRACKING_STATE_UPDATED' && data.state) {
       // Ignore messages from our own window to prevent feedback loops
       if (data.windowId === this.windowId) {
+        console.log('📢 BROADCAST - Ignoring own message');
         return;
       }
+      
+      console.log('📢 BROADCAST - Received state change from another window:', {
+        isTracking: data.state.isTracking,
+        eventId: data.state.eventId,
+        fromWindowId: data.windowId
+      });
       
       // Only process messages from OTHER windows/tabs
       const deserializedState = this.deserializeState(data.state);
@@ -78,8 +85,14 @@ class TimeTrackingOrchestrator {
       type: 'TIME_TRACKING_STATE_UPDATED',
       state: serializedState,
       timestamp: Date.now(),
-      windowId: this.windowId // Include window ID to filter out own messages
+      windowId: this.windowId
     };
+
+    console.log('📢 BROADCAST - Sending state change:', {
+      isTracking: state.isTracking,
+      eventId: state.eventId,
+      windowId: this.windowId
+    });
 
     // Use BroadcastChannel if available
     if (this.broadcastChannel) {
