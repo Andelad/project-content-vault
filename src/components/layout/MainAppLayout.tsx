@@ -12,6 +12,7 @@ const TimelineView = React.lazy(() => import('../views/TimelineView').then(modul
 const ProjectsView = React.lazy(() => import('../views/ProjectsView').then(module => ({ default: module.ProjectsView })));
 const InsightsView = React.lazy(() => import('../views/InsightsView').then(module => ({ default: module.InsightsView })));
 const ProfileView = React.lazy(() => import('../views/ProfileView').then(module => ({ default: module.ProfileView })));
+const SettingsView = React.lazy(() => import('../settings/SettingsView').then(module => ({ default: module.SettingsView })));
 
 // Loading component for lazy-loaded views
 const ViewLoader = () => (
@@ -56,7 +57,7 @@ export function MainAppLayout() {
       case 'profile':
         return <ProfileView />;
       case 'settings':
-        return <div className="p-6">Settings View - Coming Soon</div>;
+        return <SettingsView />;
       default:
         return <PlannerView />; // Default to planner
     }

@@ -343,100 +343,95 @@ export function ProfileView() {
       {/* Content - Scrollable */}
       <div className="flex-1 overflow-auto light-scrollbar">
         <div className="p-8 space-y-8 max-w-4xl">
-          {/* Account Status Card */}
-          <Card className="relative">
-            <Badge className="absolute top-4 left-4 bg-green-100 text-green-800 border-green-200">
-              Functioning
-            </Badge>
-            <CardHeader className="pt-12">
-              <CardTitle className="flex items-center gap-2">
-                <User className="w-5 h-5" />
-                Account Status
-              </CardTitle>
-              <CardDescription>
-                Current authentication and session information
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="text-sm text-muted-foreground">
-                  Signed in as {user?.email}
-                </div>
-                <Button variant="ghost" size="sm" onClick={signOut} className="gap-2">
-                  <LogOut className="h-4 w-4" />
-                  Sign Out
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Profile Picture Card */}
-          <Card className="relative">
-            <Badge className="absolute top-4 left-4 bg-green-100 text-green-800 border-green-200">
-              Functioning
-            </Badge>
-            <CardHeader className="pt-12">
-              <CardTitle className="flex items-center gap-2">
-                <Upload className="w-5 h-5" />
-                Profile Picture
-              </CardTitle>
-              <CardDescription>
-                Upload and manage your profile avatar
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-6">
-                <div 
-                  className="w-24 h-24 rounded-full border-2 border-dashed border-[#e2e2e2] flex items-center justify-center font-semibold text-2xl cursor-pointer hover:bg-muted/50 transition-colors overflow-hidden"
-                  onClick={() => document.getElementById('avatar-upload')?.click()}
-                >
-                  {profile?.avatar_url ? (
-                    <img 
-                      src={profile.avatar_url} 
-                      alt="Profile avatar" 
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="bg-[#595956] text-white w-full h-full rounded-full flex items-center justify-center">
-                      {user?.email ? user.email.charAt(0).toUpperCase() : 'U'}
-                    </div>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Button 
-                    variant="outline" 
+          {/* Profile Picture and Account Status Row */}
+          <div className="grid grid-cols-3 gap-6">
+            {/* Profile Picture Card - 1/3 width */}
+            <Card className="col-span-1">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Upload className="w-5 h-5" />
+                  Profile Picture
+                </CardTitle>
+                <CardDescription>
+                  Upload and manage your profile avatar
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col items-center gap-4">
+                  <div 
+                    className="w-24 h-24 rounded-full border-2 border-dashed border-[#e2e2e2] flex items-center justify-center font-semibold text-2xl cursor-pointer hover:bg-muted/50 transition-colors overflow-hidden"
                     onClick={() => document.getElementById('avatar-upload')?.click()}
-                    disabled={loading}
                   >
-                    <Camera className="w-4 h-4 mr-2" />
-                    {loading ? 'Uploading...' : 'Upload Photo'}
-                  </Button>
-                  <p className="text-sm text-muted-foreground">
-                    JPG, PNG or GIF. Max file size 5MB.
-                  </p>
+                    {profile?.avatar_url ? (
+                      <img 
+                        src={profile.avatar_url} 
+                        alt="Profile avatar" 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="bg-[#595956] text-white w-full h-full rounded-full flex items-center justify-center">
+                        {user?.email ? user.email.charAt(0).toUpperCase() : 'U'}
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-2 text-center">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => document.getElementById('avatar-upload')?.click()}
+                      disabled={loading}
+                      className="w-full"
+                    >
+                      <Camera className="w-4 h-4 mr-2" />
+                      {loading ? 'Uploading...' : 'Upload Photo'}
+                    </Button>
+                    <p className="text-sm text-muted-foreground">
+                      JPG, PNG or GIF. Max 5MB.
+                    </p>
+                  </div>
+                  <input
+                    id="avatar-upload"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        handleAvatarUpload(file);
+                      }
+                    }}
+                  />
                 </div>
-                <input
-                  id="avatar-upload"
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      handleAvatarUpload(file);
-                    }
-                  }}
-                />
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+
+            {/* Account Status Card - 2/3 width */}
+            <Card className="col-span-2">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="w-5 h-5" />
+                  Account Status
+                </CardTitle>
+                <CardDescription>
+                  Current authentication and session information
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="text-sm text-muted-foreground">
+                    Signed in as {user?.email}
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={signOut} className="gap-2">
+                    <LogOut className="h-4 w-4" />
+                    Sign Out
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Personal Information */}
-          <Card className="relative">
-            <Badge className="absolute top-4 left-4 bg-green-100 text-green-800 border-green-200">
-              Functioning
-            </Badge>
-            <CardHeader className="pt-12">
+          <Card>
+            <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <User className="w-5 h-5" />
                 Personal Information
@@ -476,11 +471,8 @@ export function ProfileView() {
           </Card>
 
           {/* Account Settings */}
-          <Card className="relative">
-            <Badge className="absolute top-4 left-4 bg-green-100 text-green-800 border-green-200">
-              Functioning
-            </Badge>
-            <CardHeader className="pt-12">
+          <Card>
+            <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Settings className="w-5 h-5" />
                 Account Settings
@@ -617,11 +609,8 @@ export function ProfileView() {
           </Card>
 
           {/* Notifications */}
-          <Card className="relative">
-            <Badge className="absolute top-4 left-4 bg-green-100 text-green-800 border-green-200">
-              Functioning
-            </Badge>
-            <CardHeader className="pt-12">
+          <Card>
+            <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Bell className="w-5 h-5" />
                 Notification Preferences
