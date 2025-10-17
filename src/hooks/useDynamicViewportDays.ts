@@ -1,15 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
 import { TimelineViewportService } from '@/services';
 
-export function useDynamicViewportDays(sidebarCollapsed: boolean, mode: 'days' | 'weeks' = 'days') {
+export function useDynamicViewportDays(
+  timelineSidebarCollapsed: boolean, 
+  mainSidebarCollapsed: boolean,
+  mode: 'days' | 'weeks' = 'days'
+) {
   const [viewportDays, setViewportDays] = useState(30); // Default fallback
 
   const calculateViewportDays = useCallback(() => {
     return TimelineViewportService.calculateDynamicViewportSize({
-      sidebarCollapsed,
+      timelineSidebarCollapsed,
+      mainSidebarCollapsed,
       mode
     });
-  }, [sidebarCollapsed, mode]);
+  }, [timelineSidebarCollapsed, mainSidebarCollapsed, mode]);
 
   const updateViewportDays = useCallback(() => {
     const newViewportDays = calculateViewportDays();
@@ -49,7 +54,7 @@ export function useDynamicViewportDays(sidebarCollapsed: boolean, mode: 'days' |
     // Small delay to allow sidebar transition to complete
     const timer = setTimeout(updateViewportDays, 350); // Slightly longer than transition duration
     return () => clearTimeout(timer);
-  }, [sidebarCollapsed, mode, updateViewportDays]);
+  }, [timelineSidebarCollapsed, mainSidebarCollapsed, mode, updateViewportDays]);
 
   return viewportDays;
 }

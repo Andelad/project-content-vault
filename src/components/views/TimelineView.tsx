@@ -70,6 +70,7 @@ export function TimelineView() {
     currentDate, 
     timelineMode,
     collapsedGroups,
+    mainSidebarCollapsed,
     setTimelineMode,
     setCurrentDate 
   } = useTimelineContext();
@@ -150,9 +151,16 @@ export function TimelineView() {
     intervalId: null
   });
   // Get dynamic viewport days based on available width
-  const VIEWPORT_DAYS = useDynamicViewportDays(collapsed, timelineMode);
+  const VIEWPORT_DAYS = useDynamicViewportDays(collapsed, mainSidebarCollapsed, timelineMode);
   // Get timeline data using your existing hook
-  const { dates, viewportEnd, filteredProjects, mode, actualViewportStart } = useTimelineData(projects, viewportStart, VIEWPORT_DAYS, timelineMode, collapsed);
+  const { dates, viewportEnd, filteredProjects, mode, actualViewportStart } = useTimelineData(
+    projects, 
+    viewportStart, 
+    VIEWPORT_DAYS, 
+    timelineMode, 
+    collapsed,
+    mainSidebarCollapsed
+  );
   // Expand holiday ranges into individual Date objects for fast lookup by the markers
   const holidayDates = useMemo(() => {
     const holidaysWithName = holidays.map(h => ({ ...h, name: h.title || 'Holiday' }));

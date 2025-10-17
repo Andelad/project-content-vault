@@ -79,15 +79,17 @@ export class TimelineViewport {
    * Calculate dynamic viewport size based on available screen space
    */
   static calculateDynamicViewportSize(params: {
-    sidebarCollapsed: boolean;
+    timelineSidebarCollapsed: boolean;
+    mainSidebarCollapsed: boolean;
     mode: 'days' | 'weeks';
     availableWidth?: number;
   }): number {
-    const { sidebarCollapsed, mode, availableWidth } = params;
+    const { timelineSidebarCollapsed, mainSidebarCollapsed, mode, availableWidth } = params;
     
     const viewportWidth = availableWidth ?? window.innerWidth;
-    const sidebarWidth = sidebarCollapsed ? this.COLLAPSED_SIDEBAR_WIDTH : this.SIDEBAR_WIDTH;
-    const calculatedAvailableWidth = Math.max(600, viewportWidth - sidebarWidth - this.VIEWPORT_MARGINS);
+    const timelineSidebarWidth = timelineSidebarCollapsed ? this.COLLAPSED_SIDEBAR_WIDTH : this.SIDEBAR_WIDTH;
+    const mainSidebarWidth = mainSidebarCollapsed ? 64 : 256; // Main app sidebar widths (w-16 = 64px, w-64 = 256px)
+    const calculatedAvailableWidth = Math.max(600, viewportWidth - mainSidebarWidth - timelineSidebarWidth - this.VIEWPORT_MARGINS);
     
     if (mode === 'weeks') {
       const completeWeekColumns = Math.floor(calculatedAvailableWidth / this.MIN_WEEK_COLUMN_WIDTH);
@@ -105,22 +107,25 @@ export class TimelineViewport {
    * Calculate visible columns that can fit in the timeline display
    */
   static calculateVisibleColumns(params: {
-    sidebarCollapsed: boolean;
+    timelineSidebarCollapsed: boolean;
+    mainSidebarCollapsed: boolean;
     mode: 'days' | 'weeks';
     availableWidth?: number;
   }): number {
-    const { sidebarCollapsed, mode, availableWidth } = params;
+    const { timelineSidebarCollapsed, mainSidebarCollapsed, mode, availableWidth } = params;
     
     const viewportWidth = availableWidth ?? window.innerWidth;
-    const sidebarWidth = sidebarCollapsed ? this.COLLAPSED_SIDEBAR_WIDTH : this.SIDEBAR_WIDTH;
-    const calculatedAvailableWidth = Math.max(600, viewportWidth - sidebarWidth - this.VIEWPORT_MARGINS);
+    const timelineSidebarWidth = timelineSidebarCollapsed ? this.COLLAPSED_SIDEBAR_WIDTH : this.SIDEBAR_WIDTH;
+    const mainSidebarWidth = mainSidebarCollapsed ? 64 : 256;
+    const calculatedAvailableWidth = Math.max(600, viewportWidth - mainSidebarWidth - timelineSidebarWidth - this.VIEWPORT_MARGINS);
     
     if (mode === 'weeks') {
-      const theoreticalColumns = Math.floor(calculatedAvailableWidth / 72);
-      return Math.max(1, theoreticalColumns - 2);
+      const theoreticalColumns = calculatedAvailableWidth / 72;
+      return Math.max(1, Math.floor(theoreticalColumns));
     } else {
-      const theoreticalColumns = Math.floor(calculatedAvailableWidth / 40);
-      return Math.max(1, theoreticalColumns - 5);
+      // For days, add partial column support by using ceil instead of floor
+      const theoreticalColumns = calculatedAvailableWidth / 40;
+      return Math.max(1, Math.ceil(theoreticalColumns));
     }
   }
 
@@ -132,7 +137,8 @@ export class TimelineViewport {
     viewportStart: Date;
     viewportDays: number;
     mode: 'days' | 'weeks';
-    sidebarCollapsed: boolean;
+    timelineSidebarCollapsed: boolean;
+    mainSidebarCollapsed: boolean;
     availableWidth?: number;
   }): {
     dates: Date[];
@@ -141,10 +147,11 @@ export class TimelineViewport {
     mode: 'days' | 'weeks';
     actualViewportStart: Date;
   } {
-    const { projects, viewportStart, mode, sidebarCollapsed, availableWidth } = params;
+    const { projects, viewportStart, mode, timelineSidebarCollapsed, mainSidebarCollapsed, availableWidth } = params;
     
     const visibleColumns = this.calculateVisibleColumns({
-      sidebarCollapsed,
+      timelineSidebarCollapsed,
+      mainSidebarCollapsed,
       mode,
       availableWidth
     });
