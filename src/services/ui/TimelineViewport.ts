@@ -120,12 +120,13 @@ export class TimelineViewport {
     const calculatedAvailableWidth = Math.max(600, viewportWidth - mainSidebarWidth - timelineSidebarWidth - this.VIEWPORT_MARGINS);
     
     if (mode === 'weeks') {
+      // Use ceil to include partial final week
       const theoreticalColumns = calculatedAvailableWidth / 72;
-      return Math.max(1, Math.floor(theoreticalColumns));
-    } else {
-      // For days, add partial column support by using ceil instead of floor
-      const theoreticalColumns = calculatedAvailableWidth / 40;
       return Math.max(1, Math.ceil(theoreticalColumns));
+    } else {
+      // For days, use ceil + 1 to show partial final column
+      const theoreticalColumns = calculatedAvailableWidth / 40;
+      return Math.max(1, Math.ceil(theoreticalColumns) + 1);
     }
   }
 
