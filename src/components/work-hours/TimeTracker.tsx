@@ -232,6 +232,34 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       console.log('💾 DB sync - updating event:', eventId, 'duration:', duration);
       
       try {
+        // First verify the event still exists
+        const { data: eventExists } = await supabase
+          .from('calendar_events')
+          .select('id')
+          .eq('id', eventId)
+          .maybeSingle();
+        
+        if (!eventExists) {
+          console.error('💾 DB sync - EVENT DOES NOT EXIST IN DATABASE!', {
+            eventId,
+            currentSeconds: seconds
+          });
+          console.error('💾 DB sync - Stopping intervals and resetting state');
+          
+          // Clear all intervals
+          if (intervalRef.current) clearInterval(intervalRef.current);
+          if (dbSyncIntervalRef.current) clearInterval(dbSyncIntervalRef.current);
+          if (overlapCheckIntervalRef.current) clearInterval(overlapCheckIntervalRef.current);
+          
+          // Reset state
+          setCurrentEventId(null);
+          setIsTimeTracking(false);
+          setSeconds(0);
+          startTimeRef.current = null;
+          
+          return;
+        }
+        
         await updateEvent(eventId, {
           endTime: new Date(),
           duration,

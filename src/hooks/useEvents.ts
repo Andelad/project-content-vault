@@ -40,7 +40,16 @@ export function useEvents() {
   const addEvent = async (eventData: Omit<CalendarEventInsert, 'user_id'>, options?: { silent?: boolean }): Promise<CalendarEvent> => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
+      if (!user) {
+        console.error('❌ addEvent: User not authenticated');
+        throw new Error('User not authenticated');
+      }
+
+      console.log('🔍 addEvent: Creating event in database:', {
+        title: eventData.title,
+        event_type: eventData.event_type,
+        user_id: user.id
+      });
 
       const { data, error } = await supabase
         .from('calendar_events')
@@ -48,7 +57,22 @@ export function useEvents() {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ addEvent: Database insert error:', error);
+        throw error;
+      }
+      
+      if (!data) {
+        console.error('❌ addEvent: No data returned from insert');
+        throw new Error('No data returned from event creation');
+      }
+      
+      console.log('✅ addEvent: Event created successfully:', {
+        id: data.id,
+        title: data.title,
+        event_type: data.event_type
+      });
+      
       setEvents(prev => [...prev, data]);
       
       // Only show toast if not silent
@@ -60,7 +84,7 @@ export function useEvents() {
       }
       return data;
     } catch (error) {
-      console.error('Error adding event:', error);
+      console.error('❌ addEvent: Fatal error:', error);
       if (!options?.silent) {
         toast({
           title: "Error",

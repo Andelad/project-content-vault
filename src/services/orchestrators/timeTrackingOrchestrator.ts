@@ -307,28 +307,47 @@ class TimeTrackingOrchestrator {
         completed: true // Time being tracked is considered completed by default
       };
 
-      // Add the event
+      // Add the event with explicit silent option to avoid toast spam
       console.log('🔍 WORKFLOW - Creating event:', eventData);
       const newEvent = await addEvent(eventData);
-      console.log('🔍 WORKFLOW - Event created:', newEvent);
+      console.log('🔍 WORKFLOW - Event created with ID:', newEvent?.id);
       
       if (!newEvent?.id) {
-        throw new Error('Failed to create tracking event');
+        console.error('🔍 WORKFLOW - Event creation failed: no ID returned');
+        throw new Error('Failed to create tracking event - no ID returned');
       }
       
+      // Add a small delay to ensure DB write completes
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       // Verify event exists in database immediately after creation
+      console.log('🔍 WORKFLOW - Verifying event exists in database...');
       const { data: verifyData, error: verifyError } = await supabase
         .from('calendar_events')
         .select('*')
         .eq('id', newEvent.id)
-        .single();
+        .maybeSingle(); // Use maybeSingle instead of single to avoid error on 0 rows
       
-      if (verifyError || !verifyData) {
-        console.error('🔍 WORKFLOW - Event verification FAILED:', verifyError);
-        throw new Error('Event was not properly saved to database');
+      if (verifyError) {
+        console.error('🔍 WORKFLOW - Event verification query error:', verifyError);
+        throw new Error(`Event verification query failed: ${verifyError.message}`);
       }
       
-      console.log('🔍 WORKFLOW - Event verified in database successfully');
+      if (!verifyData) {
+        console.error('🔍 WORKFLOW - Event NOT FOUND in database after creation!');
+        console.error('🔍 WORKFLOW - Attempted to create event:', {
+          id: newEvent.id,
+          title: eventData.title,
+          type: eventData.type
+        });
+        throw new Error('Event was not properly saved to database - verification failed');
+      }
+      
+      console.log('🔍 WORKFLOW - Event verified successfully in database:', {
+        id: verifyData.id,
+        title: verifyData.title,
+        event_type: verifyData.event_type
+      });
       
       // Set up tracking state
       setCurrentEventId(newEvent.id);
