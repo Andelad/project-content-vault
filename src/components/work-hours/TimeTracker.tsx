@@ -45,7 +45,7 @@ export function TimeTracker({ className }: TimeTrackerProps) {
   const STORAGE_KEYS = UnifiedTimeTrackerService.getStorageKeys();
     // Load tracking state from database on mount - REVERTED TO WORKING PRE-ORCHESTRATION APPROACH
   useEffect(() => {
-    console.log('🔍 TIMETRACKER - Mount: Loading state from Supabase only');
+    // // console.log('🔍 TIMETRACKER - Mount: Loading state from Supabase only');
     
     // Clear legacy localStorage data (one-time migration)
     localStorage.removeItem('timeTracker_crossWindowSync');
@@ -54,13 +54,13 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       // Load from Supabase (only source of truth)
       const dbState = await UnifiedTimeTrackerService.loadState();
       
-      console.log('🔍 TIMETRACKER - Loaded state:', {
-        hasState: !!dbState,
-        isTracking: dbState?.isTracking,
-        eventId: dbState?.eventId,
-        selectedProject: dbState?.selectedProject?.name,
-        startTime: dbState?.startTime
-      });
+      // // console.log('🔍 TIMETRACKER - Loaded state:', {
+      //   hasState: !!dbState,
+      //   isTracking: dbState?.isTracking,
+      //   eventId: dbState?.eventId,
+      //   selectedProject: dbState?.selectedProject?.name,
+      //   startTime: dbState?.startTime
+      // });
       
       // Only restore if we have COMPLETE tracking state
       const hasCompleteState = dbState && 
@@ -106,12 +106,12 @@ export function TimeTracker({ className }: TimeTrackerProps) {
         // Start background sync intervals
         startOptimizedIntervals(dbState.eventId, new Date(dbState.startTime));
         
-        console.log('✅ TIMETRACKER - Restored active tracking session');
+        // // console.log('✅ TIMETRACKER - Restored active tracking session');
       } else if (dbState && dbState.isTracking) {
         // Incomplete state - clean it up
         console.warn('⚠️ TIMETRACKER - Incomplete tracking state, will be cleaned up');
       } else {
-        console.log('✅ TIMETRACKER - No active tracking session');
+        // // console.log('✅ TIMETRACKER - No active tracking session');
       }
     };
     
@@ -120,18 +120,18 @@ export function TimeTracker({ className }: TimeTrackerProps) {
 
   // React to global state changes - CROSS-WINDOW SYNC
   useEffect(() => {
-    console.log('🔍 CROSS-WINDOW SYNC - Effect triggered:', { 
-      isTimeTracking, 
-      currentTrackingEventId,
-      hasCurrentState: !!currentStateRef.current,
-      hasInterval: !!intervalRef.current 
-    });
+    // // console.log('🔍 CROSS-WINDOW SYNC - Effect triggered:', { 
+    //   isTimeTracking, 
+    //   currentTrackingEventId,
+    //   hasCurrentState: !!currentStateRef.current,
+    //   hasInterval: !!intervalRef.current 
+    // });
     
     const syncWithGlobalState = async () => {
       if (isTimeTracking && currentTrackingEventId) {
         // If tracking is active but we don't have local state, load it
         if (!selectedProject || !currentStateRef.current || !intervalRef.current) {
-          console.log('🔍 CROSS-WINDOW SYNC - Loading state from DB');
+          // // console.log('🔍 CROSS-WINDOW SYNC - Loading state from DB');
           const dbState = await UnifiedTimeTrackerService.loadState();
           
           if (dbState && dbState.selectedProject) {
@@ -149,7 +149,7 @@ export function TimeTracker({ className }: TimeTrackerProps) {
               
               // START intervals if not running
               if (!intervalRef.current) {
-                console.log('🔍 CROSS-WINDOW SYNC - Starting UI interval');
+                // // console.log('🔍 CROSS-WINDOW SYNC - Starting UI interval');
                 intervalRef.current = setInterval(() => {
                   if (startTimeRef.current) {
                     const elapsed = Math.floor((Date.now() - startTimeRef.current.getTime()) / 1000);
@@ -159,7 +159,7 @@ export function TimeTracker({ className }: TimeTrackerProps) {
               }
               
               if (!dbSyncIntervalRef.current || !overlapCheckIntervalRef.current) {
-                console.log('🔍 CROSS-WINDOW SYNC - Starting optimized intervals');
+                // // console.log('🔍 CROSS-WINDOW SYNC - Starting optimized intervals');
                 startOptimizedIntervals(currentTrackingEventId, startTime);
               }
             }
@@ -181,7 +181,7 @@ export function TimeTracker({ className }: TimeTrackerProps) {
         }
       } else if (!isTimeTracking) {
         // Tracking stopped - ALWAYS clear intervals regardless of currentStateRef
-        console.log('🔍 CROSS-WINDOW SYNC - Tracking stopped, clearing everything');
+        // // console.log('🔍 CROSS-WINDOW SYNC - Tracking stopped, clearing everything');
         
         setSelectedProject(null);
         setSearchQuery('');
@@ -193,17 +193,17 @@ export function TimeTracker({ className }: TimeTrackerProps) {
         
         // Clear all intervals - CRITICAL FIX: Always clear when tracking stops
         if (intervalRef.current) {
-          console.log('🔍 CROSS-WINDOW SYNC - Clearing UI interval');
+          // // console.log('🔍 CROSS-WINDOW SYNC - Clearing UI interval');
           clearInterval(intervalRef.current);
           intervalRef.current = null;
         }
         if (dbSyncIntervalRef.current) {
-          console.log('🔍 CROSS-WINDOW SYNC - Clearing DB sync interval');
+          // // console.log('🔍 CROSS-WINDOW SYNC - Clearing DB sync interval');
           clearInterval(dbSyncIntervalRef.current);
           dbSyncIntervalRef.current = null;
         }
         if (overlapCheckIntervalRef.current) {
-          console.log('🔍 CROSS-WINDOW SYNC - Clearing overlap check interval');
+          // // console.log('🔍 CROSS-WINDOW SYNC - Clearing overlap check interval');
           clearInterval(overlapCheckIntervalRef.current);
           overlapCheckIntervalRef.current = null;
         }
@@ -229,7 +229,7 @@ export function TimeTracker({ className }: TimeTrackerProps) {
   // Start optimized intervals for tracking event
   // Separate UI updates, DB syncs, and overlap checks for efficiency
   const startOptimizedIntervals = (eventId: string, startTime: Date) => {
-    console.log('🔍 Starting optimized intervals for event:', eventId);
+    // // console.log('🔍 Starting optimized intervals for event:', eventId);
     
     // Clear any existing intervals
     if (dbSyncIntervalRef.current) {
@@ -242,7 +242,7 @@ export function TimeTracker({ className }: TimeTrackerProps) {
     // DB Sync: Update database every 30 seconds
     dbSyncIntervalRef.current = setInterval(async () => {
       const { duration } = UnifiedTimeTrackerService.calculateElapsedTime(startTime);
-      console.log('💾 DB sync - updating event:', eventId, 'duration:', duration);
+      // // console.log('💾 DB sync - updating event:', eventId, 'duration:', duration);
       
       try {
         // First verify the event still exists
@@ -278,7 +278,7 @@ export function TimeTracker({ className }: TimeTrackerProps) {
           duration,
           completed: true
         }, { silent: true });
-        console.log('💾 DB sync - success');
+        // // console.log('💾 DB sync - success');
       } catch (error: any) {
         console.error('💾 DB sync - failed:', error);
       }
@@ -286,10 +286,10 @@ export function TimeTracker({ className }: TimeTrackerProps) {
     
     // Overlap Check: Check for overlaps every 60 seconds
     overlapCheckIntervalRef.current = setInterval(() => {
-      console.log('🔍 Overlap check - running');
+      // // console.log('🔍 Overlap check - running');
       const affected = handlePlannedEventOverlaps(startTime, new Date());
       localStorage.setItem(STORAGE_KEYS.affectedEvents, JSON.stringify(affected));
-      console.log('🔍 Overlap check - complete, affected events:', affected.length);
+      // // console.log('🔍 Overlap check - complete, affected events:', affected.length);
     }, 60000); // 60 seconds
     
     // Run initial checks immediately

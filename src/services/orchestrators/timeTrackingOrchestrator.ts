@@ -47,20 +47,20 @@ class TimeTrackingOrchestrator {
   }
 
   private initializeCrossWindowSync(): void {
-    console.log('🔧 INIT - Initializing cross-window sync for window:', this.windowId);
+    // // console.log('🔧 INIT - Initializing cross-window sync for window:', this.windowId);
     
     // Try to use BroadcastChannel for modern browsers
     if (typeof BroadcastChannel !== 'undefined') {
       this.broadcastChannel = new BroadcastChannel('timeTracker_crossWindowSync');
       this.broadcastChannel.addEventListener('message', (event) => {
-        console.log('🔧 INIT - BroadcastChannel received message:', {
-          type: event.data?.type,
-          fromWindow: event.data?.windowId,
-          thisWindow: this.windowId
-        });
+        // // console.log('🔧 INIT - BroadcastChannel received message:', {
+        //   type: event.data?.type,
+        //   fromWindow: event.data?.windowId,
+        //   thisWindow: this.windowId
+        // // });
         this.handleCrossWindowMessage(event.data);
       });
-      console.log('🔧 INIT - BroadcastChannel initialized successfully');
+      // // console.log('🔧 INIT - BroadcastChannel initialized successfully');
     } else {
       console.warn('🔧 INIT - BroadcastChannel not supported in this browser');
     }
@@ -70,15 +70,15 @@ class TimeTrackingOrchestrator {
     if (data.type === 'TIME_TRACKING_STATE_UPDATED' && data.state) {
       // Ignore messages from our own window to prevent feedback loops
       if (data.windowId === this.windowId) {
-        console.log('📢 BROADCAST - Ignoring own message');
+        // // console.log('📢 BROADCAST - Ignoring own message');
         return;
       }
       
-      console.log('📢 BROADCAST - Received state change from another window:', {
-        isTracking: data.state.isTracking,
-        eventId: data.state.eventId,
-        fromWindowId: data.windowId
-      });
+      // // console.log('📢 BROADCAST - Received state change from another window:', {
+      //   isTracking: data.state.isTracking,
+      //   eventId: data.state.eventId,
+      //   fromWindowId: data.windowId
+      // // });
       
       // Only process messages from OTHER windows/tabs
       const deserializedState = this.deserializeState(data.state);
@@ -97,11 +97,11 @@ class TimeTrackingOrchestrator {
       windowId: this.windowId
     };
 
-    console.log('📢 BROADCAST - Sending state change:', {
-      isTracking: state.isTracking,
-      eventId: state.eventId,
-      windowId: this.windowId
-    });
+    // // console.log('📢 BROADCAST - Sending state change:', {
+    //   isTracking: state.isTracking,
+    //   eventId: state.eventId,
+    //   windowId: this.windowId
+    // // });
 
     // Use BroadcastChannel if available
     if (this.broadcastChannel) {
@@ -133,10 +133,10 @@ class TimeTrackingOrchestrator {
   }
 
   setOnStateChangeCallback(callback?: (state: TimeTrackingState) => void): void {
-    console.log('🔧 CALLBACK - Setting onStateChangeCallback:', {
-      hasCallback: !!callback,
-      windowId: this.windowId
-    });
+    // // console.log('🔧 CALLBACK - Setting onStateChangeCallback:', {
+    //   hasCallback: !!callback,
+    //   windowId: this.windowId
+    // // });
     this.onStateChangeCallback = callback;
   }
 
@@ -337,9 +337,9 @@ class TimeTrackingOrchestrator {
       };
 
       // Add the event with explicit silent option to avoid toast spam
-      console.log('🔍 WORKFLOW - Creating event:', eventData);
+      // // console.log('🔍 WORKFLOW - Creating event:', eventData);
       const newEvent = await addEvent(eventData);
-      console.log('🔍 WORKFLOW - Event created with ID:', newEvent?.id);
+      // // console.log('🔍 WORKFLOW - Event created with ID:', newEvent?.id);
       
       if (!newEvent?.id) {
         console.error('🔍 WORKFLOW - Event creation failed: no ID returned');
@@ -350,7 +350,7 @@ class TimeTrackingOrchestrator {
       await new Promise(resolve => setTimeout(resolve, 100));
       
       // Verify event exists in database immediately after creation
-      console.log('🔍 WORKFLOW - Verifying event exists in database...');
+      // // console.log('🔍 WORKFLOW - Verifying event exists in database...');
       const { data: verifyData, error: verifyError } = await supabase
         .from('calendar_events')
         .select('*')
@@ -372,11 +372,11 @@ class TimeTrackingOrchestrator {
         throw new Error('Event was not properly saved to database - verification failed');
       }
       
-      console.log('🔍 WORKFLOW - Event verified successfully in database:', {
-        id: verifyData.id,
-        title: verifyData.title,
-        event_type: verifyData.event_type
-      });
+      // // console.log('🔍 WORKFLOW - Event verified successfully in database:', {
+      //   id: verifyData.id,
+      //   title: verifyData.title,
+      //   event_type: verifyData.event_type
+      // // });
       
       // Set up tracking state
       setCurrentEventId(newEvent.id);
@@ -419,13 +419,13 @@ class TimeTrackingOrchestrator {
         currentSeconds: 0
       };
       
-      console.log('🔍 WORKFLOW - Saving fullState:', {
-        eventId: fullState.eventId,
-        selectedProject: fullState.selectedProject?.name || fullState.selectedProject,
-        searchQuery: fullState.searchQuery,
-        startTime: fullState.startTime,
-        hasAllFields: !!(fullState.eventId && fullState.selectedProject && fullState.startTime)
-      });
+      // // console.log('🔍 WORKFLOW - Saving fullState:', {
+      //   eventId: fullState.eventId,
+      //   selectedProject: fullState.selectedProject?.name || fullState.selectedProject,
+      //   searchQuery: fullState.searchQuery,
+      //   startTime: fullState.startTime,
+      //   hasAllFields: !!(fullState.eventId && fullState.selectedProject && fullState.startTime)
+      // // });
       
       // DON'T skip callback - we need to update global state in THIS window too!
       // This will trigger the SettingsContext callback which updates isTimeTracking and currentTrackingEventId

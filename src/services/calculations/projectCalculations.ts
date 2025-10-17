@@ -50,7 +50,7 @@ export function calculateAutoEstimateWorkingDays(
   endDate: Date,
   autoEstimateDays: Project['autoEstimateDays'],
   settings?: any,
-  holidays: Date[] = []
+  holidays: any[] = []  // Accept both Date[] and Holiday[] objects
 ): Date[] {
   const workingDays: Date[] = [];
   const current = new Date(startDate);
@@ -83,10 +83,24 @@ export function calculateAutoEstimateWorkingDays(
     // Check if this day is enabled for auto-estimation
     const isDayEnabled = enabledDays[dayName];
     
-    // Check if it's a holiday
+    // Check if it's a holiday - handle both Date[] and Holiday[] arrays
     const isHoliday = holidays.some(holiday => {
-      const holidayDate = new Date(holiday);
-      return holidayDate.toDateString() === current.toDateString();
+      // If holiday is a Date object or date string
+      if (holiday instanceof Date || typeof holiday === 'string') {
+        const holidayDate = new Date(holiday);
+        return holidayDate.toDateString() === current.toDateString();
+      }
+      // If holiday is a Holiday object with startDate/endDate
+      if (holiday.startDate && holiday.endDate) {
+        const holidayStart = new Date(holiday.startDate);
+        const holidayEnd = new Date(holiday.endDate);
+        const currentNormalized = new Date(current);
+        currentNormalized.setHours(0, 0, 0, 0);
+        holidayStart.setHours(0, 0, 0, 0);
+        holidayEnd.setHours(0, 0, 0, 0);
+        return currentNormalized >= holidayStart && currentNormalized <= holidayEnd;
+      }
+      return false;
     });
 
     if (isDayEnabled && !isHoliday) {

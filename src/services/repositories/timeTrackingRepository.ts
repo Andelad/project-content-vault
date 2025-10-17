@@ -76,7 +76,7 @@ class TimeTrackingRepository {
       
       // DB save succeeded - also save to localStorage as write-through cache
       this.saveToLocalStorage(serializedState);
-      console.log('✅ State saved to both DB and localStorage');
+      // // console.log('✅ State saved to both DB and localStorage');
       
     } catch (error) {
       console.error('❌ Failed to save time tracking state:', error);
@@ -129,10 +129,10 @@ class TimeTrackingRepository {
         
         // Clear localStorage cache since DB has the data
         this.clearBackupStorage();
-        console.log('✅ Loaded state from DB, cleared localStorage cache');
+        // // console.log('✅ Loaded state from DB, cleared localStorage cache');
       } else {
         // No data in DB, try localStorage fallback
-        console.log('ℹ️ No state in DB, trying localStorage fallback');
+        // // console.log('ℹ️ No state in DB, trying localStorage fallback');
         state = this.loadFromLocalStorage();
       }
       
@@ -171,7 +171,7 @@ class TimeTrackingRepository {
       
       const parsed = JSON.parse(stored) as SerializedTimeTrackingState;
       const state = this.deserializeState(parsed);
-      console.log('📦 Loaded state from localStorage backup');
+      // // console.log('📦 Loaded state from localStorage backup');
       return state;
     } catch (error) {
       console.warn('⚠️ Failed to load from localStorage:', error);
@@ -214,7 +214,7 @@ class TimeTrackingRepository {
     try {
       localStorage.removeItem(this.STORAGE_KEY);
       localStorage.removeItem(this.BACKUP_STORAGE_KEY);
-      console.log('✅ Cleared legacy localStorage time tracking data');
+      // // console.log('✅ Cleared legacy localStorage time tracking data');
     } catch (error) {
       console.error('❌ Failed to clear localStorage:', error);
     }
@@ -235,7 +235,7 @@ class TimeTrackingRepository {
             filter: `user_id=eq.${this.userId}`
           },
           (payload) => {
-            console.log('🔄 Time tracking state inserted (realtime):', payload.new);
+            // // console.log('🔄 Time tracking state inserted (realtime):', payload.new);
             if (payload.new?.time_tracking_state) {
               const deserializedState = this.deserializeState(payload.new.time_tracking_state as unknown as SerializedTimeTrackingState);
               onStateChange(deserializedState);
@@ -251,7 +251,7 @@ class TimeTrackingRepository {
             filter: `user_id=eq.${this.userId}`
           },
           (payload) => {
-            console.log('🔄 Time tracking state updated (realtime):', payload.new);
+            // // console.log('🔄 Time tracking state updated (realtime):', payload.new);
             if (payload.new?.time_tracking_state) {
               const deserializedState = this.deserializeState(payload.new.time_tracking_state as unknown as SerializedTimeTrackingState);
               onStateChange(deserializedState);

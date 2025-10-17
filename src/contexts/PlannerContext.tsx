@@ -590,11 +590,11 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
 
   // Prepare FullCalendar events
   const fullCalendarEvents = useMemo(() => {
-    console.log('🔍 PLANNER - Preparing events for calendar:', {
-      totalEvents: processedEvents.length,
-      trackedEvents: processedEvents.filter(e => e.type === 'tracked').length,
-      layerMode
-    });
+    // // console.log('🔍 PLANNER - Preparing events for calendar:', {
+      // totalEvents: processedEvents.length,
+      // trackedEvents: processedEvents.filter(e => e.type === 'tracked').length,
+      // layerMode
+    // });
     return PlannerV2CalculationService.prepareEventsForFullCalendar(
       processedEvents,
       workHours || [],

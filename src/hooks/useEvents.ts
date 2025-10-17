@@ -33,7 +33,7 @@ export function useEvents() {
             filter: `user_id=eq.${user.id}`
           },
           (payload) => {
-            console.log('🔄 Event inserted (realtime):', payload.new);
+            // // console.log('🔄 Event inserted (realtime):', payload.new);
             setEvents(prev => {
               // Prevent duplicates - only add if not already in state
               const exists = prev.some(e => e.id === payload.new.id);
@@ -51,7 +51,7 @@ export function useEvents() {
             filter: `user_id=eq.${user.id}`
           },
           (payload) => {
-            console.log('🔄 Event updated (realtime):', payload.new);
+            // // console.log('🔄 Event updated (realtime):', payload.new);
             setEvents(prev => 
               prev.map(event => event.id === payload.new.id ? payload.new as CalendarEvent : event)
             );
@@ -66,7 +66,7 @@ export function useEvents() {
             filter: `user_id=eq.${user.id}`
           },
           (payload) => {
-            console.log('🔄 Event deleted (realtime):', payload.old);
+            // // console.log('🔄 Event deleted (realtime):', payload.old);
             setEvents(prev => prev.filter(event => event.id !== payload.old.id));
           }
         )
@@ -111,11 +111,11 @@ export function useEvents() {
         throw new Error('User not authenticated');
       }
 
-      console.log('🔍 addEvent: Creating event in database:', {
-        title: eventData.title,
-        event_type: eventData.event_type,
-        user_id: user.id
-      });
+      // // console.log('🔍 addEvent: Creating event in database:', {
+        // title: eventData.title,
+        // event_type: eventData.event_type,
+        // user_id: user.id
+      // });
 
       const { data, error } = await supabase
         .from('calendar_events')
@@ -133,11 +133,11 @@ export function useEvents() {
         throw new Error('No data returned from event creation');
       }
       
-      console.log('✅ addEvent: Event created successfully:', {
-        id: data.id,
-        title: data.title,
-        event_type: data.event_type
-      });
+      // // console.log('✅ addEvent: Event created successfully:', {
+        // id: data.id,
+        // title: data.title,
+        // event_type: data.event_type
+      // });
       
       setEvents(prev => [...prev, data]);
       

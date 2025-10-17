@@ -455,19 +455,20 @@ export const TimelineBar = memo(function TimelineBar({
               const isLastWorkingDay = workingDayIndex === visibleWorkingDays.length - 1;
               // Check if there's a milestone segment for this day
               const milestoneSegment = getMilestoneSegmentForDate(date, milestoneSegments);
-              // Use centralized time allocation service
-              const allocation = TimeAllocationService.generateTimeAllocation(
-                project.id,
-                date,
-                events,
-                project,
-                settings,
-                holidays,
-                milestoneSegments
+              
+              // Use the timeAllocation we already calculated correctly above
+              // (Don't use TimeAllocationService.generateTimeAllocation - it returns wrong values!)
+              const isPlannedTime = timeAllocation.type === 'planned';
+              const dailyHours = timeAllocation.hours;
+              const rectangleHeight = Math.max(3, Math.round(dailyHours * 4));
+              
+              // Check if planned time is completed
+              const isPlannedAndCompleted = isPlannedTime && events.some(e => 
+                e.projectId === project.id && 
+                e.completed === true &&
+                new Date(e.startTime).toDateString() === date.toDateString()
               );
-              const isPlannedTime = allocation.type === 'planned';
-              const dailyHours = allocation.hours;
-              const rectangleHeight = allocation.heightInPixels;
+              
               // Determine border radius for this day rectangle based on working days
               // Always round upper corners by 3px, remove bottom rounding on last rectangles
               let borderTopLeftRadius = '3px';
@@ -494,8 +495,8 @@ export const TimelineBar = memo(function TimelineBar({
                   borderTopRightRadius = '0px';
                 }
               }
+              
               // Determine styling based on time allocation type and completion
-              const isPlannedAndCompleted = allocation.isPlannedAndCompleted;
               let backgroundColor: string;
               let borderStyle: any;
               if (isPlannedAndCompleted) {
@@ -625,26 +626,19 @@ export const TimelineBar = memo(function TimelineBar({
                       </div>
                     </TooltipTrigger>
                     <TooltipContent>
-                      {(() => {
-                        // Use centralized service for consistent tooltip values
-                        const tooltipInfo = TimeAllocationService.getTooltipInfo(allocation);
-                        // Debug log directly in the tooltip JSX
-                        return (
-                          <div className="text-xs">
-                            <div className="font-medium">
-                              {tooltipInfo.type}
-                            </div>
-                            <div className="text-gray-600">
-                              {tooltipInfo.displayText}
-                            </div>
-                            {allocation.milestoneSegment?.milestone && (
-                              <div className="text-gray-600 mt-1">
-                                Target: {allocation.milestoneSegment.milestone.name} - {allocation.milestoneSegment.milestone.timeAllocation}h
-                              </div>
-                            )}
+                      <div className="text-xs">
+                        <div className="font-medium">
+                          {timeAllocation.type === 'planned' ? 'Planned Time' : 'Auto-Estimate'}
+                        </div>
+                        <div className="text-gray-600">
+                          {dailyHours.toFixed(2)} hours
+                        </div>
+                        {milestoneSegment?.milestone && (
+                          <div className="text-gray-600 mt-1">
+                            Target: {milestoneSegment.milestone.name} - {milestoneSegment.milestone.timeAllocation}h
                           </div>
-                        );
-                      })()}
+                        )}
+                      </div>
                     </TooltipContent>
                   </Tooltip>
                 </div>
