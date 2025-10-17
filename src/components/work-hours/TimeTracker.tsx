@@ -17,6 +17,9 @@ import {
 import { UnifiedTimeTrackerService } from '@/services';
 import type { TimeTrackerWorkflowContext } from '@/services/orchestrators/timeTrackingOrchestrator';
 import { supabase } from '@/integrations/supabase/client';
+import { ConflictDialog } from './ConflictDialog';
+import type { TimeTrackingState } from '@/types/timeTracking';
+import { toast } from '@/hooks/use-toast';
 interface TimeTrackerProps {
   className?: string;
 }
@@ -30,6 +33,8 @@ export function TimeTracker({ className }: TimeTrackerProps) {
   const [currentEventId, setCurrentEventId] = useState<string | null>(null);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const [affectedPlannedEvents, setAffectedPlannedEvents] = useState<string[]>([]);
+  const [showConflictDialog, setShowConflictDialog] = useState(false);
+  const [conflictingSession, setConflictingSession] = useState<TimeTrackingState | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null); // UI timer (1s)
   const dbSyncIntervalRef = useRef<NodeJS.Timeout | null>(null); // DB sync (30s)
   const overlapCheckIntervalRef = useRef<NodeJS.Timeout | null>(null); // Overlap check (60s)
@@ -320,6 +325,16 @@ export function TimeTracker({ className }: TimeTrackerProps) {
     // Automatically start tracking if not already tracking
     // Use the orchestrator workflow to ensure proper state management
     if (!isTimeTracking && selectedProjectData) {
+      // Check for active session conflict before starting
+      const activeSession = await UnifiedTimeTrackerService.checkForActiveSession();
+      
+      if (activeSession) {
+        // Show conflict dialog instead of starting
+        setConflictingSession(activeSession);
+        setShowConflictDialog(true);
+        return;
+      }
+      
       // Create context with the selected project data directly (don't wait for state update)
       const context: TimeTrackerWorkflowContext = {
         selectedProject: selectedProjectData,
@@ -357,6 +372,18 @@ export function TimeTracker({ className }: TimeTrackerProps) {
     if (!isTimeTracking && !selectedProject && !searchQuery.trim()) {
       setShowSearchDropdown(true);
       return;
+    }
+
+    // Check for active session conflict before starting
+    if (!isTimeTracking) {
+      const activeSession = await UnifiedTimeTrackerService.checkForActiveSession();
+      
+      if (activeSession) {
+        // Show conflict dialog instead of starting
+        setConflictingSession(activeSession);
+        setShowConflictDialog(true);
+        return;
+      }
     }
 
     const context: TimeTrackerWorkflowContext = {
@@ -492,6 +519,41 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       }
     };
   }, []);
+  
+  // Conflict resolution handlers
+  const handleStopAndStartNew = async () => {
+    setShowConflictDialog(false);
+    
+    try {
+      // First stop the existing session
+      await UnifiedTimeTrackerService.stopTracking();
+      
+      // Small delay to ensure state is cleared
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Now proceed with normal start tracking
+      if (selectedProject) {
+        await handleToggleTracking();
+      }
+    } catch (error) {
+      console.error('Error stopping and starting new session:', error);
+      toast({
+        title: "Error",
+        description: "Failed to switch tracking sessions. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleViewSession = () => {
+    setShowConflictDialog(false);
+    // Load the conflicting session state
+    if (conflictingSession) {
+      setSelectedProject(conflictingSession.selectedProject);
+      setSearchQuery(conflictingSession.searchQuery || '');
+    }
+  };
+
   return (
     <Card className={`bg-transparent shadow-none ${className}`}>
       <CardContent className="p-3">
@@ -575,6 +637,16 @@ export function TimeTracker({ className }: TimeTrackerProps) {
             )}
           </Button>
         </div>
+
+        {conflictingSession && (
+          <ConflictDialog
+            isOpen={showConflictDialog}
+            onClose={() => setShowConflictDialog(false)}
+            activeSession={conflictingSession}
+            onStopAndStart={handleStopAndStartNew}
+            onViewSession={handleViewSession}
+          />
+        )}
       </CardContent>
     </Card>
   );

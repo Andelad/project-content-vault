@@ -55,17 +55,6 @@ class TimeTrackingOrchestrator {
       });
     }
 
-    // Fallback to localStorage events for older browsers
-    window.addEventListener('storage', (event) => {
-      if (event.key === 'timeTracker_crossWindowSync' && event.newValue) {
-        try {
-          const state = JSON.parse(event.newValue);
-          this.handleCrossWindowMessage(state);
-        } catch (error) {
-          console.error('Error parsing cross-window sync message:', error);
-        }
-      }
-    });
   }
 
   private handleCrossWindowMessage(data: any): void {
@@ -96,9 +85,6 @@ class TimeTrackingOrchestrator {
     if (this.broadcastChannel) {
       this.broadcastChannel.postMessage(message);
     }
-
-    // Also use localStorage as fallback
-    localStorage.setItem('timeTracker_crossWindowSync', JSON.stringify(message));
   }
 
   private serializeState(state: TimeTrackingState): any {
@@ -251,6 +237,17 @@ class TimeTrackingOrchestrator {
     if (this.realtimeSubscription) {
       timeTrackingRepository.cleanupRealtimeSubscription(this.realtimeSubscription);
     }
+  }
+
+  /**
+   * Check for active tracking session conflicts
+   * Returns the active session if found, null otherwise
+   */
+  async checkForActiveSession(): Promise<TimeTrackingState | null> {
+    if (!this.userId) {
+      throw new Error('User ID must be set before checking for conflicts');
+    }
+    return timeTrackingValidator.checkForActiveSession(this.userId);
   }
 
   // TimeTracker Component Workflow Methods

@@ -1,4 +1,5 @@
 import type { TimeTrackingState, TimeTrackingValidationResult } from '../../types/timeTracking';
+import { supabase } from '@/integrations/supabase/client';
 
 /**
  * Time Tracking Validator
@@ -166,6 +167,59 @@ class TimeTrackingValidator {
     }
 
     return true;
+  }
+
+  /**
+   * Check if there's an active tracking session for the user
+   * Returns the active session state or null if no conflict
+   */
+  async checkForActiveSession(userId: string): Promise<TimeTrackingState | null> {
+    const { data, error } = await supabase
+      .from('settings')
+      .select('time_tracking_state')
+      .eq('user_id', userId)
+      .single();
+
+    if (error || !data?.time_tracking_state) {
+      return null;
+    }
+
+    const state = data.time_tracking_state as any;
+    
+    // Only consider it a conflict if tracking is actually active
+    if (state.isTracking && state.eventId && state.startTime) {
+      return {
+        isTracking: state.isTracking,
+        isPaused: state.isPaused ?? false,
+        projectId: state.projectId ?? null,
+        startTime: state.startTime ? new Date(state.startTime) : null,
+        pausedAt: state.pausedAt ? new Date(state.pausedAt) : null,
+        totalPausedDuration: state.totalPausedDuration ?? 0,
+        lastUpdateTime: state.lastUpdateTime ? new Date(state.lastUpdateTime) : null,
+        eventId: state.eventId ?? null,
+        selectedProject: state.selectedProject ?? null,
+        searchQuery: state.searchQuery ?? '',
+        affectedEvents: state.affectedEvents ?? [],
+        currentSeconds: state.currentSeconds ?? 0
+      };
+    }
+
+    return null;
+  }
+
+  /**
+   * Format active session for display in conflict dialog
+   */
+  formatActiveSession(state: TimeTrackingState): string {
+    const projectName = state.selectedProject?.name || state.searchQuery || 'Unknown Project';
+    const elapsed = state.startTime 
+      ? Math.floor((Date.now() - state.startTime.getTime()) / 1000)
+      : 0;
+    
+    const hours = Math.floor(elapsed / 3600);
+    const minutes = Math.floor((elapsed % 3600) / 60);
+    
+    return `${projectName} (${hours}h ${minutes}m)`;
   }
 }
 

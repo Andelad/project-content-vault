@@ -125,6 +125,14 @@ export class UnifiedTimeTrackerService {
     timeTrackingOrchestrator.cleanup();
   }
 
+  /**
+   * Check for active tracking session conflicts
+   * Returns the active session if found, null otherwise
+   */
+  static async checkForActiveSession(): Promise<TimeTrackingState | null> {
+    return timeTrackingOrchestrator.checkForActiveSession();
+  }
+
   // ===================================================================================
   // CALCULATION & TRANSFORMATION METHODS (static utilities)
   // ===================================================================================
