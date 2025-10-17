@@ -78,7 +78,14 @@ export function TimeTracker({ className }: TimeTrackerProps) {
         }
       }
       
-      if (dbState && dbState.isTracking && dbState.startTime && dbState.eventId) {
+      // Only restore tracking state if we have ALL required fields
+      const hasCompleteState = dbState && 
+                                dbState.isTracking && 
+                                dbState.startTime && 
+                                dbState.eventId && 
+                                dbState.selectedProject;
+      
+      if (hasCompleteState) {
         // Calculate elapsed time from start
         const elapsedSeconds = dbState.currentSeconds ?? 
           Math.floor((Date.now() - new Date(dbState.startTime).getTime()) / 1000);
@@ -120,6 +127,14 @@ export function TimeTracker({ className }: TimeTrackerProps) {
         
         // START OPTIMIZED INTERVALS
         startOptimizedIntervals(dbState.eventId, new Date(dbState.startTime));
+      } else if (dbState && dbState.isTracking) {
+        // Incomplete tracking state detected - clean it up
+        console.warn('⚠️ TimeTracker mount: Found incomplete tracking state, cleaning up:', {
+          hasEventId: !!dbState.eventId,
+          hasStartTime: !!dbState.startTime,
+          hasSelectedProject: !!dbState.selectedProject
+        });
+        // Let the SettingsContext cleanup handle it
       }
     };
     loadTrackingState();

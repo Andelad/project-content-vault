@@ -84,9 +84,34 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         // Load initial state from database
         const dbState = await UnifiedTimeTrackerService.loadState();
         if (dbState) {
-          setIsTimeTracking(dbState.isTracking);
-          setCurrentTrackingEventId(dbState.eventId || null);
-          // Set other state values as needed
+          // Only set tracking to true if we have COMPLETE state with all required fields
+          // This prevents the flash of incomplete tracking state when opening a new window
+          const hasCompleteState = dbState.isTracking && 
+                                    dbState.eventId && 
+                                    dbState.startTime && 
+                                    dbState.selectedProject;
+          
+          if (hasCompleteState) {
+            setIsTimeTracking(true);
+            setCurrentTrackingEventId(dbState.eventId);
+          } else if (dbState.isTracking) {
+            // We have incomplete tracking state - clean it up
+            console.warn('⚠️ Found incomplete tracking state in DB, cleaning up:', {
+              hasEventId: !!dbState.eventId,
+              hasStartTime: !!dbState.startTime,
+              hasSelectedProject: !!dbState.selectedProject
+            });
+            // Clean up the incomplete state
+            await UnifiedTimeTrackerService.stopTracking().catch(err => {
+              console.error('Failed to clean up incomplete tracking state:', err);
+            });
+            setIsTimeTracking(false);
+            setCurrentTrackingEventId(null);
+          } else {
+            // Tracking is off, ensure state is clean
+            setIsTimeTracking(false);
+            setCurrentTrackingEventId(null);
+          }
         }
 
         // Set up real-time subscription

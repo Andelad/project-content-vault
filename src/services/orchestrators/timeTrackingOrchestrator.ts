@@ -175,7 +175,13 @@ class TimeTrackingOrchestrator {
       startTime: null,
       pausedAt: null,
       totalPausedDuration: 0,
-      lastUpdateTime: new Date()
+      lastUpdateTime: new Date(),
+      // UI state fields - MUST be explicitly cleared to prevent orphaned data
+      eventId: null,
+      selectedProject: null,
+      searchQuery: '',
+      affectedEvents: [],
+      currentSeconds: 0
     };
 
     // Skip local callback to prevent feedback loop - workflow already updated UI
@@ -465,7 +471,7 @@ class TimeTrackingOrchestrator {
       startTimeRef.current = null;
       currentStateRef.current = null; // Clear the ref
       
-      // Update tracking state in repository - use syncState directly with proper state
+      // Update tracking state in repository - EXPLICITLY clear ALL fields to prevent orphaned data
       const stoppedState = {
         isTracking: false,
         isPaused: false,
@@ -473,7 +479,13 @@ class TimeTrackingOrchestrator {
         startTime: null,
         pausedAt: null,
         totalPausedDuration: 0,
-        lastUpdateTime: new Date()
+        lastUpdateTime: new Date(),
+        // UI state fields - MUST be explicitly cleared
+        eventId: null,
+        selectedProject: null,
+        searchQuery: '',
+        affectedEvents: [],
+        currentSeconds: 0
       } as TimeTrackingState;
       await this.syncState(stoppedState, true);
         
@@ -508,6 +520,7 @@ class TimeTrackingOrchestrator {
       currentStateRef.current = null; // Clear the ref
 
       // Update tracking state in repository - DON'T skip callback to update global state
+      // EXPLICITLY clear ALL fields to prevent orphaned data in database
       const stoppedState = {
         isTracking: false,
         isPaused: false,
@@ -515,7 +528,13 @@ class TimeTrackingOrchestrator {
         startTime: null,
         pausedAt: null,
         totalPausedDuration: 0,
-        lastUpdateTime: new Date()
+        lastUpdateTime: new Date(),
+        // UI state fields - MUST be explicitly cleared
+        eventId: null,
+        selectedProject: null,
+        searchQuery: '',
+        affectedEvents: [],
+        currentSeconds: 0
       } as TimeTrackingState;
       await this.syncState(stoppedState, false);
 
