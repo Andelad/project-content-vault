@@ -777,15 +777,9 @@ export function TimelineView() {
     <DndProvider backend={HTML5Backend}>
       <TooltipProvider>
         <AppPageLayout>
-          {/* Timeline Header */}
-          <AppPageLayout.Header className="h-20 border-b border-[#e2e2e2] flex items-center justify-between px-8">
-            <TimelineHeader 
-              currentDate={currentDate}
-              viewportStart={viewportStart}
-              viewportEnd={viewportEnd}
-              onNavigate={handleNavigate}
-              onGoToToday={handleGoToToday}
-            />
+          {/* Timeline Header - now handled by AppHeader in MainAppLayout */}
+          <AppPageLayout.Header className="h-0 overflow-hidden">
+            <div />
           </AppPageLayout.Header>
           {/* Timeline Mode Toggle and Navigation */}
           <AppPageLayout.SubHeader>

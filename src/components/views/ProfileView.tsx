@@ -340,27 +340,6 @@ export function ProfileView() {
 
   return (
     <div className="h-full flex flex-col bg-[#f9f9f9]">
-      {/* Header */}
-      <div className="h-20 border-b border-[#e2e2e2] flex items-center justify-between px-8 flex-shrink-0">
-        <div className="flex items-center space-x-6">
-          <h1 className="text-lg font-semibold text-[#595956]">Profile</h1>
-          <Badge variant="secondary">
-            Account Management
-          </Badge>
-        </div>
-        
-        <div className="flex items-center gap-3">
-          <Button variant="outline">
-            <ExternalLink className="w-4 h-4 mr-2" />
-            Help Center
-          </Button>
-          <Button className="bg-[#02c0b7] hover:bg-[#02a09a] text-white">
-            <Crown className="w-4 h-4 mr-2" />
-            Upgrade Plan
-          </Button>
-        </div>
-      </div>
-
       {/* Content - Scrollable */}
       <div className="flex-1 overflow-auto light-scrollbar">
         <div className="p-8 space-y-8 max-w-4xl">

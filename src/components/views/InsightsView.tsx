@@ -313,11 +313,6 @@ export function InsightsView() {
 
   return (
     <div className="h-full flex flex-col bg-gray-50 overflow-hidden">
-      {/* Header */}
-      <div className="h-20 border-b border-[#e2e2e2] flex items-center px-8">
-        <h1 className="text-lg font-semibold text-[#595956]">Insights</h1>
-      </div>
-
       {/* Content */}
       <div className="flex-1 overflow-auto bg-gray-50 light-scrollbar">
         <div className="p-[21px] space-y-[21px]">
