@@ -521,17 +521,35 @@ export function TimeTracker({ className }: TimeTrackerProps) {
   }, []);
   
   // Conflict resolution handlers
+  const handleCancelConflict = () => {
+    setShowConflictDialog(false);
+    
+    // Load the conflicting session state to show the active tracker
+    if (conflictingSession) {
+      setSelectedProject(conflictingSession.selectedProject);
+      setSearchQuery(conflictingSession.searchQuery || '');
+      setIsTimeTracking(conflictingSession.isTracking);
+      setCurrentEventId(conflictingSession.eventId);
+      
+      if (conflictingSession.startTime) {
+        startTimeRef.current = conflictingSession.startTime;
+        const elapsed = Math.floor((Date.now() - conflictingSession.startTime.getTime()) / 1000);
+        setSeconds(elapsed);
+      }
+    }
+  };
+
   const handleStopAndStartNew = async () => {
     setShowConflictDialog(false);
     
     try {
-      // First stop the existing session
+      // Stop the existing session - this will save it to the calendar
       await UnifiedTimeTrackerService.stopTracking();
       
       // Small delay to ensure state is cleared
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      // Now proceed with normal start tracking
+      // Now start tracking the new project
       if (selectedProject) {
         await handleToggleTracking();
       }
@@ -632,7 +650,7 @@ export function TimeTracker({ className }: TimeTrackerProps) {
         {conflictingSession && (
           <ConflictDialog
             isOpen={showConflictDialog}
-            onClose={() => setShowConflictDialog(false)}
+            onClose={handleCancelConflict}
             activeSession={conflictingSession}
             onStopAndStart={handleStopAndStartNew}
           />
