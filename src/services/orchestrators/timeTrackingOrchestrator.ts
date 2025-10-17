@@ -421,7 +421,9 @@ class TimeTrackingOrchestrator {
         hasAllFields: !!(fullState.eventId && fullState.selectedProject && fullState.startTime)
       });
       
-      await this.syncState(fullState, true); // Skip local callback to prevent loop
+      // DON'T skip callback - we need to update global state in THIS window too!
+      // This will trigger the SettingsContext callback which updates isTimeTracking and currentTrackingEventId
+      await this.syncState(fullState, false);
 
       return {
         success: true,
@@ -505,7 +507,7 @@ class TimeTrackingOrchestrator {
       startTimeRef.current = null;
       currentStateRef.current = null; // Clear the ref
 
-      // Update tracking state in repository - use syncState directly with proper state
+      // Update tracking state in repository - DON'T skip callback to update global state
       const stoppedState = {
         isTracking: false,
         isPaused: false,
@@ -515,7 +517,7 @@ class TimeTrackingOrchestrator {
         totalPausedDuration: 0,
         lastUpdateTime: new Date()
       } as TimeTrackingState;
-      await this.syncState(stoppedState, true);
+      await this.syncState(stoppedState, false);
 
       return {
         success: true,
