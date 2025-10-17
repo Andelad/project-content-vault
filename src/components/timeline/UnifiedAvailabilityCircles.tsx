@@ -147,9 +147,12 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
 
   const { colorClass, darkColorClass, label } = getColorData();
   
+  // Add buffer for partial column in days mode
+  const bufferWidth = mode === 'days' ? columnWidth : 0;
+  
   return (
     <div className="h-full relative flex items-center">
-      <div className="flex w-full" style={{ minWidth: `${dates.length * columnWidth}px` }}>
+      <div className="flex w-full" style={{ minWidth: `${dates.length * columnWidth + bufferWidth}px` }}>
         {dates.map((date: Date, dateIndex: number) => {
           const targetHours = getHours(date);
           

@@ -496,7 +496,11 @@ export function TimelineAddProjectRow({ groupId, dates, mode = 'days' }: Timelin
       className={`h-[52px] border-b border-gray-100 relative transition-colors ${ 
         isDragging ? 'cursor-grabbing' : 'cursor-pointer hover:bg-gray-50/30'
       }`}
-      style={{ minWidth: mode === 'weeks' ? `${dates.length * 77}px` : `${dates.length * columnWidth}px` }}
+      style={{ 
+        minWidth: mode === 'weeks' 
+          ? `${dates.length * 77}px` 
+          : `${dates.length * columnWidth + columnWidth}px` // Add buffer for days mode
+      }}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       onMouseDown={handleMouseDown}

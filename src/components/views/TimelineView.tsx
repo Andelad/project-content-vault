@@ -943,7 +943,9 @@ export function TimelineView() {
                     </div>
                     {/* Date Headers */}
                     <div className="flex-1 bg-white" style={{ 
-                      minWidth: `${dates.length * (mode === 'weeks' ? 77 : 40)}px`
+                      minWidth: mode === 'weeks' 
+                        ? `${dates.length * 77}px`
+                        : `${dates.length * 40 + 40}px` // Add buffer for days mode
                     }}>
                       <TimelineDateHeaders dates={dates} mode={mode} />
                     </div>
@@ -1221,7 +1223,11 @@ export function TimelineView() {
                     dates={dates}
                   />
                   {/* Availability Timeline Content */}
-                  <div className="flex-1 flex flex-col bg-white relative availability-timeline-content" style={{ minWidth: `${dates.length * (mode === 'weeks' ? 77 : 40)}px` }}>
+                  <div className="flex-1 flex flex-col bg-white relative availability-timeline-content" style={{ 
+                    minWidth: mode === 'weeks'
+                      ? `${dates.length * 77}px`
+                      : `${dates.length * 40 + 40}px` // Add buffer for days mode
+                  }}>
                     {/* Holiday Overlay */}
                     {/* <HolidayOverlay dates={dates} type="availability" mode={mode} /> */}
                     {/* Available Hours Row */}

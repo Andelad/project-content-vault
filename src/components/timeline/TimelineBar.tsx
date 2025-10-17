@@ -191,6 +191,10 @@ export const TimelineBar = memo(function TimelineBar({
   }
 
   try {
+    // Add buffer for partial column in days mode
+    const columnWidth = mode === 'weeks' ? 77 : 40;
+    const bufferWidth = mode === 'days' ? columnWidth : 0;
+    
     return (
       <div className="relative h-[52px] group pointer-events-none">
       <div className="h-full relative flex flex-col pointer-events-none">
@@ -198,7 +202,7 @@ export const TimelineBar = memo(function TimelineBar({
         <div 
           className="flex w-full relative z-20 flex-1 pointer-events-none" 
           style={{ 
-            minWidth: `${dates.length * (mode === 'weeks' ? 77 : 40)}px`,
+            minWidth: `${dates.length * columnWidth + bufferWidth}px`,
             zIndex: 20
           }}
         >
