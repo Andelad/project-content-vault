@@ -229,12 +229,29 @@ class TimeTrackingRepository {
         .on(
           'postgres_changes',
           {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'settings',
+            filter: `user_id=eq.${this.userId}`
+          },
+          (payload) => {
+            console.log('🔄 Time tracking state inserted (realtime):', payload.new);
+            if (payload.new?.time_tracking_state) {
+              const deserializedState = this.deserializeState(payload.new.time_tracking_state as unknown as SerializedTimeTrackingState);
+              onStateChange(deserializedState);
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
             event: 'UPDATE',
             schema: 'public',
             table: 'settings',
             filter: `user_id=eq.${this.userId}`
           },
           (payload) => {
+            console.log('🔄 Time tracking state updated (realtime):', payload.new);
             if (payload.new?.time_tracking_state) {
               const deserializedState = this.deserializeState(payload.new.time_tracking_state as unknown as SerializedTimeTrackingState);
               onStateChange(deserializedState);
