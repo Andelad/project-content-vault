@@ -97,11 +97,12 @@ class TimeTrackingRepository {
     console.log('🔍 LOAD STATE - userId:', this.userId);
     
     if (!this.userId) {
-      // Try to load from localStorage if no user ID
-      return this.loadFromLocalStorage();
+      console.warn('⚠️ No user ID - cannot load state');
+      return null;
     }
+    
     try {
-      // Try to load from database first
+      // Load from Supabase (only source of truth)
       const { data, error } = await supabase
         .from('settings')
         .select('time_tracking_state')
@@ -112,17 +113,15 @@ class TimeTrackingRepository {
       
       if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
         console.error('Error loading time tracking state from database:', error);
-        // Fallback to localStorage
-        return this.loadFromLocalStorage();
+        return null;
       }
+      
       if (data?.time_tracking_state) {
-        // Handle both serialized and full state objects
         const stateData = data.time_tracking_state as any;
         let deserializedState: TimeTrackingState;
         
         // Check if it's already a full state object or just serialized
         if (stateData.eventId !== undefined || stateData.selectedProject !== undefined) {
-          // It's a full state object, convert it
           deserializedState = {
             isTracking: stateData.isTracking,
             isPaused: stateData.isPaused ?? false,
@@ -139,7 +138,6 @@ class TimeTrackingRepository {
             lastUpdated: stateData.lastUpdateTime ? new Date(stateData.lastUpdateTime) : undefined
           };
         } else {
-          // It's a serialized state object
           deserializedState = this.deserializeState(stateData as SerializedTimeTrackingState);
         }
         
@@ -153,7 +151,7 @@ class TimeTrackingRepository {
         
         return deserializedState;
       }
-      // No localStorage fallback - database is authoritative
+      
       return null;
     } catch (error) {
       console.error('❌ Failed to load time tracking state from database:', error);
@@ -162,44 +160,14 @@ class TimeTrackingRepository {
   }
 
   /**
-   * @deprecated Only for one-time migration from localStorage to database
-   * Will be removed in future version
+   * One-time cleanup of old localStorage data
    */
-  private loadFromLocalStorage(): TimeTrackingState | null {
+  clearLegacyLocalStorage(): void {
     try {
-      const stored = localStorage.getItem(this.STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed.state) {
-          // Handle both serialized and full state objects
-          const stateData = parsed.state;
-          if (stateData.eventId !== undefined || stateData.selectedProject !== undefined) {
-            // It's a full state object
-            return {
-              isTracking: stateData.isTracking,
-              isPaused: stateData.isPaused ?? false,
-              projectId: stateData.projectId ?? null,
-              startTime: stateData.startTime ? new Date(stateData.startTime) : null,
-              pausedAt: stateData.pausedAt ? new Date(stateData.pausedAt) : null,
-              totalPausedDuration: stateData.totalPausedDuration ?? 0,
-              lastUpdateTime: stateData.lastUpdateTime ? new Date(stateData.lastUpdateTime) : null,
-              eventId: stateData.eventId ?? null,
-              selectedProject: stateData.selectedProject ?? null,
-              searchQuery: stateData.searchQuery ?? '',
-              affectedEvents: stateData.affectedEvents ?? [],
-              currentSeconds: stateData.currentSeconds ?? 0,
-              lastUpdated: stateData.lastUpdateTime ? new Date(stateData.lastUpdateTime) : undefined
-            };
-          } else {
-            // It's a serialized state object
-            return this.deserializeState(stateData);
-          }
-        }
-      }
-      return null;
+      localStorage.removeItem(this.STORAGE_KEY);
+      console.log('✅ Cleared legacy localStorage time tracking data');
     } catch (error) {
-      console.error('❌ Failed to load time tracking state from localStorage:', error);
-      return null;
+      console.error('❌ Failed to clear localStorage:', error);
     }
   }
   async setupRealtimeSubscription(onStateChange: (state: TimeTrackingState) => void): Promise<any> {

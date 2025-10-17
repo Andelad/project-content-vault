@@ -45,40 +45,24 @@ export function TimeTracker({ className }: TimeTrackerProps) {
   const STORAGE_KEYS = UnifiedTimeTrackerService.getStorageKeys();
     // Load tracking state from database on mount - REVERTED TO WORKING PRE-ORCHESTRATION APPROACH
   useEffect(() => {
-    console.log('🔍 TIMETRACKER - useEffect mount running');
+    console.log('🔍 TIMETRACKER - Mount: Loading state from Supabase only');
+    
+    // Clear legacy localStorage data (one-time migration)
+    localStorage.removeItem('timeTracker_crossWindowSync');
+    
     const loadTrackingState = async () => {
-      // Load from database (authoritative source)
+      // Load from Supabase (only source of truth)
       const dbState = await UnifiedTimeTrackerService.loadState();
       
-      console.log('🔍 TIMETRACKER - Loaded state on mount:', {
+      console.log('🔍 TIMETRACKER - Loaded state:', {
         hasState: !!dbState,
         isTracking: dbState?.isTracking,
         eventId: dbState?.eventId,
-        selectedProject: dbState?.selectedProject,
-        searchQuery: dbState?.searchQuery,
+        selectedProject: dbState?.selectedProject?.name,
         startTime: dbState?.startTime
       });
       
-      // FORCE: If tracking is on but we don't have UI fields, try localStorage
-      if (dbState && dbState.isTracking && (!dbState.eventId || !dbState.selectedProject || !dbState.startTime)) {
-        console.log('🔍 TIMETRACKER - DB state incomplete, checking localStorage');
-        const lsData = localStorage.getItem('timeTracker_crossWindowSync');
-        if (lsData) {
-          const parsed = JSON.parse(lsData);
-          console.log('🔍 TIMETRACKER - localStorage has:', parsed.state);
-          if (parsed.state && parsed.state.eventId && parsed.state.selectedProject && parsed.state.startTime) {
-            console.log('🔍 TIMETRACKER - Using localStorage data instead');
-            // Use localStorage data
-            dbState.eventId = parsed.state.eventId;
-            dbState.selectedProject = parsed.state.selectedProject;
-            dbState.searchQuery = parsed.state.searchQuery;
-            dbState.startTime = new Date(parsed.state.startTime);
-            dbState.affectedEvents = parsed.state.affectedEvents;
-          }
-        }
-      }
-      
-      // Only restore tracking state if we have ALL required fields
+      // Only restore if we have COMPLETE tracking state
       const hasCompleteState = dbState && 
                                 dbState.isTracking && 
                                 dbState.startTime && 
@@ -86,26 +70,20 @@ export function TimeTracker({ className }: TimeTrackerProps) {
                                 dbState.selectedProject;
       
       if (hasCompleteState) {
-        // Calculate elapsed time from start
+        // Calculate elapsed time
         const elapsedSeconds = dbState.currentSeconds ?? 
           Math.floor((Date.now() - new Date(dbState.startTime).getTime()) / 1000);
         
-        // DIRECTLY SET ALL STATE - this is what worked before
+        // Restore all state
         setIsTimeTracking(true);
         setSeconds(elapsedSeconds);
         setCurrentEventId(dbState.eventId);
         startTimeRef.current = new Date(dbState.startTime);
         
-        // Set UI state
-        if (dbState.selectedProject) {
-          setSelectedProject(dbState.selectedProject);
-        }
-        if (dbState.searchQuery) {
-          setSearchQuery(dbState.searchQuery);
-        }
-        if (dbState.affectedEvents) {
-          setAffectedPlannedEvents(dbState.affectedEvents);
-        }
+        // Restore UI state
+        if (dbState.selectedProject) setSelectedProject(dbState.selectedProject);
+        if (dbState.searchQuery) setSearchQuery(dbState.searchQuery);
+        if (dbState.affectedEvents) setAffectedPlannedEvents(dbState.affectedEvents);
         
         // Store state for sync
         currentStateRef.current = {
@@ -117,7 +95,7 @@ export function TimeTracker({ className }: TimeTrackerProps) {
           affectedEvents: dbState.affectedEvents || []
         };
         
-        // START UI TIMER IMMEDIATELY (1 second updates)
+        // Start UI timer (1 second updates)
         intervalRef.current = setInterval(() => {
           if (startTimeRef.current) {
             const elapsed = Math.floor((Date.now() - startTimeRef.current.getTime()) / 1000);
@@ -125,18 +103,18 @@ export function TimeTracker({ className }: TimeTrackerProps) {
           }
         }, 1000);
         
-        // START OPTIMIZED INTERVALS
+        // Start background sync intervals
         startOptimizedIntervals(dbState.eventId, new Date(dbState.startTime));
+        
+        console.log('✅ TIMETRACKER - Restored active tracking session');
       } else if (dbState && dbState.isTracking) {
-        // Incomplete tracking state detected - clean it up
-        console.warn('⚠️ TimeTracker mount: Found incomplete tracking state, cleaning up:', {
-          hasEventId: !!dbState.eventId,
-          hasStartTime: !!dbState.startTime,
-          hasSelectedProject: !!dbState.selectedProject
-        });
-        // Let the SettingsContext cleanup handle it
+        // Incomplete state - clean it up
+        console.warn('⚠️ TIMETRACKER - Incomplete tracking state, will be cleaned up');
+      } else {
+        console.log('✅ TIMETRACKER - No active tracking session');
       }
     };
+    
     loadTrackingState();
   }, []); // Only run once on mount
 
