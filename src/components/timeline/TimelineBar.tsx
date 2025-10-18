@@ -132,6 +132,7 @@ export const TimelineBar = memo(function TimelineBar({
         projectData: null,
         projectDays: [],
         workHoursForPeriod: [],
+        dayEstimates: [],
         milestoneSegments: [],
         projectMetrics: { 
           exactDailyHours: [], 
@@ -171,7 +172,8 @@ export const TimelineBar = memo(function TimelineBar({
   const {
     projectDays,
     workHoursForPeriod,
-    milestoneSegments,
+    dayEstimates,
+    milestoneSegments, // DEPRECATED: kept for backward compatibility
     projectMetrics,
     colorScheme,
     visualDates,
@@ -259,7 +261,7 @@ export const TimelineBar = memo(function TimelineBar({
                         project,
                         settings,
                         holidays,
-                        milestoneSegments
+                        dayEstimates || []
                       );
                       
                       // If no allocation at all, skip
@@ -383,7 +385,7 @@ export const TimelineBar = memo(function TimelineBar({
                                 project,
                                 settings,
                                 holidays,
-                                milestoneSegments
+                                dayEstimates || []
                               );
                               const tooltipInfo = TimeAllocationService.getTooltipInfo(allocation);
                               // Debug log directly in the first tooltip JSX
@@ -395,9 +397,16 @@ export const TimelineBar = memo(function TimelineBar({
                                   <div className="text-gray-600">
                                     {tooltipInfo.displayText}
                                   </div>
-                                  {allocation.milestoneSegment?.milestone && (
+                                  {allocation.dayEstimates && allocation.dayEstimates.length > 0 && (
                                     <div className="text-gray-600 mt-1">
-                                      Target: {allocation.milestoneSegment.milestone.name} - {allocation.milestoneSegment.milestone.timeAllocation}h
+                                      {allocation.dayEstimates.map((est, idx) => (
+                                        <div key={idx}>
+                                          {est.source === 'milestone-allocation' && est.milestoneId ? 
+                                            `Milestone allocation: ${est.hours.toFixed(2)}h` :
+                                            `Auto-estimate: ${est.hours.toFixed(2)}h`
+                                          }
+                                        </div>
+                                      ))}
                                     </div>
                                   )}
                                 </div>

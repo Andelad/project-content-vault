@@ -1,33 +1,37 @@
 /**
- * Time Allocation Service
- * Centralized service for determining time allocation type and hours for specific dates
+ * Time Allocation Orchestrator - Phase 4 Updated
+ * 
+ * Uses UnifiedDayEstimateService as single source of truth for time allocations.
+ * Coordinates between planned events and day estimates.
  */
-import { CalendarEvent, Milestone } from '@/types/core';
-import { memoizedGetProjectTimeAllocation, getMilestoneSegmentForDate, type MilestoneSegment, isProjectFullyCompletedOnDate, calculateDayHeight } from '@/services';
+import { CalendarEvent, Milestone, DayEstimate, Project, Settings, Holiday } from '@/types/core';
+import { UnifiedDayEstimateService } from '@/services/unified/UnifiedDayEstimateService';
+import { memoizedGetProjectTimeAllocation, isProjectFullyCompletedOnDate, calculateDayHeight } from '@/services';
+
 export interface TimeAllocationResult {
   type: 'planned' | 'auto-estimate' | 'none';
   hours: number;
   heightInPixels: number;
-  source: 'planned-events' | 'milestone-segment' | 'project-estimate' | 'none';
-  milestoneSegment?: MilestoneSegment;
+  source: 'planned-events' | 'milestone-allocation' | 'project-auto-estimate' | 'none';
+  dayEstimates?: DayEstimate[]; // New: underlying day estimates
   isPlannedAndCompleted?: boolean; // Whether this is planned time that has been completed
 }
 export class TimeAllocationService {
   /**
    * Get comprehensive time allocation information for a specific date
-   * Centralizes the decision logic for planned vs auto-estimate vs none
+   * Uses UnifiedDayEstimateService as single source of truth
    */
   static generateTimeAllocation(
     projectId: string, 
     date: Date, 
     events: CalendarEvent[], 
-    project: any, 
-    settings: any, 
-    holidays: any[], 
-    milestoneSegments: MilestoneSegment[],
+    project: Project, 
+    settings: Settings, 
+    holidays: Holiday[], 
+    dayEstimates: DayEstimate[], // NEW: Pre-calculated day estimates
     options?: any
-  ): any {
-    // Get the current implementation registry
+  ): TimeAllocationResult {
+    // Check for planned events first (they override everything)
     const timeAllocation = memoizedGetProjectTimeAllocation(
       projectId,
       date,
@@ -36,40 +40,51 @@ export class TimeAllocationService {
       settings,
       holidays
     );
-    // Check for milestone segment
-    const milestoneSegment = getMilestoneSegmentForDate(date, milestoneSegments);
-    // Determine final hours and source
-    let finalHours: number;
-    let source: TimeAllocationResult['source'];
+
     if (timeAllocation.type === 'planned') {
-      // Planned time takes priority
-      finalHours = timeAllocation.hours;
-      source = 'planned-events';
-    } else if (milestoneSegment) {
-      // Use milestone segment calculation
-      finalHours = milestoneSegment.dailyHours;
-      source = 'milestone-segment';
-    } else if (timeAllocation.type === 'auto-estimate') {
-      // Fallback to project-level auto-estimate
-      finalHours = timeAllocation.hours;
-      source = 'project-estimate';
-    } else {
-      // No time allocation
-      finalHours = 0;
-      source = 'none';
+      // Planned events take absolute priority
+      const isPlannedAndCompleted = isProjectFullyCompletedOnDate(projectId, events, date);
+      const heightInPixels = calculateDayHeight(timeAllocation.hours);
+      
+      return {
+        type: 'planned',
+        hours: timeAllocation.hours,
+        heightInPixels,
+        source: 'planned-events',
+        isPlannedAndCompleted
+      };
     }
-    // Check if planned time is completed
-    const isPlannedAndCompleted = timeAllocation.type === 'planned' && 
-      isProjectFullyCompletedOnDate(projectId, events, date);
-    // Calculate height using centralized service
-    const heightInPixels = calculateDayHeight(finalHours);
+
+    // Get day estimates for this specific date
+    const dateEstimates = UnifiedDayEstimateService.getDayEstimatesForDate(dayEstimates, date);
+    
+    if (dateEstimates.length > 0) {
+      // Calculate total hours from all estimates for this day
+      const totalHours = UnifiedDayEstimateService.calculateDateTotalHours(dayEstimates, date);
+      const heightInPixels = calculateDayHeight(totalHours);
+      
+      // Determine source based on estimate types
+      const source = dateEstimates.some(est => est.source === 'milestone-allocation')
+        ? 'milestone-allocation'
+        : 'project-auto-estimate';
+      
+      return {
+        type: 'auto-estimate',
+        hours: totalHours,
+        heightInPixels,
+        source,
+        dayEstimates: dateEstimates,
+        isPlannedAndCompleted: false
+      };
+    }
+
+    // No allocation for this date
     return {
-      type: timeAllocation.type,
-      hours: finalHours,
-      heightInPixels,
-      source,
-      milestoneSegment: milestoneSegment || undefined,
-      isPlannedAndCompleted
+      type: 'none',
+      hours: 0,
+      heightInPixels: 0,
+      source: 'none',
+      isPlannedAndCompleted: false
     };
   }
   /**

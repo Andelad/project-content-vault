@@ -22,6 +22,7 @@
  */
 
 import { ProjectTimelineOrchestrator } from '../orchestrators/ProjectTimelineOrchestrator';
+import { UnifiedDayEstimateService } from './UnifiedDayEstimateService';
 import { 
   calculateProjectDuration,
   calculateProjectDays,
@@ -58,7 +59,7 @@ import {
   isDateInArray,
   calculateTimelineColumnMarkerData
 } from '../index';
-import type { Project, Milestone } from '@/types/core';
+import type { Project, Milestone, DayEstimate, Settings, Holiday } from '@/types/core';
 
 export interface TimelineProjectData {
   project: Project;
@@ -138,7 +139,25 @@ export class UnifiedTimelineService {
   }
 
   /**
-   * Calculate milestone segments for project
+   * Calculate day estimates for project (NEW - Phase 4)
+   * Uses UnifiedDayEstimateService as single source of truth
+   */
+  static calculateProjectDayEstimates(
+    project: Project,
+    milestones: Milestone[],
+    settings: Settings,
+    holidays: Holiday[]
+  ): DayEstimate[] {
+    return UnifiedDayEstimateService.calculateProjectDayEstimates(
+      project,
+      milestones,
+      settings,
+      holidays
+    );
+  }
+
+  /**
+   * Calculate milestone segments for project (DEPRECATED - use calculateProjectDayEstimates)
    * Delegates to existing calculation service
    */
   static calculateMilestoneSegments(
@@ -295,6 +314,14 @@ export class UnifiedTimelineService {
     dragState: any = null,
     isWorkingDayChecker?: (date: Date) => boolean // Accept the hook result as parameter
   ) {
+    // Calculate day estimates using new service
+    const dayEstimates = this.calculateProjectDayEstimates(
+      project,
+      milestones,
+      settings,
+      holidays
+    );
+
     return {
       // Project basics
       projectData: this.getProjectTimelineData(project),
@@ -311,7 +338,10 @@ export class UnifiedTimelineService {
       // Work hours
       workHoursForPeriod: this.generateProjectWorkHours(project, settings, viewportEnd),
       
-      // Milestones
+      // Day estimates (NEW - single source of truth)
+      dayEstimates,
+      
+      // Milestone segments (DEPRECATED - kept for backward compatibility)
       milestoneSegments: this.calculateMilestoneSegments(
         milestones,
         new Date(project.startDate),
