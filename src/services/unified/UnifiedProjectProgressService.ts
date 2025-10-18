@@ -75,7 +75,8 @@ export function getEstimatedProgressForDate(
   let prevHours = 0;
   
   for (const milestone of relevantMilestones) {
-    const milestoneDate = new Date(milestone.dueDate);
+    const milestoneDate = milestone.endDate || milestone.dueDate;
+    const timeAllocation = milestone.timeAllocationHours ?? milestone.timeAllocation;
     
     if (targetDate <= milestoneDate) {
       // Target date is within this segment, interpolate
@@ -83,15 +84,15 @@ export function getEstimatedProgressForDate(
       const segmentDays = calculateDurationDays(prevDate, milestoneDate);
       const targetDays = calculateDurationDays(prevDate, targetDate);
       
-      if (segmentDays === 0) return prevHours + milestone.timeAllocation;
+      if (segmentDays === 0) return prevHours + timeAllocation;
       
       const progressRatio = targetDays / segmentDays;
-      return prevHours + (milestone.timeAllocation * progressRatio);
+      return prevHours + (timeAllocation * progressRatio);
     }
     
     // Move to next segment
     prevDate = milestoneDate;
-    prevHours += milestone.timeAllocation;
+    prevHours += timeAllocation;
   }
   
   // Target date is after all milestones, interpolate to end date
@@ -139,8 +140,9 @@ export function calculateProjectProgressData(
     let cumulativeEstimatedHours = 0;
     
     relevantMilestones.forEach((milestone) => {
-      const milestoneDate = new Date(milestone.dueDate);
-      cumulativeEstimatedHours += milestone.timeAllocation;
+      const milestoneDate = milestone.endDate || milestone.dueDate;
+      const timeAllocation = milestone.timeAllocationHours ?? milestone.timeAllocation;
+      cumulativeEstimatedHours += timeAllocation;
       
       const completedTimeAtMilestone = getCompletedTimeUpToDate(projectEvents, project.id, milestoneDate);
       
@@ -276,7 +278,8 @@ export function analyzeProjectProgress(
   const today = new Date();
   
   const milestoneProgress = relevantMilestones.map(milestone => {
-    const dueDate = new Date(milestone.dueDate);
+    const dueDate = milestone.endDate || milestone.dueDate;
+    const timeAllocation = milestone.timeAllocationHours ?? milestone.timeAllocation;
     const daysUntilDue = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     const expectedProgress = getEstimatedProgressForDate(today, project, milestones);
     const actualProgress = getCompletedTimeUpToDate(projectEvents, project.id, today); // Fix function call
@@ -285,7 +288,7 @@ export function analyzeProjectProgress(
       milestone,
       isCompleted: milestone.completed || false,
       daysUntilDue,
-      progressToward: milestone.timeAllocation > 0 ? (actualProgress / milestone.timeAllocation) * 100 : 0
+      progressToward: timeAllocation > 0 ? (actualProgress / timeAllocation) * 100 : 0
     };
   });
 
@@ -383,8 +386,9 @@ export function analyzeProjectProgressLegacy(options: ProgressGraphCalculationOp
     
     // Add milestone points
     relevantMilestones.forEach(milestone => {
-      cumulativeHours += milestone.timeAllocation;
-      const milestoneDate = new Date(milestone.dueDate);
+      const timeAllocation = milestone.timeAllocationHours ?? milestone.timeAllocation;
+      const milestoneDate = milestone.endDate || milestone.dueDate;
+      cumulativeHours += timeAllocation;
       
       progressData.push({
         date: new Date(milestoneDate),

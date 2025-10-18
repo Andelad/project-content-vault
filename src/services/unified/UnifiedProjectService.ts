@@ -82,7 +82,7 @@ export function calculateMilestoneProgress(
   project: Project,
   currentDate: Date = new Date()
 ): { completed: boolean; overdue: boolean; progress: number } {
-  const milestoneDate = new Date(milestone.dueDate);
+  const milestoneDate = milestone.endDate || milestone.dueDate;
   const projectStart = new Date(project.startDate);
   
   const completed = currentDate >= milestoneDate;
@@ -106,7 +106,7 @@ export function calculateMilestoneTimeDistribution(
 ): { beforeDays: number; afterDays: number; totalDays: number } {
   const projectStart = new Date(project.startDate);
   const projectEnd = new Date(project.endDate);
-  const milestoneDate = new Date(milestone.dueDate);
+  const milestoneDate = milestone.endDate || milestone.dueDate;
   
   const totalDays = calculateProjectDuration(projectStart, projectEnd);
   const beforeDays = calculateProjectDuration(projectStart, milestoneDate);
@@ -137,7 +137,7 @@ export function validateProjectDates(
 
   // Milestone validation
   milestones.forEach(milestone => {
-    const milestoneDate = new Date(milestone.dueDate);
+    const milestoneDate = milestone.endDate || milestone.dueDate;
     if (milestoneDate < startDate || milestoneDate > endDate) {
       errors.push(`Milestone "${milestone.name || 'Unnamed'}" is outside project date range`);
     }
@@ -240,7 +240,10 @@ export class UnifiedProjectEntity {
    * Domain Rule: Calculate total milestone allocation for a project
    */
   static calculateTotalMilestoneAllocation(milestones: Milestone[]): number {
-    return milestones.reduce((sum, milestone) => sum + (milestone.timeAllocation || 0), 0);
+    return milestones.reduce((sum, milestone) => {
+      const hours = milestone.timeAllocationHours ?? milestone.timeAllocation ?? 0;
+      return sum + hours;
+    }, 0);
   }
 
   /**
@@ -556,8 +559,8 @@ export class UnifiedProjectEntity {
       const projectEnd = new Date(project.endDate);
 
       milestones.forEach(milestone => {
-        if (milestone.dueDate) {
-          const milestoneDate = new Date(milestone.dueDate);
+        if (milestone.endDate || milestone.dueDate) {
+          const milestoneDate = milestone.endDate || milestone.dueDate;
           if (milestoneDate < projectStart) {
             issues.push(`Milestone "${milestone.name}" is scheduled before project start date`);
             suggestions.push(`Move milestone "${milestone.name}" to after ${projectStart.toDateString()}`);
@@ -580,20 +583,28 @@ export class UnifiedProjectEntity {
   // Helper methods for the new functionality
   private static calculateMilestoneDaysToComplete(milestone: Milestone, settings: any): number {
     const hoursPerDay = settings?.workHours?.hoursPerDay || 8;
-    return Math.ceil(milestone.timeAllocation / hoursPerDay);
+    const timeAllocation = milestone.timeAllocationHours ?? milestone.timeAllocation;
+    return Math.ceil(timeAllocation / hoursPerDay);
   }
 
   private static isMilestoneOverdue(milestone: Milestone): boolean {
-    return new Date(milestone.dueDate) < new Date();
+    const milestoneDate = milestone.endDate || milestone.dueDate;
+    return milestoneDate < new Date();
   }
 
   private static calculateRemainingWorkHours(project: Project, milestones: Milestone[]): number {
-    const totalAllocatedHours = milestones.reduce((total, milestone) => total + milestone.timeAllocation, 0);
+    const totalAllocatedHours = milestones.reduce((total, milestone) => {
+      const hours = milestone.timeAllocationHours ?? milestone.timeAllocation;
+      return total + hours;
+    }, 0);
     return Math.max(0, project.estimatedHours - totalAllocatedHours);
   }
 
   private static calculateTotalProjectWorkload(project: Project, milestones: Milestone[]): number {
-    return milestones.reduce((total, milestone) => total + milestone.timeAllocation, 0);
+    return milestones.reduce((total, milestone) => {
+      const hours = milestone.timeAllocationHours ?? milestone.timeAllocation;
+      return total + hours;
+    }, 0);
   }
 
   private static calculateOverlapDays(project1: Project, project2: Project): number {

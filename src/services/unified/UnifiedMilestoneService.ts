@@ -119,9 +119,11 @@ export class UnifiedMilestoneService {
     }
 
     // Sort milestones by due date
-    const sortedMilestones = [...milestones].sort((a, b) => 
-      new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
-    );
+    const sortedMilestones = [...milestones].sort((a, b) => {
+      const dateA = a.endDate || a.dueDate;
+      const dateB = b.endDate || b.dueDate;
+      return dateA.getTime() - dateB.getTime();
+    });
 
     const result: MilestoneTimeDistributionEntry[] = [];
     let currentDate = new Date(projectStartDate);
@@ -129,7 +131,7 @@ export class UnifiedMilestoneService {
 
     for (let i = 0; i < sortedMilestones.length; i++) {
       const milestone = sortedMilestones[i];
-      const milestoneDate = new Date(milestone.dueDate);
+      const milestoneDate = milestone.endDate || milestone.dueDate;
       milestoneDate.setHours(0, 0, 0, 0);
 
           // Calculate working days using unified service (when available)
@@ -161,7 +163,8 @@ export class UnifiedMilestoneService {
       }
 
       // Calculate hours per day
-      const hoursPerDay = workingDays.length > 0 ? milestone.timeAllocation / workingDays.length : 0;
+      const timeAllocation = milestone.timeAllocationHours ?? milestone.timeAllocation;
+      const hoursPerDay = workingDays.length > 0 ? timeAllocation / workingDays.length : 0;
 
       // Add entries for each working day
       workingDays.forEach((dayDate, index) => {
@@ -421,7 +424,7 @@ export class UnifiedMilestoneEntity {
     projectBudget: number
   ): number {
     const totalAllocated = milestones.reduce(
-      (sum, milestone) => sum + (milestone.timeAllocation || 0), 
+      (sum, milestone) => sum + (milestone.timeAllocationHours ?? milestone.timeAllocation ?? 0), 
       0
     );
     return projectBudget > 0 ? totalAllocated / projectBudget : 0;
