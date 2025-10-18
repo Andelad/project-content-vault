@@ -220,11 +220,11 @@ export {
   calculateRecurringMilestoneCount, 
   calculateRecurringTotalAllocation, 
   detectRecurringPattern,
-  generateRecurringMilestoneDates
+  generateRecurringMilestoneDates,
+  getMilestoneSegmentForDate,
+  calculateMilestoneSegments,
+  type MilestoneSegment
 } from './calculations/milestoneCalculations';
-// Milestone calculation functions from modern service
-export { getMilestoneSegmentForDate, calculateMilestoneInterval, calculateMilestoneSegments, getEstimatedHoursForDate, getMilestoneForDate, getMilestonesInDateRange, type MilestoneSegment } from './calculations/milestoneCalculations';
-export { type MilestoneValidationResult, type FlexibleMilestone, type RecurringPattern } from './calculations/milestoneCalculations';
 // Legacy project progress analysis - migrated to unified service with compatibility wrapper
 export { wouldOverlapHolidays, isHolidayDateCapacity, calculateCommittedHoursForDate, hasWorkHoursConfigured, dayHasWorkHoursConfigured } from './calculations/capacityCalculations';
 export { calculateProjectDays, calculateWorkHoursTotal, calculateDayWorkHours, calculateTotalDayWorkHours } from './calculations/timelineCalculations';

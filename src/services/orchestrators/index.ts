@@ -3,7 +3,6 @@ export * from './ProjectOrchestrator';
 // export * from './MilestoneOrchestrator'; // Deprecated - use ProjectMilestoneOrchestrator instead
 export * from './ProjectMilestoneOrchestrator';
 export * from './TimeAllocationOrchestrator';
-export * from './TimelineOrchestrator';
 export * from './CalendarOrchestrator';
 export * from './WorkHourOrchestrator';
 export * from './recurringEventsOrchestrator';

@@ -2,33 +2,12 @@
 
 export type ProjectStatus = 'current' | 'future' | 'archived';
 
-export interface RecurringConfig {
-  type: 'daily' | 'weekly' | 'monthly';
-  interval: number;
-  weeklyDayOfWeek?: number; // 0-6
-  monthlyPattern?: 'date' | 'dayOfWeek';
-  monthlyDate?: number; // 1-31
-  monthlyWeekOfMonth?: number; // 1-4
-  monthlyDayOfWeek?: number; // 0-6
-}
-
 export interface Milestone {
   id: string;
   name: string;
+  dueDate: Date; // Converted from due_date string in repository layer
+  timeAllocation: number; // Maps to time_allocation in database
   projectId: string; // Maps to project_id in database
-  
-  // TIME ALLOCATION
-  timeAllocationHours: number; // Maps to time_allocation_hours in database
-  
-  // DATE BOUNDARIES
-  startDate?: Date; // Converted from start_date string in repository layer
-  endDate: Date; // Converted from due_date string in repository layer (renamed from dueDate)
-  
-  // RECURRING PATTERN
-  isRecurring: boolean; // Maps to is_recurring in database
-  recurringConfig?: RecurringConfig; // Maps to recurring_config jsonb in database
-  
-  // METADATA
   order: number; // Maps to order_index in database
   userId: string; // Maps to user_id in database
   createdAt: Date; // Converted from created_at string in repository layer
@@ -184,13 +163,4 @@ export interface AutoScrollState {
   isScrolling: boolean;
   direction: 'left' | 'right' | null;
   intervalId: NodeJS.Timeout | null;
-}
-
-export interface DayEstimate {
-  date: Date;
-  projectId: string;
-  hours: number;
-  source: 'planned-event' | 'milestone-allocation' | 'project-auto-estimate';
-  milestoneId?: string;
-  isWorkingDay: boolean;
 }
