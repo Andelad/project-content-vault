@@ -130,7 +130,7 @@ export const DraggableRowComponent = memo(function DraggableRowComponent({
   };
   return (
     <>
-      <div className="flex items-center h-[52px] px-6 py-0 hover:bg-gray-50 transition-colors duration-200 group cursor-pointer">
+      <div className="flex items-center h-[52px] px-6 py-0 bg-white hover:bg-gray-50 transition-colors duration-200 group cursor-pointer">
         {/* Row Name */}
         <div className="flex items-center flex-1 min-w-0">
           {isEditing ? (

@@ -14,7 +14,7 @@ export const TimelineColumnMarkers = memo(function TimelineColumnMarkers({ dates
   const bufferWidth = mode === 'days' ? columnData[0]?.columnWidth || 40 : 0;
   
   return (
-    <div className="absolute inset-0 pointer-events-none z-10" style={{ minWidth: `${dates.length * columnData[0]?.columnWidth + bufferWidth}px` }}>
+    <div className="absolute inset-0 pointer-events-none" style={{ minWidth: `${dates.length * columnData[0]?.columnWidth + bufferWidth}px`, zIndex: 10 }}>
       <div className="flex h-full">
         {columnData.map((column) => {
           if (column.mode === 'weeks') {

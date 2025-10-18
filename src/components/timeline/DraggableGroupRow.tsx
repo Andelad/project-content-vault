@@ -83,7 +83,7 @@ export function DraggableGroupRow({ group, index, children }: DraggableGroupRowP
     <div ref={ref} className={isDragging ? 'opacity-50' : ''}>
       {/* Group Header with Drag Handle */}
       <div 
-        className="group h-8 border-b border-gray-200 bg-gray-50/50 flex items-center px-4 hover:bg-gray-100/50 transition-colors"
+        className="group h-8 border-b border-gray-200 bg-gray-50 flex items-center px-4 hover:bg-gray-100 transition-colors"
       >
         <div className="opacity-0 group-hover:opacity-100 cursor-grab mr-2 text-gray-400">
           <GripVertical className="w-3 h-3" />

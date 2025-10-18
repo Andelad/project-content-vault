@@ -126,13 +126,32 @@ function calculateDaysModePositions(
   dates: Date[],
   columnWidth: number
 ): TimelinePositionCalculation {
+  const firstDate = dates[0];
+  if (!firstDate) {
+    return { baselineStartPx: 0, baselineWidthPx: 0, circleLeftPx: 0, triangleLeftPx: 0 };
+  }
+
   // Normalize all dates for consistent comparison
   const normalizedProjectStart = normalizeToMidnight(projectStart);
   const normalizedProjectEnd = normalizeToMidnight(projectEnd);
   const normalizedViewportStart = normalizeToMidnight(viewportStart);
   const normalizedViewportEnd = normalizeToMidnight(viewportEnd);
+  const normalizedFirstDate = normalizeToMidnight(firstDate);
 
-  // Find project start/end indices in dates array
+  // Calculate positions based on day offsets from first date (like weeks mode)
+  const msPerDay = 24 * 60 * 60 * 1000;
+  const daysFromStartToProjectStart = Math.floor(
+    (normalizedProjectStart.getTime() - normalizedFirstDate.getTime()) / msPerDay
+  );
+  const daysFromStartToProjectEnd = Math.floor(
+    (normalizedProjectEnd.getTime() - normalizedFirstDate.getTime()) / msPerDay
+  );
+
+  // Calculate exact pixel positions
+  const circleLeftPx = daysFromStartToProjectStart * columnWidth;
+  const triangleLeftPx = (daysFromStartToProjectEnd + 1) * columnWidth;
+
+  // Find project start/end indices in dates array for baseline calculation
   const projectStartIndex = findDateIndex(dates, normalizedProjectStart);
   const projectEndIndex = findDateIndex(dates, normalizedProjectEnd);
 
@@ -147,25 +166,10 @@ function calculateDaysModePositions(
     dates.length
   );
 
-  // Calculate pixel positions
+  // Calculate pixel positions for baseline
   const baselineStartPx = getColumnLeftPosition(baselineStartIndex, columnWidth);
   const baselineEndPx = getColumnLeftPosition(baselineEndIndex, columnWidth) + columnWidth;
   const baselineWidthPx = baselineEndPx - baselineStartPx;
-
-  // Calculate handle positions
-  const circleLeftPx = calculateCirclePosition(
-    projectStartIndex,
-    normalizedProjectStart,
-    normalizedViewportStart,
-    columnWidth
-  );
-
-  const triangleLeftPx = calculateTrianglePosition(
-    projectEndIndex,
-    normalizedProjectEnd,
-    normalizedViewportStart,
-    columnWidth
-  );
 
   return {
     baselineStartPx,
@@ -218,9 +222,8 @@ function calculateCirclePosition(
   viewportStart: Date,
   columnWidth: number
 ): number {
-  if (projectStart < viewportStart) {
-    return 0; // Project starts before viewport
-  }
+  // Always calculate position relative to the dates array, regardless of viewport
+  // This ensures the circle stays with its project date, not stuck at viewport edge
   return Math.max(0, projectStartIndex * columnWidth);
 }
 

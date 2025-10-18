@@ -39,7 +39,7 @@ export const TimelineDateHeaders = memo(function TimelineDateHeaders({ dates, mo
                 }}
               >
                 <div 
-                  className="sticky left-0 bg-gray-50 h-full flex items-center z-10"
+                  className="sticky left-0 bg-gray-50 h-full flex items-center"
                   style={{ 
                     width: 'fit-content',
                     minWidth: '120px',
@@ -112,7 +112,7 @@ export const TimelineDateHeaders = memo(function TimelineDateHeaders({ dates, mo
               }}
             >
               <div 
-                className="sticky left-0 bg-gray-50 h-full flex items-center z-10"
+                className="sticky left-0 bg-gray-50 h-full flex items-center"
                 style={{ 
                   width: 'fit-content',
                   minWidth: '120px',

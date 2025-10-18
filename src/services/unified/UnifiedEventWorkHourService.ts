@@ -302,7 +302,16 @@ export function getProjectTimeAllocation(
     // Performance tracking - call count reached batch size
   }
   
-  // Check if it's a working day
+  // IMPORTANT: Check for planned time FIRST, before checking work day status
+  // Planned/completed time should always show regardless of work day settings
+  const plannedHours = calculatePlannedTimeForDate(projectId, date, events);
+  
+  if (plannedHours > 0) {
+    // Return planned time even on non-work days
+    return { type: 'planned', hours: plannedHours, isWorkingDay: true };
+  }
+  
+  // Now check if it's a working day (only affects auto-estimate)
   const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   const dayName = dayNames[date.getDay()] as keyof typeof settings.weeklyWorkHours;
   const workSlots = settings.weeklyWorkHours[dayName] || [];
@@ -315,15 +324,9 @@ export function getProjectTimeAllocation(
   const isWorkingDay = !isHoliday && Array.isArray(workSlots) && 
     workSlots.reduce((sum, slot) => sum + slot.duration, 0) > 0;
 
+  // For auto-estimate, respect work day restrictions
   if (!isWorkingDay) {
     return { type: 'none', hours: 0, isWorkingDay: false };
-  }
-
-  // Check for planned time (events connected to this project)
-  const plannedHours = calculatePlannedTimeForDate(projectId, date, events);
-  
-  if (plannedHours > 0) {
-    return { type: 'planned', hours: plannedHours, isWorkingDay: true };
   }
 
   // Check if this date is within the project timeframe

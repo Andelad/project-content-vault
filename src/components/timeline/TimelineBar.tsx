@@ -245,21 +245,49 @@ export const TimelineBar = memo(function TimelineBar({
                       const normalizedProjectEnd = new Date(visualProjectEnd);
                       normalizedProjectEnd.setHours(0, 0, 0, 0);
                       const isDayInProject = currentDay >= normalizedProjectStart && currentDay <= normalizedProjectEnd;
-                      // Determine if this specific date actually has work capacity (honors overrides + holidays)
-                      const dayWorkHours = generateWorkHoursForDate(currentDay, settings);
-                      const totalDayWork = calculateWorkHoursTotal(dayWorkHours);
-                      const isHoliday = isHolidayDateCapacity(currentDay, holidays);
-                      const isDayWorking = !isHoliday && totalDayWork > 0;
-                      // Check if this day is enabled for auto-estimation in project settings
-                      const dayOfWeekName = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][currentDay.getDay()];
-                      const autoEstimateDays = project.autoEstimateDays || {
-                        monday: true, tuesday: true, wednesday: true, thursday: true,
-                        friday: true, saturday: true, sunday: true
-                      };
-                      const isDayEnabled = autoEstimateDays[dayOfWeekName as keyof typeof autoEstimateDays];
-                      if (!isDayInProject || !isDayWorking || !isDayEnabled) {
+                      
+                      // First check if day is in project range
+                      if (!isDayInProject) {
                         return <div key={dayOfWeek} style={{ width: `${dayWidth}px` }}></div>;
                       }
+                      
+                      // Get time allocation first to determine if it's planned/completed or auto-estimate
+                      const allocation = TimeAllocationService.generateTimeAllocation(
+                        project.id,
+                        currentDay,
+                        events,
+                        project,
+                        settings,
+                        holidays,
+                        milestoneSegments
+                      );
+                      
+                      // If no allocation at all, skip
+                      if (allocation.type === 'none') {
+                        return <div key={dayOfWeek} style={{ width: `${dayWidth}px` }}></div>;
+                      }
+                      
+                      // For auto-estimate only, check work day restrictions
+                      if (allocation.type === 'auto-estimate') {
+                        // Determine if this specific date actually has work capacity (honors overrides + holidays)
+                        const dayWorkHours = generateWorkHoursForDate(currentDay, settings);
+                        const totalDayWork = calculateWorkHoursTotal(dayWorkHours);
+                        const isHoliday = isHolidayDateCapacity(currentDay, holidays);
+                        const isDayWorking = !isHoliday && totalDayWork > 0;
+                        // Check if this day is enabled for auto-estimation in project settings
+                        const dayOfWeekName = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][currentDay.getDay()];
+                        const autoEstimateDays = project.autoEstimateDays || {
+                          monday: true, tuesday: true, wednesday: true, thursday: true,
+                          friday: true, saturday: true, sunday: true
+                        };
+                        const isDayEnabled = autoEstimateDays[dayOfWeekName as keyof typeof autoEstimateDays];
+                        
+                        // For auto-estimate, respect work day restrictions
+                        if (!isDayWorking || !isDayEnabled) {
+                          return <div key={dayOfWeek} style={{ width: `${dayWidth}px` }}></div>;
+                        }
+                      }
+                      // For planned/completed time, always show regardless of work day settings
                       return (
                         <Tooltip key={dayOfWeek} delayDuration={100}>
                           <TooltipTrigger asChild>
@@ -270,16 +298,7 @@ export const TimelineBar = memo(function TimelineBar({
                                   : ''
                               }`}
                               style={(() => {
-                                // Use centralized time allocation service
-                                const allocation = TimeAllocationService.generateTimeAllocation(
-                                  project.id,
-                                  currentDay,
-                                  events,
-                                  project,
-                                  settings,
-                                  holidays,
-                                  milestoneSegments
-                                );
+                                // Use the allocation we already calculated above
                                 const isPlannedTime = allocation.type === 'planned';
                                 const isPlannedAndCompleted = allocation.isPlannedAndCompleted;
                                 const dayRectangleHeight = allocation.heightInPixels;
@@ -403,20 +422,12 @@ export const TimelineBar = memo(function TimelineBar({
                 normalizedTimelineDate.setHours(0, 0, 0, 0);
                 return normalizedProjectDay.getTime() === normalizedTimelineDate.getTime();
               });
-              // Don't render rectangle if not a project day OR if it's a 0-hour day OR if it's a holiday (respect overrides)
-              const dayWorkHours = generateWorkHoursForDate(date, settings);
-              const totalDayWork = calculateWorkHoursTotal(dayWorkHours);
-              const isHoliday = isHolidayDateCapacity(date, holidays);
-              // Check if this day is enabled for auto-estimation in project settings
-              const dayOfWeekName = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][date.getDay()];
-              const autoEstimateDays = project.autoEstimateDays || {
-                monday: true, tuesday: true, wednesday: true, thursday: true,
-                friday: true, saturday: true, sunday: true
-              };
-              const isDayEnabled = autoEstimateDays[dayOfWeekName as keyof typeof autoEstimateDays];
-              if (!isProjectDay || isHoliday || totalDayWork === 0 || !isDayEnabled) {
+              
+              // First check if day is in project range
+              if (!isProjectDay) {
                 return <div key={dateIndex} className="h-full" style={{ minWidth: '40px', width: '40px' }}></div>;
               }
+              
               // Get time allocation info for this date
               const timeAllocation = memoizedGetProjectTimeAllocation(
                 project.id,
@@ -426,10 +437,32 @@ export const TimelineBar = memo(function TimelineBar({
                 settings,
                 holidays
               );
+              
               // Don't render if no time allocation
               if (timeAllocation.type === 'none') {
                 return <div key={dateIndex} className="h-full" style={{ minWidth: '40px', width: '40px' }}></div>;
               }
+              
+              // For auto-estimate only, check work day restrictions
+              if (timeAllocation.type === 'auto-estimate') {
+                // Don't render rectangle if it's a 0-hour day OR if it's a holiday (respect overrides)
+                const dayWorkHours = generateWorkHoursForDate(date, settings);
+                const totalDayWork = calculateWorkHoursTotal(dayWorkHours);
+                const isHoliday = isHolidayDateCapacity(date, holidays);
+                // Check if this day is enabled for auto-estimation in project settings
+                const dayOfWeekName = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][date.getDay()];
+                const autoEstimateDays = project.autoEstimateDays || {
+                  monday: true, tuesday: true, wednesday: true, thursday: true,
+                  friday: true, saturday: true, sunday: true
+                };
+                const isDayEnabled = autoEstimateDays[dayOfWeekName as keyof typeof autoEstimateDays];
+                
+                // For auto-estimate, respect work day restrictions
+                if (isHoliday || totalDayWork === 0 || !isDayEnabled) {
+                  return <div key={dateIndex} className="h-full" style={{ minWidth: '40px', width: '40px' }}></div>;
+                }
+              }
+              // For planned/completed time, always show regardless of work day settings
               // Normalize project dates for comparison (using visually adjusted dates)
               const projectStart = new Date(visualProjectStart);
               projectStart.setHours(0, 0, 0, 0);

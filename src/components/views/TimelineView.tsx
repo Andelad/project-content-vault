@@ -864,7 +864,7 @@ export function TimelineView() {
               {/* Timeline Card */}
               <Card className="flex-1 flex flex-col overflow-hidden relative timeline-card-container">
                 {/* Column Markers - covers timeline area only, doesn't scroll */}
-                <div className="absolute pointer-events-none z-1" style={{
+                <div className="absolute pointer-events-none" style={{
                   top: '48px', // Below date header
                   bottom: '52px', // Above holiday row
                   left: collapsed ? '48px' : '280px', // After sidebar
@@ -1018,7 +1018,7 @@ export function TimelineView() {
                       height: '100%'
                     }}>
                       {/* Scrollable Content Layer */}
-                      <div className="relative z-10">
+                      <div className="relative">
                         {/* per-row holiday overlays will render inside each row container */}
                       {/* Holiday Overlay */}
                       {/* <HolidayOverlay dates={dates} type="projects" mode={mode} /> */}
