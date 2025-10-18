@@ -24,11 +24,16 @@ export interface ProjectRecurringMilestoneConfig extends BaseRecurringMilestoneC
 export interface RecurringMilestone {
   id: string;
   name: string;
+  // OLD fields (for backward compatibility)
   timeAllocation: number;
+  // NEW fields
+  timeAllocationHours?: number;
+  startDate?: Date;
+  endDate?: Date;
+  isRecurring: true;
   recurringType: 'daily' | 'weekly' | 'monthly';
   recurringInterval: number;
   projectId: string;
-  isRecurring: true;
   weeklyDayOfWeek?: number;
   monthlyPattern?: 'date' | 'dayOfWeek';
   monthlyDate?: number;
@@ -38,8 +43,14 @@ export interface RecurringMilestone {
 
 export interface GeneratedMilestone {
   name: string;
+  // OLD fields (required for backward compatibility)
   dueDate: Date;
   timeAllocation: number;
+  // NEW fields (Phase 5)
+  endDate?: Date;
+  timeAllocationHours?: number;
+  startDate?: Date;
+  isRecurring?: boolean;
 }
 
 export interface RecurringMilestoneCreationResult {
@@ -198,6 +209,7 @@ export class ProjectMilestoneOrchestrator {
   /**
    * Generate milestone instances based on recurring configuration
    * DELEGATES date calculations to core dateCalculations service
+   * Phase 5: Updated to populate new milestone fields
    */
   private static generateRecurringMilestones(
     config: ProjectRecurringMilestoneConfig,
@@ -207,11 +219,32 @@ export class ProjectMilestoneOrchestrator {
     const baseDate = new Date();
 
     for (let i = 0; i < count; i++) {
-      const dueDate = this.calculateNextMilestoneDate(config, baseDate, i);
+      const endDate = this.calculateNextMilestoneDate(config, baseDate, i);
+      
+      // Calculate start date (work backwards by interval)
+      const startDate = new Date(endDate);
+      switch (config.recurringType) {
+        case 'daily':
+          startDate.setDate(startDate.getDate() - config.recurringInterval);
+          break;
+        case 'weekly':
+          startDate.setDate(startDate.getDate() - (7 * config.recurringInterval));
+          break;
+        case 'monthly':
+          startDate.setMonth(startDate.getMonth() - config.recurringInterval);
+          break;
+      }
+      
       const milestone: GeneratedMilestone = {
         name: `${config.name} ${i + 1}`,
-        dueDate,
-        timeAllocation: config.timeAllocation
+        // OLD fields (for backward compatibility)
+        dueDate: endDate,
+        timeAllocation: config.timeAllocation,
+        // NEW fields (Phase 5)
+        endDate,
+        timeAllocationHours: config.timeAllocation,
+        startDate,
+        isRecurring: true
       };
       milestones.push(milestone);
     }
@@ -256,6 +289,7 @@ export class ProjectMilestoneOrchestrator {
   /**
    * Batch insert milestones to database
    * Handles database operations and coordination with external systems
+   * Phase 5: Updated to DUAL-WRITE to old and new columns
    */
   private static async batchInsertMilestones(
     projectId: string,
@@ -275,14 +309,25 @@ export class ProjectMilestoneOrchestrator {
 
     const nextOrderIndex = maxOrderData?.[0]?.order_index ? maxOrderData[0].order_index + 1 : 0;
 
-    // Prepare milestones for batch insert
+    // Prepare milestones for batch insert - DUAL WRITE to old and new columns
     const milestonesToInsert = milestones.map((milestone, index) => ({
       name: milestone.name,
-      due_date: milestone.dueDate.toISOString(),
-      time_allocation: milestone.timeAllocation,
       project_id: projectId,
       user_id: user.id,
-      order_index: nextOrderIndex + index
+      order_index: nextOrderIndex + index,
+      
+      // DUAL-WRITE: Write to BOTH old and new columns
+      due_date: (milestone.endDate || milestone.dueDate).toISOString(),
+      time_allocation: milestone.timeAllocationHours ?? milestone.timeAllocation,
+      time_allocation_hours: milestone.timeAllocationHours ?? milestone.timeAllocation,
+      
+      // NEW columns only
+      start_date: milestone.startDate?.toISOString(),
+      is_recurring: milestone.isRecurring ?? false,
+      recurring_config: milestone.isRecurring ? {
+        type: 'monthly', // Placeholder - actual config comes from parent
+        interval: 1
+      } : null
     }));
 
     // Single database operation

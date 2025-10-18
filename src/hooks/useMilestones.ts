@@ -92,13 +92,20 @@ export function useMilestones(projectId?: string) {
 
       const nextOrderIndex = maxOrderData?.[0]?.order_index ? maxOrderData[0].order_index + 1 : 0;
 
-  const { data, error } = await supabase
+      // DUAL-WRITE: Prepare data with both old and new columns (Phase 5)
+      const insertData: MilestoneInsert = {
+        ...milestoneData,
+        user_id: user.id,
+        order_index: nextOrderIndex,
+        
+        // DUAL-WRITE: Write to BOTH old and new columns for backward compatibility
+        time_allocation: milestoneData.time_allocation,
+        time_allocation_hours: milestoneData.time_allocation_hours ?? milestoneData.time_allocation,
+      };
+
+      const { data, error } = await supabase
         .from('milestones')
-        .insert([{ 
-          ...milestoneData, 
-          user_id: user.id,
-          order_index: nextOrderIndex 
-        }])
+        .insert([insertData])
         .select()
         .single();
 
@@ -136,9 +143,21 @@ export function useMilestones(projectId?: string) {
 
   const updateMilestone = async (id: string, updates: MilestoneUpdate, options: { silent?: boolean } = {}) => {
     try {
+      // DUAL-WRITE: Prepare updates with both old and new columns (Phase 5)
+      const dbUpdates: MilestoneUpdate = { ...updates };
+      
+      // If updating time allocation, write to both columns
+      if (updates.time_allocation !== undefined) {
+        dbUpdates.time_allocation_hours = updates.time_allocation_hours ?? updates.time_allocation;
+      }
+      if (updates.time_allocation_hours !== undefined) {
+        dbUpdates.time_allocation = updates.time_allocation_hours;
+        dbUpdates.time_allocation_hours = updates.time_allocation_hours;
+      }
+      
       const { data, error } = await supabase
         .from('milestones')
-        .update(updates)
+        .update(dbUpdates)
         .eq('id', id)
         .select()
         .single();

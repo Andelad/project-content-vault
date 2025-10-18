@@ -110,13 +110,24 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     refetch: refetchMilestones
   } = useMilestones(); // Fetch all milestones
 
-  // Transform milestones to match app types (camelCase)
+  // Transform milestones to match app types (camelCase) - Phase 5: Added new fields
   const processedMilestones = useMemo(() => (dbMilestones?.map(m => ({
     id: m.id,
     name: m.name,
+    projectId: m.project_id,
+    
+    // OLD fields (for backward compatibility)
     dueDate: new Date(m.due_date),
     timeAllocation: m.time_allocation,
-    projectId: m.project_id,
+    
+    // NEW fields (Phase 5)
+    endDate: new Date(m.due_date), // Maps due_date to endDate
+    timeAllocationHours: m.time_allocation_hours ?? m.time_allocation,
+    startDate: m.start_date ? new Date(m.start_date) : undefined,
+    isRecurring: m.is_recurring ?? false,
+    recurringConfig: m.recurring_config as any,
+    
+    // METADATA
     order: m.order_index,
     userId: m.user_id || '',
     createdAt: m.created_at ? new Date(m.created_at) : new Date(),
@@ -175,19 +186,49 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
   const updateMilestone = useCallback(async (id: string, updates: any, options?: { silent?: boolean }): Promise<void> => {
     // Map camelCase fields from UI to snake_case fields expected by the DB layer
+    // DUAL-WRITE: Write to both old and new columns (Phase 5)
     const dbUpdates: any = {};
+    
     if (updates.name !== undefined) dbUpdates.name = updates.name;
     if (updates.projectId !== undefined) dbUpdates.project_id = updates.projectId;
     if (updates.order !== undefined) dbUpdates.order_index = updates.order;
-    if (updates.timeAllocation !== undefined) dbUpdates.time_allocation = updates.timeAllocation;
+    
+    // DUAL-WRITE for time allocation
+    if (updates.timeAllocation !== undefined) {
+      dbUpdates.time_allocation = updates.timeAllocation;
+      dbUpdates.time_allocation_hours = updates.timeAllocationHours ?? updates.timeAllocation;
+    }
+    if (updates.timeAllocationHours !== undefined) {
+      dbUpdates.time_allocation = updates.timeAllocationHours;
+      dbUpdates.time_allocation_hours = updates.timeAllocationHours;
+    }
 
+    // DUAL-WRITE for due date / end date
     if (updates.dueDate !== undefined) {
-      // Accept Date | string; normalize to ISO string for DB consistency
       if (updates.dueDate instanceof Date) {
         dbUpdates.due_date = updates.dueDate.toISOString();
       } else {
         dbUpdates.due_date = updates.dueDate;
       }
+    }
+    if (updates.endDate !== undefined) {
+      if (updates.endDate instanceof Date) {
+        dbUpdates.due_date = updates.endDate.toISOString();
+      } else {
+        dbUpdates.due_date = updates.endDate;
+      }
+    }
+    
+    // NEW fields
+    if (updates.startDate !== undefined) {
+      dbUpdates.start_date = updates.startDate instanceof Date ? 
+        updates.startDate.toISOString() : updates.startDate;
+    }
+    if (updates.isRecurring !== undefined) {
+      dbUpdates.is_recurring = updates.isRecurring;
+    }
+    if (updates.recurringConfig !== undefined) {
+      dbUpdates.recurring_config = updates.recurringConfig;
     }
 
     await dbUpdateMilestone(id, dbUpdates, options);
