@@ -275,10 +275,14 @@ export type Database = {
           created_at: string
           due_date: string
           id: string
+          is_recurring: boolean | null
           name: string
           order_index: number
           project_id: string
+          recurring_config: Json | null
+          start_date: string | null
           time_allocation: number
+          time_allocation_hours: number | null
           updated_at: string
           user_id: string
         }
@@ -286,10 +290,14 @@ export type Database = {
           created_at?: string
           due_date: string
           id?: string
+          is_recurring?: boolean | null
           name: string
           order_index?: number
           project_id: string
+          recurring_config?: Json | null
+          start_date?: string | null
           time_allocation: number
+          time_allocation_hours?: number | null
           updated_at?: string
           user_id: string
         }
@@ -297,10 +305,14 @@ export type Database = {
           created_at?: string
           due_date?: string
           id?: string
+          is_recurring?: boolean | null
           name?: string
           order_index?: number
           project_id?: string
+          recurring_config?: Json | null
+          start_date?: string | null
           time_allocation?: number
+          time_allocation_hours?: number | null
           updated_at?: string
           user_id?: string
         }
@@ -313,6 +325,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      milestones_backup_20251018: {
+        Row: {
+          created_at: string | null
+          due_date: string | null
+          id: string | null
+          name: string | null
+          order_index: number | null
+          project_id: string | null
+          time_allocation: number | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          due_date?: string | null
+          id?: string | null
+          name?: string | null
+          order_index?: number | null
+          project_id?: string | null
+          time_allocation?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          due_date?: string | null
+          id?: string | null
+          name?: string | null
+          order_index?: number | null
+          project_id?: string | null
+          time_allocation?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
