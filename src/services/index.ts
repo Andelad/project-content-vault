@@ -21,11 +21,10 @@
 
 // 🎯 Core Architecture Layers (New Structure)
 export * from './unified';           // Main API - UnifiedProjectService, UnifiedMilestoneService, etc. (includes ProjectBudgetAnalysis)
-// Export orchestrators but exclude ProjectBudgetAnalysis to avoid naming conflict with unified
+// Export orchestrators
 export { ProjectOrchestrator } from './orchestrators/ProjectOrchestrator';
 export type { ProjectValidationResult, ProjectMilestoneAnalysis, ProjectCreationRequest, ProjectCreationResult, ProjectMilestone, ProjectCreationWithMilestonesRequest, ProjectUpdateRequest } from './orchestrators/ProjectOrchestrator';
 export * from './orchestrators/ProjectMilestoneOrchestrator';
-export * from './orchestrators/TimeAllocationOrchestrator';
 export * from './orchestrators/CalendarOrchestrator';
 export * from './orchestrators/WorkHourOrchestrator';
 export * from './orchestrators/recurringEventsOrchestrator';

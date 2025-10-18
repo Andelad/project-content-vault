@@ -12,10 +12,10 @@ import {
   generateWorkHoursForDate,
   calculateWorkHoursTotal,
   isHolidayDateCapacity,
-  TimeAllocationService,
   getMilestoneSegmentForDate,
   memoizedGetProjectTimeAllocation,
-  getTimelinePositions
+  getTimelinePositions,
+  UnifiedDayEstimateService
 } from '@/services';
 import { ProjectIconIndicator, ProjectMilestones } from '@/components';
 interface TimelineBarProps {
@@ -253,24 +253,46 @@ export const TimelineBar = memo(function TimelineBar({
                         return <div key={dayOfWeek} style={{ width: `${dayWidth}px` }}></div>;
                       }
                       
-                      // Get time allocation first to determine if it's planned/completed or auto-estimate
-                      const allocation = TimeAllocationService.generateTimeAllocation(
+                      // Get time allocation for this day
+                      const timeAllocation = memoizedGetProjectTimeAllocation(
                         project.id,
                         currentDay,
                         events,
                         project,
                         settings,
-                        holidays,
-                        dayEstimates || []
+                        holidays
                       );
                       
+                      // Check day estimates for auto-estimate hours
+                      const dateEstimates = dayEstimates?.filter(est => {
+                        const estDate = new Date(est.date);
+                        estDate.setHours(0, 0, 0, 0);
+                        const currentDayCopy = new Date(currentDay);
+                        currentDayCopy.setHours(0, 0, 0, 0);
+                        return estDate.getTime() === currentDayCopy.getTime();
+                      }) || [];
+                      
+                      const totalHours = timeAllocation.type === 'planned' 
+                        ? timeAllocation.hours
+                        : dateEstimates.reduce((sum, est) => sum + est.hours, 0);
+                      
+                      // Compute allocation properties
+                      const allocationType = timeAllocation.type === 'planned' ? 'planned' : (totalHours > 0 ? 'auto-estimate' : 'none');
+                      const isPlannedTime = allocationType === 'planned';
+                      const isPlannedAndCompleted = isPlannedTime && events.some(e => 
+                        e.projectId === project.id && 
+                        e.completed && 
+                        isSameDate(new Date(e.startTime), currentDay)
+                      );
+                      const heightInPixels = Math.max(3, Math.round(totalHours * 4));
+                      
                       // If no allocation at all, skip
-                      if (allocation.type === 'none') {
+                      if (totalHours === 0) {
                         return <div key={dayOfWeek} style={{ width: `${dayWidth}px` }}></div>;
                       }
                       
                       // For auto-estimate only, check work day restrictions
-                      if (allocation.type === 'auto-estimate') {
+                      if (allocationType === 'auto-estimate') {
                         // Determine if this specific date actually has work capacity (honors overrides + holidays)
                         const dayWorkHours = generateWorkHoursForDate(currentDay, settings);
                         const totalDayWork = calculateWorkHoursTotal(dayWorkHours);
@@ -301,9 +323,7 @@ export const TimelineBar = memo(function TimelineBar({
                               }`}
                               style={(() => {
                                 // Use the allocation we already calculated above
-                                const isPlannedTime = allocation.type === 'planned';
-                                const isPlannedAndCompleted = allocation.isPlannedAndCompleted;
-                                const dayRectangleHeight = allocation.heightInPixels;
+                                const dayRectangleHeight = heightInPixels;
                                 // Determine background color and border based on completion status
                                 let backgroundColor: string;
                                 let borderStyle: any;
@@ -377,29 +397,25 @@ export const TimelineBar = memo(function TimelineBar({
                           </TooltipTrigger>
                           <TooltipContent>
                             {(() => {
-                              // Use centralized service for consistent tooltip values
-                              const allocation = TimeAllocationService.generateTimeAllocation(
-                                project.id,
-                                currentDay,
-                                events,
-                                project,
-                                settings,
-                                holidays,
-                                dayEstimates || []
-                              );
-                              const tooltipInfo = TimeAllocationService.getTooltipInfo(allocation);
-                              // Debug log directly in the first tooltip JSX
+                              // Calculate tooltip info
+                              const tooltipType = isPlannedTime ? 'Planned time' : 'Auto-estimate';
+                              const displayHours = Math.floor(totalHours);
+                              const displayMinutes = Math.round((totalHours - displayHours) * 60);
+                              const displayText = displayMinutes > 0 
+                                ? `${displayHours}h ${displayMinutes}m/day`
+                                : `${displayHours} hour${displayHours !== 1 ? 's' : ''}/day`;
+                              
                               return (
                                 <div className="text-xs">
                                   <div className="font-medium">
-                                    {tooltipInfo.type}
+                                    {tooltipType}
                                   </div>
                                   <div className="text-gray-600">
-                                    {tooltipInfo.displayText}
+                                    {displayText}
                                   </div>
-                                  {allocation.dayEstimates && allocation.dayEstimates.length > 0 && (
+                                  {dateEstimates.length > 0 && (
                                     <div className="text-gray-600 mt-1">
-                                      {allocation.dayEstimates.map((est, idx) => (
+                                      {dateEstimates.map((est, idx) => (
                                         <div key={idx}>
                                           {est.source === 'milestone-allocation' && est.milestoneId ? 
                                             `Milestone allocation: ${est.hours.toFixed(2)}h` :

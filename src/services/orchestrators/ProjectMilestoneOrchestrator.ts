@@ -73,8 +73,119 @@ export interface MilestoneOrchestrationOptions {
  * 
  * Extracts complex milestone workflows from UI components and coordinates
  * with domain services for milestone lifecycle management.
+ * 
+ * CONSOLIDATED RESPONSIBILITIES (Phase 7):
+ * - Milestone CRUD operations
+ * - Milestone validation and scheduling
+ * - Project timeline validation (merged from ProjectTimelineOrchestrator)
+ * - Budget allocation validation
  */
 export class ProjectMilestoneOrchestrator {
+
+  // ============================================================================
+  // PROJECT TIMELINE VALIDATION
+  // ============================================================================
+
+  /**
+   * Validate project timeframe with milestone constraints
+   * SINGLE SOURCE OF TRUTH for project time validation
+   */
+  static validateProjectTimeframe(
+    startDate: Date,
+    endDate: Date,
+    milestones: Milestone[] = [],
+    continuous: boolean = false
+  ): { isValid: boolean; errors: string[]; warnings: string[]; schedulingIssues?: string[] } {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+    const schedulingIssues: string[] = [];
+
+    // Basic project date validation
+    if (endDate <= startDate && !continuous) {
+      errors.push('Project end date must be after start date');
+    }
+
+    // Validate each milestone fits within project bounds
+    const projectStart = new Date(startDate);
+    const projectEnd = new Date(endDate);
+    
+    milestones.forEach((milestone, index) => {
+      const milestoneDate = new Date(milestone.endDate || milestone.dueDate);
+      
+      if (milestoneDate < projectStart) {
+        errors.push(`Milestone "${milestone.name || `#${index + 1}`}" is before project start`);
+      }
+      
+      if (!continuous && milestoneDate > projectEnd) {
+        errors.push(`Milestone "${milestone.name || `#${index + 1}`}" is after project end`);
+      }
+    });
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings,
+      schedulingIssues: schedulingIssues.length > 0 ? schedulingIssues : undefined
+    };
+  }
+
+  /**
+   * Check if project is active on given date
+   */
+  static isProjectActiveOnDate(project: Project, date: Date): boolean {
+    const startDate = new Date(project.startDate);
+    const endDate = new Date(project.endDate);
+    return date >= startDate && date <= endDate;
+  }
+
+  /**
+   * Validate milestone scheduling within project context
+   */
+  static validateMilestoneScheduling(
+    milestone: Partial<Milestone>,
+    project: Project,
+    existingMilestones: Milestone[]
+  ): { canSchedule: boolean; conflicts: string[] } {
+    const conflicts: string[] = [];
+    
+    const requestedDate = new Date(milestone.endDate || milestone.dueDate!);
+    const projectStart = new Date(project.startDate);
+    const projectEnd = new Date(project.endDate);
+    
+    // 1. Verify milestone fits within project timeframe
+    if (requestedDate < projectStart || requestedDate > projectEnd) {
+      conflicts.push('Milestone date must be within project timeframe');
+    }
+
+    // 2. Check for date conflicts with existing milestones
+    const hasDateConflict = existingMilestones.some(m => {
+      const existingDate = new Date(m.endDate || m.dueDate);
+      return Math.abs(existingDate.getTime() - requestedDate.getTime()) < (24 * 60 * 60 * 1000);
+    });
+
+    if (hasDateConflict) {
+      conflicts.push('Another milestone already exists on or near this date');
+    }
+
+    // 3. Budget validation
+    const currentAllocation = existingMilestones.reduce((sum, m) => 
+      sum + (m.timeAllocationHours || m.timeAllocation), 0
+    );
+    const newAllocation = currentAllocation + (milestone.timeAllocationHours || milestone.timeAllocation || 0);
+    
+    if (newAllocation > project.estimatedHours) {
+      conflicts.push(`Would exceed project budget by ${newAllocation - project.estimatedHours} hours`);
+    }
+
+    return {
+      canSchedule: conflicts.length === 0,
+      conflicts
+    };
+  }
+
+  // ============================================================================
+  // RECURRING MILESTONE OPERATIONS
+  // ============================================================================
   /**
    * Create recurring milestones for a project
    * DELEGATES to UnifiedMilestoneService for calculations and domain logic
