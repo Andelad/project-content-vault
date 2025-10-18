@@ -12,6 +12,9 @@ export * from './analyticsCalculations';
 // Date calculations - core date/time functions
 export * from './dateCalculations';
 
+// Day estimate calculations - SINGLE SOURCE OF TRUTH for timeline rectangles
+export * from './dayEstimateCalculations';
+
 // Drag calculations - pure timeline interaction calculations
 export * from './dragCalculations';
 

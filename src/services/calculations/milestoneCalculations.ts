@@ -16,7 +16,7 @@ import * as DateCalculations from './dateCalculations';
  * Calculate total time allocation across milestones
  */
 export function calculateTotalAllocation(milestones: Milestone[]): number {
-  return milestones.reduce((sum, milestone) => sum + (milestone.timeAllocation || 0), 0);
+  return milestones.reduce((sum, milestone) => sum + (milestone.timeAllocationHours || 0), 0);
 }
 
 /**
@@ -49,7 +49,7 @@ export function calculateMilestoneDensity(
   endDate: Date
 ): number {
   const milestonesInRange = milestones.filter(m => 
-    DateCalculations.isDateInRange(m.dueDate, startDate, endDate)
+    DateCalculations.isDateInRange(m.endDate, startDate, endDate)
   );
   
   const totalDays = DateCalculations.calculateDayDifference(startDate, endDate);
@@ -77,7 +77,7 @@ export function calculateAllocationDistribution(milestones: Milestone[]): {
     return { min: 0, max: 0, avg: 0, median: 0 };
   }
 
-  const allocations = milestones.map(m => m.timeAllocation || 0).sort((a, b) => a - b);
+  const allocations = milestones.map(m => m.timeAllocationHours || 0).sort((a, b) => a - b);
   const min = allocations[0];
   const max = allocations[allocations.length - 1];
   const avg = calculateAverageMilestoneAllocation(milestones);
@@ -161,25 +161,25 @@ export function calculateTimelinePressure(
   }
 
   // Sort milestones by date
-  const sortedMilestones = [...milestones].sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+  const sortedMilestones = [...milestones].sort((a, b) => a.endDate.getTime() - b.endDate.getTime());
   
   // Calculate gaps between consecutive milestones
   const gaps: number[] = [];
   
   // Gap from project start to first milestone
-  gaps.push(DateCalculations.calculateDayDifference(projectStartDate, sortedMilestones[0].dueDate));
+  gaps.push(DateCalculations.calculateDayDifference(projectStartDate, sortedMilestones[0].endDate));
   
   // Gaps between consecutive milestones
   for (let i = 1; i < sortedMilestones.length; i++) {
     gaps.push(DateCalculations.calculateDayDifference(
-      sortedMilestones[i - 1].dueDate,
-      sortedMilestones[i].dueDate
+      sortedMilestones[i - 1].endDate,
+      sortedMilestones[i].endDate
     ));
   }
   
   // Gap from last milestone to project end
   gaps.push(DateCalculations.calculateDayDifference(
-    sortedMilestones[sortedMilestones.length - 1].dueDate,
+    sortedMilestones[sortedMilestones.length - 1].endDate,
     projectEndDate
   ));
 
@@ -222,7 +222,7 @@ export function calculateMilestoneVelocity(
     : null;
 
   // Calculate if on track (comparing actual vs expected progress)
-  const expectedCompletedByNow = totalMilestones.filter(m => m.dueDate <= currentDate).length;
+  const expectedCompletedByNow = totalMilestones.filter(m => m.endDate <= currentDate).length;
   const onTrackPercentage = expectedCompletedByNow > 0 
     ? Math.min(100, (completedMilestones.length / expectedCompletedByNow) * 100)
     : 100;
@@ -261,10 +261,10 @@ export function calculateSuggestedMilestoneBudget(
 }
 
 /**
- * Sort milestones by due date
+ * Sort milestones by due date (endDate)
  */
 export function sortMilestonesByDate(milestones: Milestone[]): Milestone[] {
-  return [...milestones].sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+  return [...milestones].sort((a, b) => a.endDate.getTime() - b.endDate.getTime());
 }
 
 /**
@@ -283,11 +283,11 @@ export function findMilestoneGap(
     const current = sortedMilestones[i];
     const next = sortedMilestones[i + 1];
     
-    if (targetDate > current.dueDate && targetDate < next.dueDate) {
-      const startDate = new Date(current.dueDate);
+    if (targetDate > current.endDate && targetDate < next.endDate) {
+      const startDate = new Date(current.endDate);
       startDate.setDate(startDate.getDate() + 1);
       
-      const endDate = new Date(next.dueDate);
+      const endDate = new Date(next.endDate);
       endDate.setDate(endDate.getDate() - 1);
       
       return { startDate, endDate };
@@ -400,7 +400,7 @@ export function generateRecurringMilestoneDates(params: RecurringMilestoneCalcul
 /**
  * Detect recurring pattern from existing milestone names and dates
  */
-export function detectRecurringPattern(milestones: Array<{ name: string; dueDate: Date }>): {
+export function detectRecurringPattern(milestones: Array<{ name: string; endDate: Date }>): {
   baseName: string;
   recurringType: 'daily' | 'weekly' | 'monthly';
   interval: number;
@@ -412,12 +412,12 @@ export function detectRecurringPattern(milestones: Array<{ name: string; dueDate
   if (recurringPattern.length < 2) return null;
   
   const sortedMilestones = recurringPattern.sort((a, b) => 
-    new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+    new Date(a.endDate).getTime() - new Date(b.endDate).getTime()
   );
   
   // Calculate interval between first two milestones
-  const firstDate = new Date(sortedMilestones[0].dueDate);
-  const secondDate = new Date(sortedMilestones[1].dueDate);
+  const firstDate = new Date(sortedMilestones[0].endDate);
+  const secondDate = new Date(sortedMilestones[1].endDate);
   const daysDifference = Math.round(DateCalculations.calculateDurationDays(firstDate, secondDate));
   
   let recurringType: 'daily' | 'weekly' | 'monthly' = 'weekly';
@@ -478,13 +478,13 @@ export function calculateMilestoneSegments(
 
   const segments: MilestoneSegment[] = [];
   const sortedMilestones = [...milestones].sort((a, b) => 
-    new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+    new Date(a.endDate).getTime() - new Date(b.endDate).getTime()
   );
 
   // Create segments between milestones
   for (let i = 0; i < sortedMilestones.length; i++) {
     const milestone = sortedMilestones[i];
-    const milestoneDate = new Date(milestone.dueDate);
+    const milestoneDate = new Date(milestone.endDate);
     
     let segmentStart: Date;
     let segmentEnd: Date;
@@ -497,354 +497,258 @@ export function calculateMilestoneSegments(
       position = 'before';
     } else {
       // Subsequent segments start from previous milestone
-      const prevMilestoneDate = new Date(sortedMilestones[i - 1].dueDate);
-      segmentStart = new Date(prevMilestoneDate);
-      segmentStart.setDate(segmentStart.getDate() + 1);
+      const prevMilestoneDate = new Date(sortedMilestones[i - 1].endDate);
+      const dayAfterPrev = new Date(prevMilestoneDate);
+      dayAfterPrev.setDate(dayAfterPrev.getDate() + 1);
+      
+      segmentStart = dayAfterPrev;
       segmentEnd = new Date(milestoneDate);
       position = 'during';
     }
     
-    // Calculate working days (simplified - excludes weekends)
-    const totalDays = Math.ceil(DateCalculations.calculateDurationDays(segmentStart, segmentEnd));
-    const workingDays = Math.max(1, Math.floor(totalDays * 5/7)); // Approximate working days
-    
-    const estimatedHours = milestone.timeAllocation || 0;
-    const dailyHours = workingDays > 0 ? estimatedHours / workingDays : 0;
+    // Calculate hours per day for this segment
+    const estimatedHours = milestone.timeAllocationHours || 0;
+    const segmentDays = Math.max(1, Math.ceil((segmentEnd.getTime() - segmentStart.getTime()) / (1000 * 60 * 60 * 24)));
     
     segments.push({
       startDate: segmentStart,
       endDate: segmentEnd,
       milestone,
       estimatedHours,
-      dailyHours,
-      workingDays,
+      dailyHours: estimatedHours / segmentDays,
+      workingDays: segmentDays,
       position
     });
   }
+
+  // Handle period after last milestone if exists
+  const lastMilestoneDate = new Date(sortedMilestones[sortedMilestones.length - 1].endDate);
+  const dayAfterLast = new Date(lastMilestoneDate);
+  dayAfterLast.setDate(dayAfterLast.getDate() + 1);
   
-  // Add final segment after last milestone if needed
-  const lastMilestone = sortedMilestones[sortedMilestones.length - 1];
-  const lastMilestoneDate = new Date(lastMilestone.dueDate);
-  if (lastMilestoneDate < projectEndDate) {
-    const finalStart = new Date(lastMilestoneDate);
-    finalStart.setDate(finalStart.getDate() + 1);
-    
-    const totalDays = Math.ceil(DateCalculations.calculateDurationDays(finalStart, projectEndDate));
-    const workingDays = Math.max(1, Math.floor(totalDays * 5/7));
+  if (dayAfterLast < projectEndDate) {
+    const segmentDays = Math.max(1, Math.ceil((projectEndDate.getTime() - dayAfterLast.getTime()) / (1000 * 60 * 60 * 24)));
     
     segments.push({
-      startDate: finalStart,
-      endDate: new Date(projectEndDate),
-      milestone: lastMilestone, // Reference last milestone
-      estimatedHours: 0, // No specific allocation for post-milestone work
+      startDate: dayAfterLast,
+      endDate: projectEndDate,
+      milestone: sortedMilestones[sortedMilestones.length - 1],
+      estimatedHours: 0,
       dailyHours: 0,
-      workingDays,
+      workingDays: segmentDays,
       position: 'after'
     });
   }
-  
+
   return segments;
 }
 
 /**
- * Get milestone segment for a specific date
+ * Calculate project working days (considering autoEstimateDays)
  */
-export function getMilestoneSegmentForDate(
-  date: Date,
-  segments: MilestoneSegment[]
-): MilestoneSegment | null {
-  return segments.find(segment => 
-    date >= segment.startDate && date <= segment.endDate
-  ) || null;
+export function calculateProjectWorkingDays(
+  startDate: Date,
+  endDate: Date,
+  settings: any,
+  holidays: any[]
+): Date[] {
+  const workingDays: Date[] = [];
+  let currentDate = new Date(startDate);
+  
+  while (currentDate <= endDate) {
+    const dayOfWeek = currentDate.getDay();
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const dayName = dayNames[dayOfWeek];
+    
+    // Check if it's a working day in settings
+    const isWorkDay = settings?.weeklyWorkHours?.[dayName]?.length > 0;
+    
+    // Check if it's a holiday
+    const isHoliday = holidays.some(h => {
+      const holidayStart = new Date(h.startDate);
+      const holidayEnd = new Date(h.endDate);
+      return currentDate >= holidayStart && currentDate <= holidayEnd;
+    });
+    
+    if (isWorkDay && !isHoliday) {
+      workingDays.push(new Date(currentDate));
+    }
+    
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+  
+  return workingDays;
 }
 
 /**
- * Calculate milestone interval for scheduling
+ * Calculate milestone distribution over timeline (for visualization)
  */
-export function calculateMilestoneInterval(
-  milestones: Milestone[],
-  projectDurationDays: number
-): number {
-  if (!milestones || milestones.length <= 1) {
-    return projectDurationDays;
-  }
-  
-  const sortedMilestones = [...milestones].sort((a, b) => 
-    new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
-  );
-  
-  let totalInterval = 0;
-  for (let i = 1; i < sortedMilestones.length; i++) {
-    const prevDate = new Date(sortedMilestones[i - 1].dueDate);
-    const currentDate = new Date(sortedMilestones[i].dueDate);
-    const interval = (currentDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24);
-    totalInterval += interval;
-  }
-  
-  return totalInterval / (sortedMilestones.length - 1);
-}
-
-/**
- * Get estimated hours for a specific date based on milestone distribution
- */
-export function getEstimatedHoursForDate(
-  date: Date,
+export function calculateMilestoneDistribution(
   milestones: Milestone[],
   projectStartDate: Date,
   projectEndDate: Date
-): number {
+): MilestoneDistributionEntry[] {
+  const distribution: MilestoneDistributionEntry[] = [];
   const segments = calculateMilestoneSegments(milestones, projectStartDate, projectEndDate);
-  const segment = getMilestoneSegmentForDate(date, segments);
-  return segment ? segment.dailyHours : 0;
-}
-
-/**
- * Get milestone for a specific date
- */
-export function getMilestoneForDate(
-  date: Date,
-  milestones: Milestone[]
-): Milestone | null {
-  return milestones.find(milestone => {
-    const milestoneDate = new Date(milestone.dueDate);
-    // Check if it's the same date (ignoring time)
-    return milestoneDate.toDateString() === date.toDateString();
-  }) || null;
-}
-
-/**
- * Get milestones in a date range
- */
-export function getMilestonesInDateRange(
-  startDate: Date,
-  endDate: Date,
-  milestones: Milestone[]
-): Milestone[] {
-  return milestones.filter(milestone => {
-    const milestoneDate = new Date(milestone.dueDate);
-    return milestoneDate >= startDate && milestoneDate <= endDate;
-  });
-}
-
-// =============================================================================
-// LEGACY MILESTONE CALCULATION SERVICE FUNCTIONS
-// Migrated from: services/legacy/milestones/milestoneCalculationService.ts
-// =============================================================================
-
-/**
- * Flexible milestone type that can handle dueDate as either string or Date
- * Extends core Milestone interface for backward compatibility
- */
-export type FlexibleMilestone = Omit<Milestone, 'dueDate'> & {
-  dueDate: string | Date;
-};
-
-/**
- * Recurring pattern interface
- */
-export interface RecurringPattern {
-  type: 'daily' | 'weekly' | 'monthly';
-  interval: number;
-  baseName: string;
-}
-
-/**
- * Milestone validation result interface
- */
-export interface MilestoneValidationResult {
-  isValid: boolean;
-  totalAllocation: number;
-  exceedsBy?: number;
-  message?: string;
-}
-
-/**
- * Validate milestone allocation against project budget
- */
-export function validateMilestoneAllocation(
-  milestones: FlexibleMilestone[],
-  projectEstimatedHours: number,
-  excludeMilestoneId?: string
-): MilestoneValidationResult {
-  const relevantMilestones = excludeMilestoneId 
-    ? milestones.filter(m => m.id !== excludeMilestoneId)
-    : milestones;
   
-  const totalAllocation = Math.ceil(relevantMilestones.reduce((total, milestone) => total + milestone.timeAllocation, 0));
-  const isValid = totalAllocation <= projectEstimatedHours;
+  let currentDate = new Date(projectStartDate);
+  let dayIndex = 0;
   
-  if (!isValid) {
-    const exceedsBy = totalAllocation - projectEstimatedHours;
-    return {
-      isValid: false,
-      totalAllocation,
-      exceedsBy,
-      message: `Total milestone allocation (${totalAllocation}h) exceeds project budget (${projectEstimatedHours}h) by ${exceedsBy}h.`
-    };
-  }
-  
-  return {
-    isValid: true,
-    totalAllocation
-  };
-}
-
-/**
- * Validate adding a new milestone to existing allocation
- */
-export function validateNewMilestoneAllocation(
-  existingMilestones: FlexibleMilestone[],
-  newMilestoneAllocation: number,
-  projectEstimatedHours: number
-): MilestoneValidationResult {
-  const currentTotal = existingMilestones.reduce((total, milestone) => total + milestone.timeAllocation, 0);
-  const newTotal = Math.ceil(currentTotal + newMilestoneAllocation);
-  const isValid = newTotal <= projectEstimatedHours;
-  
-  if (!isValid) {
-    const exceedsBy = newTotal - projectEstimatedHours;
-    return {
-      isValid: false,
-      totalAllocation: newTotal,
-      exceedsBy,
-      message: `Total milestone allocation (${newTotal}h) would exceed project budget (${projectEstimatedHours}h) by ${exceedsBy}h.`
-    };
-  }
-  
-  return {
-    isValid: true,
-    totalAllocation: newTotal
-  };
-}
-
-/**
- * Validate updating an existing milestone allocation
- */
-export function validateMilestoneUpdate(
-  milestones: FlexibleMilestone[],
-  milestoneId: string,
-  newAllocation: number,
-  projectEstimatedHours: number
-): MilestoneValidationResult {
-  const updatedMilestones = milestones.map(m => 
-    m.id === milestoneId ? { ...m, timeAllocation: newAllocation } : m
-  );
-  
-  return validateMilestoneAllocation(updatedMilestones, projectEstimatedHours);
-}
-
-/**
- * Calculate days difference between two dates
- */
-export function calculateDaysDifference(firstDate: Date | string, secondDate: Date | string): number {
-  const first = new Date(firstDate);
-  const second = new Date(secondDate);
-  return Math.round((second.getTime() - first.getTime()) / (1000 * 60 * 60 * 24));
-}
-
-/**
- * Detect recurring pattern from legacy milestones
- */
-export function detectFlexibleRecurringPattern(milestones: FlexibleMilestone[]): RecurringPattern | null {
-  // Filter milestones that match recurring pattern (ends with space and number)
-  const recurringPattern = milestones.filter(m => 
-    m.name && /\s\d+$/.test(m.name)
-  );
-  
-  if (recurringPattern.length < 1) {
-    return null;
-  }
-  
-  // Sort by due date
-  const sortedMilestones = recurringPattern.sort((a, b) => 
-    new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
-  );
-  
-  let type: 'daily' | 'weekly' | 'monthly' = 'weekly';
-  let interval = 1;
-  
-  if (sortedMilestones.length > 1) {
-    // Calculate interval between milestones
-    const daysDifference = calculateDaysDifference(
-      sortedMilestones[0].dueDate,
-      sortedMilestones[1].dueDate
+  while (currentDate <= projectEndDate) {
+    const segment = segments.find(s => 
+      currentDate >= s.startDate && currentDate <= s.endDate
     );
     
-    if (daysDifference === 1) {
-      type = 'daily';
-      interval = 1;
-    } else if (daysDifference === 7) {
-      type = 'weekly';
-      interval = 1;
-    } else if (daysDifference >= 28 && daysDifference <= 31) {
-      type = 'monthly';
-      interval = 1;
-    } else if (daysDifference % 7 === 0) {
-      type = 'weekly';
-      interval = daysDifference / 7;
-    }
+    const isDeadlineDay = milestones.some(m => 
+      new Date(m.endDate).toDateString() === currentDate.toDateString()
+    );
+    
+    distribution.push({
+      date: new Date(currentDate),
+      estimatedHours: segment?.dailyHours || 0,
+      milestone: segment?.milestone,
+      dayIndex,
+      isDeadlineDay
+    });
+    
+    currentDate.setDate(currentDate.getDate() + 1);
+    dayIndex++;
   }
   
-  // Extract base name (remove the number at the end)
-  const baseName = sortedMilestones[0].name.replace(/\s\d+$/, '') || 'Recurring Milestone';
+  return distribution;
+}
+
+/**
+ * Calculate total allocated hours from milestones
+ */
+export function calculateTotalAllocatedHours(milestones: Milestone[]): number {
+  return milestones.reduce((total, milestone) => total + milestone.timeAllocationHours, 0);
+}
+
+/**
+ * Validate milestone doesn't exceed project budget
+ */
+export function validateMilestoneBudget(
+  currentAllocated: number,
+  newMilestoneHours: number,
+  projectBudget: number
+): {
+  isValid: boolean;
+  totalAfterAddition: number;
+  remaining: number;
+  overage: number;
+} {
+  const totalAfterAddition = currentAllocated + newMilestoneHours;
+  const remaining = Math.max(0, projectBudget - totalAfterAddition);
+  const overage = Math.max(0, totalAfterAddition - projectBudget);
   
   return {
-    type,
-    interval,
-    baseName
+    isValid: totalAfterAddition <= projectBudget,
+    totalAfterAddition,
+    remaining,
+    overage
   };
 }
 
 /**
- * Calculate dynamic input width based on content length
+ * Calculate hours remaining for project
  */
-export function calculateInputWidth(content: string, baseWidth: number = 80, charWidth: number = 8): number {
-  return Math.max(content.length * charWidth + 40, baseWidth);
+export function calculateRemainingProjectHours(
+  projectEstimatedHours: number,
+  existingMilestones: Milestone[]
+): number {
+  const currentTotal = existingMilestones.reduce((total, milestone) => total + milestone.timeAllocationHours, 0);
+  return Math.max(0, projectEstimatedHours - currentTotal);
 }
 
 /**
- * Sort legacy milestones by due date
+ * Validate milestone order (endDate must be after previous milestone)
  */
-export function sortFlexibleMilestonesByDate(milestones: FlexibleMilestone[]): FlexibleMilestone[] {
-  return [...milestones].sort((a, b) => 
-    new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+export function validateMilestoneOrder(
+  newMilestoneDate: Date,
+  existingMilestones: Milestone[],
+  projectStartDate: Date,
+  projectEndDate: Date
+): {
+  isValid: boolean;
+  conflictingMilestone?: Milestone;
+  suggestedDate?: Date;
+} {
+  // Check if within project bounds
+  if (newMilestoneDate < projectStartDate || newMilestoneDate > projectEndDate) {
+    return {
+      isValid: false,
+      suggestedDate: new Date(projectStartDate)
+    };
+  }
+  
+  // Check for date conflicts (same date as another milestone)
+  const conflictingMilestone = existingMilestones.find(m => 
+    new Date(m.endDate).toDateString() === newMilestoneDate.toDateString()
   );
+  
+  if (conflictingMilestone) {
+    return {
+      isValid: false,
+      conflictingMilestone
+    };
+  }
+  
+  return { isValid: true };
 }
 
 /**
- * Format milestone date for display
+ * Find next available milestone date
  */
-export function formatMilestoneDate(date: Date | string): string {
-  const milestoneDate = new Date(date);
-  const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-  ];
-  return `${months[milestoneDate.getMonth()]} ${milestoneDate.getDate()}`;
+export function findNextAvailableMilestoneDate(
+  startSearchDate: Date,
+  existingMilestones: Milestone[],
+  projectEndDate: Date
+): Date {
+  let currentDate = new Date(startSearchDate);
+  
+  while (currentDate <= projectEndDate) {
+    const hasConflict = existingMilestones.some(m => 
+      new Date(m.endDate).toDateString() === currentDate.toDateString()
+    );
+    
+    if (!hasConflict) {
+      return currentDate;
+    }
+    
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+  
+  return projectEndDate;
 }
 
 /**
- * Check if milestone date matches a specific date
+ * Calculate milestone statistics for a project
  */
-export function isMilestoneDueOnDate(milestone: FlexibleMilestone, targetDate: Date): boolean {
-  const milestoneDate = new Date(milestone.dueDate);
-  return milestoneDate.toDateString() === targetDate.toDateString();
+export function calculateMilestoneStatistics(milestones: Milestone[]): {
+  count: number;
+  totalHours: number;
+  averageHours: number;
+  minHours: number;
+  maxHours: number;
+} {
+  if (milestones.length === 0) {
+    return {
+      count: 0,
+      totalHours: 0,
+      averageHours: 0,
+      minHours: 0,
+      maxHours: 0
+    };
+  }
+  
+  const hours = milestones.map(m => m.timeAllocationHours);
+  
+  return {
+    count: milestones.length,
+    totalHours: hours.reduce((sum, h) => sum + h, 0),
+    averageHours: hours.reduce((sum, h) => sum + h, 0) / hours.length,
+    minHours: Math.min(...hours),
+    maxHours: Math.max(...hours)
+  };
 }
-
-/**
- * Generate temporary milestone ID
- */
-export function generateTempId(): string {
-  return `temp-${Date.now()}`;
-}
-
-/**
- * Calculate ordinal number suffix (1st, 2nd, 3rd, etc.)
- */
-export function getOrdinalNumber(num: number): string {
-  const suffix = ['th', 'st', 'nd', 'rd'];
-  const value = num % 100;
-  return num + (suffix[(value - 20) % 10] || suffix[value] || suffix[0]);
-}
-
-// End of milestoneCalculations.ts
