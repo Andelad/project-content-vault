@@ -20,12 +20,26 @@ type MilestoneUpdate = Database['public']['Tables']['milestones']['Update'];
 // =====================================================================================
 
 function transformToDomain(dbMilestone: MilestoneRow): Milestone {
+  const dueDate = new Date(dbMilestone.due_date);
+  const timeAllocation = dbMilestone.time_allocation;
+  
   return {
     id: dbMilestone.id,
     name: dbMilestone.name,
-    dueDate: new Date(dbMilestone.due_date),
-    timeAllocation: dbMilestone.time_allocation,
     projectId: dbMilestone.project_id,
+    
+    // OLD FIELDS (Required for backward compatibility)
+    dueDate,
+    timeAllocation,
+    
+    // NEW FIELDS (Populated from new DB columns when available)
+    endDate: dueDate, // Same as dueDate for now
+    timeAllocationHours: dbMilestone.time_allocation_hours ?? timeAllocation, // Use new column or fallback
+    startDate: dbMilestone.start_date ? new Date(dbMilestone.start_date) : undefined,
+    isRecurring: dbMilestone.is_recurring ?? false,
+    recurringConfig: dbMilestone.recurring_config as any, // JSON already parsed by Supabase
+    
+    // METADATA
     order: dbMilestone.order_index,
     userId: dbMilestone.user_id,
     createdAt: new Date(dbMilestone.created_at),
@@ -36,11 +50,19 @@ function transformToDomain(dbMilestone: MilestoneRow): Milestone {
 function transformToInsert(milestone: Omit<Milestone, 'id' | 'createdAt' | 'updatedAt'>): MilestoneInsert {
   return {
     name: milestone.name,
-    due_date: milestone.dueDate.toISOString(),
-    time_allocation: milestone.timeAllocation,
     project_id: milestone.projectId,
     order_index: milestone.order,
-    user_id: milestone.userId
+    user_id: milestone.userId,
+    
+    // DUAL-WRITE: Write to BOTH old and new columns
+    due_date: (milestone.endDate || milestone.dueDate).toISOString(),
+    time_allocation: milestone.timeAllocationHours ?? milestone.timeAllocation,
+    time_allocation_hours: milestone.timeAllocationHours ?? milestone.timeAllocation,
+    
+    // NEW COLUMNS
+    start_date: milestone.startDate?.toISOString(),
+    is_recurring: milestone.isRecurring ?? false,
+    recurring_config: milestone.recurringConfig as any
   };
 }
 
@@ -48,9 +70,32 @@ function transformToUpdate(updates: Partial<Milestone>): MilestoneUpdate {
   const dbUpdates: MilestoneUpdate = {};
   
   if (updates.name !== undefined) dbUpdates.name = updates.name;
-  if (updates.dueDate !== undefined) dbUpdates.due_date = updates.dueDate.toISOString();
-  if (updates.timeAllocation !== undefined) dbUpdates.time_allocation = updates.timeAllocation;
   if (updates.order !== undefined) dbUpdates.order_index = updates.order;
+  
+  // DUAL-WRITE: Update BOTH old and new columns
+  if (updates.dueDate !== undefined || updates.endDate !== undefined) {
+    const dateToUse = updates.endDate || updates.dueDate;
+    if (dateToUse) dbUpdates.due_date = dateToUse.toISOString();
+  }
+  
+  if (updates.timeAllocation !== undefined || updates.timeAllocationHours !== undefined) {
+    const hoursToUse = updates.timeAllocationHours ?? updates.timeAllocation;
+    if (hoursToUse !== undefined) {
+      dbUpdates.time_allocation = hoursToUse;
+      dbUpdates.time_allocation_hours = hoursToUse;
+    }
+  }
+  
+  // NEW COLUMNS
+  if (updates.startDate !== undefined) {
+    dbUpdates.start_date = updates.startDate?.toISOString();
+  }
+  if (updates.isRecurring !== undefined) {
+    dbUpdates.is_recurring = updates.isRecurring;
+  }
+  if (updates.recurringConfig !== undefined) {
+    dbUpdates.recurring_config = updates.recurringConfig as any;
+  }
   
   return dbUpdates;
 }
