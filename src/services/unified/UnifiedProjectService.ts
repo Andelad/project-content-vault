@@ -1,182 +1,34 @@
 /**
  * UNIFIED PROJECT SERVICE
- * Single source of truth for project business logic
- * Consolidates duplicate project calculations across services
+ * 
+ * RESPONSIBILITY: Core project entity calculations and business logic
+ * 
+ * USE WHEN:
+ * - Calculating project duration, workload, or daily allocation
+ * - Validating project dates or business rules
+ * - Analyzing project budget vs milestone allocation
+ * - Working with project properties (no event/time-tracking data needed)
+ * 
+ * DON'T USE WHEN:
+ * - You need progress tracking with actual work hours → Use UnifiedProjectProgressService
+ * - You need timeline rendering calculations → Use UnifiedDayEstimateService
+ * - You need UI positioning → Use services/ui/TimelinePositioning
+ * 
+ * DELEGATES TO: 
+ * - calculations/dateCalculations (date math)
+ * - UnifiedProjectEntity (domain rules)
+ * 
+ * @see UnifiedProjectProgressService for progress tracking with calendar events
+ * @see UnifiedDayEstimateService for day-by-day timeline calculations
+ * @see UnifiedTimelineService for timeline UI coordination
  */
 
 import { Project, Milestone } from '@/types';
 import { calculateDurationDays } from '@/services/calculations/dateCalculations';
+import { ProjectRules } from '@/domain/rules/ProjectRules';
 
 // ============================================================================
-// PROJECT BUSINESS LOGIC CONSOLIDATION
-// ============================================================================
-
-/**
- * Calculate project duration in days
- * Replaces duplicate implementations in:
- * - projectProgressService.calculateProjectDuration
- * - ProjectCalculationService.calculateDuration
- * - ProjectMetricsCalculationService methods
- */
-export function calculateProjectDuration(startDate: Date, endDate: Date): number {
-  // ✅ DELEGATE to domain layer - no manual date math!
-  return calculateDurationDays(startDate, endDate);
-}
-
-/**
- * Calculate project progress percentage
- * Single source replacing multiple progress calculations
- */
-export function calculateProjectProgress(
-  project: Project,
-  currentDate: Date = new Date()
-): number {
-  const startDate = new Date(project.startDate);
-  const endDate = new Date(project.endDate);
-  
-  if (currentDate <= startDate) return 0;
-  if (currentDate >= endDate) return 100;
-  
-  const totalDuration = calculateProjectDuration(startDate, endDate);
-  const elapsed = calculateProjectDuration(startDate, currentDate);
-  
-  return Math.min(100, Math.max(0, (elapsed / totalDuration) * 100));
-}
-
-/**
- * Calculate total project workload (estimated hours)
- * Consolidates workload calculations from multiple services
- */
-export function calculateProjectWorkload(project: Project): number {
-  return project.estimatedHours || 0;
-}
-
-/**
- * Calculate daily work hours allocation for project
- * Replaces duplicate daily allocation calculations
- */
-export function calculateDailyWorkAllocation(
-  project: Project,
-  targetDate: Date
-): number {
-  const projectDuration = calculateProjectDuration(
-    new Date(project.startDate),
-    new Date(project.endDate)
-  );
-  
-  if (projectDuration <= 0) return 0;
-  
-  return (project.estimatedHours || 0) / projectDuration;
-}
-
-// ============================================================================
-// MILESTONE BUSINESS LOGIC CONSOLIDATION  
-// ============================================================================
-
-/**
- * Calculate milestone completion status
- * Single source for milestone progress calculations
- */
-export function calculateMilestoneProgress(
-  milestone: Milestone,
-  project: Project,
-  currentDate: Date = new Date()
-): { completed: boolean; overdue: boolean; progress: number } {
-  const milestoneDate = milestone.endDate || milestone.dueDate;
-  const projectStart = new Date(project.startDate);
-  
-  const completed = currentDate >= milestoneDate;
-  const overdue = currentDate > milestoneDate; // Simplified - no completed field in Milestone type
-  
-  // Calculate progress based on time elapsed
-  const totalTime = milestoneDate.getTime() - projectStart.getTime();
-  const elapsedTime = currentDate.getTime() - projectStart.getTime();
-  const progress = totalTime > 0 ? Math.min(100, Math.max(0, (elapsedTime / totalTime) * 100)) : 0;
-  
-  return { completed, overdue, progress };
-}
-
-/**
- * Calculate time distribution for milestone
- * Replaces milestoneUtilitiesService.calculateMilestoneTimeDistribution
- */
-export function calculateMilestoneTimeDistribution(
-  milestone: Milestone,
-  project: Project
-): { beforeDays: number; afterDays: number; totalDays: number } {
-  const projectStart = new Date(project.startDate);
-  const projectEnd = new Date(project.endDate);
-  const milestoneDate = milestone.endDate || milestone.dueDate;
-  
-  const totalDays = calculateProjectDuration(projectStart, projectEnd);
-  const beforeDays = calculateProjectDuration(projectStart, milestoneDate);
-  const afterDays = totalDays - beforeDays;
-  
-  return { beforeDays, afterDays, totalDays };
-}
-
-// ============================================================================
-// PROJECT VALIDATION & BUSINESS RULES
-// ============================================================================
-
-/**
- * Validate project date constraints
- * Consolidated business rule validation
- */
-export function validateProjectDates(
-  startDate: Date,
-  endDate: Date,
-  milestones: Milestone[] = []
-): { valid: boolean; errors: string[] } {
-  const errors: string[] = [];
-
-  // Basic date validation using domain entity
-  if (!UnifiedProjectEntity.validateDateRange(startDate, endDate)) {
-    errors.push('Project end date must be after start date');
-  }
-
-  // Milestone validation
-  milestones.forEach(milestone => {
-    const milestoneDate = milestone.endDate || milestone.dueDate;
-    if (milestoneDate < startDate || milestoneDate > endDate) {
-      errors.push(`Milestone "${milestone.name || 'Unnamed'}" is outside project date range`);
-    }
-  });
-
-  return {
-    valid: errors.length === 0,
-    errors
-  };
-}
-
-/**
- * Check if project is active on given date
- * Single source for project activity checks
- */
-export function isProjectActiveOnDate(project: Project, date: Date): boolean {
-  const startDate = new Date(project.startDate);
-  const endDate = new Date(project.endDate);
-  
-  return date >= startDate && date <= endDate;
-}
-
-// ============================================================================
-// DELEGATION WRAPPERS (for migration compatibility)
-// ============================================================================
-
-/**
- * Legacy wrapper for projectProgressService.calculateProjectDuration
- * TODO: Remove after migration complete
- */
-export function calculateProjectDuration_LEGACY(project: Project): number {
-  return calculateProjectDuration(
-    new Date(project.startDate),
-    new Date(project.endDate)
-  );
-}
-
-// ============================================================================
-// PROJECT ENTITY BUSINESS LOGIC (Migrated from core/domain)
+// TYPE DEFINITIONS
 // ============================================================================
 
 export interface ProjectBudgetAnalysis {
@@ -204,223 +56,415 @@ export interface ProjectDateValidation {
   errors: string[];
 }
 
+export interface MilestoneProgress {
+  completed: boolean;
+  overdue: boolean;
+  progress: number;
+}
+
+export interface MilestoneTimeDistribution {
+  beforeDays: number;
+  afterDays: number;
+  totalDays: number;
+}
+
+// ============================================================================
+// UNIFIED PROJECT SERVICE - CLASS-BASED PATTERN
+// ============================================================================
+
 /**
- * Project Domain Rules - Migrated from ProjectEntity
+ * Unified Project Service
+ * 
+ * Single source of truth for project entity operations and business logic.
+ * All methods are static - this is a service class, not an entity.
+ */
+export class UnifiedProjectService {
+  
+  // ==========================================================================
+  // PROJECT DURATION & TIME CALCULATIONS
+  // ==========================================================================
+  
+  /**
+   * Calculate project duration in days
+   * Replaces duplicate implementations across legacy services
+   */
+  static calculateDuration(startDate: Date, endDate: Date): number {
+    return calculateDurationDays(startDate, endDate);
+  }
+  
+  /**
+   * Calculate project duration from project entity
+   */
+  static calculateProjectDuration(project: Project): number {
+    return this.calculateDuration(
+      new Date(project.startDate),
+      new Date(project.endDate)
+    );
+  }
+  
+  /**
+   * Calculate time-based progress percentage (no event data)
+   * For actual work progress, use UnifiedProjectProgressService
+   */
+  static calculateTimeProgress(
+    project: Project,
+    currentDate: Date = new Date()
+  ): number {
+    const startDate = new Date(project.startDate);
+    const endDate = new Date(project.endDate);
+    
+    if (currentDate <= startDate) return 0;
+    if (currentDate >= endDate) return 100;
+    
+    const totalDuration = this.calculateDuration(startDate, endDate);
+    const elapsed = this.calculateDuration(startDate, currentDate);
+    
+    return Math.min(100, Math.max(0, (elapsed / totalDuration) * 100));
+  }
+  
+  /**
+   * Calculate daily work hours allocation for project
+   */
+  static calculateDailyAllocation(project: Project): number {
+    const projectDuration = this.calculateProjectDuration(project);
+    if (projectDuration <= 0) return 0;
+    return (project.estimatedHours || 0) / projectDuration;
+  }
+  
+  /**
+   * Get total project workload (estimated hours)
+   */
+  static getWorkload(project: Project): number {
+    return project.estimatedHours || 0;
+  }
+  
+  // ==========================================================================
+  // PROJECT VALIDATION
+  // ==========================================================================
+  
+  /**
+   * Validate project date constraints
+   */
+  static validateDates(
+    startDate: Date,
+    endDate: Date,
+    milestones: Milestone[] = []
+  ): { valid: boolean; errors: string[] } {
+    const errors: string[] = [];
+
+    // Use domain rules for date validation
+    if (!ProjectRules.validateDateRange(startDate, endDate)) {
+      errors.push('Project end date must be after start date');
+    }
+
+    milestones.forEach(milestone => {
+      const milestoneDate = milestone.endDate || milestone.dueDate;
+      if (milestoneDate < startDate || milestoneDate > endDate) {
+        errors.push(`Milestone "${milestone.name || 'Unnamed'}" is outside project date range`);
+      }
+    });
+
+    return {
+      valid: errors.length === 0,
+      errors
+    };
+  }
+  
+  /**
+   * Check if project is active on given date
+   */
+  static isActiveOnDate(project: Project, date: Date): boolean {
+    const startDate = new Date(project.startDate);
+    const endDate = new Date(project.endDate);
+    return date >= startDate && date <= endDate;
+  }
+  
+  // ==========================================================================
+  // MILESTONE CALCULATIONS (Time-based only)
+  // ==========================================================================
+  
+  /**
+   * Calculate milestone time-based status (no event data)
+   * For work-based milestone progress, use UnifiedProjectProgressService
+   */
+  static calculateMilestoneStatus(
+    milestone: Milestone,
+    project: Project,
+    currentDate: Date = new Date()
+  ): MilestoneProgress {
+    const milestoneDate = milestone.endDate || milestone.dueDate;
+    const projectStart = new Date(project.startDate);
+    
+    const completed = currentDate >= milestoneDate;
+    const overdue = currentDate > milestoneDate;
+    
+    const totalTime = milestoneDate.getTime() - projectStart.getTime();
+    const elapsedTime = currentDate.getTime() - projectStart.getTime();
+    const progress = totalTime > 0 ? 
+      Math.min(100, Math.max(0, (elapsedTime / totalTime) * 100)) : 0;
+    
+    return { completed, overdue, progress };
+  }
+  
+  /**
+   * Calculate time distribution for milestone
+   */
+  static calculateMilestoneDistribution(
+    milestone: Milestone,
+    project: Project
+  ): MilestoneTimeDistribution {
+    const projectStart = new Date(project.startDate);
+    const projectEnd = new Date(project.endDate);
+    const milestoneDate = milestone.endDate || milestone.dueDate;
+    
+    const totalDays = this.calculateDuration(projectStart, projectEnd);
+    const beforeDays = this.calculateDuration(projectStart, milestoneDate);
+    const afterDays = totalDays - beforeDays;
+    
+    return { beforeDays, afterDays, totalDays };
+  }
+  
+  // ==========================================================================
+  // BUDGET & ALLOCATION ANALYSIS
+  // ==========================================================================
+  
+  /**
+   * Analyze project budget vs milestone allocation
+   */
+  static analyzeBudget(project: Project, milestones: Milestone[]): ProjectBudgetAnalysis {
+    return UnifiedProjectEntity.analyzeBudget(project, milestones);
+  }
+  
+  /**
+   * Validate project time constraints
+   */
+  static validateTimeConstraints(
+    estimatedHours: number,
+    milestones: Milestone[]
+  ): ProjectTimeValidation {
+    return UnifiedProjectEntity.validateProjectTime(estimatedHours, milestones);
+  }
+}
+
+// ============================================================================
+// BACKWARD COMPATIBILITY - Legacy Function Exports
+// ============================================================================
+
+/**
+ * @deprecated Use UnifiedProjectService.calculateDuration() instead
+ */
+export function calculateProjectDuration(startDate: Date, endDate: Date): number {
+  return UnifiedProjectService.calculateDuration(startDate, endDate);
+}
+
+/**
+ * @deprecated Use UnifiedProjectService.calculateTimeProgress() instead
+ */
+export function calculateProjectProgress(
+  project: Project,
+  currentDate: Date = new Date()
+): number {
+  return UnifiedProjectService.calculateTimeProgress(project, currentDate);
+}
+
+/**
+ * @deprecated Use UnifiedProjectService.getWorkload() instead
+ */
+export function calculateProjectWorkload(project: Project): number {
+  return UnifiedProjectService.getWorkload(project);
+}
+
+/**
+ * @deprecated Use UnifiedProjectService.calculateDailyAllocation() instead
+ */
+export function calculateDailyWorkAllocation(project: Project, targetDate: Date): number {
+  return UnifiedProjectService.calculateDailyAllocation(project);
+}
+
+/**
+ * @deprecated Use UnifiedProjectService.calculateMilestoneStatus() instead
+ */
+export function calculateMilestoneProgress(
+  milestone: Milestone,
+  project: Project,
+  currentDate: Date = new Date()
+): MilestoneProgress {
+  return UnifiedProjectService.calculateMilestoneStatus(milestone, project, currentDate);
+}
+
+/**
+ * @deprecated Use UnifiedProjectService.calculateMilestoneDistribution() instead
+ */
+export function calculateMilestoneTimeDistribution(
+  milestone: Milestone,
+  project: Project
+): MilestoneTimeDistribution {
+  return UnifiedProjectService.calculateMilestoneDistribution(milestone, project);
+}
+
+/**
+ * @deprecated Use UnifiedProjectService.validateDates() instead
+ */
+export function validateProjectDates(
+  startDate: Date,
+  endDate: Date,
+  milestones: Milestone[] = []
+): { valid: boolean; errors: string[] } {
+  return UnifiedProjectService.validateDates(startDate, endDate, milestones);
+}
+
+/**
+ * @deprecated Use UnifiedProjectService.isActiveOnDate() instead
+ */
+export function isProjectActiveOnDate(project: Project, date: Date): boolean {
+  return UnifiedProjectService.isActiveOnDate(project, date);
+}
+
+/**
+ * @deprecated Legacy wrapper - use UnifiedProjectService.calculateProjectDuration() instead
+ */
+export function calculateProjectDuration_LEGACY(project: Project): number {
+  return UnifiedProjectService.calculateProjectDuration(project);
+}
+
+// ============================================================================
+// PROJECT ENTITY DOMAIN LOGIC
+// ============================================================================
+
+/**
+ * Project Domain Entity
+ * 
+ * DEPRECATED: This class is being migrated to the domain layer.
+ * All methods now delegate to ProjectRules in src/domain/rules/ProjectRules.ts
+ * 
+ * @deprecated Use ProjectRules from @/domain instead
+ * @see ProjectRules in src/domain/rules/ProjectRules.ts
  */
 export class UnifiedProjectEntity {
   /**
    * Domain Rule: Project estimated hours must be positive
+   * @deprecated Use ProjectRules.validateEstimatedHours() instead
    */
   static validateEstimatedHours(hours: number): boolean {
-    return hours > 0;
+    return ProjectRules.validateEstimatedHours(hours);
   }
 
   /**
    * Domain Rule: Project start date must be before end date (for time-limited projects)
+   * @deprecated Use ProjectRules.validateDateRange() instead
    */
   static validateDateRange(startDate: Date, endDate: Date): boolean {
-    return startDate < endDate;
+    return ProjectRules.validateDateRange(startDate, endDate);
   }
 
   /**
    * Domain Rule: Continuous projects don't have end dates
+   * @deprecated Use ProjectRules.isContinuousProject() instead
    */
   static isContinuousProject(project: Project): boolean {
-    return project.continuous === true;
+    return ProjectRules.isContinuousProject(project);
   }
 
   /**
    * Domain Rule: Time-limited projects have both start and end dates
+   * @deprecated Use ProjectRules.isTimeLimitedProject() instead
    */
   static isTimeLimitedProject(project: Project): boolean {
-    return !this.isContinuousProject(project);
+    return ProjectRules.isTimeLimitedProject(project);
   }
 
   /**
    * Domain Rule: Calculate total milestone allocation for a project
+   * @deprecated Use ProjectRules.calculateTotalMilestoneAllocation() instead
    */
   static calculateTotalMilestoneAllocation(milestones: Milestone[]): number {
-    return milestones.reduce((sum, milestone) => {
-      const hours = milestone.timeAllocationHours ?? milestone.timeAllocation ?? 0;
-      return sum + hours;
-    }, 0);
+    return ProjectRules.calculateTotalMilestoneAllocation(milestones);
   }
 
   /**
    * Domain Rule: Calculate project budget analysis
+   * @deprecated Use ProjectRules.analyzeBudget() instead
    */
   static analyzeBudget(project: Project, milestones: Milestone[]): ProjectBudgetAnalysis {
-    const totalEstimatedHours = project.estimatedHours;
-    const totalAllocatedHours = this.calculateTotalMilestoneAllocation(milestones);
-    const remainingHours = totalEstimatedHours - totalAllocatedHours;
-    const utilizationPercent = totalEstimatedHours > 0 ? 
-      (totalAllocatedHours / totalEstimatedHours) * 100 : 0;
-    const isOverBudget = totalAllocatedHours > totalEstimatedHours;
-    const overageHours = Math.max(0, totalAllocatedHours - totalEstimatedHours);
-    const suggestedBudget = Math.max(totalEstimatedHours, totalAllocatedHours);
-
-    return {
-      totalAllocation: totalAllocatedHours,
-      suggestedBudget,
-      isOverBudget,
-      overageHours,
-      utilizationPercentage: utilizationPercent,
-      // Legacy properties for backward compatibility
-      totalEstimatedHours,
-      totalAllocatedHours,
-      remainingHours,
-      utilizationPercent
-    };
+    return ProjectRules.analyzeBudget(project, milestones);
   }
 
   /**
    * Domain Rule: Check if project can accommodate additional milestone hours
+   * @deprecated Use ProjectRules.canAccommodateAdditionalHours() instead
    */
   static canAccommodateAdditionalHours(
     project: Project, 
     milestones: Milestone[], 
     additionalHours: number
   ): boolean {
-    const analysis = this.analyzeBudget(project, milestones);
-    return analysis.remainingHours >= additionalHours;
+    return ProjectRules.canAccommodateAdditionalHours(project, milestones, additionalHours);
   }
 
   /**
    * Domain Rule: Validate project time constraints
+   * @deprecated Use ProjectRules.validateProjectTime() instead
    */
   static validateProjectTime(
     estimatedHours: number,
     milestones: Milestone[]
   ): ProjectTimeValidation {
-    const errors: string[] = [];
-    const warnings: string[] = [];
-
-    if (!this.validateEstimatedHours(estimatedHours)) {
-      errors.push('Project estimated hours must be greater than 0');
-    }
-
-    const totalAllocated = this.calculateTotalMilestoneAllocation(milestones);
-    if (totalAllocated > estimatedHours) {
-      errors.push(`Total milestone allocation (${totalAllocated}h) exceeds project budget (${estimatedHours}h)`);
-    }
-
-    if (totalAllocated > estimatedHours * 0.9) {
-      warnings.push('Milestone allocation is over 90% of project budget');
-    }
-
-    return {
-      isValid: errors.length === 0,
-      errors,
-      warnings
-    };
+    return ProjectRules.validateProjectTime(estimatedHours, milestones);
   }
 
   /**
    * Domain Rule: Validate project date constraints
+   * @deprecated Use ProjectRules.validateProjectDates() instead
    */
   static validateProjectDates(
     startDate: Date,
     endDate: Date | undefined,
     continuous: boolean = false
   ): ProjectDateValidation {
-    const errors: string[] = [];
-
-    if (continuous && endDate) {
-      errors.push('Continuous projects should not have an end date');
-    }
-
-    if (!continuous && !endDate) {
-      errors.push('Time-limited projects must have an end date');
-    }
-
-    if (!continuous && endDate && !this.validateDateRange(startDate, endDate)) {
-      errors.push('Project start date must be before end date');
-    }
-
-    const hasValidRange = continuous || (endDate && this.validateDateRange(startDate, endDate));
-
-    return {
-      isValid: errors.length === 0,
-      hasValidRange: hasValidRange || false,
-      errors
-    };
+    return ProjectRules.validateProjectDates(startDate, endDate, continuous);
   }
 
   /**
    * Domain Rule: Calculate project duration in days (for time-limited projects)
+   * @deprecated Use ProjectRules.calculateProjectDuration() instead
    */
   static calculateProjectDuration(project: Project): number | null {
-    if (this.isContinuousProject(project)) {
-      return null; // Continuous projects have no fixed duration
-    }
-
-    const diffTime = project.endDate.getTime() - project.startDate.getTime();
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return ProjectRules.calculateProjectDuration(project);
   }
 
   /**
    * Domain Rule: Check if a date falls within project timeframe
+   * @deprecated Use ProjectRules.isDateWithinProject() instead
    */
   static isDateWithinProject(date: Date, project: Project): boolean {
-    if (this.isContinuousProject(project)) {
-      // For continuous projects, only check if date is after start
-      return date >= project.startDate;
-    }
-
-    // For time-limited projects, check if date is within range
-    return date >= project.startDate && date <= project.endDate;
+    return ProjectRules.isDateWithinProject(date, project);
   }
 
   /**
    * Domain Rule: Calculate suggested milestone budget based on project duration
+   * @deprecated Use ProjectRules.suggestMilestoneBudget() instead
    */
   static suggestMilestoneBudget(
     project: Project, 
     milestoneCount: number
   ): number {
-    if (milestoneCount <= 0) return 0;
-    
-    // Domain rule: Distribute budget evenly across milestones as starting point
-    return Math.round(project.estimatedHours / milestoneCount);
+    return ProjectRules.suggestMilestoneBudget(project, milestoneCount);
   }
 
   /**
    * Domain Rule: Format project duration display
+   * @deprecated Use ProjectRules.formatProjectDuration() instead
    */
   static formatProjectDuration(project: Project): string {
-    const duration = this.calculateProjectDuration(project);
-    
-    if (duration === null) {
-      return 'Ongoing';
-    }
-
-    if (duration === 1) {
-      return '1 day';
-    }
-
-    if (duration < 7) {
-      return `${duration} days`;
-    }
-
-    const weeks = Math.round(duration / 7);
-    if (weeks === 1) {
-      return '1 week';
-    }
-
-    if (weeks < 5) {
-      return `${weeks} weeks`;
-    }
-
-    const months = Math.round(duration / 30);
-    return months === 1 ? '1 month' : `${months} months`;
+    return ProjectRules.formatProjectDuration(project);
   }
 
   /**
    * Domain Rule: Check if project status is valid
+   * @deprecated Use ProjectRules.isValidStatus() instead
    */
   static isValidStatus(status?: string): boolean {
-    if (!status) return true; // Status is optional
-    return ['current', 'future', 'archived'].includes(status);
+    return ProjectRules.isValidStatus(status);
   }
 
   /**

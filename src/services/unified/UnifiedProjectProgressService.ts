@@ -1,15 +1,35 @@
 /**
- * Project Progress Service
+ * UNIFIED PROJECT PROGRESS SERVICE
  * 
- * Handles all project progress calculations, milestone analysis, and timeline progression.
- * Extracted from legacy progress services for better organization.
+ * RESPONSIBILITY: Project progress tracking and analysis with actual work data
  * 
- * Architecture: Domain -> Calculations -> Orchestrators -> Validators -> Repository
+ * USE WHEN:
+ * - Tracking actual work progress vs estimated progress
+ * - Analyzing "on track" status with calendar events
+ * - Generating progress graphs and data points
+ * - Calculating comprehensive time metrics with work hours
+ * - Milestone progress analysis with actual completion data
+ * 
+ * DON'T USE WHEN:
+ * - You need simple time-based calculations → Use UnifiedProjectService
+ * - You need day-by-day timeline rendering → Use UnifiedDayEstimateService
+ * - You need budget analysis without events → Use UnifiedProjectService
+ * 
+ * KEY DISTINCTION FROM UnifiedProjectService:
+ * - This service requires calendar events/work hours for progress tracking
+ * - UnifiedProjectService only needs project properties (no event data)
+ * 
+ * DELEGATES TO:
+ * - calculations/projectOperations (progress calculations)
+ * - calculations/dateCalculations (date math)
+ * 
+ * @see UnifiedProjectService for project entity calculations (no events needed)
+ * @see UnifiedDayEstimateService for day-by-day timeline calculations
+ * @see UnifiedTimelineService for timeline UI coordination
  */
 
 import { Project, CalendarEvent, Holiday, Settings, Milestone } from '@/types/core';
 import { calculateDurationDays } from '@/services/calculations/dateCalculations';
-import { APP_LOCALE } from '@/utils/dateFormatUtils';
 import {
   ProjectEvent,
   MilestoneWithProgress,
@@ -17,17 +37,15 @@ import {
   ComprehensiveProjectTimeMetrics,
   calculateProjectDuration,
   getProjectEvents,
-  calculateEventDurationHours,
   buildPlannedTimeMap,
   getPlannedTimeUpToDate,
   getCompletedTimeUpToDate,
   getRelevantMilestones,
-  calculateProgressPercentage,
   calculateProjectTimeMetrics
 } from '../calculations/projectOperations';
 
 // =====================================================================================
-// TYPES & INTERFACES
+// TYPE DEFINITIONS
 // =====================================================================================
 
 export interface ProgressCalculationOptions {
@@ -43,209 +61,7 @@ export interface ProjectStatus {
   estimatedCompletion: Date;
 }
 
-// =====================================================================================
-// PROJECT PROGRESS ANALYSIS
-// =====================================================================================
-
-/**
- * Calculate estimated progress for a specific date using milestone interpolation
- */
-export function getEstimatedProgressForDate(
-  targetDate: Date,
-  project: Project,
-  milestones: Milestone[]
-): number {
-  const startDate = new Date(project.startDate);
-  const endDate = new Date(project.endDate);
-  const relevantMilestones = getRelevantMilestones(milestones, project.id);
-  
-  if (relevantMilestones.length === 0) {
-    // No milestones, use linear interpolation
-    // ✅ DELEGATE to domain layer - no manual date math!
-    const totalDays = calculateDurationDays(startDate, endDate);
-    const targetDays = calculateDurationDays(startDate, targetDate);
-    
-    if (totalDays === 0) return 0;
-    const progressRatio = Math.min(1, Math.max(0, targetDays / totalDays));
-    return project.estimatedHours * progressRatio;
-  }
-  
-  // Find the milestone segment this date falls into
-  let prevDate = startDate;
-  let prevHours = 0;
-  
-  for (const milestone of relevantMilestones) {
-    const milestoneDate = milestone.endDate || milestone.dueDate;
-    const timeAllocation = milestone.timeAllocationHours ?? milestone.timeAllocation;
-    
-    if (targetDate <= milestoneDate) {
-      // Target date is within this segment, interpolate
-      // ✅ DELEGATE to domain layer - no manual date math!
-      const segmentDays = calculateDurationDays(prevDate, milestoneDate);
-      const targetDays = calculateDurationDays(prevDate, targetDate);
-      
-      if (segmentDays === 0) return prevHours + timeAllocation;
-      
-      const progressRatio = targetDays / segmentDays;
-      return prevHours + (timeAllocation * progressRatio);
-    }
-    
-    // Move to next segment
-    prevDate = milestoneDate;
-    prevHours += timeAllocation;
-  }
-  
-  // Target date is after all milestones, interpolate to end date
-  const segmentDays = Math.ceil((endDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
-  const targetDays = Math.ceil((targetDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
-  
-  if (segmentDays === 0) return project.estimatedHours;
-  
-  const remainingHours = project.estimatedHours - prevHours;
-  const progressRatio = Math.min(1, targetDays / segmentDays);
-  return prevHours + (remainingHours * progressRatio);
-}
-
-/**
- * Calculate progress data points for the entire project timeline
- */
-export function calculateProjectProgressData(
-  project: Project,
-  events: ProjectEvent[],
-  milestones: Milestone[] = [],
-  options: ProgressCalculationOptions = {}
-): DataPoint[] {
-  const startDate = new Date(project.startDate);
-  const endDate = new Date(project.endDate);
-  const totalDays = calculateProjectDuration(project);
-  
-  if (totalDays <= 0) return [];
-  
-  const projectEvents = getProjectEvents(events, project.id);
-  const relevantMilestones = getRelevantMilestones(milestones, project.id);
-  const data: DataPoint[] = [];
-  
-  // Add starting point
-  const completedTimeAtStart = getCompletedTimeUpToDate(projectEvents, project.id, startDate);
-  
-  data.push({
-    date: new Date(startDate),
-    estimatedProgress: 0,
-    completedTime: completedTimeAtStart,
-    plannedTime: getPlannedTimeUpToDate(events, project.id, startDate)
-  });
-  
-  if (relevantMilestones.length > 0) {
-    // Add milestone points
-    let cumulativeEstimatedHours = 0;
-    
-    relevantMilestones.forEach((milestone) => {
-      const milestoneDate = milestone.endDate || milestone.dueDate;
-      const timeAllocation = milestone.timeAllocationHours ?? milestone.timeAllocation;
-      cumulativeEstimatedHours += timeAllocation;
-      
-      const completedTimeAtMilestone = getCompletedTimeUpToDate(projectEvents, project.id, milestoneDate);
-      
-      data.push({
-        date: new Date(milestoneDate),
-        estimatedProgress: cumulativeEstimatedHours,
-        completedTime: completedTimeAtMilestone,
-        plannedTime: getPlannedTimeUpToDate(events, project.id, milestoneDate)
-      });
-    });
-  }
-  
-  // Add end point
-  const completedTimeAtEnd = getCompletedTimeUpToDate(projectEvents, project.id, endDate);
-  
-  data.push({
-    date: new Date(endDate),
-    estimatedProgress: project.estimatedHours,
-    completedTime: completedTimeAtEnd,
-    plannedTime: getPlannedTimeUpToDate(events, project.id, endDate)
-  });
-  
-  return data;
-}
-
-/**
- * Check if project is on track based on current date and progress
- */
-export function isProjectOnTrack(
-  project: Project,
-  events: ProjectEvent[],
-  milestones: Milestone[] = [],
-  currentDate: Date = new Date()
-): boolean {
-  const expectedProgress = getEstimatedProgressForDate(currentDate, project, milestones);
-  const actualProgress = getCompletedTimeUpToDate(events, project.id, currentDate);
-  
-  // Consider on track if within 10% of expected progress
-  const tolerance = expectedProgress * 0.1;
-  return actualProgress >= (expectedProgress - tolerance);
-}
-
-/**
- * Calculate comprehensive project status
- */
-export function calculateProjectStatus(project: Project): ProjectStatus {
-  const now = new Date();
-  const startDate = new Date(project.startDate);
-  const endDate = new Date(project.endDate);
-  
-  // Determine project status
-  let status: ProjectStatus['status'];
-  if (now < startDate) {
-    status = 'not-started';
-  } else if (now > endDate) {
-    status = 'overdue';
-  } else {
-    // Check if completed
-    // This would need actual completion data - simplified for now
-    status = 'in-progress';
-  }
-  
-  // Calculate days remaining
-  const daysRemaining = Math.max(0, Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
-  
-  // Calculate progress percentage (simplified - would need actual events)
-  const totalDays = calculateProjectDuration(project);
-  const elapsedDays = Math.max(0, Math.ceil((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
-  const progressPercentage = totalDays > 0 ? Math.min(100, (elapsedDays / totalDays) * 100) : 0;
-  
-  // Determine health based on progress vs time elapsed
-  let health: ProjectStatus['health'];
-  if (progressPercentage >= 90) {
-    health = 'on-track';
-  } else if (progressPercentage >= 70) {
-    health = 'at-risk';
-  } else {
-    health = 'behind';
-  }
-  
-  return {
-    status,
-    health,
-    progressPercentage,
-    daysRemaining,
-    estimatedCompletion: endDate
-  };
-}
-
-// =====================================================================================
-// PROGRESS ANALYSIS FUNCTIONS
-// =====================================================================================
-
-/**
- * Analyze project progress with detailed metrics
- */
-export function analyzeProjectProgress(
-  project: Project,
-  events: CalendarEvent[],
-  milestones: MilestoneWithProgress[],
-  holidays: Holiday[],
-  settings: Settings
-): {
+export interface ProjectProgressAnalysis {
   timeMetrics: ComprehensiveProjectTimeMetrics;
   progressData: DataPoint[];
   status: ProjectStatus;
@@ -256,56 +72,9 @@ export function analyzeProjectProgress(
     daysUntilDue: number;
     progressToward: number;
   }>;
-} {
-  // Convert CalendarEvent[] to ProjectEvent[] for progress calculations
-  const projectEvents: ProjectEvent[] = events
-    .filter(event => event.projectId === project.id)
-    .map(event => ({
-      id: event.id,
-      projectId: event.projectId,
-      startTime: new Date(event.startTime),
-      endTime: new Date(event.endTime || event.startTime),
-      completed: event.completed || false
-    }));
-
-  const timeMetrics = calculateProjectTimeMetrics(project, projectEvents, holidays, new Date());
-  const progressData = calculateProjectProgressData(project, projectEvents, milestones);
-  const status = calculateProjectStatus(project);
-  const isOnTrack = isProjectOnTrack(project, projectEvents, milestones);
-
-  // Analyze milestone progress
-  const relevantMilestones = getRelevantMilestones(milestones, project.id);
-  const today = new Date();
-  
-  const milestoneProgress = relevantMilestones.map(milestone => {
-    const dueDate = milestone.endDate || milestone.dueDate;
-    const timeAllocation = milestone.timeAllocationHours ?? milestone.timeAllocation;
-    const daysUntilDue = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    const expectedProgress = getEstimatedProgressForDate(today, project, milestones);
-    const actualProgress = getCompletedTimeUpToDate(projectEvents, project.id, today); // Fix function call
-    
-    return {
-      milestone,
-      isCompleted: milestone.completed || false,
-      daysUntilDue,
-      progressToward: timeAllocation > 0 ? (actualProgress / timeAllocation) * 100 : 0
-    };
-  });
-
-  return {
-    timeMetrics,
-    progressData,
-    status,
-    isOnTrack,
-    milestoneProgress
-  };
 }
 
-// =====================================================================================
-// LEGACY COMPATIBILITY FUNCTIONS 
-// =====================================================================================
-
-// Legacy interfaces for backward compatibility with ProjectProgressGraph component
+// Legacy interfaces for backward compatibility
 export interface ProgressGraphCalculationOptions {
   project: Project;
   events: CalendarEvent[];
@@ -321,7 +90,7 @@ export interface ProgressDataPoint {
   plannedTime: number;
 }
 
-export interface ProjectProgressAnalysis {
+export interface LegacyProjectProgressAnalysis {
   progressData: ProgressDataPoint[];
   maxHours: number;
   totalDays: number;
@@ -343,12 +112,277 @@ export interface ProjectProgressAnalysis {
   };
 }
 
+// =====================================================================================
+// UNIFIED PROJECT PROGRESS SERVICE - CLASS-BASED PATTERN
+// =====================================================================================
+
 /**
- * Legacy compatibility wrapper for analyzeProjectProgress
- * Maintains backward compatibility with existing ProjectProgressGraph component
- * Migrated from legacy projectProgressGraphService
+ * Unified Project Progress Service
+ * 
+ * Single source of truth for project progress tracking with actual work data.
+ * All methods are static - this is a service class, not an entity.
  */
-export function analyzeProjectProgressLegacy(options: ProgressGraphCalculationOptions): ProjectProgressAnalysis {
+export class UnifiedProjectProgressService {
+  
+  // ===================================================================================
+  // ESTIMATED PROGRESS CALCULATIONS (Milestone-based interpolation)
+  // ===================================================================================
+  
+  /**
+   * Calculate estimated progress for a specific date using milestone interpolation
+   * Returns expected hours that should be completed by target date
+   */
+  static getEstimatedProgress(
+    targetDate: Date,
+    project: Project,
+    milestones: Milestone[]
+  ): number {
+    const startDate = new Date(project.startDate);
+    const endDate = new Date(project.endDate);
+    const relevantMilestones = getRelevantMilestones(milestones, project.id);
+    
+    if (relevantMilestones.length === 0) {
+      // No milestones, use linear interpolation
+      const totalDays = calculateDurationDays(startDate, endDate);
+      const targetDays = calculateDurationDays(startDate, targetDate);
+      
+      if (totalDays === 0) return 0;
+      const progressRatio = Math.min(1, Math.max(0, targetDays / totalDays));
+      return project.estimatedHours * progressRatio;
+    }
+    
+    // Find the milestone segment this date falls into
+    let prevDate = startDate;
+    let prevHours = 0;
+    
+    for (const milestone of relevantMilestones) {
+      const milestoneDate = milestone.endDate || milestone.dueDate;
+      const timeAllocation = milestone.timeAllocationHours ?? milestone.timeAllocation;
+      
+      if (targetDate <= milestoneDate) {
+        // Target date is within this segment, interpolate
+        const segmentDays = calculateDurationDays(prevDate, milestoneDate);
+        const targetDays = calculateDurationDays(prevDate, targetDate);
+        
+        if (segmentDays === 0) return prevHours + timeAllocation;
+        
+        const progressRatio = targetDays / segmentDays;
+        return prevHours + (timeAllocation * progressRatio);
+      }
+      
+      // Move to next segment
+      prevDate = milestoneDate;
+      prevHours += timeAllocation;
+    }
+    
+    // Target date is after all milestones, interpolate to end date
+    const segmentDays = Math.ceil((endDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
+    const targetDays = Math.ceil((targetDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (segmentDays === 0) return project.estimatedHours;
+    
+    const remainingHours = project.estimatedHours - prevHours;
+    const progressRatio = Math.min(1, targetDays / segmentDays);
+    return prevHours + (remainingHours * progressRatio);
+  }
+  
+  // ===================================================================================
+  // PROGRESS DATA & ANALYSIS
+  // ===================================================================================
+  
+  /**
+   * Calculate progress data points for the entire project timeline
+   * Used for rendering progress charts/graphs
+   */
+  static calculateProgressData(
+    project: Project,
+    events: ProjectEvent[],
+    milestones: Milestone[] = [],
+    options: ProgressCalculationOptions = {}
+  ): DataPoint[] {
+    const startDate = new Date(project.startDate);
+    const endDate = new Date(project.endDate);
+    const totalDays = calculateProjectDuration(project);
+    
+    if (totalDays <= 0) return [];
+    
+    const projectEvents = getProjectEvents(events, project.id);
+    const relevantMilestones = getRelevantMilestones(milestones, project.id);
+    const data: DataPoint[] = [];
+    
+    // Add starting point
+    const completedTimeAtStart = getCompletedTimeUpToDate(projectEvents, project.id, startDate);
+    
+    data.push({
+      date: new Date(startDate),
+      estimatedProgress: 0,
+      completedTime: completedTimeAtStart,
+      plannedTime: getPlannedTimeUpToDate(events, project.id, startDate)
+    });
+    
+    if (relevantMilestones.length > 0) {
+      // Add milestone points
+      let cumulativeEstimatedHours = 0;
+      
+      relevantMilestones.forEach((milestone) => {
+        const milestoneDate = milestone.endDate || milestone.dueDate;
+        const timeAllocation = milestone.timeAllocationHours ?? milestone.timeAllocation;
+        cumulativeEstimatedHours += timeAllocation;
+        
+        const completedTimeAtMilestone = getCompletedTimeUpToDate(projectEvents, project.id, milestoneDate);
+        
+        data.push({
+          date: new Date(milestoneDate),
+          estimatedProgress: cumulativeEstimatedHours,
+          completedTime: completedTimeAtMilestone,
+          plannedTime: getPlannedTimeUpToDate(events, project.id, milestoneDate)
+        });
+      });
+    }
+    
+    // Add end point
+    const completedTimeAtEnd = getCompletedTimeUpToDate(projectEvents, project.id, endDate);
+    
+    data.push({
+      date: new Date(endDate),
+      estimatedProgress: project.estimatedHours,
+      completedTime: completedTimeAtEnd,
+      plannedTime: getPlannedTimeUpToDate(events, project.id, endDate)
+    });
+    
+    return data;
+  }
+  
+  /**
+   * Check if project is on track based on current date and progress
+   * Compares actual completed hours vs expected hours at current date
+   */
+  static isOnTrack(
+    project: Project,
+    events: ProjectEvent[],
+    milestones: Milestone[] = [],
+    currentDate: Date = new Date()
+  ): boolean {
+    const expectedProgress = this.getEstimatedProgress(currentDate, project, milestones);
+    const actualProgress = getCompletedTimeUpToDate(events, project.id, currentDate);
+    
+    // Consider on track if within 10% of expected progress
+    const tolerance = expectedProgress * 0.1;
+    return actualProgress >= (expectedProgress - tolerance);
+  }
+  
+  /**
+   * Calculate comprehensive project status
+   */
+  static calculateStatus(project: Project): ProjectStatus {
+    const now = new Date();
+    const startDate = new Date(project.startDate);
+    const endDate = new Date(project.endDate);
+    
+    // Determine project status
+    let status: ProjectStatus['status'];
+    if (now < startDate) {
+      status = 'not-started';
+    } else if (now > endDate) {
+      status = 'overdue';
+    } else {
+      status = 'in-progress';
+    }
+    
+    // Calculate days remaining
+    const daysRemaining = Math.max(0, Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+    
+    // Calculate progress percentage (simplified - would need actual events)
+    const totalDays = calculateProjectDuration(project);
+    const elapsedDays = Math.max(0, Math.ceil((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+    const progressPercentage = totalDays > 0 ? Math.min(100, (elapsedDays / totalDays) * 100) : 0;
+    
+    // Determine health based on progress vs time elapsed
+    let health: ProjectStatus['health'];
+    if (progressPercentage >= 90) {
+      health = 'on-track';
+    } else if (progressPercentage >= 70) {
+      health = 'at-risk';
+    } else {
+      health = 'behind';
+    }
+    
+    return {
+      status,
+      health,
+      progressPercentage,
+      daysRemaining,
+      estimatedCompletion: endDate
+    };
+  }
+  
+  // ===================================================================================
+  // COMPREHENSIVE PROGRESS ANALYSIS
+  // ===================================================================================
+  
+  /**
+   * Analyze project progress with detailed metrics
+   * Combines time metrics, progress data, status, and milestone progress
+   */
+  static analyzeProgress(
+    project: Project,
+    events: CalendarEvent[],
+    milestones: MilestoneWithProgress[],
+    holidays: Holiday[],
+    settings: Settings
+  ): ProjectProgressAnalysis {
+    // Convert CalendarEvent[] to ProjectEvent[] for progress calculations
+    const projectEvents: ProjectEvent[] = events
+      .filter(event => event.projectId === project.id)
+      .map(event => ({
+        id: event.id,
+        projectId: event.projectId,
+        startTime: new Date(event.startTime),
+        endTime: new Date(event.endTime || event.startTime),
+        completed: event.completed || false
+      }));
+
+    const timeMetrics = calculateProjectTimeMetrics(project, projectEvents, holidays, new Date());
+    const progressData = this.calculateProgressData(project, projectEvents, milestones);
+    const status = this.calculateStatus(project);
+    const isOnTrack = this.isOnTrack(project, projectEvents, milestones);
+
+    // Analyze milestone progress
+    const relevantMilestones = getRelevantMilestones(milestones, project.id);
+    const today = new Date();
+    
+    const milestoneProgress = relevantMilestones.map(milestone => {
+      const dueDate = milestone.endDate || milestone.dueDate;
+      const timeAllocation = milestone.timeAllocationHours ?? milestone.timeAllocation;
+      const daysUntilDue = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      const actualProgress = getCompletedTimeUpToDate(projectEvents, project.id, today);
+      
+      return {
+        milestone,
+        isCompleted: milestone.completed || false,
+        daysUntilDue,
+        progressToward: timeAllocation > 0 ? (actualProgress / timeAllocation) * 100 : 0
+      };
+    });
+
+    return {
+      timeMetrics,
+      progressData,
+      status,
+      isOnTrack,
+      milestoneProgress
+    };
+  }
+  
+  // ===================================================================================
+  // LEGACY COMPATIBILITY (for ProjectProgressGraph component)
+  // ===================================================================================
+  
+  /**
+   * Legacy compatibility wrapper for existing ProjectProgressGraph component
+   * @deprecated Use analyzeProgress() for new implementations
+   */
+  static analyzeProgressLegacy(options: ProgressGraphCalculationOptions): LegacyProjectProgressAnalysis {
   const { project, events, milestones = [] } = options;
   const startDate = new Date(project.startDate);
   const endDate = new Date(project.endDate);
@@ -485,32 +519,101 @@ export function analyzeProjectProgressLegacy(options: ProgressGraphCalculationOp
                               Math.abs(variance.estimatedVsPlanned);
   }
   
-  return {
-    progressData,
-    maxHours,
-    totalDays,
-    progressMethod,
-    completionRate,
-    estimatedCompletionDate,
-    isOnTrack,
-    variance,
-    trends
-  };
+    return {
+      progressData,
+      maxHours,
+      totalDays,
+      progressMethod,
+      completionRate,
+      estimatedCompletionDate,
+      isOnTrack,
+      variance,
+      trends
+    };
+  }
 }
 
 // =====================================================================================
-// EXPORTS (for backward compatibility)
+// BACKWARD COMPATIBILITY - Legacy Function Exports
+// =====================================================================================
+
+/**
+ * @deprecated Use UnifiedProjectProgressService.getEstimatedProgress() instead
+ */
+export function getEstimatedProgressForDate(
+  targetDate: Date,
+  project: Project,
+  milestones: Milestone[]
+): number {
+  return UnifiedProjectProgressService.getEstimatedProgress(targetDate, project, milestones);
+}
+
+/**
+ * @deprecated Use UnifiedProjectProgressService.calculateProgressData() instead
+ */
+export function calculateProjectProgressData(
+  project: Project,
+  events: ProjectEvent[],
+  milestones: Milestone[] = [],
+  options: ProgressCalculationOptions = {}
+): DataPoint[] {
+  return UnifiedProjectProgressService.calculateProgressData(project, events, milestones, options);
+}
+
+/**
+ * @deprecated Use UnifiedProjectProgressService.isOnTrack() instead
+ */
+export function isProjectOnTrack(
+  project: Project,
+  events: ProjectEvent[],
+  milestones: Milestone[] = [],
+  currentDate: Date = new Date()
+): boolean {
+  return UnifiedProjectProgressService.isOnTrack(project, events, milestones, currentDate);
+}
+
+/**
+ * @deprecated Use UnifiedProjectProgressService.calculateStatus() instead
+ */
+export function calculateProjectStatus(project: Project): ProjectStatus {
+  return UnifiedProjectProgressService.calculateStatus(project);
+}
+
+/**
+ * @deprecated Use UnifiedProjectProgressService.analyzeProgress() instead
+ */
+export function analyzeProjectProgress(
+  project: Project,
+  events: CalendarEvent[],
+  milestones: MilestoneWithProgress[],
+  holidays: Holiday[],
+  settings: Settings
+): ProjectProgressAnalysis {
+  return UnifiedProjectProgressService.analyzeProgress(project, events, milestones, holidays, settings);
+}
+
+/**
+ * @deprecated Use UnifiedProjectProgressService.analyzeProgressLegacy() instead
+ */
+export function analyzeProjectProgressLegacy(options: ProgressGraphCalculationOptions): LegacyProjectProgressAnalysis {
+  return UnifiedProjectProgressService.analyzeProgressLegacy(options);
+}
+
+// =====================================================================================
+// RE-EXPORTS (for convenience)
 // =====================================================================================
 
 // Re-export key calculation functions for convenience
 export {
   calculateProjectDuration,
   getProjectEvents,
-  calculateEventDurationHours,
   buildPlannedTimeMap,
   getPlannedTimeUpToDate,
   getCompletedTimeUpToDate,
-  calculateProgressPercentage,
   getRelevantMilestones,
-  calculateProjectTimeMetrics
+  calculateProjectTimeMetrics,
+  type ProjectEvent,
+  type MilestoneWithProgress,
+  type DataPoint,
+  type ComprehensiveProjectTimeMetrics
 } from '../calculations/projectOperations';

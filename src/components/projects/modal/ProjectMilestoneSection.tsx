@@ -19,12 +19,11 @@ import {
   detectRecurringPattern, 
   // NEW: Unified service imports (replacing legacy MilestoneManagementService)
   UnifiedMilestoneService,
-  UnifiedMilestoneEntity,
-  UnifiedProjectEntity,
   // MilestoneOrchestrator, // Deprecated - using ProjectMilestoneOrchestrator instead
   ProjectOrchestrator,
   ProjectMilestoneOrchestrator
 } from '@/services';
+import { MilestoneRules } from '@/domain/rules/MilestoneRules';
 import { supabase } from '@/integrations/supabase/client';
 
 // Helper functions for day and date patterns
@@ -207,16 +206,24 @@ export function ProjectMilestoneSection({
     setEditingRecurringLoad(false);
   };
 
-  // Helper function to check if milestone allocation would exceed budget using domain entity
+  // Helper function to check if milestone allocation would exceed budget using domain rules
   const wouldExceedBudget = (milestoneId: string, newTimeAllocation: number) => {
     const validMilestones = projectMilestones.filter(m => m.id) as Milestone[];
-    const validation = UnifiedMilestoneEntity.wouldUpdateExceedBudget(
-      validMilestones,
-      milestoneId,
-      newTimeAllocation,
+    
+    // Simulate the updated milestone list with the new time allocation
+    const updatedMilestones = validMilestones.map(m => 
+      m.id === milestoneId 
+        ? { ...m, timeAllocation: newTimeAllocation, timeAllocationHours: newTimeAllocation }
+        : m
+    );
+    
+    // Use domain rules to check budget constraint
+    const budgetCheck = MilestoneRules.checkBudgetConstraint(
+      updatedMilestones,
       projectEstimatedHours
     );
-    return !validation.isValid;
+    
+    return !budgetCheck.isValid;
   };
 
   // Helper function to handle property saving for milestones

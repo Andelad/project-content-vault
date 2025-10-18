@@ -1,4 +1,11 @@
-# 🏗️ AI-Optimized Services Architecture Guide
+# 🏗️ AI-Optimized Ser## 🎯 Core Logic Flow:
+```
+Components/Hooks → Unified Services → Orchestrators → Domain Layer (Business Rules)
+                                                            ↓
+                                                    Validators + Calculations + Repositories
+```
+
+**Key Principle**: All business logic flows through the **Domain Layer** (single source of truth).s Architecture Guide
 
 > **SINGLE SOURCE OF TRUTH** for AI development in this codebase. This guide reflects the actual services architecture and intended logic flow.
 
@@ -27,37 +34,54 @@ Components/Hooks → Unified Services → Orchestrators → Validators + Calcula
 
 ### Directory Structure:
 ```
-src/services/
-├── unified/                     # Main API - Components import from here
-│   ├── UnifiedProjectService.ts
-│   ├── UnifiedTimeTrackingService.ts
-│   └── UnifiedMilestoneService.ts
-├── orchestrators/               # Workflow coordination
-│   ├── ProjectOrchestrator.ts
-│   └── TimeTrackingOrchestrator.ts
-├── calculations/                # Pure business calculations
-│   ├── ProjectCalculations.ts
-│   ├── TimeCalculations.ts
-│   └── timeTrackingCalculations.ts
-├── validators/                  # Business rules validation
-│   ├── ProjectValidator.ts
-│   └── TimeTrackingValidator.ts
-├── repositories/                # Data access layer
-│   ├── ProjectRepository.ts
-│   └── TimeTrackingRepository.ts
-├── ui/                         # View-specific positioning
-│   ├── TimelinePositioning.ts
-│   └── CalendarLayout.ts
-├── infrastructure/             # Technical utilities
-│   ├── calculationCache.ts
-│   ├── colorCalculations.ts
-│   └── dateCalculationService.ts
-├── performance/               # Performance optimization
-│   ├── cachePerformanceService.ts
-│   ├── dragPerformanceService.ts
-│   └── performanceMetricsService.ts
-├── legacy/                    # Migration safety (temporary)
-└── index.ts                   # Barrel exports
+src/
+├── domain/                      # ⭐ NEW: Business Logic Layer (Single Source of Truth)
+│   ├── entities/                # Domain entities with business rules
+│   │   ├── Project.ts
+│   │   ├── Milestone.ts
+│   │   ├── Group.ts
+│   │   └── Row.ts
+│   ├── rules/                   # Centralized business rules
+│   │   ├── ProjectRules.ts
+│   │   ├── MilestoneRules.ts
+│   │   └── RelationshipRules.ts
+│   ├── value-objects/           # Immutable value types
+│   │   ├── TimeAllocation.ts
+│   │   └── DateRange.ts
+│   └── index.ts
+├── services/
+│   ├── unified/                 # Main API - Components import from here
+│   │   ├── UnifiedProjectService.ts
+│   │   ├── UnifiedTimeTrackingService.ts
+│   │   └── UnifiedMilestoneService.ts
+│   ├── orchestrators/           # Workflow coordination
+│   │   ├── ProjectOrchestrator.ts
+│   │   └── TimeTrackingOrchestrator.ts
+│   ├── calculations/            # Pure mathematical calculations
+│   │   ├── ProjectCalculations.ts
+│   │   ├── TimeCalculations.ts
+│   │   └── timeTrackingCalculations.ts
+│   ├── validators/              # Business rules validation (delegates to domain)
+│   │   ├── ProjectValidator.ts
+│   │   └── TimeTrackingValidator.ts
+│   ├── repositories/            # Data access layer
+│   │   ├── ProjectRepository.ts
+│   │   └── TimeTrackingRepository.ts
+│   ├── ui/                      # View-specific positioning
+│   │   ├── TimelinePositioning.ts
+│   │   └── CalendarLayout.ts
+│   ├── infrastructure/          # Technical utilities
+│   │   ├── calculationCache.ts
+│   │   ├── colorCalculations.ts
+│   │   └── dateCalculationService.ts
+│   ├── performance/             # Performance optimization
+│   │   ├── cachePerformanceService.ts
+│   │   ├── dragPerformanceService.ts
+│   │   └── performanceMetricsService.ts
+│   ├── legacy/                  # Migration safety (temporary)
+│   └── index.ts                 # Barrel exports
+└── types/
+    └── core.ts                  # Type definitions (structure only)
 ```
 
 ## 🎨 Type Architecture - Single Source of Truth
@@ -133,8 +157,10 @@ interface ProjectModalProps {
 
 | User Request | Code Type | Exact Location | Pattern |
 |--------------|-----------|----------------|---------|
-| "calculate project duration" | Business logic | `unified/UnifiedProjectService.ts` | `static calculateDuration()` |
-| "validate milestone budget" | Business logic | `unified/UnifiedMilestoneService.ts` | `static validateBudget()` |
+| ⭐ "define business rule" | **Business rule** | `domain/rules/ProjectRules.ts` | `static validateX()` |
+| ⭐ "check if valid" | **Business rule** | `domain/rules/` | Reference business rules |
+| "calculate project duration" | Pure calculation | `calculations/dateCalculations.ts` | Pure function (math only) |
+| "validate milestone budget" | Validation workflow | `validators/MilestoneValidator.ts` | Calls domain rules |
 | "position timeline bar" | UI logic | `ui/TimelinePositioning.ts` | `static calculateBarPosition()` |
 | "coordinate project creation" | Workflow | `orchestrators/ProjectOrchestrator.ts` | `async createProject()` |
 | "save project data" | Data access | `repositories/ProjectRepository.ts` | `async saveProject()` |
@@ -185,12 +211,22 @@ import { calculateDuration } from '@/services/legacy/calculations'; // Legacy im
 import { projectHelper } from '@/services/helpers/projectHelper'; // Helpers pattern
 ```
 
-## 🏢 Service Layer Responsibilities
+## 🏢 Architecture Layer Responsibilities
+
+### ⭐ Domain Layer (NEW - Single Source of Truth):
+- **Purpose**: Define business entities, rules, and relationships
+- **Contains**: 
+  - Domain entities (Project, Milestone, etc.) with embedded business rules
+  - Business rules (validation, constraints, invariants)
+  - Value objects (TimeAllocation, DateRange)
+  - Relationship definitions
+- **Example**: `ProjectRules.validateBudget()`, `Project.canAddMilestone()`
+- **Reference**: See `docs/BUSINESS_LOGIC_REFERENCE.md`
 
 ### Unified Services (Main API):
 - **Purpose**: Primary interface for components
-- **Contains**: Business logic, high-level operations
-- **Example**: `UnifiedProjectService.createProject()`
+- **Contains**: High-level operations, delegates to domain layer
+- **Example**: `UnifiedProjectService.createProject()` → uses `ProjectRules`
 
 ### Orchestrators:
 - **Purpose**: Coordinate complex workflows
@@ -198,18 +234,18 @@ import { projectHelper } from '@/services/helpers/projectHelper'; // Helpers pat
 - **Example**: `ProjectOrchestrator.createWithMilestones()`
 
 ### Calculations:
-- **Purpose**: Pure mathematical operations
-- **Contains**: Business calculations, algorithms
-- **Example**: `ProjectCalculations.calculateDuration()`
+- **Purpose**: Pure mathematical operations (NO business rules)
+- **Contains**: Mathematical algorithms, pure functions
+- **Example**: `ProjectCalculations.calculateDuration()` (math only)
 
 ### Validators:
-- **Purpose**: Business rules enforcement
-- **Contains**: Validation logic, constraint checking
-- **Example**: `ProjectValidator.validateBudget()`
+- **Purpose**: Orchestrate validation (delegates to domain rules)
+- **Contains**: Validation workflows, error aggregation
+- **Example**: `ProjectValidator.validate()` → calls `ProjectRules`
 
 ### Repositories:
 - **Purpose**: Data access and persistence
-- **Contains**: Database operations, caching
+- **Contains**: Database operations, caching, transformations
 - **Example**: `ProjectRepository.save()`
 
 ### UI Services:
@@ -408,6 +444,304 @@ export class ProjectCalculationService {
 2. Keep data access logic in repositories
 3. Use orchestrator to coordinate data operations
 4. Maintain separation from business logic
+
+---
+
+## 🎯 Domain Layer - Business Logic Single Source of Truth
+
+### Purpose
+The domain layer is the **single source of truth** for all business logic, rules, relationships, and constraints. It sits at the heart of the architecture and is referenced by all other layers.
+
+### Key Documents
+- **Business Logic Reference**: `docs/BUSINESS_LOGIC_REFERENCE.md` - Complete specification of all rules
+- **Business Logic Audit**: `docs/architecture/BUSINESS_LOGIC_AUDIT.md` - Current state analysis
+
+### Why This Wasn't Done Before
+1. **Rapid prototyping** - Features built quickly without consolidation
+2. **React-first thinking** - Focused on components/state vs domain modeling
+3. **Organic growth** - Codebase evolved without periodic refactoring
+4. **No upfront domain design** - Jumped to implementation
+
+### Problems Solved
+- ❌ **Before**: Business rules scattered across 5+ layers (types, services, validators, contexts, components)
+- ❌ **Before**: Same rule duplicated in 3-5 places
+- ❌ **Before**: No reference document for "how should this work?"
+- ❌ **Before**: Validation inconsistently applied
+- ❌ **Before**: Breaking changes because relationships not understood
+
+- ✅ **After**: Single source of truth for all business logic
+- ✅ **After**: Rules defined once, referenced everywhere
+- ✅ **After**: Comprehensive reference document
+- ✅ **After**: Validation always applied at entity level
+- ✅ **After**: Relationships explicit and enforced
+
+### Domain Layer Structure (Planned)
+
+```
+src/domain/
+├── entities/                    # Domain entities with business methods
+│   ├── Project.ts              # Project entity with validation
+│   ├── Milestone.ts            # Milestone entity with validation
+│   ├── Group.ts                # Group entity
+│   ├── Row.ts                  # Row entity
+│   └── index.ts
+├── rules/                       # Centralized business rules
+│   ├── ProjectRules.ts         # All project business rules
+│   ├── MilestoneRules.ts       # All milestone business rules
+│   ├── RelationshipRules.ts    # Cross-entity relationship rules
+│   └── index.ts
+├── value-objects/               # Immutable value types
+│   ├── TimeAllocation.ts       # Time allocation value object
+│   ├── DateRange.ts            # Date range with validation
+│   └── index.ts
+└── index.ts                     # Domain layer exports
+```
+
+### Example: Domain Entity Pattern
+
+```typescript
+// src/domain/entities/Project.ts
+import { ProjectRules } from '../rules/ProjectRules';
+import type { Milestone } from './Milestone';
+
+export class Project {
+  constructor(
+    public id: string,
+    public name: string,
+    public estimatedHours: number,
+    public startDate: Date,
+    public endDate: Date,
+    public groupId: string,
+    public rowId: string,
+    // ... other properties
+  ) {
+    // Validation happens at construction
+    const validation = ProjectRules.validate(this);
+    if (!validation.isValid) {
+      throw new DomainError(validation.errors);
+    }
+  }
+  
+  // Domain methods (business logic)
+  canAddMilestone(milestone: Milestone): boolean {
+    return ProjectRules.canAccommodateMilestone(this, milestone);
+  }
+  
+  getDuration(): number {
+    return ProjectRules.calculateDuration(this.startDate, this.endDate);
+  }
+  
+  getBudgetAnalysis(milestones: Milestone[]): BudgetAnalysis {
+    return ProjectRules.analyzeBudget(this, milestones);
+  }
+  
+  isWithinDateRange(date: Date): boolean {
+    return ProjectRules.isDateWithinRange(this, date);
+  }
+}
+```
+
+### Example: Business Rules Module
+
+```typescript
+// src/domain/rules/ProjectRules.ts
+
+/**
+ * Centralized Project Business Rules
+ * All project-related business logic defined here
+ */
+export class ProjectRules {
+  
+  /**
+   * RULE 1: Project estimated hours must be positive
+   */
+  static validateEstimatedHours(hours: number): ValidationResult {
+    if (hours <= 0) {
+      return { isValid: false, errors: ['Estimated hours must be greater than 0'] };
+    }
+    return { isValid: true, errors: [] };
+  }
+  
+  /**
+   * RULE 2: Project end date must be after start date (non-continuous)
+   */
+  static validateDateRange(startDate: Date, endDate: Date, continuous: boolean): ValidationResult {
+    if (!continuous && endDate <= startDate) {
+      return { isValid: false, errors: ['End date must be after start date'] };
+    }
+    return { isValid: true, errors: [] };
+  }
+  
+  /**
+   * RULE 3: Milestone allocation cannot exceed project budget
+   */
+  static canAccommodateMilestone(project: Project, milestone: Milestone): boolean {
+    const currentAllocation = project.milestones.reduce((sum, m) => sum + m.timeAllocationHours, 0);
+    const newTotal = currentAllocation + milestone.timeAllocationHours;
+    return newTotal <= project.estimatedHours;
+  }
+  
+  /**
+   * Calculate project duration (pure calculation)
+   */
+  static calculateDuration(startDate: Date, endDate: Date): number {
+    return Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+  }
+  
+  // ... all other project rules defined here
+}
+```
+
+### Integration with Existing Layers
+
+**Unified Services** delegate to domain layer:
+```typescript
+// unified/UnifiedProjectService.ts
+import { ProjectRules } from '@/domain/rules/ProjectRules';
+
+export class UnifiedProjectService {
+  static validateProject(project: Project): ValidationResult {
+    // Delegate to domain rules (single source of truth)
+    return ProjectRules.validate(project);
+  }
+  
+  static calculateDuration(project: Project): number {
+    // Delegate to domain rules
+    return ProjectRules.calculateDuration(project.startDate, project.endDate);
+  }
+}
+```
+
+**Validators** orchestrate domain validation:
+```typescript
+// validators/ProjectValidator.ts
+import { ProjectRules } from '@/domain/rules/ProjectRules';
+
+export class ProjectValidator {
+  static async validate(project: Project, context: ValidationContext): Promise<DetailedResult> {
+    // Orchestrate multiple domain rules
+    const basicValidation = ProjectRules.validate(project);
+    const dateValidation = ProjectRules.validateDateRange(project.startDate, project.endDate);
+    const budgetValidation = ProjectRules.analyzeBudget(project, context.milestones);
+    
+    // Aggregate and return detailed result
+    return this.aggregateResults([basicValidation, dateValidation, budgetValidation]);
+  }
+}
+```
+
+**Contexts** use domain entities:
+```typescript
+// contexts/ProjectContext.tsx
+import { Project } from '@/domain/entities/Project';
+
+function addProject(data: ProjectData) {
+  // Domain entity validates on construction
+  const project = new Project(data); // Throws if invalid
+  
+  // Save via repository
+  await projectRepository.save(project);
+}
+```
+
+### Migration Strategy (Incremental)
+
+**Phase 1** ✅ (Current):
+- [x] Create Business Logic Reference document
+- [x] Create Business Logic Audit document
+- [x] Update Architecture Guide
+
+**Phase 2** (Next):
+- [ ] Create `src/domain/` folder structure
+- [ ] Extract `UnifiedProjectEntity` → `src/domain/rules/ProjectRules.ts`
+- [ ] Extract `UnifiedMilestoneEntity` → `src/domain/rules/MilestoneRules.ts`
+- [ ] Keep existing code working (no breaking changes)
+
+**Phase 3** (Follow-up):
+- [ ] Update validators to reference domain rules
+- [ ] Consolidate duplicate rules
+- [ ] Add comprehensive domain tests
+- [ ] Update services to delegate to domain
+
+**Phase 4** (Completion):
+- [ ] Update contexts to use domain entities
+- [ ] Remove duplication from contexts
+- [ ] Add database CHECK constraints
+- [ ] Remove deprecated code
+
+### Benefits of Domain Layer
+
+1. **Single Source of Truth**
+   - All business rules in one place
+   - No more hunting for "where is this validated?"
+   - Developers refer to domain layer first
+
+2. **Consistency**
+   - Rules applied uniformly
+   - No variations between views
+   - Same validation everywhere
+
+3. **Maintainability**
+   - Update rule in one place
+   - Changes propagate automatically
+   - Less code to maintain (30-40% reduction)
+
+4. **Testability**
+   - Domain logic isolated
+   - Easy to unit test
+   - No UI/database dependencies
+
+5. **Discoverability**
+   - Clear folder structure
+   - Predictable naming
+   - Self-documenting code
+
+6. **Reliability**
+   - Validation always applied
+   - Cannot bypass rules
+   - Fewer bugs in production
+
+### Does This Involve Significant Refactoring?
+
+**No, it's incremental**:
+- Phase 1-2: Documentation + extraction (minimal risk)
+- Phase 3-4: Gradual migration (one module at a time)
+- Old code continues working during migration
+- Can roll back at any phase
+
+**Timeline**: 6-8 weeks for complete migration (but benefits start immediately)
+
+### AI Development with Domain Layer
+
+**Before making changes**:
+1. Check `docs/BUSINESS_LOGIC_REFERENCE.md` first
+2. Understand the business rule being affected
+3. Update domain layer if rule changes
+4. Ensure changes propagate correctly
+
+**When adding features**:
+1. Define business rules in domain layer first
+2. Update Business Logic Reference document
+3. Implement in domain/rules/
+4. Update validators/services to use new rules
+5. Test at domain layer (unit tests)
+
+**When debugging**:
+1. Verify rule in Business Logic Reference
+2. Check domain layer implementation
+3. Trace through validation flow
+4. Fix at domain layer (single point)
+
+### Success Criteria
+
+After domain layer is complete:
+- ✅ Business Logic Reference is maintained
+- ✅ All rules defined in `src/domain/rules/`
+- ✅ Validators delegate to domain layer
+- ✅ Services delegate to domain layer
+- ✅ No business logic in components/contexts
+- ✅ 90%+ test coverage on domain layer
+- ✅ 30-40% code reduction from deduplication
 
 ---
 

@@ -20,13 +20,15 @@ export class UnifiedDayEstimateService {
     project: Project,
     milestones: Milestone[],
     settings: Settings,
-    holidays: Holiday[]
+    holidays: Holiday[],
+    events: any[] = []
   ): DayEstimate[] {
     return DayEstimateCalcs.calculateProjectDayEstimates(
       project,
       milestones,
       settings,
-      holidays
+      holidays,
+      events
     );
   }
 

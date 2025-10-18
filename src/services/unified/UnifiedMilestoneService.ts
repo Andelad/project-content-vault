@@ -20,6 +20,7 @@ import {
   calculateAllocationDistribution,
   calculateAutoEstimateWorkingDays 
 } from '@/services';
+import { MilestoneRules } from '@/domain/rules/MilestoneRules';
 // TODO: Import UnifiedWorkingDayService when created
 // import { UnifiedWorkingDayService } from './UnifiedWorkingDayService';
 
@@ -279,24 +280,22 @@ export class UnifiedMilestoneService {
       }
     }
 
-    // Validate current milestone date if provided
+    // Validate current milestone date if provided using domain rules
     let isCurrentDateValid = true;
     let reason: string | undefined;
     
     if (params.currentMilestone) {
-      const validation = UnifiedMilestoneEntity.validateMilestoneDate(
+      const validation = MilestoneRules.validateMilestoneDateWithinProject(
         params.currentMilestone.dueDate,
         params.projectStartDate,
-        params.projectEndDate,
-        params.existingMilestones as Milestone[],
-        params.currentMilestone.id
+        params.projectEndDate
       );
       
       isCurrentDateValid = validation.isValid && 
         params.currentMilestone.dueDate >= actualMinDate && 
         params.currentMilestone.dueDate <= actualMaxDate;
       
-      if (validation.errors.length > 0) {
+      if (!validation.isValid) {
         reason = validation.errors.join(', ');
       }
     }

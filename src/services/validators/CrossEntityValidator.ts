@@ -18,15 +18,12 @@
 import type { Project, Milestone, CalendarEvent, WorkHour, Settings, Group, Row } from '@/types/core';
 import { ProjectValidator, type ProjectValidationContext } from './ProjectValidator';
 import { MilestoneValidator, type ValidationContext } from './MilestoneValidator';
-import { 
-  UnifiedProjectEntity, 
-  UnifiedMilestoneEntity,
-  type ProjectBudgetAnalysis 
-} from '../unified';
+import type { ProjectBudgetAnalysis } from '../unified';
 import { 
   calculateDurationDays,
   calculateTimeOverlapMinutes 
 } from '../calculations/dateCalculations';
+import { MilestoneRules } from '@/domain/rules/MilestoneRules';
 
 // =====================================================================================
 // CROSS-ENTITY VALIDATION INTERFACES
@@ -328,13 +325,13 @@ export class CrossEntityValidator {
     const issues: ProjectMilestoneRelationshipValidation['issues'] = {};
     const recommendations: string[] = [];
 
-    // 1. Budget validation
-    const budgetAnalysis = UnifiedProjectEntity.analyzeBudget(project, projectMilestones);
-    if (budgetAnalysis.isOverBudget) {
+    // 1. Budget validation using domain rules
+    const budgetCheck = MilestoneRules.checkBudgetConstraint(projectMilestones, project.estimatedHours);
+    if (!budgetCheck.isValid) {
       issues.budgetMismatch = {
         projectBudget: project.estimatedHours,
-        milestoneAllocation: budgetAnalysis.totalAllocatedHours,
-        overageAmount: budgetAnalysis.overageHours
+        milestoneAllocation: budgetCheck.totalAllocated,
+        overageAmount: budgetCheck.overage
       };
       recommendations.push('Reduce milestone allocations or increase project budget');
     }

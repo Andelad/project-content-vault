@@ -13,7 +13,6 @@ import {
   calculateWorkHoursTotal,
   isHolidayDateCapacity,
   getMilestoneSegmentForDate,
-  memoizedGetProjectTimeAllocation,
   getTimelinePositions,
   UnifiedDayEstimateService
 } from '@/services';
@@ -124,6 +123,34 @@ export const TimelineBar = memo(function TimelineBar({
     holidays
   );
 
+  // Calculate day estimates ONCE per project/milestones/events change
+  // This should NOT recalculate when scrolling (viewport changes)
+  const dayEstimates = useMemo(() => {
+    if (!project) return [];
+    
+    const startTime = performance.now();
+    const result = UnifiedTimelineService.calculateProjectDayEstimates(
+      project,
+      milestones,
+      settings,
+      holidays,
+      events
+    );
+    const endTime = performance.now();
+    const calculationTime = endTime - startTime;
+    
+    // Warn if calculation takes >10ms (indicates performance issue)
+    // Note: 200-300ms can occur for projects with many milestones and long timespans
+    // This is because milestone.startDate was corrupted by migration, forcing calculation
+    // from project.startDate to milestone.endDate (potentially years of working days)
+    // TODO: Fix milestone.startDate in database to enable shorter calculation ranges
+    if (calculationTime > 10) {
+      console.warn(`[TimelineBar] Day estimates calculation took ${calculationTime.toFixed(2)}ms for project:`, project.name);
+    }
+    
+    return result;
+  }, [project, milestones, settings, holidays, events]);
+
   // Get comprehensive timeline bar data from UnifiedTimelineService - MUST be before early returns
   const timelineData = useMemo(() => {
     if (!project) {
@@ -164,21 +191,27 @@ export const TimelineBar = memo(function TimelineBar({
       settings,
       isDragging,
       dragState,
-      isWorkingDayChecker // Pass the hook result, don't call hook inside service
+      isWorkingDayChecker, // Pass the hook result, don't call hook inside service
+      events // Pass events for planned time calculations
     );
-  }, [project, dates, viewportStart, viewportEnd, milestones, holidays, settings, isDragging, dragState]);
+  }, [project, dates, viewportStart, viewportEnd, milestones, holidays, settings, isDragging, dragState, events]);
+
+  // Override dayEstimates in timelineData with the memoized version
+  const finalTimelineData = useMemo(() => ({
+    ...timelineData,
+    dayEstimates // Use the separately memoized dayEstimates
+  }), [timelineData, dayEstimates]);
 
   // Extract data for use in component
   const {
     projectDays,
     workHoursForPeriod,
-    dayEstimates,
     milestoneSegments, // DEPRECATED: kept for backward compatibility
     projectMetrics,
     colorScheme,
     visualDates,
     isWorkingDay
-  } = timelineData;
+  } = finalTimelineData;
 
   const { exactDailyHours, dailyHours, dailyMinutes, heightInPixels, workingDaysCount } = projectMetrics;
   
@@ -215,69 +248,43 @@ export const TimelineBar = memo(function TimelineBar({
             );
             return dates.map((date, dateIndex) => {
             if (mode === 'weeks') {
-              // Use service to calculate week-project intersection (no hooks in loop)
-              const weekCalculations = (() => {
-                try {
-                  return calculateWeekProjectIntersection(
-                    date, visualProjectStart, visualProjectEnd, isWorkingDay
-                  );
-                } catch (error) {
-                  console.error('Error in calculateWeekProjectIntersection:', error);
-                  return { intersects: false, workingDaysInWeek: [] };
-                }
-              })();
-              if (!weekCalculations.intersects || weekCalculations.workingDaysInWeek.length === 0) {
-                return <div key={dateIndex} className="flex flex-col-reverse" style={{ minWidth: '77px', width: '77px' }}></div>;
-              }
-              const { weekStart, weekEnd } = weekCalculations;
-              // For weeks mode, create segments for each day of the week with simple 11px positioning
+              // Weeks mode: Show 7 days in one column (Mon-Sun)
+              // Get the week start (Monday) from the date
+              const weekStart = new Date(date);
+              const dayOfWeek = weekStart.getDay();
+              const daysToMonday = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek); // Adjust to Monday
+              weekStart.setDate(weekStart.getDate() + daysToMonday);
+              weekStart.setHours(0, 0, 0, 0);
+              
               // Each week column is 77px, with each day getting exactly 11px
-              const dayWidths = [11, 11, 11, 11, 11, 11, 11]; // Mon, Tue, Wed, Thu, Fri, Sat, Sun - all 11px
+              const dayWidths = [11, 11, 11, 11, 11, 11, 11]; // Mon, Tue, Wed, Thu, Fri, Sat, Sun
+              
               return (
                 <div key={dateIndex} className="relative h-full items-end" style={{ minWidth: '77px', width: '77px' }}>
                   {/* Flexbox container to align rectangles to baseline */}
                   <div className="flex w-full items-end gap-px h-full">
-                    {dayWidths.map((dayWidth, dayOfWeek) => {
+                    {dayWidths.map((dayWidth, dayIndex) => {
                       const currentDay = new Date(weekStart);
-                      currentDay.setDate(weekStart.getDate() + dayOfWeek);
+                      currentDay.setDate(weekStart.getDate() + dayIndex);
                       currentDay.setHours(0, 0, 0, 0);
-                      // Normalize project dates for comparison (using visually adjusted dates)
-                      const normalizedProjectStart = new Date(visualProjectStart);
-                      normalizedProjectStart.setHours(0, 0, 0, 0);
-                      const normalizedProjectEnd = new Date(visualProjectEnd);
-                      normalizedProjectEnd.setHours(0, 0, 0, 0);
-                      const isDayInProject = currentDay >= normalizedProjectStart && currentDay <= normalizedProjectEnd;
                       
-                      // First check if day is in project range
-                      if (!isDayInProject) {
-                        return <div key={dayOfWeek} style={{ width: `${dayWidth}px` }}></div>;
-                      }
-                      
-                      // Get time allocation for this day
-                      const timeAllocation = memoizedGetProjectTimeAllocation(
-                        project.id,
-                        currentDay,
-                        events,
-                        project,
-                        settings,
-                        holidays
-                      );
-                      
-                      // Check day estimates for auto-estimate hours
+                      // Get time allocation for this day from day estimates
                       const dateEstimates = dayEstimates?.filter(est => {
                         const estDate = new Date(est.date);
                         estDate.setHours(0, 0, 0, 0);
-                        const currentDayCopy = new Date(currentDay);
-                        currentDayCopy.setHours(0, 0, 0, 0);
-                        return estDate.getTime() === currentDayCopy.getTime();
+                        return estDate.getTime() === currentDay.getTime();
                       }) || [];
                       
-                      const totalHours = timeAllocation.type === 'planned' 
-                        ? timeAllocation.hours
-                        : dateEstimates.reduce((sum, est) => sum + est.hours, 0);
+                      const totalHours = dateEstimates.reduce((sum, est) => sum + est.hours, 0);
+                      
+                      // If no allocation, skip (the calculation already ensured this is in project range)
+                      if (totalHours === 0) {
+                        return <div key={dayIndex} style={{ width: `${dayWidth}px` }}></div>;
+                      }
                       
                       // Compute allocation properties
-                      const allocationType = timeAllocation.type === 'planned' ? 'planned' : (totalHours > 0 ? 'auto-estimate' : 'none');
+                      const plannedEstimate = dateEstimates.find(est => est.source === 'planned-event');
+                      const allocationType = plannedEstimate ? 'planned' : (totalHours > 0 ? 'auto-estimate' : 'none');
                       const isPlannedTime = allocationType === 'planned';
                       const isPlannedAndCompleted = isPlannedTime && events.some(e => 
                         e.projectId === project.id && 
@@ -286,34 +293,12 @@ export const TimelineBar = memo(function TimelineBar({
                       );
                       const heightInPixels = Math.max(3, Math.round(totalHours * 4));
                       
-                      // If no allocation at all, skip
-                      if (totalHours === 0) {
-                        return <div key={dayOfWeek} style={{ width: `${dayWidth}px` }}></div>;
-                      }
+                      // NOTE: Work day filtering already handled by dayEstimateCalculations
+                      // If an estimate exists, we should render it (trust the calculation)
                       
-                      // For auto-estimate only, check work day restrictions
-                      if (allocationType === 'auto-estimate') {
-                        // Determine if this specific date actually has work capacity (honors overrides + holidays)
-                        const dayWorkHours = generateWorkHoursForDate(currentDay, settings);
-                        const totalDayWork = calculateWorkHoursTotal(dayWorkHours);
-                        const isHoliday = isHolidayDateCapacity(currentDay, holidays);
-                        const isDayWorking = !isHoliday && totalDayWork > 0;
-                        // Check if this day is enabled for auto-estimation in project settings
-                        const dayOfWeekName = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][currentDay.getDay()];
-                        const autoEstimateDays = project.autoEstimateDays || {
-                          monday: true, tuesday: true, wednesday: true, thursday: true,
-                          friday: true, saturday: true, sunday: true
-                        };
-                        const isDayEnabled = autoEstimateDays[dayOfWeekName as keyof typeof autoEstimateDays];
-                        
-                        // For auto-estimate, respect work day restrictions
-                        if (!isDayWorking || !isDayEnabled) {
-                          return <div key={dayOfWeek} style={{ width: `${dayWidth}px` }}></div>;
-                        }
-                      }
                       // For planned/completed time, always show regardless of work day settings
                       return (
-                        <Tooltip key={dayOfWeek} delayDuration={100}>
+                        <Tooltip key={dayIndex} delayDuration={100}>
                           <TooltipTrigger asChild>
                             <div
                               className={`cursor-move relative pointer-events-auto ${
@@ -437,56 +422,28 @@ export const TimelineBar = memo(function TimelineBar({
               );
             } else {
               // Original days mode logic
-              // Normalize the timeline date for comparison
-              const normalizedTimelineDate = new Date(date);
-              normalizedTimelineDate.setHours(0, 0, 0, 0);
-              const isProjectDay = projectDays.some(projectDay => {
-                const normalizedProjectDay = new Date(projectDay);
-                normalizedProjectDay.setHours(0, 0, 0, 0);
-                const normalizedTimelineDate = new Date(date);
-                normalizedTimelineDate.setHours(0, 0, 0, 0);
-                return normalizedProjectDay.getTime() === normalizedTimelineDate.getTime();
-              });
+              // Get time allocation info from day estimates
+              const dateNormalized = new Date(date);
+              dateNormalized.setHours(0, 0, 0, 0);
               
-              // First check if day is in project range
-              if (!isProjectDay) {
+              const estimatesForDate = dayEstimates?.filter(est => {
+                const estDate = new Date(est.date);
+                estDate.setHours(0, 0, 0, 0);
+                return estDate.getTime() === dateNormalized.getTime();
+              }) || [];
+              
+              const totalHours = estimatesForDate.reduce((sum, est) => sum + est.hours, 0);
+              const plannedEstimate = estimatesForDate.find(est => est.source === 'planned-event');
+              const allocationType = plannedEstimate ? 'planned' : (totalHours > 0 ? 'auto-estimate' : 'none');
+              
+              // Don't render if no time allocation (the calculation already ensured this is in project range)
+              if (allocationType === 'none') {
                 return <div key={dateIndex} className="h-full" style={{ minWidth: '40px', width: '40px' }}></div>;
               }
               
-              // Get time allocation info for this date
-              const timeAllocation = memoizedGetProjectTimeAllocation(
-                project.id,
-                date, // Use the original date from the dates array (already normalized)
-                events,
-                project,
-                settings,
-                holidays
-              );
+              // NOTE: Work day filtering already handled by dayEstimateCalculations
+              // If an estimate exists, we should render it (trust the calculation)
               
-              // Don't render if no time allocation
-              if (timeAllocation.type === 'none') {
-                return <div key={dateIndex} className="h-full" style={{ minWidth: '40px', width: '40px' }}></div>;
-              }
-              
-              // For auto-estimate only, check work day restrictions
-              if (timeAllocation.type === 'auto-estimate') {
-                // Don't render rectangle if it's a 0-hour day OR if it's a holiday (respect overrides)
-                const dayWorkHours = generateWorkHoursForDate(date, settings);
-                const totalDayWork = calculateWorkHoursTotal(dayWorkHours);
-                const isHoliday = isHolidayDateCapacity(date, holidays);
-                // Check if this day is enabled for auto-estimation in project settings
-                const dayOfWeekName = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][date.getDay()];
-                const autoEstimateDays = project.autoEstimateDays || {
-                  monday: true, tuesday: true, wednesday: true, thursday: true,
-                  friday: true, saturday: true, sunday: true
-                };
-                const isDayEnabled = autoEstimateDays[dayOfWeekName as keyof typeof autoEstimateDays];
-                
-                // For auto-estimate, respect work day restrictions
-                if (isHoliday || totalDayWork === 0 || !isDayEnabled) {
-                  return <div key={dateIndex} className="h-full" style={{ minWidth: '40px', width: '40px' }}></div>;
-                }
-              }
               // For planned/completed time, always show regardless of work day settings
               // Normalize project dates for comparison (using visually adjusted dates)
               const projectStart = new Date(visualProjectStart);
@@ -514,10 +471,9 @@ export const TimelineBar = memo(function TimelineBar({
               // Check if there's a milestone segment for this day
               const milestoneSegment = getMilestoneSegmentForDate(date, milestoneSegments);
               
-              // Use the timeAllocation we already calculated correctly above
-              // (Don't use TimeAllocationService.generateTimeAllocation - it returns wrong values!)
-              const isPlannedTime = timeAllocation.type === 'planned';
-              const dailyHours = timeAllocation.hours;
+              // Use the estimates we already calculated correctly above
+              const isPlannedTime = allocationType === 'planned';
+              const dailyHours = totalHours;
               const rectangleHeight = Math.max(3, Math.round(dailyHours * 4));
               
               // Check if planned time is completed
@@ -686,7 +642,7 @@ export const TimelineBar = memo(function TimelineBar({
                     <TooltipContent>
                       <div className="text-xs">
                         <div className="font-medium">
-                          {timeAllocation.type === 'planned' ? 'Planned Time' : 'Auto-Estimate'}
+                          {allocationType === 'planned' ? 'Planned Time' : 'Auto-Estimate'}
                         </div>
                         <div className="text-gray-600">
                           {dailyHours.toFixed(2)} hours

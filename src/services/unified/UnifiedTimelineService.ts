@@ -146,13 +146,15 @@ export class UnifiedTimelineService {
     project: Project,
     milestones: Milestone[],
     settings: Settings,
-    holidays: Holiday[]
+    holidays: Holiday[],
+    events: any[] = []
   ): DayEstimate[] {
     return UnifiedDayEstimateService.calculateProjectDayEstimates(
       project,
       milestones,
       settings,
-      holidays
+      holidays,
+      events
     );
   }
 
@@ -312,14 +314,16 @@ export class UnifiedTimelineService {
     settings: any,
     isDragging: boolean = false,
     dragState: any = null,
-    isWorkingDayChecker?: (date: Date) => boolean // Accept the hook result as parameter
+    isWorkingDayChecker?: (date: Date) => boolean, // Accept the hook result as parameter
+    events?: any[] // Add events parameter for planned time calculations
   ) {
-    // Calculate day estimates using new service
+    // Calculate day estimates using new service (now includes planned events)
     const dayEstimates = this.calculateProjectDayEstimates(
       project,
       milestones,
       settings,
-      holidays
+      holidays,
+      events || [] // Pass events to calculation
     );
 
     return {

@@ -10,7 +10,7 @@
  */
 
 import { Project, Milestone, Group, Row } from '@/types/core';
-import { UnifiedProjectEntity, UnifiedMilestoneEntity } from '../unified';
+import { ProjectRules, MilestoneRules, RelationshipRules } from '@/domain/rules';
 
 export interface ProjectValidationContext {
   existingProjects: Project[];
@@ -93,6 +93,8 @@ export class ProjectValidator {
 
   /**
    * Validate project creation with comprehensive checks
+   * 
+   * Delegates to domain rules (single source of truth) and adds external checks.
    */
   static validateProjectCreation(
     request: CreateProjectValidationRequest,
@@ -102,22 +104,31 @@ export class ProjectValidator {
     const warnings: string[] = [];
     const suggestions: string[] = [];
 
-    // Domain-level validations using ProjectEntity
-    const dateValidation = UnifiedProjectEntity.validateProjectDates(
+    // ========================================================================
+    // DOMAIN RULE VALIDATION (delegates to ProjectRules)
+    // ========================================================================
+    
+    // Validate dates using domain rules
+    const dateValidation = ProjectRules.validateProjectDates(
       request.startDate,
       request.endDate,
       false // Assuming non-continuous for creation validation
     );
     errors.push(...dateValidation.errors);
 
-    const timeValidation = UnifiedProjectEntity.validateProjectTime(
+    // Validate time/budget using domain rules
+    const timeValidation = ProjectRules.validateProjectTime(
       request.estimatedHours,
       [] // No milestones yet for new project
     );
     errors.push(...timeValidation.errors);
     warnings.push(...timeValidation.warnings);
 
-    // Name validation
+    // ========================================================================
+    // EXTERNAL VALIDATION (not in domain rules - checks external state)
+    // ========================================================================
+    
+    // Name validation (external - not a business rule)
     if (!request.name || request.name.trim().length === 0) {
       errors.push('Project name is required');
     }
@@ -126,7 +137,7 @@ export class ProjectValidator {
       warnings.push('Project name is very long (>200 characters)');
     }
 
-    // Check for duplicate names
+    // Check for duplicate names (external - requires database check)
     const duplicateName = context.existingProjects.find(
       p => p.name.toLowerCase() === request.name.toLowerCase()
     );
@@ -134,20 +145,29 @@ export class ProjectValidator {
       errors.push('A project with this name already exists');
     }
 
-    // Description validation
+    // Description validation (external - not a business rule)
     if (request.description && request.description.length > 1000) {
       warnings.push('Project description is very long (>1000 characters)');
     }
 
-    // Timeline analysis - use duration calculation helper
-    const duration = request.endDate && request.startDate ? 
-      Math.ceil((request.endDate.getTime() - request.startDate.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+    // ========================================================================
+    // ANALYSIS & RECOMMENDATIONS
+    // ========================================================================
+    
+    // Calculate duration for analysis (using domain rule)
+    const mockProject = {
+      startDate: request.startDate,
+      endDate: request.endDate,
+      continuous: false
+    } as Project;
+    
+    const duration = ProjectRules.calculateProjectDuration(mockProject);
 
-    if (duration < 1) {
+    if (duration && duration < 1) {
       warnings.push('Very short project duration (less than 1 day)');
     }
 
-    if (duration > 365) {
+    if (duration && duration > 365) {
       warnings.push('Very long project duration (more than 1 year)');
       suggestions.push('Consider breaking this into smaller projects or phases');
     }
@@ -223,48 +243,70 @@ export class ProjectValidator {
       };
     }
 
+    // ========================================================================
+    // DOMAIN RULE VALIDATION (delegates to domain layer)
+    // ========================================================================
+    
     // Validate date changes if provided
     if (request.startDate !== undefined || request.endDate !== undefined) {
       const newStartDate = request.startDate || currentProject.startDate;
       const newEndDate = request.endDate || currentProject.endDate;
 
-      const dateValidation = UnifiedProjectEntity.validateProjectDates(newStartDate, newEndDate);
+      // Use domain rules for date validation
+      const dateValidation = ProjectRules.validateProjectDates(
+        newStartDate, 
+        newEndDate,
+        currentProject.continuous
+      );
       errors.push(...dateValidation.errors);
 
-      // Check impact on existing milestones
-      const milestonesOutOfRange = context.projectMilestones.filter(milestone => 
-        milestone.dueDate < newStartDate || milestone.dueDate > newEndDate
-      );
+      // Check impact on existing milestones (uses relationship rules)
+      const mockUpdatedProject = {
+        ...currentProject,
+        startDate: newStartDate,
+        endDate: newEndDate
+      };
 
-      if (milestonesOutOfRange.length > 0) {
-        errors.push(`${milestonesOutOfRange.length} milestone(s) would fall outside the new project dates`);
+      context.projectMilestones.forEach(milestone => {
+        const relationshipValidation = RelationshipRules.validateMilestoneBelongsToProject(
+          milestone,
+          mockUpdatedProject
+        );
+        if (!relationshipValidation.isValid) {
+          errors.push(`Milestone "${milestone.name}": ${relationshipValidation.errors.join(', ')}`);
+        }
+      });
+
+      if (errors.some(e => e.includes('Milestone'))) {
         suggestions.push('Update or remove conflicting milestones before changing project dates');
       }
 
       // Check for significant timeline changes
-      const currentDuration = UnifiedProjectEntity.calculateProjectDuration(currentProject);
+      const currentDuration = ProjectRules.calculateProjectDuration(currentProject);
+      const newDuration = ProjectRules.calculateProjectDuration(mockUpdatedProject);
       
-      // Create temporary project for duration calculation
-      const tempProject = { ...currentProject, startDate: newStartDate, endDate: newEndDate };
-      const newDuration = UnifiedProjectEntity.calculateProjectDuration(tempProject);
-      const durationChange = Math.abs(newDuration - currentDuration);
-      const changePercent = currentDuration > 0 ? (durationChange / currentDuration) * 100 : 0;
+      if (currentDuration && newDuration) {
+        const durationChange = Math.abs(newDuration - currentDuration);
+        const changePercent = currentDuration > 0 ? (durationChange / currentDuration) * 100 : 0;
 
-      if (changePercent > 50) {
-        warnings.push(`Significant timeline change: ${changePercent.toFixed(1)}%`);
+        if (changePercent > 50) {
+          warnings.push(`Significant timeline change: ${changePercent.toFixed(1)}%`);
+        }
       }
     }
 
     // Validate budget changes
     if (request.estimatedHours !== undefined) {
-      const timeValidation = UnifiedProjectEntity.validateProjectTime(
+      // Use domain rules for time validation
+      const timeValidation = ProjectRules.validateProjectTime(
         request.estimatedHours,
         context.projectMilestones
       );
       errors.push(...timeValidation.errors);
+      warnings.push(...timeValidation.warnings);
 
-      // Check impact on milestone allocations
-      const currentAllocation = UnifiedProjectEntity.calculateTotalMilestoneAllocation(context.projectMilestones);
+      // Check impact on milestone allocations (uses domain rules)
+      const currentAllocation = MilestoneRules.calculateTotalAllocation(context.projectMilestones);
       
       if (request.estimatedHours < currentAllocation) {
         errors.push(`New budget (${request.estimatedHours}h) is less than current milestone allocation (${currentAllocation}h)`);
@@ -300,11 +342,10 @@ export class ProjectValidator {
       }
     }
 
-    // Status validation
+    // Status validation (uses domain rules)
     if (request.status !== undefined) {
-      const validStatuses = ['active', 'completed', 'paused', 'cancelled'];
-      if (!validStatuses.includes(request.status)) {
-        errors.push(`Invalid status. Must be one of: ${validStatuses.join(', ')}`);
+      if (!ProjectRules.isValidStatus(request.status)) {
+        errors.push('Invalid project status');
       }
 
       // Check status transition logic
@@ -383,28 +424,33 @@ export class ProjectValidator {
     const warnings: string[] = [];
     const suggestions: string[] = [];
 
-    // Use domain entities for validation
-    const budgetAnalysis = UnifiedProjectEntity.analyzeBudget(project, milestones);
+    // Use domain rules for validation
+    const budgetCheck = MilestoneRules.checkBudgetConstraint(milestones, project.estimatedHours);
     
-    if (budgetAnalysis.isOverBudget) {
-      errors.push(`Milestone allocation exceeds project budget by ${budgetAnalysis.overageHours}h`);
+    if (!budgetCheck.isValid) {
+      errors.push(`Milestone allocation exceeds project budget by ${budgetCheck.overage}h`);
     }
 
-    if (budgetAnalysis.utilizationPercent > 80) {
-      warnings.push(`High budget utilization: ${budgetAnalysis.utilizationPercent.toFixed(1)}%`);
+    if (budgetCheck.utilizationPercentage > 80) {
+      warnings.push(`High budget utilization: ${budgetCheck.utilizationPercentage.toFixed(1)}%`);
     }
 
-    // Check milestone date ranges
-    const milestonesOutOfRange = milestones.filter(milestone => 
-      milestone.dueDate < project.startDate || milestone.dueDate > project.endDate
-    );
+    // Check milestone date ranges using domain rules
+    const milestonesOutOfRange = milestones.filter(milestone => {
+      const validation = MilestoneRules.validateMilestoneDateWithinProject(
+        milestone.dueDate,
+        project.startDate,
+        project.endDate
+      );
+      return !validation.isValid;
+    });
 
     if (milestonesOutOfRange.length > 0) {
       errors.push(`${milestonesOutOfRange.length} milestone(s) fall outside project dates`);
     }
 
     // Analyze milestone distribution
-    const duration = UnifiedProjectEntity.calculateProjectDuration(project);
+    const duration = ProjectRules.calculateProjectDuration(project);
     if (!duration) return { isValid: true, errors: [], warnings: [], suggestions: [], context: {} };
     const density = milestones.length / Math.max(1, duration / 7); // milestones per week
     
@@ -425,10 +471,10 @@ export class ProjectValidator {
       suggestions,
       context: {
         budgetAnalysis: {
-          currentUtilization: budgetAnalysis.utilizationPercent,
+          currentUtilization: budgetCheck.utilizationPercentage,
           milestoneCount: milestones.length,
           avgMilestoneAllocation: milestones.length > 0 ? 
-            budgetAnalysis.totalAllocatedHours / milestones.length : 0
+            budgetCheck.totalAllocated / milestones.length : 0
         },
         timelineAnalysis: {
           duration,

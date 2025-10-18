@@ -16,6 +16,8 @@
 
 import { Project, Milestone } from '@/types/core';
 import { projectRepository } from '../repositories/ProjectRepository';
+import { ProjectRules } from '@/domain/rules/ProjectRules';
+import { MilestoneRules } from '@/domain/rules/MilestoneRules';
 
 export interface ProjectBudgetAnalysis {
   totalAllocation: number;
@@ -95,62 +97,6 @@ export interface ProjectUpdateRequest {
   icon?: string;
 }
 
-// Helper class to replace UnifiedProjectEntity
-class UnifiedProjectEntity {
-  static validateProjectTime(estimatedHours: number): { isValid: boolean; errors: string[]; warnings: string[] } {
-    const errors: string[] = [];
-    const warnings: string[] = [];
-    if (estimatedHours <= 0) {
-      errors.push('Estimated hours must be greater than 0');
-    }
-    return { isValid: errors.length === 0, errors, warnings };
-  }
-
-  static validateProjectDates(startDate: Date, endDate?: Date, continuous?: boolean): { isValid: boolean; errors: string[] } {
-    const errors: string[] = [];
-    if (!continuous && endDate && endDate < startDate) {
-      errors.push('End date must be after start date');
-    }
-    return { isValid: errors.length === 0, errors };
-  }
-
-  static isDateWithinProject(date: Date, project: Project): boolean {
-    if (project.continuous) return true;
-    return date >= project.startDate && (!project.endDate || date <= project.endDate);
-  }
-
-  static analyzeBudget(project: Project, milestones: Milestone[]): ProjectBudgetAnalysis {
-    const totalAllocation = milestones.reduce((sum, m) => sum + m.timeAllocation, 0);
-    const suggestedBudget = Math.max(project.estimatedHours, totalAllocation);
-    const isOverBudget = totalAllocation > project.estimatedHours;
-    const overageHours = Math.max(0, totalAllocation - project.estimatedHours);
-    const utilizationPercentage = project.estimatedHours > 0 ? (totalAllocation / project.estimatedHours) * 100 : 0;
-    
-    return {
-      totalAllocation,
-      suggestedBudget,
-      isOverBudget,
-      overageHours,
-      utilizationPercentage
-    };
-  }
-
-  static calculateTotalMilestoneAllocation(milestones: Milestone[]): number {
-    return milestones.reduce((sum, m) => sum + m.timeAllocation, 0);
-  }
-}
-
-// Helper class to replace UnifiedMilestoneEntity
-class UnifiedMilestoneEntity {
-  static isRegularMilestone(milestone: Milestone): boolean {
-    return !('isRecurring' in milestone && (milestone as any).isRecurring);
-  }
-
-  static isRecurringMilestone(milestone: Milestone): boolean {
-    return 'isRecurring' in milestone && (milestone as any).isRecurring === true;
-  }
-}
-
 /**
  * Project Orchestrator
  * Handles project business workflows and project-milestone coordination
@@ -167,20 +113,20 @@ export class ProjectOrchestrator {
     const errors: string[] = [];
     const warnings: string[] = [];
 
-    // Validate project time constraints
-    const timeValidation = UnifiedProjectEntity.validateProjectTime(
-      request.estimatedHours
-    );
-    errors.push(...timeValidation.errors);
-    warnings.push(...timeValidation.warnings);
+    // Validate project time constraints using domain rules
+    if (!ProjectRules.validateEstimatedHours(request.estimatedHours)) {
+      errors.push('Estimated hours must be greater than 0');
+    }
 
-    // Validate project dates
-    const dateValidation = UnifiedProjectEntity.validateProjectDates(
+    // Validate project dates using domain rules
+    const dateValidation = ProjectRules.validateProjectDates(
       request.startDate,
       request.endDate,
       request.continuous
     );
-    errors.push(...dateValidation.errors);
+    if (!dateValidation.isValid) {
+      errors.push(...dateValidation.errors);
+    }
 
     // Business rule: Validate name requirements
     if (!request.name || request.name.trim().length === 0) {
@@ -224,31 +170,38 @@ export class ProjectOrchestrator {
       ...request
     };
 
-    // Validate updated dates if changed
+    // Validate updated dates if changed using domain rules
     if (request.startDate !== undefined || request.endDate !== undefined || request.continuous !== undefined) {
-      const dateValidation = UnifiedProjectEntity.validateProjectDates(
+      const dateValidation = ProjectRules.validateProjectDates(
         updatedProject.startDate,
         updatedProject.endDate,
         updatedProject.continuous
       );
-      errors.push(...dateValidation.errors);
+      if (!dateValidation.isValid) {
+        errors.push(...dateValidation.errors);
+      }
 
-      // Check milestone date compatibility
-      const incompatibleMilestones = currentMilestones.filter(m => 
-        !UnifiedProjectEntity.isDateWithinProject(m.dueDate, updatedProject)
-      );
+      // Check milestone date compatibility using domain rules
+      const incompatibleMilestones = currentMilestones.filter(m => {
+        const validation = MilestoneRules.validateMilestoneDateWithinProject(
+          m.dueDate,
+          updatedProject.startDate,
+          updatedProject.endDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+        );
+        return !validation.isValid;
+      });
 
       if (incompatibleMilestones.length > 0) {
         errors.push(`${incompatibleMilestones.length} milestone(s) would fall outside the updated project timeframe`);
       }
     }
 
-    // Validate budget changes
+    // Validate budget changes using domain rules
     if (request.estimatedHours !== undefined) {
-      const budgetAnalysis = UnifiedProjectEntity.analyzeBudget(updatedProject, currentMilestones);
+      const budgetCheck = MilestoneRules.checkBudgetConstraint(currentMilestones, updatedProject.estimatedHours);
       
-      if (budgetAnalysis.isOverBudget) {
-        errors.push(`Reducing budget would result in ${budgetAnalysis.overageHours}h over-allocation`);
+      if (!budgetCheck.isValid) {
+        errors.push(`Reducing budget would result in ${budgetCheck.overage}h over-allocation`);
       }
 
       if (request.estimatedHours < currentProject.estimatedHours) {
@@ -270,9 +223,19 @@ export class ProjectOrchestrator {
     project: Project,
     milestones: Milestone[]
   ): ProjectMilestoneAnalysis {
-    const projectBudget = UnifiedProjectEntity.analyzeBudget(project, milestones);
-    const regularMilestones = milestones.filter(m => UnifiedMilestoneEntity.isRegularMilestone(m)).length;
-    const recurringMilestones = milestones.filter(m => UnifiedMilestoneEntity.isRecurringMilestone(m)).length;
+    // Use domain rules for budget analysis
+    const budgetCheck = MilestoneRules.checkBudgetConstraint(milestones, project.estimatedHours);
+    const projectBudget: ProjectBudgetAnalysis = {
+      totalAllocation: budgetCheck.totalAllocated,
+      suggestedBudget: Math.max(project.estimatedHours, budgetCheck.totalAllocated),
+      isOverBudget: !budgetCheck.isValid,
+      overageHours: budgetCheck.overage,
+      utilizationPercentage: budgetCheck.utilizationPercentage
+    };
+
+    // Simple milestone type counting (recurring detection can be enhanced later)
+    const regularMilestones = milestones.filter(m => !('isRecurring' in m && (m as any).isRecurring)).length;
+    const recurringMilestones = milestones.filter(m => 'isRecurring' in m && (m as any).isRecurring).length;
     
     // Check for over-budget milestones
     const hasOverBudgetMilestones = milestones.some(m => 
@@ -325,7 +288,9 @@ export class ProjectOrchestrator {
     adjustmentNeeded: number;
     reason: string;
   } {
-    const totalAllocated = UnifiedProjectEntity.calculateTotalMilestoneAllocation(milestones);
+    // Use domain rules to calculate total allocation
+    const budgetCheck = MilestoneRules.checkBudgetConstraint(milestones, project.estimatedHours);
+    const totalAllocated = budgetCheck.totalAllocated;
     const currentBudget = project.estimatedHours;
     
     let suggestedBudget = currentBudget;

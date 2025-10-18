@@ -9,8 +9,9 @@
  * ✅ Mathematical operations only
  */
 
-import { Milestone, Project, DayEstimate, Settings, Holiday } from '@/types/core';
+import { Milestone, Project, DayEstimate, Settings, Holiday } from '@/types';
 import * as DateCalculations from './dateCalculations';
+import { calculatePlannedTimeForDate } from '@/services/unified/UnifiedEventWorkHourService';
 
 /**
  * Check if a date is a working day based on settings and holidays (for day estimates)
@@ -92,7 +93,10 @@ export function calculateMilestoneDayEstimates(
   // Use new fields if available, fallback to old fields
   const endDate = milestone.endDate || milestone.dueDate;
   const timeAllocationHours = milestone.timeAllocationHours ?? milestone.timeAllocation;
-  const startDate = milestone.startDate || project.startDate;
+  
+  // IMPORTANT: Don't use milestone.startDate from database - it was set incorrectly by migration
+  // Instead, use project start date to distribute work from project start to milestone due date
+  const startDate = project.startDate;
 
   // Get working days between start and end
   const workingDays = getWorkingDaysBetween(startDate, endDate, settings, holidays, project);
@@ -157,29 +161,20 @@ export function calculateRecurringMilestoneDayEstimates(
     // Calculate the work period for this occurrence
     const occurrenceEndDate = new Date(occurrenceDate);
     
-    // Start date is either explicitly set or we work backwards based on interval
+    // IMPORTANT: Don't use milestone.startDate - it's incorrect from migration
+    // Default: work backwards by interval for the work period
     let occurrenceStartDate: Date;
-    if (milestone.startDate) {
-      // Use relative offset from original milestone
-      const offsetDays = Math.floor(
-        (milestone.dueDate.getTime() - milestone.startDate.getTime()) / (1000 * 60 * 60 * 24)
-      );
-      occurrenceStartDate = new Date(occurrenceDate);
-      occurrenceStartDate.setDate(occurrenceStartDate.getDate() - offsetDays);
-    } else {
-      // Default: work backwards by interval
-      occurrenceStartDate = new Date(occurrenceDate);
-      switch (config.type) {
-        case 'daily':
-          occurrenceStartDate.setDate(occurrenceStartDate.getDate() - config.interval);
-          break;
-        case 'weekly':
-          occurrenceStartDate.setDate(occurrenceStartDate.getDate() - (7 * config.interval));
-          break;
-        case 'monthly':
-          occurrenceStartDate.setMonth(occurrenceStartDate.getMonth() - config.interval);
-          break;
-      }
+    occurrenceStartDate = new Date(occurrenceDate);
+    switch (config.type) {
+      case 'daily':
+        occurrenceStartDate.setDate(occurrenceStartDate.getDate() - config.interval);
+        break;
+      case 'weekly':
+        occurrenceStartDate.setDate(occurrenceStartDate.getDate() - (7 * config.interval));
+        break;
+      case 'monthly':
+        occurrenceStartDate.setMonth(occurrenceStartDate.getMonth() - config.interval);
+        break;
     }
 
     // Get working days for this occurrence
@@ -298,20 +293,66 @@ export function calculateProjectDayEstimates(
   project: Project,
   milestones: Milestone[],
   settings: Settings,
-  holidays: Holiday[]
+  holidays: Holiday[],
+  events: any[] = []
 ): DayEstimate[] {
   const allEstimates: DayEstimate[] = [];
 
-  // Process each milestone
+  // PRIORITY 1 - Handle planned events FIRST (they take precedence over milestones/auto-estimate)
+  
+  // PERFORMANCE OPTIMIZATION: Pre-index events by date instead of checking every date
+  // This changes complexity from O(dates × events) to O(events)
+  const eventsByDate = new Map<string, number>(); // dateKey -> total hours
+  
+  events.forEach(event => {
+    if (event.projectId !== project.id) return; // Only events for this project
+    
+    // Calculate event duration in hours
+    const startTime = new Date(event.startTime);
+    const endTime = new Date(event.endTime);
+    const durationMs = endTime.getTime() - startTime.getTime();
+    const durationHours = durationMs / (1000 * 60 * 60);
+    
+    // Get the date this event occurs on (normalized)
+    const eventDate = new Date(startTime);
+    eventDate.setHours(0, 0, 0, 0);
+    const dateKey = eventDate.toISOString().split('T')[0];
+    
+    // Add to the total for this date
+    eventsByDate.set(dateKey, (eventsByDate.get(dateKey) || 0) + durationHours);
+  });
+  
+  // Now create estimates only for dates that have events
+  const plannedEventDates = new Set<string>();
+  eventsByDate.forEach((hours, dateKey) => {
+    plannedEventDates.add(dateKey);
+    allEstimates.push({
+      date: new Date(dateKey + 'T00:00:00'),
+      projectId: project.id,
+      hours,
+      source: 'planned-event',
+      isWorkingDay: true
+    });
+  });
+
+  // PRIORITY 2 - Process milestones (only for dates without planned events)
+  let totalMilestoneEstimates = 0;
   milestones.forEach(milestone => {
     const milestoneEstimates = milestone.isRecurring
       ? calculateRecurringMilestoneDayEstimates(milestone, project, settings, holidays)
       : calculateMilestoneDayEstimates(milestone, project, settings, holidays);
     
-    allEstimates.push(...milestoneEstimates);
+    // Filter out milestone estimates that conflict with planned events
+    const filteredEstimates = milestoneEstimates.filter(est => {
+      const dateKey = est.date.toISOString().split('T')[0];
+      return !plannedEventDates.has(dateKey);
+    });
+    
+    totalMilestoneEstimates += filteredEstimates.length;
+    allEstimates.push(...filteredEstimates);
   });
 
-  // If no milestones, use project's auto-estimate logic
+  // PRIORITY 3 - If no milestones, use project's auto-estimate logic (only for dates without planned events)
   if (milestones.length === 0 && project.estimatedHours > 0) {
     const workingDays = getWorkingDaysBetween(
       project.startDate,
@@ -323,7 +364,14 @@ export function calculateProjectDayEstimates(
 
     if (workingDays.length > 0) {
       const hoursPerDay = project.estimatedHours / workingDays.length;
-      workingDays.forEach(date => {
+      
+      // Filter out working days that have planned events
+      const filteredWorkingDays = workingDays.filter(date => {
+        const dateKey = date.toISOString().split('T')[0];
+        return !plannedEventDates.has(dateKey);
+      });
+      
+      filteredWorkingDays.forEach(date => {
         allEstimates.push({
           date: new Date(date),
           projectId: project.id,

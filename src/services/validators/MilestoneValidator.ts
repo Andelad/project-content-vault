@@ -10,8 +10,8 @@
  */
 
 import { Milestone, Project } from '@/types/core';
-import { UnifiedMilestoneEntity, UnifiedProjectEntity } from '../unified';
 import { MilestoneRepository } from '../repositories/MilestoneRepository';
+import { MilestoneRules, ProjectRules, RelationshipRules } from '@/domain/rules';
 
 export interface ValidationContext {
   project: Project;
@@ -65,6 +65,8 @@ export class MilestoneValidator {
 
   /**
    * Validate milestone creation with comprehensive checks
+   * 
+   * Delegates to domain rules (single source of truth) and adds external checks.
    */
   static async validateMilestoneCreation(
     request: CreateMilestoneValidationRequest,
@@ -74,47 +76,72 @@ export class MilestoneValidator {
     const warnings: string[] = [];
     const suggestions: string[] = [];
 
-    // Domain-level validations
-    const timeValidation = UnifiedMilestoneEntity.validateMilestoneTime(
+    // ========================================================================
+    // DOMAIN RULE VALIDATION (delegates to MilestoneRules)
+    // ========================================================================
+    
+    // Validate time allocation using domain rules
+    const timeValidation = MilestoneRules.validateMilestoneTime(
       request.timeAllocation,
       context.project.estimatedHours
     );
     errors.push(...timeValidation.errors);
     warnings.push(...timeValidation.warnings);
 
-    const dateValidation = UnifiedMilestoneEntity.validateMilestoneDate(
+    // Validate dates using domain rules
+    const dateValidation = MilestoneRules.validateMilestoneDateWithinProject(
       request.dueDate,
       context.project.startDate,
       context.project.endDate,
-      context.existingMilestones
+      context.project.continuous
     );
     errors.push(...dateValidation.errors);
 
-    // Budget impact analysis
-    const budgetValidation = UnifiedMilestoneEntity.wouldExceedBudget(
+    // Check budget constraint using domain rules
+    const canAccommodate = MilestoneRules.canAccommodateAdditionalMilestone(
       context.existingMilestones,
-      request.timeAllocation,
-      context.project.estimatedHours
+      context.project.estimatedHours,
+      request.timeAllocation
     );
 
-    if (!budgetValidation.isValid) {
-      errors.push(`Adding this milestone would exceed project budget by ${budgetValidation.overageAmount}h`);
+    if (!canAccommodate) {
+      const budgetCheck = MilestoneRules.checkBudgetConstraint(
+        context.existingMilestones,
+        context.project.estimatedHours
+      );
+      errors.push(
+        `Adding this milestone would exceed project budget. ` +
+        `Current: ${budgetCheck.totalAllocated}h, ` +
+        `New: ${request.timeAllocation}h, ` +
+        `Budget: ${context.project.estimatedHours}h`
+      );
     }
 
-    // Check for conflicting milestone dates
+    // ========================================================================
+    // EXTERNAL VALIDATION (checks external state)
+    // ========================================================================
+    
+    // Check for conflicting milestone dates (external - requires existing data)
     const conflictingMilestones = context.existingMilestones.filter(m => 
       m.projectId === request.projectId && 
       m.dueDate.getTime() === request.dueDate.getTime()
     );
     
     if (conflictingMilestones.length > 0) {
-      errors.push(`${conflictingMilestones.length} milestone(s) already exist on this date`);
+      warnings.push(`${conflictingMilestones.length} milestone(s) already exist on this date`);
     }
 
-    // Advanced business rule validations
-    const projectAnalysis = UnifiedProjectEntity.analyzeBudget(context.project, context.existingMilestones);
+    // ========================================================================
+    // ANALYSIS & RECOMMENDATIONS (uses domain rules)
+    // ========================================================================
     
-    if (projectAnalysis.utilizationPercent > 80) {
+    // Project budget analysis
+    const budgetCheck = MilestoneRules.checkBudgetConstraint(
+      context.existingMilestones,
+      context.project.estimatedHours
+    );
+    
+    if (budgetCheck.utilizationPercentage > 80) {
       warnings.push('Project budget is already highly utilized (>80%)');
     }
 
@@ -132,13 +159,20 @@ export class MilestoneValidator {
       suggestions.push('Consider allocating at least 1 hour to this milestone');
     }
 
-    if (budgetValidation.budgetUtilization > 0.9) {
+    if (budgetCheck.utilizationPercentage > 90) {
       suggestions.push('Consider reducing milestone allocation or increasing project budget');
     }
 
     if (context.existingMilestones.length === 0) {
       suggestions.push('This is your first milestone - consider adding more to track project progress');
     }
+
+    // Generate additional recommendations using domain rules
+    const recommendations = MilestoneRules.generateRecommendations(
+      context.existingMilestones,
+      context.project.estimatedHours
+    );
+    suggestions.push(...recommendations);
 
     // Determine overall status
     let overallStatus: 'healthy' | 'warning' | 'critical' = 'healthy';
@@ -148,6 +182,23 @@ export class MilestoneValidator {
       overallStatus = 'warning';
     }
 
+    // Calculate budget impact after adding milestone
+    const afterBudgetCheck = MilestoneRules.checkBudgetConstraint(
+      [...context.existingMilestones, {
+        id: 'temp',
+        name: request.name,
+        projectId: request.projectId,
+        dueDate: request.dueDate,
+        timeAllocation: request.timeAllocation,
+        timeAllocationHours: request.timeAllocation,
+        order: 0,
+        userId: '',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      } as Milestone],
+      context.project.estimatedHours
+    );
+
     return {
       isValid: errors.length === 0,
       errors,
@@ -155,9 +206,9 @@ export class MilestoneValidator {
       suggestions,
       context: {
         budgetImpact: {
-          currentUtilization: projectAnalysis.utilizationPercent,
-          newUtilization: budgetValidation.budgetUtilization * 100,
-          remainingBudget: projectAnalysis.remainingHours - request.timeAllocation
+          currentUtilization: budgetCheck.utilizationPercentage,
+          newUtilization: afterBudgetCheck.utilizationPercentage,
+          remainingBudget: afterBudgetCheck.remaining
         },
         dateImpact: {
           conflictingMilestones,
@@ -196,15 +247,20 @@ export class MilestoneValidator {
 
     // Validate time allocation changes
     if (request.timeAllocation !== undefined) {
-      const budgetValidation = UnifiedMilestoneEntity.wouldUpdateExceedBudget(
-        context.existingMilestones,
-        request.id,
-        request.timeAllocation,
+      // Create a simulated milestone list with the updated allocation
+      const updatedMilestones = context.existingMilestones.map(m => 
+        m.id === request.id 
+          ? { ...m, timeAllocation: request.timeAllocation!, timeAllocationHours: request.timeAllocation! }
+          : m
+      );
+
+      const budgetCheck = MilestoneRules.checkBudgetConstraint(
+        updatedMilestones,
         context.project.estimatedHours
       );
 
-      if (!budgetValidation.isValid) {
-        errors.push(`Updating allocation would exceed budget by ${budgetValidation.overageAmount}h`);
+      if (!budgetCheck.isValid) {
+        errors.push(`Updating allocation would exceed budget by ${budgetCheck.overage}h`);
       }
 
       // Check for significant changes
@@ -219,16 +275,17 @@ export class MilestoneValidator {
 
     // Validate date changes
     if (request.dueDate !== undefined) {
-      const dateValidation = UnifiedMilestoneEntity.validateMilestoneDate(
+      const dateValidation = MilestoneRules.validateMilestoneDateWithinProject(
         request.dueDate,
         context.project.startDate,
-        context.project.endDate,
-        context.existingMilestones,
-        request.id // Exclude current milestone from conflict check
+        context.project.endDate
       );
-      errors.push(...dateValidation.errors);
+      
+      if (!dateValidation.isValid) {
+        errors.push(...dateValidation.errors);
+      }
 
-      // Check for conflicting milestone dates
+      // Check for conflicting milestone dates (using domain rules)
       const conflictingMilestones = context.existingMilestones.filter(m => 
         m.projectId === context.project.id && 
         m.id !== request.id && 
@@ -288,8 +345,14 @@ export class MilestoneValidator {
       warnings.push(`Deleting milestone with ${budgetPercent.toFixed(1)}% of project budget`);
     }
 
-    // Check if it's a recurring milestone
-    if (UnifiedMilestoneEntity.isRecurringMilestone(milestone)) {
+    // Check if milestone has recurring pattern characteristics
+    const similarMilestones = context.existingMilestones.filter(m => 
+      m.id !== milestoneId && 
+      m.name === milestone.name &&
+      m.timeAllocation === milestone.timeAllocation
+    );
+    
+    if (similarMilestones.length > 0) {
       warnings.push('This appears to be part of a recurring milestone series');
       suggestions.push('Consider updating the recurring pattern instead of deleting');
     }
