@@ -22,7 +22,7 @@ import type { ProjectBudgetAnalysis } from '../unified';
 import { 
   calculateDurationDays,
   calculateTimeOverlapMinutes 
-} from '../calculations/dateCalculations';
+} from '../calculations/general/dateCalculations';
 import { MilestoneRules } from '@/domain/rules/MilestoneRules';
 
 // =====================================================================================

@@ -14,7 +14,7 @@
 
 import { CalendarEvent } from '@/types/core';
 import { calculateOverlapActions, findOverlappingEvents } from '@/services';
-import { calculateDurationHours } from '@/services/calculations/dateCalculations';
+import { calculateDurationHours } from '@/services/calculations/general/dateCalculations';
 import {
   processEventOverlaps,
   calculateElapsedTime,

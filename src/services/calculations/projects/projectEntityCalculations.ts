@@ -15,14 +15,14 @@
 
 import type { Milestone, Project, CalendarEvent } from '@/types/core';
 import { getDateKey } from '@/utils/dateFormatUtils';
-import { calculateDurationDays, calculateDurationHours, datesOverlap } from './dateCalculations';
+import { calculateDurationDays, calculateDurationHours, datesOverlap } from '../general/dateCalculations';
 import { formatDateShort } from '@/utils/dateFormatUtils';
 
 // Re-export Project type for convenience
 export type { Project } from '@/types/core';
 
 // Re-export commonly used date functions for backward compatibility
-export { datesOverlap } from './dateCalculations';
+export { datesOverlap } from '../general/dateCalculations';
 
 // =====================================================================================
 // INTERFACES & TYPES

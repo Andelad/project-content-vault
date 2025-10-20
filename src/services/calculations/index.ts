@@ -1,56 +1,128 @@
 /**
  * Calculations Services Index
  * All mathematical computations and business logic calculations
+ * 
+ * Organized by domain:
+ * - events/       Event and holiday calculations
+ * - insights/     Analytics and planner insights
+ * - projects/     Project, milestone, and day estimate calculations
+ * - general/      Date, time, and settings calculations
+ * - availability/ Work hours, availability, and capacity calculations
+ * - tracking/     Time tracking calculations
  */
 
-// Availability calculations
-export * from './availabilityCalculations';
+// ===== EVENTS =====
+export * from './events/eventCalculations';
+export * from './events/holidayCalculations';
 
-// Analytics calculations (consolidation of insights + completion)
-export * from './analyticsCalculations';
+// ===== INSIGHTS =====
+export * from './insights/analyticsCalculations';
+// Note: plannerInsights and plannerInsightCalculations have overlapping exports
+// Using plannerInsightCalculations as the primary source
+export * from './insights/plannerInsightCalculations';
 
-// Date calculations - core date/time functions
-export * from './dateCalculations';
-
-// Day estimate calculations - SINGLE SOURCE OF TRUTH for timeline rendering
-export * from './dayEstimateCalculations';
-
-// Drag calculations - pure timeline interaction calculations
-export * from './dragCalculations';
-
-// Event calculations (includes event overlap functionality)
-export * from './eventCalculations';
-
-// Holiday calculations
-export * from './holidayCalculations';
-
-// Milestone calculations  
-export * from './milestoneCalculations';
-
-// Planner calculations
-export * from './plannerInsights';
-
-// Project calculations - excluding conflicting exports
+// ===== PROJECTS =====
+export * from './projects/dayEstimateCalculations';
+// Note: milestoneCalculations has calculateProjectWorkingDays which is also in capacityCalculations
+// Using capacityCalculations as primary source for calculateProjectWorkingDays
+export {
+  calculateTotalAllocation,
+  calculateBudgetUtilization,
+  calculateRemainingBudget,
+  calculateOverageAmount,
+  calculateMilestoneDensity,
+  calculateAverageMilestoneAllocation,
+  calculateAllocationDistribution,
+  calculateOptimalMilestoneSpacing,
+  calculateBusinessDaySpacing,
+  calculateTimelinePressure,
+  calculateMilestoneVelocity,
+  calculateSuggestedMilestoneBudget,
+  sortMilestonesByDate,
+  findMilestoneGap,
+  calculateRecurringMilestoneCount,
+  calculateRecurringTotalAllocation,
+  detectRecurringPattern,
+  generateRecurringMilestoneDates,
+  getMilestoneSegmentForDate,
+  calculateMilestoneSegments,
+  type MilestoneSegment
+} from './projects/milestoneCalculations';
+export * from './projects/projectEntityCalculations';
 export {
   calculateAutoEstimateWorkingDays,
   calculateAutoEstimateHoursPerDay,
   calculateTotalWorkingDays,
   DurationFormattingService
-} from './projectCalculations';
+} from './projects/projectCalculations';
 
-// Project operations - consolidated progress, status, conflicts, and drag operations
-export * from './projectOperations';
+// ===== GENERAL =====
+export * from './general/dateCalculations';  // Primary source for datesOverlap
+export * from './general/timeCalculations';  // Primary source for getWeekStart, getCurrentWeekStart
+export * from './general/settingsCalculations';
 
-// Settings calculations
-export * from './settingsCalculations';
+// ===== AVAILABILITY =====
+export * from './availability/availabilityCalculations';
+// Note: capacityCalculations has calculateOtherTime, calculateOvertimePlannedHours, calculateTotalPlannedHours
+// which are also in UnifiedEventWorkHourService (unified layer is primary source)
+export {
+  type WorkHourCapacity,
+  type UtilizationMetrics,
+  type CapacityPlanningResult,
+  type HolidayOverlapAnalysis,
+  CAPACITY_MANAGEMENT_CONFIG,
+  calculateWorkHourCapacity,
+  calculateTimeOverlap,
+  eventOverlapsWorkHours,
+  getWorkHoursCapacityForPeriod,
+  calculateWorkHourUtilization,
+  isDayOverbooked,
+  analyzeUtilizationEfficiency,
+  isHolidayDateCapacity,
+  calculateWorkHourCapacityWithHolidays,
+  wouldOverlapHolidays,
+  getOverlappingHolidays,
+  analyzeHolidayOverlap,
+  performCapacityPlanning,
+  generateCapacityRecommendations,
+  calculateAvailabilityReduction,
+  generateWorkHoursForDate,
+  calculateProjectWorkingDays,
+  getProjectTimeAllocation,
+  calculateCommittedHoursForDate,
+  hasWorkHoursConfigured,
+  dayHasWorkHoursConfigured
+} from './availability/capacityCalculations';
+// Note: workHourCalculations re-exports getWeekStart/getCurrentWeekStart from timeCalculations
+export {
+  WorkHourCalculationService,
+  calculateWorkHourDuration,
+  createWorkHour,
+  updateWorkHourWithDuration,
+  generateWorkHoursFromSettings,
+  mergeWorkHoursWithOverrides,
+  canModifyWorkHour,
+  validateWorkHour,
+  createWeekOverrideManager,
+  createDeletionOverride,
+  createUpdateOverride,
+  resetWorkHourState,
+  WORK_HOUR_CONSTANTS,
+  calculateTimeFromPosition,
+  handleWorkHourCreationStart,
+  handleWorkHourCreationMove,
+  handleWorkHourCreationComplete,
+  getWorkHourOverlapInfo,
+  generateWorkHourPreviewStyle,
+  getWorkHourCreationCursor,
+  shouldAllowWorkHourCreation,
+  formatWorkSlotDurationDisplay,
+  type WeekOverrideManager,
+  type WorkHourGenerationParams,
+  type WorkHourMergeParams,
+  type TimeCalculationParams,
+  type WorkHourCreateState
+} from './availability/workHourCalculations';
 
-// Time calculations
-export * from './timeCalculations';
-
-// Time tracking calculations
-export * from './timeTrackingCalculations';
-
-// Timeline calculations - migrated from TimelineCalculationService
-export * from './timelineCalculations';
-
-// Timeline positioning moved to ui/TimelinePositioning.ts (UI logic, not pure calculations)
+// ===== TRACKING =====
+export * from './tracking/timeTrackingCalculations';

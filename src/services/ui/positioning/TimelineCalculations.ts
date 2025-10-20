@@ -4,7 +4,7 @@
  * Pure calculation functions for timeline positioning and sizing
  */
 import { formatDateShort, formatWeekdayDate } from '@/utils/dateFormatUtils';
-import { isToday, isTodayInWeek, isWeekendDate } from './dateCalculations';
+import { isToday, isTodayInWeek, isWeekendDate } from '../../calculations/general/dateCalculations';
 
 export interface TimelinePosition {
   left: number;

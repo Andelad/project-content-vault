@@ -9,7 +9,7 @@ import {
   datesOverlap as coreDatesOverlap,
   calculateDurationDays,
   formatDuration as coreFormatDuration
-} from '@/services/calculations/dateCalculations';
+} from '../general/dateCalculations';
 
 // ===== WORKING DAYS INTERFACES =====
 export interface ProjectWorkSlot {

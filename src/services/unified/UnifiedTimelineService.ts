@@ -57,7 +57,9 @@ import {
   getDayName,
   generateDateRange,
   isDateInArray,
-  calculateTimelineColumnMarkerData
+  calculateTimelineColumnMarkerData,
+  // NEW: Import calculateProjectDayEstimates
+  calculateProjectDayEstimates
 } from '../index';
 import type { Project, Milestone, DayEstimate, Settings, Holiday } from '@/types/core';
 
@@ -427,39 +429,70 @@ export class UnifiedTimelineService {
 
   /**
    * Calculate daily project hours for a date
-   * Delegates to existing auto-estimate calculations
+   * Uses same logic as project bars - includes milestone allocations, events, and auto-estimates
    */
-  static calculateDailyProjectHours(date: Date, projects: any[], settings: any, holidays: any[]) {
+  static calculateDailyProjectHours(date: Date, projects: any[], settings: any, holidays: any[], milestones: any[] = [], events: any[] = []) {
     let totalHours = 0;
     
     if (!this.isWorkingDay(date, holidays, settings)) {
       return 0;
     }
     
-    const holidayDates = this.getExpandedHolidayDates(holidays);
+    // Import dynamically to avoid circular dependencies
+    // const { calculateProjectDayEstimates } = require('../calculations/dayEstimateCalculations');
     
+    // Normalize date to midnight for comparison
+    const targetDate = new Date(date);
+    targetDate.setHours(0, 0, 0, 0);
+    const dateKey = targetDate.toDateString();
+    
+    // Calculate day estimates for each project (same logic as project bars)
     projects.forEach((project: any) => {
       const projectStart = new Date(project.startDate);
+      projectStart.setHours(0, 0, 0, 0);
       const projectEnd = project.continuous ? new Date() : new Date(project.endDate);
+      projectEnd.setHours(23, 59, 59, 999);
       
-      if (date >= projectStart && date <= projectEnd) {
-        // Check if this specific date is a valid auto-estimate day for this project
-        const workingDays = calculateAutoEstimateWorkingDays(
-          projectStart,
-          projectEnd,
-          project.autoEstimateDays,
+      // Only process if date is within project range
+      if (targetDate >= projectStart && targetDate <= projectEnd) {
+        console.log(`[Availability] Processing project ${project.name} for ${dateKey}`);
+        
+        // Get milestones for this project
+        const projectMilestones = milestones.filter((m: any) => m.projectId === project.id);
+        
+        // Get events for this project
+        const projectEvents = events.filter((e: any) => e.projectId === project.id);
+        
+        // Calculate day estimates using the same method as project bars
+        const dayEstimates = calculateProjectDayEstimates(
+          project,
+          projectMilestones,
           settings,
-          holidayDates
+          holidays,
+          projectEvents
         );
         
-        // Check if the current date is in the working days for this project
-        const isProjectWorkingDay = isDateInArray(date, workingDays);
+        console.log(`[Availability] ${project.name} has ${dayEstimates.length} total estimates, ${projectMilestones.length} milestones`);
         
-        if (isProjectWorkingDay) {
-          const hoursPerDay = calculateAutoEstimateHoursPerDay(project, settings, holidayDates);
-          const roundedHoursPerDay = Math.ceil(hoursPerDay);
-          totalHours += roundedHoursPerDay;
+        // Find estimate for this specific date
+        const estimateForDate = dayEstimates.find((est: any) => {
+          const estDate = new Date(est.date);
+          estDate.setHours(0, 0, 0, 0);
+          return estDate.toDateString() === dateKey;
+        });
+        
+        if (estimateForDate) {
+          // Only count non-event estimates (milestones and auto-estimates)
+          // Events are already subtracted in calculateDailyAvailableHours
+          if (estimateForDate.source !== 'event') {
+            console.log(`[Availability] ${dateKey} - Adding ${estimateForDate.hours}h from ${project.name} (${estimateForDate.source})`);
+            totalHours += estimateForDate.hours;
+          }
+        } else {
+          console.log(`[Availability] ${dateKey} - No estimate found for ${project.name}`);
         }
+      } else {
+        console.log(`[Availability] Skipping project ${project.name} - date ${dateKey} not in range ${projectStart.toDateString()} to ${projectEnd.toDateString()}`);
       }
     });
     

@@ -9,7 +9,7 @@
  * ✅ Can be mocked for testing
  */
 
-import * as DateCalculations from '../calculations/dateCalculations';
+import * as DateCalculations from '../calculations/general/dateCalculations';
 
 interface CacheStats {
   hits: number;

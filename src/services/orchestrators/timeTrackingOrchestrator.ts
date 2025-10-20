@@ -1,6 +1,6 @@
 import { timeTrackingRepository } from '../repositories/timeTrackingRepository';
 import { timeTrackingValidator } from '../validators/timeTrackingValidator';
-import { timeTrackingCalculations } from '../calculations/timeTrackingCalculations';
+import { timeTrackingCalculations } from '../calculations/tracking/timeTrackingCalculations';
 import { UnifiedTimeTrackerService } from '../unified/UnifiedTimeTrackerService';
 import { calendarEventRepository } from '../repositories/CalendarEventRepository';
 import type { TimeTrackingState } from '../../types/timeTracking';

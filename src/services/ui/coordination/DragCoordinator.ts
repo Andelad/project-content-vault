@@ -7,11 +7,11 @@
  * 🚨 ARCHITECTURAL RULE: Services calculate, Components coordinate
  */
 
-import * as DragCalculationsService from '../calculations/dragCalculations';
-import { DragState, DragPositionResult } from '../calculations/dragCalculations';
-import * as ProjectOverlapService from '../calculations/projectOperations';
-import { ConflictDetectionResult, DateAdjustmentResult } from '../calculations/projectOperations';
-import { TimelineViewport as TimelineViewportService } from '../ui/TimelineViewport';
+import * as DragCalculationsService from '../positioning/DragPositioning';
+import { DragState, DragPositionResult } from '../positioning/DragPositioning';
+import * as ProjectOverlapService from '../../calculations/projects/projectEntityCalculations';
+import { ConflictDetectionResult, DateAdjustmentResult } from '../../calculations/projects/projectEntityCalculations';
+import { TimelineViewport as TimelineViewportService } from '../positioning/ViewportPositioning';
 import type { Project } from '@/types/core';
 
 export interface TimelineContext {

@@ -13,7 +13,7 @@ export {
   formatDurationFromMinutes,
   formatDuration as formatDurationFromHours,
   formatDuration as formatDurationPreview
-} from '@/services/calculations/dateCalculations';
+} from '@/services/calculations/general/dateCalculations';
 
 // ⚠️ DEPRECATED NOTICE:
 // These functions are deprecated. Use imports from '@/services' instead:

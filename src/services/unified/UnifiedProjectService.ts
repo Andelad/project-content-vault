@@ -24,7 +24,7 @@
  */
 
 import { Project, Milestone } from '@/types';
-import { calculateDurationDays } from '@/services/calculations/dateCalculations';
+import { calculateDurationDays } from '@/services/calculations/general/dateCalculations';
 import { ProjectRules } from '@/domain/rules/ProjectRules';
 
 // ============================================================================

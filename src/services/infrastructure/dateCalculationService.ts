@@ -10,7 +10,7 @@
  */
 
 import { CachedDateCalculationService } from './dateCache';
-import * as DateCalculations from '../calculations/dateCalculations';
+import * as DateCalculations from '../calculations/general/dateCalculations';
 
 export class DateCalculationService {
   /**

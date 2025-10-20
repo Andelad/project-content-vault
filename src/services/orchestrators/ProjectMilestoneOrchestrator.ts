@@ -14,8 +14,8 @@ import { Project, Milestone } from '@/types/core';
 import { supabase } from '@/integrations/supabase/client';
 import { UnifiedMilestoneService } from '../unified/UnifiedMilestoneService';
 import { ProjectOrchestrator } from './ProjectOrchestrator';
-import { calculateDurationDays } from '../calculations/dateCalculations';
-import { RecurringMilestoneConfig as BaseRecurringMilestoneConfig } from '../calculations/milestoneCalculations';
+import { calculateDurationDays } from '../calculations/general/dateCalculations';
+import { RecurringMilestoneConfig as BaseRecurringMilestoneConfig } from '../calculations/projects/milestoneCalculations';
 
 export interface ProjectRecurringMilestoneConfig extends BaseRecurringMilestoneConfig {
   name: string;

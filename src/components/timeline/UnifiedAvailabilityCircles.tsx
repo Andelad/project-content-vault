@@ -1,6 +1,7 @@
 import React, { memo, useMemo } from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import { usePlannerContext } from '../../contexts/PlannerContext';
+import { useProjectContext } from '../../contexts/ProjectContext';
 import { UnifiedTimelineService, formatDuration } from '@/services';
 import { formatWeekdayDate, formatDateShort } from '@/utils/dateFormatUtils';
 
@@ -29,6 +30,7 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
   displayMode = 'circles'
 }: UnifiedAvailabilityCirclesProps) {
   const { holidays, events } = usePlannerContext();
+  const { milestones } = useProjectContext();
   const columnWidth = mode === 'weeks' ? 77 : 40;
   
   // Helper function to check if a day has working hours - using service
@@ -54,9 +56,9 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
         return 0;
       }
       
-      return UnifiedTimelineService.calculateDailyProjectHours(date, projects, settings, holidays);
+      return UnifiedTimelineService.calculateDailyProjectHours(date, projects, settings, holidays, milestones, events);
     };
-  }, [projects, settings, holidays, isWorkingDay]);
+  }, [projects, settings, holidays, milestones, events, isWorkingDay]);
 
   // Get work hours for a specific day - using service
   const getWorkHoursForDay = (date: Date) => {
@@ -84,6 +86,10 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
       case 'available': {
         const availableHours = getDailyAvailableHours(date);
         const projectHours = getDailyProjectHours(date);
+        
+        // Debug for all dates in the current viewport
+        console.log(`[AvailabilityCircles] ${date.toDateString()} - available: ${availableHours}, project: ${projectHours}, result: ${Math.max(0, availableHours - projectHours)}`);
+        
         return Math.max(0, availableHours - projectHours);
       }
       case 'busy': {

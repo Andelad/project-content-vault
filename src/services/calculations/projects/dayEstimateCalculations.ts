@@ -11,7 +11,7 @@
  */
 
 import { Milestone, Project, DayEstimate, Settings, Holiday } from '@/types';
-import * as DateCalculations from './dateCalculations';
+import * as DateCalculations from '../general/dateCalculations';
 import { calculatePlannedTimeForDate } from '@/services/unified/UnifiedEventWorkHourService';
 import { TimelineRules } from '@/domain/rules';
 import { getDateKey } from '@/utils/dateFormatUtils';
@@ -162,24 +162,22 @@ export function calculateRecurringMilestoneDayEstimates(
   );
 
   // For each occurrence, distribute hours
-  occurrences.forEach(occurrenceDate => {
+  occurrences.forEach((occurrenceDate, index) => {
     // Calculate the work period for this occurrence
+    // The work period should be BETWEEN occurrences, not overlapping
+    // Start: day after previous occurrence (or project start for first occurrence)
+    // End: this occurrence date
     const occurrenceEndDate = new Date(occurrenceDate);
     
-    // IMPORTANT: Don't use milestone.startDate - it's incorrect from migration
-    // Default: work backwards by interval for the work period
     let occurrenceStartDate: Date;
-    occurrenceStartDate = new Date(occurrenceDate);
-    switch (config.type) {
-      case 'daily':
-        occurrenceStartDate.setDate(occurrenceStartDate.getDate() - config.interval);
-        break;
-      case 'weekly':
-        occurrenceStartDate.setDate(occurrenceStartDate.getDate() - (7 * config.interval));
-        break;
-      case 'monthly':
-        occurrenceStartDate.setMonth(occurrenceStartDate.getMonth() - config.interval);
-        break;
+    if (index === 0) {
+      // First occurrence: start from project start
+      occurrenceStartDate = new Date(project.startDate);
+    } else {
+      // Subsequent occurrences: start from day after previous occurrence
+      const previousOccurrence = occurrences[index - 1];
+      occurrenceStartDate = new Date(previousOccurrence);
+      occurrenceStartDate.setDate(occurrenceStartDate.getDate() + 1); // Day after previous
     }
 
     // Get working days for this occurrence
@@ -273,7 +271,9 @@ function generateRecurringOccurrences(
         // If we've passed this date in the current month, move to next month
         if (current < projectStartDate) {
           current.setMonth(current.getMonth() + 1);
-          current.setDate(Math.min(config.monthlyDate, new Date(current.getFullYear(), current.getMonth() + 1, 0).getDate()));
+          // Get the last day of the new current month
+          const lastDayOfMonth = new Date(current.getFullYear(), current.getMonth() + 1, 0).getDate();
+          current.setDate(Math.min(config.monthlyDate, lastDayOfMonth));
         }
       } else if (config.monthlyPattern === 'dayOfWeek' && config.monthlyWeekOfMonth && config.monthlyDayOfWeek !== undefined) {
         // Find first occurrence of day of week pattern
@@ -313,7 +313,9 @@ function generateRecurringOccurrences(
         if (config.monthlyPattern === 'date' && config.monthlyDate) {
           // Specific date of month
           current.setMonth(current.getMonth() + config.interval);
-          current.setDate(Math.min(config.monthlyDate, new Date(current.getFullYear(), current.getMonth() + 1, 0).getDate()));
+          // Get the last day of the new current month
+          const lastDayOfMonth = new Date(current.getFullYear(), current.getMonth() + 1, 0).getDate();
+          current.setDate(Math.min(config.monthlyDate, lastDayOfMonth));
         } else if (config.monthlyPattern === 'dayOfWeek' && config.monthlyWeekOfMonth && config.monthlyDayOfWeek !== undefined) {
           // Specific week and day of month (e.g., 2nd Tuesday)
           current.setMonth(current.getMonth() + config.interval);
@@ -351,18 +353,6 @@ export function calculateProjectDayEstimates(
   // Filter to only events for this project (CRITICAL: Domain Rule 1)
   const projectEvents = TimelineRules.filterEventsForProject(events, project);
   
-  // DEBUG: Log events for Budgi project
-  if (project.name === 'Budgi') {
-    console.log(`[DayEstimates] Budgi project events:`, projectEvents.map(e => ({
-      id: e.id,
-      startTime: e.startTime,
-      endTime: e.endTime,
-      completed: e.completed,
-      type: e.type,
-      duration: e.duration
-    })));
-  }
-  
   // Group events by date using domain rules
   const eventsByDate = TimelineRules.groupEventsByDate(projectEvents);
   const allEventDates = new Set<string>(); // All dates with ANY events (blocks estimates)
@@ -374,22 +364,6 @@ export function calculateProjectDayEstimates(
     
     // Calculate breakdown for this day
     const breakdown = TimelineRules.calculateDayTimeBreakdown(eventsOnDay);
-    
-    // DEBUG: Log breakdown for Budgi on Aug 13 and Oct 13
-    if (project.name === 'Budgi' && (dateKey === '2024-08-13' || dateKey === '2024-10-13')) {
-      console.log(`[DayEstimates] Budgi ${dateKey} breakdown:`, {
-        dateKey,
-        eventsOnDay: eventsOnDay.map(e => ({
-          id: e.id,
-          startTime: e.startTime,
-          endTime: e.endTime,
-          completed: e.completed,
-          type: e.type,
-          duration: e.duration
-        })),
-        breakdown
-      });
-    }
     
     // Create a single estimate for this day
     // Total hours = planned + completed event hours
@@ -441,7 +415,7 @@ export function calculateProjectDayEstimates(
 
     // Filter out milestone estimates that conflict with ANY events (planned OR completed)
     // Use domain rule: Auto-estimates only on days WITHOUT events
-    // AND ensure they don't extend beyond project end date
+    // AND ensure they don't extend beyond project end date (only for non-continuous projects)
     const projectEndDate = new Date(project.endDate);
     projectEndDate.setHours(23, 59, 59, 999);
     
@@ -452,7 +426,11 @@ export function calculateProjectDayEstimates(
       
       // Domain Rule: Auto-estimates blocked by ANY events (planned or completed)
       const hasEventsOnDay = allEventDates.has(dateKey);
-      const shouldInclude = !hasEventsOnDay && estDate <= projectEndDate;
+      
+      // For continuous projects, don't filter by end date
+      // For non-continuous projects, only include estimates up to project end date
+      const isWithinProjectBounds = project.continuous || estDate <= projectEndDate;
+      const shouldInclude = !hasEventsOnDay && isWithinProjectBounds;
       
       return shouldInclude;
     });

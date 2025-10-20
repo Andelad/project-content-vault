@@ -8,7 +8,7 @@
 
 import { CalendarEvent } from '@/types/core';
 import { supabase } from '@/integrations/supabase/client';
-import { generateRecurringEvents } from '../calculations/eventCalculations';
+import { generateRecurringEvents } from '../calculations/events/eventCalculations';
 
 /**
  * Checks if a recurring series needs more events generated and creates them if necessary

@@ -29,7 +29,7 @@ import {
 } from '../unified/UnifiedEventWorkHourService';
 import { 
   PlannerV2CalculationService 
-} from '../calculations/plannerInsights';
+} from '../calculations/insights/plannerInsights';
 import { 
   processEventOverlaps,
   validateEventForSplit,

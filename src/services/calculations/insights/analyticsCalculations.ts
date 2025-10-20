@@ -13,7 +13,7 @@
  * Date: September 10, 2025
  */
 
-import { calculateEventDurationOnDate } from './eventCalculations';
+import { calculateEventDurationOnDate } from '../events/eventCalculations';
 import type { Project, CalendarEvent } from '@/types';
 
 // =====================================================================================

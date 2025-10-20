@@ -156,7 +156,9 @@ export const ProjectMilestones = memo(function ProjectMilestones({
         case 'monthly':
           if (config.monthlyPattern === 'date' && config.monthlyDate) {
             current.setMonth(current.getMonth() + config.interval);
-            current.setDate(Math.min(config.monthlyDate, new Date(current.getFullYear(), current.getMonth() + 1, 0).getDate()));
+            // Get the last day of the new current month
+            const lastDayOfMonth = new Date(current.getFullYear(), current.getMonth() + 1, 0).getDate();
+            current.setDate(Math.min(config.monthlyDate, lastDayOfMonth));
           }
           break;
       }

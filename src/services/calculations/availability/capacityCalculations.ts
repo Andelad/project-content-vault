@@ -8,10 +8,10 @@
 
 import { 
   calculateTimeOverlapMinutes 
-} from './dateCalculations';
+} from '../general/dateCalculations';
 
-import { calculateEventDurationOnDate } from './eventCalculations';
-import { calculateWorkHoursTotal, calculateDayWorkHours } from './timelineCalculations';
+import { calculateEventDurationOnDate } from '../events/eventCalculations';
+import { calculateWorkHoursTotal, calculateDayWorkHours } from '../../ui/positioning/TimelineCalculations';
 import { getDateKey } from '@/utils/dateFormatUtils';
 
 // Import unified functions - these are the single source of truth
@@ -19,7 +19,7 @@ import {
   generateWorkHoursForDate as unifiedGenerateWorkHoursForDate,
   calculateProjectWorkingDays as unifiedCalculateProjectWorkingDays,
   calculateOvertimePlannedHours as unifiedCalculateOvertimePlannedHours
-} from '../unified/UnifiedEventWorkHourService';
+} from '../../unified/UnifiedEventWorkHourService';
 
 import type { CalendarEvent, WorkHour } from '@/types';
 

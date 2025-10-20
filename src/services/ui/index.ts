@@ -1,6 +1,8 @@
 // UI Positioning - View-specific layout calculations
-export * from './TimelinePositioning';
-export * from './TimelineViewport';
+export * from './positioning/TimelinePositioning';
+export * from './positioning/TimelineCalculations';
+export * from './positioning/ViewportPositioning';
+export * from './positioning/DragPositioning';
 
 // UI Coordination - High-level operation orchestration
-export * from './DragCoordinator';
+export * from './coordination/DragCoordinator';

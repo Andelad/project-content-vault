@@ -21,7 +21,7 @@ import {
   handleWorkHourCreationMove,
   validateWorkHour,
   calculateTimeFromPosition
-} from '../calculations/workHourCalculations';
+} from '../calculations/availability/workHourCalculations';
 import {
   processEventOverlaps,
   validateEventForSplit,

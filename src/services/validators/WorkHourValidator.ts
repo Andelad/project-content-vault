@@ -18,7 +18,7 @@ import { getDateKey } from '@/utils/dateFormatUtils';
 
 import { 
   calculateDurationHours 
-} from '../calculations/dateCalculations';
+} from '../calculations/general/dateCalculations';
 
 // =====================================================================================
 // VALIDATION INTERFACES

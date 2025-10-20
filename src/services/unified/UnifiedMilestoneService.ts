@@ -119,8 +119,34 @@ export class UnifiedMilestoneService {
       return [];
     }
 
+    // Expand recurring milestones into their occurrences
+    const expandedMilestones: Milestone[] = [];
+    milestones.forEach(m => {
+      if (m.isRecurring && m.recurringConfig) {
+        // Generate occurrence dates for recurring milestone
+        const occurrences = this.generateRecurringOccurrences(
+          m,
+          projectStartDate,
+          projectEndDate,
+          false // projectContinuous - we'll use projectEndDate as limit
+        );
+
+        // Create a milestone entry for each occurrence
+        occurrences.forEach(date => {
+          expandedMilestones.push({
+            ...m,
+            dueDate: date,
+            endDate: date
+          });
+        });
+      } else {
+        // Regular milestone, include as-is
+        expandedMilestones.push(m);
+      }
+    });
+
     // Sort milestones by due date
-    const sortedMilestones = [...milestones].sort((a, b) => {
+    const sortedMilestones = [...expandedMilestones].sort((a, b) => {
       const dateA = a.endDate || a.dueDate;
       const dateB = b.endDate || b.dueDate;
       return dateA.getTime() - dateB.getTime();

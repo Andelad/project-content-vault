@@ -10,7 +10,7 @@
  */
 
 import { Milestone } from '@/types/core';
-import * as DateCalculations from './dateCalculations';
+import * as DateCalculations from '../general/dateCalculations';
 
 /**
  * Calculate total time allocation across milestones

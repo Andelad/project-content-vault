@@ -3,7 +3,7 @@ import { EventInput } from '@fullcalendar/core';
 import { calculateEventStyle } from './UnifiedEventWorkHourService';
 import { OKLCH_FALLBACK_GRAY } from '@/constants/colors';
 import { type EventStyleConfig } from './UnifiedEventWorkHourService';
-import { calculateDurationHours } from '@/services/calculations/dateCalculations';
+import { calculateDurationHours } from '@/services/calculations/general/dateCalculations';
 
 /**
  * Transform CalendarEvent to FullCalendar EventInput format

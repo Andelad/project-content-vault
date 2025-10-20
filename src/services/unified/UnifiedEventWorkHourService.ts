@@ -22,7 +22,7 @@ import {
   calculateBusinessDaysInRange,
   isHoliday,
   calculateTimeOverlapMinutes 
-} from '../calculations/dateCalculations';
+} from '../calculations/general/dateCalculations';
 
 import { WorkHour, CalendarEvent } from '@/types';
 import { calculateAutoEstimateWorkingDays, calculateEventDurationOnDateLegacy as calculateEventDurationOnDate } from '@/services';

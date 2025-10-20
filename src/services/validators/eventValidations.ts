@@ -7,7 +7,7 @@
 
 import { 
   calculateDurationHours 
-} from '@/services/calculations/dateCalculations';
+} from '@/services/calculations/general/dateCalculations';
 import type { CalendarEvent } from '@/types/core';
 
 // Use core CalendarEvent as the single source of truth

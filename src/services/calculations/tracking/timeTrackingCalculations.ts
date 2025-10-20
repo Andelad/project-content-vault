@@ -1,6 +1,6 @@
-import type { TimeTrackingState } from '../../types/timeTracking';
-import { calculateDurationMinutes } from './dateCalculations';
-import { formatDuration } from './dateCalculations';
+import type { TimeTrackingState } from '@/types/timeTracking';
+import { calculateDurationMinutes } from '../general/dateCalculations';
+import { formatDuration } from '../general/dateCalculations';
 
 /**
  * Time Tracking Calculations

@@ -8,7 +8,7 @@
  */
 
 import { Project, Milestone, DayEstimate, Settings, Holiday } from '@/types/core';
-import * as DayEstimateCalcs from '@/services/calculations/dayEstimateCalculations';
+import * as DayEstimateCalcs from '@/services/calculations/projects/dayEstimateCalculations';
 
 export class UnifiedDayEstimateService {
   

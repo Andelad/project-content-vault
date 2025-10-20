@@ -29,7 +29,7 @@
  */
 
 import { Project, CalendarEvent, Holiday, Settings, Milestone } from '@/types/core';
-import { calculateDurationDays } from '@/services/calculations/dateCalculations';
+import { calculateDurationDays } from '@/services/calculations/general/dateCalculations';
 import {
   ProjectEvent,
   MilestoneWithProgress,
@@ -42,7 +42,7 @@ import {
   getCompletedTimeUpToDate,
   getRelevantMilestones,
   calculateProjectTimeMetrics
-} from '../calculations/projectOperations';
+} from '../calculations/projects/projectEntityCalculations';
 
 // =====================================================================================
 // TYPE DEFINITIONS
@@ -616,4 +616,4 @@ export {
   type MilestoneWithProgress,
   type DataPoint,
   type ComprehensiveProjectTimeMetrics
-} from '../calculations/projectOperations';
+} from '../calculations/projects/projectEntityCalculations';

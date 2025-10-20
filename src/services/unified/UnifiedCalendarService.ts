@@ -1,7 +1,7 @@
 import ICAL from 'ical.js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { calculateDurationHours } from '@/services/calculations/dateCalculations';
+import { calculateDurationHours } from '@/services/calculations/general/dateCalculations';
 import { getDateKey } from '@/utils/dateFormatUtils';
 
 export interface ExternalEvent {

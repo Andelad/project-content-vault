@@ -1,12 +1,12 @@
 /**
- * Drag Calculations Service
+ * Drag Positioning Service
  * 
- * Pure drag calculation functions for timeline interactions.
- * Handles drag positioning, validation, and state management calculations.
+ * UI positioning and calculation functions for timeline drag interactions.
+ * Handles mouse-to-pixel-to-date conversions, drag validation, and visual positioning.
  * 
- * Migrated from: services/legacy/events/dragCalculationService.ts
- * Migration Date: September 8, 2025
- * Renamed for clarity: dragCalculations.ts (September 10, 2025) - Follows calculation file naming convention
+ * Migrated from: services/legacy/events/dragCalculationService.ts (September 8, 2025)
+ * Moved to: services/ui/positioning/DragPositioning.ts (October 20, 2025)
+ * Reason: Separated UI positioning from pure data calculations
  */
 
 /**

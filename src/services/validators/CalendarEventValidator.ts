@@ -17,7 +17,7 @@ import type {
 
 import { 
   calculateDurationHours 
-} from '../calculations/dateCalculations';
+} from '../calculations/general/dateCalculations';
 
 // =====================================================================================
 // VALIDATION INTERFACES

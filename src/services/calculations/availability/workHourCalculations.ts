@@ -10,11 +10,11 @@
 import { 
   calculateDurationHours,
   calculateDurationMinutes
-} from './dateCalculations';
+} from '../general/dateCalculations';
 import { 
   getWeekStart as coreGetWeekStart,
   getCurrentWeekStart as coreGetCurrentWeekStart
-} from './timeCalculations';
+} from '../general/timeCalculations';
 
 import { WorkHour, WorkSlot } from '@/types/core';
 
@@ -371,11 +371,11 @@ import {
   snapToTimeSlot,
   adjustEndTime,
   formatTime
-} from '@/services/calculations/timeCalculations';
+} from '../general/timeCalculations';
 import { 
   formatDuration,
   formatDurationFromMinutes 
-} from '@/services/calculations/dateCalculations';
+} from '../general/dateCalculations';
 
 // Work hour constants
 export const WORK_HOUR_CONSTANTS = {

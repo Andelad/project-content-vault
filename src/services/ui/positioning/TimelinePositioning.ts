@@ -4,8 +4,8 @@
  * Solves the project bar calculation inconsistency issue
  */
 
-import { normalizeToMidnight } from '../calculations/dateCalculations';
-import type { Holiday } from '../../types';
+import { normalizeToMidnight } from '../../calculations/general/dateCalculations';
+import type { Holiday } from '../../../types';
 
 // Timeline position calculation result type
 export type TimelinePositionCalculation = {

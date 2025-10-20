@@ -3,7 +3,7 @@
  * Extracted from TimelineView and other components
  */
 
-import { calculateDurationDays } from './dateCalculations';
+import { calculateDurationDays } from '../general/dateCalculations';
 import { APP_LOCALE } from '@/utils/dateFormatUtils';
 
 export interface Holiday {

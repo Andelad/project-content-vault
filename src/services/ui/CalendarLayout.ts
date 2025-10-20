@@ -6,10 +6,10 @@
 
 import { 
   calculateDurationHours as coreCalculateDurationHours
-} from '@/services/calculations/dateCalculations';
+} from '@/services/calculations/general/dateCalculations';
 import { 
   snapToTimeSlot as coreSnapToTimeSlot
-} from '@/services/calculations/timeCalculations';
+} from '@/services/calculations/general/timeCalculations';
 
 export interface TimeSlotConfig {
   slotHeight: number;

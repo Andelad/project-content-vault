@@ -6,7 +6,7 @@ import { useWorkHours } from '@/hooks/useWorkHours';
 import { EventInput } from '@fullcalendar/core';
 
 // Try direct import from the specific file instead of barrel export
-import { PlannerV2CalculationService } from '@/services/calculations/plannerInsights';
+import { PlannerV2CalculationService } from '@/services/calculations/insights/plannerInsights';
 
 interface PlannerV2ContextType {
   // Calendar Events

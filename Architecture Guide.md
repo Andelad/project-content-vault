@@ -57,19 +57,26 @@ src/
 │   ├── orchestrators/           # Workflow coordination
 │   │   ├── ProjectOrchestrator.ts
 │   │   └── TimeTrackingOrchestrator.ts
-│   ├── calculations/            # Pure mathematical calculations
-│   │   ├── ProjectCalculations.ts
-│   │   ├── TimeCalculations.ts
-│   │   └── timeTrackingCalculations.ts
+│   ├── calculations/            # Pure data mathematics (NO UI/pixels)
+│   │   ├── dateCalculations.ts          # Date/time arithmetic
+│   │   ├── projectCalculations.ts       # Project duration, working days
+│   │   ├── milestoneCalculations.ts     # Milestone metrics
+│   │   └── capacityCalculations.ts      # Work hour capacity
 │   ├── validators/              # Business rules validation (delegates to domain)
 │   │   ├── ProjectValidator.ts
 │   │   └── TimeTrackingValidator.ts
 │   ├── repositories/            # Data access layer
 │   │   ├── ProjectRepository.ts
 │   │   └── TimeTrackingRepository.ts
-│   ├── ui/                      # View-specific positioning
-│   │   ├── TimelinePositioning.ts
-│   │   └── CalendarLayout.ts
+│   ├── ui/                      # UI positioning & visual mathematics
+│   │   ├── positioning/         # Pixel calculations, viewport, drag
+│   │   │   ├── TimelinePositioning.ts   # Bar positioning (left, width)
+│   │   │   ├── DragPositioning.ts       # Mouse→pixel→date conversion
+│   │   │   └── ViewportPositioning.ts   # Scroll, zoom, visible range
+│   │   ├── coordination/        # High-level UI orchestration
+│   │   │   └── DragCoordinator.ts       # Drag operation workflows
+│   │   ├── CalendarLayout.ts
+│   │   └── FullCalendarConfig.ts
 │   ├── infrastructure/          # Technical utilities
 │   │   ├── calculationCache.ts
 │   │   ├── colorCalculations.ts
@@ -159,9 +166,10 @@ interface ProjectModalProps {
 |--------------|-----------|----------------|---------|
 | ⭐ "define business rule" | **Business rule** | `domain/rules/ProjectRules.ts` | `static validateX()` |
 | ⭐ "check if valid" | **Business rule** | `domain/rules/` | Reference business rules |
-| "calculate project duration" | Pure calculation | `calculations/dateCalculations.ts` | Pure function (math only) |
+| "calculate project duration" | Pure data math | `calculations/dateCalculations.ts` | Pure function (date math) |
 | "validate milestone budget" | Validation workflow | `validators/MilestoneValidator.ts` | Calls domain rules |
-| "position timeline bar" | UI logic | `ui/TimelinePositioning.ts` | `static calculateBarPosition()` |
+| "position timeline bar" | UI positioning | `ui/positioning/TimelinePositioning.ts` | `static calculateBarPosition()` |
+| "handle drag operation" | UI math | `ui/positioning/DragPositioning.ts` | Mouse→pixel→date conversion |
 | "coordinate project creation" | Workflow | `orchestrators/ProjectOrchestrator.ts` | `async createProject()` |
 | "save project data" | Data access | `repositories/ProjectRepository.ts` | `async saveProject()` |
 | "define project type" | Type definition | `types/core.ts` | `export interface Project` |
@@ -223,6 +231,36 @@ import { projectHelper } from '@/services/helpers/projectHelper'; // Helpers pat
 - **Example**: `ProjectRules.validateBudget()`, `Project.canAddMilestone()`
 - **Reference**: See `docs/BUSINESS_LOGIC_REFERENCE.md`
 
+### 📐 Calculations vs UI Separation:
+
+**Key Principle**: Separate **data mathematics** from **visual mathematics**
+
+#### Calculations Layer (Pure Data Math):
+- ✅ **Contains**: Date/time arithmetic, durations, capacity metrics, project budgets
+- ✅ **Examples**: "How many days between dates?", "What's the capacity utilization?"
+- ❌ **Never contains**: Pixels, viewport, mouse coordinates, screen positions
+- **Decision Rule**: "Could this run on a server with no UI?" → Put in calculations/
+
+#### UI Layer (Visual Math):
+- ✅ **Contains**: Pixel positioning, drag calculations, viewport scrolling, layout
+- ✅ **Examples**: "Where does this bar go on screen?", "What date did user click?"
+- ✅ **Can use**: Pixels, DOM concepts, mouse events, screen dimensions
+- **Decision Rule**: "Does this involve screen rendering?" → Put in ui/positioning/
+
+**Example Distinction**:
+```typescript
+// ✅ calculations/dateCalculations.ts (pure data)
+export function calculateDuration(start: Date, end: Date): number {
+  return (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
+}
+
+// ✅ ui/positioning/TimelinePositioning.ts (visual)
+export function calculateBarPosition(start: Date, viewportStart: Date): number {
+  const dayOffset = calculateDuration(viewportStart, start); // uses data calc
+  return dayOffset * PIXELS_PER_DAY; // converts to pixels
+}
+```
+
 ### Unified Services (Main API):
 - **Purpose**: Primary interface for components
 - **Contains**: High-level operations, delegates to domain layer
@@ -234,24 +272,19 @@ import { projectHelper } from '@/services/helpers/projectHelper'; // Helpers pat
 - **Example**: `ProjectOrchestrator.createWithMilestones()`
 
 ### Calculations:
-- **Purpose**: Pure mathematical operations (NO business rules)
-- **Contains**: Mathematical algorithms, pure functions
-- **Example**: `ProjectCalculations.calculateDuration()` (math only)
-
-### Validators:
-- **Purpose**: Orchestrate validation (delegates to domain rules)
-- **Contains**: Validation workflows, error aggregation
-- **Example**: `ProjectValidator.validate()` → calls `ProjectRules`
-
-### Repositories:
-- **Purpose**: Data access and persistence
-- **Contains**: Database operations, caching, transformations
-- **Example**: `ProjectRepository.save()`
+- **Purpose**: Pure data mathematics (NO UI concerns, NO pixels)
+- **Contains**: Date arithmetic, duration calculations, capacity metrics
+- **Example**: `dateCalculations.calculateDuration()` (date math only)
+- **Rule**: No pixel values, no DOM interactions, no viewport logic
 
 ### UI Services:
-- **Purpose**: View-specific positioning and layout
-- **Contains**: Canvas positioning, viewport calculations
-- **Example**: `TimelinePositioning.calculateBarDimensions()`
+- **Purpose**: View-specific positioning, layout, and visual mathematics
+- **Contains**: 
+  - **positioning/**: Pixel calculations, drag math, viewport positioning
+  - **coordination/**: High-level UI operation orchestration
+  - Canvas positioning, mouse-to-date conversions
+- **Example**: `TimelinePositioning.calculateBarPosition()` (returns pixels)
+- **Rule**: Can use pixels, DOM concepts, viewport dimensions
 
 ### Infrastructure:
 - **Purpose**: Technical utilities and framework helpers
