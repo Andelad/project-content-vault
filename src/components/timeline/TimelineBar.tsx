@@ -119,30 +119,25 @@ export const TimelineBar = memo(function TimelineBar({
   const { milestones } = useProjectContext();
   const { events, holidays } = usePlannerContext();
   const { settings } = useSettingsContext();
-  
   // CRITICAL: Call this hook at top level, NOT inside useMemo
   // This was causing "Do not call Hooks inside useMemo" error
   const isWorkingDayChecker = UnifiedTimelineService.getCachedWorkingDayChecker(
     settings.weeklyWorkHours, 
     holidays
   );
-
   // Calculate day estimates ONCE per project/milestones/events change
   // This should NOT recalculate when scrolling (viewport changes)
   const dayEstimates = useMemo(() => {
     if (!project) return [];
-    
     // CRITICAL: Filter milestones to only include those for THIS project and WITHIN project dates
     const projectStart = new Date(project.startDate);
     const projectEnd = new Date(project.endDate);
-    
     // Filter milestones for this project within date boundaries
     let projectMilestones = milestones.filter(m => 
       m.projectId === project.id &&
       new Date(m.endDate || m.dueDate) >= projectStart &&
       new Date(m.endDate || m.dueDate) <= projectEnd
     );
-    
     // HYBRID SYSTEM: If there's a template milestone (isRecurring=true), 
     // exclude old numbered instances to prevent double-counting
     const hasTemplateMilestone = projectMilestones.some(m => m.isRecurring === true);
@@ -154,7 +149,6 @@ export const TimelineBar = memo(function TimelineBar({
         (!m.isRecurring && (!m.name || !/\s\d+$/.test(m.name)))
       );
     }
-    
     const startTime = performance.now();
     const result = UnifiedTimelineService.calculateProjectDayEstimates(
       project,
@@ -165,7 +159,6 @@ export const TimelineBar = memo(function TimelineBar({
     );
     const endTime = performance.now();
     const calculationTime = endTime - startTime;
-    
     // Warn if calculation takes >10ms (indicates performance issue)
     // Note: 200-300ms can occur for projects with many milestones and long timespans
     // This is because milestone.startDate was corrupted by migration, forcing calculation
@@ -174,10 +167,8 @@ export const TimelineBar = memo(function TimelineBar({
     if (calculationTime > 10) {
       console.warn(`[TimelineBar] Day estimates calculation took ${calculationTime.toFixed(2)}ms for project:`, project.name);
     }
-    
     return result;
   }, [project, milestones, settings, holidays, events]);
-
   // Get comprehensive timeline bar data from UnifiedTimelineService - MUST be before early returns
   const timelineData = useMemo(() => {
     if (!project) {
@@ -207,18 +198,15 @@ export const TimelineBar = memo(function TimelineBar({
         isWorkingDay: () => false
       };
     }
-    
     // CRITICAL: Filter milestones to only include those for THIS project and WITHIN project dates
     const projectStart = new Date(project.startDate);
     const projectEnd = new Date(project.endDate);
-    
     // Filter milestones for this project within date boundaries
     let projectMilestones = milestones.filter(m => 
       m.projectId === project.id &&
       new Date(m.endDate || m.dueDate) >= projectStart &&
       new Date(m.endDate || m.dueDate) <= projectEnd
     );
-    
     // HYBRID SYSTEM: If there's a template milestone (isRecurring=true), 
     // exclude old numbered instances to prevent double-counting
     const hasTemplateMilestone = projectMilestones.some(m => m.isRecurring === true);
@@ -230,7 +218,6 @@ export const TimelineBar = memo(function TimelineBar({
         (!m.isRecurring && (!m.name || !/\s\d+$/.test(m.name)))
       );
     }
-    
     return UnifiedTimelineService.getTimelineBarData(
       project,
       dates,
@@ -245,13 +232,11 @@ export const TimelineBar = memo(function TimelineBar({
       events // Pass events for planned time calculations
     );
   }, [project, dates, viewportStart, viewportEnd, milestones, holidays, settings, isDragging, dragState, events]);
-
   // Override dayEstimates in timelineData with the memoized version
   const finalTimelineData = useMemo(() => ({
     ...timelineData,
     dayEstimates // Use the separately memoized dayEstimates
   }), [timelineData, dayEstimates]);
-
   // Extract data for use in component
   const {
     projectDays,
@@ -262,24 +247,19 @@ export const TimelineBar = memo(function TimelineBar({
     visualDates,
     isWorkingDay
   } = finalTimelineData;
-
   const { exactDailyHours, dailyHours, dailyMinutes, heightInPixels, workingDaysCount } = projectMetrics;
-  
   // Now we can do early returns - AFTER all hooks
   if (!project) {
     console.warn('TimelineBar: No project provided');
     return null;
   }
-  
   if (projectDays.length === 0) {
     return null; // Don't render anything for projects with no duration
   }
-
   try {
     // Add buffer for partial column in days mode
     const columnWidth = mode === 'weeks' ? 77 : 40;
     const bufferWidth = mode === 'days' ? columnWidth : 0;
-    
     return (
       <div className="relative h-[52px] group pointer-events-none">
       <div className="h-full relative flex flex-col pointer-events-none">
@@ -305,10 +285,8 @@ export const TimelineBar = memo(function TimelineBar({
               const daysToMonday = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek); // Adjust to Monday
               weekStart.setDate(weekStart.getDate() + daysToMonday);
               weekStart.setHours(0, 0, 0, 0);
-              
               // Each week column is 77px, with each day getting exactly 11px
               const dayWidths = [11, 11, 11, 11, 11, 11, 11]; // Mon, Tue, Wed, Thu, Fri, Sat, Sun
-              
               return (
                 <div key={dateIndex} className="relative h-full items-end" style={{ minWidth: '77px', width: '77px' }}>
                   {/* Flexbox container to align rectangles to baseline */}
@@ -317,36 +295,29 @@ export const TimelineBar = memo(function TimelineBar({
                       const currentDay = new Date(weekStart);
                       currentDay.setDate(weekStart.getDate() + dayIndex);
                       currentDay.setHours(0, 0, 0, 0);
-                      
                       // Get time allocation for this day from day estimates
                       const dateEstimates = dayEstimates?.filter(est => {
                         const estDate = new Date(est.date);
                         estDate.setHours(0, 0, 0, 0);
                         return estDate.getTime() === currentDay.getTime();
                       }) || [];
-                      
                       const totalHours = dateEstimates.reduce((sum, est) => sum + est.hours, 0);
-                      
                       // If no allocation, skip (the calculation already ensured this is in project range)
                       if (totalHours === 0) {
                         return <div key={dayIndex} style={{ width: `${dayWidth}px` }}></div>;
                       }
-                      
                       // CRITICAL: Events and estimates are mutually exclusive
                       // Domain Rule: Only one type of time per day
                       const eventEstimate = dateEstimates.find(est => est.source === 'event');
-                      
                       let allocationType: 'planned' | 'completed' | 'auto-estimate' | 'none';
                       let isPlannedTime = false;
                       let isCompletedTime = false;
-                      
                       // DEBUG for Budgi Oct 14-18 and Aug 13
                       const debugDate = getDateKey(currentDay);
                       const shouldDebug = project.name === 'Budgi' && (
                         (debugDate >= '2024-10-14' && debugDate <= '2024-10-18') ||
                         debugDate === '2024-08-13'
                       );
-                      
                       if (eventEstimate) {
                         if (shouldDebug) {
                           console.log(`[TimelineBar ${debugDate}] eventEstimate:`, {
@@ -356,7 +327,6 @@ export const TimelineBar = memo(function TimelineBar({
                             hours: eventEstimate.hours
                           });
                         }
-                        
                         // This day has EVENT time (not estimates)
                         // Check if it's planned, completed, or both
                         if (eventEstimate.isPlannedEvent && eventEstimate.isCompletedEvent) {
@@ -372,24 +342,19 @@ export const TimelineBar = memo(function TimelineBar({
                         } else {
                           allocationType = 'none';
                         }
-                        
                         if (shouldDebug) {
-                          console.log(`[TimelineBar ${debugDate}] allocationType: ${allocationType}, isCompletedTime: ${isCompletedTime}`);
                         }
                       } else if (totalHours > 0) {
                         // No events, but has hours = auto-estimate
                         allocationType = 'auto-estimate';
                         if (shouldDebug) {
-                          console.log(`[TimelineBar ${debugDate}] No eventEstimate, showing as auto-estimate`);
                         }
                       } else {
                         allocationType = 'none';
                       }
                       const heightInPixels = calculateRectangleHeight(totalHours);
-                      
                       // NOTE: Work day filtering already handled by dayEstimateCalculations
                       // If an estimate exists, we should render it (trust the calculation)
-                      
                       // For planned/completed time, always show regardless of work day settings
                       return (
                         <Tooltip key={dayIndex} delayDuration={100}>
@@ -407,13 +372,11 @@ export const TimelineBar = memo(function TimelineBar({
                                   : isPlannedTime 
                                     ? 'planned' 
                                     : 'auto-estimate';
-                                
                                 // Get centralized styles
                                 const timelineStyle = ColorCalculationService.getTimelineAllocationStyle(
                                   allocType,
                                   colorScheme
                                 );
-                                
                                 return {
                                   ...timelineStyle,
                                   height: `${heightInPixels}px`,
@@ -463,7 +426,6 @@ export const TimelineBar = memo(function TimelineBar({
                                 : displayHours > 0 
                                   ? `${displayHours}h`
                                   : `${displayMinutes}m`;
-                              
                               return (
                                 <div className="text-xs">
                                   <div className="font-medium">
@@ -482,7 +444,6 @@ export const TimelineBar = memo(function TimelineBar({
                                           : estHours > 0
                                             ? `${estHours}h`
                                             : `${estMinutes}m`;
-                                        
                                         // FIX: Handle event source properly
                                         let sourceLabel = 'Auto-estimate';
                                         if (est.source === 'event') {
@@ -490,7 +451,6 @@ export const TimelineBar = memo(function TimelineBar({
                                         } else if (est.source === 'milestone-allocation') {
                                           sourceLabel = 'Milestone';
                                         }
-                                        
                                         return (
                                           <div key={idx}>
                                             {`${sourceLabel}: ${estText}`}
@@ -514,18 +474,14 @@ export const TimelineBar = memo(function TimelineBar({
               // Get time allocation info from day estimates
               const dateNormalized = new Date(date);
               dateNormalized.setHours(0, 0, 0, 0);
-              
               const estimatesForDate = dayEstimates?.filter(est => {
                 const estDate = new Date(est.date);
                 estDate.setHours(0, 0, 0, 0);
                 return estDate.getTime() === dateNormalized.getTime();
               }) || [];
-              
               const totalHours = estimatesForDate.reduce((sum, est) => sum + est.hours, 0);
-              
               // CRITICAL: Events and estimates are mutually exclusive
               const eventEstimate = estimatesForDate.find(est => est.source === 'event');
-              
               let allocationType: 'planned' | 'completed' | 'auto-estimate' | 'none';
               if (eventEstimate) {
                 // This day has EVENT time (not estimates)
@@ -545,15 +501,12 @@ export const TimelineBar = memo(function TimelineBar({
               } else {
                 allocationType = 'none';
               }
-              
               // Don't render if no time allocation (the calculation already ensured this is in project range)
               if (allocationType === 'none') {
                 return <div key={dateIndex} className="h-full" style={{ minWidth: '40px', width: '40px' }}></div>;
               }
-              
               // NOTE: Work day filtering already handled by dayEstimateCalculations
               // If an estimate exists, we should render it (trust the calculation)
-              
               // For planned/completed time, always show regardless of work day settings
               // Normalize project dates for comparison (using visually adjusted dates)
               const projectStart = new Date(visualProjectStart);
@@ -580,13 +533,11 @@ export const TimelineBar = memo(function TimelineBar({
               const isLastWorkingDay = workingDayIndex === visibleWorkingDays.length - 1;
               // Check if there's a milestone segment for this day
               const milestoneSegment = getMilestoneSegmentForDate(date, milestoneSegments);
-              
               // Use the estimates we already calculated correctly above
               const isPlannedTime = allocationType === 'planned';
               const isCompletedTime = allocationType === 'completed';
               const dailyHours = totalHours;
               const rectangleHeight = calculateRectangleHeight(dailyHours);
-              
               // Determine border radius for this day rectangle based on working days
               // Always round upper corners by 3px, remove bottom rounding on last rectangles
               let borderTopLeftRadius = '3px';
@@ -613,25 +564,21 @@ export const TimelineBar = memo(function TimelineBar({
                   borderTopRightRadius = '0px';
                 }
               }
-              
               // Determine allocation type for centralized styling
               const allocType: TimelineAllocationType = isCompletedTime 
                 ? 'completed' 
                 : isPlannedTime 
                   ? 'planned' 
                   : 'auto-estimate';
-              
               // Get centralized styles
               const timelineStyle = ColorCalculationService.getTimelineAllocationStyle(
                 allocType,
                 colorScheme
               );
-              
               // Week view specific: add subtle separator for auto-estimate
               const weekViewBorderOverride = allocType === 'auto-estimate' ? {
                 borderRight: isLastWorkingDay ? 'none' : '1px solid rgba(255, 255, 255, 0.3)',
               } : {};
-              
               const rectangleStyle = {
                 ...timelineStyle,
                 ...weekViewBorderOverride,

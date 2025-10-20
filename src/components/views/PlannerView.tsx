@@ -321,7 +321,7 @@ export function PlannerView() {
         </div>
       `
     };
-  }, [projects, isTimeTracking]);
+  }, [projects, isTimeTracking, currentTrackingEventId]);
   // Handle completion toggle for events
   const handleCompletionToggle = useCallback(async (eventId: string) => {
     const result = await plannerOrchestrator.handleCompletionToggle(eventId);

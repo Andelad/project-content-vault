@@ -4,14 +4,12 @@ import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { UnifiedTimelineService, formatDuration } from '@/services';
 import { formatWeekdayDate, formatDateShort } from '@/utils/dateFormatUtils';
-
 type AvailabilityType = 
   | 'available' 
   | 'busy' 
   | 'overtime-planned' 
   | 'total-planned' 
   | 'other-time';
-
 interface UnifiedAvailabilityCirclesProps {
   dates: Date[];
   projects?: any[];
@@ -20,7 +18,6 @@ interface UnifiedAvailabilityCirclesProps {
   mode?: 'days' | 'weeks';
   displayMode?: 'circles' | 'numbers';
 }
-
 export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircles({ 
   dates, 
   projects = [], 
@@ -32,12 +29,10 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
   const { holidays, events } = usePlannerContext();
   const { milestones } = useProjectContext();
   const columnWidth = mode === 'weeks' ? 77 : 40;
-  
   // Helper function to check if a day has working hours - using service
   const isWorkingDay = (date: Date) => {
     return UnifiedTimelineService.isWorkingDay(date, holidays, settings);
   };
-
   // For weeks mode, get all days in the week
   const getWeekDates = (weekStart: Date) => {
     const weekDates = [];
@@ -48,28 +43,23 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
     }
     return weekDates;
   };
-
   // Memoized calculation of project hours for a specific date - using service
   const getDailyProjectHours = useMemo(() => {
     return (date: Date) => {
       if (!isWorkingDay(date)) {
         return 0;
       }
-      
       return UnifiedTimelineService.calculateDailyProjectHours(date, projects, settings, holidays, milestones, events);
     };
   }, [projects, settings, holidays, milestones, events, isWorkingDay]);
-
   // Get work hours for a specific day - using service
   const getWorkHoursForDay = (date: Date) => {
     return UnifiedTimelineService.getWorkHoursForDay(date, holidays, settings);
   };
-
   // Calculate available hours for a specific day after accounting for events - using service
   const getDailyAvailableHours = (date: Date) => {
     return UnifiedTimelineService.calculateDailyAvailableHours(date, events, settings, holidays);
   };
-
   // Calculate hours for a date or week based on type
   const getHours = (dateOrWeekStart: Date) => {
     if (mode === 'weeks') {
@@ -79,17 +69,13 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
       return getDailyHours(dateOrWeekStart);
     }
   };
-
   // Calculate hours for a specific day based on type using service
   const getDailyHours = (date: Date) => {
     switch (type) {
       case 'available': {
         const availableHours = getDailyAvailableHours(date);
         const projectHours = getDailyProjectHours(date);
-        
         // Debug for all dates in the current viewport
-        console.log(`[AvailabilityCircles] ${date.toDateString()} - available: ${availableHours}, project: ${projectHours}, result: ${Math.max(0, availableHours - projectHours)}`);
-        
         return Math.max(0, availableHours - projectHours);
       }
       case 'busy': {
@@ -150,18 +136,14 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
         };
     }
   };
-
   const { colorClass, darkColorClass, label } = getColorData();
-  
   // Add buffer for partial column in days mode
   const bufferWidth = mode === 'days' ? columnWidth : 0;
-  
   return (
     <div className="h-full relative flex items-center">
       <div className="flex w-full" style={{ minWidth: `${dates.length * columnWidth + bufferWidth}px` }}>
         {dates.map((date: Date, dateIndex: number) => {
           const targetHours = getHours(date);
-          
           // Show empty space for zero hours
           if (targetHours === 0) {
             return (
@@ -197,7 +179,6 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
               </div>
             );
           }
-          
           return (
             <div key={dateIndex} className="flex justify-center items-center" style={{ minWidth: `${columnWidth}px`, width: `${columnWidth}px` }}>
               <Tooltip>
@@ -209,7 +190,6 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
                         {(() => {
                           // Use service for circle sizing calculation
                           const { outerDiameter, innerDiameter } = UnifiedTimelineService.calculateAvailabilityCircleSize(targetHours, mode || 'days');
-                          
                           return (
                             <>
                               {/* Main circle */}

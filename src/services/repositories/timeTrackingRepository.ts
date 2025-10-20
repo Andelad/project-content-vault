@@ -53,9 +53,7 @@ class TimeTrackingRepository {
     if (!this.userId) {
       throw new Error('User ID must be set before saving state');
     }
-    
     const serializedState = this.serializeState(state);
-    
     try {
       // Try to save to database first
       const { error } = await supabase
@@ -66,18 +64,15 @@ class TimeTrackingRepository {
         }, {
           onConflict: 'user_id'
         });
-      
       if (error) {
         console.warn('⚠️ DB save failed, using localStorage fallback:', error);
         // DB failed, still save to localStorage as backup
         this.saveToLocalStorage(serializedState);
         throw error;
       }
-      
       // DB save succeeded - also save to localStorage as write-through cache
       this.saveToLocalStorage(serializedState);
       // // console.log('✅ State saved to both DB and localStorage');
-      
     } catch (error) {
       console.error('❌ Failed to save time tracking state:', error);
       throw error;
@@ -88,9 +83,7 @@ class TimeTrackingRepository {
       console.warn('⚠️ No user ID - cannot load state');
       return null;
     }
-    
     let state: TimeTrackingState | null = null;
-    
     try {
       // Try to load from Supabase first (primary source)
       const { data, error } = await supabase
@@ -98,14 +91,12 @@ class TimeTrackingRepository {
         .select('time_tracking_state')
         .eq('user_id', this.userId)
         .single();
-      
       if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
         console.warn('⚠️ DB load failed, trying localStorage fallback:', error);
         // DB failed, try localStorage fallback
         state = this.loadFromLocalStorage();
       } else if (data?.time_tracking_state) {
         const stateData = data.time_tracking_state as any;
-        
         // Check if it's already a full state object or just serialized
         if (stateData.eventId !== undefined || stateData.selectedProject !== undefined) {
           state = {
@@ -126,7 +117,6 @@ class TimeTrackingRepository {
         } else {
           state = this.deserializeState(stateData as SerializedTimeTrackingState);
         }
-        
         // Clear localStorage cache since DB has the data
         this.clearBackupStorage();
         // // console.log('✅ Loaded state from DB, cleared localStorage cache');
@@ -135,21 +125,17 @@ class TimeTrackingRepository {
         // // console.log('ℹ️ No state in DB, trying localStorage fallback');
         state = this.loadFromLocalStorage();
       }
-      
     } catch (error) {
       console.error('❌ Error loading state from DB, trying localStorage:', error);
       state = this.loadFromLocalStorage();
     }
-    
     // Validate state completeness before returning
     if (state && !this.validateStateCompleteness(state)) {
       console.warn('⚠️ Incomplete state detected, discarding to prevent flashing bug');
       return null;
     }
-    
     return state;
   }
-
   /**
    * Save state to localStorage as backup
    */
@@ -160,7 +146,6 @@ class TimeTrackingRepository {
       console.warn('⚠️ Failed to save to localStorage (quota exceeded?):', error);
     }
   }
-
   /**
    * Load state from localStorage backup
    */
@@ -168,7 +153,6 @@ class TimeTrackingRepository {
     try {
       const stored = localStorage.getItem(this.BACKUP_STORAGE_KEY);
       if (!stored) return null;
-      
       const parsed = JSON.parse(stored) as SerializedTimeTrackingState;
       const state = this.deserializeState(parsed);
       // // console.log('📦 Loaded state from localStorage backup');
@@ -178,24 +162,20 @@ class TimeTrackingRepository {
       return null;
     }
   }
-
   /**
    * Validate that tracking state is complete to prevent "flashing" bug
    */
   private validateStateCompleteness(state: TimeTrackingState): boolean {
     // If not tracking, state is always valid
     if (!state.isTracking) return true;
-    
     // If tracking, all required fields must exist
     const isComplete = !!(
       state.startTime && 
       state.eventId && 
       state.selectedProject
     );
-    
     return isComplete;
   }
-
   /**
    * Clear localStorage backup cache
    */
@@ -206,7 +186,6 @@ class TimeTrackingRepository {
       console.warn('⚠️ Failed to clear localStorage backup:', error);
     }
   }
-
   /**
    * One-time cleanup of old localStorage data
    */

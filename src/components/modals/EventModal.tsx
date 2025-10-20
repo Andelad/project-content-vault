@@ -227,7 +227,7 @@ export function EventModal({
       }
       setErrors({});
     }
-  }, [isOpen, existingEvent, defaultStartTime, defaultEndTime]);
+  }, [isOpen, existingEvent, defaultStartTime, defaultEndTime, projects]);
 
   // Check if event is part of a recurring series
   useEffect(() => {

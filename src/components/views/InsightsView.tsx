@@ -87,7 +87,7 @@ export function InsightsView() {
   const [animationKey, setAnimationKey] = useState(0);
   const [timeOffset, setTimeOffset] = useState(0); // For navigating through time
   
-  const today = new Date();
+  const today = useMemo(() => new Date(), []);
 
   // Trigger animation when data changes
   useEffect(() => {

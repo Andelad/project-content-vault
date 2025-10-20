@@ -2,26 +2,20 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
-
 type CalendarEvent = Database['public']['Tables']['calendar_events']['Row'];
 type CalendarEventInsert = Database['public']['Tables']['calendar_events']['Insert'];
 type CalendarEventUpdate = Database['public']['Tables']['calendar_events']['Update'];
-
 export function useEvents() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-
   useEffect(() => {
     fetchEvents();
-    
     // Set up realtime subscription for cross-window sync
     let channel: any = null;
-    
     const setupRealtimeSubscription = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      
       channel = supabase
         .channel('calendar_events_changes')
         .on(
@@ -72,23 +66,19 @@ export function useEvents() {
         )
         .subscribe();
     };
-    
     setupRealtimeSubscription();
-
     return () => {
       if (channel) {
         supabase.removeChannel(channel);
       }
     };
   }, []);
-
   const fetchEvents = async () => {
     try {
       const { data, error } = await supabase
         .from('calendar_events')
         .select('*')
         .order('start_time', { ascending: true });
-
       if (error) throw error;
       setEvents(data || []);
     } catch (error) {
@@ -102,7 +92,6 @@ export function useEvents() {
       setLoading(false);
     }
   };
-
   const addEvent = async (eventData: Omit<CalendarEventInsert, 'user_id'>, options?: { silent?: boolean }): Promise<CalendarEvent> => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -110,37 +99,30 @@ export function useEvents() {
         console.error('❌ addEvent: User not authenticated');
         throw new Error('User not authenticated');
       }
-
       // // console.log('🔍 addEvent: Creating event in database:', {
         // title: eventData.title,
         // event_type: eventData.event_type,
         // user_id: user.id
       // });
-
       const { data, error } = await supabase
         .from('calendar_events')
         .insert([{ ...eventData, user_id: user.id }])
         .select()
         .single();
-
       if (error) {
         console.error('❌ addEvent: Database insert error:', error);
         throw error;
       }
-      
       if (!data) {
         console.error('❌ addEvent: No data returned from insert');
         throw new Error('No data returned from event creation');
       }
-      
       // // console.log('✅ addEvent: Event created successfully:', {
         // id: data.id,
         // title: data.title,
         // event_type: data.event_type
       // });
-      
       setEvents(prev => [...prev, data]);
-      
       // Only show toast if not silent
       if (!options?.silent) {
         toast({
@@ -161,7 +143,6 @@ export function useEvents() {
       throw error;
     }
   };
-
   const updateEvent = async (id: string, updates: CalendarEventUpdate, options?: { silent?: boolean }) => {
     try {
       const { data, error } = await supabase
@@ -170,10 +151,8 @@ export function useEvents() {
         .eq('id', id)
         .select()
         .single();
-
       if (error) throw error;
       setEvents(prev => prev.map(event => event.id === id ? data : event));
-      
       // Only show toast if not silent
       if (!options?.silent) {
         toast({
@@ -194,17 +173,14 @@ export function useEvents() {
       throw error;
     }
   };
-
   const deleteEvent = async (id: string, options?: { silent?: boolean }) => {
     try {
       const { error } = await supabase
         .from('calendar_events')
         .delete()
         .eq('id', id);
-
       if (error) throw error;
       setEvents(prev => prev.filter(event => event.id !== id));
-      
       if (!options?.silent) {
         toast({
           title: "Success",
@@ -223,7 +199,6 @@ export function useEvents() {
       throw error;
     }
   };
-
   return {
     events,
     loading,

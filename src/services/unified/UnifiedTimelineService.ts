@@ -11,16 +11,13 @@
     if (isHolidayDateCapacity(date, holidays)) {
       return false;
     }
-    
     // Delegate to pure calculation function
     const dayOfWeek = getDayOfWeek(date);
     const weeklyWorkHours = settings?.weeklyWorkHours || {};
     const dayHours = weeklyWorkHours[dayOfWeek];
-    
     return dayHours && dayHours.hours > 0;
   }nterface for timeline components
  */
-
 import { ProjectMilestoneOrchestrator } from '../orchestrators/ProjectMilestoneOrchestrator';
 import { UnifiedDayEstimateService } from './UnifiedDayEstimateService';
 import { 
@@ -62,14 +59,12 @@ import {
   calculateProjectDayEstimates
 } from '../index';
 import type { Project, Milestone, DayEstimate, Settings, Holiday } from '@/types/core';
-
 export interface TimelineProjectData {
   project: Project;
   duration: number;
   isActiveOnDate: (date: Date) => boolean;
   validation: any;
 }
-
 /**
  * Unified Timeline Service
  * 
@@ -77,11 +72,9 @@ export interface TimelineProjectData {
  * Components should ONLY use this service for timeline operations.
  */
 export class UnifiedTimelineService {
-
   // ============================================================================
   // PROJECT TIMELINE DATA (Delegates to existing services)
   // ============================================================================
-
   /**
    * Get comprehensive project timeline data
    * Consolidates multiple service calls into single method
@@ -97,19 +90,16 @@ export class UnifiedTimelineService {
       )
     };
   }
-
   /**
    * Calculate project duration
    * Delegates to existing calculation service
    */
   static calculateProjectDuration = calculateProjectDuration;
-
   /**
    * Check if project is active on date
    * Delegates to ProjectMilestoneOrchestrator
    */
   static isProjectActiveOnDate = ProjectMilestoneOrchestrator.isProjectActiveOnDate;
-
   /**
    * Get project validation data
    * Delegates to ProjectMilestoneOrchestrator
@@ -121,11 +111,9 @@ export class UnifiedTimelineService {
       milestones
     );
   }
-
   // ============================================================================
   // TIMELINE VISUAL CALCULATIONS (Extracted from TimelineBar.tsx)
   // ============================================================================
-
   /**
    * Calculate project days for timeline display
    * Delegates to existing calculation service
@@ -139,7 +127,6 @@ export class UnifiedTimelineService {
   ) {
     return calculateProjectDays(startDate, endDate, continuous, viewportStart, viewportEnd);
   }
-
   /**
    * Calculate day estimates for project (NEW - Phase 4)
    * Uses UnifiedDayEstimateService as single source of truth
@@ -159,7 +146,6 @@ export class UnifiedTimelineService {
       events
     );
   }
-
   /**
    * Calculate milestone segments for project (DEPRECATED - use calculateProjectDayEstimates)
    * Delegates to existing calculation service
@@ -171,7 +157,6 @@ export class UnifiedTimelineService {
   ) {
     return calculateMilestoneSegments(milestones, projectStart, projectEnd);
   }
-
   /**
    * Generate work hours for date range
    * Delegates to existing calculation service
@@ -184,17 +169,14 @@ export class UnifiedTimelineService {
     const workHours = [];
     const projectStart = new Date(project.startDate);
     const projectEnd = project.continuous ? new Date(viewportEnd) : new Date(project.endDate);
-    
     // Delegate to pure calculation function instead of manual date iteration
     const projectDates = generateDateRange(projectStart, projectEnd);
-    
     for (const date of projectDates) {
       const dayWorkHours = generateWorkHoursForDate(date, settings);
       workHours.push(...dayWorkHours);
     }
     return workHours;
   }
-
   /**
    * Calculate project metrics using legacy service
    * Delegates to existing calculation service
@@ -221,7 +203,6 @@ export class UnifiedTimelineService {
       createdAt: new Date(),
       updatedAt: new Date()
     };
-
     return calculateLegacyProjectMetrics(
       normalizedProject,
       [], // empty events array
@@ -229,7 +210,6 @@ export class UnifiedTimelineService {
       currentDate
     );
   }
-
   /**
    * Get color scheme for project
    * Delegates to ColorCalculationService
@@ -244,7 +224,6 @@ export class UnifiedTimelineService {
       autoEstimate: ColorCalculationService.getAutoEstimateColor(projectColor)
     };
   }
-
   /**
    * Calculate baseline visual offsets
    * Delegates to existing calculation service
@@ -263,7 +242,6 @@ export class UnifiedTimelineService {
       return positions; // fallback to original positions
     }
   }
-
   /**
    * Calculate visual project dates
    * Delegates to existing calculation service
@@ -283,7 +261,6 @@ export class UnifiedTimelineService {
       };
     }
   }
-
   /**
    * Get cached working day checker
    * Delegates to existing service
@@ -291,17 +268,14 @@ export class UnifiedTimelineService {
   static getCachedWorkingDayChecker(weeklyWorkHours: any, holidays: any[]) {
     return useCachedWorkingDayChecker(weeklyWorkHours, holidays);
   }
-
   /**
    * Get timeline positions
    * Delegates to existing service
    */
   static getTimelinePositions = getTimelinePositions;
-
   // ============================================================================
   // COMPREHENSIVE TIMELINE BAR DATA (Single method for components)
   // ============================================================================
-
   /**
    * Get all data needed for timeline bar rendering
    * Consolidates multiple calculations into single method call
@@ -327,11 +301,9 @@ export class UnifiedTimelineService {
       holidays,
       events || [] // Pass events to calculation
     );
-
     return {
       // Project basics
       projectData: this.getProjectTimelineData(project),
-      
       // Timeline calculations
       projectDays: this.calculateProjectDays(
         project.startDate,
@@ -340,38 +312,29 @@ export class UnifiedTimelineService {
         viewportStart,
         viewportEnd
       ),
-      
       // Work hours
       workHoursForPeriod: this.generateProjectWorkHours(project, settings, viewportEnd),
-      
       // Day estimates (NEW - single source of truth)
       dayEstimates,
-      
       // Milestone segments (DEPRECATED - kept for backward compatibility)
       milestoneSegments: this.calculateMilestoneSegments(
         milestones,
         new Date(project.startDate),
         new Date(project.endDate)
       ),
-      
       // Metrics
       projectMetrics: this.calculateProjectMetrics(project, holidays),
-      
       // Colors
       colorScheme: this.getProjectColorScheme(project.color),
-      
       // Visual calculations (if dragging)
       visualDates: isDragging ? this.calculateVisualProjectDates(project, isDragging, dragState) : null,
-      
       // Working day checker - use provided one or fall back to calling the hook (for backwards compatibility)
       isWorkingDay: isWorkingDayChecker || this.getCachedWorkingDayChecker(settings.weeklyWorkHours, holidays)
     };
   }
-
   // ============================================================================
   // AVAILABILITY CALCULATIONS (Extracted from UnifiedAvailabilityCircles.tsx)
   // ============================================================================
-
   /**
    * Check if date is working day
    * Delegates to existing holiday service
@@ -380,15 +343,12 @@ export class UnifiedTimelineService {
     if (isHolidayDateCapacity(date, holidays)) {
       return false;
     }
-    
     // Delegate to pure calculation function
     const dayOfWeek = getDayOfWeek(date);
     const weeklyWorkHours = settings?.weeklyWorkHours || {};
     const dayHours = weeklyWorkHours[dayOfWeek];
-    
     return dayHours && dayHours.hours > 0;
   }
-
   /**
    * Get expanded holiday dates
    * Delegates to existing service
@@ -396,73 +356,58 @@ export class UnifiedTimelineService {
   static getExpandedHolidayDates(holidays: any[]) {
     return expandHolidayDates(holidays);
   }
-
   /**
    * Generate work hours for date
    * Delegates to existing service
    */
   static generateWorkHoursForDate = generateWorkHoursForDate;
-
   /**
    * Calculate work hours total
    * Delegates to existing service
    */
   static calculateWorkHoursTotal = calculateWorkHoursTotal;
-
   /**
    * Calculate availability circle size
    * Delegates to existing service
    */
   static calculateAvailabilityCircleSize = calculateAvailabilityCircleSize;
-
   /**
    * Get minimum circle dimensions
    * Delegates to existing service
    */
   static getMinimumCircleDimensions = getMinimumCircleDimensions;
-
   /**
    * Check if date is holiday
    * Delegates to existing service
    */
   static isHolidayDateCapacity = isHolidayDateCapacity;
-
   /**
    * Calculate daily project hours for a date
    * Uses same logic as project bars - includes milestone allocations, events, and auto-estimates
    */
   static calculateDailyProjectHours(date: Date, projects: any[], settings: any, holidays: any[], milestones: any[] = [], events: any[] = []) {
     let totalHours = 0;
-    
     if (!this.isWorkingDay(date, holidays, settings)) {
       return 0;
     }
-    
     // Import dynamically to avoid circular dependencies
     // const { calculateProjectDayEstimates } = require('../calculations/dayEstimateCalculations');
-    
     // Normalize date to midnight for comparison
     const targetDate = new Date(date);
     targetDate.setHours(0, 0, 0, 0);
     const dateKey = targetDate.toDateString();
-    
     // Calculate day estimates for each project (same logic as project bars)
     projects.forEach((project: any) => {
       const projectStart = new Date(project.startDate);
       projectStart.setHours(0, 0, 0, 0);
       const projectEnd = project.continuous ? new Date() : new Date(project.endDate);
       projectEnd.setHours(23, 59, 59, 999);
-      
       // Only process if date is within project range
       if (targetDate >= projectStart && targetDate <= projectEnd) {
-        console.log(`[Availability] Processing project ${project.name} for ${dateKey}`);
-        
         // Get milestones for this project
         const projectMilestones = milestones.filter((m: any) => m.projectId === project.id);
-        
         // Get events for this project
         const projectEvents = events.filter((e: any) => e.projectId === project.id);
-        
         // Calculate day estimates using the same method as project bars
         const dayEstimates = calculateProjectDayEstimates(
           project,
@@ -471,34 +416,25 @@ export class UnifiedTimelineService {
           holidays,
           projectEvents
         );
-        
-        console.log(`[Availability] ${project.name} has ${dayEstimates.length} total estimates, ${projectMilestones.length} milestones`);
-        
         // Find estimate for this specific date
         const estimateForDate = dayEstimates.find((est: any) => {
           const estDate = new Date(est.date);
           estDate.setHours(0, 0, 0, 0);
           return estDate.toDateString() === dateKey;
         });
-        
         if (estimateForDate) {
           // Only count non-event estimates (milestones and auto-estimates)
           // Events are already subtracted in calculateDailyAvailableHours
           if (estimateForDate.source !== 'event') {
-            console.log(`[Availability] ${dateKey} - Adding ${estimateForDate.hours}h from ${project.name} (${estimateForDate.source})`);
             totalHours += estimateForDate.hours;
           }
         } else {
-          console.log(`[Availability] ${dateKey} - No estimate found for ${project.name}`);
         }
       } else {
-        console.log(`[Availability] Skipping project ${project.name} - date ${dateKey} not in range ${projectStart.toDateString()} to ${projectEnd.toDateString()}`);
       }
     });
-    
     return totalHours;
   }
-
   /**
    * Get work hours for a specific day
    * Delegates to existing calculation services
@@ -507,35 +443,27 @@ export class UnifiedTimelineService {
     if (this.isHolidayDateCapacity(date, holidays)) {
       return 0;
     }
-    
     // Delegate to pure calculation function
     const dayName = getDayName(date);
     const dayData = settings.weeklyWorkHours[dayName];
-    
     if (Array.isArray(dayData)) {
       return this.calculateWorkHoursTotal(dayData);
     }
-    
     return typeof dayData === 'number' ? dayData : 0;
   }
-
   /**
    * Calculate daily available hours after accounting for events
    * Delegates to existing calculation services
    */
   static calculateDailyAvailableHours(date: Date, events: any[], settings: any, holidays: any[]) {
     const workHours = this.getWorkHoursForDay(date, holidays, settings);
-    
     if (workHours === 0) {
       return 0;
     }
-    
     const workHourObjects = this.generateWorkHoursForDate(date, settings);
     const eventReduction = calculateAvailabilityReduction(date, events, workHourObjects);
-    
     return Math.max(0, workHours - eventReduction);
   }
-
   /**
    * Calculate overtime planned hours
    * Delegates to existing calculation service
@@ -544,59 +472,49 @@ export class UnifiedTimelineService {
     const workHours = this.generateWorkHoursForDate(date, settings);
     return calculateOvertimePlannedHours(date, events, workHours);
   }
-
   /**
    * Calculate total planned hours
    * Delegates to existing calculation service
    */
   static calculateTotalPlannedHours = calculateTotalPlannedHours;
-
   /**
    * Calculate other time
    * Delegates to existing calculation service
    */
   static calculateOtherTime = calculateOtherTime;
-
   /**
    * Group dates by month for timeline headers
    * Delegates to dateCalculations
    */
   static groupDatesByMonth = groupDatesByMonth;
-
   /**
    * Check if today falls within a week range
    * Delegates to dateCalculations
    */
   static isTodayInWeek = isTodayInWeek;
-
   /**
    * Check if today matches a specific date
    * Delegates to dateCalculations
    */
   static isTodayDate = isToday;
-
   /**
    * Check if date is weekend
    * Delegates to dateCalculations
    */
   static isWeekendDate = isWeekendDate;
-
   /**
    * Format week date range (e.g., "4 - 11")
    * Delegates to dateCalculations
    */
   static formatWeekDateRange = formatWeekDateRange;
-
   /**
    * Calculate column marker data for timeline columns
    * Delegates to timelineCalculations
    */
   static calculateColumnMarkerData = calculateTimelineColumnMarkerData;
-
   // ============================================================================
   // COMPREHENSIVE AVAILABILITY BAR DATA (Single method for components)
   // ============================================================================
-
   /**
    * Get basic availability data for timeline dates
    * Simplified version - components can call individual methods for specific calculations
@@ -616,23 +534,19 @@ export class UnifiedTimelineService {
       dates,
       columnWidth: mode === 'weeks' ? 77 : 40,
       expandedHolidays: this.getExpandedHolidayDates(holidays),
-      
       // Helper methods for components
       isWorkingDay: (date: Date) => this.isWorkingDay(date, holidays, settings),
       generateWorkHours: (date: Date) => this.generateWorkHoursForDate(date, settings),
       calculateTotal: (workHours: any[]) => this.calculateWorkHoursTotal(workHours),
       isHoliday: (date: Date) => this.isHolidayDateCapacity(date, holidays),
-      
       // Display settings
       displayMode,
       mode
     };
   }
-
   // ============================================================================
   // PLACEHOLDER METHODS (To be implemented as we extract from components)
   // ============================================================================
-
   /**
    * Placeholder for visual calculations - to be implemented
    * as we extract logic from timeline components
@@ -644,6 +558,5 @@ export class UnifiedTimelineService {
     };
   }
 }
-
 // Export singleton instance following the pattern
 export const timelineService = UnifiedTimelineService;

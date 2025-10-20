@@ -13,15 +13,12 @@
  * 
  * @see docs/BUSINESS_LOGIC_REFERENCE.md - Rule 9: Timeline Day Display
  */
-
 import type { CalendarEvent, Project } from '@/types/core';
 import { getDateKey } from '@/utils/dateFormatUtils';
 import { isSameDay } from '@/services/calculations/general/dateCalculations';
-
 // ============================================================================
 // TYPE DEFINITIONS
 // ============================================================================
-
 /**
  * Types of time that can appear on timeline bars
  * 
@@ -29,7 +26,6 @@ import { isSameDay } from '@/services/calculations/general/dateCalculations';
  *           'auto-estimate' is a CALCULATED type (projection, not an event)
  */
 export type TimelineTimeType = 'planned-event' | 'completed-event' | 'auto-estimate';
-
 /**
  * Classification of a calendar event for timeline purposes
  */
@@ -40,7 +36,6 @@ export interface EventTimeClassification {
   isCompleted: boolean;
   blocksEstimates: boolean; // Events block estimates from appearing
 }
-
 /**
  * Day display breakdown - Events OR Estimates (never both)
  */
@@ -48,22 +43,17 @@ export interface DayTimeBreakdown {
   // Event hours (actual calendar time)
   plannedEventHours: number;
   completedEventHours: number;
-  
   // Estimate hours (calculated projection - only if no events)
   autoEstimateHours: number;
-  
   // State flags
   hasAnyEvents: boolean;
   shouldShowEstimates: boolean; // Only true if NO events
-  
   // Display determination
   displayType: TimelineTimeType;
 }
-
 // ============================================================================
 // TIMELINE BUSINESS RULES
 // ============================================================================
-
 /**
  * Timeline Business Rules
  * 
@@ -71,11 +61,9 @@ export interface DayTimeBreakdown {
  * Referenced by the Business Logic Reference document (Rule 9).
  */
 export class TimelineRules {
-  
   // ==========================================================================
   // RULE 1: EVENT PROJECT FILTERING
   // ==========================================================================
-  
   /**
    * RULE 1: Events must be linked to project to contribute to day estimates
    * 
@@ -91,7 +79,6 @@ export class TimelineRules {
   static isEventForProject(event: CalendarEvent, project: Project): boolean {
     return event.projectId === project.id;
   }
-
   /**
    * Filter events to only those belonging to a specific project
    * 
@@ -102,11 +89,9 @@ export class TimelineRules {
   static filterEventsForProject(events: CalendarEvent[], project: Project): CalendarEvent[] {
     return events.filter(event => this.isEventForProject(event, project));
   }
-
   // ==========================================================================
   // RULE 2: EVENT TYPE CLASSIFICATION
   // ==========================================================================
-  
   /**
    * RULE 2a: Determine if event is planned time (not yet done)
    * 
@@ -122,14 +107,11 @@ export class TimelineRules {
   static isPlannedTime(event: CalendarEvent): boolean {
     // Check completion flag
     if (event.completed === true) return false;
-    
     // Check type field
     if (event.type === 'tracked' || event.type === 'completed') return false;
-    
     // Everything else is planned time
     return true;
   }
-
   /**
    * RULE 2b: Determine if event is completed/tracked time (already done)
    * 
@@ -145,13 +127,10 @@ export class TimelineRules {
   static isCompletedTime(event: CalendarEvent): boolean {
     // Check completion flag
     if (event.completed === true) return true;
-    
     // Check type field
     if (event.type === 'tracked' || event.type === 'completed') return true;
-    
     return false;
   }
-
   /**
    * RULE 2c: Classify event for timeline purposes
    * 
@@ -161,13 +140,11 @@ export class TimelineRules {
   static classifyEvent(event: CalendarEvent): EventTimeClassification {
     const isPlanned = this.isPlannedTime(event);
     const isCompleted = this.isCompletedTime(event);
-    
     // Calculate event duration in hours
     const startTime = new Date(event.startTime);
     const endTime = new Date(event.endTime);
     const durationMs = endTime.getTime() - startTime.getTime();
     const hours = durationMs / (1000 * 60 * 60);
-
     return {
       type: isCompleted ? 'completed-event' : 'planned-event',
       hours,
@@ -176,11 +153,9 @@ export class TimelineRules {
       blocksEstimates: true // Both planned and completed events block estimates
     };
   }
-
   // ==========================================================================
   // RULE 3: AUTO-ESTIMATE BLOCKING
   // ==========================================================================
-  
   /**
    * RULE 3: Auto-estimates only appear on days WITHOUT any events
    * 
@@ -196,7 +171,6 @@ export class TimelineRules {
     // If there are any events on this day, don't show auto-estimate
     return eventsOnDay.length === 0;
   }
-
   /**
    * Check if a specific event blocks auto-estimates
    * 
@@ -207,11 +181,9 @@ export class TimelineRules {
     // Both planned and completed events block auto-estimates
     return true;
   }
-
   // ==========================================================================
   // RULE 4: DAY TIME BREAKDOWN
   // ==========================================================================
-  
   /**
    * RULE 4: Calculate day display breakdown
    * 
@@ -224,11 +196,9 @@ export class TimelineRules {
   static calculateDayTimeBreakdown(eventsOnDay: CalendarEvent[]): DayTimeBreakdown {
     let plannedEventHours = 0;
     let completedEventHours = 0;
-
     // Classify and sum up EVENT hours
     eventsOnDay.forEach(event => {
       const classification = this.classifyEvent(event);
-      
       // DEBUG: Log each event classification
       const eventDate = getDateKey(new Date(event.startTime));
       if (eventDate === '2024-10-13') {
@@ -246,17 +216,14 @@ export class TimelineRules {
           }
         });
       }
-      
       if (classification.isCompleted) {
         completedEventHours += classification.hours;
       } else if (classification.isPlanned) {
         plannedEventHours += classification.hours;
       }
     });
-
     const hasAnyEvents = eventsOnDay.length > 0;
     const shouldShowEstimates = this.shouldShowAutoEstimate(eventsOnDay);
-
     // Determine what to display
     // CRITICAL: If any events exist, show events. Otherwise show estimates.
     let displayType: TimelineTimeType;
@@ -267,7 +234,6 @@ export class TimelineRules {
     } else {
       displayType = 'auto-estimate';
     }
-
     return {
       plannedEventHours,
       completedEventHours,
@@ -277,11 +243,9 @@ export class TimelineRules {
       displayType
     };
   }
-
   // ==========================================================================
   // RULE 5: EVENT DATE EXTRACTION
   // ==========================================================================
-  
   /**
    * RULE 5: Extract the date an event occurs on (normalized)
    * 
@@ -296,7 +260,6 @@ export class TimelineRules {
     eventDate.setHours(0, 0, 0, 0);
     return eventDate;
   }
-
   /**
    * Get date key for grouping events by day
    * 
@@ -309,11 +272,9 @@ export class TimelineRules {
     const date = new Date(event.startTime);
     return getDateKey(date);
   }
-
   // ==========================================================================
   // RULE 6: VISUAL STYLING RULES
   // ==========================================================================
-  
   /**
    * RULE 6: Determine visual styling based on time type
    * 
@@ -350,11 +311,9 @@ export class TimelineRules {
         };
     }
   }
-
   // ==========================================================================
   // VALIDATION HELPERS
   // ==========================================================================
-  
   /**
    * Validate that event has required fields for timeline calculations
    * 
@@ -368,7 +327,6 @@ export class TimelineRules {
       new Date(event.startTime) < new Date(event.endTime)
     );
   }
-
   /**
    * Group events by date for day estimate calculations
    * 
@@ -377,17 +335,14 @@ export class TimelineRules {
    */
   static groupEventsByDate(events: CalendarEvent[]): Map<string, CalendarEvent[]> {
     const grouped = new Map<string, CalendarEvent[]>();
-    
     events.forEach(event => {
       if (!this.isValidTimelineEvent(event)) return;
-      
       const dateKey = this.getEventDateKey(event);
       if (!grouped.has(dateKey)) {
         grouped.set(dateKey, []);
       }
       grouped.get(dateKey)!.push(event);
     });
-    
     return grouped;
   }
 }

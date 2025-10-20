@@ -46,14 +46,11 @@ export function TimeTracker({ className }: TimeTrackerProps) {
     // Load tracking state from database on mount - REVERTED TO WORKING PRE-ORCHESTRATION APPROACH
   useEffect(() => {
     // // console.log('🔍 TIMETRACKER - Mount: Loading state from Supabase only');
-    
     // Clear legacy localStorage data (one-time migration)
     localStorage.removeItem('timeTracker_crossWindowSync');
-    
     const loadTrackingState = async () => {
       // Load from Supabase (only source of truth)
       const dbState = await UnifiedTimeTrackerService.loadState();
-      
       // // console.log('🔍 TIMETRACKER - Loaded state:', {
       //   hasState: !!dbState,
       //   isTracking: dbState?.isTracking,
@@ -61,30 +58,25 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       //   selectedProject: dbState?.selectedProject?.name,
       //   startTime: dbState?.startTime
       // });
-      
       // Only restore if we have COMPLETE tracking state
       const hasCompleteState = dbState && 
                                 dbState.isTracking && 
                                 dbState.startTime && 
                                 dbState.eventId && 
                                 dbState.selectedProject;
-      
       if (hasCompleteState) {
         // Calculate elapsed time
         const elapsedSeconds = dbState.currentSeconds ?? 
           Math.floor((Date.now() - new Date(dbState.startTime).getTime()) / 1000);
-        
         // Restore all state
         setIsTimeTracking(true);
         setSeconds(elapsedSeconds);
         setCurrentEventId(dbState.eventId);
         startTimeRef.current = new Date(dbState.startTime);
-        
         // Restore UI state
         if (dbState.selectedProject) setSelectedProject(dbState.selectedProject);
         if (dbState.searchQuery) setSearchQuery(dbState.searchQuery);
         if (dbState.affectedEvents) setAffectedPlannedEvents(dbState.affectedEvents);
-        
         // Store state for sync
         currentStateRef.current = {
           isTracking: true,
@@ -94,7 +86,6 @@ export function TimeTracker({ className }: TimeTrackerProps) {
           searchQuery: dbState.searchQuery,
           affectedEvents: dbState.affectedEvents || []
         };
-        
         // Start UI timer (1 second updates)
         intervalRef.current = setInterval(() => {
           if (startTimeRef.current) {
@@ -102,10 +93,8 @@ export function TimeTracker({ className }: TimeTrackerProps) {
             setSeconds(elapsed);
           }
         }, 1000);
-        
         // Start background sync intervals
         startOptimizedIntervals(dbState.eventId, new Date(dbState.startTime));
-        
         // // console.log('✅ TIMETRACKER - Restored active tracking session');
       } else if (dbState && dbState.isTracking) {
         // Incomplete state - clean it up
@@ -114,10 +103,8 @@ export function TimeTracker({ className }: TimeTrackerProps) {
         // // console.log('✅ TIMETRACKER - No active tracking session');
       }
     };
-    
     loadTrackingState();
   }, []); // Only run once on mount
-
   // React to global state changes - CROSS-WINDOW SYNC
   useEffect(() => {
     // // console.log('🔍 CROSS-WINDOW SYNC - Effect triggered:', { 
@@ -126,27 +113,23 @@ export function TimeTracker({ className }: TimeTrackerProps) {
     //   hasCurrentState: !!currentStateRef.current,
     //   hasInterval: !!intervalRef.current 
     // });
-    
     const syncWithGlobalState = async () => {
       if (isTimeTracking && currentTrackingEventId) {
         // If tracking is active but we don't have local state, load it
         if (!selectedProject || !currentStateRef.current || !intervalRef.current) {
           // // console.log('🔍 CROSS-WINDOW SYNC - Loading state from DB');
           const dbState = await UnifiedTimeTrackerService.loadState();
-          
           if (dbState && dbState.selectedProject) {
             // Restore UI state
             setSelectedProject(dbState.selectedProject);
             setSearchQuery(dbState.searchQuery || '');
             setCurrentEventId(dbState.eventId || currentTrackingEventId);
-            
             // Calculate and set elapsed time
             if (dbState.startTime) {
               const startTime = new Date(dbState.startTime);
               const elapsed = Math.floor((Date.now() - startTime.getTime()) / 1000);
               setSeconds(elapsed);
               startTimeRef.current = startTime;
-              
               // START intervals if not running
               if (!intervalRef.current) {
                 // // console.log('🔍 CROSS-WINDOW SYNC - Starting UI interval');
@@ -157,13 +140,11 @@ export function TimeTracker({ className }: TimeTrackerProps) {
                   }
                 }, 1000);
               }
-              
               if (!dbSyncIntervalRef.current || !overlapCheckIntervalRef.current) {
                 // // console.log('🔍 CROSS-WINDOW SYNC - Starting optimized intervals');
                 startOptimizedIntervals(currentTrackingEventId, startTime);
               }
             }
-            
             // Update state ref
             currentStateRef.current = {
               isTracking: true,
@@ -173,7 +154,6 @@ export function TimeTracker({ className }: TimeTrackerProps) {
               searchQuery: dbState.searchQuery,
               affectedEvents: dbState.affectedEvents || []
             };
-            
             if (dbState.affectedEvents) {
               setAffectedPlannedEvents(dbState.affectedEvents);
             }
@@ -182,7 +162,6 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       } else if (!isTimeTracking) {
         // Tracking stopped - ALWAYS clear intervals regardless of currentStateRef
         // // console.log('🔍 CROSS-WINDOW SYNC - Tracking stopped, clearing everything');
-        
         setSelectedProject(null);
         setSearchQuery('');
         setSeconds(0);
@@ -190,7 +169,6 @@ export function TimeTracker({ className }: TimeTrackerProps) {
         startTimeRef.current = null;
         currentStateRef.current = null;
         setAffectedPlannedEvents([]);
-        
         // Clear all intervals - CRITICAL FIX: Always clear when tracking stops
         if (intervalRef.current) {
           // // console.log('🔍 CROSS-WINDOW SYNC - Clearing UI interval');
@@ -209,7 +187,6 @@ export function TimeTracker({ className }: TimeTrackerProps) {
         }
       }
     };
-    
     syncWithGlobalState();
   }, [isTimeTracking, currentTrackingEventId]); // React to global state changes
   // Check for overlapping planned events and adjust them
@@ -230,7 +207,6 @@ export function TimeTracker({ className }: TimeTrackerProps) {
   // Separate UI updates, DB syncs, and overlap checks for efficiency
   const startOptimizedIntervals = (eventId: string, startTime: Date) => {
     // // console.log('🔍 Starting optimized intervals for event:', eventId);
-    
     // Clear any existing intervals
     if (dbSyncIntervalRef.current) {
       clearInterval(dbSyncIntervalRef.current);
@@ -238,12 +214,10 @@ export function TimeTracker({ className }: TimeTrackerProps) {
     if (overlapCheckIntervalRef.current) {
       clearInterval(overlapCheckIntervalRef.current);
     }
-    
     // DB Sync: Update database every 30 seconds
     dbSyncIntervalRef.current = setInterval(async () => {
       const { duration } = UnifiedTimeTrackerService.calculateElapsedTime(startTime);
       // // console.log('💾 DB sync - updating event:', eventId, 'duration:', duration);
-      
       try {
         // First verify the event still exists
         const { data: eventExists } = await supabase
@@ -251,28 +225,23 @@ export function TimeTracker({ className }: TimeTrackerProps) {
           .select('id')
           .eq('id', eventId)
           .maybeSingle();
-        
         if (!eventExists) {
           console.error('💾 DB sync - EVENT DOES NOT EXIST IN DATABASE!', {
             eventId,
             currentSeconds: seconds
           });
           console.error('💾 DB sync - Stopping intervals and resetting state');
-          
           // Clear all intervals
           if (intervalRef.current) clearInterval(intervalRef.current);
           if (dbSyncIntervalRef.current) clearInterval(dbSyncIntervalRef.current);
           if (overlapCheckIntervalRef.current) clearInterval(overlapCheckIntervalRef.current);
-          
           // Reset state
           setCurrentEventId(null);
           setIsTimeTracking(false);
           setSeconds(0);
           startTimeRef.current = null;
-          
           return;
         }
-        
         await updateEvent(eventId, {
           endTime: new Date(),
           duration,
@@ -283,7 +252,6 @@ export function TimeTracker({ className }: TimeTrackerProps) {
         console.error('💾 DB sync - failed:', error);
       }
     }, 30000); // 30 seconds
-    
     // Overlap Check: Check for overlaps every 60 seconds
     overlapCheckIntervalRef.current = setInterval(() => {
       // // console.log('🔍 Overlap check - running');
@@ -291,13 +259,11 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       localStorage.setItem(STORAGE_KEYS.affectedEvents, JSON.stringify(affected));
       // // console.log('🔍 Overlap check - complete, affected events:', affected.length);
     }, 60000); // 60 seconds
-    
     // Run initial checks immediately
     setTimeout(() => {
       handlePlannedEventOverlaps(startTime, new Date());
     }, 1000); // Wait 1 second after start
   };
-  
   // Filter projects and clients based on search query
   const searchResults = useMemo(() => {
     return UnifiedTimeTrackerService.filterSearchResults(projects, searchQuery);
@@ -313,7 +279,6 @@ export function TimeTracker({ className }: TimeTrackerProps) {
   const handleSelectItem = async (item: any) => {
     let selectedProjectData;
     let searchQueryText;
-    
     if (item.type === 'project') {
       const project = projects.find(p => p.id === item.id);
       setSelectedProject(project);
@@ -329,20 +294,17 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       selectedProjectData = clientProject;
     }
     setShowSearchDropdown(false);
-    
     // Automatically start tracking if not already tracking
     // Use the orchestrator workflow to ensure proper state management
     if (!isTimeTracking && selectedProjectData) {
       // Check for active session conflict before starting
       const activeSession = await UnifiedTimeTrackerService.checkForActiveSession();
-      
       if (activeSession) {
         // Show conflict dialog instead of starting
         setConflictingSession(activeSession);
         setShowConflictDialog(true);
         return;
       }
-      
       // Create context with the selected project data directly (don't wait for state update)
       const context: TimeTrackerWorkflowContext = {
         selectedProject: selectedProjectData,
@@ -357,14 +319,11 @@ export function TimeTracker({ className }: TimeTrackerProps) {
         intervalRef,
         currentStateRef
       };
-
       const result = await UnifiedTimeTrackerService.handleTimeTrackingToggle(context);
-      
       if (!result.success && result.error) {
         console.error('Time tracking toggle failed:', result.error);
         return;
       }
-
       // Handle post-toggle actions for start tracking
       if (result.eventId) {
         // Update global tracking event ID
@@ -381,11 +340,9 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       setShowSearchDropdown(true);
       return;
     }
-
     // Check for active session conflict before starting
     if (!isTimeTracking) {
       const activeSession = await UnifiedTimeTrackerService.checkForActiveSession();
-      
       if (activeSession) {
         // Show conflict dialog instead of starting
         setConflictingSession(activeSession);
@@ -393,7 +350,6 @@ export function TimeTracker({ className }: TimeTrackerProps) {
         return;
       }
     }
-
     const context: TimeTrackerWorkflowContext = {
       selectedProject,
       searchQuery,
@@ -407,16 +363,12 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       intervalRef,
       currentStateRef
     };
-
     const result = await UnifiedTimeTrackerService.handleTimeTrackingToggle(context);
-    
     if (!result.success && result.error) {
       console.error('Time tracking toggle failed:', result.error);
-      
       // If we were trying to stop tracking and it failed, force reset everything
       if (isTimeTracking) {
         console.warn('Force resetting time tracking state due to error');
-        
         // Clear all intervals
         if (intervalRef.current) {
           clearInterval(intervalRef.current);
@@ -430,7 +382,6 @@ export function TimeTracker({ className }: TimeTrackerProps) {
           clearInterval(overlapCheckIntervalRef.current);
           overlapCheckIntervalRef.current = null;
         }
-        
         // Reset all state
         setCurrentEventId(null);
         setIsTimeTracking(false);
@@ -440,7 +391,6 @@ export function TimeTracker({ className }: TimeTrackerProps) {
         setSelectedProject(null);
         setSearchQuery('');
         setAffectedPlannedEvents([]);
-        
         // Clear storage
         await UnifiedTimeTrackerService.stopTracking().catch(err => {
           console.error('Failed to clear storage:', err);
@@ -448,7 +398,6 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       }
       return;
     }
-
     // Handle post-toggle actions for start tracking
     if (result.eventId && !isTimeTracking) {
       // Update global tracking event ID
@@ -456,7 +405,6 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       // Start optimized intervals immediately
       startOptimizedIntervals(result.eventId, startTimeRef.current || new Date());
     }
-
     // Handle post-toggle actions for stop tracking
     if (!result.eventId && isTimeTracking) {
       // Clear global tracking event ID
@@ -470,12 +418,10 @@ export function TimeTracker({ className }: TimeTrackerProps) {
         clearInterval(overlapCheckIntervalRef.current);
         overlapCheckIntervalRef.current = null;
       }
-
       // Handle final event completion logic
       if (currentEventId && startTimeRef.current) {
         const endTime = new Date();
         const duration = UnifiedTimeTrackerService.calculateDurationInHours(startTimeRef.current, endTime);
-        
         try {
           const completedEventData = UnifiedTimeTrackerService.createCompletedEventData(
             selectedProject,
@@ -492,7 +438,6 @@ export function TimeTracker({ className }: TimeTrackerProps) {
           console.error('Failed to complete tracking event:', error);
         }
       }
-
       // Reset UI state
       setSelectedProject(null);
       setSearchQuery('');
@@ -527,18 +472,15 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       }
     };
   }, []);
-  
   // Conflict resolution handlers
   const handleCancelConflict = () => {
     setShowConflictDialog(false);
-    
     // Load the conflicting session state to show the active tracker
     if (conflictingSession) {
       setSelectedProject(conflictingSession.selectedProject);
       setSearchQuery(conflictingSession.searchQuery || '');
       setIsTimeTracking(conflictingSession.isTracking);
       setCurrentEventId(conflictingSession.eventId);
-      
       if (conflictingSession.startTime) {
         startTimeRef.current = conflictingSession.startTime;
         const elapsed = Math.floor((Date.now() - conflictingSession.startTime.getTime()) / 1000);
@@ -546,17 +488,13 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       }
     }
   };
-
   const handleStopAndStartNew = async () => {
     setShowConflictDialog(false);
-    
     try {
       // Stop the existing session - this will save it to the calendar
       await UnifiedTimeTrackerService.stopTracking();
-      
       // Small delay to ensure state is cleared
       await new Promise(resolve => setTimeout(resolve, 500));
-      
       // Now start tracking the new project
       if (selectedProject) {
         await handleToggleTracking();
@@ -570,7 +508,6 @@ export function TimeTracker({ className }: TimeTrackerProps) {
       });
     }
   };
-
   return (
     <Card className={`bg-transparent shadow-none ${className}`}>
       <CardContent className="p-3">
@@ -654,7 +591,6 @@ export function TimeTracker({ className }: TimeTrackerProps) {
             )}
           </Button>
         </div>
-
         {conflictingSession && (
           <ConflictDialog
             isOpen={showConflictDialog}

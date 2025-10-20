@@ -30,7 +30,7 @@ interface ProjectModalProps {
 export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: ProjectModalProps) {
   // Debug toggle
   const DEBUG = false;
-  const dlog = (...args: any[]) => { if (DEBUG) console.log(...args); };
+  const dlog = useCallback((...args: any[]) => { if (DEBUG) console.log(...args); }, [DEBUG]);
   // Debug: Identify which modal instance this is
   const modalType = projectId ? 'EDIT' : 'CREATE';
   dlog(`🔍 ${modalType} Modal render:`, { isOpen, projectId, groupId, rowId });
@@ -234,10 +234,9 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
     onClose();
   }, [onClose]);
   // Handle creating the new project
-  const handleCreateProject = async () => {
+  const handleCreateProject = useCallback(async () => {
     const gid = resolvedGroupId ?? groupId;
     const rid = resolvedRowId ?? rowId;
-    
     if (isCreating && gid && gid !== '') {
       try {
         // Use ProjectOrchestrator for complex creation workflow
@@ -262,7 +261,6 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
             addMilestone
           }
         );
-
         if (result.success) {
           // Show success toast only after everything is complete
           toast({
@@ -288,7 +286,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
         });
       }
     }
-  };
+  }, [resolvedGroupId, groupId, resolvedRowId, rowId, isCreating, localValues.name, localValues.client, localValues.startDate, localValues.endDate, localValues.estimatedHours, localValues.color, localValues.notes, localValues.icon, localValues.continuous, localValues.autoEstimateDays, localProjectMilestones, addProject, addMilestone, toast, handleClose]);
   // Handle deleting the project
   const handleDeleteProject = () => {
     if (projectId && projectId !== '') {
@@ -333,35 +331,24 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
     // Otherwise treat as edit modal and just close
   dlog('🎯 Not in create mode; closing modal');
     handleClose();
-  }, [isCreating, handleCreateProject, handleClose, projectId, groupId, rowId, resolvedGroupId, resolvedRowId]);
-  // Avoid early returns here to keep hook order consistent across renders
+  }, [isCreating, handleCreateProject, handleClose, projectId, groupId, rowId, resolvedGroupId, resolvedRowId, dlog, toast]);
   // Calculate project time metrics using real data
-  const currentProject = project || {
-    id: 'temp',
-    name: localValues.name,
-    client: localValues.client,
-    startDate: localValues.startDate,
-    endDate: localValues.endDate,
-    estimatedHours: localValues.estimatedHours,
-    color: localValues.color,
-    groupId: groupId || '',
-    rowId: rowId || 'work-row-1',
-    notes: localValues.notes,
-    icon: localValues.icon
-  };
-  const metrics = useMemo(() => (
-    calculateProjectTimeMetrics(currentProject, events as any, holidays, new Date())
-  ), [
-    currentProject.id,
-    currentProject.startDate?.toString?.() ?? '',
-    currentProject.endDate?.toString?.() ?? '',
-    currentProject.estimatedHours,
-    currentProject.continuous as any,
-    events.length,
-    holidays.length,
-    // Minimal settings fingerprint that changes when work hours change
-    JSON.stringify(settings?.weeklyWorkHours ?? {})
-  ]);
+  const metrics = useMemo(() => {
+    const currentProject = project || {
+      id: 'temp',
+      name: localValues.name,
+      client: localValues.client,
+      startDate: localValues.startDate,
+      endDate: localValues.endDate,
+      estimatedHours: localValues.estimatedHours,
+      color: localValues.color,
+      groupId: groupId || '',
+      rowId: rowId || 'work-row-1',
+      notes: localValues.notes,
+      icon: localValues.icon
+    };
+    return calculateProjectTimeMetrics(currentProject, events as any, holidays, new Date());
+  }, [project, localValues.name, localValues.client, localValues.startDate, localValues.endDate, localValues.estimatedHours, localValues.color, groupId, rowId, localValues.notes, localValues.icon, events, holidays]);
   // Special TimeMetric component for auto-estimate that shows daily breakdown
   const AutoEstimateTimeMetric = ({ 
     label, 
@@ -589,7 +576,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
       // Clear timeline cache to ensure UI updates immediately
       clearTimelineCache();
     }
-  }, [isCreating, projectId, updateProject]);
+  }, [isCreating, projectId, updateProject, setLocalValues]);
   const handleContinuousToggle = () => {
     const newContinuous = !localValues.continuous;
     setLocalValues(prev => ({ ...prev, continuous: newContinuous }));
