@@ -732,16 +732,33 @@ export class ProjectMilestoneOrchestrator {
         return { success: false, error: 'Milestone not found' };
       }
 
-      // Validate milestone before saving using existing service (AI Rule)
+      // Simulate adding the new milestone to existing ones
+      const simulatedMilestones: Milestone[] = [
+        ...context.projectMilestones,
+        {
+          id: 'temp-validation',
+          name: milestone.name,
+          projectId: context.projectId,
+          dueDate: milestone.dueDate,
+          endDate: milestone.endDate || milestone.dueDate,
+          timeAllocation: milestone.timeAllocation,
+          timeAllocationHours: milestone.timeAllocationHours || milestone.timeAllocation,
+          userId: '',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        } as Milestone
+      ];
+
+      // Validate milestone before saving - check if adding this milestone would exceed budget
       const budgetValidation = UnifiedMilestoneService.validateBudgetAllocation(
-        context.projectMilestones,
+        simulatedMilestones,
         context.projectEstimatedHours
       );
       
       if (!budgetValidation.isValid) {
         return {
           success: false,
-          error: `Cannot save milestone: Total milestone allocation (${budgetValidation.totalAllocated}h) would exceed project budget (${context.projectEstimatedHours}h).`
+          error: `Cannot save milestone: Adding this milestone would exceed project budget. Total would be ${budgetValidation.totalAllocated}h but budget is ${context.projectEstimatedHours}h.`
         };
       }
 

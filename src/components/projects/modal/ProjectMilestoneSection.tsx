@@ -657,13 +657,28 @@ export function ProjectMilestoneSection({
       });
     };
 
+    // Calculate default time allocation based on remaining budget
+    const getDefaultTimeAllocation = () => {
+      const validMilestones = projectMilestones.filter(m => m.id) as Milestone[];
+      const budgetCheck = MilestoneRules.checkBudgetConstraint(
+        validMilestones,
+        projectEstimatedHours
+      );
+      
+      // Use remaining budget, but at least 1 hour and at most 8 hours
+      const defaultHours = Math.min(8, Math.max(1, Math.floor(budgetCheck.remaining)));
+      return defaultHours;
+    };
+
+    const defaultHours = getDefaultTimeAllocation();
+
     const newMilestone: LocalMilestone = {
       id: `temp-${Date.now()}`, // Generate temporary ID for editing
       name: 'New Milestone',
       dueDate: getDefaultMilestoneDate(),
       endDate: getDefaultMilestoneDate(),
-      timeAllocation: 8, // Default to 8 hours (1 day)
-      timeAllocationHours: 8,
+      timeAllocation: defaultHours,
+      timeAllocationHours: defaultHours,
       projectId: projectId || 'temp', // Use temp for new projects
       userId: '', // Will be set by backend
       createdAt: new Date(),
