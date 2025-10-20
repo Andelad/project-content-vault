@@ -81,6 +81,10 @@ export class MilestoneRules {
    * Business Logic Reference: Rule 2
    * Formula: project.startDate ≤ milestone.endDate ≤ project.endDate
    * 
+   * Applies to:
+   * - Single milestones: Due date must be within project dates
+   * - Recurring milestones: Generated occurrences must be within project dates
+   * 
    * @param milestoneEndDate - Milestone end/due date
    * @param projectStartDate - Project start date
    * @param projectEndDate - Project end date
@@ -126,6 +130,78 @@ export class MilestoneRules {
 
     if (startDate && startDate >= endDate) {
       errors.push('Milestone start date must be before end date');
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
+  }
+
+  // ==========================================================================
+  // RULE 2B: RECURRING MILESTONE VALIDATION
+  // ==========================================================================
+  
+  /**
+   * RULE 2B: Validate recurring milestone configuration
+   * 
+   * Business Logic:
+   * - Recurring pattern must be valid (type, interval)
+   * - Time allocation applies per occurrence
+   * - Pattern generates occurrences within project boundaries
+   * 
+   * @param isRecurring - Whether milestone is recurring
+   * @param recurringConfig - Recurrence pattern configuration
+   * @param timeAllocation - Hours per occurrence
+   * @returns Validation result with errors
+   */
+  static validateRecurringMilestone(
+    isRecurring: boolean,
+    recurringConfig: any,
+    timeAllocation: number
+  ): MilestoneDateValidation {
+    const errors: string[] = [];
+
+    if (!isRecurring) {
+      return { isValid: true, errors: [] };
+    }
+
+    // Validate recurring config exists
+    if (!recurringConfig) {
+      errors.push('Recurring milestone must have recurrence configuration');
+      return { isValid: false, errors };
+    }
+
+    // Validate pattern type
+    const validTypes = ['daily', 'weekly', 'monthly'];
+    if (!validTypes.includes(recurringConfig.type)) {
+      errors.push(`Invalid recurrence type: ${recurringConfig.type}. Must be daily, weekly, or monthly`);
+    }
+
+    // Validate interval
+    if (!recurringConfig.interval || recurringConfig.interval < 1) {
+      errors.push('Recurrence interval must be at least 1');
+    }
+
+    // Validate type-specific fields
+    if (recurringConfig.type === 'weekly' && recurringConfig.weeklyDayOfWeek === undefined) {
+      errors.push('Weekly recurrence must specify day of week (0-6)');
+    }
+
+    if (recurringConfig.type === 'monthly') {
+      if (!recurringConfig.monthlyPattern) {
+        errors.push('Monthly recurrence must specify pattern (date or dayOfWeek)');
+      } else if (recurringConfig.monthlyPattern === 'date' && !recurringConfig.monthlyDate) {
+        errors.push('Monthly date pattern must specify date (1-31)');
+      } else if (recurringConfig.monthlyPattern === 'dayOfWeek' && 
+                 (recurringConfig.monthlyWeekOfMonth === undefined || recurringConfig.monthlyDayOfWeek === undefined)) {
+        errors.push('Monthly dayOfWeek pattern must specify week of month and day of week');
+      }
+    }
+
+    // Validate time allocation
+    if (timeAllocation <= 0) {
+      errors.push('Recurring milestone must have positive time allocation per occurrence');
     }
 
     return {
@@ -253,6 +329,7 @@ export class MilestoneRules {
    * Combines all milestone validation rules:
    * - RULE 1: Positive time allocation
    * - RULE 2: Date within project range
+   * - RULE 2B: Recurring pattern validation (if applicable)
    * - RULE 3: Doesn't exceed project budget (with other milestones)
    * 
    * @param milestone - Milestone to validate
@@ -268,48 +345,69 @@ export class MilestoneRules {
     const errors: string[] = [];
     const warnings: string[] = [];
 
+    const milestoneHours = milestone.timeAllocationHours ?? milestone.timeAllocation;
+
     // Validate time allocation
     const timeValidation = this.validateMilestoneTime(
-      milestone.timeAllocationHours ?? milestone.timeAllocation,
+      milestoneHours,
       project.estimatedHours
     );
     errors.push(...timeValidation.errors);
     warnings.push(...timeValidation.warnings);
 
-    // Validate dates
-    const dateValidation = this.validateMilestoneDateWithinProject(
-      milestone.endDate || milestone.dueDate,
-      project.startDate,
-      project.endDate,
-      project.continuous
-    );
-    errors.push(...dateValidation.errors);
-
-    // Validate start/end date relationship if start date exists
-    if (milestone.startDate) {
-      const rangeValidation = this.validateMilestoneDateRange(
-        milestone.startDate,
-        milestone.endDate || milestone.dueDate
+    // For recurring milestones, validate pattern
+    if (milestone.isRecurring) {
+      const recurringValidation = this.validateRecurringMilestone(
+        milestone.isRecurring,
+        milestone.recurringConfig,
+        milestoneHours
       );
-      errors.push(...rangeValidation.errors);
+      errors.push(...recurringValidation.errors);
+    } else {
+      // For single milestones, validate dates
+      const dateValidation = this.validateMilestoneDateWithinProject(
+        milestone.endDate || milestone.dueDate,
+        project.startDate,
+        project.endDate,
+        project.continuous
+      );
+      errors.push(...dateValidation.errors);
+
+      // Validate start/end date relationship if start date exists
+      if (milestone.startDate) {
+        const rangeValidation = this.validateMilestoneDateRange(
+          milestone.startDate,
+          milestone.endDate || milestone.dueDate
+        );
+        errors.push(...rangeValidation.errors);
+      }
     }
 
     // Validate budget constraint with existing milestones
-    const milestoneHours = milestone.timeAllocationHours ?? milestone.timeAllocation;
+    // Note: For recurring milestones, this checks per-occurrence allocation
     const canAccommodate = this.canAccommodateAdditionalMilestone(
       existingMilestones,
       project.estimatedHours,
       milestoneHours
     );
 
-    if (!canAccommodate) {
+    if (!canAccommodate && !project.continuous) {
       const budgetCheck = this.checkBudgetConstraint(existingMilestones, project.estimatedHours);
-      errors.push(
-        `Adding this milestone would exceed project budget. ` +
-        `Current allocation: ${budgetCheck.totalAllocated}h, ` +
-        `New milestone: ${milestoneHours}h, ` +
-        `Project budget: ${project.estimatedHours}h`
-      );
+      if (milestone.isRecurring) {
+        warnings.push(
+          `Recurring milestone allocation (${milestoneHours}h per occurrence) may exceed project budget. ` +
+          `Current allocation: ${budgetCheck.totalAllocated}h, ` +
+          `Project budget: ${project.estimatedHours}h. ` +
+          `Consider the total impact of multiple occurrences.`
+        );
+      } else {
+        errors.push(
+          `Adding this milestone would exceed project budget. ` +
+          `Current allocation: ${budgetCheck.totalAllocated}h, ` +
+          `New milestone: ${milestoneHours}h, ` +
+          `Project budget: ${project.estimatedHours}h`
+        );
+      }
     }
 
     return {

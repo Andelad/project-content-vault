@@ -33,7 +33,21 @@ export const SmartHoverAddProjectBar: React.FC<SmartHoverAddProjectBarProps> = (
     
     projects.forEach(project => {
       const projectStart = new Date(project.startDate);
-      const projectEnd = new Date(project.endDate);
+      // For continuous projects, extend to the end of visible timeline (same as TimelineBar)
+      let projectEnd: Date;
+      if (project.continuous) {
+        // For continuous projects, extend to end of last visible date
+        const lastVisibleDate = new Date(dates[dates.length - 1]);
+        if (mode === 'weeks') {
+          // In weeks mode, dates are week starts, so add 6 days to cover the full week
+          lastVisibleDate.setDate(lastVisibleDate.getDate() + 6);
+        }
+        // Set to end of the last day
+        lastVisibleDate.setHours(23, 59, 59, 999);
+        projectEnd = lastVisibleDate;
+      } else {
+        projectEnd = new Date(project.endDate);
+      }
       
       if (mode === 'weeks') {
         // For weeks mode with day-level precision, calculate which day indices are occupied

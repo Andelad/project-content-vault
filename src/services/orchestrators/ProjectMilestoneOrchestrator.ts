@@ -197,9 +197,82 @@ export class ProjectMilestoneOrchestrator {
     options: MilestoneOrchestrationOptions = {}
   ): Promise<RecurringMilestoneCreationResult> {
     try {
-      // Create recurring milestone data object
+      // NEW SYSTEM: Create a SINGLE template milestone instead of multiple numbered instances
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      // Get next order index
+      const { data: maxOrderData } = await supabase
+        .from('milestones')
+        .select('order_index')
+        .eq('project_id', projectId)
+        .order('order_index', { ascending: false })
+        .limit(1);
+
+      const nextOrderIndex = maxOrderData?.[0]?.order_index ? maxOrderData[0].order_index + 1 : 0;
+
+      // Build the recurring_config JSON object
+      const recurringConfigJson: any = {
+        type: recurringConfig.recurringType,
+        interval: recurringConfig.recurringInterval
+      };
+
+      // Add type-specific configuration
+      if (recurringConfig.recurringType === 'weekly' && recurringConfig.weeklyDayOfWeek !== undefined) {
+        recurringConfigJson.weeklyDayOfWeek = recurringConfig.weeklyDayOfWeek;
+      } else if (recurringConfig.recurringType === 'monthly') {
+        recurringConfigJson.monthlyPattern = recurringConfig.monthlyPattern;
+        if (recurringConfig.monthlyPattern === 'date') {
+          recurringConfigJson.monthlyDate = recurringConfig.monthlyDate;
+        } else if (recurringConfig.monthlyPattern === 'dayOfWeek') {
+          recurringConfigJson.monthlyWeekOfMonth = recurringConfig.monthlyWeekOfMonth;
+          recurringConfigJson.monthlyDayOfWeek = recurringConfig.monthlyDayOfWeek;
+        }
+      }
+
+      // Create the TEMPLATE milestone in the database
+      const templateMilestone = {
+        name: recurringConfig.name, // No number suffix - this is the template
+        project_id: projectId,
+        user_id: user.id,
+        order_index: nextOrderIndex,
+        
+        // NEW SYSTEM: Template milestone
+        is_recurring: true,
+        recurring_config: recurringConfigJson,
+        time_allocation_hours: recurringConfig.timeAllocation,
+        
+        // DUAL-WRITE for backward compatibility (optional)
+        time_allocation: recurringConfig.timeAllocation,
+        
+        // Use project start as the template due_date (not really used for rendering)
+        due_date: new Date(project.startDate).toISOString(),
+        start_date: new Date(project.startDate).toISOString()
+      };
+
+      // Insert the template milestone
+      const { data: insertedMilestone, error } = await supabase
+        .from('milestones')
+        .insert([templateMilestone])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Calculate estimated total occurrences for display
+      const projectDurationMs = project.continuous ? 
+        365 * 24 * 60 * 60 * 1000 : // 1 year for continuous
+        new Date(project.endDate).getTime() - new Date(project.startDate).getTime();
+      
+      const projectDurationDays = Math.ceil(projectDurationMs / (24 * 60 * 60 * 1000));
+      const estimatedTotalMilestones = this.calculateEstimatedMilestoneCount(
+        recurringConfig,
+        projectDurationDays
+      );
+
+      // Create recurring milestone object for UI state (no longer saved to localStorage)
       const recurringMilestone: RecurringMilestone = {
-        id: 'recurring-milestone',
+        id: insertedMilestone.id,
         name: recurringConfig.name,
         timeAllocation: recurringConfig.timeAllocation,
         recurringType: recurringConfig.recurringType,
@@ -213,37 +286,13 @@ export class ProjectMilestoneOrchestrator {
         monthlyDayOfWeek: recurringConfig.monthlyDayOfWeek
       };
 
-      // Calculate project duration USING CORE CALCULATIONS (AI Rule)
-      const projectDurationMs = project.continuous ? 
-        365 * 24 * 60 * 60 * 1000 : // 1 year for continuous
-        new Date(project.endDate).getTime() - new Date(project.startDate).getTime();
-      
-      const projectDurationDays = Math.ceil(projectDurationMs / (24 * 60 * 60 * 1000));
-
-      // DELEGATE milestone calculations to UnifiedMilestoneService
-      const estimatedTotalMilestones = this.calculateEstimatedMilestoneCount(
-        recurringConfig,
-        projectDurationDays
-      );
-
-      // Generate initial milestones
-      const initialCount = Math.min(
-        estimatedTotalMilestones, 
-        project.continuous ? 3 : estimatedTotalMilestones
-      );
-      
-      const generatedMilestones = this.generateRecurringMilestones(recurringConfig, initialCount);
-
-      // Save recurring configuration to storage
-      this.saveRecurringConfiguration(projectId, recurringMilestone);
-
-      // Batch insert milestones to database
-      await this.batchInsertMilestones(projectId, generatedMilestones, options);
+      // Trigger external coordination
+      await this.coordinatePostInsertActions(projectId, 1, options);
 
       return {
         success: true,
         recurringMilestone,
-        generatedCount: generatedMilestones.length,
+        generatedCount: 1, // One template milestone created
         estimatedTotalCount: estimatedTotalMilestones
       };
 
@@ -260,6 +309,7 @@ export class ProjectMilestoneOrchestrator {
 
   /**
    * Delete all recurring milestones for a project
+   * NEW SYSTEM: Delete template milestone (is_recurring=true) AND old numbered instances
    */
   static async deleteRecurringMilestones(
     projectId: string,
@@ -267,12 +317,14 @@ export class ProjectMilestoneOrchestrator {
     options: MilestoneOrchestrationOptions = {}
   ): Promise<{ success: boolean; deletedCount: number; error?: string }> {
     try {
-      // Clear recurring configuration from storage
+      // Clear recurring configuration from storage (legacy - may not be used anymore)
       this.clearRecurringConfiguration(projectId);
 
-      // Find recurring milestones (identified by name pattern ending with space and number)
+      // Find recurring milestones:
+      // 1. NEW SYSTEM: Template milestones with is_recurring=true
+      // 2. OLD SYSTEM: Numbered instances (name pattern ending with space and number)
       const recurringMilestones = projectMilestones.filter(m => 
-        m.name && /\s\d+$/.test(m.name)
+        m.isRecurring || (m.name && /\s\d+$/.test(m.name))
       );
 
       // Delete milestones from database

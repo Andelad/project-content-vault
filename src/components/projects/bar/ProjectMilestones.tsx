@@ -43,17 +43,129 @@ export const ProjectMilestones = memo(function ProjectMilestones({
   const [draggingMilestone, setDraggingMilestone] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Helper function to check if a milestone is part of a recurring pattern
+  // Helper function to check if a milestone is part of a recurring pattern (old numbered system)
   const isRecurringMilestone = (milestone: Milestone) => {
     return milestone.name && /\s\d+$/.test(milestone.name);
   };
 
-  // Get milestones for this project
+  // Get milestones for this project and expand recurring templates
   const projectMilestones = useMemo(() => {
-    return milestones
-      .filter(m => m.projectId === project.id)
-      .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
-  }, [milestones, project.id]);
+    const filtered = milestones.filter(m => m.projectId === project.id);
+    const expanded: Milestone[] = [];
+
+    filtered.forEach(m => {
+      // If it's an old numbered instance, skip it (we'll generate from template instead)
+      if (isRecurringMilestone(m) && !m.isRecurring) {
+        return;
+      }
+
+      // If it's a recurring template, generate occurrences for display
+      if (m.isRecurring && m.recurringConfig) {
+        // Generate occurrence dates
+        const occurrences = generateRecurringOccurrences(
+          m,
+          new Date(project.startDate),
+          new Date(project.endDate),
+          project.continuous || false
+        );
+
+        // Create virtual milestone for each occurrence (for display only)
+        occurrences.forEach((date, index) => {
+          // Only show occurrences within viewport for performance
+          if (date >= viewportStart && date <= viewportEnd) {
+            expanded.push({
+              ...m,
+              id: `${m.id}-occurrence-${index}`,
+              dueDate: date,
+              name: `${m.name}`, // Don't add number for display
+              isRecurring: true // Mark as recurring for styling
+            });
+          }
+        });
+      } else {
+        // Regular milestone, include as-is
+        expanded.push(m);
+      }
+    });
+
+    return expanded.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+  }, [milestones, project.id, project.startDate, project.endDate, project.continuous, viewportStart, viewportEnd]);
+
+  // Helper function to generate recurring occurrences (matches calculation logic)
+  function generateRecurringOccurrences(
+    milestone: Milestone,
+    projectStartDate: Date,
+    projectEndDate: Date,
+    projectContinuous: boolean
+  ): Date[] {
+    if (!milestone.recurringConfig) return [];
+
+    const config = milestone.recurringConfig;
+    const occurrences: Date[] = [];
+    
+    let current = new Date(projectStartDate);
+    current.setHours(0, 0, 0, 0);
+    
+    const endLimit = projectContinuous 
+      ? new Date(current.getTime() + 365 * 24 * 60 * 60 * 1000)
+      : new Date(projectEndDate);
+    endLimit.setHours(23, 59, 59, 999);
+
+    let safetyCounter = 0;
+    const MAX_OCCURRENCES = 100;
+
+    // Initialize first occurrence
+    switch (config.type) {
+      case 'daily':
+        current.setDate(current.getDate() + config.interval);
+        break;
+      case 'weekly':
+        if (config.weeklyDayOfWeek !== undefined) {
+          const targetDayOfWeek = config.weeklyDayOfWeek;
+          const projectStartDay = current.getDay();
+          const daysUntilFirst = targetDayOfWeek >= projectStartDay
+            ? targetDayOfWeek - projectStartDay
+            : 7 - projectStartDay + targetDayOfWeek;
+          current.setDate(current.getDate() + daysUntilFirst);
+        }
+        break;
+      case 'monthly':
+        if (config.monthlyPattern === 'date' && config.monthlyDate) {
+          current.setDate(config.monthlyDate);
+          if (current < projectStartDate) {
+            current.setMonth(current.getMonth() + 1);
+            current.setDate(config.monthlyDate);
+          }
+        }
+        break;
+    }
+
+    while (current <= endLimit && safetyCounter < MAX_OCCURRENCES) {
+      if (current >= projectStartDate) {
+        occurrences.push(new Date(current));
+      }
+
+      // Move to next occurrence
+      switch (config.type) {
+        case 'daily':
+          current.setDate(current.getDate() + config.interval);
+          break;
+        case 'weekly':
+          current.setDate(current.getDate() + (7 * config.interval));
+          break;
+        case 'monthly':
+          if (config.monthlyPattern === 'date' && config.monthlyDate) {
+            current.setMonth(current.getMonth() + config.interval);
+            current.setDate(Math.min(config.monthlyDate, new Date(current.getFullYear(), current.getMonth() + 1, 0).getDate()));
+          }
+          break;
+      }
+
+      safetyCounter++;
+    }
+
+    return occurrences;
+  }
 
   // Calculate positions for each milestone relative to the project's baseline positioning
   const milestonePositions = useMemo(() => {

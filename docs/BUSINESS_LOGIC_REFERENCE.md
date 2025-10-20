@@ -571,17 +571,80 @@ ELSE
 
 ---
 
-### Rule 9: Day Estimates Source Priority
-**Statement**: Day estimates for timeline rendering follow a priority order:
+### Rule 9: Timeline Day Display - Events vs Estimates
+**Statement**: Timeline bars display either EVENTS (actual work) or ESTIMATES (projected work), never both on the same day.
 
-**Priority**:
-1. **Planned Events** (highest priority) - explicit work scheduled
-2. **Milestone Allocations** - estimated work distribution
-3. **Project Auto-Estimates** (lowest priority) - fallback distribution
+**Critical Distinction**:
+- **Events** = Actual calendar time blocks (planned or completed)
+- **Estimates** = Calculated projections from project/milestone allocations
+
+**Two Categories of Time Display**:
+
+### A. EVENTS (Actual Calendar Time)
+
+Events are calendar entries that show actual time blocks - either planned future work or completed past work.
+
+1. **Planned Event Time** (Visual: Lighter color with dashed border)
+   - **Source**: Calendar events where `projectId === project.id` AND NOT completed/tracked
+   - **Definition**: Events with `completed === false` AND `type !== 'tracked'` AND `type !== 'completed'`
+   - **Purpose**: Shows user's scheduled future work
+   - **Blocks estimates**: YES - any event on a day blocks estimates for that day
+
+2. **Completed/Tracked Event Time** (Visual: Darker solid color)
+   - **Source**: Calendar events where `projectId === project.id` AND completed/tracked
+   - **Definition**: Events with `completed === true` OR `type === 'tracked'` OR `type === 'completed'`
+   - **Purpose**: Shows actual work done
+   - **Blocks estimates**: YES - any event on a day blocks estimates for that day
+
+### B. ESTIMATES (Calculated Projections)
+
+Estimates are NOT events. They are calculated distributions of project/milestone time allocations.
+
+3. **Auto-Estimate Time** (Visual: Lightest color, no border)
+   - **Source**: Project/milestone time budget distributed across working days
+   - **Calculation**: Milestone `timeAllocationHours` OR project `estimatedHours` divided by working days
+   - **Purpose**: Shows work needed to meet deadline
+   - **Only appears**: On days WITHOUT any calendar events (planned or completed) for that project
+   - **NOT an event**: This is a calculated projection, not actual calendar time
+
+**Critical Rule - Events vs Estimates Are Mutually Exclusive**:
+```typescript
+// For any given day and project:
+IF day has ANY events (planned OR completed) for project THEN
+  Display: Event time (planned or completed styling)
+  DO NOT display: Estimates
+  Calculation: Sum hours from calendar events only
+ELSE
+  Display: Auto-estimate time
+  Calculation: Project/milestone allocation / working days
+END IF
+```
+
+**Critical Rule - Event Project Filtering**:
+```typescript
+// Events MUST be filtered by projectId
+∀ event on timeline:
+  event.projectId === project.id
+```
+Events not linked to a project do NOT appear on that project's timeline.
+
+**Critical Rule - Estimates Are NOT Events**:
+- Estimates come from project/milestone `timeAllocationHours` or `estimatedHours`
+- Estimates are mathematical distributions across working days
+- Estimates do NOT have a `completed` status (they're not events)
+- Estimates appear ONLY where no actual events exist
+
+**Mixed Day Handling** (day with both planned AND completed events):
+- Current behavior: Show as planned time (lighter with dashed border)
+- Future: Stack planned on top of completed (not yet implemented)
+- Note: Both are events, so no estimates appear on this day
 
 **Enforcement**:
-- Implemented in `UnifiedDayEstimateService`
-- Higher priority sources override lower priority
+- Event filtering: `TimelineRules.filterEventsForProject()`
+- Event classification: `TimelineRules.isPlannedTime()` / `TimelineRules.isCompletedTime()`
+- Estimate blocking: `TimelineRules.shouldShowAutoEstimate()` (returns false if ANY events exist)
+- Implemented in `dayEstimateCalculations.ts`
+- Validated by TimelineBar component rendering logic
 
 ---
 

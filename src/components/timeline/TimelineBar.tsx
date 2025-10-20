@@ -7,6 +7,7 @@ import { useSettingsContext } from '../../contexts/SettingsContext';
 import { isSameDate } from '@/utils/dateFormatUtils';
 import type { Project } from '@/types/core';
 import { UnifiedTimelineService } from '@/services';
+import { ColorCalculationService } from '@/services/infrastructure/colorCalculations';
 import { 
   calculateWeekProjectIntersection,
   generateWorkHoursForDate,
@@ -128,10 +129,33 @@ export const TimelineBar = memo(function TimelineBar({
   const dayEstimates = useMemo(() => {
     if (!project) return [];
     
+    // CRITICAL: Filter milestones to only include those for THIS project and WITHIN project dates
+    const projectStart = new Date(project.startDate);
+    const projectEnd = new Date(project.endDate);
+    
+    // Filter milestones for this project within date boundaries
+    let projectMilestones = milestones.filter(m => 
+      m.projectId === project.id &&
+      new Date(m.endDate || m.dueDate) >= projectStart &&
+      new Date(m.endDate || m.dueDate) <= projectEnd
+    );
+    
+    // HYBRID SYSTEM: If there's a template milestone (isRecurring=true), 
+    // exclude old numbered instances to prevent double-counting
+    const hasTemplateMilestone = projectMilestones.some(m => m.isRecurring === true);
+    if (hasTemplateMilestone) {
+      projectMilestones = projectMilestones.filter(m => 
+        // Keep template milestones
+        m.isRecurring === true ||
+        // Keep non-recurring regular milestones
+        (!m.isRecurring && (!m.name || !/\s\d+$/.test(m.name)))
+      );
+    }
+    
     const startTime = performance.now();
     const result = UnifiedTimelineService.calculateProjectDayEstimates(
       project,
-      milestones,
+      projectMilestones, // Use filtered milestones, not all milestones
       settings,
       holidays,
       events
@@ -181,12 +205,35 @@ export const TimelineBar = memo(function TimelineBar({
       };
     }
     
+    // CRITICAL: Filter milestones to only include those for THIS project and WITHIN project dates
+    const projectStart = new Date(project.startDate);
+    const projectEnd = new Date(project.endDate);
+    
+    // Filter milestones for this project within date boundaries
+    let projectMilestones = milestones.filter(m => 
+      m.projectId === project.id &&
+      new Date(m.endDate || m.dueDate) >= projectStart &&
+      new Date(m.endDate || m.dueDate) <= projectEnd
+    );
+    
+    // HYBRID SYSTEM: If there's a template milestone (isRecurring=true), 
+    // exclude old numbered instances to prevent double-counting
+    const hasTemplateMilestone = projectMilestones.some(m => m.isRecurring === true);
+    if (hasTemplateMilestone) {
+      projectMilestones = projectMilestones.filter(m => 
+        // Keep template milestones
+        m.isRecurring === true ||
+        // Keep non-recurring regular milestones
+        (!m.isRecurring && (!m.name || !/\s\d+$/.test(m.name)))
+      );
+    }
+    
     return UnifiedTimelineService.getTimelineBarData(
       project,
       dates,
       viewportStart,
       viewportEnd,
-      milestones,
+      projectMilestones, // Use filtered milestones, not all milestones
       holidays,
       settings,
       isDragging,
@@ -282,15 +329,59 @@ export const TimelineBar = memo(function TimelineBar({
                         return <div key={dayIndex} style={{ width: `${dayWidth}px` }}></div>;
                       }
                       
-                      // Compute allocation properties
-                      const plannedEstimate = dateEstimates.find(est => est.source === 'planned-event');
-                      const allocationType = plannedEstimate ? 'planned' : (totalHours > 0 ? 'auto-estimate' : 'none');
-                      const isPlannedTime = allocationType === 'planned';
-                      const isPlannedAndCompleted = isPlannedTime && events.some(e => 
-                        e.projectId === project.id && 
-                        e.completed && 
-                        isSameDate(new Date(e.startTime), currentDay)
+                      // CRITICAL: Events and estimates are mutually exclusive
+                      // Domain Rule: Only one type of time per day
+                      const eventEstimate = dateEstimates.find(est => est.source === 'event');
+                      
+                      let allocationType: 'planned' | 'completed' | 'auto-estimate' | 'none';
+                      let isPlannedTime = false;
+                      let isCompletedTime = false;
+                      
+                      // DEBUG for Budgi Oct 14-18 and Aug 13
+                      const debugDate = currentDay.toISOString().split('T')[0];
+                      const shouldDebug = project.name === 'Budgi' && (
+                        (debugDate >= '2024-10-14' && debugDate <= '2024-10-18') ||
+                        debugDate === '2024-08-13'
                       );
+                      
+                      if (eventEstimate) {
+                        if (shouldDebug) {
+                          console.log(`[TimelineBar ${debugDate}] eventEstimate:`, {
+                            source: eventEstimate.source,
+                            isPlannedEvent: eventEstimate.isPlannedEvent,
+                            isCompletedEvent: eventEstimate.isCompletedEvent,
+                            hours: eventEstimate.hours
+                          });
+                        }
+                        
+                        // This day has EVENT time (not estimates)
+                        // Check if it's planned, completed, or both
+                        if (eventEstimate.isPlannedEvent && eventEstimate.isCompletedEvent) {
+                          // Mixed: has both planned and completed events (show as planned for now)
+                          allocationType = 'planned';
+                          isPlannedTime = true;
+                        } else if (eventEstimate.isPlannedEvent) {
+                          allocationType = 'planned';
+                          isPlannedTime = true;
+                        } else if (eventEstimate.isCompletedEvent) {
+                          allocationType = 'completed';
+                          isCompletedTime = true;
+                        } else {
+                          allocationType = 'none';
+                        }
+                        
+                        if (shouldDebug) {
+                          console.log(`[TimelineBar ${debugDate}] allocationType: ${allocationType}, isCompletedTime: ${isCompletedTime}`);
+                        }
+                      } else if (totalHours > 0) {
+                        // No events, but has hours = auto-estimate
+                        allocationType = 'auto-estimate';
+                        if (shouldDebug) {
+                          console.log(`[TimelineBar ${debugDate}] No eventEstimate, showing as auto-estimate`);
+                        }
+                      } else {
+                        allocationType = 'none';
+                      }
                       const heightInPixels = Math.max(3, Math.round(totalHours * 4));
                       
                       // NOTE: Work day filtering already handled by dayEstimateCalculations
@@ -309,12 +400,15 @@ export const TimelineBar = memo(function TimelineBar({
                               style={(() => {
                                 // Use the allocation we already calculated above
                                 const dayRectangleHeight = heightInPixels;
-                                // Determine background color and border based on completion status
+                                // Determine background color and border based on time type
                                 let backgroundColor: string;
                                 let borderStyle: any;
-                                if (isPlannedAndCompleted) {
-                                  // Completed planned time: use lighter completed planned color, no borders
-                                  backgroundColor = colorScheme.completedPlanned;
+                                let opacity: number = 1;
+                                
+                                if (isCompletedTime) {
+                                  // Completed/tracked time: Darker solid color, no borders
+                                  backgroundColor = ColorCalculationService.getCompletedPlannedColor(project.color);
+                                  opacity = 1;
                                   borderStyle = {
                                     borderRight: 'none',
                                     borderLeft: 'none',
@@ -322,8 +416,9 @@ export const TimelineBar = memo(function TimelineBar({
                                     borderBottom: 'none'
                                   };
                                 } else if (isPlannedTime) {
-                                  // Planned but not completed: use project color with dashed border
-                                  backgroundColor = project.color;
+                                  // Planned time: Lighter color with dashed border
+                                  backgroundColor = ColorCalculationService.getMidToneColor(project.color);
+                                  opacity = 1;
                                   borderStyle = {
                                     borderLeft: `2px dashed ${colorScheme.baseline}`,
                                     borderRight: `2px dashed ${colorScheme.baseline}`,
@@ -331,8 +426,9 @@ export const TimelineBar = memo(function TimelineBar({
                                     borderBottom: 'none'
                                   };
                                 } else {
-                                  // Auto-estimate: use auto-estimate color, no borders
+                                  // Auto-estimate: Lightest gray, no borders
                                   backgroundColor = colorScheme.autoEstimate;
+                                  opacity = 1;
                                   borderStyle = {
                                     borderRight: 'none',
                                     borderLeft: 'none',
@@ -342,6 +438,7 @@ export const TimelineBar = memo(function TimelineBar({
                                 }
                                 return {
                                   backgroundColor,
+                                  opacity,
                                   height: `${dayRectangleHeight}px`,
                                   width: `${dayWidth}px`, // Full width since gap-px handles spacing
                                   borderTopLeftRadius: '2px',
@@ -382,13 +479,15 @@ export const TimelineBar = memo(function TimelineBar({
                           </TooltipTrigger>
                           <TooltipContent>
                             {(() => {
-                              // Calculate tooltip info
-                              const tooltipType = isPlannedTime ? 'Planned time' : 'Auto-estimate';
+                              // Calculate tooltip info - FIX: Include completed time
+                              const tooltipType = isPlannedTime ? 'Planned time' : isCompletedTime ? 'Completed time' : 'Auto-estimate';
                               const displayHours = Math.floor(totalHours);
                               const displayMinutes = Math.round((totalHours - displayHours) * 60);
-                              const displayText = displayMinutes > 0 
-                                ? `${displayHours}h ${displayMinutes}m/day`
-                                : `${displayHours} hour${displayHours !== 1 ? 's' : ''}/day`;
+                              const displayText = displayHours > 0 && displayMinutes > 0
+                                ? `${displayHours}h ${displayMinutes}m`
+                                : displayHours > 0 
+                                  ? `${displayHours}h`
+                                  : `${displayMinutes}m`;
                               
                               return (
                                 <div className="text-xs">
@@ -400,14 +499,29 @@ export const TimelineBar = memo(function TimelineBar({
                                   </div>
                                   {dateEstimates.length > 0 && (
                                     <div className="text-gray-600 mt-1">
-                                      {dateEstimates.map((est, idx) => (
-                                        <div key={idx}>
-                                          {est.source === 'milestone-allocation' && est.milestoneId ? 
-                                            `Milestone allocation: ${est.hours.toFixed(2)}h` :
-                                            `Auto-estimate: ${est.hours.toFixed(2)}h`
-                                          }
-                                        </div>
-                                      ))}
+                                      {dateEstimates.map((est, idx) => {
+                                        const estHours = Math.floor(est.hours);
+                                        const estMinutes = Math.round((est.hours - estHours) * 60);
+                                        const estText = estHours > 0 && estMinutes > 0
+                                          ? `${estHours}h ${estMinutes}m`
+                                          : estHours > 0
+                                            ? `${estHours}h`
+                                            : `${estMinutes}m`;
+                                        
+                                        // FIX: Handle event source properly
+                                        let sourceLabel = 'Auto-estimate';
+                                        if (est.source === 'event') {
+                                          sourceLabel = est.isPlannedEvent ? 'Planned event' : 'Completed event';
+                                        } else if (est.source === 'milestone-allocation') {
+                                          sourceLabel = 'Milestone';
+                                        }
+                                        
+                                        return (
+                                          <div key={idx}>
+                                            {`${sourceLabel}: ${estText}`}
+                                          </div>
+                                        );
+                                      })}
                                     </div>
                                   )}
                                 </div>
@@ -433,8 +547,29 @@ export const TimelineBar = memo(function TimelineBar({
               }) || [];
               
               const totalHours = estimatesForDate.reduce((sum, est) => sum + est.hours, 0);
-              const plannedEstimate = estimatesForDate.find(est => est.source === 'planned-event');
-              const allocationType = plannedEstimate ? 'planned' : (totalHours > 0 ? 'auto-estimate' : 'none');
+              
+              // CRITICAL: Events and estimates are mutually exclusive
+              const eventEstimate = estimatesForDate.find(est => est.source === 'event');
+              
+              let allocationType: 'planned' | 'completed' | 'auto-estimate' | 'none';
+              if (eventEstimate) {
+                // This day has EVENT time (not estimates)
+                if (eventEstimate.isPlannedEvent && eventEstimate.isCompletedEvent) {
+                  // Mixed: has both planned and completed events (show as planned for now)
+                  allocationType = 'planned';
+                } else if (eventEstimate.isPlannedEvent) {
+                  allocationType = 'planned';
+                } else if (eventEstimate.isCompletedEvent) {
+                  allocationType = 'completed';
+                } else {
+                  allocationType = 'none';
+                }
+              } else if (totalHours > 0) {
+                // No events, but has hours = auto-estimate
+                allocationType = 'auto-estimate';
+              } else {
+                allocationType = 'none';
+              }
               
               // Don't render if no time allocation (the calculation already ensured this is in project range)
               if (allocationType === 'none') {
@@ -473,15 +608,9 @@ export const TimelineBar = memo(function TimelineBar({
               
               // Use the estimates we already calculated correctly above
               const isPlannedTime = allocationType === 'planned';
+              const isCompletedTime = allocationType === 'completed';
               const dailyHours = totalHours;
               const rectangleHeight = Math.max(3, Math.round(dailyHours * 4));
-              
-              // Check if planned time is completed
-              const isPlannedAndCompleted = isPlannedTime && events.some(e => 
-                e.projectId === project.id && 
-                e.completed === true &&
-                new Date(e.startTime).toDateString() === date.toDateString()
-              );
               
               // Determine border radius for this day rectangle based on working days
               // Always round upper corners by 3px, remove bottom rounding on last rectangles
@@ -510,12 +639,15 @@ export const TimelineBar = memo(function TimelineBar({
                 }
               }
               
-              // Determine styling based on time allocation type and completion
+              // Determine styling based on time allocation type
               let backgroundColor: string;
               let borderStyle: any;
-              if (isPlannedAndCompleted) {
-                // Completed planned time: use lighter completed planned color, no borders
-                backgroundColor = colorScheme.completedPlanned;
+              let opacity: number = 1;
+              
+              if (isCompletedTime) {
+                // Completed/tracked time: Darker solid color, no borders
+                backgroundColor = ColorCalculationService.getCompletedPlannedColor(project.color);
+                opacity = 1;
                 borderStyle = {
                   borderRight: 'none',
                   borderLeft: 'none',
@@ -523,8 +655,9 @@ export const TimelineBar = memo(function TimelineBar({
                   borderBottom: 'none'
                 };
               } else if (isPlannedTime) {
-                // Planned but not completed: use project color with dashed border
-                backgroundColor = project.color;
+                // Planned time: Lighter color with dashed border
+                backgroundColor = ColorCalculationService.getMidToneColor(project.color);
+                opacity = 1;
                 borderStyle = {
                   borderLeft: `2px dashed ${colorScheme.baseline}`,
                   borderRight: `2px dashed ${colorScheme.baseline}`,
@@ -532,8 +665,9 @@ export const TimelineBar = memo(function TimelineBar({
                   borderBottom: 'none'
                 };
               } else {
-                // Auto-estimate: use auto-estimate color
+                // Auto-estimate: Lightest gray
                 backgroundColor = colorScheme.autoEstimate;
+                opacity = 1;
                 borderStyle = {
                   borderRight: isLastWorkingDay ? 'none' : '1px solid rgba(255, 255, 255, 0.3)',
                   borderLeft: 'none',
@@ -543,6 +677,7 @@ export const TimelineBar = memo(function TimelineBar({
               }
               const rectangleStyle = {
                 backgroundColor,
+                opacity,
                 borderTopLeftRadius: borderTopLeftRadius,
                 borderTopRightRadius: borderTopRightRadius,
                 borderBottomLeftRadius: borderBottomLeftRadius,
@@ -642,16 +777,21 @@ export const TimelineBar = memo(function TimelineBar({
                     <TooltipContent>
                       <div className="text-xs">
                         <div className="font-medium">
-                          {allocationType === 'planned' ? 'Planned Time' : 'Auto-Estimate'}
+                          {allocationType === 'planned' ? 'Planned Time' : allocationType === 'completed' ? 'Completed Time' : 'Auto-Estimate'}
                         </div>
                         <div className="text-gray-600">
-                          {dailyHours.toFixed(2)} hours
+                          {(() => {
+                            const hours = Math.floor(dailyHours);
+                            const minutes = Math.round((dailyHours - hours) * 60);
+                            if (hours > 0 && minutes > 0) {
+                              return `${hours}h ${minutes}m`;
+                            } else if (hours > 0) {
+                              return `${hours}h`;
+                            } else {
+                              return `${minutes}m`;
+                            }
+                          })()}
                         </div>
-                        {milestoneSegment?.milestone && (
-                          <div className="text-gray-600 mt-1">
-                            Target: {milestoneSegment.milestone.name} - {milestoneSegment.milestone.timeAllocation}h
-                          </div>
-                        )}
                       </div>
                     </TooltipContent>
                   </Tooltip>

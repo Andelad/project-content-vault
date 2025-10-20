@@ -192,7 +192,15 @@ export interface DayEstimate {
   date: Date;
   projectId: string;
   hours: number;
-  source: 'planned-event' | 'milestone-allocation' | 'project-auto-estimate';
+  // CRITICAL: source indicates origin of time display
+  // - 'event': Calendar event time (could be planned or completed)
+  // - 'milestone-allocation': Calculated estimate from milestone
+  // - 'project-auto-estimate': Calculated estimate from project budget
+  // Events and estimates are mutually exclusive on any day
+  source: 'event' | 'milestone-allocation' | 'project-auto-estimate';
   milestoneId?: string;
   isWorkingDay: boolean;
+  // Additional fields to track event type when source is 'event'
+  isPlannedEvent?: boolean; // true if event is planned (not completed)
+  isCompletedEvent?: boolean; // true if event is completed/tracked
 }

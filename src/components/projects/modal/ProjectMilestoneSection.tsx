@@ -496,20 +496,50 @@ export function ProjectMilestoneSection({
       return localMilestonesState.milestones || [];
     } else if (projectId) {
       // For existing projects, combine database milestones with any local ones
-      const existing = Array.isArray(milestones) ? milestones.filter(m => m.projectId === projectId) : [];
+      const existing = Array.isArray(milestones) ? milestones.filter(m => 
+        m.projectId === projectId && 
+        m.dueDate >= projectStartDate && 
+        m.dueDate <= projectEndDate
+      ) : [];
       const newMilestones = localMilestones.filter(m => 'isNew' in m && m.isNew);
       return [...existing, ...newMilestones] as (Milestone | LocalMilestone)[];
     } else {
       // Fallback: just local milestones
       return localMilestones || [];
     }
-  }, [milestones, projectId, localMilestones, isCreatingProject, localMilestonesState]);
+  }, [milestones, projectId, localMilestones, isCreatingProject, localMilestonesState, projectStartDate, projectEndDate]);
 
   // Check if project has recurring milestones and reconstruct config
+  // NEW SYSTEM: Look for template milestone with isRecurring=true
+  // OLD SYSTEM: Fall back to numbered pattern detection for backward compatibility
   React.useEffect(() => {
     if (recurringMilestone || !projectId || isDeletingRecurringMilestone) return;
     
-    // Look for recurring milestone pattern in existing milestones (but don't show them as individual cards)
+    // NEW SYSTEM: First check for template milestone with isRecurring=true
+    const templateMilestone = projectMilestones.find(m => m.isRecurring === true);
+    
+    if (templateMilestone && templateMilestone.recurringConfig) {
+      // Found new-style template milestone - use its configuration
+      const config = templateMilestone.recurringConfig;
+      
+      setRecurringMilestone({
+        id: templateMilestone.id || 'recurring-milestone',
+        name: templateMilestone.name,
+        timeAllocation: templateMilestone.timeAllocationHours ?? templateMilestone.timeAllocation,
+        recurringType: config.type,
+        recurringInterval: config.interval,
+        projectId,
+        isRecurring: true,
+        weeklyDayOfWeek: config.weeklyDayOfWeek,
+        monthlyPattern: config.monthlyPattern,
+        monthlyDate: config.monthlyDate,
+        monthlyWeekOfMonth: config.monthlyWeekOfMonth,
+        monthlyDayOfWeek: config.monthlyDayOfWeek
+      });
+      return;
+    }
+    
+    // OLD SYSTEM: Fall back to pattern detection from numbered milestones
     const recurringPattern = projectMilestones.filter(m => 
       m.name && /\s\d+$/.test(m.name) // Ends with space and number
     );
@@ -568,7 +598,16 @@ export function ProjectMilestoneSection({
 
   // Calculate budget analysis inline (MilestoneOrchestrator is deprecated)
   const budgetAnalysis = useMemo(() => {
-    const totalAllocated = projectMilestones.reduce((sum, m) => sum + m.timeAllocation, 0) + totalRecurringAllocation;
+    // Filter out template milestone and old numbered instances to avoid double-counting
+    const nonRecurringMilestones = projectMilestones.filter(m => {
+      // Exclude NEW template milestones
+      if (m.isRecurring) return false;
+      // Exclude OLD numbered instances
+      if (m.name && /\s\d+$/.test(m.name)) return false;
+      return true;
+    });
+    
+    const totalAllocated = nonRecurringMilestones.reduce((sum, m) => sum + m.timeAllocation, 0) + totalRecurringAllocation;
     const remainingBudget = projectEstimatedHours - totalAllocated;
     const isOverBudget = totalAllocated > projectEstimatedHours;
     
@@ -753,19 +792,67 @@ export function ProjectMilestoneSection({
   const generateRecurringMilestones = (config: RecurringMilestoneConfig, maxCount?: number) => {
     const milestones: any[] = [];
     let currentDate = new Date(projectStartDate);
-    currentDate.setDate(currentDate.getDate() + 1); // Start day after project start
+    currentDate.setHours(0, 0, 0, 0);
     let order = 0;
 
     const endDate = projectContinuous ? 
       new Date(currentDate.getTime() + 365 * 24 * 60 * 60 * 1000) : // 1 year for continuous
       new Date(projectEndDate);
-    endDate.setDate(endDate.getDate() - 1); // End day before project end
+    endDate.setHours(23, 59, 59, 999);
 
-    // Default limit for better performance: smaller for lazy loading, larger for non-continuous projects
-    const defaultLimit = projectContinuous ? 10 : 100;
-    const limit = maxCount || defaultLimit;
+    // Safety limits to prevent runaway generation
+    const defaultLimit = projectContinuous ? 10 : 100; // Much smaller defaults
+    const limit = Math.min(maxCount || defaultLimit, 1000); // Hard cap at 1000
 
-    while (currentDate <= endDate && order < limit) { // Configurable limit
+    // Initialize first occurrence based on pattern
+    switch (config.recurringType) {
+      case 'daily':
+        // First occurrence is project start date + interval
+        currentDate.setDate(currentDate.getDate() + config.recurringInterval);
+        break;
+      case 'weekly':
+        // Find the first occurrence of the target day on or after project start
+        const targetDayOfWeek = config.weeklyDayOfWeek ?? 0; // Default to Sunday if not specified
+        const projectStartDay = currentDate.getDay();
+        const daysUntilFirstOccurrence = targetDayOfWeek >= projectStartDay
+          ? targetDayOfWeek - projectStartDay
+          : 7 - projectStartDay + targetDayOfWeek;
+        currentDate.setDate(currentDate.getDate() + daysUntilFirstOccurrence);
+        break;
+      case 'monthly':
+        if (config.monthlyPattern === 'date') {
+          // Find first occurrence of specific date on or after project start
+          const targetDate = config.monthlyDate ?? 1;
+          currentDate.setDate(targetDate);
+          // If we've passed this date in the current month, move to next month
+          if (currentDate < projectStartDate) {
+            currentDate.setMonth(currentDate.getMonth() + 1);
+            currentDate.setDate(targetDate);
+          }
+        } else {
+          // Find first occurrence of day of week pattern
+          const targetWeekOfMonth = config.monthlyWeekOfMonth ?? 1;
+          const targetDayOfWeek = config.monthlyDayOfWeek ?? 1;
+          
+          // Calculate the target date in the current month
+          const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+          const firstDayWeekday = firstDayOfMonth.getDay();
+          const daysToAdd = (targetDayOfWeek - firstDayWeekday + 7) % 7;
+          const firstOccurrence = 1 + daysToAdd;
+          const targetDateInMonth = firstOccurrence + ((targetWeekOfMonth - 1) * 7);
+          
+          currentDate.setDate(targetDateInMonth);
+          
+          // If we've passed this date, move to next month
+          if (currentDate < projectStartDate) {
+            currentDate.setMonth(currentDate.getMonth() + 1);
+            currentDate.setDate(targetDateInMonth);
+          }
+        }
+        break;
+    }
+
+    while (currentDate <= endDate && order < limit) {
       milestones.push({
         id: `recurring-${order}`,
         name: `${config.name} ${order + 1}`,
@@ -783,15 +870,8 @@ export function ProjectMilestoneSection({
           currentDate.setDate(currentDate.getDate() + config.recurringInterval);
           break;
         case 'weekly':
-          // Move to the next occurrence of the specified day of week
-          const targetDayOfWeek = config.weeklyDayOfWeek ?? currentDate.getDay();
-          const daysUntilTarget = (targetDayOfWeek - currentDate.getDay() + 7) % 7 || 7;
-          currentDate.setDate(currentDate.getDate() + daysUntilTarget);
-          
-          // If this is not the first milestone, add the interval
-          if (order > 0) {
-            currentDate.setDate(currentDate.getDate() + (7 * (config.recurringInterval - 1)));
-          }
+          // Simply add the interval weeks
+          currentDate.setDate(currentDate.getDate() + (7 * config.recurringInterval));
           break;
         case 'monthly':
           if (config.monthlyPattern === 'date') {
@@ -828,15 +908,15 @@ export function ProjectMilestoneSection({
               const firstDayWeekday = firstDayOfMonth.getDay();
               const daysToAdd = (targetDayOfWeek - firstDayWeekday + 7) % 7;
               const firstOccurrence = 1 + daysToAdd;
-              const targetDate = firstOccurrence + ((targetWeekOfMonth - 1) * 7);
+              const targetDateCalc = firstOccurrence + ((targetWeekOfMonth - 1) * 7);
               
               // Check if the calculated date exists in the month
               const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
-              if (targetDate <= daysInMonth) {
-                currentDate.setDate(targetDate);
+              if (targetDateCalc <= daysInMonth) {
+                currentDate.setDate(targetDateCalc);
               } else {
                 // If the target week doesn't exist, use the last occurrence
-                const lastOccurrence = targetDate - 7;
+                const lastOccurrence = targetDateCalc - 7;
                 currentDate.setDate(lastOccurrence > 0 ? lastOccurrence : firstOccurrence);
               }
             }
@@ -868,6 +948,12 @@ export function ProjectMilestoneSection({
       m.name && /\s\d+$/.test(m.name)
     );
     
+    // Safety check: if we already have too many, don't generate more
+    if (currentMilestones.length >= 1000) {
+      console.warn('Milestone limit reached (1000), skipping generation');
+      return;
+    }
+    
     // Calculate total milestones needed for the project duration
     const projectDurationMs = projectContinuous ? 
       365 * 24 * 60 * 60 * 1000 : // 1 year for continuous
@@ -889,11 +975,14 @@ export function ProjectMilestoneSection({
         break;
     }
     
+    // Cap estimates at reasonable values
+    estimatedTotalMilestones = Math.min(estimatedTotalMilestones, 500);
+    
     // For continuous projects, ensure we have at least 6 months worth
     // For time-bounded projects, only generate what's actually needed
     const targetMilestoneCount = projectContinuous ? 
-      Math.max(26, estimatedTotalMilestones) : // At least 6 months for continuous
-      estimatedTotalMilestones; // Exact amount for time-bounded
+      Math.min(26, estimatedTotalMilestones) : // At least 6 months, max 26 for continuous
+      Math.min(estimatedTotalMilestones, 100); // Max 100 for time-bounded
     
     const needsMoreMilestones = currentMilestones.length < targetMilestoneCount;
     
@@ -1177,10 +1266,16 @@ export function ProjectMilestoneSection({
 
               {/* All Milestones with Inline Editing */}
               {projectMilestones.filter(milestone => {
-                // If we have a recurring milestone config, filter out the individual recurring milestones
+                // NEW SYSTEM: Filter out template milestones with isRecurring=true
+                if (milestone.isRecurring) {
+                  return false; // Template milestone is shown in recurring panel below
+                }
+                
+                // OLD SYSTEM: Filter out numbered recurring instances
                 if ((recurringMilestone || isDeletingRecurringMilestone) && milestone.name && /\s\d+$/.test(milestone.name)) {
                   return false; // Don't show individual recurring milestones as cards
                 }
+                
                 return true; // Show regular milestones
               }).map((milestone, index) => (
                 <div key={milestone.id || `milestone-${index}`} className="border border-gray-200 rounded-lg p-4 mb-3">

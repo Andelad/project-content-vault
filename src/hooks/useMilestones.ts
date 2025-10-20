@@ -83,20 +83,21 @@ export function useMilestones(projectId?: string) {
       if (!user) throw new Error('User not authenticated');
 
       // Calculate the next order index for this project
-      const { data: maxOrderData } = await supabase
+      // Sort by due_date instead of order_index to get proper sequence
+      const { data: existingMilestones } = await supabase
         .from('milestones')
-        .select('order_index')
+        .select('due_date, order_index')
         .eq('project_id', milestoneData.project_id)
-        .order('order_index', { ascending: false })
-        .limit(1);
+        .order('due_date', { ascending: true });
 
-      const nextOrderIndex = maxOrderData?.[0]?.order_index ? maxOrderData[0].order_index + 1 : 0;
+      // Use sequential numbering based on date order (0, 1, 2, ...) instead of incremented values
+      const nextOrderIndex = existingMilestones ? existingMilestones.length : 0;
 
       // DUAL-WRITE: Prepare data with both old and new columns (Phase 5)
       const insertData: MilestoneInsert = {
         ...milestoneData,
         user_id: user.id,
-        order_index: nextOrderIndex,
+        order_index: nextOrderIndex, // Will always be sequential now (0, 1, 2, ...)
         
         // DUAL-WRITE: Write to BOTH old and new columns for backward compatibility
         time_allocation: milestoneData.time_allocation,
