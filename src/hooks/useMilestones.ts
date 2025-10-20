@@ -78,12 +78,19 @@ export function useMilestones(projectId?: string) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
+      // Transform camelCase to snake_case for database insertion
+      const dbMilestoneData: any = {
+        user_id: user.id,
+        name: milestoneData.name,
+        project_id: (milestoneData as any).projectId || milestoneData.project_id,
+        due_date: (milestoneData as any).dueDate || milestoneData.due_date,
+        time_allocation: (milestoneData as any).timeAllocation || milestoneData.time_allocation,
+        time_allocation_hours: (milestoneData as any).timeAllocationHours || (milestoneData as any).timeAllocation || milestoneData.time_allocation,
+      };
+
       const { data, error } = await supabase
         .from('milestones')
-        .insert({
-        user_id: user.id,
-        ...milestoneData,
-      })
+        .insert(dbMilestoneData)
         .select()
         .single();
 

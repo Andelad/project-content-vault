@@ -765,8 +765,8 @@ export class ProjectMilestoneOrchestrator {
       // Save to database
       await context.addMilestone({
         name: milestone.name,
-        dueDate: milestone.dueDate,
-        timeAllocation: milestone.timeAllocation,
+        dueDate: milestone.dueDate || milestone.endDate,
+        timeAllocation: milestone.timeAllocationHours || milestone.timeAllocation,
         projectId: context.projectId
       });
 
