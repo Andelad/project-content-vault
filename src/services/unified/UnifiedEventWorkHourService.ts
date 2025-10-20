@@ -28,6 +28,7 @@ import { WorkHour, CalendarEvent } from '@/types';
 import { calculateAutoEstimateWorkingDays, calculateEventDurationOnDateLegacy as calculateEventDurationOnDate } from '@/services';
 import { memoizeExpensiveCalculation, timelineCalculationCache } from '../performance/cachePerformanceService';
 import { getCalendarEventBackgroundColor, getCalendarEventTextColor } from '@/constants/colors';
+import { ColorCalculationService } from '../infrastructure/colorCalculations';
 
 /**
  * Clear the timeline calculation cache - useful when project settings change
@@ -584,6 +585,7 @@ export interface EventStyleResult {
 
 /**
  * Calculate event styling colors and opacity based on state
+ * Now uses centralized style constants from constants/styles.ts
  */
 export function calculateEventStyle(
   baseColor: string,
@@ -591,70 +593,32 @@ export function calculateEventStyle(
 ): EventStyleResult {
   const { isSelected = false, isFutureEvent = false, isActiveLayer = true, isCompleted = false } = config;
   
-  // Create light background and project-colored text versions
-  let backgroundColor = getCalendarEventBackgroundColor(baseColor);
-  
-  // Calculate text color in the project color family instead of gray
-  let textColor: string;
-  const match = baseColor.match(/oklch\(([0-9.]+) ([0-9.]+) ([0-9.]+)\)/);
-  if (match) {
-    const [, lightness, chroma, hue] = match;
-    // Create a darker version of the project color for text (good contrast but still in color family)
-    const textLightness = 0.35; // Dark enough for good contrast
-    // Use the same chroma as the original project color (0.12) - don't reduce it at this dark lightness
-    const textChroma = Math.max(0.12, parseFloat(chroma)); // Keep full project color chroma for visibility
-    textColor = `oklch(${textLightness} ${textChroma} ${hue})`;
+  // Determine background color based on state using centralized styles
+  let backgroundColor: string;
+  if (isFutureEvent) {
+    backgroundColor = ColorCalculationService.getEventBackgroundColor(baseColor, 'future');
+  } else if (isSelected) {
+    backgroundColor = ColorCalculationService.getEventBackgroundColor(baseColor, 'selected');
   } else {
-    // Fallback to the original function if color parsing fails
-    textColor = getCalendarEventTextColor(baseColor);
+    backgroundColor = ColorCalculationService.getEventBackgroundColor(baseColor, 'default');
   }
   
-  // Handle selected state - make it darker
-  if (isSelected) {
-    // For selected events, use a very slightly darker version of the background color
-    // Work with the already-lightened background color for a more subtle effect
-    const match = backgroundColor.match(/oklch\(([0-9.]+) ([0-9.]+) ([0-9.]+)\)/);
-    if (match) {
-      const [, lightness, chroma, hue] = match;
-      // Very subtle changes: reduce lightness by only 0.02 and reduce chroma significantly for muted effect
-      const selectedLightness = Math.max(0.3, parseFloat(lightness) - 0.02);
-      const selectedChroma = Math.max(0.01, parseFloat(chroma) * 0.5); // Reduce chroma by half
-      backgroundColor = `oklch(${selectedLightness} ${selectedChroma} ${hue})`;
-    }
-  } else if (isFutureEvent) {
-    // For future events, set lightness very high and reduce chroma for almost white appearance
-    const match = backgroundColor.match(/oklch\(([0-9.]+) ([0-9.]+) ([0-9.]+)\)/);
-    if (match) {
-      const [, lightness, chroma, hue] = match;
-      // Set to very high lightness (0.98) and very low chroma (0.02) for almost white appearance
-      const newLightness = 0.98;
-      const newChroma = 0.02; // Much lower chroma for subtle tint
-      backgroundColor = `oklch(${newLightness} ${newChroma} ${hue})`;
-    }
-  }
+  // Calculate text color using centralized styles
+  const textColor = ColorCalculationService.getEventTextColor(baseColor);
   
-  // Apply fading and interaction based on active layer
-  const baseOpacity = isCompleted ? 0.6 : 1;
-  const finalOpacity = isActiveLayer ? baseOpacity : (baseOpacity * 0.3); // Faded when not active layer
+  // Calculate border color for selected events using centralized styles
+  const borderColor = isSelected 
+    ? ColorCalculationService.getEventBorderColor(baseColor)
+    : 'transparent';
   
-  // Create a subtle border color for selected events
-  let borderColor = 'transparent';
-  if (isSelected) {
-    const match = baseColor.match(/oklch\(([0-9.]+) ([0-9.]+) ([0-9.]+)\)/);
-    if (match) {
-      const [, lightness, chroma, hue] = match;
-      // Use a darker version of the project color with full chroma for visible project color
-      const borderLightness = Math.max(0.4, parseFloat(lightness) - 0.15);
-      const borderChroma = Math.max(0.08, parseFloat(chroma)); // Keep full chroma for visible color
-      borderColor = `oklch(${borderLightness} ${borderChroma} ${hue})`;
-    }
-  }
+  // Calculate opacity using centralized styles
+  const opacity = ColorCalculationService.getEventOpacity(isCompleted, isActiveLayer);
   
   return {
     backgroundColor,
     textColor,
     borderColor,
-    opacity: finalOpacity
+    opacity
   };
 }
 

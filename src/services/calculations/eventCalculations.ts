@@ -7,6 +7,7 @@
  */
 
 import type { CalendarEvent } from '@/types';
+import { getDateKey } from '@/utils/dateFormatUtils';
 
 export interface EventDurationParams {
   event: {
@@ -141,7 +142,7 @@ export function aggregateEventDurationsByDate(
   const totals: Record<string, number> = {};
   
   dates.forEach(date => {
-    const dateKey = date.toISOString().split('T')[0]; // YYYY-MM-DD format
+    const dateKey = getDateKey(date);
     totals[dateKey] = 0;
     
     events.forEach(event => {

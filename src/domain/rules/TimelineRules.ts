@@ -15,6 +15,7 @@
  */
 
 import type { CalendarEvent, Project } from '@/types/core';
+import { getDateKey } from '@/utils/dateFormatUtils';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -227,6 +228,24 @@ export class TimelineRules {
     eventsOnDay.forEach(event => {
       const classification = this.classifyEvent(event);
       
+      // DEBUG: Log each event classification
+      const eventDate = getDateKey(new Date(event.startTime));
+      if (eventDate === '2024-10-13') {
+        console.log(`[TimelineRules] Event on Oct 13:`, {
+          id: event.id,
+          startTime: event.startTime,
+          endTime: event.endTime,
+          completed: event.completed,
+          type: event.type,
+          classification: {
+            type: classification.type,
+            hours: classification.hours,
+            isPlanned: classification.isPlanned,
+            isCompleted: classification.isCompleted
+          }
+        });
+      }
+      
       if (classification.isCompleted) {
         completedEventHours += classification.hours;
       } else if (classification.isPlanned) {
@@ -280,12 +299,14 @@ export class TimelineRules {
   /**
    * Get date key for grouping events by day
    * 
+   * Uses centralized timezone-safe date key function from utils.
+   * 
    * @param event - The calendar event
    * @returns Date key in format 'YYYY-MM-DD'
    */
   static getEventDateKey(event: CalendarEvent): string {
-    const date = this.getEventDate(event);
-    return date.toISOString().split('T')[0];
+    const date = new Date(event.startTime);
+    return getDateKey(date);
   }
 
   /**

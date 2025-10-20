@@ -4,6 +4,9 @@
  * Provides consistent color transformations across the application
  */
 
+import { TIMELINE_ALLOCATION_STYLES, CALENDAR_EVENT_STYLES, type TimelineAllocationType, type ProjectColorScheme } from '@/constants/styles';
+import type { CSSProperties } from 'react';
+
 export class ColorCalculationService {
   /**
    * Get hover color variant (slightly lighter and more saturated)
@@ -64,5 +67,145 @@ export class ColorCalculationService {
     const newLightness = Math.min(1, parseFloat(lightness) + lightnessIncrease);
 
     return `oklch(${newLightness} ${chroma} ${hue})`;
+  }
+
+  /**
+   * Get timeline allocation style based on centralized style constants
+   * Returns complete CSS properties for the allocation type
+   */
+  static getTimelineAllocationStyle(
+    allocationType: TimelineAllocationType,
+    colorScheme: ProjectColorScheme
+  ): CSSProperties {
+    const styleConfig = TIMELINE_ALLOCATION_STYLES[allocationType];
+    
+    const style: CSSProperties = {
+      backgroundColor: colorScheme[styleConfig.colorKey],
+      opacity: styleConfig.opacity,
+    };
+
+    if (styleConfig.border) {
+      const borderColor = colorScheme[styleConfig.border.colorKey];
+      const borderValue = `${styleConfig.border.width}px ${styleConfig.border.style} ${borderColor}`;
+      
+      styleConfig.border.sides.forEach(side => {
+        const key = `border${side.charAt(0).toUpperCase() + side.slice(1)}` as keyof CSSProperties;
+        style[key] = borderValue as any;
+      });
+      
+      // Set borderBottom to none for all bordered types
+      style.borderBottom = 'none';
+    } else {
+      // No borders for non-bordered types
+      style.borderRight = 'none';
+      style.borderLeft = 'none';
+      style.borderTop = 'none';
+      style.borderBottom = 'none';
+    }
+
+    return style;
+  }
+
+  /**
+   * Apply OKLCH color transformation based on style configuration
+   */
+  static applyColorTransform(
+    baseColor: string,
+    transform: {
+      lightnessIncrease?: number;
+      lightnessReduction?: number;
+      targetLightness?: number;
+      targetChroma?: number;
+      chromaMultiplier?: number;
+    }
+  ): string {
+    const match = baseColor.match(/oklch\(([0-9.]+) ([0-9.]+) ([0-9.]+)\)/);
+    if (!match) return baseColor;
+
+    const [, lightness, chroma, hue] = match;
+    let newLightness = parseFloat(lightness);
+    let newChroma = parseFloat(chroma);
+
+    // Apply transformations
+    if (transform.targetLightness !== undefined) {
+      newLightness = transform.targetLightness;
+    } else if (transform.lightnessIncrease !== undefined) {
+      newLightness = Math.min(1, newLightness + transform.lightnessIncrease);
+    } else if (transform.lightnessReduction !== undefined) {
+      newLightness = Math.max(0, newLightness - transform.lightnessReduction);
+    }
+
+    if (transform.targetChroma !== undefined) {
+      newChroma = transform.targetChroma;
+    } else if (transform.chromaMultiplier !== undefined) {
+      newChroma = newChroma * transform.chromaMultiplier;
+    }
+
+    return `oklch(${newLightness} ${newChroma} ${hue})`;
+  }
+
+  /**
+   * Calculate event background color using centralized style constants
+   */
+  static getEventBackgroundColor(
+    baseColor: string,
+    state: 'default' | 'selected' | 'future' = 'default'
+  ): string {
+    if (state === 'default') {
+      const styleConfig = CALENDAR_EVENT_STYLES.default;
+      return this.getLighterColor(baseColor, styleConfig.background.lightnessIncrease);
+    } else if (state === 'selected') {
+      // First get the light background, then darken it
+      const lightBg = this.getLighterColor(baseColor, CALENDAR_EVENT_STYLES.default.background.lightnessIncrease);
+      return this.applyColorTransform(lightBg, CALENDAR_EVENT_STYLES.selected.background);
+    } else if (state === 'future') {
+      return this.applyColorTransform(baseColor, CALENDAR_EVENT_STYLES.future.background);
+    }
+    
+    return baseColor;
+  }
+
+  /**
+   * Calculate event text color using centralized style constants
+   */
+  static getEventTextColor(baseColor: string): string {
+    const textConfig = CALENDAR_EVENT_STYLES.default.text;
+    const match = baseColor.match(/oklch\(([0-9.]+) ([0-9.]+) ([0-9.]+)\)/);
+    
+    if (!match) return baseColor;
+    
+    const [, lightness, chroma, hue] = match;
+    const textChroma = Math.max(0.12, parseFloat(chroma) * textConfig.chromaMultiplier);
+    
+    return `oklch(${textConfig.targetLightness} ${textChroma} ${hue})`;
+  }
+
+  /**
+   * Calculate event border color for selected state
+   */
+  static getEventBorderColor(baseColor: string): string {
+    const selectedStyle = CALENDAR_EVENT_STYLES.selected;
+    if (!selectedStyle.border) return 'transparent';
+    
+    return this.applyColorTransform(baseColor, {
+      lightnessReduction: selectedStyle.border.lightnessReduction,
+      chromaMultiplier: selectedStyle.border.chromaMultiplier,
+    });
+  }
+
+  /**
+   * Calculate final opacity based on event states
+   */
+  static getEventOpacity(
+    isCompleted: boolean = false,
+    isActiveLayer: boolean = true
+  ): number {
+    const baseOpacity = isCompleted 
+      ? (CALENDAR_EVENT_STYLES.completed.opacityMultiplier ?? 1)
+      : CALENDAR_EVENT_STYLES.default.opacity;
+    
+    return isActiveLayer 
+      ? baseOpacity 
+      : baseOpacity * (CALENDAR_EVENT_STYLES.inactiveLayer.opacityMultiplier ?? 1);
   }
 }

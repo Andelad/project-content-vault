@@ -14,6 +14,7 @@ import { Milestone, Project, DayEstimate, Settings, Holiday } from '@/types';
 import * as DateCalculations from './dateCalculations';
 import { calculatePlannedTimeForDate } from '@/services/unified/UnifiedEventWorkHourService';
 import { TimelineRules } from '@/domain/rules';
+import { getDateKey } from '@/utils/dateFormatUtils';
 
 /**
  * Check if a date is a working day based on settings and holidays (for day estimates)
@@ -374,9 +375,9 @@ export function calculateProjectDayEstimates(
     // Calculate breakdown for this day
     const breakdown = TimelineRules.calculateDayTimeBreakdown(eventsOnDay);
     
-    // DEBUG: Log breakdown for Budgi on Aug 13
-    if (project.name === 'Budgi' && dateKey === '2024-08-13') {
-      console.log(`[DayEstimates] Budgi Aug 13 breakdown:`, {
+    // DEBUG: Log breakdown for Budgi on Aug 13 and Oct 13
+    if (project.name === 'Budgi' && (dateKey === '2024-08-13' || dateKey === '2024-10-13')) {
+      console.log(`[DayEstimates] Budgi ${dateKey} breakdown:`, {
         dateKey,
         eventsOnDay: eventsOnDay.map(e => ({
           id: e.id,
@@ -445,7 +446,7 @@ export function calculateProjectDayEstimates(
     projectEndDate.setHours(23, 59, 59, 999);
     
     const filteredEstimates = milestoneEstimates.filter(est => {
-      const dateKey = est.date.toISOString().split('T')[0];
+      const dateKey = getDateKey(est.date);
       const estDate = new Date(est.date);
       estDate.setHours(0, 0, 0, 0);
       
@@ -477,7 +478,7 @@ export function calculateProjectDayEstimates(
       // Filter out working days that have ANY events (planned or completed)
       // Domain Rule: Auto-estimates only on days WITHOUT events
       const filteredWorkingDays = workingDays.filter(date => {
-        const dateKey = date.toISOString().split('T')[0];
+        const dateKey = getDateKey(date);
         return !allEventDates.has(dateKey);
       });
       
@@ -503,7 +504,7 @@ export function aggregateDayEstimatesByDate(estimates: DayEstimate[]): Map<strin
   const byDate = new Map<string, DayEstimate[]>();
 
   estimates.forEach(estimate => {
-    const dateKey = estimate.date.toISOString().split('T')[0];
+    const dateKey = getDateKey(estimate.date);
     if (!byDate.has(dateKey)) {
       byDate.set(dateKey, []);
     }

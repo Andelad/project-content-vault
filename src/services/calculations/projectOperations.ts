@@ -14,6 +14,7 @@
  */
 
 import type { Milestone, Project, CalendarEvent } from '@/types/core';
+import { getDateKey } from '@/utils/dateFormatUtils';
 import { calculateDurationDays, calculateDurationHours, datesOverlap } from './dateCalculations';
 import { formatDateShort } from '@/utils/dateFormatUtils';
 
@@ -248,7 +249,7 @@ export function buildPlannedTimeMap(
   // Initialize map with all dates in project range
   const currentDate = new Date(projectStart);
   while (currentDate <= projectEnd) {
-    const dateKey = currentDate.toISOString().split('T')[0];
+    const dateKey = getDateKey(currentDate);
     plannedTimeMap.set(dateKey, 0);
     currentDate.setDate(currentDate.getDate() + 1);
   }
@@ -257,7 +258,7 @@ export function buildPlannedTimeMap(
   for (const event of projectEvents) {
     if (!event.startTime || !event.endTime) continue;
     
-    const eventDate = new Date(event.startTime).toISOString().split('T')[0];
+    const eventDate = getDateKey(new Date(event.startTime));
     const existingHours = plannedTimeMap.get(eventDate) || 0;
     plannedTimeMap.set(eventDate, existingHours + calculateEventDurationHours(event));
   }

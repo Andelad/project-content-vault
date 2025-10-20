@@ -14,6 +14,7 @@
 
 import moment from 'moment';
 import { CalendarEvent, WorkHour } from '@/types';
+import { getDateKey } from '@/utils/dateFormatUtils';
 import { EventInput } from '@fullcalendar/core';
 import { transformCalendarEventToFullCalendar, transformWorkHourToFullCalendar } from '@/services/unified/UnifiedEventTransformService';
 
@@ -100,11 +101,11 @@ export class PlannerCalculationService {
    * Get events for a specific date
    */
   static getEventsForDate(events: CalendarEvent[], date: Date): CalendarEvent[] {
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = getDateKey(date);
     
     return events.filter(event => {
-      const eventStartDate = event.startTime.toISOString().split('T')[0];
-      const eventEndDate = event.endTime.toISOString().split('T')[0];
+      const eventStartDate = getDateKey(event.startTime);
+      const eventEndDate = getDateKey(event.endTime);
       
       return dateStr >= eventStartDate && dateStr <= eventEndDate;
     });

@@ -2,6 +2,7 @@ import ICAL from 'ical.js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { calculateDurationHours } from '@/services/calculations/dateCalculations';
+import { getDateKey } from '@/utils/dateFormatUtils';
 
 export interface ExternalEvent {
   title: string;
@@ -179,8 +180,8 @@ export class CalendarIntegrationService {
           events_failed: result.failed,
           import_status: result.success ? 'completed' : 'failed',
           error_message: result.errors.length > 0 ? result.errors.join('; ') : null,
-          import_date_range_start: dateRangeStart?.toISOString().split('T')[0],
-          import_date_range_end: dateRangeEnd?.toISOString().split('T')[0]
+          import_date_range_start: dateRangeStart ? getDateKey(dateRangeStart) : null,
+          import_date_range_end: dateRangeEnd ? getDateKey(dateRangeEnd) : null
         }]);
     } catch (error) {
       console.error('Error recording import history:', error);

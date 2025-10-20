@@ -8,6 +8,7 @@ import { isSameDate } from '@/utils/dateFormatUtils';
 import type { Project } from '@/types/core';
 import { UnifiedTimelineService } from '@/services';
 import { ColorCalculationService } from '@/services/infrastructure/colorCalculations';
+import type { TimelineAllocationType } from '@/constants/styles';
 import { 
   calculateWeekProjectIntersection,
   generateWorkHoursForDate,
@@ -15,8 +16,10 @@ import {
   isHolidayDateCapacity,
   getMilestoneSegmentForDate,
   getTimelinePositions,
-  UnifiedDayEstimateService
+  UnifiedDayEstimateService,
+  calculateRectangleHeight
 } from '@/services';
+import { getDateKey } from '@/utils/dateFormatUtils';
 import { ProjectIconIndicator, ProjectMilestones } from '@/components';
 interface TimelineBarProps {
   project: any;
@@ -338,7 +341,7 @@ export const TimelineBar = memo(function TimelineBar({
                       let isCompletedTime = false;
                       
                       // DEBUG for Budgi Oct 14-18 and Aug 13
-                      const debugDate = currentDay.toISOString().split('T')[0];
+                      const debugDate = getDateKey(currentDay);
                       const shouldDebug = project.name === 'Budgi' && (
                         (debugDate >= '2024-10-14' && debugDate <= '2024-10-18') ||
                         debugDate === '2024-08-13'
@@ -382,7 +385,7 @@ export const TimelineBar = memo(function TimelineBar({
                       } else {
                         allocationType = 'none';
                       }
-                      const heightInPixels = Math.max(3, Math.round(totalHours * 4));
+                      const heightInPixels = calculateRectangleHeight(totalHours);
                       
                       // NOTE: Work day filtering already handled by dayEstimateCalculations
                       // If an estimate exists, we should render it (trust the calculation)
@@ -398,53 +401,25 @@ export const TimelineBar = memo(function TimelineBar({
                                   : ''
                               }`}
                               style={(() => {
-                                // Use the allocation we already calculated above
-                                const dayRectangleHeight = heightInPixels;
-                                // Determine background color and border based on time type
-                                let backgroundColor: string;
-                                let borderStyle: any;
-                                let opacity: number = 1;
+                                // Determine allocation type for centralized styling
+                                const allocType: TimelineAllocationType = isCompletedTime 
+                                  ? 'completed' 
+                                  : isPlannedTime 
+                                    ? 'planned' 
+                                    : 'auto-estimate';
                                 
-                                if (isCompletedTime) {
-                                  // Completed/tracked time: Darker solid color, no borders
-                                  backgroundColor = ColorCalculationService.getCompletedPlannedColor(project.color);
-                                  opacity = 1;
-                                  borderStyle = {
-                                    borderRight: 'none',
-                                    borderLeft: 'none',
-                                    borderTop: 'none',
-                                    borderBottom: 'none'
-                                  };
-                                } else if (isPlannedTime) {
-                                  // Planned time: Lighter color with dashed border
-                                  backgroundColor = ColorCalculationService.getMidToneColor(project.color);
-                                  opacity = 1;
-                                  borderStyle = {
-                                    borderLeft: `2px dashed ${colorScheme.baseline}`,
-                                    borderRight: `2px dashed ${colorScheme.baseline}`,
-                                    borderTop: `2px dashed ${colorScheme.baseline}`,
-                                    borderBottom: 'none'
-                                  };
-                                } else {
-                                  // Auto-estimate: Lightest gray, no borders
-                                  backgroundColor = colorScheme.autoEstimate;
-                                  opacity = 1;
-                                  borderStyle = {
-                                    borderRight: 'none',
-                                    borderLeft: 'none',
-                                    borderTop: 'none',
-                                    borderBottom: 'none'
-                                  };
-                                }
+                                // Get centralized styles
+                                const timelineStyle = ColorCalculationService.getTimelineAllocationStyle(
+                                  allocType,
+                                  colorScheme
+                                );
+                                
                                 return {
-                                  backgroundColor,
-                                  opacity,
-                                  height: `${dayRectangleHeight}px`,
+                                  ...timelineStyle,
+                                  height: `${heightInPixels}px`,
                                   width: `${dayWidth}px`, // Full width since gap-px handles spacing
                                   borderTopLeftRadius: '2px',
                                   borderTopRightRadius: '2px',
-                                  // Remove all animations and transitions
-                                  ...borderStyle
                                 };
                               })()}
                               onMouseDown={(e) => { 
@@ -610,7 +585,7 @@ export const TimelineBar = memo(function TimelineBar({
               const isPlannedTime = allocationType === 'planned';
               const isCompletedTime = allocationType === 'completed';
               const dailyHours = totalHours;
-              const rectangleHeight = Math.max(3, Math.round(dailyHours * 4));
+              const rectangleHeight = calculateRectangleHeight(dailyHours);
               
               // Determine border radius for this day rectangle based on working days
               // Always round upper corners by 3px, remove bottom rounding on last rectangles
@@ -639,52 +614,33 @@ export const TimelineBar = memo(function TimelineBar({
                 }
               }
               
-              // Determine styling based on time allocation type
-              let backgroundColor: string;
-              let borderStyle: any;
-              let opacity: number = 1;
+              // Determine allocation type for centralized styling
+              const allocType: TimelineAllocationType = isCompletedTime 
+                ? 'completed' 
+                : isPlannedTime 
+                  ? 'planned' 
+                  : 'auto-estimate';
               
-              if (isCompletedTime) {
-                // Completed/tracked time: Darker solid color, no borders
-                backgroundColor = ColorCalculationService.getCompletedPlannedColor(project.color);
-                opacity = 1;
-                borderStyle = {
-                  borderRight: 'none',
-                  borderLeft: 'none',
-                  borderTop: 'none',
-                  borderBottom: 'none'
-                };
-              } else if (isPlannedTime) {
-                // Planned time: Lighter color with dashed border
-                backgroundColor = ColorCalculationService.getMidToneColor(project.color);
-                opacity = 1;
-                borderStyle = {
-                  borderLeft: `2px dashed ${colorScheme.baseline}`,
-                  borderRight: `2px dashed ${colorScheme.baseline}`,
-                  borderTop: `2px dashed ${colorScheme.baseline}`,
-                  borderBottom: 'none'
-                };
-              } else {
-                // Auto-estimate: Lightest gray
-                backgroundColor = colorScheme.autoEstimate;
-                opacity = 1;
-                borderStyle = {
-                  borderRight: isLastWorkingDay ? 'none' : '1px solid rgba(255, 255, 255, 0.3)',
-                  borderLeft: 'none',
-                  borderTop: 'none',
-                  borderBottom: 'none'
-                };
-              }
+              // Get centralized styles
+              const timelineStyle = ColorCalculationService.getTimelineAllocationStyle(
+                allocType,
+                colorScheme
+              );
+              
+              // Week view specific: add subtle separator for auto-estimate
+              const weekViewBorderOverride = allocType === 'auto-estimate' ? {
+                borderRight: isLastWorkingDay ? 'none' : '1px solid rgba(255, 255, 255, 0.3)',
+              } : {};
+              
               const rectangleStyle = {
-                backgroundColor,
-                opacity,
+                ...timelineStyle,
+                ...weekViewBorderOverride,
                 borderTopLeftRadius: borderTopLeftRadius,
                 borderTopRightRadius: borderTopRightRadius,
                 borderBottomLeftRadius: borderBottomLeftRadius,
                 borderBottomRightRadius: borderBottomRightRadius,
                 height: `${rectangleHeight}px`,
                 width: isLastWorkingDay ? '40px' : '39px',
-                ...borderStyle
               };
               return (
                 <div key={dateIndex} className="flex items-end h-full" style={{ minWidth: '40px', width: '40px' }}>

@@ -14,6 +14,7 @@ import type {
   Project, 
   Settings 
 } from '@/types/core';
+import { getDateKey } from '@/utils/dateFormatUtils';
 
 import { 
   calculateDurationHours 
@@ -424,7 +425,7 @@ export class WorkHourValidator {
     // Distribution analysis
     const dailyHours: { [key: string]: number } = {};
     request.workHours.forEach(wh => {
-      const dateKey = wh.startTime.toISOString().split('T')[0];
+      const dateKey = getDateKey(wh.startTime);
       if (!dailyHours[dateKey]) dailyHours[dateKey] = 0;
       dailyHours[dateKey] += calculateDurationHours(wh.startTime, wh.endTime);
     });

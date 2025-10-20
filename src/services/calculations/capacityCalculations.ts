@@ -12,6 +12,7 @@ import {
 
 import { calculateEventDurationOnDate } from './eventCalculations';
 import { calculateWorkHoursTotal, calculateDayWorkHours } from './timelineCalculations';
+import { getDateKey } from '@/utils/dateFormatUtils';
 
 // Import unified functions - these are the single source of truth
 import { 
@@ -96,15 +97,15 @@ export function calculateWorkHourCapacity(
   date: Date
 ): WorkHourCapacity {
   // Filter work hours and events for the specific date
-  const dateKey = date.toISOString().split('T')[0];
+  const dateKey = getDateKey(date);
   
   const dayWorkHours = workHours.filter(wh => {
-    const whDateKey = wh.startTime.toISOString().split('T')[0];
+    const whDateKey = getDateKey(wh.startTime);
     return whDateKey === dateKey;
   });
   
   const dayEvents = events.filter(event => {
-    const eventDateKey = event.startTime.toISOString().split('T')[0];
+    const eventDateKey = getDateKey(event.startTime);
     return eventDateKey === dateKey;
   });
   
@@ -162,10 +163,10 @@ export function eventOverlapsWorkHours(
   workHours: WorkHour[],
   date: Date
 ): boolean {
-  const dateKey = date.toISOString().split('T')[0];
+  const dateKey = getDateKey(date);
   
   const dayWorkHours = workHours.filter(wh => {
-    const whDateKey = wh.startTime.toISOString().split('T')[0];
+    const whDateKey = getDateKey(wh.startTime);
     return whDateKey === dateKey;
   });
   
@@ -192,7 +193,7 @@ export function getWorkHoursCapacityForPeriod(
   const currentDate = new Date(startDate);
   
   while (currentDate <= endDate) {
-    const dateKey = currentDate.toISOString().split('T')[0];
+    const dateKey = getDateKey(currentDate);
     const capacity = calculateWorkHourCapacity(workHours, events, currentDate);
     capacityMap.set(dateKey, capacity);
     
@@ -388,7 +389,7 @@ export function performCapacityPlanning(
   const currentDate = new Date(startDate);
   
   while (currentDate <= endDate) {
-    const dateKey = currentDate.toISOString().split('T')[0];
+    const dateKey = getDateKey(currentDate);
     const capacity = calculateWorkHourCapacityWithHolidays(workHours, events, currentDate, holidays);
     
     capacityMap.set(dateKey, capacity);

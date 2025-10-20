@@ -122,6 +122,30 @@ export const isSameDay = (date1: Date, date2: Date): boolean => {
   return isSameDate(date1, date2);
 };
 
+// Date key utilities (timezone-safe)
+/**
+ * Convert a date to a timezone-safe date key in format 'YYYY-MM-DD'
+ * 
+ * CRITICAL: This function is timezone-safe and prevents the common bug where
+ * using .toISOString().split('T')[0] shifts dates by timezone offset.
+ * 
+ * Example bug scenario (UTC-8 timezone):
+ * - Event on Oct 14th at 2pm local
+ * - new Date("2024-10-14T14:00:00").toISOString() → "2024-10-13T22:00:00Z"
+ * - .split('T')[0] → "2024-10-13" ❌ WRONG DATE!
+ * 
+ * This function uses local date components to construct the key, avoiding timezone issues.
+ * 
+ * @param date - The date to convert to a key
+ * @returns Date key in format 'YYYY-MM-DD' (e.g., '2024-10-14')
+ */
+export const getDateKey = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 // Time range formatting
 export const formatTimeRange = (startDate: Date, endDate: Date): string => {
   const startFormatted = startDate.toLocaleDateString(APP_LOCALE, DATE_FORMAT_OPTIONS.monthDay);

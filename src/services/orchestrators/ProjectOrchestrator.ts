@@ -18,6 +18,7 @@ import { Project, Milestone } from '@/types/core';
 import { projectRepository } from '../repositories/ProjectRepository';
 import { ProjectRules } from '@/domain/rules/ProjectRules';
 import { MilestoneRules } from '@/domain/rules/MilestoneRules';
+import { getDateKey } from '@/utils/dateFormatUtils';
 
 export interface ProjectBudgetAnalysis {
   totalAllocation: number;
@@ -322,7 +323,7 @@ export class ProjectOrchestrator {
     const dateMap = new Map<string, number>();
     
     for (const milestone of milestones) {
-      const dateKey = milestone.dueDate.toISOString().split('T')[0]; // YYYY-MM-DD
+      const dateKey = getDateKey(milestone.dueDate);
       const count = dateMap.get(dateKey) || 0;
       dateMap.set(dateKey, count + 1);
       

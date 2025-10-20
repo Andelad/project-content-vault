@@ -10,6 +10,7 @@
  */
 
 import { addDays, subDays, endOfWeek, isWeekend } from 'date-fns';
+import { getDateKey } from '@/utils/dateFormatUtils';
 
 /**
  * SINGLE SOURCE OF TRUTH - Duration Calculations
@@ -170,9 +171,9 @@ export function calculateBusinessDaysInRange(startDate: Date, endDate: Date, hol
  * Check if a date falls on a holiday
  */
 export function isHoliday(date: Date, holidays: Date[]): boolean {
-  const dateStr = date.toISOString().split('T')[0];
+  const dateStr = getDateKey(date);
   return holidays.some(holiday => 
-    holiday.toISOString().split('T')[0] === dateStr
+    getDateKey(holiday) === dateStr
   );
 }
 
