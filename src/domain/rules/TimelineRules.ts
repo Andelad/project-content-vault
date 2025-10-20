@@ -16,6 +16,7 @@
 
 import type { CalendarEvent, Project } from '@/types/core';
 import { getDateKey } from '@/utils/dateFormatUtils';
+import { isSameDay } from '@/services/calculations/general/dateCalculations';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -307,21 +308,6 @@ export class TimelineRules {
   static getEventDateKey(event: CalendarEvent): string {
     const date = new Date(event.startTime);
     return getDateKey(date);
-  }
-
-  /**
-   * Check if two dates are the same day
-   * 
-   * @param date1 - First date
-   * @param date2 - Second date
-   * @returns true if same calendar day
-   */
-  static isSameDay(date1: Date, date2: Date): boolean {
-    return (
-      date1.getFullYear() === date2.getFullYear() &&
-      date1.getMonth() === date2.getMonth() &&
-      date1.getDate() === date2.getDate()
-    );
   }
 
   // ==========================================================================

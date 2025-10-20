@@ -375,22 +375,75 @@ export class UnifiedMilestoneService {
   }
 
   /**
-   * Generate ordinal number for display (e.g., 1st, 2nd, 3rd, 4th)
-   * Used by: Recurring milestone naming, milestone display
-   * Migrated from legacy MilestoneManagementService
+   * Generate recurring milestone occurrence dates within project timeframe
+   * Used by: Time distribution calculations, milestone expansion
    */
-  static generateOrdinalNumber(num: number): string {
-    const suffixes = ['th', 'st', 'nd', 'rd'];
-    const remainder = num % 100;
+  static generateRecurringOccurrences(
+    milestone: Milestone,
+    projectStartDate: Date,
+    projectEndDate: Date,
+    projectContinuous: boolean
+  ): Date[] {
+    if (!milestone.isRecurring || !milestone.recurringConfig) {
+      return [];
+    }
+
+    const config = milestone.recurringConfig;
+    const occurrences: Date[] = [];
     
-    if (remainder >= 11 && remainder <= 13) {
-      return num + 'th';
+    // Start from project start date
+    let current = new Date(projectStartDate);
+    
+    // For weekly recurrence, find the first occurrence of the target day
+    if (config.type === 'weekly' && config.weeklyDayOfWeek !== undefined) {
+      const targetDay = config.weeklyDayOfWeek;
+      const projectStartDay = current.getDay();
+      const daysUntilFirst = targetDay >= projectStartDay
+        ? targetDay - projectStartDay
+        : 7 - projectStartDay + targetDay;
+      current.setDate(current.getDate() + daysUntilFirst);
     }
     
-    const lastDigit = num % 10;
-    const suffix = suffixes[lastDigit] || suffixes[0];
+    // For monthly recurrence with specific date, find first occurrence
+    if (config.type === 'monthly' && config.monthlyPattern === 'date' && config.monthlyDate) {
+      const targetDate = config.monthlyDate;
+      if (current.getDate() > targetDate) {
+        // Next month
+        current.setMonth(current.getMonth() + 1);
+      }
+      current.setDate(targetDate);
+    }
     
-    return num + suffix;
+    // Generate occurrences within project bounds
+    const maxOccurrences = 100; // Prevent infinite loops
+    const endLimit = projectContinuous 
+      ? new Date(projectStartDate.getTime() + 365 * 24 * 60 * 60 * 1000) // 1 year for continuous
+      : projectEndDate;
+    
+    let count = 0;
+    while (current <= endLimit && count < maxOccurrences) {
+      // Only add if within project bounds
+      if (current >= projectStartDate && current <= endLimit) {
+        occurrences.push(new Date(current));
+      }
+      
+      // Calculate next occurrence
+      switch (config.type) {
+        case 'daily':
+          current.setDate(current.getDate() + config.interval);
+          break;
+        case 'weekly':
+          current.setDate(current.getDate() + (7 * config.interval));
+          break;
+        case 'monthly':
+          current.setMonth(current.getMonth() + config.interval);
+          break;
+      }
+      
+      count++;
+    }
+    
+    return occurrences;
   }
 }
 

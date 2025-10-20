@@ -4,34 +4,24 @@ Essential documentation for ongoing development and platform setup.
 
 ## 📁 Directory Structure
 
+### Root Documentation
+- **`BUSINESS_LOGIC_REFERENCE.md`** - Complete business rules, relationships, and constraints
+- **`DOMAIN_LAYER_QUICK_REFERENCE.md`** - Domain layer implementation guide
+- **`MILESTONE_SYSTEM_ANALYSIS.md`** - Milestone system design and migration analysis
+- **`MILESTONE_VS_EVENTS_CLARIFICATION.md`** - Critical distinction between milestones and calendar events
+
 ### `architecture/`
 Core architectural decisions and system design:
-- **`ARCHITECTURAL_RULES.md`** - Essential development rules (READ FIRST)
-- **`CALENDAR_COLOR_IMPROVEMENTS.md`** - Calendar UI color system design
+- **`BUSINESS_LOGIC_AUDIT.md`** - Analysis of current business logic architecture
+- **`DOMAIN_LAYER_ROADMAP.md`** - Domain layer implementation roadmap
 - **`SUPABASE_REQUIREMENTS.md`** - Complete database schema requirements
-
-### `development/`
-Development processes and performance notes:
-- **`VERSION_TRACKING.md`** - Simple version management system
-- **`performance-improvements.md`** - Timeline performance optimizations
-
-### `migrations/`
-Database and system migrations:
-- **`DATABASE_MIGRATIONS.md`** - SQL migrations and calculation service migration
-
-### `loveable/`
-Loveable platform setup:
-- **`SETUP_GUIDE.md`** - Complete database and feature setup guide
-
-### `guidelines/`
-Development standards:
-- **`Guidelines.md`** - Coding standards and best practices
+- **`TIMELINE_RULES_IMPLEMENTATION.md`** - Timeline business rules implementation
 
 ## 🚀 Quick Start
 
-1. **New developers**: Read `architecture/ARCHITECTURAL_RULES.md` first
-2. **Loveable setup**: Follow `loveable/SETUP_GUIDE.md`
-3. **Development**: Follow `guidelines/Guidelines.md`
+1. **New developers**: Read `BUSINESS_LOGIC_REFERENCE.md` for business rules
+2. **Architecture**: Check `architecture/` folder for system design decisions
+3. **Development**: Follow architectural patterns in the codebase
 
 ---
 

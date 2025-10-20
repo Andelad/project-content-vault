@@ -6,7 +6,6 @@
 
 import { Project } from '@/types';
 import { 
-  datesOverlap as coreDatesOverlap,
   calculateDurationDays,
   formatDuration as coreFormatDuration
 } from '../general/dateCalculations';
@@ -137,19 +136,6 @@ export function calculateAutoEstimateHoursPerDay(
   }
 
   return project.estimatedHours / workingDays.length;
-}
-
-/**
- * Check if two date ranges overlap (delegates to core date calculations)
- */
-export function datesOverlap(
-  startA: Date,
-  endA: Date,
-  startB: Date,
-  endB: Date
-): boolean {
-  // Delegate to core date calculations for single source of truth
-  return coreDatesOverlap(startA, endA, startB, endB);
 }
 
 // ===== WORKING DAYS CALCULATIONS =====

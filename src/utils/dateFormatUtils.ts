@@ -118,9 +118,8 @@ export const isSameDate = (date1: Date, date2: Date): boolean => {
   return date1.toDateString() === date2.toDateString();
 };
 
-export const isSameDay = (date1: Date, date2: Date): boolean => {
-  return isSameDate(date1, date2);
-};
+// Import isSameDay from services for single source of truth
+export { isSameDay } from '@/services/calculations/general/dateCalculations';
 
 // Date key utilities (timezone-safe)
 /**

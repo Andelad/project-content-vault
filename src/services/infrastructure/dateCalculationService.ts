@@ -60,31 +60,4 @@ export class DateCalculationService {
   static getTimelineViewport(currentDate: Date, mode: 'days' | 'weeks', count: number): { start: Date; end: Date } {
     return CachedDateCalculationService.getTimelineViewport(currentDate, mode, count);
   }
-
-  /**
-   * Check if two dates are the same day
-   * @deprecated Use DateCalculations.isSameDay() instead
-   */
-  static isSameDay(date1: Date, date2: Date): boolean {
-    return DateCalculations.isSameDay(date1, date2);
-  }
-
-  /**
-   * Calculate overlap between two date ranges
-   * @deprecated Use DateCalculations.calculateDateRangeOverlap() instead
-   */
-  static getDateRangeOverlap(
-    range1: { start: Date; end: Date },
-    range2: { start: Date; end: Date }
-  ): { start: Date; end: Date } | null {
-    return DateCalculations.calculateDateRangeOverlap(range1, range2);
-  }
-
-  /**
-   * Calculate the difference in days between two dates
-   * @deprecated Use DateCalculations.calculateDayDifference() instead
-   */
-  static getDayDifference(date1: Date, date2: Date): number {
-    return DateCalculations.calculateDayDifference(date1, date2);
-  }
 }
