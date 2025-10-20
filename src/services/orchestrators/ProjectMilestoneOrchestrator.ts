@@ -201,16 +201,6 @@ export class ProjectMilestoneOrchestrator {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      // Get next order index
-      const { data: maxOrderData } = await supabase
-        .from('milestones')
-        .select('order_index')
-        .eq('project_id', projectId)
-        .order('order_index', { ascending: false })
-        .limit(1);
-
-      const nextOrderIndex = maxOrderData?.[0]?.order_index ? maxOrderData[0].order_index + 1 : 0;
-
       // Build the recurring_config JSON object
       const recurringConfigJson: any = {
         type: recurringConfig.recurringType,
@@ -235,7 +225,6 @@ export class ProjectMilestoneOrchestrator {
         name: recurringConfig.name, // No number suffix - this is the template
         project_id: projectId,
         user_id: user.id,
-        order_index: nextOrderIndex,
         
         // NEW SYSTEM: Template milestone
         is_recurring: true,
@@ -462,22 +451,11 @@ export class ProjectMilestoneOrchestrator {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
-    // Get next order index
-    const { data: maxOrderData } = await supabase
-      .from('milestones')
-      .select('order_index')
-      .eq('project_id', projectId)
-      .order('order_index', { ascending: false })
-      .limit(1);
-
-    const nextOrderIndex = maxOrderData?.[0]?.order_index ? maxOrderData[0].order_index + 1 : 0;
-
-    // Prepare milestones for batch insert - DUAL WRITE to old and new columns
-    const milestonesToInsert = milestones.map((milestone, index) => ({
+    // Prepare milestones for batch insert
+    const milestonesToInsert = milestones.map((milestone) => ({
       name: milestone.name,
       project_id: projectId,
       user_id: user.id,
-      order_index: nextOrderIndex + index,
       
       // DUAL-WRITE: Write to BOTH old and new columns
       due_date: (milestone.endDate || milestone.dueDate).toISOString(),
@@ -665,7 +643,6 @@ export class ProjectMilestoneOrchestrator {
             dueDate: localMilestone.dueDate,
             timeAllocation: localMilestone.timeAllocation,
             projectId: localMilestone.projectId,
-            order: localMilestone.order,
             [property]: value // Apply the new property value
           });
           
@@ -773,8 +750,7 @@ export class ProjectMilestoneOrchestrator {
         name: milestone.name,
         dueDate: milestone.dueDate,
         timeAllocation: milestone.timeAllocation,
-        projectId: context.projectId,
-        order: milestone.order
+        projectId: context.projectId
       });
 
       // Remove from local state

@@ -189,9 +189,9 @@ export class MilestoneValidator {
         name: request.name,
         projectId: request.projectId,
         dueDate: request.dueDate,
+        endDate: request.dueDate,
         timeAllocation: request.timeAllocation,
         timeAllocationHours: request.timeAllocation,
-        order: 0,
         userId: '',
         createdAt: new Date(),
         updatedAt: new Date()

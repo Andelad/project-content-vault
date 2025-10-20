@@ -137,7 +137,7 @@ export function ProjectMilestoneSection({
   localMilestonesState,
   isCreatingProject = false
 }: ProjectMilestoneSectionProps) {
-  const { milestones: contextMilestones, addMilestone, updateMilestone, deleteMilestone, showMilestoneSuccessToast, normalizeMilestoneOrders, refetchMilestones } = useProjectContext();
+  const { milestones: contextMilestones, addMilestone, updateMilestone, deleteMilestone, showMilestoneSuccessToast, refetchMilestones } = useProjectContext();
   const milestones = Array.isArray(contextMilestones) ? contextMilestones : [];
   const { toast } = useToast();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -661,9 +661,10 @@ export function ProjectMilestoneSection({
       id: `temp-${Date.now()}`, // Generate temporary ID for editing
       name: 'New Milestone',
       dueDate: getDefaultMilestoneDate(),
+      endDate: getDefaultMilestoneDate(),
       timeAllocation: 8, // Default to 8 hours (1 day)
+      timeAllocationHours: 8,
       projectId: projectId || 'temp', // Use temp for new projects
-      order: projectMilestones.length,
       userId: '', // Will be set by backend
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -1099,7 +1100,6 @@ export function ProjectMilestoneSection({
         project,
         orchestratorConfig,
         {
-          normalizeMilestoneOrders,
           refetchMilestones
         }
       );

@@ -22,7 +22,7 @@ export function DevTools() {
     cacheHitRate: 0,
     avgRenderTime: 0
   });
-  const { projects, groups, normalizeMilestoneOrders } = useProjectContext();
+  const { projects, groups } = useProjectContext();
   const { events, holidays } = usePlannerContext();
   // Toggle visibility with keyboard shortcut
   useEffect(() => {
@@ -181,27 +181,7 @@ export function DevTools() {
             </Button>
           </div>
           <Separator />
-          {/* Data Maintenance */}
-          <div>
-            <h4 className="font-medium mb-2">Data Maintenance</h4>
-            <Button
-              onClick={async () => {
-                try {
-                  await normalizeMilestoneOrders?.();
-                } catch (e) {
-                  console.error('Failed to normalize milestones', e);
-                }
-              }}
-              size="sm"
-              variant="outline"
-              className="w-full"
-            >
-              Normalize Milestone Orders
-            </Button>
-            <div className="text-xs text-muted-foreground mt-1">
-              Ensures milestones are ordered by due date and fixes order_index.
-            </div>
-          </div>
+          {/* Data Maintenance Section Removed - Milestones use date-based ordering */}
           {/* Quick Actions */}
           <div className="pt-2 border-t">
             <div className="text-xs text-muted-foreground">

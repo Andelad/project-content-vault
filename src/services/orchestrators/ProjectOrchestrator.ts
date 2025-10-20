@@ -76,8 +76,9 @@ export interface ProjectCreationResult {
 export interface ProjectMilestone {
   name: string;
   dueDate: Date;
+  endDate: Date;
   timeAllocation: number;
-  order: number;
+  timeAllocationHours: number;
 }
 
 export interface ProjectCreationWithMilestonesRequest extends ProjectCreationRequest {
@@ -506,8 +507,7 @@ export class ProjectOrchestrator {
             name: milestone.name,
             dueDate: milestone.dueDate,
             timeAllocation: milestone.timeAllocation,
-            projectId: projectId,
-            order: milestone.order
+            projectId: projectId
           }, { silent: true }); // Silent mode to prevent individual milestone toasts
         } catch (error) {
           console.error('Failed to save milestone:', error);

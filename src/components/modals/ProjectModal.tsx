@@ -95,9 +95,10 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
   const [localProjectMilestones, setLocalProjectMilestones] = useState<Array<{
     name: string;
     dueDate: Date;
+    endDate: Date;
     timeAllocation: number;
+    timeAllocationHours: number;
     projectId: string;
-    order: number;
     userId: string;
     createdAt: Date;
     updatedAt: Date;

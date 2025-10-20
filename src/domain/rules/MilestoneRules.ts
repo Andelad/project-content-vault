@@ -542,47 +542,17 @@ export class MilestoneRules {
   // ==========================================================================
   
   /**
-   * RULE 5: Validate milestone order consistency
-   * 
-   * Business Logic Reference: Rule 5
-   * Milestones should have unique, sequential order values
+   * Sort milestones by date (natural ordering)
+   * Milestones are naturally ordered by endDate - no manual ordering needed
    * 
    * @param milestones - Array of milestones
-   * @returns true if orders are valid, false otherwise
+   * @returns Sorted milestones
    */
-  static validateMilestoneOrders(milestones: Milestone[]): boolean {
-    if (milestones.length === 0) return true;
-    
-    const orders = milestones.map(m => m.order).sort((a, b) => a - b);
-    
-    // Check for duplicates
-    for (let i = 1; i < orders.length; i++) {
-      if (orders[i] === orders[i - 1]) {
-        return false; // Duplicate order found
-      }
-    }
-    
-    return true;
-  }
-
-  /**
-   * Normalize milestone orders to be sequential
-   * 
-   * @param milestones - Array of milestones
-   * @returns Normalized milestones with sequential orders
-   */
-  static normalizeMilestoneOrders(milestones: Milestone[]): Milestone[] {
-    return milestones
-      .sort((a, b) => {
-        // Sort by order, then by date if orders are equal
-        if (a.order !== b.order) return a.order - b.order;
-        const dateA = a.endDate || a.dueDate;
-        const dateB = b.endDate || b.dueDate;
-        return dateA.getTime() - dateB.getTime();
-      })
-      .map((milestone, index) => ({
-        ...milestone,
-        order: index
-      }));
+  static sortMilestonesByDate(milestones: Milestone[]): Milestone[] {
+    return milestones.sort((a, b) => {
+      const dateA = a.endDate || a.dueDate;
+      const dateB = b.endDate || b.dueDate;
+      return dateA.getTime() - dateB.getTime();
+    });
   }
 }

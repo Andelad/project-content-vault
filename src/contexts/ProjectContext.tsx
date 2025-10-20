@@ -40,7 +40,6 @@ interface ProjectContextType {
   deleteMilestone: (id: string, options?: { silent?: boolean }) => Promise<void>;
   getMilestonesForProject: (projectId: string) => Milestone[];
   showMilestoneSuccessToast: (message?: string) => void;
-  normalizeMilestoneOrders: (projectId?: string, options?: { silent?: boolean }) => Promise<void>;
   refetchMilestones: () => Promise<void>;
   
   // Selection state
@@ -106,7 +105,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     updateMilestone: dbUpdateMilestone,
     deleteMilestone: dbDeleteMilestone,
     showSuccessToast: showMilestoneSuccessToast,
-    normalizeMilestoneOrders: dbNormalizeMilestoneOrders,
     refetch: refetchMilestones
   } = useMilestones(); // Fetch all milestones
 
@@ -297,7 +295,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     deleteMilestone,
     getMilestonesForProject,
     showMilestoneSuccessToast,
-    normalizeMilestoneOrders: dbNormalizeMilestoneOrders,
     refetchMilestones: refetchMilestones,
     
     // Selection state
