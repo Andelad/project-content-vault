@@ -599,7 +599,12 @@ export function ProjectMilestoneSection({
   // Calculate budget analysis inline (MilestoneOrchestrator is deprecated)
   const budgetAnalysis = useMemo(() => {
     // Filter out template milestone and old numbered instances to avoid double-counting
+    // Also exclude temporary unsaved milestones
     const nonRecurringMilestones = projectMilestones.filter(m => {
+      // Exclude temporary/unsaved milestones (these haven't been saved to DB yet)
+      if ('isNew' in m && (m as LocalMilestone).isNew) return false;
+      if (typeof m.id === 'string' && m.id.startsWith('temp-')) return false;
+      
       // Exclude NEW template milestones
       if (m.isRecurring) return false;
       // Exclude OLD numbered instances
