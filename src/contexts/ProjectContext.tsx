@@ -179,7 +179,9 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   // Wrapped milestone functions to match expected signatures
   const addMilestone = useCallback(async (milestone: any, options?: { silent?: boolean }): Promise<void> => {
     await dbAddMilestone(milestone, options);
-  }, [dbAddMilestone]);
+    // Refetch to ensure UI is updated
+    await refetchMilestones();
+  }, [dbAddMilestone, refetchMilestones]);
 
   const updateMilestone = useCallback(async (id: string, updates: any, options?: { silent?: boolean }): Promise<void> => {
     // Map camelCase fields from UI to snake_case fields expected by the DB layer

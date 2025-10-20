@@ -739,8 +739,8 @@ export function ProjectMilestoneSection({
           projectEstimatedHours,
           projectId,
           addMilestone: async (milestoneData: any) => {
-            await addMilestone(milestoneData);
-            return milestoneData;
+            const created = await addMilestone(milestoneData);
+            return created;
           },
           setLocalMilestones
         }
@@ -754,6 +754,9 @@ export function ProjectMilestoneSection({
         });
         return;
       }
+      
+      // Refetch milestones to ensure UI is in sync
+      await refetchMilestones();
     }
   };
 

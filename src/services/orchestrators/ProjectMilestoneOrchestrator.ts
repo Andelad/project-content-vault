@@ -722,7 +722,7 @@ export class ProjectMilestoneOrchestrator {
       projectMilestones: Milestone[];
       projectEstimatedHours: number;
       projectId: string;
-      addMilestone: (milestone: any) => Promise<Milestone>;
+      addMilestone: (milestone: any) => Promise<void>;
       setLocalMilestones: (setter: any) => void;
     }
   ): Promise<{ success: boolean; error?: string }> {
