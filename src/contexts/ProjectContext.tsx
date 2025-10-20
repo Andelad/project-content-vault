@@ -128,7 +128,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     recurringConfig: m.recurring_config as any,
     
     // METADATA
-    order: m.order_index,
     userId: m.user_id || '',
     createdAt: m.created_at ? new Date(m.created_at) : new Date(),
     updatedAt: m.updated_at ? new Date(m.updated_at) : new Date()

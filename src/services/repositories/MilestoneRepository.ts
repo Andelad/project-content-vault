@@ -20,27 +20,28 @@ type MilestoneUpdate = Database['public']['Tables']['milestones']['Update'];
 // =====================================================================================
 
 function transformToDomain(dbMilestone: MilestoneRow): Milestone {
-  const dueDate = new Date(dbMilestone.due_date);
-  const timeAllocation = dbMilestone.time_allocation;
+  const endDate = new Date(dbMilestone.due_date);
+  const timeAllocationHours = dbMilestone.time_allocation_hours ?? dbMilestone.time_allocation;
   
   return {
     id: dbMilestone.id,
     name: dbMilestone.name,
     projectId: dbMilestone.project_id,
     
-    // OLD FIELDS (Required for backward compatibility)
-    dueDate,
-    timeAllocation,
-    
-    // NEW FIELDS (Populated from new DB columns when available)
-    endDate: dueDate, // Same as dueDate for now
-    timeAllocationHours: dbMilestone.time_allocation_hours ?? timeAllocation, // Use new column or fallback
+    // PRIMARY FIELDS (forecasting/estimation)
+    endDate, // Milestone deadline
+    timeAllocationHours, // Hours allocated for day estimates
     startDate: dbMilestone.start_date ? new Date(dbMilestone.start_date) : undefined,
+    
+    // BACKWARD COMPATIBILITY (legacy code may still read these)
+    dueDate: endDate,
+    timeAllocation: timeAllocationHours,
+    
+    // RECURRING PATTERN (virtual instance generation)
     isRecurring: dbMilestone.is_recurring ?? false,
-    recurringConfig: dbMilestone.recurring_config as any, // JSON already parsed by Supabase
+    recurringConfig: dbMilestone.recurring_config as any,
     
     // METADATA
-    order: dbMilestone.order_index,
     userId: dbMilestone.user_id,
     createdAt: new Date(dbMilestone.created_at),
     updatedAt: new Date(dbMilestone.updated_at)
@@ -48,18 +49,20 @@ function transformToDomain(dbMilestone: MilestoneRow): Milestone {
 }
 
 function transformToInsert(milestone: Omit<Milestone, 'id' | 'createdAt' | 'updatedAt'>): MilestoneInsert {
+  const endDate = milestone.endDate || milestone.dueDate;
+  const timeAllocationHours = milestone.timeAllocationHours ?? milestone.timeAllocation;
+  
   return {
     name: milestone.name,
     project_id: milestone.projectId,
-    order_index: milestone.order,
     user_id: milestone.userId,
     
-    // DUAL-WRITE: Write to BOTH old and new columns
-    due_date: (milestone.endDate || milestone.dueDate).toISOString(),
-    time_allocation: milestone.timeAllocationHours ?? milestone.timeAllocation,
-    time_allocation_hours: milestone.timeAllocationHours ?? milestone.timeAllocation,
+    // PRIMARY FIELDS
+    due_date: endDate.toISOString(),
+    time_allocation: timeAllocationHours, // Legacy column still in DB
+    time_allocation_hours: timeAllocationHours,
     
-    // NEW COLUMNS
+    // OPTIONAL FIELDS
     start_date: milestone.startDate?.toISOString(),
     is_recurring: milestone.isRecurring ?? false,
     recurring_config: milestone.recurringConfig as any
@@ -70,23 +73,23 @@ function transformToUpdate(updates: Partial<Milestone>): MilestoneUpdate {
   const dbUpdates: MilestoneUpdate = {};
   
   if (updates.name !== undefined) dbUpdates.name = updates.name;
-  if (updates.order !== undefined) dbUpdates.order_index = updates.order;
   
-  // DUAL-WRITE: Update BOTH old and new columns
+  // DATE UPDATES
   if (updates.dueDate !== undefined || updates.endDate !== undefined) {
     const dateToUse = updates.endDate || updates.dueDate;
     if (dateToUse) dbUpdates.due_date = dateToUse.toISOString();
   }
   
+  // TIME ALLOCATION UPDATES
   if (updates.timeAllocation !== undefined || updates.timeAllocationHours !== undefined) {
     const hoursToUse = updates.timeAllocationHours ?? updates.timeAllocation;
     if (hoursToUse !== undefined) {
-      dbUpdates.time_allocation = hoursToUse;
+      dbUpdates.time_allocation = hoursToUse; // Legacy column
       dbUpdates.time_allocation_hours = hoursToUse;
     }
   }
   
-  // NEW COLUMNS
+  // OPTIONAL FIELDS
   if (updates.startDate !== undefined) {
     dbUpdates.start_date = updates.startDate?.toISOString();
   }
@@ -126,7 +129,7 @@ export class MilestoneRepository {
       .from('milestones')
       .select('*')
       .eq('project_id', projectId)
-      .order('order_index');
+      .order('due_date', { ascending: true });
 
     if (error) throw error;
     return (data || []).map(transformToDomain);

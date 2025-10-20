@@ -18,19 +18,20 @@ export interface Milestone {
   name: string;
   projectId: string; // Maps to project_id in database
   
-  // BACKWARD COMPATIBILITY: Keep old fields
-  dueDate: Date; // DEPRECATED: Use endDate instead
-  timeAllocation: number; // DEPRECATED: Use timeAllocationHours instead
+  // PRIMARY FIELDS (forecasting/estimation)
+  endDate: Date; // Milestone deadline
+  timeAllocationHours: number; // Hours allocated for day estimates
+  startDate?: Date; // When milestone allocation begins (optional)
   
-  // NEW FIELDS (Optional for backward compatibility during migration)
-  endDate?: Date; // Milestone deadline (replaces dueDate)
-  timeAllocationHours?: number; // Hours allocated (replaces timeAllocation)
-  startDate?: Date; // When milestone work begins
+  // BACKWARD COMPATIBILITY (legacy code may still read these)
+  dueDate: Date; // Use endDate instead
+  timeAllocation: number; // Use timeAllocationHours instead
+  
+  // RECURRING PATTERNS (virtual instance generation)
   isRecurring?: boolean; // Whether this follows a recurring pattern
   recurringConfig?: RecurringConfig; // Pattern configuration if recurring
   
   // METADATA
-  order: number; // Maps to order_index in database
   userId: string; // Maps to user_id in database
   createdAt: Date; // Converted from created_at string in repository layer
   updatedAt: Date; // Converted from updated_at string in repository layer

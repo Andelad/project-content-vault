@@ -277,7 +277,6 @@ export type Database = {
           id: string
           is_recurring: boolean | null
           name: string
-          order_index: number
           project_id: string
           recurring_config: Json | null
           start_date: string | null
@@ -292,7 +291,6 @@ export type Database = {
           id?: string
           is_recurring?: boolean | null
           name: string
-          order_index?: number
           project_id: string
           recurring_config?: Json | null
           start_date?: string | null
@@ -307,7 +305,6 @@ export type Database = {
           id?: string
           is_recurring?: boolean | null
           name?: string
-          order_index?: number
           project_id?: string
           recurring_config?: Json | null
           start_date?: string | null

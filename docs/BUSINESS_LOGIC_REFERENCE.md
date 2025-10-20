@@ -167,7 +167,9 @@ User
 ---
 
 ### 5. Milestone
-**Purpose**: A specific deliverable or checkpoint within a project with its own time allocation
+**Purpose**: Time allocation segment for forecasting and day estimate calculations
+
+**CRITICAL DISTINCTION**: Milestones are **NOT tasks or completable items**. They define budget allocations that drive capacity planning. Actual work is tracked via Calendar Events.
 
 **Properties**:
 ```typescript
@@ -176,20 +178,24 @@ User
   name: string
   projectId: string
   
-  // NEW FIELDS (Phase 5 migration)
-  startDate?: Date  // When milestone work begins
-  endDate: Date  // Milestone deadline (replaces dueDate)
-  timeAllocationHours: number  // Hours allocated (replaces timeAllocation)
+  // PRIMARY FIELDS (forecasting/estimation)
+  endDate: Date  // Milestone deadline (budget allocation end)
+  timeAllocationHours: number  // Hours allocated for day estimates
+  startDate?: Date  // When milestone allocation begins (optional)
   
-  // DEPRECATED (backward compatibility)
-  dueDate: Date  // Use endDate instead
-  timeAllocation: number  // Use timeAllocationHours instead
+  // RECURRING PATTERNS (virtual instances)
+  isRecurring?: boolean  // Whether this follows a recurring pattern
+  recurringConfig?: {
+    type: 'daily' | 'weekly' | 'monthly'
+    interval: number  // Every N days/weeks/months
+    weeklyDayOfWeek?: 0-6  // For weekly patterns
+    monthlyPattern?: 'date' | 'dayOfWeek'
+    monthlyDate?: 1-31
+    monthlyWeekOfMonth?: 1-5
+    monthlyDayOfWeek?: 0-6
+  }
   
-  // Recurring milestones
-  isRecurring?: boolean
-  recurringConfig?: RecurringConfig
-  
-  order: number  // Display/execution order
+  // METADATA
   userId: string
   createdAt: Date
   updatedAt: Date
@@ -201,13 +207,22 @@ User
 - **Milestone endDate must fall within project's startDate and endDate**
 - **Milestone timeAllocationHours must be positive** (> 0)
 - **Sum of all milestone allocations ≤ project estimatedHours** (cannot exceed budget)
-- **Milestone order determines execution sequence**
+- **Milestones are naturally ordered by endDate** (no manual ordering)
 - If `startDate` is provided, it must be before `endDate`
-- Recurring milestones follow the pattern in `recurringConfig`
+- **Recurring milestones generate virtual instances** during day estimate calculations
+- **Milestones cannot be marked complete** (only Calendar Events can be completed)
+
+**Use in Day Estimates**:
+- Single milestones: Allocate hours proportionally between startDate and endDate
+- Recurring milestones: Generate virtual occurrences matching the pattern
+- System calculates: "User needs X hours of work on date Y based on milestone allocations"
+- User schedules actual Calendar Events based on these estimates
 
 **Relationships**:
 - Belongs to: ONE Project
 - Constrained by: Project dates and budget
+- Drives: Day estimate calculations
+- Distinct from: Calendar Events (actual work)
 
 ---
 
@@ -237,7 +252,9 @@ User
 ---
 
 ### 7. CalendarEvent
-**Purpose**: Planned or actual work sessions
+**Purpose**: Actual planned or completed work sessions
+
+**CRITICAL DISTINCTION**: Calendar Events represent **actual work**, unlike Milestones which are forecasting tools.
 
 **Properties**:
 ```typescript
@@ -248,7 +265,7 @@ User
   endTime: Date
   projectId?: string
   color: string
-  completed?: boolean
+  completed?: boolean  // CAN BE MARKED COMPLETE (unlike milestones)
   description?: string
   duration: number  // Duration in hours
   type?: 'planned' | 'tracked' | 'completed'
@@ -263,7 +280,14 @@ User
 - Duration is calculated from startTime to endTime
 - Events crossing midnight are automatically split into separate events
 - Recurring events follow pattern rules
+- **Events CAN be marked complete** (this tracks actual work done)
 - Completed events cannot be edited (only completion status can change)
+
+**Relationship to Milestones**:
+- Milestones provide day estimates: "You need 2.5h on March 10th"
+- User creates Calendar Events: "I'll schedule 2.5h of work on March 10th"
+- User marks Events complete: "I finished that work"
+- Milestones are NOT marked complete (they're forecasts, not tasks)
 
 ---
 
