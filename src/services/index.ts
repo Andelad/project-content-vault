@@ -25,18 +25,14 @@ export * from './unified';           // Main API - UnifiedProjectService, Unifie
 export { ProjectOrchestrator } from './orchestrators/ProjectOrchestrator';
 export type { ProjectValidationResult, ProjectMilestoneAnalysis, ProjectCreationRequest, ProjectCreationResult, ProjectMilestone, ProjectCreationWithMilestonesRequest, ProjectUpdateRequest } from './orchestrators/ProjectOrchestrator';
 export * from './orchestrators/ProjectMilestoneOrchestrator';
-export * from './orchestrators/CalendarOrchestrator';
-export * from './orchestrators/WorkHourOrchestrator';
-export * from './orchestrators/recurringEventsOrchestrator';
 export * from './orchestrators/EventModalOrchestrator';
-export * from './orchestrators/PlannerViewOrchestrator';
 export * from './orchestrators/SettingsOrchestrator';
+export * from './orchestrators/GroupOrchestrator';
+export * from './orchestrators/PlannerViewOrchestrator';
+export * from './orchestrators/recurringEventsOrchestrator';
 export * from './calculations';      // Pure data calculations - projectCalculations, timeCalculations
-export * from './validators';        // Business rules - ProjectValidator, TimeTrackingValidator  
-// export * from './repositories';      // Data access - ProjectRepository, MilestoneRepository (conflicts with orchestrators)
-export * from './ui';               // View positioning & UI math - TimelinePositioning, DragPositioning, ViewportPositioning
-export * from './infrastructure';   // Technical utilities - calculationCache, colorCalculations
-export * from './performance';      // Performance optimization - dragPerformanceService, cachePerformanceService
+export * from './ui';               // View positioning & UI math - TimelinePositioning, DragPositioning, ViewportPositioning, ColorCalculations
+export * from './performance';      // Performance optimization - dragPerformanceService, cachePerformanceService, calculationCache, dateCache
 
 // 🚧 Legacy Services (Temporary - During Migration)
 // These will be removed once migration to new architecture is complete
@@ -104,7 +100,8 @@ export {
 
 // New architecture services - maintain backward compatibility
 export { TimelineViewport, TimelineViewport as TimelineViewportService } from './ui/positioning/ViewportPositioning';
-export { ProjectValidator, ProjectValidator as ProjectValidationService } from './validators/ProjectValidator';
+// Project data integrity utilities (formerly ProjectValidator)
+export * from './utilities/projectDataIntegrity';
 
 // Legacy calculation functions (to be migrated)
 export { calculateTimeFromPosition } from './calculations/availability/workHourCalculations';
@@ -195,7 +192,7 @@ export { calculateWorkHourCapacity, getWorkHoursCapacityForPeriod } from './calc
 export { calculateProjectDuration, calculateProjectTimeMetrics, buildPlannedTimeMap, getPlannedTimeUpToDate, generateProgressDataPoints, calculateProjectVelocity, estimateProjectCompletionDate } from './calculations/projects/projectEntityCalculations';
 export { isProjectFullyCompletedOnDate, calculatePlannedTimeCompletionStats } from './calculations/insights/analyticsCalculations';
 export { memoizedGetProjectTimeAllocation, calculateEventStyle, getProjectTimeAllocation } from './unified/UnifiedEventWorkHourService';
-export { processEventOverlaps, calculateElapsedTime, createTimeRange, validateEventForSplit, type EventSplitResult, type Event, type TimeRange } from './validators/eventValidations';
+export { processEventOverlaps, calculateElapsedTime, createTimeRange, validateEventForSplit, type EventSplitResult, type Event, type TimeRange } from './calculations/events/eventSplittingCalculations';
 
 // Additional legacy exports (organized by domain)
 export { 
@@ -264,7 +261,7 @@ export { checkProjectOverlap, adjustProjectDatesForDrag, detectLiveDragConflicts
 // 🔄 Compatibility Wrappers for Migrated /lib Functionality
 // These provide the same interface as the old /lib files but use the new services architecture
 
-import { CalculationCacheService, WorkingDayCache } from './infrastructure';
+import { CalculationCacheService, WorkingDayCache } from './performance';
 import * as React from 'react';
 
 /**

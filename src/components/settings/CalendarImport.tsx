@@ -90,13 +90,7 @@ export function CalendarImport() {
       const result = await CalendarIntegrationService.importEvents(events);
       setImportProgress(90);
 
-      // Record import history
-      await CalendarIntegrationService.recordImportHistory(
-        'ical_file',
-        'manual',
-        result,
-        file.name
-      );
+      // Import history is now recorded automatically by the orchestrator
 
       setImportProgress(100);
       setImportResult(result);
@@ -119,13 +113,7 @@ export function CalendarImport() {
       
       setImportResult(errorResult);
       
-      // Still record the failed import
-      await CalendarIntegrationService.recordImportHistory(
-        'ical_file',
-        'manual',
-        errorResult,
-        file.name
-      );
+      // Import history is now recorded automatically by the orchestrator
 
       toast({
         title: "Import Failed",

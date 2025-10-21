@@ -15,10 +15,10 @@
  */
 
 import { Project, Milestone } from '@/types/core';
-import { projectRepository } from '../repositories/ProjectRepository';
 import { ProjectRules } from '@/domain/rules/ProjectRules';
 import { MilestoneRules } from '@/domain/rules/MilestoneRules';
 import { getDateKey } from '@/utils/dateFormatUtils';
+import { calculateBudgetAdjustment } from '@/services/calculations';
 
 export interface ProjectBudgetAnalysis {
   totalAllocation: number;
@@ -293,27 +293,9 @@ export class ProjectOrchestrator {
     // Use domain rules to calculate total allocation
     const budgetCheck = MilestoneRules.checkBudgetConstraint(milestones, project.estimatedHours);
     const totalAllocated = budgetCheck.totalAllocated;
-    const currentBudget = project.estimatedHours;
     
-    let suggestedBudget = currentBudget;
-    let reason = 'No adjustment needed';
-
-    if (totalAllocated > currentBudget) {
-      // Over-allocated: need to increase budget
-      suggestedBudget = Math.ceil(totalAllocated / targetUtilization);
-      reason = 'Increase needed to accommodate milestone allocations';
-    } else if (totalAllocated < currentBudget * 0.5) {
-      // Significantly under-allocated: could reduce budget
-      suggestedBudget = Math.ceil(totalAllocated / targetUtilization);
-      reason = 'Potential reduction due to low milestone utilization';
-    }
-
-    return {
-      currentBudget,
-      suggestedBudget,
-      adjustmentNeeded: suggestedBudget - currentBudget,
-      reason
-    };
+    // Delegate to calculation function
+    return calculateBudgetAdjustment(project.estimatedHours, totalAllocated, targetUtilization);
   }
 
   /**
@@ -518,67 +500,7 @@ export class ProjectOrchestrator {
     }
   }
 
-  // -------------------------------------------------------------------------------------
-  // PHASE 5B: REPOSITORY-INTEGRATED WORKFLOWS
-  // -------------------------------------------------------------------------------------
-
-  /**
-   * Get user projects with repository optimization
-   */
-  static async getUserProjectsWorkflow(userId: string, options?: {
-    status?: Project['status'];
-    groupId?: string;
-    continuous?: boolean;
-    limit?: number;
-  }): Promise<Project[]> {
-    try {
-      return await projectRepository.findByUser(userId, options);
-    } catch (error) {
-      console.error('Get user projects workflow failed:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Get projects by group with repository optimization
-   */
-  static async getGroupProjectsWorkflow(groupId: string): Promise<Project[]> {
-    try {
-      return await projectRepository.findByGroup(groupId);
-    } catch (error) {
-      console.error('Get group projects workflow failed:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Get project statistics with repository optimization
-   */
-  static async getProjectStatisticsWorkflow(userId: string) {
-    try {
-      return await projectRepository.getProjectStatistics(userId);
-    } catch (error) {
-      console.error('Get project statistics workflow failed:', error);
-      return {
-        totalProjects: 0,
-        currentProjects: 0,
-        archivedProjects: 0,
-        totalEstimatedHours: 0,
-        avgProjectDuration: 0
-      };
-    }
-  }
-
-  /**
-   * Validate project name uniqueness
-   */
-  static async validateProjectNameUniqueWorkflow(name: string, userId: string, excludeId?: string): Promise<boolean> {
-    try {
-      return await projectRepository.validateProjectNameUnique(name, userId, excludeId);
-    } catch (error) {
-      console.error('Validate project name uniqueness failed:', error);
-      return false;
-    }
-  }
+  // Note: Repository-integrated query methods were removed as they were never used
+  // Hooks (useProjects, etc.) handle data fetching directly via Supabase
 
 }

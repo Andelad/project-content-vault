@@ -1,16 +1,14 @@
 /**
  * Repository Module Index
  * 
- * Simplified exports for repository implementations.
+ * Exports for active repository implementations.
+ * 
+ * Phase 2 Simplification:
+ * - Most data access now happens via direct Supabase calls in orchestrators
+ * - Only complex state management repositories remain
  * 
  * @module repositories
  */
 
-// =====================================================================================
-// SIMPLIFIED REPOSITORY EXPORTS
-// =====================================================================================
-
-export { ProjectRepository, projectRepository } from './ProjectRepository';
-export { GroupRepository, groupRepository } from './GroupRepository';
-export { MilestoneRepository, milestoneRepository } from './MilestoneRepository';
-export { WorkHourRepository, workHourRepository } from './WorkHourRepository';
+// Active repository: Complex state management with localStorage caching and realtime sync
+export { timeTrackingRepository } from './timeTrackingRepository';

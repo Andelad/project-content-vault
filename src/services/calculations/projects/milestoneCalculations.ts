@@ -792,3 +792,39 @@ export function getMilestoneSegmentForDate(
   ) || null;
 }
 
+/**
+ * Calculate budget adjustment recommendations for project-milestone compatibility
+ */
+export function calculateBudgetAdjustment(
+  projectBudget: number,
+  totalAllocated: number,
+  targetUtilization: number = 0.9 // 90% utilization target
+): {
+  currentBudget: number;
+  suggestedBudget: number;
+  adjustmentNeeded: number;
+  reason: string;
+} {
+  const currentBudget = projectBudget;
+
+  let suggestedBudget = currentBudget;
+  let reason = 'No adjustment needed';
+
+  if (totalAllocated > currentBudget) {
+    // Over-allocated: need to increase budget
+    suggestedBudget = Math.ceil(totalAllocated / targetUtilization);
+    reason = 'Increase needed to accommodate milestone allocations';
+  } else if (totalAllocated < currentBudget * 0.5) {
+    // Significantly under-allocated: could reduce budget
+    suggestedBudget = Math.ceil(totalAllocated / targetUtilization);
+    reason = 'Potential reduction due to low milestone utilization';
+  }
+
+  return {
+    currentBudget,
+    suggestedBudget,
+    adjustmentNeeded: suggestedBudget - currentBudget,
+    reason
+  };
+}
+

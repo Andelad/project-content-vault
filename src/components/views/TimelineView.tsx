@@ -14,7 +14,8 @@ import { useProjectContext } from '../../contexts/ProjectContext';
 import { useTimelineContext } from '../../contexts/TimelineContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
-import { TimelineViewportService, expandHolidayDates, ProjectValidationService } from '@/services';
+import { TimelineViewportService, expandHolidayDates } from '@/services';
+import { validateAndAutoFix } from '@/services/utilities/projectDataIntegrity';
 import { useTimelineData } from '../../hooks/useTimelineData';
 import { useDynamicViewportDays } from '../../hooks/useDynamicViewportDays';
 import { 
@@ -85,9 +86,9 @@ export function TimelineView() {
   const { 
     settings 
   } = useSettingsContext();
-  // Validate and auto-fix project relationships using the validation service
+  // Validate and auto-fix project relationships using data integrity utility
   React.useEffect(() => {
-    ProjectValidationService.validateAndAutoFix(
+    validateAndAutoFix(
       projects,
       groups,
       rows,

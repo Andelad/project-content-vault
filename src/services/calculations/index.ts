@@ -46,6 +46,7 @@ export {
   generateRecurringMilestoneDates,
   getMilestoneSegmentForDate,
   calculateMilestoneSegments,
+  calculateBudgetAdjustment,
   type MilestoneSegment
 } from './projects/milestoneCalculations';
 export * from './projects/projectEntityCalculations';
@@ -60,6 +61,9 @@ export {
 export * from './general/dateCalculations';  // Primary source for datesOverlap
 export * from './general/timeCalculations';  // Primary source for getWeekStart, getCurrentWeekStart
 export * from './general/settingsCalculations';
+
+// ===== GROUPS =====
+export * from './groups/groupCalculations';
 
 // ===== AVAILABILITY =====
 export * from './availability/availabilityCalculations';

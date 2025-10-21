@@ -1,11 +1,40 @@
 import { timeTrackingRepository } from '../repositories/timeTrackingRepository';
-import { timeTrackingValidator } from '../validators/timeTrackingValidator';
 import { timeTrackingCalculations } from '../calculations/tracking/timeTrackingCalculations';
 import { UnifiedTimeTrackerService } from '../unified/UnifiedTimeTrackerService';
-import { calendarEventRepository } from '../repositories/CalendarEventRepository';
 import type { TimeTrackingState } from '../../types/timeTracking';
 import type { CalendarEvent } from '../../types/core';
 import { supabase } from '../../integrations/supabase/client';
+
+// =====================================================================================
+// CALENDAR EVENT DATABASE HELPERS (inline - no repository layer)
+// =====================================================================================
+
+function transformCalendarEventFromDatabase(dbRecord: any): CalendarEvent {
+  return {
+    id: dbRecord.id,
+    title: dbRecord.title,
+    description: dbRecord.description || '',
+    startTime: new Date(dbRecord.start_time),
+    endTime: new Date(dbRecord.end_time),
+    projectId: dbRecord.project_id || undefined,
+    color: dbRecord.color || '#3b82f6',
+    completed: dbRecord.completed || false,
+    type: dbRecord.event_type || 'planned'
+  };
+}
+
+function transformCalendarEventToDatabase(event: Partial<CalendarEvent>): any {
+  const dbRecord: any = {};
+  if (event.title !== undefined) dbRecord.title = event.title;
+  if (event.description !== undefined) dbRecord.description = event.description;
+  if (event.startTime !== undefined) dbRecord.start_time = event.startTime.toISOString();
+  if (event.endTime !== undefined) dbRecord.end_time = event.endTime.toISOString();
+  if (event.projectId !== undefined) dbRecord.project_id = event.projectId || null;
+  if (event.color !== undefined) dbRecord.color = event.color;
+  if (event.completed !== undefined) dbRecord.completed = event.completed;
+  if (event.type !== undefined) dbRecord.event_type = event.type;
+  return dbRecord;
+}
 export interface TimeTrackerWorkflowContext {
   selectedProject: any;
   searchQuery: string;
@@ -36,10 +65,122 @@ class TimeTrackingOrchestrator {
   private broadcastChannel?: BroadcastChannel;
   private realtimeSubscription?: any;
   private windowId: string;
+
   constructor() {
     // Generate unique window ID to prevent processing our own broadcasts
     this.windowId = `window_${Date.now()}_${Math.random()}`;
     this.initializeCrossWindowSync();
+  }
+
+  // =====================================================================================
+  // INLINE VALIDATION METHODS (previously in timeTrackingValidator)
+  // =====================================================================================
+
+  /**
+   * Validates if tracking can be started
+   */
+  private canStartTracking(currentState: TimeTrackingState | null): boolean {
+    return !currentState?.isTracking;
+  }
+
+  /**
+   * Validates if tracking can be stopped
+   */
+  private canStopTracking(currentState: TimeTrackingState | null): boolean {
+    return currentState?.isTracking === true;
+  }
+
+  /**
+   * Validates if tracking can be paused
+   */
+  private canPauseTracking(currentState: TimeTrackingState | null): boolean {
+    return currentState?.isTracking === true && currentState?.isPaused === false;
+  }
+
+  /**
+   * Validates if tracking can be resumed
+   */
+  private canResumeTracking(currentState: TimeTrackingState | null): boolean {
+    return currentState?.isTracking === true && currentState?.isPaused === true;
+  }
+
+  /**
+   * Validates and normalizes state object
+   */
+  private validateState(state: Partial<TimeTrackingState>): TimeTrackingState {
+    const errors: string[] = [];
+
+    if (typeof state.isTracking !== 'boolean') {
+      errors.push('isTracking must be a boolean');
+    }
+
+    if (state.isTracking === false && state.isPaused === true) {
+      errors.push('Cannot be paused when not tracking');
+    }
+
+    if (state.startTime && state.pausedAt && state.startTime > state.pausedAt) {
+      errors.push('pausedAt cannot be before startTime');
+    }
+
+    if (state.totalPausedDuration && state.totalPausedDuration < 0) {
+      errors.push('totalPausedDuration cannot be negative');
+    }
+
+    if (errors.length > 0) {
+      throw new Error(`Time tracking state validation failed: ${errors.join(', ')}`);
+    }
+
+    return {
+      isTracking: state.isTracking ?? false,
+      isPaused: state.isPaused ?? false,
+      projectId: state.projectId ?? null,
+      startTime: state.startTime ?? null,
+      pausedAt: state.pausedAt ?? null,
+      totalPausedDuration: state.totalPausedDuration ?? 0,
+      lastUpdateTime: state.lastUpdateTime ?? new Date(),
+      eventId: state.eventId,
+      selectedProject: state.selectedProject,
+      searchQuery: state.searchQuery,
+      affectedEvents: state.affectedEvents,
+      currentSeconds: state.currentSeconds,
+      lastUpdated: state.lastUpdated ?? state.lastUpdateTime ?? new Date()
+    };
+  }
+
+  /**
+   * Check for active tracking session in database
+   */
+  private async checkForActiveSession(userId: string): Promise<TimeTrackingState | null> {
+    const { data, error } = await supabase
+      .from('settings')
+      .select('time_tracking_state')
+      .eq('user_id', userId)
+      .single();
+
+    if (error || !data?.time_tracking_state) {
+      return null;
+    }
+
+    const state = data.time_tracking_state as any;
+    
+    if (state.isTracking && state.eventId && state.startTime) {
+      return {
+        isTracking: state.isTracking,
+        isPaused: state.isPaused ?? false,
+        projectId: state.projectId ?? null,
+        startTime: state.startTime ? new Date(state.startTime) : null,
+        pausedAt: state.pausedAt ? new Date(state.pausedAt) : null,
+        totalPausedDuration: state.totalPausedDuration ?? 0,
+        lastUpdateTime: state.lastUpdateTime ? new Date(state.lastUpdateTime) : null,
+        eventId: state.eventId ?? null,
+        selectedProject: state.selectedProject ?? null,
+        searchQuery: state.searchQuery ?? '',
+        affectedEvents: state.affectedEvents ?? [],
+        currentSeconds: state.currentSeconds ?? 0
+      };
+    }
+
+    return null;
   }
   private initializeCrossWindowSync(): void {
     // // console.log('🔧 INIT - Initializing cross-window sync for window:', this.windowId);
@@ -125,7 +266,7 @@ class TimeTrackingOrchestrator {
   }
   async startTracking(projectId: string): Promise<void> {
     const currentState = await this.loadState();
-    if (!timeTrackingValidator.canStartTracking(currentState)) {
+    if (!this.canStartTracking(currentState)) {
       throw new Error('Cannot start tracking in current state');
     }
     const newState: TimeTrackingState = {
@@ -142,7 +283,7 @@ class TimeTrackingOrchestrator {
   }
   async stopTracking(): Promise<void> {
     const currentState = await this.loadState();
-    if (!timeTrackingValidator.canStopTracking(currentState)) {
+    if (!this.canStopTracking(currentState)) {
       throw new Error('Cannot stop tracking - no active session');
     }
     const newState: TimeTrackingState = {
@@ -165,7 +306,7 @@ class TimeTrackingOrchestrator {
   }
   async pauseTracking(): Promise<void> {
     const currentState = await this.loadState();
-    if (!timeTrackingValidator.canPauseTracking(currentState)) {
+    if (!this.canPauseTracking(currentState)) {
       throw new Error('Cannot pause tracking in current state');
     }
     const newState: TimeTrackingState = {
@@ -179,7 +320,7 @@ class TimeTrackingOrchestrator {
   }
   async resumeTracking(): Promise<void> {
     const currentState = await this.loadState();
-    if (!timeTrackingValidator.canResumeTracking(currentState)) {
+    if (!this.canResumeTracking(currentState)) {
       throw new Error('Cannot resume tracking in current state');
     }
     const pausedDuration = currentState!.pausedAt ? 
@@ -198,7 +339,7 @@ class TimeTrackingOrchestrator {
     return timeTrackingRepository.loadState();
   }
   async syncState(state: Partial<TimeTrackingState>, skipLocalCallback: boolean = false): Promise<void> {
-    const validatedState = timeTrackingValidator.validateState(state);
+    const validatedState = this.validateState(state);
     // Save to database
     await timeTrackingRepository.saveState(validatedState);
     // Broadcast to other windows (they need to know)
@@ -229,14 +370,14 @@ class TimeTrackingOrchestrator {
     }
   }
   /**
-   * Check for active tracking session conflicts
+   * Check for active tracking session conflicts (public wrapper)
    * Returns the active session if found, null otherwise
    */
-  async checkForActiveSession(): Promise<TimeTrackingState | null> {
+  async checkForConflict(): Promise<TimeTrackingState | null> {
     if (!this.userId) {
       throw new Error('User ID must be set before checking for conflicts');
     }
-    return timeTrackingValidator.checkForActiveSession(this.userId);
+    return this.checkForActiveSession(this.userId);
   }
   // TimeTracker Component Workflow Methods
   async handleTimeTrackingToggle(context: TimeTrackerWorkflowContext): Promise<TimeTrackerWorkflowResult> {
@@ -511,8 +652,15 @@ class TimeTrackingOrchestrator {
       }
       // Validate that the event actually exists in the database
       try {
-        const eventExists = await calendarEventRepository.getById(currentEventId);
-        if (!eventExists) {
+        const { data: eventData, error: fetchError } = await supabase
+          .from('calendar_events')
+          .select('*')
+          .eq('id', currentEventId)
+          .single();
+
+        if (fetchError && fetchError.code !== 'PGRST116') throw fetchError;
+        
+        if (!eventData) {
           // Event doesn't exist anymore, clean up the tracking state
           console.warn(`Tracking event ${currentEventId} no longer exists, cleaning up state`);
           await this.stopTracking();
@@ -604,8 +752,26 @@ class TimeTrackingOrchestrator {
         type: 'tracked' as const,
         color: eventData.color || '#10b981' // Green for tracking events
       };
-      // Create via repository
-      const event = await calendarEventRepository.create(trackingEventData);
+      
+      // Create event (direct database call)
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.id) throw new Error('User not authenticated');
+
+      const dbRecord = {
+        ...transformCalendarEventToDatabase(trackingEventData),
+        user_id: user.id
+      };
+
+      const { data, error } = await supabase
+        .from('calendar_events')
+        .insert(dbRecord)
+        .select()
+        .single();
+
+      if (error) throw new Error(`Failed to create calendar event: ${error.message}`);
+      
+      const event = transformCalendarEventFromDatabase(data);
+      
       return {
         success: true,
         event
@@ -631,8 +797,19 @@ class TimeTrackingOrchestrator {
     error?: string;
   }> {
     try {
-      // Update via repository
-      const event = await calendarEventRepository.update(id, updates);
+      // Update event (direct database call)
+      const dbUpdates = transformCalendarEventToDatabase(updates);
+      const { data, error } = await supabase
+        .from('calendar_events')
+        .update(dbUpdates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw new Error(`Failed to update calendar event: ${error.message}`);
+      
+      const event = transformCalendarEventFromDatabase(data);
+      
       return {
         success: true,
         event
@@ -666,8 +843,19 @@ class TimeTrackingOrchestrator {
         completed: true,
         ...finalData
       };
-      // Update via repository
-      const event = await calendarEventRepository.update(eventId, updates);
+      // Update event (direct database call)
+      const dbUpdates = transformCalendarEventToDatabase(updates);
+      const { data, error } = await supabase
+        .from('calendar_events')
+        .update(dbUpdates)
+        .eq('id', eventId)
+        .select()
+        .single();
+
+      if (error) throw new Error(`Failed to update calendar event: ${error.message}`);
+      
+      const event = transformCalendarEventFromDatabase(data);
+      
       return {
         success: true,
         event
@@ -690,7 +878,21 @@ class TimeTrackingOrchestrator {
     error?: string;
   }> {
     try {
-      const sessions = await calendarEventRepository.getTrackingEvents();
+      // Get tracking events (direct database call)
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.id) throw new Error('User not authenticated');
+
+      const { data, error } = await supabase
+        .from('calendar_events')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('event_type', 'tracked')
+        .order('start_time', { ascending: true });
+
+      if (error) throw new Error(`Failed to get tracking events: ${error.message}`);
+      
+      const sessions = data.map(transformCalendarEventFromDatabase);
+      
       return {
         success: true,
         sessions
@@ -713,7 +915,20 @@ class TimeTrackingOrchestrator {
     error?: string;
   }> {
     try {
-      const allSessions = await calendarEventRepository.getTrackingEvents();
+      // Get all tracking events, then filter by project (direct database call)
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.id) throw new Error('User not authenticated');
+
+      const { data, error } = await supabase
+        .from('calendar_events')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('event_type', 'tracked')
+        .order('start_time', { ascending: true });
+
+      if (error) throw new Error(`Failed to get tracking events: ${error.message}`);
+      
+      const allSessions = data.map(transformCalendarEventFromDatabase);
       const projectSessions = allSessions.filter(session => session.projectId === projectId);
       return {
         success: true,
@@ -736,7 +951,14 @@ class TimeTrackingOrchestrator {
     error?: string;
   }> {
     try {
-      await calendarEventRepository.delete(eventId);
+      // Delete event (direct database call)
+      const { error } = await supabase
+        .from('calendar_events')
+        .delete()
+        .eq('id', eventId);
+
+      if (error) throw new Error(`Failed to delete calendar event: ${error.message}`);
+      
       return {
         success: true
       };

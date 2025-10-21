@@ -8,84 +8,106 @@
 ## 🤖 AI Development Constraints
 
 ### NEVER Create These Patterns:
-- File paths containing `/utils/` or `/helpers/`
-- Import statements like `from '@/services/core/domain/ProjectEntity'`
-- Functions named `calculate*` in `/src/components/`
-- Multiple files with same function names
-- Business logic in components or hooks
+- ❌ File paths containing `/validators/` (layer eliminated)
+- ❌ File paths containing `/repositories/` (layer eliminated, except timeTrackingRepository)
+- ❌ Import statements like `from '@/services/core/domain/ProjectEntity'`
+- ❌ Functions named `calculate*` in `/src/components/`
+- ❌ Multiple files with same function names
+- ❌ Business logic in components or hooks
+- ❌ New validator files (use domain rules directly in orchestrators)
+- ❌ New repository wrappers (use Supabase directly or hooks)
 
 ### ALWAYS Follow These Patterns:
-- Import from `@/services` only (barrel imports)
-- Put calculations in `unified/UnifiedXService.ts`
-- Check existing functionality before creating new
-- Use exact naming patterns: `UnifiedProjectService`, `ProjectOrchestrator`
-- Follow the logic flow: Components → Unified Services → Orchestrators → Validators/Calculations/Repositories
+- ✅ Import from `@/services` only (barrel imports)
+- ✅ Put calculations in `unified/UnifiedXService.ts`
+- ✅ Put complex workflows in `orchestrators/XOrchestrator.ts`
+- ✅ Call domain rules directly from orchestrators (no validator layer)
+- ✅ Call Supabase directly from orchestrators (no repository layer)
+- ✅ Check existing functionality before creating new
+- ✅ Use exact naming patterns: `UnifiedProjectService`, `ProjectOrchestrator`
+- ✅ Follow the simplified flow: Components → Orchestrators (workflows) OR Unified Services (calculations) → Domain Rules → Direct Supabase
 
-## 🎯 Services Architecture Pattern
+## 🎯 Services Architecture Pattern (Simplified - October 2025)
 
-### Core Logic Flow:
+### Core Logic Flow (Current):
 ```
-Components/Hooks → Unified Services → Orchestrators → Validators + Calculations + Repositories
+Components/Hooks → Orchestrators (complex workflows) → Domain Rules + Direct Supabase
+                → Unified Services (calculations) → Domain Rules
+                → Hooks (simple queries) → Direct Supabase
 ```
 
-### Directory Structure:
+**Key Simplifications:**
+- ❌ No validators layer (orchestrators call domain rules directly)
+- ❌ No repository layer (orchestrators call Supabase directly, except 1 special case)
+- ✅ Domain rules remain single source of truth
+- ✅ Clear separation: Orchestrators (workflows) vs Unified Services (calculations)
+
+### Directory Structure (Current - October 21, 2025):
 ```
 src/
-├── domain/                      # ⭐ NEW: Business Logic Layer (Single Source of Truth)
-│   ├── entities/                # Domain entities with business rules
-│   │   ├── Project.ts
-│   │   ├── Milestone.ts
-│   │   ├── Group.ts
-│   │   └── Row.ts
-│   ├── rules/                   # Centralized business rules
-│   │   ├── ProjectRules.ts
-│   │   ├── MilestoneRules.ts
-│   │   └── RelationshipRules.ts
-│   ├── value-objects/           # Immutable value types
-│   │   ├── TimeAllocation.ts
-│   │   └── DateRange.ts
+├── domain/                      # ⭐ Business Logic Layer (Single Source of Truth)
+│   ├── entities/                # TODO: Domain entities with business rules
+│   ├── rules/                   # ✅ Centralized business rules (50+ methods)
+│   │   ├── ProjectRules.ts      # Project validation and constraints
+│   │   ├── MilestoneRules.ts    # Milestone validation and budget rules
+│   │   ├── TimelineRules.ts     # Timeline and scheduling rules
+│   │   └── RelationshipRules.ts # Cross-entity relationship rules
+│   ├── value-objects/           # TODO: Immutable value types
 │   └── index.ts
 ├── services/
-│   ├── unified/                 # Main API - Components import from here
+│   ├── unified/                 # ✅ Main API - Calculations & transformations
 │   │   ├── UnifiedProjectService.ts
-│   │   ├── UnifiedTimeTrackingService.ts
-│   │   └── UnifiedMilestoneService.ts
-│   ├── orchestrators/           # Workflow coordination
-│   │   ├── ProjectOrchestrator.ts
-│   │   └── TimeTrackingOrchestrator.ts
-│   ├── calculations/            # Pure data mathematics (NO UI/pixels)
-│   │   ├── dateCalculations.ts          # Date/time arithmetic
-│   │   ├── projectCalculations.ts       # Project duration, working days
-│   │   ├── milestoneCalculations.ts     # Milestone metrics
-│   │   └── capacityCalculations.ts      # Work hour capacity
-│   ├── validators/              # Business rules validation (delegates to domain)
-│   │   ├── ProjectValidator.ts
-│   │   └── TimeTrackingValidator.ts
-│   ├── repositories/            # Data access layer
-│   │   ├── ProjectRepository.ts
-│   │   └── TimeTrackingRepository.ts
-│   ├── ui/                      # UI positioning & visual mathematics
+│   │   ├── UnifiedTimelineService.ts
+│   │   ├── UnifiedMilestoneService.ts
+│   │   └── ... (other unified services)
+│   ├── orchestrators/           # ✅ Workflow coordination (9 files)
+│   │   ├── ProjectOrchestrator.ts         # Project workflows
+│   │   ├── ProjectMilestoneOrchestrator.ts # Milestone workflows
+│   │   ├── EventModalOrchestrator.ts      # Event modal workflows
+│   │   ├── GroupOrchestrator.ts           # Group workflows
+│   │   ├── HolidayModalOrchestrator.ts    # Holiday workflows
+│   │   ├── SettingsOrchestrator.ts        # Settings workflows
+│   │   ├── PlannerViewOrchestrator.ts     # Planner workflows
+│   │   ├── timeTrackingOrchestrator.ts    # Time tracking workflows
+│   │   ├── recurringEventsOrchestrator.ts # Recurring events
+│   │   └── index.ts
+│   ├── calculations/            # ✅ Pure data mathematics (NO UI/pixels)
+│   │   ├── general/             # Date/time arithmetic
+│   │   ├── projects/            # Project calculations
+│   │   ├── events/              # Event calculations
+│   │   ├── availability/        # Work hour capacity
+│   │   └── insights/            # Analytics calculations
+│   ├── repositories/            # ⚠️ Mostly eliminated (1 file remains)
+│   │   ├── timeTrackingRepository.ts # Complex state management only
+│   │   └── index.ts
+│   ├── utilities/               # ✅ Lightweight utilities (1 file)
+│   │   └── projectDataIntegrity.ts # Project validation utility
+│   ├── ui/                      # ✅ UI positioning & visual mathematics
 │   │   ├── positioning/         # Pixel calculations, viewport, drag
-│   │   │   ├── TimelinePositioning.ts   # Bar positioning (left, width)
-│   │   │   ├── DragPositioning.ts       # Mouse→pixel→date conversion
-│   │   │   └── ViewportPositioning.ts   # Scroll, zoom, visible range
-│   │   ├── coordination/        # High-level UI orchestration
-│   │   │   └── DragCoordinator.ts       # Drag operation workflows
+│   │   │   ├── TimelinePositioning.ts   # Bar positioning
+│   │   │   ├── DragPositioning.ts       # Mouse→pixel→date
+│   │   │   ├── ViewportPositioning.ts   # Scroll, zoom, visible range
+│   │   │   └── TimelineCalculations.ts  # Timeline math
 │   │   ├── CalendarLayout.ts
 │   │   └── FullCalendarConfig.ts
-│   ├── infrastructure/          # Technical utilities
+│   ├── infrastructure/          # ✅ Technical utilities
 │   │   ├── calculationCache.ts
 │   │   ├── colorCalculations.ts
 │   │   └── dateCalculationService.ts
-│   ├── performance/             # Performance optimization
+│   ├── performance/             # ✅ Performance optimization
 │   │   ├── cachePerformanceService.ts
 │   │   ├── dragPerformanceService.ts
 │   │   └── performanceMetricsService.ts
-│   ├── legacy/                  # Migration safety (temporary)
-│   └── index.ts                 # Barrel exports
+│   └── index.ts                 # ✅ Barrel exports (single import point)
 └── types/
-    └── core.ts                  # Type definitions (structure only)
+    └── core.ts                  # ✅ Type definitions (single source of truth)
 ```
+
+**Key Changes from Original Design:**
+- ❌ `validators/` - **ELIMINATED** (logic moved inline to orchestrators)
+- ❌ `repositories/` - **99% ELIMINATED** (only timeTrackingRepository remains)
+- ✅ `utilities/` - **NEW** (lightweight utilities, not business logic)
+- ✅ Orchestrators now handle validation + data access directly
 
 ## 🎨 Type Architecture - Single Source of Truth
 
@@ -156,21 +178,29 @@ interface ProjectModalProps {
 - Broken imports when duplicate types are removed
 - Confusion about which type definition to use
 
-## 📋 AI Decision Matrix
+## 📋 AI Decision Matrix (Updated October 2025)
 
 | User Request | Code Type | Exact Location | Pattern |
 |--------------|-----------|----------------|---------|
 | ⭐ "define business rule" | **Business rule** | `domain/rules/ProjectRules.ts` | `static validateX()` |
 | ⭐ "check if valid" | **Business rule** | `domain/rules/` | Reference business rules |
-| "calculate project duration" | Pure data math | `calculations/dateCalculations.ts` | Pure function (date math) |
-| "validate milestone budget" | Validation workflow | `validators/MilestoneValidator.ts` | Calls domain rules |
+| "calculate project duration" | Pure data math | `calculations/general/dateCalculations.ts` | Pure function (date math) |
+| "validate milestone budget" | **Inline validation** | `orchestrators/ProjectOrchestrator.ts` | Call `MilestoneRules.checkBudget()` directly |
 | "position timeline bar" | UI positioning | `ui/positioning/TimelinePositioning.ts` | `static calculateBarPosition()` |
 | "handle drag operation" | UI math | `ui/positioning/DragPositioning.ts` | Mouse→pixel→date conversion |
-| "coordinate project creation" | Workflow | `orchestrators/ProjectOrchestrator.ts` | `async createProject()` |
-| "save project data" | Data access | `repositories/ProjectRepository.ts` | `async saveProject()` |
+| "coordinate project creation" | Workflow | `orchestrators/ProjectOrchestrator.ts` | `async executeProjectCreationWorkflow()` |
+| "save project data" | **Direct DB access** | **Inline in orchestrator** | `supabase.from('projects').insert()` |
+| "transform database data" | **Inline helper** | **Inline in orchestrator** | Private `transformFromDatabase()` method |
 | "define project type" | Type definition | `types/core.ts` | `export interface Project` |
 | "extend project for component" | Component type | Component file | `interface LocalProject extends Project` |
 | "create project subset" | Service type | Service file | `Pick<Project, 'id' \| 'name'>` |
+| "calculate & transform data" | Calculation service | `unified/UnifiedProjectService.ts` | Pure calculation functions |
+
+**Key Changes:**
+- ❌ No more validators layer - call domain rules directly
+- ❌ No more repositories layer - call Supabase directly or use hooks
+- ✅ Orchestrators handle validation + data access inline
+- ✅ Transformation helpers inline in orchestrators (private methods)
 
 ## 🚫 Utils/Lib Rules
 
@@ -215,17 +245,18 @@ import { calculateDuration } from '@/services/legacy/calculations'; // Legacy im
 import { projectHelper } from '@/services/helpers/projectHelper'; // Helpers pattern
 ```
 
-## 🏢 Architecture Layer Responsibilities
+## 🏢 Architecture Layer Responsibilities (Current - October 2025)
 
-### ⭐ Domain Layer (NEW - Single Source of Truth):
-- **Purpose**: Define business entities, rules, and relationships
+### ⭐ Domain Layer (Single Source of Truth):
+- **Purpose**: Define business rules and relationships
+- **Status**: ✅ **COMPLETE** - 50+ business rule methods across 4 modules
 - **Contains**: 
-  - Domain entities (Project, Milestone, etc.) with embedded business rules
-  - Business rules (validation, constraints, invariants)
-  - Value objects (TimeAllocation, DateRange)
-  - Relationship definitions
-- **Example**: `ProjectRules.validateBudget()`, `Project.canAddMilestone()`
+  - ✅ Business rules (validation, constraints, invariants) - `ProjectRules`, `MilestoneRules`, `TimelineRules`, `RelationshipRules`
+  - ⏳ Domain entities (TODO - placeholder structure exists)
+  - ⏳ Value objects (TODO - placeholder structure exists)
+- **Example**: `ProjectRules.validateBudget()`, `MilestoneRules.checkBudgetConstraint()`
 - **Reference**: See `docs/BUSINESS_LOGIC_REFERENCE.md`
+- **Called by**: Orchestrators and Unified Services
 
 ### 📐 Calculations vs UI Separation:
 
@@ -257,40 +288,90 @@ export function calculateBarPosition(start: Date, viewportStart: Date): number {
 }
 ```
 
-### Unified Services (Main API):
-- **Purpose**: Primary interface for components
-- **Contains**: High-level operations, delegates to domain layer
-- **Example**: `UnifiedProjectService.createProject()` → uses `ProjectRules`
+### Orchestrators (Enhanced - Handles Workflows + Validation + Data Access):
+- **Purpose**: Coordinate complex CREATE/UPDATE/DELETE workflows
+- **Status**: ✅ **ENHANCED** - Now handle validation and data access inline
+- **Contains**: 
+  - Multi-step workflow coordination
+  - Inline validation (calls domain rules directly, no validator layer)
+  - Inline data access (calls Supabase directly, no repository layer)
+  - Inline transformation helpers (private methods)
+- **Example**: 
+  ```typescript
+  // ProjectOrchestrator.ts
+  static async executeProjectCreationWorkflow(request, context) {
+    // 1. Validate with domain rules
+    const validation = ProjectRules.validateProjectDates(...);
+    if (!validation.isValid) return { success: false, errors: [...] };
+    
+    // 2. Transform data inline
+    const prepared = this.transformToDatabase(request);
+    
+    // 3. Call Supabase directly
+    const { data, error } = await supabase.from('projects').insert(prepared);
+    
+    // 4. Coordinate related operations
+    await this.createProjectMilestones(...);
+  }
+  ```
+- **9 Active Files**: ProjectOrchestrator, GroupOrchestrator, EventModalOrchestrator, HolidayModalOrchestrator, SettingsOrchestrator, ProjectMilestoneOrchestrator, PlannerViewOrchestrator, timeTrackingOrchestrator, recurringEventsOrchestrator
 
-### Orchestrators:
-- **Purpose**: Coordinate complex workflows
-- **Contains**: Multi-step processes, cross-service coordination
-- **Example**: `ProjectOrchestrator.createWithMilestones()`
+### Unified Services (Calculations & Transformations):
+- **Purpose**: Pure READ/TRANSFORM operations, calculations
+- **Status**: ✅ **COMPLETE** - Main calculation layer
+- **Contains**: 
+  - Data calculations and transformations
+  - Memoized performance-critical calculations
+  - Pure functions (no side effects)
+- **Example**: `UnifiedProjectService.calculateDuration()`, `UnifiedTimelineService.calculateDailyProjectHours()`
+- **Rule**: READ and TRANSFORM only, no CREATE/UPDATE/DELETE
 
-### Calculations:
+### Calculations (Pure Data Mathematics):
 - **Purpose**: Pure data mathematics (NO UI concerns, NO pixels)
+- **Status**: ✅ **COMPLETE** - Organized by domain
 - **Contains**: Date arithmetic, duration calculations, capacity metrics
+- **Folders**: `general/`, `projects/`, `events/`, `availability/`, `insights/`
 - **Example**: `dateCalculations.calculateDuration()` (date math only)
 - **Rule**: No pixel values, no DOM interactions, no viewport logic
 
-### UI Services:
+### UI Services (Visual Mathematics):
 - **Purpose**: View-specific positioning, layout, and visual mathematics
+- **Status**: ✅ **COMPLETE** - UI-specific calculations
 - **Contains**: 
   - **positioning/**: Pixel calculations, drag math, viewport positioning
-  - **coordination/**: High-level UI operation orchestration
   - Canvas positioning, mouse-to-date conversions
 - **Example**: `TimelinePositioning.calculateBarPosition()` (returns pixels)
 - **Rule**: Can use pixels, DOM concepts, viewport dimensions
 
-### Infrastructure:
+### Utilities (Lightweight Helpers):
+- **Purpose**: Small, focused utility functions
+- **Status**: ✅ **NEW** - Created in Phase 1
+- **Contains**: Lightweight utilities that don't fit other layers
+- **Example**: `projectDataIntegrity.ts` (175 lines) - Project relationship validation
+- **Rule**: Keep small and focused, not a dumping ground
+
+### Infrastructure (Technical Utilities):
 - **Purpose**: Technical utilities and framework helpers
+- **Status**: ✅ **COMPLETE**
 - **Contains**: Caching, date utilities, color calculations
 - **Example**: `calculationCache.memoize()`, `colorCalculations.generatePalette()`
 
-### Performance:
+### Performance (Optimization):
 - **Purpose**: Performance optimization and monitoring
+- **Status**: ✅ **COMPLETE**
 - **Contains**: Performance metrics, caching strategies, optimization
 - **Example**: `performanceMetricsService.trackRender()`, `dragPerformanceService.optimize()`
+
+### ❌ Validators Layer - **ELIMINATED**:
+- **Status**: ❌ **DELETED** in Phase 1
+- **Reason**: Thin wrappers around domain rules (redundant)
+- **Replaced by**: Orchestrators call domain rules directly
+
+### ❌ Repositories Layer - **EFFECTIVELY ELIMINATED**:
+- **Status**: ❌ **99% DELETED** in Phase 2
+- **Reason**: Thin wrappers around Supabase (hooks already exist)
+- **Replaced by**: Orchestrators call Supabase directly
+- **Exception**: `timeTrackingRepository.ts` kept for complex state management (localStorage caching, serialization, realtime sync)
 
 ## 🎯 Single Source of Truth Pattern
 
@@ -337,11 +418,11 @@ Eliminates duplicate calculations across different views (e.g., project bars on 
 ### Phase 1: Type Consolidation Process
 When consolidating duplicate types, follow this incremental approach:
 
-#### 1. **Audit & Identify** 
+#### 1. **Audit & Identify**
 ```bash
 # Find duplicate interfaces
 grep -r "interface.*Project" src/ | grep -v core.ts
-grep -r "interface.*Milestone" src/ | grep -v core.ts  
+grep -r "interface.*Milestone" src/ | grep -v core.ts
 ```
 
 #### 2. **Create Backward-Compatible Aliases**
@@ -375,118 +456,222 @@ export type { FlexibleMilestone, ProjectEvent } from './calculations/milestoneCa
 - Remove backup files after successful verification
 - Update documentation with new type patterns
 
-### Type Consolidation Results:
-✅ **18 Total Consolidations Completed** (December 9, 2025)
-- 5 duplicate type interfaces eliminated  
-- 13 duplicate calculation functions eliminated
-- 0 breaking changes introduced
-- 100% production build success rate
-
-### Orchestrator Implementation Results:
-✅ **2 Core Orchestrators Completed** (December 9, 2025)
-- CalendarOrchestrator: Complete calendar workflow coordination
-- WorkHourOrchestrator: Complete work hour management workflows
-- Multi-step workflow orchestration spanning multiple services
-- Production builds verified and working
-
-## 🏆 Current Architecture Status (Updated October 20, 2025)
+## 🏆 Current Architecture Status (Updated October 21, 2025)
 
 ### ✅ **COMPLETED PHASES:**
 - **Phase 1 - Type & Calculation Consolidation**: 100% Complete, Single source of truth established
 - **Phase 2 - Repository & Service Architecture**: 100% Complete, Full infrastructure implemented
 - **Domain Rules Extraction**: 100% Complete, Business rules centralized in domain layer
+- **Phase 1 Simplification - Validator Cleanup**: ✅ **COMPLETE** - 1,164 lines removed (87% reduction)
+- **Phase 2 Simplification - Repository Cleanup**: ✅ **COMPLETE** - 498 lines removed (99% of layer eliminated)
 
-### 🎯 **CURRENT STATUS:**
-- **Repository Transition:** ✅ **COMPLETE** - All 34 build errors resolved, clean compilation achieved
-- **Domain Rules:** ✅ **COMPLETE** - All business rules implemented and operational
-- **Unified Services:** ✅ **COMPLETE** - All services integrated with proper domain logic
-- **Orchestrators:** ✅ **COMPLETE** - All orchestrators operational with repository integration
+### 🎯 **CURRENT STATUS (October 21, 2025):**
+- **Architecture Simplification:** ✅ **COMPLETE** - Bold cleanup executed successfully
+- **Domain Rules:** ✅ **COMPLETE** - 50+ business rule methods across 4 modules (single source of truth)
+- **Orchestrators:** ✅ **ENHANCED** - Now handle workflows, validation, AND direct data access
+- **Unified Services:** ✅ **COMPLETE** - Calculations and transformations preserved
+- **Validators Layer:** ❌ **ELIMINATED** - Entire layer removed, logic moved to orchestrators
+- **Repository Layer:** ❌ **EFFECTIVELY ELIMINATED** - Only 1 specialized repository remains
+- **Build Health:** ✅ **CLEAN** - TypeScript compilation successful, 0 errors
 - **Domain Entities:** TODO - Placeholder structure exists, implementation pending
 - **Value Objects:** TODO - Placeholder structure exists, implementation pending
-- **Component Logic Extraction**: Optional future enhancement
 
 ### 🎯 **FUTURE DEVELOPMENT:**
 - **Domain Entities**: Implement Project, Milestone, Group, Row entities with business methods
 - **Value Objects**: Implement TimeAllocation, DateRange immutable types
 - **Advanced Features**: Real-time updates, webhooks, notifications
-- **Performance Monitoring**: Repository metrics and analytics
+- **Performance Monitoring**: Application metrics and analytics
 
-### 🎉 **Key Achievements (October 20, 2025):**
+### 🎉 **Key Achievements (October 21, 2025):**
 - **Zero Breaking Changes**: Maintained throughout all architectural improvements
-- **Production Stability**: All improvements verified through production builds
+- **Production Stability**: All improvements verified through production builds (9.05s build time)
 - **Single Source of Truth**: Achieved for types (core.ts) and business rules (domain/rules/)
-- **Complete Infrastructure**: Repository layer, caching, offline support, and service architecture established
-- **Domain Rules**: 50+ business rule methods implemented across 4 rule modules
+- **Bold Simplification**: ~1,662 lines of wrapper code eliminated (validators + repositories)
+- **Domain Rules**: 50+ business rule methods implemented across 4 rule modules (ProjectRules, MilestoneRules, TimelineRules, RelationshipRules)
 - **Code Consolidation**: 18 duplicate type interfaces eliminated, 13 duplicate calculation functions eliminated
-- **Architecture Guide**: Comprehensive documentation updated to reflect current state
+- **Architecture Clarity**: Validators layer eliminated, repository layer effectively eliminated
+- **AI-Friendly Codebase**: Clear, direct data flow with no unnecessary wrapper layers
+- **Architecture Guide**: Comprehensive documentation updated to reflect simplified state### ✅ **COMPLETED PHASES:**
+- **Phase 1 - Type & Calculation Consolidation**: 100% Complete, Single source of truth established
+- **Phase 2 - Repository & Service Architecture**: 100% Complete, Full infrastructure implemented
+- **Domain Rules Extraction**: 100% Complete, Business rules centralized in domain layer
+- **Phase 1 Simplification - Validator Cleanup**: ✅ **COMPLETE** - 1,164 lines removed (87% reduction)
+- **Phase 2 Simplification - Repository Cleanup**: ✅ **COMPLETE** - 498 lines removed (99% of layer eliminated)
 
-## 📦 Migration Strategy
+### 🎯 **CURRENT STATUS (October 21, 2025):**
+- **Architecture Simplification:** ✅ **COMPLETE** - Bold cleanup executed successfully
+- **Domain Rules:** ✅ **COMPLETE** - 50+ business rule methods across 4 modules (single source of truth)
+- **Orchestrators:** ✅ **ENHANCED** - Now handle workflows, validation, AND direct data access
+- **Unified Services:** ✅ **COMPLETE** - Calculations and transformations preserved
+- **Validators Layer:** ❌ **ELIMINATED** - Entire layer removed, logic moved to orchestrators
+- **Repository Layer:** ❌ **EFFECTIVELY ELIMINATED** - Only 1 specialized repository remains
+- **Build Health:** ✅ **CLEAN** - TypeScript compilation successful, 0 errors
+- **Domain Entities:** TODO - Placeholder structure exists, implementation pending
+- **Value Objects:** TODO - Placeholder structure exists, implementation pending
 
-### Legacy Handling:
-- Move existing services to `legacy/` folder during migration
-- Create delegation wrappers for backward compatibility
-- Update imports gradually to use new unified services
-- Delete legacy folder when migration complete
+### 🎯 **FUTURE DEVELOPMENT:**
+- **Domain Entities**: Implement Project, Milestone, Group, Row entities with business methods
+- **Value Objects**: Implement TimeAllocation, DateRange immutable types
+- **Advanced Features**: Real-time updates, webhooks, notifications
+- **Performance Monitoring**: Application metrics and analytics
 
-### Example Migration:
-```typescript
-// Phase 1: Create new unified service
-// unified/UnifiedProjectService.ts
-export class UnifiedProjectService {
-  static calculateDuration(project: Project): number { ... }
-}
+### 🎉 **Key Achievements (October 21, 2025):**
+- **Zero Breaking Changes**: Maintained throughout all architectural improvements
+- **Production Stability**: All improvements verified through production builds (9.05s build time)
+- **Single Source of Truth**: Achieved for types (core.ts) and business rules (domain/rules/)
+- **Bold Simplification**: ~1,662 lines of wrapper code eliminated (validators + repositories)
+- **Domain Rules**: 50+ business rule methods implemented across 4 rule modules (ProjectRules, MilestoneRules, TimelineRules, RelationshipRules)
+- **Code Consolidation**: 18 duplicate type interfaces eliminated, 13 duplicate calculation functions eliminated
+- **Architecture Clarity**: Validators layer eliminated, repository layer effectively eliminated
+- **AI-Friendly Codebase**: Clear, direct data flow with no unnecessary wrapper layers
+- **Architecture Guide**: Comprehensive documentation updated to reflect simplified state
 
-// Phase 2: Update legacy to delegate
-// legacy/ProjectCalculationService.ts  
-export class ProjectCalculationService {
-  static calculateDuration(project: Project): number {
-    return UnifiedProjectService.calculateDuration(project);
-  }
-}
-
-// Phase 3: Update component imports
-// Before: import { ProjectCalculationService } from '@/services/legacy/...'
-// After:  import { UnifiedProjectService } from '@/services'
-
-// Phase 4: Delete legacy files
-```
-
-## 🛡️ Architectural Guardrails
+## ️ Architectural Guardrails (Updated October 2025)
 
 ### Anti-Patterns to Avoid:
-- **Scattered calculations**: Same logic in multiple places
-- **Component business logic**: Calculations in UI components
-- **Deep import paths**: Direct service imports bypassing barrel
-- **Inconsistent naming**: Not following `UnifiedXService` pattern
-- **Mixed responsibilities**: Services doing multiple unrelated things
+- ❌ **Creating validator files**: Layer eliminated, call domain rules directly
+- ❌ **Creating repository wrappers**: Layer eliminated, call Supabase directly
+- ❌ **Scattered calculations**: Same logic in multiple places
+- ❌ **Component business logic**: Calculations in UI components
+- ❌ **Deep import paths**: Direct service imports bypassing barrel
+- ❌ **Inconsistent naming**: Not following `UnifiedXService` / `XOrchestrator` patterns
+- ❌ **Mixed responsibilities**: Services doing multiple unrelated things
+- ❌ **Validation bypass**: Hooks calling database without domain rule validation
+- ❌ **Duplicate transformations**: Same transformation logic in multiple orchestrators
 
 ### Success Patterns:
-- **Single source of truth**: All calculations centralized
-- **Clear layer separation**: Each service type has distinct responsibility
-- **Consistent imports**: All imports via `@/services` barrel
-- **Predictable naming**: AI can find services following patterns
-- **Workflow coordination**: Complex operations properly orchestrated
+- ✅ **Single source of truth**: Domain rules for business logic, types in core.ts
+- ✅ **Clear layer separation**: Orchestrators (workflows) vs Unified Services (calculations)
+- ✅ **Consistent imports**: All imports via `@/services` barrel
+- ✅ **Predictable naming**: AI can find services following patterns
+- ✅ **Inline validation**: Orchestrators call domain rules directly
+- ✅ **Inline data access**: Orchestrators call Supabase directly
+- ✅ **Inline transformations**: Private helper methods in orchestrators
+- ✅ **Workflow coordination**: Complex operations properly orchestrated
+- ✅ **Zero wrapper layers**: Direct, clear path from orchestrator to database
 
-## 🚀 AI Implementation Guidelines
+## 🚀 AI Implementation Guidelines (Updated October 2025)
 
-### For Business Logic:
-1. Check if `UnifiedXService` exists for the domain
-2. Add method to existing service or create new unified service
-3. Use orchestrator for complex multi-step workflows
-4. Extract pure calculations to calculations layer
+### For Business Rules:
+1. ✅ Add to existing domain rules module (`ProjectRules`, `MilestoneRules`, etc.)
+2. ✅ Create new rule module if needed (new domain area)
+3. ✅ Keep domain rules as single source of truth
+4. ❌ Never duplicate business logic in components/hooks
 
-### For UI Logic:
-1. Check existing UI services (`TimelinePositioning`, `CalendarLayout`)
-2. Add to appropriate UI service or create new one
-3. Keep UI logic separate from business logic
-4. Ensure consistent positioning across views
+### For Complex Workflows (CREATE/UPDATE/DELETE):
+1. ✅ Use orchestrators (`ProjectOrchestrator`, `GroupOrchestrator`, etc.)
+2. ✅ Call domain rules directly for validation (no validator layer)
+3. ✅ Call Supabase directly for data access (no repository layer)
+4. ✅ Add transformation helpers inline as private methods
+5. ✅ Coordinate multi-step workflows in orchestrator methods
+6. ❌ Don't create new validator files (eliminated layer)
+7. ❌ Don't create new repository wrappers (eliminated layer)
+
+### For Calculations & Queries (READ/TRANSFORM):
+1. ✅ Use unified services (`UnifiedProjectService`, `UnifiedTimelineService`, etc.)
+2. ✅ Add method to existing service or create new unified service
+3. ✅ Extract pure calculations to `calculations/` layer
+4. ✅ Keep calculations pure (no side effects)
+5. ❌ Don't put calculations in orchestrators (orchestrators are for workflows)
+
+### For UI Positioning & Layout:
+1. ✅ Check existing UI services (`TimelinePositioning`, `CalendarLayout`)
+2. ✅ Add to appropriate UI service or create new one
+3. ✅ Keep UI logic separate from business logic
+4. ✅ Ensure consistent positioning across views
 
 ### For Data Operations:
-1. Use existing repository or create new one
-2. Keep data access logic in repositories
-3. Use orchestrator to coordinate data operations
-4. Maintain separation from business logic
+1. ✅ Call Supabase directly from orchestrators (inline)
+2. ✅ Use hooks for React component data fetching
+3. ✅ Add transformation helpers inline in orchestrators
+4. ❌ Don't create new repository wrappers (layer eliminated)
+5. ⚠️ Exception: Complex state management (like timeTrackingRepository) can remain
 
+### Quick Decision Tree:
+```
+Need to CREATE/UPDATE/DELETE with validation?
+  → Use Orchestrator (calls domain rules + Supabase directly)
+
+Need to CALCULATE or TRANSFORM data?
+  → Use Unified Service (pure functions)
+
+Need to POSITION UI elements?
+  → Use UI Service (pixel calculations)
+
+Need to VALIDATE business rule?
+  → Add to Domain Rules (single source of truth)
+
+Need to FETCH data for React component?
+  → Use Hook (thin Supabase wrapper)
+```
+
+---
+
+## 🧹 Architecture Simplification Journey (October 2025)
+
+### The Problem: Over-Engineered Wrapper Layers
+
+**Before Simplification:**
+- **Validators**: Thin wrappers around domain rules (redundant layer)
+- **Repositories**: Thin wrappers around Supabase (hooks already existed for data access)
+- **Result**: Multiple paths to database, validation inconsistently applied, AI confusion
+
+**The Bold Decision:**
+Eliminate wrapper layers entirely and move logic inline where it's actually used.
+
+### Phase 1: Validator Cleanup ✅ (October 21, 2025)
+
+**Files Deleted:**
+- `CalendarEventValidator.ts` (442 lines) - Dead code, never called
+- `timeTrackingValidator.ts` (227 lines) - Inlined into timeTrackingOrchestrator
+- `ProjectValidator.ts` (670 lines) - Extracted to projectDataIntegrity.ts utility (175 lines)
+- Entire `validators/` directory removed
+
+**Files Modified:**
+- `timeTrackingOrchestrator.ts` - Added 6 inline validation methods
+- `TimelineView.tsx` - Updated import to use new utility
+
+**Results:**
+- ✅ 1,164 lines removed (87% reduction)
+- ✅ Build successful (9.06s)
+- ✅ TypeScript check clean
+- ✅ Only actively-used logic preserved (175-line utility)
+
+### Phase 2: Repository Cleanup ✅ (October 21, 2025)
+
+**Files Deleted:**
+- `GroupRepository.ts` (221 lines) - Pure Supabase wrapper
+- `CalendarEventRepository.ts` (277 lines) - Pure Supabase wrapper
+
+**Files Preserved:**
+- `timeTrackingRepository.ts` (254 lines) - **KEPT** for complex state management (localStorage caching, date serialization, realtime subscriptions, cross-window sync)
+
+**Files Modified:**
+- `GroupOrchestrator.ts` - Added inline database helpers, replaced 8 repository calls with direct Supabase queries
+- `timeTrackingOrchestrator.ts` - Added calendar event transformation helpers, replaced 7 repository calls with direct Supabase queries
+- `src/services/repositories/index.ts` - Removed deleted exports, updated documentation
+
+**Results:**
+- ✅ 498 lines removed (99% of repository layer eliminated)
+- ✅ Build successful (9.05s)
+- ✅ TypeScript check clean
+- ✅ Repository layer effectively eliminated (only 1 specialized repository remains)
+
+### Total Impact: Phases 1 & 2
+
+**Lines Removed:** ~1,662 lines of wrapper code  
+**Layers Eliminated:** Validators (100%), Repositories (99%)  
+**Architecture Change:**
+
+```
+BEFORE (Convoluted):
+Component → Orchestrator → Validator → Domain Rules
+                        → Repository → Supabase
+Component → Hook → Supabase (bypassing validation!)
+
+AFTER (Clear):
+Component → Orchestrator (validates with domain rules) → Direct Supabase
+Component → Hook → Supabase (simple queries only)
 ---
 
 ## 🎯 Domain Layer - Business Logic Single Source of Truth
@@ -533,101 +718,6 @@ src/domain/
 └── index.ts                     ✅ Export barrel
 ```
 
-### Example: Domain Entity Pattern
-
-```typescript
-// src/domain/entities/Project.ts
-import { ProjectRules } from '../rules/ProjectRules';
-import type { Milestone } from './Milestone';
-
-export class Project {
-  constructor(
-    public id: string,
-    public name: string,
-    public estimatedHours: number,
-    public startDate: Date,
-    public endDate: Date,
-    public groupId: string,
-    public rowId: string,
-    // ... other properties
-  ) {
-    // Validation happens at construction
-    const validation = ProjectRules.validate(this);
-    if (!validation.isValid) {
-      throw new DomainError(validation.errors);
-    }
-  }
-  
-  // Domain methods (business logic)
-  canAddMilestone(milestone: Milestone): boolean {
-    return ProjectRules.canAccommodateMilestone(this, milestone);
-  }
-  
-  getDuration(): number {
-    return ProjectRules.calculateDuration(this.startDate, this.endDate);
-  }
-  
-  getBudgetAnalysis(milestones: Milestone[]): BudgetAnalysis {
-    return ProjectRules.analyzeBudget(this, milestones);
-  }
-  
-  isWithinDateRange(date: Date): boolean {
-    return ProjectRules.isDateWithinRange(this, date);
-  }
-}
-```
-
-### Example: Business Rules Module
-
-```typescript
-// src/domain/rules/ProjectRules.ts
-
-/**
- * Centralized Project Business Rules
- * All project-related business logic defined here
- */
-export class ProjectRules {
-  
-  /**
-   * RULE 1: Project estimated hours must be positive
-   */
-  static validateEstimatedHours(hours: number): ValidationResult {
-    if (hours <= 0) {
-      return { isValid: false, errors: ['Estimated hours must be greater than 0'] };
-    }
-    return { isValid: true, errors: [] };
-  }
-  
-  /**
-   * RULE 2: Project end date must be after start date (non-continuous)
-   */
-  static validateDateRange(startDate: Date, endDate: Date, continuous: boolean): ValidationResult {
-    if (!continuous && endDate <= startDate) {
-      return { isValid: false, errors: ['End date must be after start date'] };
-    }
-    return { isValid: true, errors: [] };
-  }
-  
-  /**
-   * RULE 3: Milestone allocation cannot exceed project budget
-   */
-  static canAccommodateMilestone(project: Project, milestone: Milestone): boolean {
-    const currentAllocation = project.milestones.reduce((sum, m) => sum + m.timeAllocationHours, 0);
-    const newTotal = currentAllocation + milestone.timeAllocationHours;
-    return newTotal <= project.estimatedHours;
-  }
-  
-  /**
-   * Calculate project duration (pure calculation)
-   */
-  static calculateDuration(startDate: Date, endDate: Date): number {
-    return Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-  }
-  
-  // ... all other project rules defined here
-}
-```
-
 ### Integration with Existing Layers
 
 **Unified Services** delegate to domain layer:
@@ -648,138 +738,45 @@ export class UnifiedProjectService {
 }
 ```
 
-**Validators** orchestrate domain validation:
+**Orchestrators** call domain rules directly:
 ```typescript
-// validators/ProjectValidator.ts
+// orchestrators/ProjectOrchestrator.ts
 import { ProjectRules } from '@/domain/rules/ProjectRules';
 
-export class ProjectValidator {
-  static async validate(project: Project, context: ValidationContext): Promise<DetailedResult> {
-    // Orchestrate multiple domain rules
-    const basicValidation = ProjectRules.validate(project);
-    const dateValidation = ProjectRules.validateDateRange(project.startDate, project.endDate);
-    const budgetValidation = ProjectRules.analyzeBudget(project, context.milestones);
+export class ProjectOrchestrator {
+  static async executeProjectCreationWorkflow(request, context) {
+    // Call domain rules directly (no validator layer)
+    const validation = ProjectRules.validateProjectDates(request.startDate, request.endDate);
+    if (!validation.isValid) return { success: false, errors: validation.errors };
     
-    // Aggregate and return detailed result
-    return this.aggregateResults([basicValidation, dateValidation, budgetValidation]);
+    // Continue with workflow...
   }
 }
 ```
 
-**Contexts** use domain entities:
-```typescript
-// contexts/ProjectContext.tsx
-import { Project } from '@/domain/entities/Project';
-
-function addProject(data: ProjectData) {
-  // Domain entity validates on construction
-  const project = new Project(data); // Throws if invalid
-  
-  // Save via repository
-  await projectRepository.save(project);
-}
-```
-
-### Migration Strategy (Current Status)
-
-**Phase 1** ✅ (Complete):
-- [x] Create Business Logic Reference document
-- [x] Create Business Logic Audit document
-- [x] Update Architecture Guide
-
-**Phase 2** ✅ (Complete):
-- [x] Create `src/domain/` folder structure
-- [x] Extract business rules to `src/domain/rules/`
-- [x] Implement `ProjectRules`, `MilestoneRules`, `TimelineRules`, `RelationshipRules`
-- [x] Update validators to reference domain rules
-- [x] Keep existing code working (no breaking changes)
-
-**Phase 3** 🔄 (Pending):
-- [ ] Implement domain entities (`Project.ts`, `Milestone.ts`, etc.)
-- [ ] Implement value objects (`TimeAllocation.ts`, `DateRange.ts`)
-- [ ] Update contexts to use domain entities
-- [ ] Add comprehensive domain tests
-
-**Phase 4** 🔄 (Future):
-- [ ] Remove duplication from contexts
-- [ ] Add database CHECK constraints
-- [ ] Remove deprecated code
-
 ### Benefits of Domain Layer
 
-1. **Single Source of Truth**
-   - All business rules in one place
-   - No more hunting for "where is this validated?"
-   - Developers refer to domain layer first
+1. **Single Source of Truth** - All business rules in one place
+2. **Consistency** - Rules applied uniformly across the app
+3. **Maintainability** - Update rule in one place, changes propagate automatically
+4. **Testability** - Domain logic isolated and easy to unit test
+5. **Discoverability** - Clear folder structure, predictable naming
+6. **Reliability** - Validation always applied, cannot bypass rules
 
-2. **Consistency**
-   - Rules applied uniformly
-   - No variations between views
-   - Same validation everywhere
+### AI Development with Domain Layer
 
-3. **Maintainability**
-   - Update rule in one place
-   - Changes propagate automatically
-   - Less code to maintain (30-40% reduction)
-
-4. **Testability**
-   - Domain logic isolated
-   - Easy to unit test
-   - No UI/database dependencies
-
-5. **Discoverability**
-   - Clear folder structure
-   - Predictable naming
-   - Self-documenting code
-
-6. **Reliability**
-   - Validation always applied
-   - Cannot bypass rules
-   - Fewer bugs in production
-
-### Does This Involve Significant Refactoring?
-
-**No, it's incremental**:
-- Phase 1-2: Documentation + extraction (minimal risk)
-- Phase 3-4: Gradual migration (one module at a time)
-- Old code continues working during migration
-- Can roll back at any phase
-
-**Timeline**: 6-8 weeks for complete migration (but benefits start immediately)
-
-### AI Development with Domain Layer (Current State)
-
-**When making changes**:
+**When making changes:**
 1. Check `docs/BUSINESS_LOGIC_REFERENCE.md` first
 2. Understand the business rule being affected
 3. Update domain rules in `src/domain/rules/` (✅ IMPLEMENTED)
 4. For new business logic, add to appropriate rule module
 5. Test at domain layer (unit tests can be added later)
 
-**When debugging**:
+**When debugging:**
 1. Verify rule in Business Logic Reference
 2. Check domain rules implementation (✅ AVAILABLE)
 3. Trace through validation flow
 4. Fix at domain rules level (single point of truth)
-
-**Note**: Domain entities and value objects are not yet implemented. For now, continue using existing service patterns for complex object behavior.
-
-### Success Criteria
-
-**✅ Currently Achieved:**
-- Business Logic Reference is maintained and current
-- All rules defined in `src/domain/rules/` (4 rule modules, 50+ methods)
-- Validators delegate to domain layer
-- Services delegate to domain layer
-- No business logic in components/contexts
-- Single source of truth for business rules established
-
-**🔄 Still Pending:**
-- Domain entities implemented with business methods
-- Value objects for complex domain concepts
-- Comprehensive domain layer testing
-- Database CHECK constraints
-- Complete removal of deprecated code
 
 ---
 

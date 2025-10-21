@@ -20,7 +20,7 @@ import {
   calculateElapsedTime,
   createTimeRange,
   type EventSplitResult
-} from '@/services';
+} from '@/services/calculations/events/eventSplittingCalculations';
 
 export interface TrackingState {
   isTracking: boolean;
@@ -130,7 +130,7 @@ export class UnifiedTimeTrackerService {
    * Returns the active session if found, null otherwise
    */
   static async checkForActiveSession(): Promise<TimeTrackingState | null> {
-    return timeTrackingOrchestrator.checkForActiveSession();
+    return timeTrackingOrchestrator.checkForConflict();
   }
 
   // ===================================================================================

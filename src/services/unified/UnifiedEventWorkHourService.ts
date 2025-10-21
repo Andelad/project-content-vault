@@ -28,7 +28,7 @@ import { WorkHour, CalendarEvent } from '@/types';
 import { calculateAutoEstimateWorkingDays, calculateEventDurationOnDateLegacy as calculateEventDurationOnDate } from '@/services';
 import { memoizeExpensiveCalculation, timelineCalculationCache } from '../performance/cachePerformanceService';
 import { getCalendarEventBackgroundColor, getCalendarEventTextColor } from '@/constants/colors';
-import { ColorCalculationService } from '../infrastructure/colorCalculations';
+import { ColorCalculationService } from '../ui/ColorCalculations';
 
 /**
  * Clear the timeline calculation cache - useful when project settings change

@@ -7,7 +7,6 @@
  */
 
 import { CalendarEvent } from '@/types/core';
-import { CalendarEventValidator } from '../validators/CalendarEventValidator';
 
 export interface EventFormData {
   description: string;

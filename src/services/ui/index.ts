@@ -6,3 +6,6 @@ export * from './positioning/DragPositioning';
 
 // UI Coordination - High-level operation orchestration
 export * from './coordination/DragCoordinator';
+
+// UI Styling - Color calculations and style utilities
+export * from './ColorCalculations';

@@ -1,8 +1,8 @@
 /**
- * Event Validation Functions
+ * Event Splitting and Overlap Calculations
  * 
- * Extracted from eventSplittingService.ts - handles event splitting and validation logic
- * Part of unified validation layer for consistent business rules
+ * Pure calculation functions for event splitting, trimming, and overlap detection
+ * Used primarily by time tracking to handle planned event overlaps
  */
 
 import { 

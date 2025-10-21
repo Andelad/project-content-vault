@@ -1,19 +1,57 @@
 /**
- * Group Orchestrator - Phase 5A Repository Integration
+ * Group Orchestrator
  * 
- * Orchestrates complex group management workflows with repository integration.
- * Provides offline-first capabilities, intelligent caching, and performance optimization.
+ * Orchestrates complex group management workflows.
+ * Handles validation, business rules, and database operations.
  * 
- * Phase 5A Features:
- * ✅ Repository-based data access with caching
- * ✅ Offline-first operations with sync capabilities
- * ✅ Intelligent validation with business rules
- * ✅ Performance optimization with batching
- * ✅ Event-driven architecture for real-time updates
+ * Phase 2 Simplification:
+ * ✅ Direct Supabase access (no repository wrapper)
+ * ✅ Business rule validation
+ * ✅ Workflow coordination
  */
 
 import { Group } from '@/types/core';
-import { groupRepository } from '@/services/repositories/GroupRepository';
+import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
+import { calculateGroupStatistics } from '@/services/calculations';
+
+type GroupRow = Database['public']['Tables']['groups']['Row'];
+type GroupInsert = Database['public']['Tables']['groups']['Insert'];
+type GroupUpdate = Database['public']['Tables']['groups']['Update'];
+
+// =====================================================================================
+// DATABASE HELPERS (inline - no repository layer)
+// =====================================================================================
+
+function transformFromDatabase(dbGroup: GroupRow): Group {
+  return {
+    id: dbGroup.id,
+    name: dbGroup.name,
+    color: dbGroup.color,
+    description: dbGroup.description || undefined,
+    userId: dbGroup.user_id,
+    createdAt: new Date(dbGroup.created_at),
+    updatedAt: new Date(dbGroup.updated_at)
+  };
+}
+
+function transformToDatabase(group: Omit<Group, 'id' | 'createdAt' | 'updatedAt'>): GroupInsert {
+  return {
+    name: group.name,
+    color: group.color,
+    description: group.description || null,
+    user_id: group.userId
+  };
+}
+
+function transformUpdateToDatabase(updates: Partial<Group>): GroupUpdate {
+  const dbUpdates: GroupUpdate = {};
+  if (updates.name !== undefined) dbUpdates.name = updates.name;
+  if (updates.color !== undefined) dbUpdates.color = updates.color;
+  if (updates.description !== undefined) dbUpdates.description = updates.description || null;
+  dbUpdates.updated_at = new Date().toISOString();
+  return dbUpdates;
+}
 
 export interface GroupCreationRequest {
   name: string;
@@ -198,13 +236,16 @@ export class GroupOrchestrator {
         };
       }
 
-      // Step 2: Repository-based uniqueness validation
-      const isUnique = await groupRepository.validateGroupNameUnique(
-        request.name.trim(),
-        userId
-      );
+      // Step 2: Check name uniqueness (inline database check)
+      const { data: existingGroups, error: checkError } = await supabase
+        .from('groups')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('name', request.name.trim());
+
+      if (checkError) throw checkError;
       
-      if (!isUnique) {
+      if (existingGroups && existingGroups.length > 0) {
         return {
           success: false,
           errors: ['A group with this name already exists'],
@@ -215,24 +256,30 @@ export class GroupOrchestrator {
       // Step 3: Prepare group data following AI Development Rules
       const preparedGroup = this.prepareGroupForCreation(request);
 
-      // Step 4: Create group via repository (handles caching, offline, events)
-      const groupToCreate: Omit<Group, 'id'> = {
+      // Step 4: Create group (direct database call)
+      const groupToCreate: Omit<Group, 'id' | 'createdAt' | 'updatedAt'> = {
         name: preparedGroup.name,
         description: preparedGroup.description || '',
         color: preparedGroup.color,
-        userId: '', // Will be set by backend
-        createdAt: new Date(),
-        updatedAt: new Date()
+        userId: userId
       };
       
-      const createdGroup = await groupRepository.create(groupToCreate);
+      const dbData = transformToDatabase(groupToCreate);
+      const { data: createdData, error: createError } = await supabase
+        .from('groups')
+        .insert(dbData)
+        .select()
+        .single();
 
-      if (!createdGroup) {
+      if (createError) throw createError;
+      if (!createdData) {
         return {
           success: false,
           errors: ['Group creation failed - no group returned']
         };
       }
+
+      const createdGroup = transformFromDatabase(createdData);
 
       return {
         success: true,
@@ -263,14 +310,22 @@ export class GroupOrchestrator {
     userId: string
   ): Promise<GroupOperationResult> {
     try {
-      // Step 1: Get current group from repository (uses cache if available)
-      const currentGroup = await groupRepository.findById(request.id);
-      if (!currentGroup) {
+      // Step 1: Get current group (direct database call)
+      const { data: currentData, error: fetchError } = await supabase
+        .from('groups')
+        .select('*')
+        .eq('id', request.id)
+        .single();
+
+      if (fetchError && fetchError.code !== 'PGRST116') throw fetchError;
+      if (!currentData) {
         return {
           success: false,
           errors: ['Group not found']
         };
       }
+
+      const currentGroup = transformFromDatabase(currentData);
 
       // Step 2: Validate updates
       const validation = this.validateGroupUpdate(request, currentGroup);
@@ -282,15 +337,18 @@ export class GroupOrchestrator {
         };
       }
 
-      // Step 3: Repository-based uniqueness validation (if name is changing)
+      // Step 3: Check name uniqueness if name is changing (inline database check)
       if (request.name && request.name !== currentGroup.name) {
-        const isUnique = await groupRepository.validateGroupNameUnique(
-          request.name.trim(),
-          userId,
-          request.id
-        );
+        const { data: duplicates, error: checkError } = await supabase
+          .from('groups')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('name', request.name.trim())
+          .neq('id', request.id);
+
+        if (checkError) throw checkError;
         
-        if (!isUnique) {
+        if (duplicates && duplicates.length > 0) {
           return {
             success: false,
             errors: ['A group with this name already exists'],
@@ -302,20 +360,29 @@ export class GroupOrchestrator {
       // Step 4: Prepare group data
       const preparedUpdate = this.prepareGroupForUpdate(request);
 
-      // Step 5: Update group via repository
+      // Step 5: Update group (direct database call)
       const updatedData: Partial<Group> = {};
       if (preparedUpdate.name !== undefined) updatedData.name = preparedUpdate.name;
       if (preparedUpdate.description !== undefined) updatedData.description = preparedUpdate.description;
       if (preparedUpdate.color !== undefined) updatedData.color = preparedUpdate.color;
 
-      const updatedGroup = await groupRepository.update(request.id, updatedData);
+      const dbUpdates = transformUpdateToDatabase(updatedData);
+      const { data: updatedDbData, error: updateError } = await supabase
+        .from('groups')
+        .update(dbUpdates)
+        .eq('id', request.id)
+        .select()
+        .single();
 
-      if (!updatedGroup) {
+      if (updateError) throw updateError;
+      if (!updatedDbData) {
         return {
           success: false,
           errors: ['Group update failed - no group returned']
         };
       }
+
+      const updatedGroup = transformFromDatabase(updatedDbData);
 
       return {
         success: true,
@@ -338,13 +405,20 @@ export class GroupOrchestrator {
   }
 
   /**
-   * Get user's groups with performance optimization - Phase 5A
-   * ENHANCED with intelligent caching and batch loading
+   * Get user's groups
    */
   static async getUserGroupsWorkflow(userId: string): Promise<GroupOperationResult & { groups?: Group[] }> {
     try {
-      // Repository handles caching automatically
-      const groups = await groupRepository.findByUser(userId);
+      // Direct database call
+      const { data, error } = await supabase
+        .from('groups')
+        .select('*')
+        .eq('user_id', userId)
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+      
+      const groups = (data || []).map(transformFromDatabase);
       
       return {
         success: true,
@@ -366,8 +440,7 @@ export class GroupOrchestrator {
   }
 
   /**
-   * Delete group with relationship validation - Phase 5A
-   * ENHANCED with cascading relationship checks
+   * Delete group with relationship validation
    */
   static async executeGroupDeletionWorkflow(
     groupId: string,
@@ -375,14 +448,22 @@ export class GroupOrchestrator {
     projectCount: number = 0
   ): Promise<GroupOperationResult> {
     try {
-      // Step 1: Get current group from repository
-      const currentGroup = await groupRepository.findById(groupId);
-      if (!currentGroup) {
+      // Step 1: Get current group (direct database call)
+      const { data: currentData, error: fetchError } = await supabase
+        .from('groups')
+        .select('*')
+        .eq('id', groupId)
+        .single();
+
+      if (fetchError && fetchError.code !== 'PGRST116') throw fetchError;
+      if (!currentData) {
         return {
           success: false,
           errors: ['Group not found']
         };
       }
+
+      const currentGroup = transformFromDatabase(currentData);
 
       // Step 2: Validate deletion (business rules) - use empty projects array as we have project count
       const mockProjects = Array(projectCount).fill({ groupId: groupId });
@@ -395,8 +476,13 @@ export class GroupOrchestrator {
         };
       }
 
-      // Step 3: Delete via repository
-      await groupRepository.delete(groupId);
+      // Step 3: Delete group (direct database call)
+      const { error: deleteError } = await supabase
+        .from('groups')
+        .delete()
+        .eq('id', groupId);
+
+      if (deleteError) throw deleteError;
 
       return {
         success: true,
@@ -448,27 +534,8 @@ export class GroupOrchestrator {
     activeProjectCount: number;
     completedProjectCount: number;
   } {
-    const groupProjects = projects.filter(p => p.groupId === group.id);
-    const now = new Date();
-
-    const activeProjects = groupProjects.filter(p => {
-      const endDate = new Date(p.endDate);
-      return endDate >= now;
-    });
-
-    const completedProjects = groupProjects.filter(p => {
-      const endDate = new Date(p.endDate);
-      return endDate < now;
-    });
-
-    const totalEstimatedHours = groupProjects.reduce((sum, p) => sum + (p.estimatedHours || 0), 0);
-
-    return {
-      projectCount: groupProjects.length,
-      totalEstimatedHours,
-      activeProjectCount: activeProjects.length,
-      completedProjectCount: completedProjects.length
-    };
+    // Delegate to calculation function
+    return calculateGroupStatistics(group, projects);
   }
 
   /**
