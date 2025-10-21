@@ -4,3 +4,4 @@ export { ProfileView } from './ProfileView';
 export { PlannerView } from './PlannerView';
 export { TimelineView } from './TimelineView';
 export { ProjectsView } from './ProjectsView';
+export { FeedbackView } from './FeedbackView';

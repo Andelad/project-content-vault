@@ -12,6 +12,7 @@ const TimelineView = React.lazy(() => import('../views/TimelineView').then(modul
 const ProjectsView = React.lazy(() => import('../views/ProjectsView').then(module => ({ default: module.ProjectsView })));
 const InsightsView = React.lazy(() => import('../views/InsightsView').then(module => ({ default: module.InsightsView })));
 const ProfileView = React.lazy(() => import('../views/ProfileView').then(module => ({ default: module.ProfileView })));
+const FeedbackView = React.lazy(() => import('../views/FeedbackView').then(module => ({ default: module.FeedbackView })));
 const SettingsView = React.lazy(() => import('../settings/SettingsView').then(module => ({ default: module.SettingsView })));
 
 // Loading component for lazy-loaded views
@@ -39,6 +40,7 @@ export function MainAppLayout() {
       case 'insights': return 'Insights';
       case 'projects': return 'Projects';
       case 'profile': return 'Profile';
+      case 'feedback': return 'Feedback';
       case 'settings': return 'Settings';
       default: return 'Planner';
     }
@@ -56,6 +58,8 @@ export function MainAppLayout() {
         return <ProjectsView />;
       case 'profile':
         return <ProfileView />;
+      case 'feedback':
+        return <FeedbackView />;
       case 'settings':
         return <SettingsView />;
       default:

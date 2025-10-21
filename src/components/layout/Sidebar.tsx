@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTimelineContext } from '../../contexts/TimelineContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { Calendar, AlignLeft, Folders, Settings, ChevronLeft, ChevronRight, PieChart } from 'lucide-react';
+import { Calendar, AlignLeft, Folders, Settings, ChevronLeft, ChevronRight, PieChart, MessageCircle } from 'lucide-react';
 import { supabase } from '../../integrations/supabase/client';
 
 export function Sidebar() {
@@ -71,6 +71,11 @@ export function Sidebar() {
       label: 'Projects',
       icon: Folders,
     },
+    {
+      id: 'feedback' as const,
+      label: 'Feedback',
+      icon: MessageCircle,
+    },
   ];
 
   const bottomNavItems = [
@@ -108,9 +113,9 @@ export function Sidebar() {
       </div>
 
       {/* Main Navigation */}
-      <nav className={`flex-1 overflow-y-auto ${mainSidebarCollapsed ? 'px-[14px] py-[21px]' : 'px-6 pt-[21px] pb-4'}`}>
+      <nav className={`flex-1 overflow-y-auto ${mainSidebarCollapsed ? 'px-[14px] py-[21px]' : 'px-6 pt-[21px] pb-4'} flex flex-col`}>
         <ul className="space-y-2">
-          {mainNavItems.map((item) => {
+          {mainNavItems.filter(item => item.id !== 'feedback').map((item) => {
             const Icon = item.icon;
             return (
               <li key={item.id}>
@@ -118,8 +123,31 @@ export function Sidebar() {
                   onClick={() => setCurrentView(item.id)}
                   className={`${mainSidebarCollapsed ? 'w-9 h-9 flex items-center justify-center' : 'w-full h-9 flex items-center px-4'} rounded-lg transition-colors duration-200 ${
                     currentView === item.id
-                      ? 'bg-gray-300 text-gray-800'
-                      : 'text-gray-600 hover:bg-gray-200 hover:text-gray-800'
+                      ? 'bg-gray-200 text-gray-800'
+                      : 'text-gray-600 hover:bg-gray-150 hover:text-gray-800'
+                  }`}
+                  title={mainSidebarCollapsed ? item.label : undefined}
+                >
+                  <Icon className={`w-5 h-5 flex-shrink-0 ${!mainSidebarCollapsed ? 'mr-3' : ''}`} />
+                  {!mainSidebarCollapsed && <span className="font-medium">{item.label}</span>}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+        
+        {/* Feedback button aligned to bottom */}
+        <ul className="mt-auto space-y-2">
+          {mainNavItems.filter(item => item.id === 'feedback').map((item) => {
+            const Icon = item.icon;
+            return (
+              <li key={item.id}>
+                <button
+                  onClick={() => setCurrentView(item.id)}
+                  className={`${mainSidebarCollapsed ? 'w-9 h-9 flex items-center justify-center' : 'w-full h-9 flex items-center px-4'} rounded-lg transition-colors duration-200 ${
+                    currentView === item.id
+                      ? 'bg-gray-200 text-gray-800'
+                      : 'text-gray-600 hover:bg-gray-150 hover:text-gray-800'
                   }`}
                   title={mainSidebarCollapsed ? item.label : undefined}
                 >
@@ -141,8 +169,8 @@ export function Sidebar() {
               onClick={() => setCurrentView('profile')}
               className={`${mainSidebarCollapsed ? 'w-9 h-9 flex items-center justify-center' : 'w-full h-9 flex items-center px-4'} rounded-lg transition-colors duration-200 ${
                 currentView === 'profile'
-                  ? 'bg-gray-300 text-gray-800'
-                  : 'text-gray-600 hover:bg-gray-200 hover:text-gray-800'
+                  ? 'bg-gray-200 text-gray-800'
+                  : 'text-gray-600 hover:bg-gray-150 hover:text-gray-800'
               }`}
               title={mainSidebarCollapsed ? 'Profile' : undefined}
             >
@@ -174,8 +202,8 @@ export function Sidebar() {
                   onClick={() => setCurrentView(item.id)}
                   className={`${mainSidebarCollapsed ? 'w-9 h-9 flex items-center justify-center' : 'w-full h-9 flex items-center px-4'} rounded-lg transition-colors duration-200 ${
                     currentView === item.id
-                      ? 'bg-gray-300 text-gray-800'
-                      : 'text-gray-600 hover:bg-gray-200 hover:text-gray-800'
+                      ? 'bg-gray-200 text-gray-800'
+                      : 'text-gray-600 hover:bg-gray-150 hover:text-gray-800'
                   }`}
                   title={mainSidebarCollapsed ? item.label : undefined}
                 >
