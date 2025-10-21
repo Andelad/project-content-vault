@@ -202,9 +202,7 @@ export function ProjectsView() {
         result = await GroupOrchestrator.executeGroupUpdateWorkflow(
           {
             id: editingGroup.id,
-            name: groupName,
-            description: '',
-            color: '#6366f1'
+            name: groupName
           },
           user.id
         );
@@ -235,9 +233,7 @@ export function ProjectsView() {
         // Use GroupOrchestrator Phase 5A creation workflow
         result = await GroupOrchestrator.executeGroupCreationWorkflow(
           {
-            name: groupName,
-            description: '',
-            color: '#6366f1'
+            name: groupName
           },
           user.id
         );

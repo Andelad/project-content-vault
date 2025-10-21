@@ -191,6 +191,8 @@ export class UnifiedTimelineService {
       id: project.id || 'timeline-project',
       name: project.name || 'Timeline Project',
       color: project.color || '#3b82f6',
+      client: '', // Deprecated field (Phase 5B)
+      clientId: '', // Phase 5B: placeholder
       groupId: project.groupId || 'default-group',
       rowId: project.rowId || 'default-row',
       startDate: project.startDate,

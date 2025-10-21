@@ -13,13 +13,14 @@ function transformDatabaseProject(dbProject: DatabaseProject): Project {
   return {
     id: dbProject.id,
     name: dbProject.name,
-    clientId: dbProject.client,
+    client: dbProject.client, // Deprecated string field
+    clientId: dbProject.client_id || '', // New client reference (Phase 5B)
     startDate: new Date(dbProject.start_date),
     endDate: new Date(dbProject.end_date),
     estimatedHours: dbProject.estimated_hours,
     color: dbProject.color,
-    groupId: dbProject.group_id,
-    rowId: dbProject.row_id,
+    groupId: dbProject.group_id || undefined,
+    rowId: dbProject.row_id || undefined,
     notes: dbProject.notes || undefined,
     icon: dbProject.icon || undefined,
     continuous: dbProject.continuous ?? false,

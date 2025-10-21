@@ -627,10 +627,11 @@ export function ProjectMilestoneSection({
   // NEW: Enhanced project analysis using domain entities
   const projectHealthAnalysis = useMemo(() => {
     const validMilestones = projectMilestones.filter(m => m.id) as Milestone[];
-    const project = {
+    const project: Project = {
       id: projectId || 'new',
       name: 'Current Project',
-      client: '',
+      client: '', // Deprecated field
+      clientId: '', // Phase 5B: placeholder for analysis
       startDate: projectStartDate,
       endDate: projectEndDate,
       estimatedHours: projectEstimatedHours,
@@ -1096,6 +1097,8 @@ export function ProjectMilestoneSection({
         name: 'Project', // Placeholder since we only need the project for date calculations
         estimatedHours: projectEstimatedHours || 0,
         color: '#000000', // Placeholder
+        client: '', // Deprecated field (Phase 5B)
+        clientId: '', // Phase 5B: placeholder
         groupId: 'group', // Placeholder
         rowId: 'row', // Placeholder
         userId: '',
