@@ -22,8 +22,11 @@ import type { TimeTrackingState } from '@/types/timeTracking';
 import { toast } from '@/hooks/use-toast';
 interface TimeTrackerProps {
   className?: string;
+  isExpanded?: boolean;
+  onToggleExpanded?: () => void;
+  fadeBorder?: boolean;
 }
-export function TimeTracker({ className }: TimeTrackerProps) {
+export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fadeBorder = false }: TimeTrackerProps) {
   const { projects } = useProjectContext();
   const { events, addEvent, updateEvent, deleteEvent } = usePlannerContext();
   const { isTimeTracking, setIsTimeTracking, currentTrackingEventId, setCurrentTrackingEventId: setGlobalTrackingEventId } = useSettingsContext();
@@ -522,97 +525,111 @@ export function TimeTracker({ className }: TimeTrackerProps) {
     }
   };
   return (
-    <Card className={`bg-transparent shadow-none ${className}`}>
-      <CardContent className="p-3">
-        <div className="flex items-center gap-3">
-          {/* Search Input with Dropdown */}
-          <div className="relative" ref={dropdownRef}>
-            <Input
-              placeholder="What are you working on?"
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setShowSearchDropdown(true);
-              }}
-              onFocus={() => setShowSearchDropdown(true)}
-              className="w-64 h-9 bg-background cursor-text"
-              disabled={isTimeTracking}
-            />
-            <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            {/* Dropdown */}
-            {showSearchDropdown && (
-              <div className="absolute top-full left-0 w-64 mt-1 bg-popover border border-border rounded-md shadow-lg z-50">
-                <div className="max-h-64 overflow-y-auto">
-                  {searchResults.length > 0 ? (
-                    searchResults.map((item) => (
-                      <button
-                        key={`${item.type}-${item.id}`}
-                        className="w-full px-3 py-2 text-left hover:bg-accent/50 border-b border-border/30 last:border-b-0"
-                        onClick={() => handleSelectItem(item)}
-                      >
-                        <div className="flex items-center gap-2">
-                          {item.type === 'project' && (
-                            <div 
-                              className="w-3 h-3 rounded-full flex-shrink-0" 
-                              style={{ backgroundColor: projects.find(p => p.id === item.id)?.color || '#8B5CF6' }}
-                            />
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium truncate">
-                              {item.type === 'project' && item.client 
-                                ? `${item.name} • ${item.client}`
-                                : item.name
-                              }
+    <div 
+      className={`transition-all duration-500 ease-out ${className || ''}`}
+      style={{
+        maxHeight: isExpanded ? '200px' : '0',
+        opacity: isExpanded ? 1 : 0,
+        overflow: 'hidden',
+      }}
+    >
+      <Card 
+        className="bg-transparent shadow-none h-full transition-all duration-500"
+        style={{
+          borderColor: fadeBorder ? 'rgba(226, 226, 226, 0)' : undefined,
+        }}
+      >
+        <CardContent className="p-3 h-full flex items-center">
+          <div className="flex items-center gap-3 w-full">
+            {/* Search Input with Dropdown */}
+            <div className="relative flex-1" ref={dropdownRef}>
+              <Input
+                placeholder="What are you working on?"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setShowSearchDropdown(true);
+                }}
+                onFocus={() => setShowSearchDropdown(true)}
+                className="w-full h-9 bg-background cursor-text"
+                disabled={isTimeTracking}
+              />
+              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              {/* Dropdown */}
+              {showSearchDropdown && isExpanded && (
+                <div className="absolute top-full left-0 w-64 mt-1 bg-popover border border-border rounded-md shadow-lg z-[60]">
+                  <div className="max-h-64 overflow-y-auto">
+                    {searchResults.length > 0 ? (
+                      searchResults.map((item) => (
+                        <button
+                          key={`${item.type}-${item.id}`}
+                          className="w-full px-3 py-2 text-left hover:bg-accent/50 border-b border-border/30 last:border-b-0"
+                          onClick={() => handleSelectItem(item)}
+                        >
+                          <div className="flex items-center gap-2">
+                            {item.type === 'project' && (
+                              <div 
+                                className="w-3 h-3 rounded-full flex-shrink-0" 
+                                style={{ backgroundColor: projects.find(p => p.id === item.id)?.color || '#8B5CF6' }}
+                              />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium truncate">
+                                {item.type === 'project' && item.client 
+                                  ? `${item.name} • ${item.client}`
+                                  : item.name
+                                }
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </button>
-                    ))
-                  ) : searchQuery.trim() ? (
-                    <div className="px-3 py-4 text-sm text-muted-foreground text-center">
-                      No projects or clients found
-                    </div>
-                  ) : (
-                    <div className="px-3 py-4 text-sm text-muted-foreground text-center">
-                      Start typing to search projects and clients
-                    </div>
-                  )}
+                        </button>
+                      ))
+                    ) : searchQuery.trim() ? (
+                      <div className="px-3 py-4 text-sm text-muted-foreground text-center">
+                        No projects or clients found
+                      </div>
+                    ) : (
+                      <div className="px-3 py-4 text-sm text-muted-foreground text-center">
+                        Start typing to search projects and clients
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
+            {/* Timer Display */}
+            <div className="text-lg font-semibold tabular-nums text-[#595956] min-w-[5.5rem] text-center">
+              {formatTime(seconds)}
+            </div>
+            {/* Play/Stop Button */}
+            <Button
+              onClick={() => {
+                handleToggleTracking();
+              }}
+              size="sm"
+              className={`w-8 h-8 rounded-full p-0 transition-colors ${
+                isTimeTracking 
+                  ? 'bg-red-500 hover:bg-red-600 text-white' 
+                  : 'bg-primary hover:bg-primary/90 text-primary-foreground'
+              }`}
+            >
+              {isTimeTracking ? (
+                <Square className="h-3 w-3" fill="currentColor" />
+              ) : (
+                <Play className="h-3 w-3 ml-0.5" />
+              )}
+            </Button>
           </div>
-          {/* Timer Display */}
-          <div className="text-lg font-semibold tabular-nums text-[#595956] min-w-[5.5rem] text-center">
-            {formatTime(seconds)}
-          </div>
-          {/* Play/Stop Button */}
-          <Button
-            onClick={() => {
-              handleToggleTracking();
-            }}
-            size="sm"
-            className={`w-8 h-8 rounded-full p-0 transition-colors ${
-              isTimeTracking 
-                ? 'bg-red-500 hover:bg-red-600 text-white' 
-                : 'bg-primary hover:bg-primary/90 text-primary-foreground'
-            }`}
-          >
-            {isTimeTracking ? (
-              <Square className="h-3 w-3" fill="currentColor" />
-            ) : (
-              <Play className="h-3 w-3 ml-0.5" />
-            )}
-          </Button>
-        </div>
-        {conflictingSession && (
-          <ConflictDialog
-            isOpen={showConflictDialog}
-            onClose={handleCancelConflict}
-            activeSession={conflictingSession}
-            onStopAndStart={handleStopAndStartNew}
-          />
-        )}
-      </CardContent>
-    </Card>
+          {conflictingSession && (
+            <ConflictDialog
+              isOpen={showConflictDialog}
+              onClose={handleCancelConflict}
+              activeSession={conflictingSession}
+              onStopAndStart={handleStopAndStartNew}
+            />
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }

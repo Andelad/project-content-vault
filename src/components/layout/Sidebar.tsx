@@ -87,7 +87,7 @@ export function Sidebar() {
   ];
 
   return (
-    <div className={`${mainSidebarCollapsed ? 'w-16' : 'w-48'} h-screen bg-gray-50 border-r border-gray-200 flex flex-col transition-all duration-300 ease-in-out relative flex-shrink-0`}>
+    <div className={`${mainSidebarCollapsed ? 'w-16' : 'w-48'} h-full bg-gray-50 border-r border-gray-200 flex flex-col transition-all duration-300 ease-in-out relative flex-shrink-0`}>
       {/* Header */}
       <div className={`h-20 px-6 border-b border-gray-200 flex items-center ${mainSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
         {mainSidebarCollapsed ? (

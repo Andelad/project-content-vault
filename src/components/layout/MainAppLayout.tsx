@@ -1,4 +1,4 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, useState, useEffect } from 'react';
 import { Sidebar } from './Sidebar';
 import { AppHeader } from './AppHeader';
 import { useTimelineContext } from '../../contexts/TimelineContext';
@@ -26,12 +26,30 @@ const ViewLoader = () => (
 );
 
 export function MainAppLayout() {
-  const { currentView } = useTimelineContext();
+  const { currentView, mainSidebarCollapsed } = useTimelineContext();
   const { isTimeTracking } = useSettingsContext();
   const { lastAction } = usePlannerContext();
+  const [isTrackerExpanded, setIsTrackerExpanded] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
   
   // Use favicon hook to monitor global time tracking state
   useFavicon(isTimeTracking);
+  
+  // Detect tablet size (< 768px)
+  useEffect(() => {
+    const checkTablet = () => {
+      setIsTablet(window.innerWidth < 768);
+      // Auto-collapse on resize to desktop
+      if (window.innerWidth >= 768) {
+        setIsTrackerExpanded(false);
+      }
+    };
+    
+    checkTablet();
+    window.addEventListener('resize', checkTablet);
+    
+    return () => window.removeEventListener('resize', checkTablet);
+  }, []);
 
   const getViewTitle = () => {
     switch (currentView) {
@@ -69,17 +87,38 @@ export function MainAppLayout() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
-      <Sidebar />
-      <div className="flex-1 overflow-hidden flex flex-col">
-        <AppHeader 
-          currentView={currentView}
-          viewTitle={getViewTitle()}
-          lastAction={lastAction}
-        />
-        <div className="flex-1 overflow-hidden">
-          <Suspense fallback={<ViewLoader />}>
-            {renderCurrentView()}
-          </Suspense>
+      <div 
+        className="fixed left-0 bottom-0 z-30 transition-all duration-500 ease-out"
+        style={{
+          top: isTablet && isTrackerExpanded ? '84px' : '0',
+        }}
+      >
+        <Sidebar />
+      </div>
+      <div 
+        className="flex-1 overflow-hidden flex flex-col transition-all duration-300"
+        style={{
+          marginLeft: mainSidebarCollapsed ? '64px' : '192px', // w-16 = 64px, w-48 = 192px
+        }}
+      >
+        <div 
+          className="transition-all duration-500 ease-out"
+          style={{
+            paddingTop: isTablet && isTrackerExpanded ? '84px' : '0',
+          }}
+        >
+          <AppHeader 
+            currentView={currentView}
+            viewTitle={getViewTitle()}
+            lastAction={lastAction}
+            isTrackerExpanded={isTrackerExpanded}
+            onToggleTracker={() => setIsTrackerExpanded(!isTrackerExpanded)}
+          />
+          <div className="overflow-hidden" style={{ height: 'calc(100vh - 80px)' }}>
+            <Suspense fallback={<ViewLoader />}>
+              {renderCurrentView()}
+            </Suspense>
+          </div>
         </div>
       </div>
     </div>
