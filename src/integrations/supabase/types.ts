@@ -207,29 +207,62 @@ export type Database = {
           },
         ]
       }
+      clients: {
+        Row: {
+          billing_address: string | null
+          contact_email: string | null
+          contact_phone: string | null
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          billing_address?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          billing_address?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       groups: {
         Row: {
-          color: string
           created_at: string
-          description: string
           id: string
           name: string
           updated_at: string
           user_id: string
         }
         Insert: {
-          color: string
           created_at?: string
-          description: string
           id?: string
           name: string
           updated_at?: string
           user_id: string
         }
         Update: {
-          color?: string
           created_at?: string
-          description?: string
           id?: string
           name?: string
           updated_at?: string
@@ -265,6 +298,33 @@ export type Database = {
           notes?: string | null
           start_date?: string
           title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      labels: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name?: string
           updated_at?: string
           user_id?: string
         }
@@ -386,21 +446,55 @@ export type Database = {
         }
         Relationships: []
       }
+      project_labels: {
+        Row: {
+          created_at: string
+          label_id: string
+          project_id: string
+        }
+        Insert: {
+          created_at?: string
+          label_id: string
+          project_id: string
+        }
+        Update: {
+          created_at?: string
+          label_id?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_labels_label_id_fkey"
+            columns: ["label_id"]
+            isOneToOne: false
+            referencedRelation: "labels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_labels_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           auto_estimate_days: Json | null
           client: string
+          client_id: string
           color: string
           continuous: boolean | null
           created_at: string
           end_date: string
           estimated_hours: number
-          group_id: string
+          group_id: string | null
           icon: string | null
           id: string
           name: string
           notes: string | null
-          row_id: string
+          row_id: string | null
           start_date: string
           updated_at: string
           user_id: string
@@ -408,17 +502,18 @@ export type Database = {
         Insert: {
           auto_estimate_days?: Json | null
           client: string
+          client_id: string
           color: string
           continuous?: boolean | null
           created_at?: string
           end_date: string
           estimated_hours: number
-          group_id: string
+          group_id?: string | null
           icon?: string | null
           id?: string
           name: string
           notes?: string | null
-          row_id: string
+          row_id?: string | null
           start_date: string
           updated_at?: string
           user_id: string
@@ -426,22 +521,30 @@ export type Database = {
         Update: {
           auto_estimate_days?: Json | null
           client?: string
+          client_id?: string
           color?: string
           continuous?: boolean | null
           created_at?: string
           end_date?: string
           estimated_hours?: number
-          group_id?: string
+          group_id?: string | null
           icon?: string | null
           id?: string
           name?: string
           notes?: string | null
-          row_id?: string
+          row_id?: string | null
           start_date?: string
           updated_at?: string
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "projects_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "projects_group_id_fkey"
             columns: ["group_id"]

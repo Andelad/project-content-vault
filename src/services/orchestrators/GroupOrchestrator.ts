@@ -27,8 +27,6 @@ function transformFromDatabase(dbGroup: GroupRow): Group {
   return {
     id: dbGroup.id,
     name: dbGroup.name,
-    color: dbGroup.color,
-    description: dbGroup.description || undefined,
     userId: dbGroup.user_id,
     createdAt: new Date(dbGroup.created_at),
     updatedAt: new Date(dbGroup.updated_at)
@@ -38,8 +36,6 @@ function transformFromDatabase(dbGroup: GroupRow): Group {
 function transformToDatabase(group: Omit<Group, 'id' | 'createdAt' | 'updatedAt'>): GroupInsert {
   return {
     name: group.name,
-    color: group.color,
-    description: group.description || null,
     user_id: group.userId
   };
 }
@@ -47,23 +43,17 @@ function transformToDatabase(group: Omit<Group, 'id' | 'createdAt' | 'updatedAt'
 function transformUpdateToDatabase(updates: Partial<Group>): GroupUpdate {
   const dbUpdates: GroupUpdate = {};
   if (updates.name !== undefined) dbUpdates.name = updates.name;
-  if (updates.color !== undefined) dbUpdates.color = updates.color;
-  if (updates.description !== undefined) dbUpdates.description = updates.description || null;
   dbUpdates.updated_at = new Date().toISOString();
   return dbUpdates;
 }
 
 export interface GroupCreationRequest {
   name: string;
-  description?: string;
-  color: string;
 }
 
 export interface GroupUpdateRequest {
   id: string;
   name?: string;
-  description?: string;
-  color?: string;
 }
 
 export interface GroupOperationResult {
@@ -106,18 +96,6 @@ export class GroupOrchestrator {
       errors.push('Group name cannot exceed 100 characters');
     }
 
-    // Business rule: Validate color format
-    if (!request.color) {
-      errors.push('Group color is required');
-    } else if (!/^#[0-9A-F]{6}$/i.test(request.color)) {
-      errors.push('Group color must be a valid hex color');
-    }
-
-    // Business rule: Validate description length
-    if (request.description && request.description.length > 500) {
-      warnings.push('Group description is very long (>500 characters)');
-    }
-
     return {
       isValid: errors.length === 0,
       errors,
@@ -149,20 +127,6 @@ export class GroupOrchestrator {
       }
     }
 
-    // Validate color if provided
-    if (request.color !== undefined) {
-      if (!request.color) {
-        errors.push('Group color cannot be empty');
-      } else if (!/^#[0-9A-F]{6}$/i.test(request.color)) {
-        errors.push('Group color must be a valid hex color');
-      }
-    }
-
-    // Validate description if provided
-    if (request.description !== undefined && request.description && request.description.length > 500) {
-      warnings.push('Group description is very long (>500 characters)');
-    }
-
     // Business rule: Prevent modification of system groups
     if (currentGroup.id === 'work-group' || currentGroup.id === 'home-group') {
       if (request.name && request.name !== currentGroup.name) {
@@ -182,9 +146,7 @@ export class GroupOrchestrator {
    */
   static prepareGroupForCreation(request: GroupCreationRequest): GroupCreationRequest {
     return {
-      name: request.name.trim(),
-      description: request.description?.trim() || '',
-      color: request.color.toUpperCase()
+      name: request.name.trim()
     };
   }
 
@@ -198,14 +160,6 @@ export class GroupOrchestrator {
 
     if (request.name !== undefined) {
       prepared.name = request.name.trim();
-    }
-
-    if (request.description !== undefined) {
-      prepared.description = request.description.trim();
-    }
-
-    if (request.color !== undefined) {
-      prepared.color = request.color.toUpperCase();
     }
 
     return prepared;
@@ -259,8 +213,6 @@ export class GroupOrchestrator {
       // Step 4: Create group (direct database call)
       const groupToCreate: Omit<Group, 'id' | 'createdAt' | 'updatedAt'> = {
         name: preparedGroup.name,
-        description: preparedGroup.description || '',
-        color: preparedGroup.color,
         userId: userId
       };
       
@@ -363,8 +315,6 @@ export class GroupOrchestrator {
       // Step 5: Update group (direct database call)
       const updatedData: Partial<Group> = {};
       if (preparedUpdate.name !== undefined) updatedData.name = preparedUpdate.name;
-      if (preparedUpdate.description !== undefined) updatedData.description = preparedUpdate.description;
-      if (preparedUpdate.color !== undefined) updatedData.color = preparedUpdate.color;
 
       const dbUpdates = transformUpdateToDatabase(updatedData);
       const { data: updatedDbData, error: updateError } = await supabase

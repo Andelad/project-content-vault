@@ -40,13 +40,14 @@ export interface Milestone {
 export interface Project {
   id: string;
   name: string;
-  clientId?: string; // CHANGED: Now optional (was required) - like Toggl
+  client: string; // DEPRECATED: Keep for backward compatibility (Phase 5B)
+  clientId: string; // NEW: Required client reference (Phase 5B)
   startDate: Date;
   endDate: Date;
   estimatedHours: number;
   color: string;
-  groupId?: string; // CHANGED: Now optional (was required)
-  rowId?: string; // CHANGED: Now optional (will be removed later)
+  groupId?: string; // CHANGED: Optional (Phase 5B)
+  rowId?: string; // DEPRECATED: Keep for current timeline (Phase 5B)
   notes?: string;
   icon?: string; // Lucide icon name, defaults to 'folder'
   milestones?: Milestone[]; // Project milestones
@@ -64,6 +65,10 @@ export interface Project {
   userId: string;
   createdAt: Date;
   updatedAt: Date;
+  
+  // Populated by joins (Phase 5B)
+  clientData?: Client;
+  labels?: Label[];
 }
 
 export interface Row {
@@ -76,16 +81,18 @@ export interface Row {
 export interface Group {
   id: string;
   name: string;
-  color?: string; // Optional: kept for backward compatibility
-  description?: string; // Optional: kept for backward compatibility
   userId: string;
   createdAt: Date;
   updatedAt: Date;
+  // REMOVED (Phase 5B): color and description fields removed from database
 }
+
+export type ClientStatus = 'active' | 'inactive' | 'archived';
 
 export interface Client {
   id: string;
   name: string;
+  status: ClientStatus;
   contactEmail?: string;
   contactPhone?: string;
   billingAddress?: string;
