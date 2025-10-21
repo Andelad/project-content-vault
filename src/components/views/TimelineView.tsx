@@ -37,6 +37,7 @@ import { TimelineDateHeaders } from '../timeline/TimelineDateHeaders';
 import { TimelineBar } from '../timeline/TimelineBar';
 import { TimelineColumnMarkers } from '../timeline/TimelineColumnMarkers';
 import { UnifiedAvailabilityCircles } from '../timeline/UnifiedAvailabilityCircles';
+import { TabbedAvailabilityCard } from '../timeline/TabbedAvailabilityCard';
 import { TimelineScrollbar } from '../timeline/TimelineScrollbar';
 import { HoverableTimelineScrollbar } from '../timeline/HoverableTimelineScrollbar';
 import { TimelineAddProjectRow, AddHolidayRow } from '../timeline/AddProjectRow';
@@ -875,7 +876,7 @@ export function TimelineView() {
                 {/* Column Markers - covers timeline area only, doesn't scroll */}
                 <div className="absolute pointer-events-none" style={{
                   top: '48px', // Below date header
-                  bottom: '52px', // Above holiday row
+                  bottom: 0,
                   left: collapsed ? '48px' : '280px', // After sidebar
                   right: 0,
                   transition: 'left 300ms cubic-bezier(0.4, 0, 0.2, 1)',
@@ -1130,170 +1131,8 @@ export function TimelineView() {
                       </div> {/* End of Scrollable Content Layer */}
                     </div>
                   </div>
-                  {/* Fixed Add Holiday Row at bottom */}
-                  <div className="border-t border-gray-200 bg-yellow-200">
-                    <AddHolidayRow 
-                      dates={dates} 
-                      collapsed={collapsed} 
-                      isDragging={isDragging}
-                      dragState={dragState}
-                      handleHolidayMouseDown={handleHolidayMouseDown}
-                      mode={timelineMode}
-                    />
-                  </div>
                 </div>
-                {/* Hoverable Timeline Scrollbar - positioned above holiday row */}
-                <HoverableTimelineScrollbar
-                  viewportStart={viewportStart}
-                  setViewportStart={setViewportStart}
-                  setCurrentDate={setCurrentDate}
-                  VIEWPORT_DAYS={VIEWPORT_DAYS}
-                  isAnimating={isAnimating}
-                  setIsAnimating={setIsAnimating}
-                  sidebarWidth={collapsed ? 48 : 280}
-                  bottomOffset={54}
-                  isDragging={isDragging}
-                  stopAutoScroll={stopAutoScroll}
-                />
-              </Card>
-              {/* Availability Display Mode Toggle */}
-              <div className="mt-4 mb-4 flex justify-end">
-                <ToggleGroup
-                  type="single"
-                  value={availabilityDisplayMode}
-                  onValueChange={(value) => {
-                    if (value) {
-                      setAvailabilityDisplayMode(value as 'circles' | 'numbers');
-                    }
-                  }}
-                  variant="outline"
-                  className="border border-gray-200 rounded-lg h-9 p-1"
-                >
-                  <ToggleGroupItem value="circles" aria-label="Circles mode" className="px-2 py-1 h-7">
-                    <Circle className="w-4 h-4" />
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="numbers" aria-label="Numbers mode" className="px-2 py-1 h-7">
-                    <Hash className="w-4 h-4" />
-                  </ToggleGroupItem>
-                </ToggleGroup>
-              </div>
-              {/* Availability Timeline Card */}
-              <Card className="h-60 flex flex-col overflow-hidden relative">
-                {/* Column Markers - spans full availability card height */}
-                <div className="absolute pointer-events-none z-1" style={{
-                  top: 0,
-                  bottom: 0,
-                  left: collapsed ? '48px' : '280px', // After sidebar
-                  right: 0,
-                  transition: 'left 300ms cubic-bezier(0.4, 0, 0.2, 1)',
-                  willChange: 'left'
-                }}>
-                  <TimelineColumnMarkers dates={dates} mode={mode} />
-                  {/* Full-column holiday overlays for availability card */}
-                  <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }}>
-                    {holidays && holidays.length > 0 && holidays.map(holiday => {
-                      const expandedDates = expandHolidayDates([{ ...holiday, name: holiday.title || 'Holiday' }]);
-                      const columnWidth = mode === 'weeks' ? 77 : 40;
-                      const dayWidth = mode === 'weeks' ? 11 : columnWidth; // 11px per day in weeks mode
-                      const totalDays = mode === 'weeks' ? dates.length * 7 : dates.length;
-                      // Calculate day positions for the holiday
-                      const timelineStart = new Date(dates[0]);
-                      timelineStart.setHours(0,0,0,0);
-                      const msPerDay = 24 * 60 * 60 * 1000;
-                      const startDay = Math.floor((expandedDates[0].getTime() - timelineStart.getTime()) / msPerDay);
-                      const holidayDays = expandedDates.length;
-                      const startDayIndex = Math.max(0, startDay);
-                      const endDayIndex = Math.min(totalDays - 1, startDay + holidayDays - 1);
-                      if (endDayIndex < 0 || startDayIndex > totalDays - 1) return null;
-                      const leftPx = startDayIndex * dayWidth;
-                      const widthPx = (endDayIndex - startDayIndex + 1) * dayWidth;
-                      // More condensed pattern for weeks view (thinner lines, smaller gaps)
-                      const backgroundPattern = mode === 'weeks' 
-                        ? 'repeating-linear-gradient(-45deg, rgba(107,114,128,0.16) 0 1.5px, transparent 1.5px 4px)'
-                        : 'repeating-linear-gradient(-45deg, rgba(107,114,128,0.16) 0 2px, transparent 2px 6px)';
-                      return (
-                        <div
-                          key={`holiday-avail-${holiday.id}`}
-                          className="absolute top-0 bottom-0 pointer-events-none"
-                          style={{
-                            left: `${leftPx}px`,
-                            width: `${widthPx}px`,
-                            backgroundImage: backgroundPattern
-                          }}
-                        />
-                      );
-                    })}
-                  </div>
-                </div>
-                <div className="flex h-full">
-                  {/* Availability Sidebar */}
-                  <AvailabilitySidebar
-                    collapsed={collapsed}
-                    dates={dates}
-                  />
-                  {/* Availability Timeline Content */}
-                  <div className="flex-1 flex flex-col bg-white relative availability-timeline-content" style={{ 
-                    minWidth: mode === 'weeks'
-                      ? `${dates.length * 77}px`
-                      : `${dates.length * 40 + 40}px` // Add buffer for days mode
-                  }}>
-                    {/* Holiday Overlay */}
-                    {/* <HolidayOverlay dates={dates} type="availability" mode={mode} /> */}
-                    {/* Available Hours Row */}
-                    <div className="border-b border-gray-100 h-12">
-                      <UnifiedAvailabilityCircles
-                        dates={dates}
-                        projects={projects}
-                        settings={settings}
-                        type="available"
-                        mode={mode}
-                        displayMode={availabilityDisplayMode}
-                      />
-                    </div>
-                    {/* Overbooked Hours Row */}
-                    <div className="border-b border-gray-100 h-12">
-                      <UnifiedAvailabilityCircles
-                        dates={dates}
-                        projects={projects}
-                        settings={settings}
-                        type="busy"
-                        mode={mode}
-                        displayMode={availabilityDisplayMode}
-                      />
-                    </div>
-                    {/* Overtime Planned/Completed Row */}
-                    <div className="border-b border-gray-100 h-12">
-                      <UnifiedAvailabilityCircles
-                        dates={dates}
-                        settings={settings}
-                        type="overtime-planned"
-                        mode={mode}
-                        displayMode={availabilityDisplayMode}
-                      />
-                    </div>
-                    {/* Planned/Completed Row */}
-                    <div className="border-b border-gray-100 h-12">
-                      <UnifiedAvailabilityCircles
-                        dates={dates}
-                        settings={settings}
-                        type="total-planned"
-                        mode={mode}
-                        displayMode={availabilityDisplayMode}
-                      />
-                    </div>
-                    {/* Other Time Row */}
-                    <div className="h-12">
-                      <UnifiedAvailabilityCircles
-                        dates={dates}
-                        settings={settings}
-                        type="other-time"
-                        mode={mode}
-                        displayMode={availabilityDisplayMode}
-                      />
-                    </div>
-                  </div>
-                </div>
-                {/* Hoverable Timeline Scrollbar for availability card */}
+                {/* Hoverable Timeline Scrollbar */}
                 <HoverableTimelineScrollbar
                   viewportStart={viewportStart}
                   setViewportStart={setViewportStart}
@@ -1307,10 +1146,86 @@ export function TimelineView() {
                   stopAutoScroll={stopAutoScroll}
                 />
               </Card>
-              {/* Timeline Scrollbar - Outside the cards, at bottom of viewport */}
-              <div className="mt-4">
-                <PerformanceStatus className="mt-2" />
+              {/* Availability Timeline Card */}
+              <div className="relative mt-4">
+                <TabbedAvailabilityCard
+                  collapsed={collapsed}
+                  dates={dates}
+                  projects={projects}
+                  settings={settings}
+                  mode={mode}
+                  availabilityDisplayMode={availabilityDisplayMode}
+                  onDisplayModeChange={(mode) => setAvailabilityDisplayMode(mode)}
+                  columnMarkersOverlay={
+                    <>
+                      <TimelineColumnMarkers dates={dates} mode={mode} />
+                      {/* Full-column holiday overlays for availability card */}
+                      <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }}>
+                        {holidays && holidays.length > 0 && holidays.map(holiday => {
+                          const expandedDates = expandHolidayDates([{ ...holiday, name: holiday.title || 'Holiday' }]);
+                          const columnWidth = mode === 'weeks' ? 77 : 40;
+                          const dayWidth = mode === 'weeks' ? 11 : columnWidth; // 11px per day in weeks mode
+                          const totalDays = mode === 'weeks' ? dates.length * 7 : dates.length;
+                          // Calculate day positions for the holiday
+                          const timelineStart = new Date(dates[0]);
+                          timelineStart.setHours(0,0,0,0);
+                          const msPerDay = 24 * 60 * 60 * 1000;
+                          const startDay = Math.floor((expandedDates[0].getTime() - timelineStart.getTime()) / msPerDay);
+                          const holidayDays = expandedDates.length;
+                          const startDayIndex = Math.max(0, startDay);
+                          const endDayIndex = Math.min(totalDays - 1, startDay + holidayDays - 1);
+                          if (endDayIndex < 0 || startDayIndex > totalDays - 1) return null;
+                          const leftPx = startDayIndex * dayWidth;
+                          const widthPx = (endDayIndex - startDayIndex + 1) * dayWidth;
+                          // More condensed pattern for weeks view (thinner lines, smaller gaps)
+                          const backgroundPattern = mode === 'weeks' 
+                            ? 'repeating-linear-gradient(-45deg, rgba(107,114,128,0.16) 0 1.5px, transparent 1.5px 4px)'
+                            : 'repeating-linear-gradient(-45deg, rgba(107,114,128,0.16) 0 2px, transparent 2px 6px)';
+                          return (
+                            <div
+                              key={`holiday-avail-${holiday.id}`}
+                              className="absolute top-0 bottom-0 pointer-events-none"
+                              style={{
+                                left: `${leftPx}px`,
+                                width: `${widthPx}px`,
+                                backgroundImage: backgroundPattern
+                              }}
+                            />
+                          );
+                        })}
+                      </div>
+                    </>
+                  }
+                />
+                {/* Hoverable Timeline Scrollbar for availability card */}
+                <div className="relative" style={{ marginTop: '-1px' }}>
+                  <HoverableTimelineScrollbar
+                    viewportStart={viewportStart}
+                    setViewportStart={setViewportStart}
+                    setCurrentDate={setCurrentDate}
+                    VIEWPORT_DAYS={VIEWPORT_DAYS}
+                    isAnimating={isAnimating}
+                    setIsAnimating={setIsAnimating}
+                    sidebarWidth={collapsed ? 48 : 280}
+                    bottomOffset={0}
+                    isDragging={isDragging}
+                    stopAutoScroll={stopAutoScroll}
+                  />
+                </div>
               </div>
+              {/* Holiday Card */}
+              <Card className="mt-4 overflow-hidden shadow-sm border border-gray-200 relative">
+                <div className="bg-yellow-200">
+                  <AddHolidayRow 
+                    dates={dates} 
+                    collapsed={collapsed} 
+                    isDragging={isDragging}
+                    dragState={dragState}
+                    handleHolidayMouseDown={handleHolidayMouseDown}
+                    mode={timelineMode}
+                  />
+                </div>
+              </Card>
             </div>
           </AppPageLayout.Content>
         </AppPageLayout>

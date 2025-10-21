@@ -22,6 +22,8 @@ export { TimelineHeader } from './TimelineHeader';
 export { TimelineScrollbar } from './TimelineScrollbar';
 export { TimelineSidebar } from './TimelineSidebar';
 export { UnifiedAvailabilityCircles } from './UnifiedAvailabilityCircles';
+export { TabbedAvailabilityCard } from './TabbedAvailabilityCard';
+export { WorkloadGraph } from './WorkloadGraph';
 
 // Cleaned up - removed empty/deprecated files:
 // ✅ Removed: DraggableHolidayBar.tsx (deprecated, functionality moved to AddProjectRow)
