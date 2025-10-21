@@ -339,7 +339,7 @@ export function ProfileView() {
   };
 
   return (
-    <div className="h-full flex flex-col bg-[#f9f9f9]">
+    <div className="h-full flex flex-col bg-gray-50">
       {/* Content - Scrollable */}
       <div className="flex-1 overflow-auto light-scrollbar">
         <div className="p-8 space-y-8 max-w-4xl">

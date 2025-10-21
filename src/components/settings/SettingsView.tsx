@@ -176,7 +176,7 @@ export function SettingsView() {
   };
 
   return (
-    <AppPageLayout className="bg-[#f9f9f9]">
+    <AppPageLayout className="bg-gray-50">
       {/* Header */}
       <AppPageLayout.Header className="h-20 border-b border-[#e2e2e2] flex items-center justify-between px-8 flex-shrink-0">
         <div className="flex items-center space-x-6">

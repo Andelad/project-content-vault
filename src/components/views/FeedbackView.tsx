@@ -91,7 +91,7 @@ export function FeedbackView() {
   };
 
   return (
-    <AppPageLayout className="bg-[#f9f9f9]">
+    <AppPageLayout className="bg-gray-50">
       {/* Content - Scrollable */}
       <AppPageLayout.Content className="flex-1 overflow-auto light-scrollbar p-0">
         <div className="p-8 space-y-6 max-w-4xl">
