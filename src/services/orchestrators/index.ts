@@ -7,3 +7,4 @@ export * from './GroupOrchestrator';
 export * from './PlannerViewOrchestrator';
 export * from './recurringEventsOrchestrator';
 export * from './CalendarImportOrchestrator';
+export { timeTrackingOrchestrator } from './timeTrackingOrchestrator';

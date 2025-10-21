@@ -190,7 +190,6 @@ export class UnifiedTimelineService {
     const normalizedProject: Project = {
       id: project.id || 'timeline-project',
       name: project.name || 'Timeline Project',
-      client: '',
       color: project.color || '#3b82f6',
       groupId: project.groupId || 'default-group',
       rowId: project.rowId || 'default-row',

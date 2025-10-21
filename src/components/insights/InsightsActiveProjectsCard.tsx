@@ -76,7 +76,9 @@ export const InsightsActiveProjectsCard: React.FC<InsightsActiveProjectsCardProp
                       />
                       <div>
                         <div className="font-medium">{project.name}</div>
-                        <div className="text-sm text-gray-500">{project.client}</div>
+                        <div className="text-sm text-gray-500">
+                          {project.clientId ? `Client: ${project.clientId}` : 'No client'}
+                        </div>
                       </div>
                     </div>
 
@@ -127,7 +129,9 @@ export const InsightsActiveProjectsCard: React.FC<InsightsActiveProjectsCardProp
                         />
                         <div>
                           <div className="font-medium">{project.name}</div>
-                          <div className="text-sm text-gray-500">{project.client}</div>
+                          <div className="text-sm text-gray-500">
+                            {project.clientId ? `Client: ${project.clientId}` : 'No client'}
+                          </div>
                         </div>
                       </div>
 

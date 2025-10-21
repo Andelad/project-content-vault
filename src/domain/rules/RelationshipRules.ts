@@ -9,7 +9,7 @@
  * @see docs/BUSINESS_LOGIC_REFERENCE.md for complete relationship documentation
  */
 
-import type { Project, Milestone, Group, Row } from '@/types/core';
+import type { Project, Milestone, Group, Row, Client, Label } from '@/types/core';
 import { ProjectRules } from './ProjectRules';
 import { MilestoneRules } from './MilestoneRules';
 
@@ -181,43 +181,39 @@ export class RelationshipRules {
   // ==========================================================================
   
   /**
-   * RELATIONSHIP 3: Project must belong to valid Row and Group
+   * RELATIONSHIP 3: Project must belong to valid Client (if specified), and optionally to Group
    * 
-   * Business Logic Reference: Entity Relationships (Group → Row → Project)
+   * Business Logic Reference: Entity Relationships (Client → Project optional, Group → Project optional)
    * 
    * @param project - The project to validate
-   * @param row - The row it should belong to
-   * @param group - The group it should belong to
+   * @param client - The client it should belong to (undefined if no client)
+   * @param group - The group it optionally belongs to
    * @returns Validation result
    */
-  static validateProjectHierarchy(
+  static validateProjectRelationships(
     project: Project,
-    row: Row | undefined,
+    client: Client | undefined,
     group: Group | undefined
   ): RelationshipValidation {
     const errors: string[] = [];
     const warnings: string[] = [];
 
-    // Check if row exists and matches
-    if (!row) {
-      errors.push(`Project row (${project.rowId}) does not exist`);
-    } else if (project.rowId !== row.id) {
-      errors.push(`Project rowId mismatch: expected ${row.id}, got ${project.rowId}`);
+    // Check if client exists and matches (OPTIONAL)
+    if (project.clientId) {
+      if (!client) {
+        errors.push(`Project client (${project.clientId}) does not exist`);
+      } else if (project.clientId !== client.id) {
+        errors.push(`Project clientId mismatch: expected ${client.id}, got ${project.clientId}`);
+      }
     }
 
-    // Check if group exists and matches
-    if (!group) {
-      errors.push(`Project group (${project.groupId}) does not exist`);
-    } else if (project.groupId !== group.id) {
-      errors.push(`Project groupId mismatch: expected ${group.id}, got ${project.groupId}`);
-    }
-
-    // Check if row belongs to the correct group
-    if (row && group && row.groupId !== group.id) {
-      errors.push(
-        `Row ${row.id} does not belong to group ${group.id} ` +
-        `(row belongs to ${row.groupId})`
-      );
+    // Check if group exists and matches (OPTIONAL)
+    if (project.groupId) {
+      if (!group) {
+        errors.push(`Project group (${project.groupId}) does not exist`);
+      } else if (project.groupId !== group.id) {
+        errors.push(`Project groupId mismatch: expected ${group.id}, got ${project.groupId}`);
+      }
     }
 
     return {
@@ -228,7 +224,8 @@ export class RelationshipRules {
   }
 
   /**
-   * Validate row belongs to group
+   * @deprecated Rows are being phased out in favor of direct group-project relationships
+   * RELATIONSHIP: Row belongs to Group (legacy validation)
    * 
    * @param row - The row to validate
    * @param group - The group it should belong to
@@ -274,23 +271,26 @@ export class RelationshipRules {
   }
 
   /**
-   * Check for orphaned projects (row or group doesn't exist)
+   * Check for orphaned projects (client doesn't exist if specified, or optional group doesn't exist)
    * 
    * @param projects - All projects
-   * @param rows - All rows
-   * @param groups - All groups
+   * @param clients - All clients
+   * @param groups - All groups (optional check)
    * @returns List of orphaned project IDs
    */
   static findOrphanedProjects(
     projects: Project[],
-    rows: Row[],
+    clients: Client[],
     groups: Group[]
   ): string[] {
-    const rowIds = new Set(rows.map(r => r.id));
+    const clientIds = new Set(clients.map(c => c.id));
     const groupIds = new Set(groups.map(g => g.id));
     
     return projects
-      .filter(p => !rowIds.has(p.rowId) || !groupIds.has(p.groupId))
+      .filter(p => 
+        (p.clientId && !clientIds.has(p.clientId)) || // Client specified but doesn't exist
+        (p.groupId && !groupIds.has(p.groupId)) // Optional group specified but doesn't exist
+      )
       .map(p => p.id);
   }
 
@@ -322,8 +322,9 @@ export class RelationshipRules {
   static validateSystemIntegrity(context: {
     projects: Project[];
     milestones: Milestone[];
-    rows: Row[];
+    clients: Client[];
     groups: Group[];
+    labels?: Label[];
   }): HierarchyValidation {
     const errors: string[] = [];
     const orphanedEntities: string[] = [];
@@ -336,11 +337,7 @@ export class RelationshipRules {
     );
     const orphanedProjects = this.findOrphanedProjects(
       context.projects,
-      context.rows,
-      context.groups
-    );
-    const orphanedRows = this.findOrphanedRows(
-      context.rows,
+      context.clients,
       context.groups
     );
 
@@ -352,11 +349,6 @@ export class RelationshipRules {
     if (orphanedProjects.length > 0) {
       errors.push(`Found ${orphanedProjects.length} orphaned project(s)`);
       orphanedEntities.push(...orphanedProjects.map(id => `project:${id}`));
-    }
-
-    if (orphanedRows.length > 0) {
-      errors.push(`Found ${orphanedRows.length} orphaned row(s)`);
-      orphanedEntities.push(...orphanedRows.map(id => `row:${id}`));
     }
 
     // Check project-milestone budget constraints
@@ -408,25 +400,25 @@ export class RelationshipRules {
   }
 
   /**
-   * Check what would be affected by deleting a row
+   * Check what would be affected by deleting a client
    * 
    * Business Logic Reference: Cascade Behavior
-   * Deleting a row cascades to all its projects and their milestones
+   * Deleting a client cascades to all its projects and their milestones
    * 
-   * @param rowId - Row to delete
+   * @param clientId - Client to delete
    * @param projects - All projects
    * @param milestones - All milestones
    * @returns Impact summary
    */
-  static getRowDeletionImpact(
-    rowId: string,
+  static getClientDeletionImpact(
+    clientId: string,
     projects: Project[],
     milestones: Milestone[]
   ): {
     projectIds: string[];
     milestoneIds: string[];
   } {
-    const affectedProjects = projects.filter(p => p.rowId === rowId);
+    const affectedProjects = projects.filter(p => p.clientId === clientId);
     const projectIds = affectedProjects.map(p => p.id);
     const milestoneIds = milestones
       .filter(m => projectIds.includes(m.projectId))
@@ -439,32 +431,27 @@ export class RelationshipRules {
    * Check what would be affected by deleting a group
    * 
    * Business Logic Reference: Cascade Behavior
-   * Deleting a group cascades to all rows, projects, and milestones
+   * Deleting a group cascades to all its projects and their milestones
    * 
    * @param groupId - Group to delete
-   * @param rows - All rows
    * @param projects - All projects
    * @param milestones - All milestones
    * @returns Impact summary
    */
   static getGroupDeletionImpact(
     groupId: string,
-    rows: Row[],
     projects: Project[],
     milestones: Milestone[]
   ): {
-    rowIds: string[];
     projectIds: string[];
     milestoneIds: string[];
   } {
-    const affectedRows = rows.filter(r => r.groupId === groupId);
-    const rowIds = affectedRows.map(r => r.id);
     const affectedProjects = projects.filter(p => p.groupId === groupId);
     const projectIds = affectedProjects.map(p => p.id);
     const milestoneIds = milestones
       .filter(m => projectIds.includes(m.projectId))
       .map(m => m.id);
 
-    return { rowIds, projectIds, milestoneIds };
+    return { projectIds, milestoneIds };
   }
 }

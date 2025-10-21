@@ -40,13 +40,13 @@ export interface Milestone {
 export interface Project {
   id: string;
   name: string;
-  client: string;
+  clientId?: string; // CHANGED: Now optional (was required) - like Toggl
   startDate: Date;
   endDate: Date;
   estimatedHours: number;
   color: string;
-  groupId: string;
-  rowId: string; // Projects now belong to rows
+  groupId?: string; // CHANGED: Now optional (was required)
+  rowId?: string; // CHANGED: Now optional (will be removed later)
   notes?: string;
   icon?: string; // Lucide icon name, defaults to 'folder'
   milestones?: Milestone[]; // Project milestones
@@ -76,8 +76,29 @@ export interface Row {
 export interface Group {
   id: string;
   name: string;
-  description: string;
-  color: string;
+  color?: string; // Optional: kept for backward compatibility
+  description?: string; // Optional: kept for backward compatibility
+  userId: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Client {
+  id: string;
+  name: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  billingAddress?: string;
+  notes?: string;
+  userId: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Label {
+  id: string;
+  name: string;
+  color?: string;
   userId: string;
   createdAt: Date;
   updatedAt: Date;

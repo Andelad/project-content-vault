@@ -41,9 +41,18 @@ export function TimeTracker({ className }: TimeTrackerProps) {
   const startTimeRef = useRef<Date | null>(null);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const currentStateRef = useRef<any>(null); // Track current state for sync
-  // Storage keys from service
-  const STORAGE_KEYS = UnifiedTimeTrackerService.getStorageKeys();
-    // Load tracking state from database on mount - REVERTED TO WORKING PRE-ORCHESTRATION APPROACH
+  
+  // Storage keys - inline to avoid circular dependency issues
+  const STORAGE_KEYS = {
+    isTracking: 'timeTracker_isTracking',
+    startTime: 'timeTracker_startTime',
+    eventId: 'timeTracker_eventId',
+    selectedProject: 'timeTracker_selectedProject',
+    searchQuery: 'timeTracker_searchQuery',
+    affectedEvents: 'timeTracker_affectedEvents'
+  };
+  
+  // Load tracking state from database on mount - REVERTED TO WORKING PRE-ORCHESTRATION APPROACH
   useEffect(() => {
     // // console.log('🔍 TIMETRACKER - Mount: Loading state from Supabase only');
     // Clear legacy localStorage data (one-time migration)
@@ -282,7 +291,11 @@ export function TimeTracker({ className }: TimeTrackerProps) {
     if (item.type === 'project') {
       const project = projects.find(p => p.id === item.id);
       setSelectedProject(project);
-      searchQueryText = project ? `${project.name} • ${project.client}` : '';
+      searchQueryText = project 
+        ? project.client 
+          ? `${project.name} • ${project.client}` 
+          : project.name
+        : '';
       setSearchQuery(searchQueryText);
       selectedProjectData = project;
     } else {

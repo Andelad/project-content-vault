@@ -1094,7 +1094,6 @@ export function ProjectMilestoneSection({
         endDate: projectEndDate,
         continuous: projectContinuous,
         name: 'Project', // Placeholder since we only need the project for date calculations
-        client: 'Client', // Placeholder
         estimatedHours: projectEstimatedHours || 0,
         color: '#000000', // Placeholder
         groupId: 'group', // Placeholder

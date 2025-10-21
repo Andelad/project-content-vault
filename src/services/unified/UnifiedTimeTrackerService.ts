@@ -13,7 +13,6 @@
  */
 
 import { CalendarEvent } from '@/types/core';
-import { calculateOverlapActions, findOverlappingEvents } from '@/services';
 import { calculateDurationHours } from '@/services/calculations/general/dateCalculations';
 import {
   processEventOverlaps,
@@ -238,8 +237,10 @@ export class UnifiedTimeTrackerService {
 
     // Search projects
     projects.forEach(project => {
-      if (project.name.toLowerCase().includes(query) ||
-          project.client.toLowerCase().includes(query)) {
+      const matchesName = project.name.toLowerCase().includes(query);
+      const matchesClient = project.client?.toLowerCase().includes(query) ?? false;
+      
+      if (matchesName || matchesClient) {
         results.push({
           type: 'project',
           id: project.id,
@@ -249,10 +250,10 @@ export class UnifiedTimeTrackerService {
       }
     });
 
-    // Search unique clients
-    const uniqueClients = Array.from(new Set(projects.map(p => p.client)));
+    // Search unique clients (filter out undefined/null clients)
+    const uniqueClients = Array.from(new Set(projects.map(p => p.client).filter(Boolean)));
     uniqueClients.forEach(client => {
-      if (client.toLowerCase().includes(query) &&
+      if (client && client.toLowerCase().includes(query) &&
           !results.some(r => r.type === 'client' && r.name === client)) {
         results.push({
           type: 'client',

@@ -1,6 +1,5 @@
 import { timeTrackingRepository } from '../repositories/timeTrackingRepository';
 import { timeTrackingCalculations } from '../calculations/tracking/timeTrackingCalculations';
-import { UnifiedTimeTrackerService } from '../unified/UnifiedTimeTrackerService';
 import type { TimeTrackingState } from '../../types/timeTracking';
 import type { CalendarEvent } from '../../types/core';
 import { supabase } from '../../integrations/supabase/client';

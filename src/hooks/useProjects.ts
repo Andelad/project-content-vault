@@ -13,7 +13,7 @@ function transformDatabaseProject(dbProject: DatabaseProject): Project {
   return {
     id: dbProject.id,
     name: dbProject.name,
-    client: dbProject.client,
+    clientId: dbProject.client,
     startDate: new Date(dbProject.start_date),
     endDate: new Date(dbProject.end_date),
     estimatedHours: dbProject.estimated_hours,
@@ -53,7 +53,7 @@ function transformToDatabase(projectData: any): any {
   const dbData: any = {};
   
   if (projectData.name !== undefined) dbData.name = projectData.name;
-  if (projectData.client !== undefined) dbData.client = projectData.client;
+  if (projectData.clientId !== undefined) dbData.client = projectData.clientId;
   if (projectData.startDate !== undefined) {
     dbData.start_date = projectData.startDate instanceof Date 
       ? projectData.startDate.toISOString().split('T')[0] 

@@ -142,8 +142,6 @@ export function ProjectsView() {
   const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<Group | null>(null);
   const [groupName, setGroupName] = useState('');
-  const [groupDescription, setGroupDescription] = useState('');
-  const [groupColor, setGroupColor] = useState('#6366f1');
 
   // Project dialog state
   const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
@@ -173,16 +171,12 @@ export function ProjectsView() {
   const handleAddGroup = () => {
     setEditingGroup(null);
     setGroupName('');
-    setGroupDescription('');
-    setGroupColor('#6366f1');
     setIsGroupDialogOpen(true);
   };
 
   const handleEditGroup = (group: Group) => {
     setEditingGroup(group);
     setGroupName(group.name);
-    setGroupDescription(group.description || '');
-    setGroupColor(group.color);
     setIsGroupDialogOpen(true);
   };
 
@@ -209,8 +203,8 @@ export function ProjectsView() {
           {
             id: editingGroup.id,
             name: groupName,
-            description: groupDescription,
-            color: groupColor
+            description: '',
+            color: '#6366f1'
           },
           user.id
         );
@@ -242,8 +236,8 @@ export function ProjectsView() {
         result = await GroupOrchestrator.executeGroupCreationWorkflow(
           {
             name: groupName,
-            description: groupDescription,
-            color: groupColor
+            description: '',
+            color: '#6366f1'
           },
           user.id
         );
@@ -295,8 +289,6 @@ export function ProjectsView() {
   const resetGroupForm = () => {
     setEditingGroup(null);
     setGroupName('');
-    setGroupDescription('');
-    setGroupColor('#6366f1');
   };
 
   // Project management functions
@@ -315,7 +307,7 @@ export function ProjectsView() {
   const handleEditProject = (project: Project) => {
     setEditingProject(project);
     setProjectName(project.name);
-    setProjectClient(project.client);
+    setProjectClient(project.clientId || '');
     setProjectGroupId(project.groupId || 'work-group');
     setProjectStartDate(project.startDate.toISOString().split('T')[0]);
     setProjectEndDate(project.endDate.toISOString().split('T')[0]);
@@ -439,7 +431,7 @@ export function ProjectsView() {
               <div className="min-w-0 flex-1">
                 <CardTitle className="text-sm font-medium truncate">{project.name}</CardTitle>
                 <CardDescription className="text-xs truncate">
-                  {project.client}
+                  {project.clientId || 'No client'}
                 </CardDescription>
               </div>
             </div>
@@ -498,7 +490,9 @@ export function ProjectsView() {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <h3 className="font-medium text-gray-900 truncate text-sm">{project.name}</h3>
-                  <span className="text-xs text-gray-600 whitespace-nowrap">{project.client}</span>
+                  <span className="text-xs text-gray-600 whitespace-nowrap">
+                    {project.clientId || 'No client'}
+                  </span>
                 </div>
               </div>
             </div>
@@ -596,15 +590,9 @@ export function ProjectsView() {
                         ) : (
                           <ChevronDown className="w-3 h-3 text-gray-500" />
                         )}
-                        <div 
-                          className="w-3 h-3 rounded-full" 
-                          style={{ backgroundColor: group.color }}
-                        />
+                        <FolderPlus className="w-3 h-3 text-gray-500" />
                         <div>
                           <h3 className="text-md font-medium text-gray-900">{group.name}</h3>
-                          {group.description && (
-                            <p className="text-xs text-gray-600 mt-1">{group.description}</p>
-                          )}
                         </div>
                         <Badge variant="outline" className="text-xs">
                           {groupProjects.length}
@@ -686,15 +674,9 @@ export function ProjectsView() {
                         ) : (
                           <ChevronDown className="w-3 h-3 text-gray-500" />
                         )}
-                        <div 
-                          className="w-3 h-3 rounded-full" 
-                          style={{ backgroundColor: group.color }}
-                        />
+                        <FolderPlus className="w-3 h-3 text-gray-500" />
                         <div>
                           <h3 className="text-md font-medium text-gray-900">{group.name}</h3>
-                          {group.description && (
-                            <p className="text-xs text-gray-600 mt-1">{group.description}</p>
-                          )}
                         </div>
                         <Badge variant="outline" className="text-xs">
                           {groupProjects.length}
@@ -775,15 +757,9 @@ export function ProjectsView() {
                         ) : (
                           <ChevronDown className="w-3 h-3 text-gray-500" />
                         )}
-                        <div 
-                          className="w-3 h-3 rounded-full" 
-                          style={{ backgroundColor: group.color }}
-                        />
+                        <FolderPlus className="w-3 h-3 text-gray-500" />
                         <div>
                           <h3 className="text-md font-medium text-gray-900">{group.name}</h3>
-                          {group.description && (
-                            <p className="text-xs text-gray-600 mt-1">{group.description}</p>
-                          )}
                         </div>
                         <Badge variant="outline" className="text-xs">
                           {groupProjects.length}

@@ -9,3 +9,5 @@ export * from './ProjectRules';
 export * from './MilestoneRules';
 export * from './RelationshipRules';
 export * from './TimelineRules';
+export * from './ClientRules';
+export * from './LabelRules';
