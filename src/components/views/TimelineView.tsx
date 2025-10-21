@@ -23,7 +23,11 @@ import {
   createSmoothDragAnimation, 
   debounceDragUpdate, 
   throttleDragUpdate,
-  type SmoothAnimationConfig 
+  type SmoothAnimationConfig,
+  TimelineDragCoordinatorService,
+  initializeDragState,
+  initializeHolidayDragState,
+  type DragState as ServiceDragState
 } from '@/services';
 import { TIMELINE_CONSTANTS, BRAND_COLORS } from '@/constants';
 import { PerformanceMetrics, throttledDragUpdate, clearDragQueue, throttledVisualUpdate } from '@/services';
@@ -496,129 +500,110 @@ export function TimelineView() {
       setViewportStart(newViewportStart);
     }
   }, [currentDate, viewportStart, VIEWPORT_DAYS, timelineMode]);
-  // Mouse handlers for timeline bar interactions
+  // Mouse handlers for timeline bar interactions - using unified drag system
   const handleMouseDown = useCallback((e: React.MouseEvent, projectId: string, action: string) => {
     // 🚫 PREVENT BROWSER DRAG-AND-DROP: Stop the globe/drag indicator
     e.preventDefault();
     e.stopPropagation();
     const targetProject = projects.find(p => p.id === projectId);
     if (!targetProject) return;
-    const initialDragState = {
-      projectId,
+    
+    // Initialize drag state using unified service
+    const initialDragState = initializeDragState(
+      {
+        id: projectId,
+        startDate: targetProject.startDate,
+        endDate: targetProject.endDate
+      },
       action,
-      startX: e.clientX,
-      lastMouseX: e.clientX,
-      startY: e.clientY,
-      originalStartDate: new Date(targetProject.startDate),
-      originalEndDate: new Date(targetProject.endDate),
-      lastDaysDelta: 0,
-      pixelDeltaX: 0,
-      lastSnappedDelta: 0,
-      lastVisualUpdate: 0 // Track last visual update time for throttling
-    };
+      e.clientX,
+      e.clientY,
+      timelineMode
+    );
+    
     setIsDragging(true);
     setDragState(initialDragState);
-  const handleMouseMove = (e: MouseEvent) => {
+    
+    const handleMouseMove = (e: MouseEvent) => {
       try {
-        // 🚫 PREVENT BROWSER DRAG BEHAVIOR: Stop any default drag actions
+        // 🚫 PREVENT BROWSER DRAG BEHAVIOR
         e.preventDefault();
-        // DEBUG: Confirm drag handler is being called
-        if (Math.abs(e.clientX - initialDragState.lastMouseX) > 1) {
-          // Drag handler called - processing movement
-        }
-        // Calculate incremental delta from last mouse position (prevents overshoot)
-        const incrementalDeltaX = e.clientX - initialDragState.lastMouseX;
-        const totalDeltaX = e.clientX - initialDragState.startX;
-        const dayWidth = timelineMode === 'weeks' ? 11 : 40;
-        // Always accumulate smooth movement for responsive pen/mouse following
-        const currentPixelDeltaX = (initialDragState.pixelDeltaX || 0) + incrementalDeltaX;
-        const smoothVisualDelta = currentPixelDeltaX / dayWidth;
-        // For visual display: snap to day boundaries in days view, smooth in weeks view
-        let visualDelta;
-        if (timelineMode === 'weeks') {
-          visualDelta = smoothVisualDelta;  // Smooth movement in weeks
-        } else {
-          // In days view: snap to nearest day boundary but prevent jumping
-          const snappedDelta = Math.round(smoothVisualDelta);
-          // Only update the snapped position if we've moved enough to cross a boundary
-          const currentSnapped = initialDragState.lastSnappedDelta || 0;
-          const minMovement = 0.3; // Require 30% of day width movement to snap
-          if (Math.abs(snappedDelta - currentSnapped) >= 1 && Math.abs(smoothVisualDelta - currentSnapped) > minMovement) {
-            visualDelta = snappedDelta;
-            initialDragState.lastSnappedDelta = snappedDelta;
-          } else {
-            visualDelta = currentSnapped; // Stay at current snapped position until boundary crossed
+        
+        // Use unified drag coordinator for all calculations
+        const result = TimelineDragCoordinatorService.coordinateDragOperation(
+          dragState || initialDragState,
+          e,
+          {
+            projects,
+            viewportStart,
+            viewportEnd,
+            timelineMode,
+            dates
           }
-        }
-        // Calculate rounded delta for database updates only
-        const daysDelta = calculateDaysDelta(e.clientX, initialDragState.startX, dates, true, timelineMode);
-        // DEBUG: Always log drag events to see if handler is being called
-        // Drag move event processed
-        // Update last mouse position for next incremental calculation
-        initialDragState.lastMouseX = e.clientX;
+        );
+        
         // Check for auto-scroll during drag
-        checkAutoScroll(e.clientX);
-        // Use service for throttled visual updates to improve performance
-        throttledVisualUpdate(() => {
-          setDragState(prev => ({ 
-            ...prev, 
-            daysDelta: visualDelta,  // Use calculated visual delta
-            pixelDeltaX: currentPixelDeltaX  // Accumulate smooth movement
-          }));
-        }, timelineMode);
-        // BACKGROUND persistence (throttled database updates)
-        if (daysDelta !== initialDragState.lastDaysDelta) {
-          // Use mode-specific throttling for better performance
-          const throttleMs = timelineMode === 'weeks' ? 100 : 50; // Longer throttle for weeks mode
-                  throttledDragUpdate(async () => {
-                    if (action === 'resize-start-date') {
-                      const newStartDate = new Date(initialDragState.originalStartDate);
-                      newStartDate.setDate(newStartDate.getDate() + daysDelta);
-                      const endDate = new Date(initialDragState.originalEndDate);
-                      const oneDayBefore = new Date(endDate);
-                      oneDayBefore.setDate(endDate.getDate() - 1);
-                      // Simple validation - ensure start date is before end date
-                      if (newStartDate <= oneDayBefore) {
-                        updateProject(projectId, { startDate: newStartDate }, { silent: true });
-                      }
-                    } else if (action === 'resize-end-date') {
-                      const newEndDate = new Date(initialDragState.originalEndDate);
-                      newEndDate.setDate(newEndDate.getDate() + daysDelta);
-                      const startDate = new Date(initialDragState.originalStartDate);
-                      const oneDayAfter = new Date(startDate);
-                      oneDayAfter.setDate(startDate.getDate() + 1);
-                      // Simple validation - ensure end date is after start date
-                      if (newEndDate >= oneDayAfter) {
-                        updateProject(projectId, { endDate: newEndDate }, { silent: true });
-                      }
-                    } else if (action === 'move') {
-                      const newStartDate = new Date(initialDragState.originalStartDate);
-                      const newEndDate = new Date(initialDragState.originalEndDate);
-                      newStartDate.setDate(newStartDate.getDate() + daysDelta);
-                      newEndDate.setDate(newEndDate.getDate() + daysDelta);
-                      // Update project and all milestones in parallel
-                      const projectUpdate = updateProject(projectId, { 
-                        startDate: newStartDate,
-                        endDate: newEndDate 
-                      }, { silent: true });
-                      const projectMilestones = milestones.filter(m => m.projectId === projectId);
-                      const milestoneUpdates = projectMilestones.map(milestone => {
-                        const originalMilestoneDate = new Date(milestone.dueDate);
-                        const newMilestoneDate = new Date(originalMilestoneDate);
-                        newMilestoneDate.setDate(originalMilestoneDate.getDate() + daysDelta);
-                        return updateMilestone(milestone.id, { 
-                          dueDate: new Date(newMilestoneDate.toISOString().split('T')[0] + 'T00:00:00+00:00')
-                        }, { silent: true });
-                      });
-                      Promise.all([projectUpdate, ...milestoneUpdates]);
-                    }
-                  }, throttleMs);
-                  initialDragState.lastDaysDelta = daysDelta;
-                }
-              } catch (error) {
-                console.error('🚨 PROJECT DRAG ERROR:', error);
+        if (result.autoScrollConfig?.shouldScroll) {
+          checkAutoScroll(e.clientX);
+        }
+        
+        // Update visual state if needed
+        if (result.shouldUpdate) {
+          throttledVisualUpdate(() => {
+            setDragState(result.newDragState);
+          }, timelineMode);
+        }
+        
+        // Handle background persistence (throttled database updates)
+        const daysDelta = result.newDragState.lastDaysDelta;
+        if (daysDelta !== (dragState?.lastDaysDelta || 0)) {
+          const throttleMs = timelineMode === 'weeks' ? 100 : 50;
+          throttledDragUpdate(async () => {
+            if (action === 'resize-start-date') {
+              const newStartDate = new Date(initialDragState.originalStartDate);
+              newStartDate.setDate(newStartDate.getDate() + daysDelta);
+              const endDate = new Date(initialDragState.originalEndDate);
+              const oneDayBefore = new Date(endDate);
+              oneDayBefore.setDate(endDate.getDate() - 1);
+              if (newStartDate <= oneDayBefore) {
+                updateProject(projectId, { startDate: newStartDate }, { silent: true });
               }
-            };
+            } else if (action === 'resize-end-date') {
+              const newEndDate = new Date(initialDragState.originalEndDate);
+              newEndDate.setDate(newEndDate.getDate() + daysDelta);
+              const startDate = new Date(initialDragState.originalStartDate);
+              const oneDayAfter = new Date(startDate);
+              oneDayAfter.setDate(startDate.getDate() + 1);
+              if (newEndDate >= oneDayAfter) {
+                updateProject(projectId, { endDate: newEndDate }, { silent: true });
+              }
+            } else if (action === 'move') {
+              const newStartDate = new Date(initialDragState.originalStartDate);
+              const newEndDate = new Date(initialDragState.originalEndDate);
+              newStartDate.setDate(newStartDate.getDate() + daysDelta);
+              newEndDate.setDate(newEndDate.getDate() + daysDelta);
+              // Update project and all milestones in parallel
+              const projectUpdate = updateProject(projectId, { 
+                startDate: newStartDate,
+                endDate: newEndDate 
+              }, { silent: true });
+              const projectMilestones = milestones.filter(m => m.projectId === projectId);
+              const milestoneUpdates = projectMilestones.map(milestone => {
+                const originalMilestoneDate = new Date(milestone.dueDate);
+                const newMilestoneDate = new Date(originalMilestoneDate);
+                newMilestoneDate.setDate(originalMilestoneDate.getDate() + daysDelta);
+                return updateMilestone(milestone.id, { 
+                  dueDate: new Date(newMilestoneDate.toISOString().split('T')[0] + 'T00:00:00+00:00')
+                }, { silent: true });
+              });
+              Promise.all([projectUpdate, ...milestoneUpdates]);
+            }
+          }, throttleMs);
+        }
+      } catch (error) {
+        console.error('🚨 PROJECT DRAG ERROR:', error);
+      }
+    };
     const handleMouseUp = () => {
       const hadMovement = dragState && dragState.lastDaysDelta !== 0;
       setIsDragging(false);
@@ -663,72 +648,106 @@ export function TimelineView() {
     document.addEventListener('touchend', handleMouseUp);
     document.addEventListener('touchcancel', handleMouseUp);
   }, [projects, dates, updateProject, checkAutoScroll, stopAutoScroll, timelineMode, milestones, updateMilestone, showProjectSuccessToast]);
-  // COMPLETELY REWRITTEN HOLIDAY DRAG HANDLER - SIMPLE AND FAST
+
+  // Holiday drag handler - using unified drag system
   const handleHolidayMouseDown = useCallback((e: React.MouseEvent, holidayId: string, action: string) => {
     e.preventDefault();
     e.stopPropagation();
+    
     const targetHoliday = holidays.find(h => h.id === holidayId);
     if (!targetHoliday) return;
-    const startX = e.clientX;
-    const dayWidth = timelineMode === 'weeks' ? 77 : 40;
-    const originalStartDate = new Date(targetHoliday.startDate);
-    const originalEndDate = new Date(targetHoliday.endDate);
+    
+    // Use unified drag initialization
+    const initialDragState = initializeHolidayDragState(
+      holidayId,
+      new Date(targetHoliday.startDate),
+      new Date(targetHoliday.endDate),
+      e.clientX,
+      e.clientY,
+      action as 'move' | 'resize-start-date' | 'resize-end-date',
+      timelineMode
+    );
+    
     setIsDragging(true);
+    setDragState(initialDragState);
+    
     const handleMouseMove = (e: MouseEvent) => {
-      // 🚫 PREVENT BROWSER DRAG BEHAVIOR: Stop any default drag actions
-      e.preventDefault();
-      // Calculate exact visual delta (no rounding for smooth mouse following)
-      const totalDeltaX = e.clientX - startX;
-      // In weeks view: smooth movement, in days view: snap to day boundaries
-      const exactVisualDelta = timelineMode === 'weeks' 
-        ? totalDeltaX / dayWidth  // Smooth movement in weeks
-        : Math.round(totalDeltaX / dayWidth);  // Snap to days in days view
-      // Calculate rounded delta for database updates only
-      const daysDelta = Math.round(exactVisualDelta);
-      // Holiday drag operation processed
       try {
-        if (action === 'resize-start-date') {
-          const newStartDate = new Date(originalStartDate);
-          newStartDate.setDate(originalStartDate.getDate() + daysDelta);
-          // Allow start date to equal end date (single day holiday)
-          if (newStartDate <= originalEndDate) {
-            updateHoliday(holidayId, { startDate: newStartDate }, { silent: true });
-          } else {
-            // Start date update blocked - would make holiday invalid
+        e.preventDefault();
+        
+        // Use unified drag coordinator for all calculations
+        const result = TimelineDragCoordinatorService.coordinateDragOperation(
+          dragState || initialDragState,
+          e,
+          {
+            projects,
+            viewportStart,
+            viewportEnd,
+            timelineMode,
+            dates
           }
-        } else if (action === 'resize-end-date') {
-          const newEndDate = new Date(originalEndDate);
-          newEndDate.setDate(originalEndDate.getDate() + daysDelta);
-          // Allow end date to equal start date (single day holiday)
-          if (newEndDate >= originalStartDate) {
-            updateHoliday(holidayId, { endDate: newEndDate }, { silent: true });
-          } else {
-            // End date update blocked - would make holiday invalid
-          }
-        } else if (action === 'move') {
-          const newStartDate = new Date(originalStartDate);
-          const newEndDate = new Date(originalEndDate);
-          newStartDate.setDate(originalStartDate.getDate() + daysDelta);
-          newEndDate.setDate(originalEndDate.getDate() + daysDelta);
-          updateHoliday(holidayId, { 
-            startDate: newStartDate,
-            endDate: newEndDate 
-          }, { silent: true });
+        );
+        
+        // Check for auto-scroll during drag
+        if (result.autoScrollConfig?.shouldScroll) {
+          checkAutoScroll(e.clientX);
+        }
+        
+        // Update visual state if needed
+        if (result.shouldUpdate) {
+          throttledVisualUpdate(() => {
+            setDragState(result.newDragState);
+          }, timelineMode);
+        }
+        
+        // Handle background persistence (throttled database updates)
+        const daysDelta = result.newDragState.lastDaysDelta;
+        if (daysDelta !== (dragState?.lastDaysDelta || 0)) {
+          const throttleMs = timelineMode === 'weeks' ? 100 : 50;
+          throttledDragUpdate(async () => {
+            if (action === 'resize-start-date') {
+              const newStartDate = new Date(initialDragState.originalStartDate);
+              newStartDate.setDate(initialDragState.originalStartDate.getDate() + daysDelta);
+              const endDate = new Date(initialDragState.originalEndDate);
+              // Allow start date to equal end date (single day holiday)
+              if (newStartDate <= endDate) {
+                updateHoliday(holidayId, { startDate: newStartDate }, { silent: true });
+              }
+            } else if (action === 'resize-end-date') {
+              const newEndDate = new Date(initialDragState.originalEndDate);
+              newEndDate.setDate(initialDragState.originalEndDate.getDate() + daysDelta);
+              const startDate = new Date(initialDragState.originalStartDate);
+              // Allow end date to equal start date (single day holiday)
+              if (newEndDate >= startDate) {
+                updateHoliday(holidayId, { endDate: newEndDate }, { silent: true });
+              }
+            } else if (action === 'move') {
+              const newStartDate = new Date(initialDragState.originalStartDate);
+              const newEndDate = new Date(initialDragState.originalEndDate);
+              newStartDate.setDate(initialDragState.originalStartDate.getDate() + daysDelta);
+              newEndDate.setDate(initialDragState.originalEndDate.getDate() + daysDelta);
+              updateHoliday(holidayId, { 
+                startDate: newStartDate,
+                endDate: newEndDate 
+              }, { silent: true });
+            }
+          }, throttleMs);
         }
       } catch (error) {
-        console.error('🚨 HOLIDAY UPDATE ERROR:', error);
+        console.error('🚨 HOLIDAY DRAG ERROR:', error);
       }
-      checkAutoScroll(e.clientX);
     };
+    
     const handleMouseUp = () => {
       setIsDragging(false);
       setDragState(null);
       stopAutoScroll();
-      // Show success toast when holiday drag operation completes
+      
       toast({
         title: "Success",
         description: "Holiday updated successfully",
       });
+      
       // Remove ALL possible event listeners for robust pen/tablet support
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
@@ -739,12 +758,14 @@ export function TimelineView() {
       document.removeEventListener('touchend', handleMouseUp);
       document.removeEventListener('touchcancel', handleMouseUp);
     };
+    
     const handleTouchMove = (e: TouchEvent) => {
       if (e.touches.length > 0) {
         const touch = e.touches[0];
         handleMouseMove({ clientX: touch.clientX } as MouseEvent);
       }
     };
+    
     // Add comprehensive event listeners for all input types (mouse, pen, touch)
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
@@ -754,7 +775,7 @@ export function TimelineView() {
     document.addEventListener('touchmove', handleTouchMove, { passive: false });
     document.addEventListener('touchend', handleMouseUp);
     document.addEventListener('touchcancel', handleMouseUp);
-  }, [holidays, updateHoliday, checkAutoScroll, stopAutoScroll, timelineMode]);
+  }, [holidays, updateHoliday, checkAutoScroll, stopAutoScroll, timelineMode, projects, viewportStart, viewportEnd, dates, dragState]);
   // Organize projects by groups for sidebar
   const groupsWithProjects = useMemo(() => {
     return groups.map(group => ({

@@ -235,7 +235,13 @@ export {
   calculateTotalTrackedHours,
   generateWeeklyUtilizationReport
 } from './calculations/insights/analyticsCalculations';
-export { calculateDaysDelta, createSmoothDragAnimation, debounceDragUpdate, type SmoothAnimationConfig } from './ui/positioning/DragPositioning';
+export { 
+  calculateDaysDelta, 
+  createSmoothDragAnimation, 
+  debounceDragUpdate, 
+  initializeHolidayDragState,
+  type SmoothAnimationConfig 
+} from './ui/positioning/DragPositioning';
 export { formatTimeForDisplay } from './calculations/availability/workHourCalculations';
 export { handleWorkHourCreationStart, handleWorkHourCreationMove, handleWorkHourCreationComplete } from './calculations/availability/workHourCalculations';
 export { getWorkHourOverlapInfo, generateWorkHourPreviewStyle, getWorkHourCreationCursor, shouldAllowWorkHourCreation, type WorkHourCreateState } from './calculations/availability/workHourCalculations';

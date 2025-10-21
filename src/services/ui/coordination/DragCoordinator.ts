@@ -54,12 +54,23 @@ export class TimelineDragCoordinatorService {
 
   /**
    * Coordinate a drag operation by orchestrating all services
+   * Handles both project and milestone drags
    */
   static coordinateDragOperation(
     dragState: DragState,
     mouseEvent: MouseEvent,
     timelineContext: TimelineContext
   ): DragCoordinationResult {
+    // Route to appropriate handler based on entity type
+    if (dragState.milestoneId) {
+      return this.coordinateMilestoneDrag(dragState, mouseEvent, timelineContext);
+    }
+    
+    if (dragState.holidayId) {
+      return this.coordinateHolidayDrag(dragState, mouseEvent, timelineContext);
+    }
+    
+    // Default: project drag handling
     const { projects, viewportStart, viewportEnd, timelineMode, dates } = timelineContext;
 
     // 1. Calculate position update
@@ -146,7 +157,149 @@ export class TimelineDragCoordinatorService {
   }
 
   /**
+   * Coordinate milestone drag operation
+   * Handles milestone-specific drag calculations and validation
+   */
+  private static coordinateMilestoneDrag(
+    dragState: DragState,
+    mouseEvent: MouseEvent,
+    timelineContext: TimelineContext
+  ): DragCoordinationResult {
+    const { timelineMode } = timelineContext;
+
+    // 1. Calculate milestone drag update (with snap behavior)
+    const positionResult = DragCalculationsService.calculateMilestoneDragUpdate(
+      mouseEvent.clientX,
+      dragState,
+      timelineMode
+    );
+
+    // 2. Check auto-scroll (same as projects)
+    const timelineContent = document.querySelector('.timeline-content-area');
+    let autoScrollConfig;
+
+    if (timelineContent) {
+      const rect = timelineContent.getBoundingClientRect();
+      const trigger = TimelineViewportService.calculateAutoScrollTrigger({
+        mouseX: mouseEvent.clientX,
+        timelineContentRect: rect
+      });
+
+      autoScrollConfig = {
+        shouldScroll: trigger.shouldScroll,
+        direction: trigger.direction
+      };
+    }
+
+    // 3. Calculate new milestone date
+    const { daysDelta } = positionResult;
+    const newDate = new Date(dragState.originalStartDate);
+    newDate.setDate(dragState.originalStartDate.getDate() + daysDelta);
+    newDate.setHours(0, 0, 0, 0);
+
+    // 4. Update drag state with visual delta for smooth rendering
+    const newDragState: DragState = {
+      ...dragState,
+      lastDaysDelta: positionResult.daysDelta,
+      pixelDeltaX: positionResult.pixelDeltaX,
+      visualDelta: positionResult.visualDelta
+    } as any;
+
+    return {
+      shouldUpdate: positionResult.shouldUpdate,
+      newDragState,
+      autoScrollConfig,
+      // Milestones don't have conflict detection with other projects
+      conflictResult: undefined,
+      adjustmentResult: undefined
+    };
+  }
+
+  /**
+   * Coordinate holiday drag operation
+   * Handles holiday-specific drag calculations and validation
+   */
+  private static coordinateHolidayDrag(
+    dragState: DragState,
+    mouseEvent: MouseEvent,
+    timelineContext: TimelineContext
+  ): DragCoordinationResult {
+    const { timelineMode } = timelineContext;
+
+    // 1. Calculate holiday drag update (with snap behavior)
+    const positionResult = DragCalculationsService.calculateHolidayDragUpdate(
+      mouseEvent.clientX,
+      dragState,
+      timelineMode
+    );
+
+    // 2. Check auto-scroll (same as projects)
+    const timelineContent = document.querySelector('.timeline-content-area');
+    let autoScrollConfig;
+
+    if (timelineContent) {
+      const rect = timelineContent.getBoundingClientRect();
+      const trigger = TimelineViewportService.calculateAutoScrollTrigger({
+        mouseX: mouseEvent.clientX,
+        timelineContentRect: rect
+      });
+
+      autoScrollConfig = {
+        shouldScroll: trigger.shouldScroll,
+        direction: trigger.direction
+      };
+    }
+
+    // 3. Calculate new holiday dates based on action
+    const { daysDelta } = positionResult;
+    let newStartDate: Date;
+    let newEndDate: Date;
+
+    if (dragState.action === 'resize-start-date') {
+      newStartDate = new Date(dragState.originalStartDate);
+      newStartDate.setDate(dragState.originalStartDate.getDate() + daysDelta);
+      newEndDate = new Date(dragState.originalEndDate);
+    } else if (dragState.action === 'resize-end-date') {
+      newStartDate = new Date(dragState.originalStartDate);
+      newEndDate = new Date(dragState.originalEndDate);
+      newEndDate.setDate(dragState.originalEndDate.getDate() + daysDelta);
+    } else {
+      // move
+      newStartDate = new Date(dragState.originalStartDate);
+      newEndDate = new Date(dragState.originalEndDate);
+      newStartDate.setDate(dragState.originalStartDate.getDate() + daysDelta);
+      newEndDate.setDate(dragState.originalEndDate.getDate() + daysDelta);
+    }
+
+    // 4. Validate holiday bounds
+    const validation = DragCalculationsService.validateHolidayBounds(
+      newStartDate,
+      newEndDate,
+      dragState.action as 'move' | 'resize-start-date' | 'resize-end-date'
+    );
+
+    // 5. Update drag state with visual delta for smooth rendering
+    const newDragState: DragState = {
+      ...dragState,
+      lastDaysDelta: positionResult.daysDelta,
+      pixelDeltaX: positionResult.pixelDeltaX,
+      visualDelta: positionResult.visualDelta,
+      isValid: validation.isValid
+    } as any;
+
+    return {
+      shouldUpdate: positionResult.shouldUpdate,
+      newDragState,
+      autoScrollConfig,
+      // Holidays don't have conflict detection
+      conflictResult: undefined,
+      adjustmentResult: undefined
+    };
+  }
+
+  /**
    * Complete a drag operation
+   * Handles project, milestone, and holiday completion
    */
   static async completeDragOperation(
     dragState: DragState,
@@ -156,6 +309,24 @@ export class TimelineDragCoordinatorService {
     try {
       const { onProjectUpdate, onMilestoneUpdate, onSuccessToast } = updateCallbacks;
 
+      // Handle milestone drag completion
+      if (dragState.milestoneId && onMilestoneUpdate) {
+        onMilestoneUpdate(dragState.milestoneId, {
+          dueDate: finalDates.startDate // Milestones use dueDate
+        }, { silent: true });
+
+        if (onSuccessToast) {
+          onSuccessToast("Milestone updated successfully");
+        }
+
+        return {
+          success: true,
+          finalDates,
+          conflictsResolved: false
+        };
+      }
+
+      // Handle project drag completion
       if (dragState.action === 'move' && dragState.projectId && onProjectUpdate) {
         onProjectUpdate(dragState.projectId, {
           startDate: finalDates.startDate,

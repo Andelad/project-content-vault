@@ -3,6 +3,7 @@ import { Flag } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../../ui/tooltip';
 import { useProjectContext } from '../../../contexts/ProjectContext';
 import { type TimelinePositionCalculation } from '@/services';
+import { MilestoneRules } from '@/domain/rules/MilestoneRules';
 import { Milestone } from '@/types/core';
 import { useToast } from '@/hooks/use-toast';
 
@@ -43,9 +44,9 @@ export const ProjectMilestones = memo(function ProjectMilestones({
   const [draggingMilestone, setDraggingMilestone] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Helper function to check if a milestone is part of a recurring pattern (old numbered system)
+  // Helper function to check if a milestone is part of a recurring pattern (delegates to domain rules)
   const isRecurringMilestone = (milestone: Milestone) => {
-    return milestone.name && /\s\d+$/.test(milestone.name);
+    return MilestoneRules.isRecurringMilestone(milestone);
   };
 
   // Get milestones for this project and expand recurring templates
@@ -231,7 +232,7 @@ export const ProjectMilestones = memo(function ProjectMilestones({
     });
   }, [projectMilestones, viewportStart, viewportEnd, project.startDate, project.id, mode, projectPositions, isDragging, dragState]);
 
-  // Handle milestone drag start
+  // Handle milestone drag start - delegated to parent for unified drag handling
   const handleMilestoneMouseDown = (e: React.MouseEvent, milestoneId: string) => {
     e.stopPropagation();
     
@@ -248,113 +249,15 @@ export const ProjectMilestones = memo(function ProjectMilestones({
       return;
     }
 
-    setDraggingMilestone(milestoneId);
-
-    const startX = e.clientX;
-    // Calculate actual day width based on mode
-    const dayWidth = mode === 'weeks' ? 11 : 40; // 11px for weeks, 40px for days
-
-    const originalDate = new Date(originalMilestone.dueDate);
-    originalDate.setHours(0, 0, 0, 0);
-
-    // Project boundaries
-    const projectStart = new Date(project.startDate);
-    projectStart.setHours(0, 0, 0, 0);
-    const projectEnd = new Date(project.endDate);
-    projectEnd.setHours(0, 0, 0, 0);
-
-    const handleMouseMove = (moveEvent: MouseEvent) => {
-      if (!onMilestoneDrag) return;
-
-      // Calculate days delta from original position
-      const deltaX = moveEvent.clientX - startX;
+    // If we have the drag callback, use it to start unified drag
+    // Otherwise, fall back to simple onMilestoneDrag callback
+    if (onMilestoneDrag) {
+      setDraggingMilestone(milestoneId);
       
-      // In weeks view: smooth movement, in days view: snap to day boundaries
-      const daysDelta = mode === 'weeks' 
-        ? deltaX / dayWidth  // Smooth movement in weeks
-        : Math.round(deltaX / dayWidth);  // Snap to days in days view
-      
-      // Only round when we've moved at least 0.5 days worth of pixels (for weeks view)
-      const roundedDaysDelta = mode === 'weeks' 
-        ? Math.round(daysDelta) 
-        : daysDelta; // Already rounded for days view
-      
-      // Calculate new date
-      const newDate = new Date(originalDate);
-      newDate.setDate(originalDate.getDate() + roundedDaysDelta);
-      newDate.setHours(0, 0, 0, 0);
-
-      // Constrain milestone within project boundaries and prevent overlaps
-      const projectStart = new Date(project.startDate);
-      projectStart.setHours(0, 0, 0, 0);
-      const projectEnd = new Date(project.endDate);
-      projectEnd.setHours(0, 0, 0, 0);
-      
-      // Get all other milestone dates and project boundaries
-      const otherMilestones = projectMilestones.filter(m => m.id !== milestoneId);
-      const blockingDates = [
-        projectStart,
-        projectEnd,
-        ...otherMilestones.map(m => {
-          const date = new Date(m.dueDate);
-          date.setHours(0, 0, 0, 0);
-          return date;
-        })
-      ];
-      
-      // Find the valid range for this milestone
-      let minAllowedDate = new Date(projectStart);
-      minAllowedDate.setDate(projectStart.getDate() + 1); // 1 day after start
-      
-      let maxAllowedDate = new Date(projectEnd);
-      maxAllowedDate.setDate(projectEnd.getDate() - 1); // 1 day before end
-      
-      // Narrow down the range based on other milestones
-      blockingDates.forEach(blockingDate => {
-        if (blockingDate < originalDate && blockingDate >= minAllowedDate) {
-          // This blocking date is before our original position, so update minimum
-          const dayAfterBlocking = new Date(blockingDate);
-          dayAfterBlocking.setDate(blockingDate.getDate() + 1);
-          if (dayAfterBlocking > minAllowedDate) {
-            minAllowedDate = dayAfterBlocking;
-          }
-        } else if (blockingDate > originalDate && blockingDate <= maxAllowedDate) {
-          // This blocking date is after our original position, so update maximum
-          const dayBeforeBlocking = new Date(blockingDate);
-          dayBeforeBlocking.setDate(blockingDate.getDate() - 1);
-          if (dayBeforeBlocking < maxAllowedDate) {
-            maxAllowedDate = dayBeforeBlocking;
-          }
-        }
-      });
-      
-      // Clamp the new date to the allowed range
-      if (newDate < minAllowedDate) {
-        newDate.setTime(minAllowedDate.getTime());
-      } else if (newDate > maxAllowedDate) {
-        newDate.setTime(maxAllowedDate.getTime());
-      }
-
-      // Only update if we've moved at least half a day and the date is valid
-      if (Math.abs(daysDelta) >= 0.5 && newDate >= minAllowedDate && newDate <= maxAllowedDate) {
-        onMilestoneDrag(milestoneId, newDate);
-      }
-    };
-
-    const handleMouseUp = () => {
-      setDraggingMilestone(null);
-      
-      // Call the drag end callback to show success toast
-      if (onMilestoneDragEnd) {
-        onMilestoneDragEnd();
-      }
-      
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
+      // Simple callback approach - parent will handle the drag coordination
+      // The parent (TimelineBar or TimelineView) should handle mouse move/up events
+      onMilestoneDrag(milestoneId, originalMilestone.dueDate);
+    }
   };
 
   if (projectMilestones.length === 0) {

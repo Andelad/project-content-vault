@@ -526,6 +526,298 @@ export function initializeDragState(
 }
 
 /**
+ * Initialize drag state for a milestone drag operation
+ */
+export function initializeMilestoneDragState(
+  milestoneId: string,
+  milestoneDate: Date,
+  startX: number,
+  startY: number,
+  mode: 'days' | 'weeks' = 'days'
+): DragState {
+  return {
+    milestoneId,
+    action: 'move-milestone',
+    startX,
+    startY,
+    originalStartDate: new Date(milestoneDate),
+    originalEndDate: new Date(milestoneDate), // Milestones have same start/end
+    lastDaysDelta: 0,
+    mode,
+    isDynamicWidth: false
+  };
+}
+
+/**
+ * Calculate milestone drag update with snap behavior
+ * Milestones snap to day boundaries in days mode, smooth in weeks mode
+ */
+export function calculateMilestoneDragUpdate(
+  currentMouseX: number,
+  dragState: DragState,
+  mode: 'days' | 'weeks'
+): DragPositionResult {
+  const deltaX = currentMouseX - dragState.startX;
+  const dayWidth = mode === 'weeks' ? DRAG_CONSTANTS.WEEKS_MODE_DAY_WIDTH : DRAG_CONSTANTS.DAYS_MODE_COLUMN_WIDTH;
+  
+  // Calculate smooth movement
+  const smoothDaysDelta = deltaX / dayWidth;
+  
+  // Apply snap behavior based on mode
+  let visualDelta: number;
+  let daysDelta: number;
+  
+  if (mode === 'weeks') {
+    // Smooth movement in weeks view
+    visualDelta = smoothDaysDelta;
+    daysDelta = Math.round(smoothDaysDelta); // Round for final date calculation
+  } else {
+    // Snap to day boundaries in days view
+    daysDelta = Math.round(smoothDaysDelta);
+    visualDelta = daysDelta;
+  }
+  
+  // Determine if we should update (changed by at least half a day in weeks, or any in days)
+  const minMovement = mode === 'weeks' ? 0.5 : 1;
+  const shouldUpdate = Math.abs(daysDelta - dragState.lastDaysDelta) >= minMovement;
+  
+  return {
+    newX: currentMouseX,
+    newY: dragState.startY,
+    daysDelta,
+    isValid: true,
+    visualDelta,
+    pixelDeltaX: deltaX,
+    shouldUpdate,
+    shouldSnap: mode === 'days'
+  };
+}
+
+/**
+ * Milestone bounds validation result interface
+ */
+export interface MilestoneBoundsValidation {
+  isValid: boolean;
+  constrainedDate: Date;
+  reason?: string;
+  minAllowedDate?: Date;
+  maxAllowedDate?: Date;
+}
+
+/**
+ * Validate milestone position within project boundaries
+ * Business rule: Milestones must be at least 1 day after project start and 1 day before project end
+ * Business rule: Milestones cannot overlap with each other
+ */
+export function validateMilestoneBounds(
+  newDate: Date,
+  projectStartDate: Date,
+  projectEndDate: Date,
+  otherMilestoneDates: Date[],
+  originalMilestoneDate?: Date
+): MilestoneBoundsValidation {
+  // Normalize all dates to midnight
+  const candidate = new Date(newDate);
+  candidate.setHours(0, 0, 0, 0);
+  
+  const projectStart = new Date(projectStartDate);
+  projectStart.setHours(0, 0, 0, 0);
+  
+  const projectEnd = new Date(projectEndDate);
+  projectEnd.setHours(0, 0, 0, 0);
+  
+  const original = originalMilestoneDate ? new Date(originalMilestoneDate) : null;
+  if (original) {
+    original.setHours(0, 0, 0, 0);
+  }
+  
+  // Calculate min/max allowed dates
+  let minAllowedDate = new Date(projectStart);
+  minAllowedDate.setDate(projectStart.getDate() + 1); // 1 day after start
+  
+  let maxAllowedDate = new Date(projectEnd);
+  maxAllowedDate.setDate(projectEnd.getDate() - 1); // 1 day before end
+  
+  // Narrow down based on other milestones (prevent overlaps)
+  const blockingDates = otherMilestoneDates.map(d => {
+    const normalized = new Date(d);
+    normalized.setHours(0, 0, 0, 0);
+    return normalized;
+  });
+  
+  // For each blocking date, adjust the allowed range
+  blockingDates.forEach(blockingDate => {
+    if (original && blockingDate.getTime() === original.getTime()) {
+      // Skip the original position of this milestone
+      return;
+    }
+    
+    if (original && blockingDate < original && blockingDate >= minAllowedDate) {
+      // Blocking date is before our original position, update minimum
+      const dayAfter = new Date(blockingDate);
+      dayAfter.setDate(blockingDate.getDate() + 1);
+      if (dayAfter > minAllowedDate) {
+        minAllowedDate = dayAfter;
+      }
+    } else if (original && blockingDate > original && blockingDate <= maxAllowedDate) {
+      // Blocking date is after our original position, update maximum
+      const dayBefore = new Date(blockingDate);
+      dayBefore.setDate(blockingDate.getDate() - 1);
+      if (dayBefore < maxAllowedDate) {
+        maxAllowedDate = dayBefore;
+      }
+    }
+  });
+  
+  // Constrain the candidate date to the allowed range
+  let constrainedDate = new Date(candidate);
+  let reason: string | undefined;
+  
+  if (candidate < minAllowedDate) {
+    constrainedDate = new Date(minAllowedDate);
+    reason = 'Milestone must be at least 1 day after project start and other milestones';
+  } else if (candidate > maxAllowedDate) {
+    constrainedDate = new Date(maxAllowedDate);
+    reason = 'Milestone must be at least 1 day before project end and other milestones';
+  }
+  
+  const isValid = candidate.getTime() === constrainedDate.getTime();
+  
+  return {
+    isValid,
+    constrainedDate,
+    reason,
+    minAllowedDate,
+    maxAllowedDate
+  };
+}
+
+// ============================================================================
+// HOLIDAY DRAG FUNCTIONS
+// ============================================================================
+
+/**
+ * Initialize drag state for holiday drag operations
+ */
+export function initializeHolidayDragState(
+  holidayId: string,
+  startDate: Date,
+  endDate: Date,
+  startX: number,
+  startY: number,
+  action: 'move' | 'resize-start-date' | 'resize-end-date',
+  mode: 'days' | 'weeks' = 'days'
+): DragState {
+  return {
+    holidayId,
+    action,
+    startX,
+    startY,
+    originalStartDate: new Date(startDate),
+    originalEndDate: new Date(endDate),
+    lastDaysDelta: 0,
+    mode,
+    isDynamicWidth: false
+  };
+}
+
+/**
+ * Calculate holiday drag update with snap behavior
+ * Holidays snap to day boundaries in days mode, smooth in weeks mode
+ */
+export function calculateHolidayDragUpdate(
+  currentMouseX: number,
+  dragState: DragState,
+  mode: 'days' | 'weeks'
+): DragPositionResult {
+  const deltaX = currentMouseX - dragState.startX;
+  const dayWidth = mode === 'weeks' ? DRAG_CONSTANTS.WEEKS_MODE_DAY_WIDTH : DRAG_CONSTANTS.DAYS_MODE_COLUMN_WIDTH;
+  
+  // Calculate smooth movement
+  const smoothDaysDelta = deltaX / dayWidth;
+  
+  // Apply snap behavior based on mode
+  let visualDelta: number;
+  let daysDelta: number;
+  
+  if (mode === 'weeks') {
+    // Smooth movement in weeks view
+    visualDelta = smoothDaysDelta;
+    daysDelta = Math.round(smoothDaysDelta); // Round for final date calculation
+  } else {
+    // Snap to day boundaries in days view
+    daysDelta = Math.round(smoothDaysDelta);
+    visualDelta = daysDelta;
+  }
+  
+  // Determine if we should update
+  const shouldUpdate = Math.abs(daysDelta - dragState.lastDaysDelta) >= 1;
+  
+  return {
+    newX: currentMouseX,
+    newY: dragState.startY,
+    daysDelta,
+    isValid: true,
+    visualDelta,
+    pixelDeltaX: deltaX,
+    shouldUpdate,
+    shouldSnap: mode === 'days'
+  };
+}
+
+/**
+ * Holiday bounds validation result interface
+ */
+export interface HolidayBoundsValidation {
+  isValid: boolean;
+  constrainedStartDate: Date;
+  constrainedEndDate: Date;
+  reason?: string;
+}
+
+/**
+ * Validate holiday date bounds
+ * Business rule: Start date must be <= end date (single-day holidays allowed)
+ */
+export function validateHolidayBounds(
+  newStartDate: Date,
+  newEndDate: Date,
+  action: 'move' | 'resize-start-date' | 'resize-end-date'
+): HolidayBoundsValidation {
+  // Normalize dates to midnight
+  const start = new Date(newStartDate);
+  start.setHours(0, 0, 0, 0);
+  
+  const end = new Date(newEndDate);
+  end.setHours(0, 0, 0, 0);
+  
+  let constrainedStartDate = new Date(start);
+  let constrainedEndDate = new Date(end);
+  let isValid = true;
+  let reason: string | undefined;
+  
+  // Business rule: Start date must be <= end date
+  if (start > end) {
+    isValid = false;
+    reason = 'Holiday start date cannot be after end date';
+    
+    // Constrain based on action
+    if (action === 'resize-start-date') {
+      constrainedStartDate = new Date(end); // Move start to match end
+    } else if (action === 'resize-end-date') {
+      constrainedEndDate = new Date(start); // Move end to match start
+    }
+  }
+  
+  return {
+    isValid,
+    constrainedStartDate,
+    constrainedEndDate,
+    reason
+  };
+}
+
+/**
  * Cleanup drag operations and clear timeouts
  */
 export function cleanupDragOperations(key?: string): void {

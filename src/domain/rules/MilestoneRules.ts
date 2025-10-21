@@ -555,4 +555,107 @@ export class MilestoneRules {
       return dateA.getTime() - dateB.getTime();
     });
   }
+
+  // ==========================================================================
+  // MILESTONE POSITIONING RULES (for drag operations)
+  // ==========================================================================
+
+  /**
+   * RULE: Milestone position constraints for drag operations
+   * 
+   * Business rules:
+   * 1. Milestones must be at least 1 day after project start
+   * 2. Milestones must be at least 1 day before project end
+   * 3. Milestones cannot overlap with other milestones (must be at least 1 day apart)
+   * 
+   * @param milestoneDate - Proposed milestone date
+   * @param projectStartDate - Project start date
+   * @param projectEndDate - Project end date
+   * @param otherMilestoneDates - Dates of other milestones in the project
+   * @param originalDate - Original date of milestone being moved (for calculating valid range)
+   * @returns Validation result with allowed range
+   */
+  static validateMilestonePosition(
+    milestoneDate: Date,
+    projectStartDate: Date,
+    projectEndDate: Date,
+    otherMilestoneDates: Date[],
+    originalDate?: Date
+  ): {
+    isValid: boolean;
+    errors: string[];
+    minAllowedDate: Date;
+    maxAllowedDate: Date;
+  } {
+    const errors: string[] = [];
+    
+    // Normalize dates to midnight
+    const candidate = new Date(milestoneDate);
+    candidate.setHours(0, 0, 0, 0);
+    
+    const projectStart = new Date(projectStartDate);
+    projectStart.setHours(0, 0, 0, 0);
+    
+    const projectEnd = new Date(projectEndDate);
+    projectEnd.setHours(0, 0, 0, 0);
+    
+    const original = originalDate ? new Date(originalDate) : null;
+    if (original) {
+      original.setHours(0, 0, 0, 0);
+    }
+    
+    // Calculate absolute min/max (project boundaries)
+    const minAllowedDate = new Date(projectStart);
+    minAllowedDate.setDate(projectStart.getDate() + 1); // 1 day after start
+    
+    const maxAllowedDate = new Date(projectEnd);
+    maxAllowedDate.setDate(projectEnd.getDate() - 1); // 1 day before end
+    
+    // Check project boundary constraints
+    if (candidate < minAllowedDate) {
+      errors.push('Milestone must be at least 1 day after project start');
+    }
+    
+    if (candidate > maxAllowedDate) {
+      errors.push('Milestone must be at least 1 day before project end');
+    }
+    
+    // Check milestone overlap constraints
+    const normalizedOthers = otherMilestoneDates.map(d => {
+      const normalized = new Date(d);
+      normalized.setHours(0, 0, 0, 0);
+      return normalized;
+    });
+    
+    for (const otherDate of normalizedOthers) {
+      // Skip if this is the original position of the milestone being moved
+      if (original && otherDate.getTime() === original.getTime()) {
+        continue;
+      }
+      
+      // Check if dates are the same (overlap)
+      if (candidate.getTime() === otherDate.getTime()) {
+        errors.push('Milestone cannot overlap with another milestone');
+        break;
+      }
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors,
+      minAllowedDate,
+      maxAllowedDate
+    };
+  }
+
+  /**
+   * Check if a milestone is part of a recurring pattern (old numbered system)
+   * Used to prevent editing of auto-generated recurring instances
+   * 
+   * @param milestone - Milestone to check
+   * @returns true if milestone is a recurring instance
+   */
+  static isRecurringMilestone(milestone: Milestone): boolean {
+    return milestone.name ? /\s\d+$/.test(milestone.name) : false;
+  }
 }
