@@ -1,9 +1,9 @@
 # Business Logic Reference
 ## Single Source of Truth for Domain Rules and Relationships
 
-**Document Version**: 1.0.0  
-**Last Updated**: October 18, 2025  
-**Status**: Foundation Document  
+**Document Version**: 1.1.0  
+**Last Updated**: October 21, 2025  
+**Status**: Foundation Document - Updated for Client-Group-Label System  
 
 ---
 
@@ -39,16 +39,23 @@ The application models a **time forecasting and project planning** system where:
 
 ```
 User
-  └─ Groups
-      └─ Rows
-          └─ Projects (belongs to Client)
-              ├─ Milestones
-              ├─ Calendar Events
-              └─ Time Entries
-  └─ Settings (work hours, holidays)
-  └─ Work Hours
+  ├─ Clients (required for projects)
+  ├─ Groups (optional organization)
+  ├─ Labels (flexible tagging)
+  └─ Projects (belong to Client, optionally to Group, many Labels)
+      ├─ Milestones
+      ├─ Calendar Events
+      └─ Time Entries
+  ├─ Settings (work hours, holidays)
+  ├─ Work Hours
   └─ Holidays
 ```
+
+**Key Changes (October 2025):**
+- ✅ **Clients**: New entity, required for all projects
+- ✅ **Groups**: Simplified (removed description/color), now optional
+- ✅ **Labels**: New entity, many-to-many with projects
+- ⚠️ **Rows**: Deprecated (kept for backward compatibility during transition)
 
 ---
 
@@ -65,16 +72,46 @@ User
 
 ---
 
-### 2. Group
-**Purpose**: Top-level organization for projects (e.g., "Client Work", "Internal", "Personal")
+### 2. Client ✅ NEW (October 2025)
+**Purpose**: Organization or individual that commissions work
 
 **Properties**:
 ```typescript
 {
   id: string
   name: string
-  description: string
-  color: string (hex code, e.g., "#FF5733")
+  status: 'active' | 'inactive' | 'archived'
+  contactEmail?: string
+  contactPhone?: string
+  billingAddress?: string
+  notes?: string
+  userId: string
+  createdAt: Date
+  updatedAt: Date
+}
+```
+
+**Business Rules**:
+- **Client must have a unique name per user**
+- **Required for all projects** (cannot create project without client)
+- **Cannot delete client if it has projects** (RESTRICT constraint)
+- **Status determines visibility**: Active clients shown in project creation, archived clients hidden
+- Client name can be changed (affects project displays)
+
+**Relationships**:
+- Has many: Projects (required relationship)
+- Owned by: ONE User
+
+---
+
+### 3. Group ✅ UPDATED (October 2025)
+**Purpose**: Optional high-level organizational category (e.g., "Web Development", "Consulting")
+
+**Properties**:
+```typescript
+{
+  id: string
+  name: string
   userId: string
   createdAt: Date
   updatedAt: Date
@@ -83,21 +120,25 @@ User
 
 **Business Rules**:
 - Group must have a unique name per user
-- Group color must be a valid hex code
-- Deleting a group cascades to all rows and projects within it
+- **Groups are optional** (projects can exist without groups)
+- **One project can belong to at most one group**
+- Deleting a group prompts user: "Keep projects ungrouped" or "Delete projects"
+
+**Relationships**:
+- Has many: Projects (optional relationship)
+- Owned by: ONE User
 
 ---
 
-### 3. Row
-**Purpose**: Sub-organization within groups (e.g., "Consulting", "Product Development")
+### 4. Label ✅ NEW (October 2025)
+**Purpose**: Flexible text tag for categorization and filtering
 
 **Properties**:
 ```typescript
 {
   id: string
-  groupId: string
   name: string
-  order: number  // For display ordering
+  color?: string  // Optional hex code, default: '#6B7280'
   userId: string
   createdAt: Date
   updatedAt: Date
@@ -105,17 +146,45 @@ User
 ```
 
 **Business Rules**:
-- Row must belong to a valid group
-- Row order determines display sequence within a group
-- Deleting a row cascades to all projects within it
+- Label must have a unique name per user (case-insensitive)
+- **Labels are optional** (projects can exist without labels)
+- **One project can have many labels** (many-to-many via junction table)
+- **Deleting a label is safe** (cascade removes associations only, not projects)
+- Label name must be 1-30 characters
 
 **Relationships**:
-- Belongs to: ONE Group
-- Has many: Projects
+- Has many: Projects (via project_labels junction table)
+- Owned by: ONE User
 
 ---
 
-### 4. Project
+### 5. Row ⚠️ DEPRECATED (October 2025)
+**Purpose**: Sub-organization within groups (legacy structure)
+
+**Status**: Kept for backward compatibility during transition, will be removed
+
+**Properties**:
+```typescript
+{
+  id: string
+  groupId: string
+  name: string
+  order: number
+  userId: string
+  createdAt: Date
+  updatedAt: Date
+}
+```
+
+**Business Rules** (Legacy):
+- Row must belong to a valid group
+- Row order determines display sequence within a group
+
+**Migration Note**: The `row_id` field in projects is now optional and will be removed in future cleanup phase
+
+---
+
+### 6. Project ✅ UPDATED (October 2025)
 **Purpose**: A work initiative with defined timeline and resource allocation
 
 **Properties**:
@@ -123,9 +192,10 @@ User
 {
   id: string
   name: string
-  client: string  // Client name (note: not a foreign key, just a label)
-  groupId: string
-  rowId: string
+  clientId: string  // ✅ NEW: Required foreign key to clients
+  groupId?: string  // ✅ CHANGED: Now optional
+  rowId?: string  // ⚠️ DEPRECATED: Kept for backward compatibility
+  client?: string  // ⚠️ DEPRECATED: Legacy string field
   startDate: Date
   endDate: Date
   estimatedHours: number  // Total project budget in hours
@@ -146,6 +216,11 @@ User
   userId: string
   createdAt: Date
   updatedAt: Date
+  
+  // Populated by joins:
+  clientData?: Client
+  groupData?: Group
+  labels?: Label[]
 }
 ```
 
@@ -154,19 +229,23 @@ User
 - **For time-limited projects: end date must be after start date**
 - **Continuous projects have no end date** (continuous = true)
 - **Estimated hours must be positive** (> 0)
-- **Project must belong to a valid Row and Group**
-- **Client is a text label** (not a foreign key relationship)
+- **✅ NEW: Project must belong to a valid Client** (required)
+- **✅ CHANGED: Group is optional** (projects can be ungrouped)
+- **✅ NEW: Projects can have zero or more Labels** (many-to-many)
+- **Client can be changed** (business decision: allowed)
 - Auto-estimate days default to all true if not specified
 
 **Relationships**:
-- Belongs to: ONE Row (which belongs to ONE Group)
+- ✅ Belongs to: ONE Client (required)
+- ✅ Belongs to: ONE Group (optional)
+- ✅ Has many: Labels (via project_labels junction table)
 - Has many: Milestones
 - Has many: Calendar Events
-- Associated with: Client (text label, not entity)
+- ⚠️ Belongs to: ONE Row (deprecated, for backward compatibility)
 
 ---
 
-### 5. Milestone
+### 7. Milestone
 **Purpose**: Time allocation segment for forecasting and day estimate calculations
 
 **CRITICAL DISTINCTION**: Milestones are **NOT tasks or completable items**. They define budget allocations that drive capacity planning. Actual work is tracked via Calendar Events.
@@ -226,28 +305,7 @@ User
 
 ---
 
-### 6. Client (Conceptual Entity)
-**Purpose**: Organization or individual that projects are delivered for
-
-**Implementation**: Currently stored as a **text field** (`project.client`)
-
-**Business Rules**:
-- Client is a label, not a foreign key entity
-- Multiple projects can have the same client name
-- Client names are free-form text
-
-**Future Consideration**: Could be normalized into a separate `clients` table with:
-```typescript
-{
-  id: string
-  name: string
-  contactInfo?: string
-  userId: string
-}
-```
-
-**Relationships**:
-- Has many: Projects (if normalized)
+### 8. Calendar Event
 
 ---
 

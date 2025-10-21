@@ -82,9 +82,9 @@ export function Sidebar() {
   ];
 
   return (
-    <div className={`${mainSidebarCollapsed ? 'w-16' : 'w-64'} h-screen bg-[#f9f9f9] border-r border-[#e2e2e2] flex flex-col transition-all duration-300 ease-in-out relative flex-shrink-0`}>
+    <div className={`${mainSidebarCollapsed ? 'w-16' : 'w-48'} h-screen bg-gray-50 border-r border-gray-200 flex flex-col transition-all duration-300 ease-in-out relative flex-shrink-0`}>
       {/* Header */}
-      <div className={`h-20 px-6 border-b border-[#e2e2e2] flex items-center ${mainSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
+      <div className={`h-20 px-6 border-b border-gray-200 flex items-center ${mainSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
         {mainSidebarCollapsed ? (
           <img src="/lovable-uploads/b7b3f5f1-d45e-4fc7-9113-f39c988b4951.png" alt="Budgi Logo" className="w-4 h-4" />
         ) : (
@@ -97,7 +97,7 @@ export function Sidebar() {
         {/* Collapse Toggle Button - Positioned over right edge */}
         <button
           onClick={() => setMainSidebarCollapsed(!mainSidebarCollapsed)}
-          className="absolute top-7 -right-3 w-6 h-6 bg-white border border-border rounded-md flex items-center justify-center text-[#595956] hover:bg-gray-50 transition-colors duration-200 z-10"
+          className="absolute top-7 -right-3 w-6 h-6 bg-white border border-gray-200 rounded-md flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-colors duration-200 z-10"
         >
           {mainSidebarCollapsed ? (
             <ChevronRight className="w-4 h-4" />
@@ -108,7 +108,7 @@ export function Sidebar() {
       </div>
 
       {/* Main Navigation */}
-      <nav className={`flex-1 overflow-y-auto ${mainSidebarCollapsed ? 'px-2 py-4' : 'p-4'}`}>
+      <nav className={`flex-1 overflow-y-auto ${mainSidebarCollapsed ? 'px-[14px] py-[21px]' : 'px-6 pt-[21px] pb-4'}`}>
         <ul className="space-y-2">
           {mainNavItems.map((item) => {
             const Icon = item.icon;
@@ -116,10 +116,10 @@ export function Sidebar() {
               <li key={item.id}>
                 <button
                   onClick={() => setCurrentView(item.id)}
-                  className={`${mainSidebarCollapsed ? 'w-12 h-12 flex items-center justify-center' : 'w-full flex items-center px-4 py-3'} rounded-lg transition-colors duration-200 ${
+                  className={`${mainSidebarCollapsed ? 'w-9 h-9 flex items-center justify-center' : 'w-full h-9 flex items-center px-4'} rounded-lg transition-colors duration-200 ${
                     currentView === item.id
-                      ? 'bg-[#02c0b7] text-white shadow-lg'
-                      : 'text-[#595956] hover:bg-[#e9e9e9] hover:text-[#494946]'
+                      ? 'bg-gray-300 text-gray-800'
+                      : 'text-gray-600 hover:bg-gray-200 hover:text-gray-800'
                   }`}
                   title={mainSidebarCollapsed ? item.label : undefined}
                 >
@@ -133,16 +133,16 @@ export function Sidebar() {
       </nav>
 
       {/* Avatar and Bottom Navigation */}
-      <div className={`${mainSidebarCollapsed ? 'px-2 py-4' : 'p-4'} border-t border-[#e2e2e2] flex-shrink-0 space-y-4`}>
+      <div className={`${mainSidebarCollapsed ? 'px-[14px] py-4' : 'px-6 py-4'} border-t border-gray-200 flex-shrink-0 space-y-4`}>
         {/* Profile Navigation with Avatar */}
         <ul className="space-y-2">
           <li>
             <button
               onClick={() => setCurrentView('profile')}
-              className={`${mainSidebarCollapsed ? 'w-12 h-12 flex items-center justify-center' : 'w-full flex items-center px-4 py-3'} rounded-lg transition-colors duration-200 ${
+              className={`${mainSidebarCollapsed ? 'w-9 h-9 flex items-center justify-center' : 'w-full h-9 flex items-center px-4'} rounded-lg transition-colors duration-200 ${
                 currentView === 'profile'
-                  ? 'bg-[#02c0b7] text-white shadow-lg'
-                  : 'text-[#595956] hover:bg-[#e9e9e9] hover:text-[#494946]'
+                  ? 'bg-gray-300 text-gray-800'
+                  : 'text-gray-600 hover:bg-gray-200 hover:text-gray-800'
               }`}
               title={mainSidebarCollapsed ? 'Profile' : undefined}
             >
@@ -172,10 +172,10 @@ export function Sidebar() {
               <li key={item.id}>
                 <button
                   onClick={() => setCurrentView(item.id)}
-                  className={`${mainSidebarCollapsed ? 'w-12 h-12 flex items-center justify-center' : 'w-full flex items-center px-4 py-3'} rounded-lg transition-colors duration-200 ${
+                  className={`${mainSidebarCollapsed ? 'w-9 h-9 flex items-center justify-center' : 'w-full h-9 flex items-center px-4'} rounded-lg transition-colors duration-200 ${
                     currentView === item.id
-                      ? 'bg-[#02c0b7] text-white shadow-lg'
-                      : 'text-[#595956] hover:bg-[#e9e9e9] hover:text-[#494946]'
+                      ? 'bg-gray-300 text-gray-800'
+                      : 'text-gray-600 hover:bg-gray-200 hover:text-gray-800'
                   }`}
                   title={mainSidebarCollapsed ? item.label : undefined}
                 >

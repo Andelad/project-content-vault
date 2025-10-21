@@ -8,7 +8,7 @@ import { Button } from '../ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Calendar } from '../ui/calendar';
 import { Input } from '../ui/input';
-import { ChevronLeft, ChevronRight, MapPin, CalendarSearch, Folders, Hash, Circle, PanelLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MapPin, CalendarSearch, Folders, Hash, Circle, PanelLeft, Plus } from 'lucide-react';
 import { toast } from '../../hooks/use-toast';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { useTimelineContext } from '../../contexts/TimelineContext';
@@ -25,7 +25,7 @@ import {
   throttleDragUpdate,
   type SmoothAnimationConfig 
 } from '@/services';
-import { TIMELINE_CONSTANTS } from '@/constants';
+import { TIMELINE_CONSTANTS, BRAND_COLORS } from '@/constants';
 import { PerformanceMetrics, throttledDragUpdate, clearDragQueue, throttledVisualUpdate } from '@/services';
 import { checkProjectOverlap, adjustProjectDatesForDrag } from '@/services';
 import { workingDayStats, milestoneStats } from '@/services';
@@ -795,6 +795,14 @@ export function TimelineView() {
             <div className="flex items-center justify-between">
               {/* Timeline Mode Toggle and Today Button */}
               <div className="flex items-center" style={{ gap: '21px' }}>
+                <Button 
+                  onClick={() => setCreatingNewProject(null)}
+                  className="h-9 gap-2 px-3"
+                  style={{ backgroundColor: BRAND_COLORS.primary }}
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Project
+                </Button>
                 <ToggleGroup
                   type="single"
                   value={timelineMode}
@@ -1149,7 +1157,7 @@ export function TimelineView() {
                 />
               </Card>
               {/* Availability Display Mode Toggle */}
-              <div className="mt-4 mb-4 flex justify-start">
+              <div className="mt-4 mb-4 flex justify-end">
                 <ToggleGroup
                   type="single"
                   value={availabilityDisplayMode}

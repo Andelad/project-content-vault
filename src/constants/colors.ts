@@ -1,6 +1,12 @@
 // OKLCH color palette - consistent lightness and chroma for harmony
 import { ColorCalculationService } from '@/services';
 
+// Brand colors
+export const BRAND_COLORS = {
+  primary: '#02c0b7',
+  primaryHover: '#02a09a',
+} as const;
+
 // Project colors using OKLCH color space for better accessibility
 export const OKLCH_PROJECT_COLORS = [
   'oklch(0.65 0.15 25)',   // Warm red
