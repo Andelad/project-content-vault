@@ -52,10 +52,8 @@ export function PlannerInsightCard({ dates, events, view }: CalendarInsightCardP
           const durationHours = originalCalculateEventDurationOnDate(event, date);
           if (durationHours > 0) {
             // Convert to minutes and round to avoid decimal minutes
-            const durationMinutes = Math.round(calculateDurationMinutes(
-              new Date(event.startTime),
-              new Date(event.endTime)
-            ));
+            // Use the already-calculated durationHours which is specific to this date
+            const durationMinutes = Math.round(durationHours * 60);
             totals[dateKey] += durationMinutes;
           }
         }

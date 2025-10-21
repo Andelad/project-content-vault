@@ -75,8 +75,8 @@ export function getBaseFullCalendarConfig(): Partial<CalendarOptions> {
       endTime: '17:00'
     },
     
-    // Scrolling
-    scrollTime: '06:00:00',
+    // Scrolling - disabled to allow custom scroll positioning
+    scrollTime: '00:00:00', // Start at top, custom logic will handle scroll
     scrollTimeReset: false,
     
     // Now indicator

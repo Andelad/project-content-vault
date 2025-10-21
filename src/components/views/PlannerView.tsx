@@ -510,6 +510,60 @@ export function PlannerView() {
       });
     };
   }, [calendarDate, currentView, setCurrentDate, setTimelineView]);
+
+  // Scroll to show current time + 2 hours at the bottom of viewport
+  useEffect(() => {
+    const scrollToCurrentTime = () => {
+      const calendarApi = calendarRef.current?.getApi();
+      if (!calendarApi) return;
+
+      const now = new Date();
+      const currentHour = now.getHours();
+      const currentMinute = now.getMinutes();
+      
+      // Calculate target hour: current time + 2 hours
+      let targetHour = currentHour + 2;
+      let targetMinute = currentMinute;
+      
+      // Cap at midnight (00:00)
+      if (targetHour >= 24) {
+        targetHour = 24;
+        targetMinute = 0;
+      }
+      
+      // Get the scroller element
+      const scroller = document.querySelector('.fc-scroller.fc-scroller-liquid-absolute');
+      if (!scroller) return;
+      
+      // Get the time grid
+      const timeGrid = document.querySelector('.fc-timegrid-body');
+      if (!timeGrid) return;
+      
+      // Calculate scroll position
+      // Each hour slot is a portion of the total time grid height
+      const totalMinutesInDay = 24 * 60; // 1440 minutes
+      const targetMinutes = targetHour * 60 + targetMinute;
+      const scrollPercentage = targetMinutes / totalMinutesInDay;
+      
+      // Get viewport height to position target at bottom
+      const viewportHeight = scroller.clientHeight;
+      const totalScrollHeight = scroller.scrollHeight;
+      
+      // Calculate scroll position so target time is at the bottom
+      const scrollPosition = (scrollPercentage * totalScrollHeight) - viewportHeight;
+      
+      // Ensure we don't scroll beyond the top
+      const finalScrollPosition = Math.max(0, scrollPosition);
+      
+      scroller.scrollTop = finalScrollPosition;
+    };
+    
+    // Scroll after a short delay to ensure calendar is fully rendered
+    const timeoutId = setTimeout(scrollToCurrentTime, 150);
+    
+    return () => clearTimeout(timeoutId);
+  }, [currentView]); // Re-run when view changes (week/day toggle)
+
   return (
     <div className="h-full flex flex-col bg-gray-50 overflow-hidden">
       {/* Calendar Controls */}
