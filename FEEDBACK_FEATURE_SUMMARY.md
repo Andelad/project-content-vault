@@ -4,6 +4,7 @@
 
 ### 1. UI Components
 - **FeedbackView.tsx** - Complete feedback form with:
+  - Dropdown for usage context (University, Work, Personal)
   - Dropdown for feedback type selection (4 options)
   - Textarea for detailed feedback
   - File attachment system with preview
@@ -42,11 +43,15 @@ This includes:
 ## 🎨 Design Details
 
 - Form title: "Your feedback helps us improve our project"
+- Usage context options:
+  1. 🎓 University
+  2. 💼 Freelance/Consultancy/Work
+  3. 🏠 Personal Life
 - Feedback types:
-  1. I like something
-  2. I don't like something
-  3. I need to report a bug
-  4. Feature request
+  1. 💚 I like something
+  2. 💔 I don't like something
+  3. 🐛 I need to report a bug
+  4. 💡 Feature request
 - File types supported: Images, PDFs, DOC, DOCX, TXT
 - Email destination: hello@eido.studio
 - Icon: MessageCircle (speech bubble)

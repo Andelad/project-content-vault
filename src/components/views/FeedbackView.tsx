@@ -12,6 +12,7 @@ import { Badge } from '../ui/badge';
 export function FeedbackView() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [usageContext, setUsageContext] = useState('university');
   const [feedbackType, setFeedbackType] = useState('like');
   const [feedbackText, setFeedbackText] = useState('');
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -56,6 +57,7 @@ export function FeedbackView() {
       
       // Placeholder for the submission
       console.log('Feedback submission:', {
+        usageContext: usageContext,
         type: feedbackType,
         feedback: feedbackText,
         attachments: attachments.map(f => f.name)
@@ -67,7 +69,8 @@ export function FeedbackView() {
       });
 
       // Reset form
-      setFeedbackType('');
+      setUsageContext('university');
+      setFeedbackType('like');
       setFeedbackText('');
       setAttachments([]);
     } catch (error) {
@@ -99,6 +102,21 @@ export function FeedbackView() {
         <Card>
           <CardContent className="pt-6">
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Usage Context Dropdown */}
+              <div className="space-y-2">
+                <Label htmlFor="usage-context">I mainly use Budgi for...</Label>
+                <Select value={usageContext} onValueChange={setUsageContext} defaultValue="university">
+                  <SelectTrigger id="usage-context">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="university">🎓 University</SelectItem>
+                    <SelectItem value="work">💼 Freelance/Consultancy/Work</SelectItem>
+                    <SelectItem value="personal">🏠 Personal Life</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               {/* Feedback Type Dropdown */}
               <div className="space-y-2">
                 <Label htmlFor="feedback-type">What would you like to share?</Label>

@@ -33,6 +33,7 @@ Create a new table in Supabase called `feedback`:
 CREATE TABLE feedback (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  usage_context text NOT NULL CHECK (usage_context IN ('university', 'work', 'personal')),
   feedback_type text NOT NULL CHECK (feedback_type IN ('like', 'dislike', 'bug', 'feature')),
   feedback_text text NOT NULL,
   user_email text,
@@ -148,18 +149,26 @@ const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
 
 serve(async (req) => {
   try {
-    const { feedbackId, feedbackType, feedbackText, userEmail, attachments } = await req.json()
+    const { feedbackId, usageContext, feedbackType, feedbackText, userEmail, attachments } = await req.json()
+
+    // Map usage context to readable label
+    const usageLabels = {
+      university: '🎓 University',
+      work: '💼 Freelance/Consultancy/Work',
+      personal: '🏠 Personal Life'
+    }
 
     // Map feedback type to readable label
     const typeLabels = {
-      like: 'I like something',
-      dislike: "I don't like something",
-      bug: 'Bug Report',
-      feature: 'Feature Request'
+      like: '💚 I like something',
+      dislike: "💔 I don't like something",
+      bug: '🐛 Bug Report',
+      feature: '💡 Feature Request'
     }
 
     const emailHtml = `
       <h2>New Feedback Received</h2>
+      <p><strong>Usage Context:</strong> ${usageLabels[usageContext] || usageContext}</p>
       <p><strong>Type:</strong> ${typeLabels[feedbackType] || feedbackType}</p>
       <p><strong>From:</strong> ${userEmail || 'Anonymous'}</p>
       <p><strong>Feedback ID:</strong> ${feedbackId}</p>
@@ -240,6 +249,7 @@ const handleSubmit = async (e: React.FormEvent) => {
       .from('feedback')
       .insert({
         user_id: user?.id,
+        usage_context: usageContext,
         feedback_type: feedbackType,
         feedback_text: feedbackText,
         user_email: user?.email,
@@ -285,6 +295,7 @@ const handleSubmit = async (e: React.FormEvent) => {
     const { error: emailError } = await supabase.functions.invoke('send-feedback-email', {
       body: {
         feedbackId: feedbackData.id,
+        usageContext: usageContext,
         feedbackType: feedbackType,
         feedbackText: feedbackText,
         userEmail: user?.email,

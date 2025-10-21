@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { useGroups } from '../../hooks/useGroups';
 import { useToast } from '../../hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Edit, Trash2, Calendar, Clock, Users, FolderPlus, Grid3X3, List, GripVertical, Archive, PlayCircle, Clock4, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, Edit, Trash2, Calendar, Clock, Users, FolderPlus, Grid3X3, List, GripVertical, Archive, PlayCircle, Clock4, ChevronDown, ChevronRight, Search, Tag, Building2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Input } from '../ui/input';
@@ -22,6 +22,8 @@ import { getEffectiveProjectStatus, DurationFormattingService } from '@/services
 import { GroupOrchestrator } from '@/services/orchestrators/GroupOrchestrator';
 
 type ViewType = 'grid' | 'list';
+type FilterByStatus = 'all' | 'active' | 'future' | 'past';
+type OrganizeBy = 'group' | 'tag' | 'client';
 
 // Drag and drop item types
 const ItemTypes = {
@@ -137,6 +139,12 @@ export function ProjectsView() {
 
   // View toggle state
   const [viewType, setViewType] = useState<ViewType>('list');
+  
+  // Filter and organize state
+  const [organizeBy, setOrganizeBy] = useState<OrganizeBy>('group');
+  const [filterByStatus, setFilterByStatus] = useState<FilterByStatus>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterByDate, setFilterByDate] = useState('');
 
   // Group dialog state
   const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
@@ -373,6 +381,83 @@ export function ProjectsView() {
     return projects.filter(project => getEffectiveProjectStatus(project) === status).length;
   };
 
+  // Filter and organize projects
+  const filteredProjects = useMemo(() => {
+    let filtered = [...projects];
+
+    // Filter by status
+    if (filterByStatus === 'active') {
+      filtered = filtered.filter(p => getEffectiveProjectStatus(p) === 'current');
+    } else if (filterByStatus === 'future') {
+      filtered = filtered.filter(p => getEffectiveProjectStatus(p) === 'future');
+    } else if (filterByStatus === 'past') {
+      filtered = filtered.filter(p => getEffectiveProjectStatus(p) === 'archived');
+    }
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(p => 
+        p.name.toLowerCase().includes(query) ||
+        (p.clientId && p.clientId.toLowerCase().includes(query))
+      );
+    }
+
+    // Filter by date
+    if (filterByDate) {
+      const targetDate = new Date(filterByDate);
+      targetDate.setHours(0, 0, 0, 0);
+      filtered = filtered.filter(p => {
+        const start = new Date(p.startDate);
+        const end = new Date(p.endDate);
+        start.setHours(0, 0, 0, 0);
+        end.setHours(0, 0, 0, 0);
+        return start <= targetDate && targetDate <= end;
+      });
+    }
+
+    return filtered;
+  }, [projects, filterByStatus, searchQuery, filterByDate]);
+
+  // Organize filtered projects
+  const organizedProjects = useMemo(() => {
+    if (organizeBy === 'group') {
+      // Group by group
+      const byGroup: { [key: string]: { group: Group; projects: Project[] } } = {};
+      groups.forEach(group => {
+        byGroup[group.id] = { group, projects: [] };
+      });
+      filteredProjects.forEach(project => {
+        if (byGroup[project.groupId]) {
+          byGroup[project.groupId].projects.push(project);
+        }
+      });
+      return Object.values(byGroup).filter(g => g.projects.length > 0);
+    } else if (organizeBy === 'client') {
+      // Group by client
+      const byClient: { [key: string]: Project[] } = {};
+      filteredProjects.forEach(project => {
+        const client = project.clientId || 'No Client';
+        if (!byClient[client]) {
+          byClient[client] = [];
+        }
+        byClient[client].push(project);
+      });
+      return Object.entries(byClient).map(([client, projects]) => ({
+        key: client,
+        label: client,
+        projects
+      }));
+    } else {
+      // Group by tag (placeholder - would need tag implementation)
+      return [{
+        key: 'all',
+        label: 'All Projects',
+        projects: filteredProjects
+      }];
+    }
+  }, [organizeBy, filteredProjects, groups]);
+
   // Collapsible toggle functions
   const toggleSection = (section: string) => {
     setCollapsedSections(prev => ({
@@ -540,271 +625,231 @@ export function ProjectsView() {
           <div />
         </AppPageLayout.Header>
 
-      {/* No sub-header for Projects view */}
+      {/* Filter and Organization Controls */}
+      <AppPageLayout.SubHeader>
+        <div className="flex items-center justify-between">
+          {/* Left side - Organization and filters */}
+          <div className="flex items-center" style={{ gap: '21px' }}>
+            {/* Organize By */}
+            <ToggleGroup
+              type="single"
+              value={organizeBy}
+              onValueChange={(value) => value && setOrganizeBy(value as OrganizeBy)}
+              variant="outline"
+              className="border border-gray-200 rounded-lg h-9 p-1"
+            >
+              <ToggleGroupItem value="group" aria-label="Organize by group" className="px-3 py-1 h-7 gap-1.5">
+                <FolderPlus className="w-3 h-3" />
+                Group
+              </ToggleGroupItem>
+              <ToggleGroupItem value="client" aria-label="Organize by client" className="px-3 py-1 h-7 gap-1.5">
+                <Building2 className="w-3 h-3" />
+                Client
+              </ToggleGroupItem>
+              <ToggleGroupItem value="tag" aria-label="Organize by tag" className="px-3 py-1 h-7 gap-1.5">
+                <Tag className="w-3 h-3" />
+                Tag
+              </ToggleGroupItem>
+            </ToggleGroup>
+
+            {/* Status Filter */}
+            <ToggleGroup
+              type="single"
+              value={filterByStatus}
+              onValueChange={(value) => value && setFilterByStatus(value as FilterByStatus)}
+              variant="outline"
+              className="border border-gray-200 rounded-lg h-9 p-1"
+            >
+              <ToggleGroupItem value="all" aria-label="All projects" className="px-3 py-1 h-7">
+                All
+              </ToggleGroupItem>
+              <ToggleGroupItem value="active" aria-label="Active projects" className="px-3 py-1 h-7 gap-1.5">
+                <PlayCircle className="w-3 h-3" />
+                Active
+              </ToggleGroupItem>
+              <ToggleGroupItem value="future" aria-label="Future projects" className="px-3 py-1 h-7 gap-1.5">
+                <Clock4 className="w-3 h-3" />
+                Future
+              </ToggleGroupItem>
+              <ToggleGroupItem value="past" aria-label="Past projects" className="px-3 py-1 h-7 gap-1.5">
+                <Archive className="w-3 h-3" />
+                Past
+              </ToggleGroupItem>
+            </ToggleGroup>
+
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Input
+                placeholder="Search projects..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-9 pl-8 pr-3 w-[200px]"
+              />
+            </div>
+
+            {/* Date Filter */}
+            <Input
+              type="date"
+              value={filterByDate}
+              onChange={(e) => setFilterByDate(e.target.value)}
+              className="h-9 w-[160px]"
+              placeholder="Filter by date"
+            />
+          </div>
+
+          {/* Right side - View toggle */}
+          <ToggleGroup
+            type="single"
+            value={viewType}
+            onValueChange={(value) => value && setViewType(value as ViewType)}
+            variant="outline"
+            className="border border-gray-200 rounded-lg h-9 p-1"
+          >
+            <ToggleGroupItem value="list" aria-label="List view" className="px-3 py-1 h-7">
+              <List className="w-4 h-4" />
+            </ToggleGroupItem>
+            <ToggleGroupItem value="grid" aria-label="Grid view" className="px-3 py-1 h-7">
+              <Grid3X3 className="w-4 h-4" />
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </div>
+      </AppPageLayout.SubHeader>
       
       {/* Content */}
       <AppPageLayout.Content className="flex-1 overflow-auto light-scrollbar p-0">
         <div className="px-[21px] pb-[21px] pt-[35px] space-y-8">
-          {/* Current Projects Section */}
-          <div className="space-y-6">
-            <div 
-              className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
-              onClick={() => toggleSection('current')}
-            >
-              {isSectionCollapsed('current') ? (
-                <ChevronRight className="w-4 h-4 text-gray-500" />
-              ) : (
-                <ChevronDown className="w-4 h-4 text-gray-500" />
-              )}
-              <PlayCircle className="w-5 h-5" />
-              <h2 className="text-xl font-semibold text-gray-900">Current Projects</h2>
-              <Badge variant="secondary" className="bg-green-100 text-green-700">
-                {getProjectCountByStatus('current')} projects
+          
+          {/* Results count */}
+          {filteredProjects.length > 0 && (
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary">
+                {filteredProjects.length} {filteredProjects.length === 1 ? 'project' : 'projects'}
               </Badge>
-            </div>
-            
-            {!isSectionCollapsed('current') && groups.map((group, groupIndex) => {
-              const groupProjects = getProjectsByGroupAndStatus(group.id, 'current');
-              if (groupProjects.length === 0) return null;
-              
-              return (
-                <DraggableGroup
-                  key={`current-${group.id}`}
-                  group={group}
-                  index={groupIndex}
-                  onMoveGroup={handleMoveGroup}
+              {(searchQuery || filterByDate || filterByStatus !== 'all') && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setFilterByDate('');
+                    setFilterByStatus('all');
+                  }}
+                  className="h-7 text-xs"
                 >
-                  <div className="space-y-3">
-                    {/* Group Header */}
-                    <div 
-                      className="flex items-center justify-between cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
-                      onClick={() => toggleGroup(group.id, 'current')}
+                  Clear filters
+                </Button>
+              )}
+            </div>
+          )}
+
+          {/* Organized Projects Display */}
+          {organizedProjects.length > 0 ? (
+            <div className="space-y-6">
+              {organizedProjects.map((section, index) => {
+                // Handle group organization
+                if ('group' in section) {
+                  const groupData = section as { group: Group; projects: Project[] };
+                  return (
+                    <DraggableGroup
+                      key={`group-${groupData.group.id}`}
+                      group={groupData.group}
+                      index={index}
+                      onMoveGroup={handleMoveGroup}
                     >
-                      <div className="flex items-center gap-3">
-                        {isGroupCollapsed(group.id, 'current') ? (
-                          <ChevronRight className="w-3 h-3 text-gray-500" />
-                        ) : (
-                          <ChevronDown className="w-3 h-3 text-gray-500" />
-                        )}
-                        <FolderPlus className="w-3 h-3 text-gray-500" />
-                        <div>
-                          <h3 className="text-md font-medium text-gray-900">{group.name}</h3>
+                      <div className="space-y-3">
+                        {/* Group Header */}
+                        <div className="flex items-center gap-3">
+                          <FolderPlus className="w-4 h-4 text-gray-500" />
+                          <h3 className="text-lg font-medium text-gray-900">{groupData.group.name}</h3>
+                          <Badge variant="outline" className="text-xs">
+                            {groupData.projects.length}
+                          </Badge>
                         </div>
+
+                        {/* Projects Display */}
+                        <div className={viewType === 'grid' 
+                          ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" 
+                          : "space-y-2"
+                        }>
+                          {groupData.projects.map((project, projectIndex) => 
+                            viewType === 'grid' 
+                              ? renderGridProject(project, projectIndex, groupData.group.id)
+                              : renderListProject(project, projectIndex, groupData.group.id)
+                          )}
+                        </div>
+                      </div>
+                    </DraggableGroup>
+                  );
+                } else {
+                  // Handle client or tag organization
+                  const sectionData = section as { key: string; label: string; projects: Project[] };
+                  return (
+                    <div key={`section-${sectionData.key}`} className="space-y-3">
+                      {/* Section Header */}
+                      <div className="flex items-center gap-3">
+                        {organizeBy === 'client' ? (
+                          <Building2 className="w-4 h-4 text-gray-500" />
+                        ) : (
+                          <Tag className="w-4 h-4 text-gray-500" />
+                        )}
+                        <h3 className="text-lg font-medium text-gray-900">{sectionData.label}</h3>
                         <Badge variant="outline" className="text-xs">
-                          {groupProjects.length}
+                          {sectionData.projects.length}
                         </Badge>
                       </div>
-                    </div>
 
-                    {/* Projects Display */}
-                    {!isGroupCollapsed(group.id, 'current') && (
+                      {/* Projects Display */}
                       <div className={viewType === 'grid' 
                         ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" 
                         : "space-y-2"
                       }>
-                        {groupProjects.map((project, projectIndex) => 
+                        {sectionData.projects.map((project, projectIndex) => 
                           viewType === 'grid' 
-                            ? renderGridProject(project, projectIndex, group.id)
-                            : renderListProject(project, projectIndex, group.id)
+                            ? renderGridProject(project, projectIndex, project.groupId)
+                            : renderListProject(project, projectIndex, project.groupId)
                         )}
-                      </div>
-                    )}
-                  </div>
-                </DraggableGroup>
-              );
-            })}
-
-            {!isSectionCollapsed('current') && getProjectCountByStatus('current') === 0 && (
-              <Card className="border-dashed">
-                <CardContent className="flex flex-col items-center justify-center py-8">
-                  <div className="text-gray-400 mb-2">
-                    <PlayCircle className="w-12 h-12" />
-                  </div>
-                  <p className="text-gray-600 mb-4">No current projects</p>
-                  <p className="text-gray-500 text-sm">Create projects from the Timeline view</p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          <Separator />
-
-          {/* Future Projects Section */}
-          <div className="space-y-6">
-            <div 
-              className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
-              onClick={() => toggleSection('future')}
-            >
-              {isSectionCollapsed('future') ? (
-                <ChevronRight className="w-4 h-4 text-gray-500" />
-              ) : (
-                <ChevronDown className="w-4 h-4 text-gray-500" />
-              )}
-              <Clock4 className="w-5 h-5" />
-              <h2 className="text-xl font-semibold text-gray-900">Future Projects</h2>
-              <Badge variant="secondary" className="bg-blue-100 text-blue-700">
-                {getProjectCountByStatus('future')} projects
-              </Badge>
-            </div>
-            
-            {!isSectionCollapsed('future') && groups.map((group, groupIndex) => {
-              const groupProjects = getProjectsByGroupAndStatus(group.id, 'future');
-              if (groupProjects.length === 0) return null;
-              
-              return (
-                <DraggableGroup
-                  key={`future-${group.id}`}
-                  group={group}
-                  index={groupIndex}
-                  onMoveGroup={handleMoveGroup}
-                >
-                  <div className="space-y-3">
-                    {/* Group Header */}
-                    <div 
-                      className="flex items-center justify-between cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
-                      onClick={() => toggleGroup(group.id, 'future')}
-                    >
-                      <div className="flex items-center gap-3">
-                        {isGroupCollapsed(group.id, 'future') ? (
-                          <ChevronRight className="w-3 h-3 text-gray-500" />
-                        ) : (
-                          <ChevronDown className="w-3 h-3 text-gray-500" />
-                        )}
-                        <FolderPlus className="w-3 h-3 text-gray-500" />
-                        <div>
-                          <h3 className="text-md font-medium text-gray-900">{group.name}</h3>
-                        </div>
-                        <Badge variant="outline" className="text-xs">
-                          {groupProjects.length}
-                        </Badge>
                       </div>
                     </div>
-
-                    {/* Projects Display */}
-                    {!isGroupCollapsed(group.id, 'future') && (
-                      <div className={viewType === 'grid' 
-                        ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" 
-                        : "space-y-2"
-                      }>
-                        {groupProjects.map((project, projectIndex) => 
-                          viewType === 'grid' 
-                            ? renderGridProject(project, projectIndex, group.id)
-                            : renderListProject(project, projectIndex, group.id)
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </DraggableGroup>
-              );
-            })}
-
-            {!isSectionCollapsed('future') && getProjectCountByStatus('future') === 0 && (
-              <Card className="border-dashed">
-                <CardContent className="flex flex-col items-center justify-center py-8">
-                  <div className="text-gray-400 mb-2">
-                    <Clock4 className="w-12 h-12" />
-                  </div>
-                  <p className="text-gray-600 mb-4">No future projects</p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          <Separator />
-
-          {/* Archive Projects Section */}
-          <div className="space-y-6">
-            <div 
-              className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
-              onClick={() => toggleSection('archived')}
-            >
-              {isSectionCollapsed('archived') ? (
-                <ChevronRight className="w-4 h-4 text-gray-500" />
-              ) : (
-                <ChevronDown className="w-4 h-4 text-gray-500" />
-              )}
-              <Archive className="w-5 h-5" />
-              <h2 className="text-xl font-semibold text-gray-900">Archived Projects</h2>
-              <Badge variant="secondary" className="bg-gray-100 text-gray-700">
-                {getProjectCountByStatus('archived')} projects
-              </Badge>
+                  );
+                }
+              })}
             </div>
-            
-            {!isSectionCollapsed('archived') && groups.map((group, groupIndex) => {
-              const groupProjects = getProjectsByGroupAndStatus(group.id, 'archived');
-              if (groupProjects.length === 0) return null;
-              
-              return (
-                <DraggableGroup
-                  key={`archive-${group.id}`}
-                  group={group}
-                  index={groupIndex}
-                  onMoveGroup={handleMoveGroup}
-                >
-                  <div className="space-y-3">
-                    {/* Group Header */}
-                    <div 
-                      className="flex items-center justify-between cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
-                      onClick={() => toggleGroup(group.id, 'archived')}
-                    >
-                      <div className="flex items-center gap-3">
-                        {isGroupCollapsed(group.id, 'archived') ? (
-                          <ChevronRight className="w-3 h-3 text-gray-500" />
-                        ) : (
-                          <ChevronDown className="w-3 h-3 text-gray-500" />
-                        )}
-                        <FolderPlus className="w-3 h-3 text-gray-500" />
-                        <div>
-                          <h3 className="text-md font-medium text-gray-900">{group.name}</h3>
-                        </div>
-                        <Badge variant="outline" className="text-xs">
-                          {groupProjects.length}
-                        </Badge>
-                      </div>
-                    </div>
-
-                    {/* Projects Display */}
-                    {!isGroupCollapsed(group.id, 'archived') && (
-                      <div className={viewType === 'grid' 
-                        ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" 
-                        : "space-y-2"
-                      }>
-                        {groupProjects.map((project, projectIndex) => 
-                          viewType === 'grid' 
-                            ? renderGridProject(project, projectIndex, group.id)
-                            : renderListProject(project, projectIndex, group.id)
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </DraggableGroup>
-              );
-            })}
-
-            {!isSectionCollapsed('archived') && getProjectCountByStatus('archived') === 0 && (
-              <Card className="border-dashed">
-                <CardContent className="flex flex-col items-center justify-center py-8">
-                  <div className="text-gray-400 mb-2">
-                    <Archive className="w-12 h-12" />
-                  </div>
-                  <p className="text-gray-600 mb-4">No archived projects</p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          {/* Show welcome message only if no projects exist at all */}
-          {projects.length === 0 && (
+          ) : (
+            /* No results message */
             <Card className="border-dashed">
               <CardContent className="flex flex-col items-center justify-center py-16">
                 <div className="text-gray-400 mb-4">
-                  <Users className="w-16 h-16" />
+                  {searchQuery || filterByDate || filterByStatus !== 'all' ? (
+                    <Search className="w-16 h-16" />
+                  ) : (
+                    <Users className="w-16 h-16" />
+                  )}
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Welcome to Projects</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  {searchQuery || filterByDate || filterByStatus !== 'all' 
+                    ? 'No projects found'
+                    : 'No projects yet'
+                  }
+                </h3>
                 <p className="text-gray-600 text-center mb-6 max-w-md">
-                  Organize your work by creating project groups, adding rows, and creating projects from the Timeline view.
+                  {searchQuery || filterByDate || filterByStatus !== 'all'
+                    ? 'Try adjusting your filters or search query'
+                    : 'Start by going to the Timeline view to create your first group and projects.'
+                  }
                 </p>
-                <p className="text-gray-500 text-sm">Start by going to the Timeline view to create your first group and projects.</p>
+                {(searchQuery || filterByDate || filterByStatus !== 'all') && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setFilterByDate('');
+                      setFilterByStatus('all');
+                    }}
+                  >
+                    Clear filters
+                  </Button>
+                )}
               </CardContent>
             </Card>
           )}
