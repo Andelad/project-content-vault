@@ -530,7 +530,7 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
       style={{
         maxHeight: isExpanded ? '200px' : '0',
         opacity: isExpanded ? 1 : 0,
-        overflow: 'hidden',
+        overflow: isExpanded ? 'visible' : 'hidden',
       }}
     >
       <Card 
@@ -539,10 +539,10 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
           borderColor: fadeBorder ? 'rgba(226, 226, 226, 0)' : undefined,
         }}
       >
-        <CardContent className="p-3 h-full flex items-center">
+        <CardContent className="p-3 h-full flex items-center" style={{ overflow: 'visible' }}>
           <div className="flex items-center gap-3 w-full">
             {/* Search Input with Dropdown */}
-            <div className="relative flex-1" ref={dropdownRef}>
+            <div className="relative flex-1 min-w-[280px]" ref={dropdownRef}>
               <Input
                 placeholder="What are you working on?"
                 value={searchQuery}
@@ -551,13 +551,13 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
                   setShowSearchDropdown(true);
                 }}
                 onFocus={() => setShowSearchDropdown(true)}
-                className="w-full h-9 bg-background cursor-text"
+                className="w-full h-9 bg-background cursor-text pr-10"
                 disabled={isTimeTracking}
               />
-              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
               {/* Dropdown */}
               {showSearchDropdown && isExpanded && (
-                <div className="absolute top-full left-0 w-64 mt-1 bg-popover border border-border rounded-md shadow-lg z-[60]">
+                <div className="absolute top-full left-0 w-64 mt-1 bg-popover border border-border rounded-md shadow-lg z-[100]">
                   <div className="max-h-64 overflow-y-auto">
                     {searchResults.length > 0 ? (
                       searchResults.map((item) => (

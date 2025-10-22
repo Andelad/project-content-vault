@@ -15,15 +15,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Badge } from '../ui/badge';
 import { Separator } from '../ui/separator';
 import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
 import { StandardModal } from '../modals/StandardModal';
 import { Group, Project, ProjectStatus } from '../../types';
 import { AppPageLayout } from '../layout/AppPageLayout';
 import { getEffectiveProjectStatus, DurationFormattingService } from '@/services';
 import { GroupOrchestrator } from '@/services/orchestrators/GroupOrchestrator';
+import { ClientsListView } from './ClientsListView';
 
 type ViewType = 'grid' | 'list';
 type FilterByStatus = 'all' | 'active' | 'future' | 'past';
 type OrganizeBy = 'group' | 'tag' | 'client';
+type MainTab = 'projects' | 'clients';
+type ClientStatusFilter = 'all' | 'active' | 'archived';
 
 // Drag and drop item types
 const ItemTypes = {
@@ -137,6 +141,9 @@ export function ProjectsView() {
   const { addGroup, updateGroup, refetch: fetchGroups } = useGroups();
   const { toast } = useToast();
 
+  // Main tab state
+  const [activeTab, setActiveTab] = useState<MainTab>('projects');
+
   // View toggle state
   const [viewType, setViewType] = useState<ViewType>('list');
   
@@ -145,6 +152,9 @@ export function ProjectsView() {
   const [filterByStatus, setFilterByStatus] = useState<FilterByStatus>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterByDate, setFilterByDate] = useState('');
+  
+  // Client-specific filter state
+  const [clientStatusFilter, setClientStatusFilter] = useState<ClientStatusFilter>('active');
 
   // Group dialog state
   const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
@@ -625,235 +635,329 @@ export function ProjectsView() {
           <div />
         </AppPageLayout.Header>
 
-      {/* Filter and Organization Controls */}
+      {/* Tabs and Filter Controls */}
       <AppPageLayout.SubHeader>
-        <div className="flex items-center justify-between">
-          {/* Left side - Organization and filters */}
-          <div className="flex items-center" style={{ gap: '21px' }}>
-            {/* Organize By */}
-            <ToggleGroup
-              type="single"
-              value={organizeBy}
-              onValueChange={(value) => value && setOrganizeBy(value as OrganizeBy)}
-              variant="outline"
-              className="border border-gray-200 rounded-lg h-9 p-1"
-            >
-              <ToggleGroupItem value="group" aria-label="Organize by group" className="px-3 py-1 h-7 gap-1.5">
-                <FolderPlus className="w-3 h-3" />
-                Group
-              </ToggleGroupItem>
-              <ToggleGroupItem value="client" aria-label="Organize by client" className="px-3 py-1 h-7 gap-1.5">
-                <Building2 className="w-3 h-3" />
-                Client
-              </ToggleGroupItem>
-              <ToggleGroupItem value="tag" aria-label="Organize by tag" className="px-3 py-1 h-7 gap-1.5">
-                <Tag className="w-3 h-3" />
-                Tag
-              </ToggleGroupItem>
-            </ToggleGroup>
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as MainTab)} className="w-full">
+          {/* Main Tabs */}
+          <TabsList className="mb-4">
+            <TabsTrigger value="projects">Projects</TabsTrigger>
+            <TabsTrigger value="clients">Clients</TabsTrigger>
+          </TabsList>
 
-            {/* Status Filter */}
-            <ToggleGroup
-              type="single"
-              value={filterByStatus}
-              onValueChange={(value) => value && setFilterByStatus(value as FilterByStatus)}
-              variant="outline"
-              className="border border-gray-200 rounded-lg h-9 p-1"
-            >
-              <ToggleGroupItem value="all" aria-label="All projects" className="px-3 py-1 h-7">
-                All
-              </ToggleGroupItem>
-              <ToggleGroupItem value="active" aria-label="Active projects" className="px-3 py-1 h-7 gap-1.5">
-                <PlayCircle className="w-3 h-3" />
-                Active
-              </ToggleGroupItem>
-              <ToggleGroupItem value="future" aria-label="Future projects" className="px-3 py-1 h-7 gap-1.5">
-                <Clock4 className="w-3 h-3" />
-                Future
-              </ToggleGroupItem>
-              <ToggleGroupItem value="past" aria-label="Past projects" className="px-3 py-1 h-7 gap-1.5">
-                <Archive className="w-3 h-3" />
-                Past
-              </ToggleGroupItem>
-            </ToggleGroup>
+          {/* Projects Tab Content - Filters */}
+          <TabsContent value="projects" className="mt-0">
+            <div className="flex items-center justify-between">
+              {/* Left side - Organization and filters */}
+              <div className="flex items-center" style={{ gap: '21px' }}>
+                {/* Organize By */}
+                <ToggleGroup
+                  type="single"
+                  value={organizeBy}
+                  onValueChange={(value) => value && setOrganizeBy(value as OrganizeBy)}
+                  variant="outline"
+                  className="border border-gray-200 rounded-lg h-9 p-1"
+                >
+                  <ToggleGroupItem value="group" aria-label="Organize by group" className="px-3 py-1 h-7 gap-1.5">
+                    <FolderPlus className="w-3 h-3" />
+                    Group
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="client" aria-label="Organize by client" className="px-3 py-1 h-7 gap-1.5">
+                    <Building2 className="w-3 h-3" />
+                    Client
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="tag" aria-label="Organize by tag" className="px-3 py-1 h-7 gap-1.5">
+                    <Tag className="w-3 h-3" />
+                    Tag
+                  </ToggleGroupItem>
+                </ToggleGroup>
 
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input
-                placeholder="Search projects..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-9 pl-8 pr-3 w-[200px]"
-              />
+                {/* Status Filter */}
+                <ToggleGroup
+                  type="single"
+                  value={filterByStatus}
+                  onValueChange={(value) => value && setFilterByStatus(value as FilterByStatus)}
+                  variant="outline"
+                  className="border border-gray-200 rounded-lg h-9 p-1"
+                >
+                  <ToggleGroupItem value="all" aria-label="All projects" className="px-3 py-1 h-7">
+                    All
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="active" aria-label="Active projects" className="px-3 py-1 h-7 gap-1.5">
+                    <PlayCircle className="w-3 h-3" />
+                    Active
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="future" aria-label="Future projects" className="px-3 py-1 h-7 gap-1.5">
+                    <Clock4 className="w-3 h-3" />
+                    Future
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="past" aria-label="Past projects" className="px-3 py-1 h-7 gap-1.5">
+                    <Archive className="w-3 h-3" />
+                    Past
+                  </ToggleGroupItem>
+                </ToggleGroup>
+
+                {/* Search */}
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input
+                    placeholder="Search projects..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="h-9 pl-8 pr-3 w-[200px]"
+                  />
+                </div>
+
+                {/* Date Filter */}
+                <Input
+                  type="date"
+                  value={filterByDate}
+                  onChange={(e) => setFilterByDate(e.target.value)}
+                  className="h-9 w-[160px]"
+                  placeholder="Filter by date"
+                />
+              </div>
+
+              {/* Right side - View toggle */}
+              <ToggleGroup
+                type="single"
+                value={viewType}
+                onValueChange={(value) => value && setViewType(value as ViewType)}
+                variant="outline"
+                className="border border-gray-200 rounded-lg h-9 p-1"
+              >
+                <ToggleGroupItem value="list" aria-label="List view" className="px-3 py-1 h-7">
+                  <List className="w-4 h-4" />
+                </ToggleGroupItem>
+                <ToggleGroupItem value="grid" aria-label="Grid view" className="px-3 py-1 h-7">
+                  <Grid3X3 className="w-4 h-4" />
+                </ToggleGroupItem>
+              </ToggleGroup>
             </div>
+          </TabsContent>
 
-            {/* Date Filter */}
-            <Input
-              type="date"
-              value={filterByDate}
-              onChange={(e) => setFilterByDate(e.target.value)}
-              className="h-9 w-[160px]"
-              placeholder="Filter by date"
-            />
-          </div>
+          {/* Clients Tab Content - Filters */}
+          <TabsContent value="clients" className="mt-0">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center" style={{ gap: '21px' }}>
+                {/* Status Filter */}
+                <ToggleGroup
+                  type="single"
+                  value={clientStatusFilter}
+                  onValueChange={(value) => value && setClientStatusFilter(value as ClientStatusFilter)}
+                  variant="outline"
+                  className="border border-gray-200 rounded-lg h-9 p-1"
+                >
+                  <ToggleGroupItem value="all" aria-label="All clients" className="px-3 py-1 h-7">
+                    All
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="active" aria-label="Active clients" className="px-3 py-1 h-7 gap-1.5">
+                    <PlayCircle className="w-3 h-3" />
+                    Active
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="archived" aria-label="Archived clients" className="px-3 py-1 h-7 gap-1.5">
+                    <Archive className="w-3 h-3" />
+                    Archived
+                  </ToggleGroupItem>
+                </ToggleGroup>
 
-          {/* Right side - View toggle */}
-          <ToggleGroup
-            type="single"
-            value={viewType}
-            onValueChange={(value) => value && setViewType(value as ViewType)}
-            variant="outline"
-            className="border border-gray-200 rounded-lg h-9 p-1"
-          >
-            <ToggleGroupItem value="list" aria-label="List view" className="px-3 py-1 h-7">
-              <List className="w-4 h-4" />
-            </ToggleGroupItem>
-            <ToggleGroupItem value="grid" aria-label="Grid view" className="px-3 py-1 h-7">
-              <Grid3X3 className="w-4 h-4" />
-            </ToggleGroupItem>
-          </ToggleGroup>
-        </div>
+                {/* Search */}
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input
+                    placeholder="Search clients..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="h-9 pl-8 pr-3 w-[200px]"
+                  />
+                </div>
+
+                {/* Date Filter */}
+                <Input
+                  type="date"
+                  value={filterByDate}
+                  onChange={(e) => setFilterByDate(e.target.value)}
+                  className="h-9 w-[160px]"
+                  placeholder="Filter by date"
+                />
+              </div>
+
+              {/* Right side - View toggle */}
+              <ToggleGroup
+                type="single"
+                value={viewType}
+                onValueChange={(value) => value && setViewType(value as ViewType)}
+                variant="outline"
+                className="border border-gray-200 rounded-lg h-9 p-1"
+              >
+                <ToggleGroupItem value="list" aria-label="List view" className="px-3 py-1 h-7">
+                  <List className="w-4 h-4" />
+                </ToggleGroupItem>
+                <ToggleGroupItem value="grid" aria-label="Grid view" className="px-3 py-1 h-7">
+                  <Grid3X3 className="w-4 h-4" />
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
+          </TabsContent>
+        </Tabs>
       </AppPageLayout.SubHeader>
       
       {/* Content */}
       <AppPageLayout.Content className="flex-1 overflow-auto light-scrollbar p-0">
-        <div className="px-[21px] pb-[21px] pt-[35px] space-y-8">
-          
-          {/* Results count */}
-          {filteredProjects.length > 0 && (
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary">
-                {filteredProjects.length} {filteredProjects.length === 1 ? 'project' : 'projects'}
-              </Badge>
-              {(searchQuery || filterByDate || filterByStatus !== 'all') && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setSearchQuery('');
-                    setFilterByDate('');
-                    setFilterByStatus('all');
-                  }}
-                  className="h-7 text-xs"
-                >
-                  Clear filters
-                </Button>
-              )}
-            </div>
-          )}
-
-          {/* Organized Projects Display */}
-          {organizedProjects.length > 0 ? (
-            <div className="space-y-6">
-              {organizedProjects.map((section, index) => {
-                // Handle group organization
-                if ('group' in section) {
-                  const groupData = section as { group: Group; projects: Project[] };
-                  return (
-                    <DraggableGroup
-                      key={`group-${groupData.group.id}`}
-                      group={groupData.group}
-                      index={index}
-                      onMoveGroup={handleMoveGroup}
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as MainTab)} className="h-full">
+          {/* Projects Tab Content */}
+          <TabsContent value="projects" className="h-full mt-0">
+            <div className="px-[21px] pb-[21px] pt-[35px] space-y-8">
+              
+              {/* Results count */}
+              {filteredProjects.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary">
+                    {filteredProjects.length} {filteredProjects.length === 1 ? 'project' : 'projects'}
+                  </Badge>
+                  {(searchQuery || filterByDate || filterByStatus !== 'all') && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSearchQuery('');
+                        setFilterByDate('');
+                        setFilterByStatus('all');
+                      }}
+                      className="h-7 text-xs"
                     >
-                      <div className="space-y-3">
-                        {/* Group Header */}
-                        <div className="flex items-center gap-3">
-                          <FolderPlus className="w-4 h-4 text-gray-500" />
-                          <h3 className="text-lg font-medium text-gray-900">{groupData.group.name}</h3>
-                          <Badge variant="outline" className="text-xs">
-                            {groupData.projects.length}
-                          </Badge>
-                        </div>
-
-                        {/* Projects Display */}
-                        <div className={viewType === 'grid' 
-                          ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" 
-                          : "space-y-2"
-                        }>
-                          {groupData.projects.map((project, projectIndex) => 
-                            viewType === 'grid' 
-                              ? renderGridProject(project, projectIndex, groupData.group.id)
-                              : renderListProject(project, projectIndex, groupData.group.id)
-                          )}
-                        </div>
-                      </div>
-                    </DraggableGroup>
-                  );
-                } else {
-                  // Handle client or tag organization
-                  const sectionData = section as { key: string; label: string; projects: Project[] };
-                  return (
-                    <div key={`section-${sectionData.key}`} className="space-y-3">
-                      {/* Section Header */}
-                      <div className="flex items-center gap-3">
-                        {organizeBy === 'client' ? (
-                          <Building2 className="w-4 h-4 text-gray-500" />
-                        ) : (
-                          <Tag className="w-4 h-4 text-gray-500" />
-                        )}
-                        <h3 className="text-lg font-medium text-gray-900">{sectionData.label}</h3>
-                        <Badge variant="outline" className="text-xs">
-                          {sectionData.projects.length}
-                        </Badge>
-                      </div>
-
-                      {/* Projects Display */}
-                      <div className={viewType === 'grid' 
-                        ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" 
-                        : "space-y-2"
-                      }>
-                        {sectionData.projects.map((project, projectIndex) => 
-                          viewType === 'grid' 
-                            ? renderGridProject(project, projectIndex, project.groupId)
-                            : renderListProject(project, projectIndex, project.groupId)
-                        )}
-                      </div>
-                    </div>
-                  );
-                }
-              })}
-            </div>
-          ) : (
-            /* No results message */
-            <Card className="border-dashed">
-              <CardContent className="flex flex-col items-center justify-center py-16">
-                <div className="text-gray-400 mb-4">
-                  {searchQuery || filterByDate || filterByStatus !== 'all' ? (
-                    <Search className="w-16 h-16" />
-                  ) : (
-                    <Users className="w-16 h-16" />
+                      Clear filters
+                    </Button>
                   )}
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  {searchQuery || filterByDate || filterByStatus !== 'all' 
-                    ? 'No projects found'
-                    : 'No projects yet'
-                  }
-                </h3>
-                <p className="text-gray-600 text-center mb-6 max-w-md">
-                  {searchQuery || filterByDate || filterByStatus !== 'all'
-                    ? 'Try adjusting your filters or search query'
-                    : 'Start by going to the Timeline view to create your first group and projects.'
-                  }
-                </p>
-                {(searchQuery || filterByDate || filterByStatus !== 'all') && (
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setSearchQuery('');
-                      setFilterByDate('');
-                      setFilterByStatus('all');
-                    }}
-                  >
-                    Clear filters
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          )}
-        </div>
+              )}
+
+              {/* Organized Projects Display */}
+              {organizedProjects.length > 0 ? (
+                <div className="space-y-6">
+                  {organizedProjects.map((section, index) => {
+                    // Handle group organization
+                    if ('group' in section) {
+                      const groupData = section as { group: Group; projects: Project[] };
+                      return (
+                        <DraggableGroup
+                          key={`group-${groupData.group.id}`}
+                          group={groupData.group}
+                          index={index}
+                          onMoveGroup={handleMoveGroup}
+                        >
+                          <div className="space-y-3">
+                            {/* Group Header */}
+                            <div className="flex items-center gap-3">
+                              <FolderPlus className="w-4 h-4 text-gray-500" />
+                              <h3 className="text-lg font-medium text-gray-900">{groupData.group.name}</h3>
+                              <Badge variant="outline" className="text-xs">
+                                {groupData.projects.length}
+                              </Badge>
+                            </div>
+
+                            {/* Projects Display */}
+                            <div className={viewType === 'grid' 
+                              ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" 
+                              : "space-y-2"
+                            }>
+                              {groupData.projects.map((project, projectIndex) => 
+                                viewType === 'grid' 
+                                  ? renderGridProject(project, projectIndex, groupData.group.id)
+                                  : renderListProject(project, projectIndex, groupData.group.id)
+                              )}
+                            </div>
+                          </div>
+                        </DraggableGroup>
+                      );
+                    } else {
+                      // Handle client or tag organization
+                      const sectionData = section as { key: string; label: string; projects: Project[] };
+                      return (
+                        <div key={`section-${sectionData.key}`} className="space-y-3">
+                          {/* Section Header */}
+                          <div className="flex items-center gap-3">
+                            {organizeBy === 'client' ? (
+                              <Building2 className="w-4 h-4 text-gray-500" />
+                            ) : (
+                              <Tag className="w-4 h-4 text-gray-500" />
+                            )}
+                            <h3 className="text-lg font-medium text-gray-900">{sectionData.label}</h3>
+                            <Badge variant="outline" className="text-xs">
+                              {sectionData.projects.length}
+                            </Badge>
+                          </div>
+
+                          {/* Projects Display */}
+                          <div className={viewType === 'grid' 
+                            ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" 
+                            : "space-y-2"
+                          }>
+                            {sectionData.projects.map((project, projectIndex) => 
+                              viewType === 'grid' 
+                                ? renderGridProject(project, projectIndex, project.groupId)
+                                : renderListProject(project, projectIndex, project.groupId)
+                            )}
+                          </div>
+                        </div>
+                      );
+                    }
+                  })}
+                </div>
+              ) : (
+                /* No results message */
+                <Card className="border-dashed">
+                  <CardContent className="flex flex-col items-center justify-center py-16">
+                    <div className="text-gray-400 mb-4">
+                      {searchQuery || filterByDate || filterByStatus !== 'all' ? (
+                        <Search className="w-16 h-16" />
+                      ) : (
+                        <Users className="w-16 h-16" />
+                      )}
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                      {searchQuery || filterByDate || filterByStatus !== 'all' 
+                        ? 'No projects found'
+                        : 'No projects yet'
+                      }
+                    </h3>
+                    <p className="text-gray-600 text-center mb-6 max-w-md">
+                      {searchQuery || filterByDate || filterByStatus !== 'all'
+                        ? 'Try adjusting your filters or search query'
+                        : 'Start by going to the Timeline view to create your first group and projects.'
+                      }
+                    </p>
+                    {(searchQuery || filterByDate || filterByStatus !== 'all') && (
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setSearchQuery('');
+                          setFilterByDate('');
+                          setFilterByStatus('all');
+                        }}
+                      >
+                        Clear filters
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* Clients Tab Content */}
+          <TabsContent value="clients" className="h-full mt-0">
+            <div className="px-[21px] pb-[21px] pt-[35px]">
+              <ClientsListView 
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                filterByDate={filterByDate}
+                onDateChange={setFilterByDate}
+                viewType={viewType}
+                statusFilter={clientStatusFilter}
+              />
+            </div>
+          </TabsContent>
+        </Tabs>
       </AppPageLayout.Content>
     </AppPageLayout>
     </DndProvider>

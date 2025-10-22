@@ -128,8 +128,8 @@ export function Sidebar() {
                   }`}
                   title={mainSidebarCollapsed ? item.label : undefined}
                 >
-                  <Icon className={`w-5 h-5 flex-shrink-0 ${!mainSidebarCollapsed ? 'mr-3' : ''}`} />
-                  {!mainSidebarCollapsed && <span className="font-medium">{item.label}</span>}
+                  <Icon className={`w-4 h-4 flex-shrink-0 ${!mainSidebarCollapsed ? 'mr-3' : ''}`} />
+                  {!mainSidebarCollapsed && <span className="font-medium text-sm">{item.label}</span>}
                 </button>
               </li>
             );
@@ -151,8 +151,8 @@ export function Sidebar() {
                   }`}
                   title={mainSidebarCollapsed ? item.label : undefined}
                 >
-                  <Icon className={`w-5 h-5 flex-shrink-0 ${!mainSidebarCollapsed ? 'mr-3' : ''}`} />
-                  {!mainSidebarCollapsed && <span className="font-medium">{item.label}</span>}
+                  <Icon className={`w-4 h-4 flex-shrink-0 ${!mainSidebarCollapsed ? 'mr-3' : ''}`} />
+                  {!mainSidebarCollapsed && <span className="font-medium text-sm">{item.label}</span>}
                 </button>
               </li>
             );
@@ -187,7 +187,7 @@ export function Sidebar() {
                   </div>
                 )}
               </div>
-              {!mainSidebarCollapsed && <span className="font-medium">Profile</span>}
+              {!mainSidebarCollapsed && <span className="font-medium text-sm">Profile</span>}
             </button>
           </li>
         </ul>
@@ -207,8 +207,8 @@ export function Sidebar() {
                   }`}
                   title={mainSidebarCollapsed ? item.label : undefined}
                 >
-                  <Icon className={`w-5 h-5 flex-shrink-0 ${!mainSidebarCollapsed ? 'mr-3' : ''}`} />
-                  {!mainSidebarCollapsed && <span className="font-medium">{item.label}</span>}
+                  <Icon className={`w-4 h-4 flex-shrink-0 ${!mainSidebarCollapsed ? 'mr-3' : ''}`} />
+                  {!mainSidebarCollapsed && <span className="font-medium text-sm">{item.label}</span>}
                 </button>
               </li>
             );
