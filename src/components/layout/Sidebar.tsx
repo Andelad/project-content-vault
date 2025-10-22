@@ -89,7 +89,7 @@ export function Sidebar() {
   return (
     <div className={`${mainSidebarCollapsed ? 'w-16' : 'w-48'} h-full bg-gray-50 border-r border-gray-200 flex flex-col transition-all duration-300 ease-in-out relative flex-shrink-0`}>
       {/* Header */}
-      <div className={`h-20 px-6 border-b border-gray-200 flex items-center ${mainSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
+      <div className={`h-20 border-b border-gray-200 flex items-center ${mainSidebarCollapsed ? 'px-6 justify-center' : 'px-[14px] justify-between'}`}>
         {mainSidebarCollapsed ? (
           <img src="/lovable-uploads/b7b3f5f1-d45e-4fc7-9113-f39c988b4951.png" alt="Budgi Logo" className="w-4 h-4" />
         ) : (
@@ -113,7 +113,7 @@ export function Sidebar() {
       </div>
 
       {/* Main Navigation */}
-      <nav className={`flex-1 overflow-y-auto ${mainSidebarCollapsed ? 'px-[14px] py-[21px]' : 'px-6 pt-[21px] pb-4'} flex flex-col`}>
+      <nav className={`flex-1 overflow-y-auto ${mainSidebarCollapsed ? 'px-[14px] py-[21px]' : 'px-[14px] pt-[21px] pb-4'} flex flex-col`}>
         <ul className="space-y-2">
           {mainNavItems.filter(item => item.id !== 'feedback').map((item) => {
             const Icon = item.icon;
@@ -161,7 +161,7 @@ export function Sidebar() {
       </nav>
 
       {/* Avatar and Bottom Navigation */}
-      <div className={`${mainSidebarCollapsed ? 'px-[14px] py-4' : 'px-6 py-4'} border-t border-gray-200 flex-shrink-0 space-y-4`}>
+      <div className={`${mainSidebarCollapsed ? 'px-[14px] py-4' : 'px-[14px] py-4'} border-t border-gray-200 flex-shrink-0 space-y-4`}>
         {/* Profile Navigation with Avatar */}
         <ul className="space-y-2">
           <li>
