@@ -76,7 +76,7 @@ export class TimelineViewport {
     const { timelineSidebarCollapsed, mainSidebarCollapsed, mode, availableWidth } = params;
     const viewportWidth = availableWidth ?? window.innerWidth;
     const timelineSidebarWidth = timelineSidebarCollapsed ? this.COLLAPSED_SIDEBAR_WIDTH : this.SIDEBAR_WIDTH;
-    const mainSidebarWidth = mainSidebarCollapsed ? 64 : 256; // Main app sidebar widths (w-16 = 64px, w-64 = 256px)
+    const mainSidebarWidth = mainSidebarCollapsed ? 64 : 192; // Main app sidebar widths (w-16 = 64px, w-48 = 192px)
     const calculatedAvailableWidth = Math.max(600, viewportWidth - mainSidebarWidth - timelineSidebarWidth - this.VIEWPORT_MARGINS);
     if (mode === 'weeks') {
       const completeWeekColumns = Math.floor(calculatedAvailableWidth / this.MIN_WEEK_COLUMN_WIDTH);
@@ -101,7 +101,7 @@ export class TimelineViewport {
     const { timelineSidebarCollapsed, mainSidebarCollapsed, mode, availableWidth } = params;
     const viewportWidth = availableWidth ?? window.innerWidth;
     const timelineSidebarWidth = timelineSidebarCollapsed ? this.COLLAPSED_SIDEBAR_WIDTH : this.SIDEBAR_WIDTH;
-    const mainSidebarWidth = mainSidebarCollapsed ? 64 : 256;
+    const mainSidebarWidth = mainSidebarCollapsed ? 64 : 192;
     const calculatedAvailableWidth = Math.max(600, viewportWidth - mainSidebarWidth - timelineSidebarWidth - this.VIEWPORT_MARGINS);
     if (mode === 'weeks') {
       // Use ceil to include partial final week

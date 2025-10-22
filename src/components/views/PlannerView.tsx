@@ -307,17 +307,61 @@ export function PlannerView() {
                     onclick="window.plannerToggleCompletion && window.plannerToggleCompletion('${event.id}')"
                     title="${isCompleted ? 'Mark as not completed' : 'Mark as completed'}">${checkIconSvg}</button>`;
     }
+    
+    // Calculate approximate event height in pixels
+    // FullCalendar with slotDuration: '00:15:00' typically renders at ~21px per 15-min slot
+    // This means ~84px per hour
+    const durationInMs = event.end ? event.end.getTime() - event.start.getTime() : 0;
+    const durationInMinutes = durationInMs / (1000 * 60);
+    const approximateHeight = (durationInMinutes / 15) * 21; // 21px per 15-minute slot
+    
+    // Very tight thresholds - just enough space for each line to render:
+    // - 1 line (description only): ~18px (font-size 12px + line-height 1.2 + padding)
+    // - 2 lines (time + description): ~32px (two lines + gap + padding)
+    // - 3 lines (all): ~45px (three lines + gaps + padding)
+    
+    const showOneLine = approximateHeight >= 18;
+    const showTwoLines = approximateHeight >= 32;
+    const showThreeLines = approximateHeight >= 45;
+    
     return {
       html: `
-        <div style="height: 100%; display: flex; flex-direction: column; gap: 2px; padding: 2px;">
-          <div style="display: flex; align-items: center; justify-content: space-between;">
-            <div style="font-size: 11px; font-weight: 500; line-height: 1;">${start} - ${end}</div>
+        <div style="height: 100%; display: flex; flex-direction: column; gap: 2px; padding: 2px; overflow: hidden;">
+          ${showThreeLines ? `
+          <!-- Show all 3 lines: time, description, project -->
+          <div style="display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;">
+            <div style="font-size: 11px; font-weight: 500; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${start} - ${end}</div>
+            <div style="display: flex; align-items: center; color: inherit; flex-shrink: 0;">
+              ${iconHtml}
+            </div>
+          </div>
+          <div style="font-size: 12px; font-weight: 600; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${description}</div>
+          <div style="font-size: 11px; opacity: 0.75; line-height: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${projectLine}</div>
+          ` : showTwoLines ? `
+          <!-- Show 2 lines: time and description -->
+          <div style="display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;">
+            <div style="font-size: 11px; font-weight: 500; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${start} - ${end}</div>
+            <div style="display: flex; align-items: center; color: inherit; flex-shrink: 0;">
+              ${iconHtml}
+            </div>
+          </div>
+          <div style="font-size: 12px; font-weight: 600; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${description}</div>
+          ` : showOneLine ? `
+          <!-- Show 1 line: description only -->
+          <div style="display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;">
+            <div style="font-size: 12px; font-weight: 600; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">${description}</div>
+            <div style="display: flex; align-items: center; color: inherit; flex-shrink: 0; margin-left: 4px;">
+              ${iconHtml}
+            </div>
+          </div>
+          ` : `
+          <!-- Fallback for very small events - just icon -->
+          <div style="display: flex; align-items: center; justify-content: flex-end; flex-shrink: 0;">
             <div style="display: flex; align-items: center; color: inherit;">
               ${iconHtml}
             </div>
           </div>
-          <div style="font-size: 12px; font-weight: 600; line-height: 1.2; word-wrap: break-word;">${description}</div>
-          <div style="font-size: 11px; opacity: 0.75; line-height: 1; word-wrap: break-word;">${projectLine}</div>
+          `}
         </div>
       `
     };
