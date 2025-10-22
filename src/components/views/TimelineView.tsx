@@ -819,7 +819,7 @@ export function TimelineView() {
               <div className="flex items-center" style={{ gap: '21px' }}>
                 <Button 
                   onClick={() => setCreatingNewProject(null)}
-                  className="h-9 gap-2 px-3"
+                  className="h-9 gap-2 px-3 shadow"
                   style={{ backgroundColor: BRAND_COLORS.primary }}
                 >
                   <Plus className="w-4 h-4" />
