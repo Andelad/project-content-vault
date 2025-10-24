@@ -10,6 +10,7 @@ import { Switch } from '../ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { cn } from '@/lib/utils';
 import { 
   CreditCard, 
   Crown, 
@@ -30,7 +31,9 @@ import {
   LogOut,
   Camera,
   Upload,
-  Save
+  Save,
+  Menu,
+  ChevronLeft
 } from 'lucide-react';
 
 export function ProfileView() {
@@ -38,6 +41,9 @@ export function ProfileView() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState('account');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   
   // Form states
   const [emailForm, setEmailForm] = useState({
@@ -230,11 +236,11 @@ export function ProfileView() {
 
     setLoading(true);
     try {
-      // Validate file size (5MB limit)
-      if (file.size > 5 * 1024 * 1024) {
+      // Validate file size (1MB limit)
+      if (file.size > 1 * 1024 * 1024) {
         toast({
           title: "Error",
-          description: "File size must be less than 5MB",
+          description: "File size must be less than 1MB",
           variant: "destructive"
         });
         return;
@@ -249,6 +255,25 @@ export function ProfileView() {
         });
         return;
       }
+
+      // Validate image dimensions
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      
+      await new Promise((resolve, reject) => {
+        img.onload = () => {
+          URL.revokeObjectURL(objectUrl);
+          if (img.width > 512 || img.height > 512) {
+            reject(new Error('Image dimensions must be 512x512 pixels or smaller'));
+          }
+          resolve(true);
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(objectUrl);
+          reject(new Error('Failed to load image'));
+        };
+        img.src = objectUrl;
+      });
 
       // Create unique filename with user ID
       const fileExt = file.name.split('.').pop();
@@ -338,150 +363,277 @@ export function ProfileView() {
     }));
   };
 
-  return (
-    <div className="h-full flex flex-col bg-gray-50">
-      {/* Content - Scrollable */}
-      <div className="flex-1 overflow-auto light-scrollbar">
-        <div className="p-8 space-y-8 max-w-4xl">
-          {/* Profile Picture and Account Status Row */}
-          <div className="grid grid-cols-3 gap-6">
-            {/* Profile Picture Card - 1/3 width */}
-            <Card className="col-span-1">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Upload className="w-5 h-5" />
-                  Profile Picture
-                </CardTitle>
-                <CardDescription>
-                  Upload and manage your profile avatar
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-col items-center gap-4">
-                  <div 
-                    className="w-24 h-24 rounded-full border-2 border-dashed border-[#e2e2e2] flex items-center justify-center font-semibold text-2xl cursor-pointer hover:bg-muted/50 transition-colors overflow-hidden"
-                    onClick={() => document.getElementById('avatar-upload')?.click()}
-                  >
-                    {profile?.avatar_url ? (
-                      <img 
-                        src={profile.avatar_url} 
-                        alt="Profile avatar" 
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="bg-[#595956] text-white w-full h-full rounded-full flex items-center justify-center">
-                        {user?.email ? user.email.charAt(0).toUpperCase() : 'U'}
-                      </div>
-                    )}
+  const handleExportData = async () => {
+    setLoading(true);
+    try {
+      // Fetch all user data
+      const { data: projects, error: projectsError } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('user_id', user?.id);
+
+      const { data: calendarEvents, error: eventsError } = await supabase
+        .from('calendar_events')
+        .select('*')
+        .eq('user_id', user?.id);
+
+      if (projectsError || eventsError) {
+        throw new Error('Failed to fetch data');
+      }
+
+      // Create export object
+      const exportData = {
+        profile,
+        projects,
+        calendarEvents,
+        settings: accountSettings,
+        exportDate: new Date().toISOString()
+      };
+
+      // Convert to JSON and download
+      const dataStr = JSON.stringify(exportData, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `budgi-data-export-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Success",
+        description: "Your data has been exported successfully",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to export data",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    const confirmed = window.confirm(
+      'Are you absolutely sure you want to delete your account? This action cannot be undone and will permanently delete:\n\n' +
+      '• Your profile and personal information\n' +
+      '• All your projects and events\n' +
+      '• All your settings and preferences\n' +
+      '• Your account access\n\n' +
+      'Type "DELETE" in the next prompt to confirm.'
+    );
+
+    if (!confirmed) return;
+
+    const confirmText = window.prompt('Please type DELETE to confirm account deletion:');
+    
+    if (confirmText !== 'DELETE') {
+      toast({
+        title: "Cancelled",
+        description: "Account deletion cancelled",
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Delete user data first (projects, calendar_events, profile)
+      await supabase.from('projects').delete().eq('user_id', user?.id);
+      await supabase.from('calendar_events').delete().eq('user_id', user?.id);
+      await supabase.from('profiles').delete().eq('user_id', user?.id);
+
+      // Delete avatar from storage if it exists
+      if (profile?.avatar_url) {
+        const existingPath = profile.avatar_url.split('/').slice(-2).join('/');
+        await supabase.storage.from('avatars').remove([existingPath]);
+      }
+
+      // Delete the auth user (this will cascade to other tables with foreign keys)
+      const { error } = await supabase.auth.admin.deleteUser(user?.id || '');
+
+      if (error) {
+        // If admin delete fails (requires service role), try regular delete
+        const { error: deleteError } = await supabase.auth.updateUser({
+          data: { deleted: true }
+        });
+        
+        if (deleteError) throw deleteError;
+      }
+
+      toast({
+        title: "Account Deleted",
+        description: "Your account has been permanently deleted",
+      });
+
+      // Sign out and redirect
+      await signOut();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete account. Please contact support.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const tabs = [
+    { id: 'account', label: 'Account', icon: User },
+    { id: 'profile', label: 'Profile Picture', icon: Upload },
+    { id: 'personal', label: 'Personal Info', icon: User },
+    { id: 'security', label: 'Security', icon: Lock },
+    { id: 'data', label: 'Data Management', icon: Download },
+  ];
+
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'account':
+        return (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">Account Status</h2>
+              <p className="text-sm text-gray-600">Current authentication and session information</p>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="space-y-1">
+                  <p className="text-sm text-gray-600">Signed in as</p>
+                  <p className="font-medium text-gray-900">{user?.email}</p>
+                  <Badge variant="secondary" className="bg-green-100 text-green-800 mt-2">
+                    <Check className="w-3 h-3 mr-1" />
+                    Active
+                  </Badge>
+                </div>
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center font-semibold text-xl overflow-hidden border-2 border-gray-200`}>
+                  {profile?.avatar_url ? (
+                    <img 
+                      src={profile.avatar_url} 
+                      alt="Profile avatar" 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="bg-[#595956] text-white w-full h-full rounded-full flex items-center justify-center">
+                      {user?.email ? user.email.charAt(0).toUpperCase() : 'U'}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <Button variant="outline" onClick={signOut} className="w-full">
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign Out
+              </Button>
+            </div>
+          </div>
+        );
+
+      case 'profile':
+        return (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">Profile Picture</h2>
+              <p className="text-sm text-gray-600">Upload and manage your profile avatar</p>
+            </div>
+            
+            <div className="flex flex-col items-center gap-4">
+              <div 
+                className="w-32 h-32 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center font-semibold text-3xl cursor-pointer hover:bg-gray-50 transition-colors overflow-hidden"
+                onClick={() => document.getElementById('avatar-upload')?.click()}
+              >
+                {profile?.avatar_url ? (
+                  <img 
+                    src={profile.avatar_url} 
+                    alt="Profile avatar" 
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="bg-[#595956] text-white w-full h-full rounded-full flex items-center justify-center">
+                    {user?.email ? user.email.charAt(0).toUpperCase() : 'U'}
                   </div>
-                  <div className="space-y-2 text-center">
-                    <Button 
-                      variant="outline" 
-                      onClick={() => document.getElementById('avatar-upload')?.click()}
-                      disabled={loading}
-                      className="w-full"
-                    >
-                      <Camera className="w-4 h-4 mr-2" />
-                      {loading ? 'Uploading...' : 'Upload Photo'}
-                    </Button>
-                    <p className="text-sm text-muted-foreground">
-                      JPG, PNG or GIF. Max 5MB.
-                    </p>
-                  </div>
-                  <input
-                    id="avatar-upload"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        handleAvatarUpload(file);
-                      }
-                    }}
+                )}
+              </div>
+              <div className="space-y-2 text-center w-full max-w-xs">
+                <Button 
+                  variant="outline" 
+                  onClick={() => document.getElementById('avatar-upload')?.click()}
+                  disabled={loading}
+                  className="w-full"
+                >
+                  <Camera className="w-4 h-4 mr-2" />
+                  {loading ? 'Uploading...' : 'Upload Photo'}
+                </Button>
+                <p className="text-sm text-gray-500">
+                  JPG, PNG or GIF. Max 1MB, 512x512px.
+                </p>
+              </div>
+              <input
+                id="avatar-upload"
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    handleAvatarUpload(file);
+                  }
+                }}
+              />
+            </div>
+          </div>
+        );
+
+      case 'personal':
+        return (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">Personal Information</h2>
+              <p className="text-sm text-gray-600">Update your personal details and contact information</p>
+            </div>
+            
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="username">Username</Label>
+                  <Input
+                    id="username"
+                    value={profile?.display_name || ''}
+                    onChange={(e) => setProfile(prev => prev ? { ...prev, display_name: e.target.value } : { display_name: e.target.value })}
+                    placeholder="Enter your username"
                   />
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* Account Status Card - 2/3 width */}
-            <Card className="col-span-2">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <User className="w-5 h-5" />
-                  Account Status
-                </CardTitle>
-                <CardDescription>
-                  Current authentication and session information
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="text-sm text-muted-foreground">
-                    Signed in as {user?.email}
-                  </div>
-                  <Button variant="ghost" size="sm" onClick={signOut} className="gap-2">
-                    <LogOut className="h-4 w-4" />
-                    Sign Out
-                  </Button>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    value={user?.email || ''}
+                    disabled
+                    className="bg-muted"
+                  />
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Personal Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="w-5 h-5" />
-                Personal Information
-              </CardTitle>
-              <CardDescription>
-                Update your personal details and contact information
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="username">Username</Label>
-                    <Input
-                      id="username"
-                      value={profile?.display_name || ''}
-                      onChange={(e) => setProfile(prev => prev ? { ...prev, display_name: e.target.value } : { display_name: e.target.value })}
-                      placeholder="Enter your username"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      value={user?.email || ''}
-                      disabled
-                      className="bg-muted"
-                    />
-                  </div>
-                </div>
-                <Button onClick={handleProfileUpdate} disabled={loading}>
-                  <Save className="w-4 h-4 mr-2" />
-                  Save Changes
-                </Button>
               </div>
-            </CardContent>
-          </Card>
+              <Button onClick={handleProfileUpdate} disabled={loading}>
+                <Save className="w-4 h-4 mr-2" />
+                Save Changes
+              </Button>
+            </div>
+          </div>
+        );
 
-          {/* Account Settings */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="w-5 h-5" />
-                Account Settings
-              </CardTitle>
-              <CardDescription>
-                Manage your account preferences and security
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
+      case 'security':
+        return (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">Security Settings</h2>
+              <p className="text-sm text-gray-600">Manage your account security and password</p>
+            </div>
+            
+            <div className="space-y-6">
               {/* Email Settings */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
@@ -539,7 +691,7 @@ export function ProfileView() {
 
               <Separator />
 
-              {/* Security Settings */}
+              {/* Password Settings */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -561,6 +713,16 @@ export function ProfileView() {
                   </Button>
                 ) : (
                   <div className="space-y-3 p-4 bg-muted rounded-lg">
+                    <div className="space-y-2">
+                      <Label htmlFor="currentPassword">Current Password</Label>
+                      <Input
+                        id="currentPassword"
+                        type="password"
+                        value={passwordForm.currentPassword}
+                        onChange={(e) => setPasswordForm(prev => ({ ...prev, currentPassword: e.target.value }))}
+                        placeholder="Enter current password"
+                      />
+                    </div>
                     <div className="space-y-2">
                       <Label htmlFor="newPassword">New Password</Label>
                       <Input
@@ -605,57 +767,171 @@ export function ProfileView() {
                   </div>
                 )}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
+        );
 
-          {/* Notifications */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Bell className="w-5 h-5" />
-                Notification Preferences
-              </CardTitle>
-              <CardDescription>
-                Configure how you receive updates and reminders
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Email Notifications</p>
-                  <p className="text-sm text-muted-foreground">Receive updates via email</p>
+      case 'data':
+        return (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">Data Management</h2>
+              <p className="text-sm text-gray-600">Export or manage your account data</p>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 border border-blue-200 rounded-lg bg-blue-50">
+                <div className="space-y-1">
+                  <p className="font-medium text-blue-900">Export Account Data</p>
+                  <p className="text-sm text-blue-700">
+                    Download a copy of all your projects, events, and settings
+                  </p>
                 </div>
-                <Switch 
-                  checked={accountSettings.notifications.email}
-                  onCheckedChange={(checked) => handleNotificationChange('email', checked)}
-                />
+                <Button 
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportData}
+                  disabled={loading}
+                  className="border-blue-300 hover:bg-blue-100"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Export Data
+                </Button>
               </div>
 
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Push Notifications</p>
-                  <p className="text-sm text-muted-foreground">Browser push notifications</p>
-                </div>
-                <Switch 
-                  checked={accountSettings.notifications.push}
-                  onCheckedChange={(checked) => handleNotificationChange('push', checked)}
-                />
-              </div>
+              <Separator />
 
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Project Reminders</p>
-                  <p className="text-sm text-muted-foreground">Deadline and milestone alerts</p>
+              <div className="flex items-center justify-between p-4 border border-red-200 rounded-lg bg-red-50">
+                <div className="space-y-1">
+                  <p className="font-medium text-red-900">Delete Account</p>
+                  <p className="text-sm text-red-700">
+                    Permanently delete your account and all associated data
+                  </p>
                 </div>
-                <Switch 
-                  checked={accountSettings.notifications.reminders}
-                  onCheckedChange={(checked) => handleNotificationChange('reminders', checked)}
-                />
+                <Button 
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleDeleteAccount}
+                  disabled={loading}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Account
+                </Button>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+
+  return (
+    <div className="h-full flex flex-col bg-gray-50 p-8">
+      <Card className="h-full flex overflow-hidden max-w-[1216px]">
+        {/* Sidebar */}
+        <div className={cn(
+          "relative flex-shrink-0 border-r border-gray-200 bg-gray-50 transition-all duration-300",
+          sidebarOpen ? (sidebarCollapsed ? "w-16" : "w-64") : "w-0"
+        )}>
+          <div className={cn(
+            "h-full flex flex-col",
+            !sidebarOpen && "opacity-0"
+          )}>
+            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+              {!sidebarCollapsed && <h2 className="font-semibold text-gray-900">Profile</h2>}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => sidebarCollapsed ? setSidebarCollapsed(false) : (window.innerWidth < 1024 ? setSidebarOpen(false) : setSidebarCollapsed(true))}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronLeft className={cn(
+                  "h-4 w-4 transition-transform duration-300",
+                  sidebarCollapsed && "rotate-180"
+                )} />
+              </Button>
+            </div>
+            
+            <nav className="flex-1 overflow-y-auto light-scrollbar p-2">
+              <div className={cn(
+                "space-y-0",
+                sidebarCollapsed && "space-y-1"
+              )}>
+                {tabs.map((tab, index) => (
+                  <React.Fragment key={tab.id}>
+                    <button
+                      onClick={() => setActiveTab(tab.id)}
+                      title={sidebarCollapsed ? tab.label : undefined}
+                      className={cn(
+                        "w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-all",
+                        sidebarCollapsed && "justify-center px-0",
+                        activeTab === tab.id
+                          ? "bg-[#02c0b7] text-white"
+                          : "text-gray-700 hover:bg-gray-200/70 hover:text-gray-900"
+                      )}
+                    >
+                      <tab.icon className="w-4 h-4 flex-shrink-0" />
+                      {!sidebarCollapsed && <span>{tab.label}</span>}
+                    </button>
+                    {index < tabs.length - 1 && (
+                      <div className="border-b border-gray-200 mx-2" />
+                    )}
+                  </React.Fragment>
+                ))}
+              </div>
+            </nav>
+          </div>
         </div>
-      </div>
+
+        {/* Main content area */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Mobile menu button / Toggle button */}
+          <div className={cn(
+            "p-4 border-b border-gray-200 flex items-center",
+            (sidebarOpen && !sidebarCollapsed) && "lg:hidden"
+          )}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                if (window.innerWidth < 1024) {
+                  setSidebarOpen(!sidebarOpen);
+                } else {
+                  setSidebarOpen(true);
+                  setSidebarCollapsed(false);
+                }
+              }}
+              className="h-8 w-8 p-0"
+            >
+              <Menu className="h-4 w-4" />
+            </Button>
+            <h2 className="ml-3 font-semibold text-gray-900">
+              {tabs.find(tab => tab.id === activeTab)?.label}
+            </h2>
+          </div>
+
+          {/* Tab content */}
+          <div className="flex-1 overflow-y-auto light-scrollbar">
+            <div className="p-8 w-full max-w-4xl">
+              {renderTabContent()}
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div 
+          className="lg:hidden fixed inset-0 bg-black/20 z-40"
+          onClick={() => {
+            setSidebarOpen(false);
+            setSidebarCollapsed(false);
+          }}
+        />
+      )}
     </div>
   );
 }

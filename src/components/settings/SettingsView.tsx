@@ -7,8 +7,9 @@ import { Switch } from '../ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Separator } from '../ui/separator';
 import { Badge } from '../ui/badge';
+import { cn } from '@/lib/utils';
 
-import { Save, Bell, Palette, Clock, Globe, Shield, Trash2, User, Plus, X, Calendar } from 'lucide-react';
+import { Menu, Bell, Palette, Clock, Globe, Shield, Trash2, User, Plus, X, Calendar, ChevronLeft } from 'lucide-react';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 import { WorkSlot } from '@/types/core';
 import { CalendarImport } from './CalendarImport';
@@ -29,6 +30,9 @@ import {
 export function SettingsView() {
   const { settings: appSettings, updateSettings, setDefaultView } = useSettingsContext();
   const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState('general');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [localSettings, setLocalSettings] = useState({
     notifications: true,
     emailNotifications: false,
@@ -158,6 +162,10 @@ export function SettingsView() {
       // Use service to generate default work schedule
       const defaultWeek = generateDefaultWorkSchedule('standard');
       updateSettings({ weeklyWorkHours: defaultWeek });
+      toast({
+        title: "Settings reset",
+        description: "All settings have been reset to defaults",
+      });
     }
   };
 
@@ -175,49 +183,27 @@ export function SettingsView() {
     }
   };
 
-  return (
-    <AppPageLayout className="bg-gray-50">
-      {/* Header */}
-      <AppPageLayout.Header className="h-20 border-b border-[#e2e2e2] flex items-center justify-between px-8 flex-shrink-0">
-        <div className="flex items-center space-x-6">
-          <h1 className="text-lg font-semibold text-[#595956]">Settings</h1>
-          <Badge variant="secondary">
-            Preferences & Configuration
-          </Badge>
-        </div>
-        
-        <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={handleResetSettings}>
-            Reset to Defaults
-          </Button>
-          <Button 
-            className="bg-[#02c0b7] hover:bg-[#02a09a] text-white"
-            onClick={handleSaveSettings}
-          >
-            <Save className="w-4 h-4 mr-2" />
-            Save Changes
-          </Button>
-        </div>
-      </AppPageLayout.Header>
+  const tabs = [
+    { id: 'general', label: 'General', icon: Globe },
+    { id: 'work', label: 'Work Preferences', icon: User },
+    { id: 'appearance', label: 'Appearance', icon: Palette },
+    { id: 'time', label: 'Time & Date', icon: Clock },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
+    { id: 'calendar', label: 'Calendar Integration', icon: Calendar },
+    { id: 'privacy', label: 'Data & Privacy', icon: Shield },
+  ];
 
-      {/* No sub-header for Settings */}
-
-      {/* Content - Scrollable */}
-      <AppPageLayout.Content className="flex-1 overflow-auto light-scrollbar p-0">
-        <div className="p-8 space-y-8 max-w-4xl">
-        {/* General Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Globe className="w-5 h-5" />
-              General
-            </CardTitle>
-            <CardDescription>
-              Basic application preferences and display settings
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-2 gap-6">
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'general':
+        return (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">General</h2>
+              <p className="text-sm text-gray-600">Basic application preferences and display settings</p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="default-view">Default View</Label>
                 <Select 
@@ -265,21 +251,17 @@ export function SettingsView() {
                 onCheckedChange={(checked) => handleSettingChange('autoSave', checked)}
               />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        );
 
-        {/* Work Preferences */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User className="w-5 h-5" />
-              Work Preferences
-            </CardTitle>
-            <CardDescription>
-              Configure your daily work schedule and time allocation
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
+      case 'work':
+        return (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">Work Preferences</h2>
+              <p className="text-sm text-gray-600">Configure your daily work schedule and time allocation</p>
+            </div>
+            
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label>Weekly Work Schedule</Label>
@@ -431,7 +413,7 @@ export function SettingsView() {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      const clearWeek = generateDefaultWorkSchedule('minimal');
+                      const flexibleWeek = generateDefaultWorkSchedule('minimal');
                       // Clear all by creating empty schedule
                       const emptyWeek = {
                         monday: [], tuesday: [], wednesday: [], thursday: [], 
@@ -453,21 +435,17 @@ export function SettingsView() {
                 </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        );
 
-        {/* Appearance Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Palette className="w-5 h-5" />
-              Appearance
-            </CardTitle>
-            <CardDescription>
-              Customize the look and feel of the application
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
+      case 'appearance':
+        return (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">Appearance</h2>
+              <p className="text-sm text-gray-600">Customize the look and feel of the application</p>
+            </div>
+            
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <Label>Dark Mode</Label>
@@ -478,22 +456,18 @@ export function SettingsView() {
                 onCheckedChange={(checked) => handleSettingChange('darkMode', checked)}
               />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        );
 
-        {/* Time & Date Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="w-5 h-5" />
-              Time & Date
-            </CardTitle>
-            <CardDescription>
-              Configure time format and timezone preferences
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-2 gap-6">
+      case 'time':
+        return (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">Time & Date</h2>
+              <p className="text-sm text-gray-600">Configure time format and timezone preferences</p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="time-format">Time Format</Label>
                 <Select 
@@ -530,21 +504,17 @@ export function SettingsView() {
                 </Select>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        );
 
-        {/* Notifications Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Bell className="w-5 h-5" />
-              Notifications
-            </CardTitle>
-            <CardDescription>
-              Manage how and when you receive notifications
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
+      case 'notifications':
+        return (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">Notifications</h2>
+              <p className="text-sm text-gray-600">Manage how and when you receive notifications</p>
+            </div>
+            
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <Label>Push Notifications</Label>
@@ -566,38 +536,47 @@ export function SettingsView() {
                 onCheckedChange={(checked) => handleSettingChange('emailNotifications', checked)}
               />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        );
 
-        {/* Calendar Integration */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="w-5 h-5" />
-              Calendar Integration
-            </CardTitle>
-            <CardDescription>
-              Import events from external calendars and calendar files
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+      case 'calendar':
+        return (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">Calendar Integration</h2>
+              <p className="text-sm text-gray-600">Import events from external calendars and calendar files</p>
+            </div>
+            
             <CalendarImport />
-          </CardContent>
-        </Card>
+          </div>
+        );
 
-        {/* Data & Privacy */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="w-5 h-5" />
-              Data & Privacy
-            </CardTitle>
-            <CardDescription>
-              Manage your data and privacy settings
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
+      case 'privacy':
+        return (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">Data & Privacy</h2>
+              <p className="text-sm text-gray-600">Manage your data and privacy settings</p>
+            </div>
+            
             <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 border border-amber-200 rounded-lg bg-amber-50">
+                <div className="space-y-1">
+                  <Label className="text-amber-900">Reset All Settings</Label>
+                  <p className="text-sm text-amber-700">
+                    This will restore all settings to their default values
+                  </p>
+                </div>
+                <Button 
+                  variant="outline"
+                  size="sm"
+                  onClick={handleResetSettings}
+                  className="border-amber-300 hover:bg-amber-100"
+                >
+                  Reset to Defaults
+                </Button>
+              </div>
+
               <div className="flex items-center justify-between p-4 border border-red-200 rounded-lg bg-red-50">
                 <div className="space-y-1">
                   <Label className="text-red-900">Clear All Data</Label>
@@ -615,17 +594,130 @@ export function SettingsView() {
                 </Button>
               </div>
             </div>
-          </CardContent>
+
+            <Separator />
+
+            {/* Version Info */}
+            <div className="space-y-2 text-sm text-gray-500">
+              <p>Budgi Time Forecasting App</p>
+              <p>Version 1.0.0 • Built with React & TypeScript</p>
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <AppPageLayout className="bg-gray-50">
+      {/* No header */}
+
+      {/* Content - Card with sidebar and content area */}
+      <AppPageLayout.Content className="flex-1 overflow-hidden p-8">
+        <Card className="h-full flex overflow-hidden max-w-[1216px]">
+          {/* Sidebar */}
+          <div className={cn(
+            "relative flex-shrink-0 border-r border-gray-200 bg-gray-50 transition-all duration-300",
+            sidebarOpen ? (sidebarCollapsed ? "w-16" : "w-64") : "w-0"
+          )}>
+            <div className={cn(
+              "h-full flex flex-col",
+              !sidebarOpen && "opacity-0"
+            )}>
+              <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+                {!sidebarCollapsed && <h2 className="font-semibold text-gray-900">Settings</h2>}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => sidebarCollapsed ? setSidebarCollapsed(false) : (window.innerWidth < 1024 ? setSidebarOpen(false) : setSidebarCollapsed(true))}
+                  className="h-8 w-8 p-0"
+                >
+                  <ChevronLeft className={cn(
+                    "h-4 w-4 transition-transform duration-300",
+                    sidebarCollapsed && "rotate-180"
+                  )} />
+                </Button>
+              </div>
+              
+              <nav className="flex-1 overflow-y-auto light-scrollbar p-2">
+                <div className={cn(
+                  "space-y-0",
+                  sidebarCollapsed && "space-y-1"
+                )}>
+                  {tabs.map((tab, index) => (
+                    <React.Fragment key={tab.id}>
+                      <button
+                        onClick={() => setActiveTab(tab.id)}
+                        title={sidebarCollapsed ? tab.label : undefined}
+                        className={cn(
+                          "w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-all",
+                          sidebarCollapsed && "justify-center px-0",
+                          activeTab === tab.id
+                            ? "bg-[#02c0b7] text-white"
+                            : "text-gray-700 hover:bg-gray-200/70 hover:text-gray-900"
+                        )}
+                      >
+                        <tab.icon className="w-4 h-4 flex-shrink-0" />
+                        {!sidebarCollapsed && <span>{tab.label}</span>}
+                      </button>
+                      {index < tabs.length - 1 && (
+                        <div className="border-b border-gray-200 mx-2" />
+                      )}
+                    </React.Fragment>
+                  ))}
+                </div>
+              </nav>
+            </div>
+          </div>
+
+          {/* Main content area */}
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {/* Mobile menu button / Toggle button */}
+            <div className={cn(
+              "p-4 border-b border-gray-200 flex items-center",
+              (sidebarOpen && !sidebarCollapsed) && "lg:hidden"
+            )}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  if (window.innerWidth < 1024) {
+                    setSidebarOpen(!sidebarOpen);
+                  } else {
+                    setSidebarOpen(true);
+                    setSidebarCollapsed(false);
+                  }
+                }}
+                className="h-8 w-8 p-0"
+              >
+                <Menu className="h-4 w-4" />
+              </Button>
+              <h2 className="ml-3 font-semibold text-gray-900">
+                {tabs.find(tab => tab.id === activeTab)?.label}
+              </h2>
+            </div>
+
+            {/* Tab content */}
+            <div className="flex-1 overflow-y-auto light-scrollbar">
+              <div className="p-8 w-full max-w-4xl">
+                {renderTabContent()}
+              </div>
+            </div>
+          </div>
         </Card>
 
-        <Separator />
-
-        {/* Version Info */}
-        <div className="text-center space-y-2 text-sm text-gray-500">
-          <p>Budgi Time Forecasting App</p>
-          <p>Version 1.0.0 • Built with React & TypeScript</p>
-        </div>
-        </div>
+        {/* Mobile overlay */}
+        {sidebarOpen && (
+          <div 
+            className="lg:hidden fixed inset-0 bg-black/20 z-40"
+            onClick={() => {
+              setSidebarOpen(false);
+              setSidebarCollapsed(false);
+            }}
+          />
+        )}
       </AppPageLayout.Content>
     </AppPageLayout>
   );
