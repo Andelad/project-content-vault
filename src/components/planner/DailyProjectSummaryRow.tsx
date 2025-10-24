@@ -1,31 +1,8 @@
 /**
  * DailyProjectSummaryRow Component
- * 
- * Diexport function DailyProjectSummaryRow({
-  dates,
-  proj  const summariesByDate = useMemo(() => {
-    if (isLoading || events.length === 0) {
-      return new Map<string, DailyProjectSummary[]>();
-    }
-
-    return UnifiedDayEstimateService.getDailyProjectSummaries({
-      dates,
-      projects,
-      milestonesMap,
-      events,
-      settings,
-      holidays,
-    });
-  }, [dates, projects, milestonesMap, events, settings, holidays, isLoading]);lestonesMap,
-  events,
-  settings,
-  holidays,
-  viewMode,
-  isLoading = false,
-  onDragStart,
-  onDragEnd,
-}: DailyProjectSummaryRowProps) {w above the calendar showing project summaries for each day.
- * Each day column shows count of projects with estimated time and total hours.
+ *
+ * A compact row above the calendar showing project summaries for each day.
+ * Each day column shows the count of projects with estimated time and total hours.
  * Clicking opens a tooltip with project details. Labels are draggable to create events.
  */
 
@@ -34,7 +11,7 @@ import { Project, Milestone, CalendarEvent, Settings, Holiday } from '@/types/co
 import { UnifiedDayEstimateService } from '@/services';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Button } from '@/components/ui/button';
+//
 import { ClockArrowDown } from 'lucide-react';
 import { getDateKey } from '@/utils/dateFormatUtils';
 import * as DateCalculations from '@/services/calculations/general/dateCalculations';
@@ -58,15 +35,11 @@ interface DailyProjectSummaryRowProps {
   onDragStart?: (projectId: string, date: Date, estimatedHours: number) => void;
   /** Callback when drag ends */
   onDragEnd?: () => void;
+  /** Width of calendar scroller's vertical scrollbar (px) to align right edge */
+  scrollbarWidth?: number;
 }
 
-interface ProjectSummary {
-  projectId: string;
-  projectName: string;
-  client: string | null;
-  estimatedHours: number;
-  color?: string;
-}
+//
 
 export function DailyProjectSummaryRow({
   dates,
@@ -78,39 +51,67 @@ export function DailyProjectSummaryRow({
   viewMode,
   onDragStart,
   onDragEnd,
+  scrollbarWidth = 0,
 }: DailyProjectSummaryRowProps) {
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
   const [draggedProject, setDraggedProject] = useState<{ projectId: string; date: Date; estimatedHours: number } | null>(null);
-  const [timeAxisWidth, setTimeAxisWidth] = useState<number>(70); // Default fallback
+  const [timeAxisWidth, setTimeAxisWidth] = useState<number | null>(null);
 
-  // Measure the actual FullCalendar time axis width
+  // Measure the actual FullCalendar time axis width more reliably
   useEffect(() => {
-    const measureTimeAxis = () => {
-      // Try multiple selectors to find the time axis
-      const timeAxisElement = 
+    let rafId: number | null = null;
+    let rafId2: number | null = null;
+    let ro: ResizeObserver | null = null;
+
+    const selectAxis = () => {
+      const el =
         document.querySelector('.fc-timegrid-axis') ||
         document.querySelector('.fc-timegrid-slot-label-cushion')?.parentElement ||
         document.querySelector('.fc-col-header .fc-timegrid-axis');
-      
-      if (timeAxisElement) {
-        const width = timeAxisElement.getBoundingClientRect().width;
-        if (width > 0) {
-          setTimeAxisWidth(Math.round(width));
-        }
+      return el as HTMLElement | null;
+    };
+  // No longer track scroller/scrollbar width; let columns fill the container
+
+    const measure = () => {
+      const el = selectAxis();
+      if (!el) return;
+  const width = Math.round(el.getBoundingClientRect().width);
+  if (width > 0 && width !== timeAxisWidth) {
+        setTimeAxisWidth(width);
       }
     };
 
-    // Measure after a delay to ensure calendar is rendered
-    const timeoutId = setTimeout(measureTimeAxis, 100);
-    
-    // Also measure on window resize
-    window.addEventListener('resize', measureTimeAxis);
+    // First measure after two animation frames (FullCalendar finalizes layout after mount)
+    rafId = window.requestAnimationFrame(() => {
+      rafId2 = window.requestAnimationFrame(measure);
+    });
+
+    // Observe future size changes
+  const el = selectAxis();
+    // Use typeof check to avoid TS narrowing issues where else-branch treats window as never
+    if (typeof (window as any).ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(() => measure());
+  if (el) ro.observe(el);
+    } else {
+      // Fallback: resize listener
+      const onResize = () => measure();
+      window.addEventListener('resize', onResize);
+      // Attach cleanup in the effect return below
+      (measure as any)._onResize = onResize;
+    }
 
     return () => {
-      clearTimeout(timeoutId);
-      window.removeEventListener('resize', measureTimeAxis);
+      if (rafId) cancelAnimationFrame(rafId);
+      if (rafId2) cancelAnimationFrame(rafId2);
+      if (ro) ro.disconnect();
+      // Cleanup fallback resize listener if attached
+      const onResize = (measure as any)._onResize as (() => void) | undefined;
+      if (onResize) {
+        window.removeEventListener('resize', onResize);
+        delete (measure as any)._onResize;
+      }
     };
-  }, []);
+  }, [timeAxisWidth]);
 
   // Calculate summaries for all dates
   const summariesByDate = useMemo(() => {
@@ -270,6 +271,15 @@ export function DailyProjectSummaryRow({
     );
   };
 
+  // Until the time axis width is known, render a placeholder row to avoid horizontal shift
+  if (timeAxisWidth == null) {
+    return (
+      <div className="bg-gray-50">
+        <div className="h-12" />
+      </div>
+    );
+  }
+
   return (
     <div className="bg-gray-50">
       <div className="flex items-stretch h-12">
@@ -292,9 +302,10 @@ export function DailyProjectSummaryRow({
         
         {/* Day columns */}
         {dates.map((date, index) => renderDayColumn(date, index))}
-        
-        {/* Scrollbar spacer - matches calendar scrollbar width */}
-        <div className="flex-shrink-0 bg-gray-50" style={{ width: '17px' }} />
+        {/* Right spacer to align with calendar’s vertical scrollbar */}
+        {scrollbarWidth > 0 && (
+          <div className="flex-shrink-0 bg-gray-50" style={{ width: `${scrollbarWidth}px` }} />
+        )}
       </div>
     </div>
   );

@@ -237,7 +237,10 @@ export class UnifiedDayEstimateService {
           est => est.source === 'milestone-allocation' || est.source === 'project-auto-estimate'
         );
 
-        if (autoEstimates.length > 0) {
+        // Enforce working day rule for auto-estimates: do not show on holidays/non-working days
+        const isWorking = this.isWorkingDay(date, settings, holidays, project);
+
+        if (autoEstimates.length > 0 && isWorking) {
           const totalHours = autoEstimates.reduce((sum, est) => sum + est.hours, 0);
           projectSummaries.push({
             projectId: project.id,

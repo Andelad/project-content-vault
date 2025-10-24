@@ -12,35 +12,66 @@ export class ColorCalculationService {
    * Get hover color variant (slightly lighter and more saturated)
    */
   static getHoverColor(oklchColor: string): string {
-    return oklchColor.replace('0.8 0.12', '0.86 0.16');
+    const match = oklchColor.match(/oklch\(([0-9.]+) ([0-9.]+) ([0-9.]+)\)/);
+    if (!match) return oklchColor;
+    
+    const [, lightness, chroma, hue] = match;
+    const newLightness = Math.min(1, parseFloat(lightness) + 0.06); // +0.06 from baseline
+    const newChroma = Math.min(0.3, parseFloat(chroma) + 0.04); // +0.04 from baseline
+    
+    return `oklch(${newLightness} ${newChroma} ${hue})`;
   }
 
   /**
    * Get baseline color variant (darker version for lines/borders)
    */
   static getBaselineColor(oklchColor: string): string {
-    return oklchColor.replace('0.8 0.12', '0.5 0.12');
+    const match = oklchColor.match(/oklch\(([0-9.]+) ([0-9.]+) ([0-9.]+)\)/);
+    if (!match) return oklchColor;
+    
+    const [, lightness, chroma, hue] = match;
+    const newLightness = Math.max(0, parseFloat(lightness) - 0.15); // Darker for borders
+    
+    return `oklch(${newLightness} ${chroma} ${hue})`;
   }
 
   /**
    * Get completed planned time color variant (lighter than baseline for better visibility)
    */
   static getCompletedPlannedColor(oklchColor: string): string {
-    return oklchColor.replace('0.8 0.12', '0.6 0.12');
+    const match = oklchColor.match(/oklch\(([0-9.]+) ([0-9.]+) ([0-9.]+)\)/);
+    if (!match) return oklchColor;
+    
+    const [, lightness, chroma, hue] = match;
+    const newLightness = Math.max(0, parseFloat(lightness) - 0.10); // Darker than main for completed time
+    
+    return `oklch(${newLightness} ${chroma} ${hue})`;
   }
 
   /**
    * Get mid-tone color variant (between baseline and main color)
    */
   static getMidToneColor(oklchColor: string): string {
-    return oklchColor.replace('0.8 0.12', '0.65 0.12');
+    const match = oklchColor.match(/oklch\(([0-9.]+) ([0-9.]+) ([0-9.]+)\)/);
+    if (!match) return oklchColor;
+    
+    const [, lightness, chroma, hue] = match;
+    // Exactly match main color for now (no change)
+    return `oklch(${lightness} ${chroma} ${hue})`;
   }
 
   /**
    * Get auto-estimate color variant (slightly lighter for estimated values)
    */
   static getAutoEstimateColor(oklchColor: string): string {
-    return oklchColor.replace('0.8 0.12', '0.85 0.12');
+    const match = oklchColor.match(/oklch\(([0-9.]+) ([0-9.]+) ([0-9.]+)\)/);
+    if (!match) return oklchColor;
+    
+    const [, lightness, chroma, hue] = match;
+    const newLightness = Math.min(1, parseFloat(lightness) + 0.10); // Moderately lighter for auto-estimate
+    const newChroma = Math.max(0, parseFloat(chroma) * 0.6); // Reduce saturation for softer appearance
+    
+    return `oklch(${newLightness} ${newChroma} ${hue})`;
   }
 
   /**

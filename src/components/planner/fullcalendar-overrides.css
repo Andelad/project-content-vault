@@ -297,6 +297,17 @@
   /* box-shadow removed - handled above */
 }
 
+/* Remove extra whitespace between last day column and scrollbar by clearing scroller gutter */
+.planner-calendar-card .fc-scroller.fc-scroller-liquid-absolute,
+.planner-calendar-card .fc-scroller {
+  padding-right: 0 !important;
+}
+
+/* Pull day columns flush to the scrollbar only in the body section */
+.planner-calendar-card .fc-timegrid-body .fc-timegrid-cols {
+  margin-right: calc(-1 * var(--planner-scrollbar-width, 0px));
+}
+
 /* Drag and drop */
 .fc-event-dragging {
   opacity: 0.75;

@@ -547,12 +547,14 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
     setStylePickerOpen(true);
   };
   const handleStyleSave = () => {
-    // Apply the changes
-    if (isCreating) {
-      setLocalValues(prev => ({ ...prev, color: tempColor, icon: tempIcon }));
-    } else if (projectId && projectId !== '') {
+    // Apply the changes to local state immediately
+    setLocalValues(prev => ({ ...prev, color: tempColor, icon: tempIcon }));
+    
+    // For existing projects, also update in database
+    if (!isCreating && projectId && projectId !== '') {
       updateProject(projectId, { color: tempColor, icon: tempIcon }, { silent: true });
     }
+    
     setStylePickerOpen(false);
   };
   const handleStyleCancel = () => {

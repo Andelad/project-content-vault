@@ -14,7 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar as DatePicker } from '@/components/ui/calendar';
 import { PlannerInsightCard, DailyProjectSummaryRow } from '@/components/planner';
 import { getBaseFullCalendarConfig, getEventStylingConfig, UnifiedDayEstimateService } from '@/services';
-import { useHolidays } from '@/hooks';
+// Holidays now sourced from PlannerContext to avoid duplicate fetch/state
 import { getDateKey } from '@/utils/dateFormatUtils';
 import { transformFullCalendarToCalendarEvent } from '@/services';
 import { createPlannerViewOrchestrator, type PlannerInteractionContext } from '@/services/orchestrators/PlannerViewOrchestrator';
@@ -39,6 +39,8 @@ export function PlannerView() {
   const { 
     events,
     isEventsLoading,
+    holidays,
+    isHolidaysLoading,
     fullCalendarEvents,
     getStyledFullCalendarEvents,
     selectedEventId,
@@ -63,12 +65,14 @@ export function PlannerView() {
   } = useTimelineContext();
   const { isTimeTracking, currentTrackingEventId, settings } = useSettingsContext();
   const { toast } = useToast();
-  const { holidays } = useHolidays();
   const calendarRef = useRef<FullCalendar>(null);
+  const calendarCardRef = useRef<HTMLDivElement | null>(null);
   const [calendarDate, setCalendarDate] = useState(new Date(currentDate));
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isDraggingProject, setIsDraggingProject] = useState(false);
   const [calendarReady, setCalendarReady] = useState(false);
+  const [summaryDateStrings, setSummaryDateStrings] = useState<string[]>([]);
+  const [calendarScrollbarWidth, setCalendarScrollbarWidth] = useState(0);
 
   // Create milestones map by project ID (use normalized milestones from ProjectContext)
   const milestonesMap = useMemo(() => {
@@ -81,59 +85,8 @@ export function PlannerView() {
     return map;
   }, [projectMilestones]);
 
-  // Get dates array for summary row based on current view
-  // Extract actual dates from FullCalendar to ensure alignment
-  // Use date strings for stability, then convert to Date objects
-  const summaryDateStrings = useMemo(() => {
-    if (!calendarReady) {
-      // Initial fallback before calendar is ready
-      if (currentView === 'day') {
-        const date = new Date(calendarDate);
-        date.setHours(0, 0, 0, 0);
-        return [getDateKey(date)];
-      } else {
-        const startOfWeek = new Date(calendarDate);
-        startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
-        startOfWeek.setHours(0, 0, 0, 0);
-        const dates = [];
-        for (let i = 0; i < 7; i++) {
-          const date = new Date(startOfWeek);
-          date.setDate(startOfWeek.getDate() + i);
-          date.setHours(0, 0, 0, 0);
-          dates.push(getDateKey(date));
-        }
-        return dates;
-      }
-    }
-
-    const calendarApi = calendarRef.current?.getApi();
-    if (!calendarApi) return [];
-
-    // Get dates from FullCalendar's current view
-    const view = calendarApi.view;
-    const viewStart = view.activeStart;
-    const viewEnd = view.activeEnd;
-    
-    const dateStrings: string[] = [];
-    const current = new Date(viewStart);
-    current.setHours(0, 0, 0, 0);
-    
-    const end = new Date(viewEnd);
-    end.setHours(0, 0, 0, 0);
-    
-    // For day view, just return the single day
-    if (currentView === 'day') {
-      return [getDateKey(current)];
-    }
-    
-    // For week view, get all 7 days
-    while (current < end && dateStrings.length < 7) {
-      dateStrings.push(getDateKey(current));
-      current.setDate(current.getDate() + 1);
-    }
-    
-    return dateStrings;
-  }, [calendarDate, currentView, calendarReady]);
+  // Derive summary dates from the latest strings (set by datesSet)
+  // Do not compute from fallback values to avoid flash
 
   // Convert date strings to Date objects (stable based on string keys)
   const summaryDates = useMemo(() => {
@@ -145,10 +98,7 @@ export function PlannerView() {
     });
   }, [summaryDateStrings]);
 
-  // Create a stable string key from dates to prevent unnecessary recalculations
-  const summaryDatesKey = useMemo(() => {
-    return summaryDateStrings.join(',');
-  }, [summaryDateStrings]);
+  // Removed summaryDatesKey to avoid unnecessary re-mount triggers
 
   // Create orchestrator context
   const orchestratorContext: PlannerInteractionContext = useMemo(() => ({
@@ -509,20 +459,26 @@ export function PlannerView() {
     datesSet: (dateInfo) => {
       setCalendarDate(dateInfo.start);
       setCurrentDate(dateInfo.start);
-      // Mark calendar as ready when dates are set
+      // Compute summary date strings directly from FullCalendar view
+      const viewStart = new Date(dateInfo.start);
+      const viewEnd = new Date(dateInfo.end);
+      viewStart.setHours(0, 0, 0, 0);
+      viewEnd.setHours(0, 0, 0, 0);
+      const next: string[] = [];
+      if (currentView === 'day') {
+        next.push(getDateKey(viewStart));
+      } else {
+        const cur = new Date(viewStart);
+        while (cur < viewEnd && next.length < 7) {
+          next.push(getDateKey(cur));
+          cur.setDate(cur.getDate() + 1);
+        }
+      }
+      setSummaryDateStrings(next);
       setCalendarReady(true);
     }
   };
-  
-  // Mark calendar as ready after initial mount
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (calendarRef.current?.getApi()) {
-        setCalendarReady(true);
-      }
-    }, 100);
-    return () => clearTimeout(timer);
-  }, []);
+  // Removed early calendarReady timeout to avoid pre-ready fallback flashes
   
   // Add hoverable functionality to date headers after calendar renders
   useEffect(() => {
@@ -840,6 +796,59 @@ export function PlannerView() {
     };
   }, [events, toast, setCreatingNewEvent]);
 
+  // Keep FullCalendar sized to its container (e.g., on sidebar toggle)
+  useEffect(() => {
+    const el = calendarCardRef.current;
+    if (!el) return;
+    let lastWidth = el.getBoundingClientRect().width;
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const cr = entry.contentRect;
+        if (Math.round(cr.width) !== Math.round(lastWidth)) {
+          lastWidth = cr.width;
+          // Update FullCalendar layout when container width changes
+          const api = calendarRef.current?.getApi();
+          if (api) {
+            api.updateSize();
+          }
+        }
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Track the vertical scrollbar width of the FullCalendar scroller to align the summary row
+  useEffect(() => {
+    if (!calendarReady) return;
+    const selectScroller = () =>
+      document.querySelector('.fc-scroller.fc-scroller-liquid-absolute') ||
+      document.querySelector('.fc-scroller');
+    const scroller = selectScroller() as HTMLElement | null;
+    if (!scroller) return;
+    const measure = () => {
+      const sw = Math.max(0, scroller.offsetWidth - scroller.clientWidth);
+      const rounded = Math.round(sw);
+      if (!Number.isNaN(rounded) && rounded !== calendarScrollbarWidth) {
+        setCalendarScrollbarWidth(rounded);
+        // Trigger a calendar re-measure so shrink column updates in layout
+        const api = calendarRef.current?.getApi();
+        if (api) api.updateSize();
+      }
+    };
+    // Initial measure after a frame
+    const rid = requestAnimationFrame(measure);
+    const ro = new ResizeObserver(measure);
+    ro.observe(scroller);
+    // Also listen to window resize as a fallback
+    window.addEventListener('resize', measure);
+    return () => {
+      cancelAnimationFrame(rid);
+      ro.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, [calendarReady, calendarScrollbarWidth]);
+
   return (
     <div className="h-full flex flex-col bg-gray-50 overflow-hidden">
       {/* Calendar Controls */}
@@ -922,25 +931,32 @@ export function PlannerView() {
       </div>
 
       {/* Daily Project Summary Row */}
-      <div className="px-6 pb-[21px]">
-        <div className="bg-gray-50 border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-          <DailyProjectSummaryRow
-            dates={summaryDates}
-            projects={projects}
-            milestonesMap={milestonesMap}
-            events={events}
-            settings={settings}
-            holidays={holidays}
-            viewMode={currentView}
-            onDragStart={handleProjectDragStart}
-            onDragEnd={handleProjectDragEnd}
-          />
+      {calendarReady && summaryDateStrings.length > 0 && !isEventsLoading && !isHolidaysLoading && (
+        <div className="px-6 pb-[21px]">
+          <div className="bg-gray-50 border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+            <DailyProjectSummaryRow
+              dates={summaryDates}
+              projects={projects}
+              milestonesMap={milestonesMap}
+              events={events}
+              settings={settings}
+              holidays={holidays}
+              viewMode={currentView}
+              onDragStart={handleProjectDragStart}
+              onDragEnd={handleProjectDragEnd}
+              scrollbarWidth={calendarScrollbarWidth}
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Calendar Content */}
       <div className="flex-1 px-6 pb-[21px] min-h-0">
-        <div className="h-full bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+        <div
+          ref={calendarCardRef}
+          className="planner-calendar-card h-full bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden"
+          style={{ ['--planner-scrollbar-width' as any]: `${calendarScrollbarWidth}px` }}
+        >
           <FullCalendar
             ref={calendarRef}
             {...calendarConfig}

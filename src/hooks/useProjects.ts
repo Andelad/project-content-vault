@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
 import { Project } from '@/types/core';
+import { normalizeProjectColor } from '@/utils/normalizeProjectColor';
 
 type DatabaseProject = Database['public']['Tables']['projects']['Row'];
 type ProjectInsert = Database['public']['Tables']['projects']['Insert'];
@@ -18,7 +19,7 @@ function transformDatabaseProject(dbProject: DatabaseProject): Project {
     startDate: new Date(dbProject.start_date),
     endDate: new Date(dbProject.end_date),
     estimatedHours: dbProject.estimated_hours,
-    color: dbProject.color,
+    color: normalizeProjectColor(dbProject.color), // Automatically normalize old colors
     groupId: dbProject.group_id || undefined,
     rowId: dbProject.row_id || undefined,
     notes: dbProject.notes || undefined,

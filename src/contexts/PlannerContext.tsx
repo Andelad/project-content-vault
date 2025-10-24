@@ -4,6 +4,7 @@ import { useEvents } from '@/hooks/useEvents';
 import { useHolidays } from '@/hooks/useHolidays';
 import { useWorkHours } from '@/hooks/useWorkHours';
 import { EventInput } from '@fullcalendar/core';
+import { normalizeProjectColor } from '@/utils/normalizeProjectColor';
 // Try direct import from the specific file instead of barrel export
 import { PlannerV2CalculationService } from '@/services/calculations/insights/plannerInsights';
 import { supabase } from '@/integrations/supabase/client';
@@ -206,7 +207,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
       startTime: new Date(event.start_time),
       endTime: new Date(event.end_time),
       projectId: event.project_id,
-      color: event.color,
+      color: normalizeProjectColor(event.color), // Automatically normalize old colors
       completed: event.completed || false,
       duration: event.duration || 0,
       type: (event.event_type as 'planned' | 'tracked' | 'completed') || 'planned',
