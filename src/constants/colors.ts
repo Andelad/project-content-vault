@@ -9,18 +9,18 @@ export const BRAND_COLORS = {
 
 // Project colors using OKLCH color space for better accessibility
 export const OKLCH_PROJECT_COLORS = [
-  'oklch(0.72 0.15 0)',     // Red
-  'oklch(0.72 0.15 30)',    // Orange
-  'oklch(0.72 0.15 60)',    // Yellow-Orange
-  'oklch(0.72 0.15 90)',    // Yellow
-  'oklch(0.72 0.15 120)',   // Yellow-Green
-  'oklch(0.72 0.15 150)',   // Green
-  'oklch(0.72 0.15 180)',   // Cyan
-  'oklch(0.72 0.15 210)',   // Sky Blue
-  'oklch(0.72 0.15 240)',   // Blue
-  'oklch(0.72 0.15 270)',   // Purple
-  'oklch(0.72 0.15 300)',   // Magenta
-  'oklch(0.72 0.15 330)',   // Pink
+  'oklch(0.76 0.15 0)',     // Red
+  'oklch(0.76 0.15 30)',    // Orange
+  'oklch(0.76 0.15 60)',    // Yellow-Orange
+  'oklch(0.76 0.15 90)',    // Yellow
+  'oklch(0.76 0.15 120)',   // Yellow-Green
+  'oklch(0.76 0.15 150)',   // Green
+  'oklch(0.76 0.15 180)',   // Cyan
+  'oklch(0.76 0.15 210)',   // Sky Blue
+  'oklch(0.76 0.15 240)',   // Blue
+  'oklch(0.76 0.15 270)',   // Purple
+  'oklch(0.76 0.15 300)',   // Magenta
+  'oklch(0.76 0.15 330)',   // Pink
 ] as const;
 
 export const OKLCH_GROUP_COLORS = [
