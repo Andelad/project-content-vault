@@ -12,8 +12,10 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { ChevronLeft, ChevronRight, MapPin, CalendarSearch, CheckCircle2, Circle } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as DatePicker } from '@/components/ui/calendar';
-import { PlannerInsightCard } from '@/components/planner';
-import { getBaseFullCalendarConfig, getEventStylingConfig } from '@/services';
+import { PlannerInsightCard, DailyProjectSummaryRow } from '@/components/planner';
+import { getBaseFullCalendarConfig, getEventStylingConfig, UnifiedDayEstimateService } from '@/services';
+import { useHolidays } from '@/hooks';
+import { getDateKey } from '@/utils/dateFormatUtils';
 import { transformFullCalendarToCalendarEvent } from '@/services';
 import { createPlannerViewOrchestrator, type PlannerInteractionContext } from '@/services/orchestrators/PlannerViewOrchestrator';
 import { useToast } from '@/hooks/use-toast';
@@ -36,6 +38,7 @@ import { WorkSlotModal } from '../modals/WorkSlotModal';
 export function PlannerView() {
   const { 
     events,
+    isEventsLoading,
     fullCalendarEvents,
     getStyledFullCalendarEvents,
     selectedEventId,
@@ -52,17 +55,100 @@ export function PlannerView() {
     setCurrentView,
     getEventsInDateRange
   } = usePlannerContext();
-  const { projects } = useProjectContext();
+  const { projects, milestones: projectMilestones } = useProjectContext();
   const { 
     currentDate, 
     setCurrentDate,
     setCurrentView: setTimelineView 
   } = useTimelineContext();
-  const { isTimeTracking, currentTrackingEventId } = useSettingsContext();
+  const { isTimeTracking, currentTrackingEventId, settings } = useSettingsContext();
   const { toast } = useToast();
+  const { holidays } = useHolidays();
   const calendarRef = useRef<FullCalendar>(null);
   const [calendarDate, setCalendarDate] = useState(new Date(currentDate));
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [isDraggingProject, setIsDraggingProject] = useState(false);
+  const [calendarReady, setCalendarReady] = useState(false);
+
+  // Create milestones map by project ID (use normalized milestones from ProjectContext)
+  const milestonesMap = useMemo(() => {
+    const map = new Map<string, any[]>();
+    (projectMilestones || []).forEach(milestone => {
+      const list = map.get(milestone.projectId) || [];
+      list.push(milestone);
+      map.set(milestone.projectId, list);
+    });
+    return map;
+  }, [projectMilestones]);
+
+  // Get dates array for summary row based on current view
+  // Extract actual dates from FullCalendar to ensure alignment
+  // Use date strings for stability, then convert to Date objects
+  const summaryDateStrings = useMemo(() => {
+    if (!calendarReady) {
+      // Initial fallback before calendar is ready
+      if (currentView === 'day') {
+        const date = new Date(calendarDate);
+        date.setHours(0, 0, 0, 0);
+        return [getDateKey(date)];
+      } else {
+        const startOfWeek = new Date(calendarDate);
+        startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+        startOfWeek.setHours(0, 0, 0, 0);
+        const dates = [];
+        for (let i = 0; i < 7; i++) {
+          const date = new Date(startOfWeek);
+          date.setDate(startOfWeek.getDate() + i);
+          date.setHours(0, 0, 0, 0);
+          dates.push(getDateKey(date));
+        }
+        return dates;
+      }
+    }
+
+    const calendarApi = calendarRef.current?.getApi();
+    if (!calendarApi) return [];
+
+    // Get dates from FullCalendar's current view
+    const view = calendarApi.view;
+    const viewStart = view.activeStart;
+    const viewEnd = view.activeEnd;
+    
+    const dateStrings: string[] = [];
+    const current = new Date(viewStart);
+    current.setHours(0, 0, 0, 0);
+    
+    const end = new Date(viewEnd);
+    end.setHours(0, 0, 0, 0);
+    
+    // For day view, just return the single day
+    if (currentView === 'day') {
+      return [getDateKey(current)];
+    }
+    
+    // For week view, get all 7 days
+    while (current < end && dateStrings.length < 7) {
+      dateStrings.push(getDateKey(current));
+      current.setDate(current.getDate() + 1);
+    }
+    
+    return dateStrings;
+  }, [calendarDate, currentView, calendarReady]);
+
+  // Convert date strings to Date objects (stable based on string keys)
+  const summaryDates = useMemo(() => {
+    return summaryDateStrings.map(dateStr => {
+      const [year, month, day] = dateStr.split('-').map(Number);
+      const date = new Date(year, month - 1, day);
+      date.setHours(0, 0, 0, 0);
+      return date;
+    });
+  }, [summaryDateStrings]);
+
+  // Create a stable string key from dates to prevent unnecessary recalculations
+  const summaryDatesKey = useMemo(() => {
+    return summaryDateStrings.join(',');
+  }, [summaryDateStrings]);
 
   // Create orchestrator context
   const orchestratorContext: PlannerInteractionContext = useMemo(() => ({
@@ -115,6 +201,18 @@ export function PlannerView() {
     // Clear the selection
     selectInfo.view.calendar.unselect();
   }, [setCreatingNewEvent]);
+
+  // Handle project drag start from summary row
+  const handleProjectDragStart = useCallback((projectId: string, date: Date, estimatedHours: number) => {
+    setIsDraggingProject(true);
+  }, []);
+
+  // Handle project drag end
+  const handleProjectDragEnd = useCallback(() => {
+    setIsDraggingProject(false);
+  }, []);
+
+  // Handle download project summary
   // Navigation handlers
   const handleNavigate = useCallback((direction: 'prev' | 'next' | 'today') => {
     const calendarApi = calendarRef.current?.getApi();
@@ -411,8 +509,21 @@ export function PlannerView() {
     datesSet: (dateInfo) => {
       setCalendarDate(dateInfo.start);
       setCurrentDate(dateInfo.start);
+      // Mark calendar as ready when dates are set
+      setCalendarReady(true);
     }
   };
+  
+  // Mark calendar as ready after initial mount
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (calendarRef.current?.getApi()) {
+        setCalendarReady(true);
+      }
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
+  
   // Add hoverable functionality to date headers after calendar renders
   useEffect(() => {
     const addHoverableHeaders = () => {
@@ -608,6 +719,127 @@ export function PlannerView() {
     return () => clearTimeout(timeoutId);
   }, [currentView]); // Re-run when view changes (week/day toggle)
 
+  // Handle drop from project summary row
+  useEffect(() => {
+    const calendarEl = document.querySelector('.fc-timegrid-body');
+    if (!calendarEl) return;
+
+    const handleDragOver = (e: DragEvent) => {
+      e.preventDefault();
+      e.dataTransfer!.dropEffect = 'copy';
+    };
+
+    const handleDrop = async (e: DragEvent) => {
+      e.preventDefault();
+      
+      try {
+        const data = JSON.parse(e.dataTransfer!.getData('application/json'));
+        if (data.type !== 'project-estimate') return;
+
+        const calendarApi = calendarRef.current?.getApi();
+        if (!calendarApi) return;
+
+        // Get the column (day) from the mouse position
+        const timeSlotElements = document.querySelectorAll('.fc-timegrid-col');
+        let targetDate: Date | null = null;
+        
+        // Find which column was dropped on
+        for (const col of Array.from(timeSlotElements)) {
+          const rect = col.getBoundingClientRect();
+          if (e.clientX >= rect.left && e.clientX <= rect.right) {
+            const dataDate = col.getAttribute('data-date');
+            if (dataDate) {
+              targetDate = new Date(dataDate);
+              
+              // Calculate time from Y position within the column
+              const relativeY = e.clientY - rect.top;
+              const totalHeight = rect.height;
+              const fractionOfDay = relativeY / totalHeight;
+              
+              // Assuming 24-hour day view
+              const totalMinutes = 24 * 60;
+              const minutesFromMidnight = fractionOfDay * totalMinutes;
+              
+              // Round to nearest 15 minutes
+              const roundedMinutes = Math.round(minutesFromMidnight / 15) * 15;
+              const hours = Math.floor(roundedMinutes / 60);
+              const minutes = roundedMinutes % 60;
+              
+              targetDate.setHours(hours, minutes, 0, 0);
+              break;
+            }
+          }
+        }
+
+        if (!targetDate) {
+          toast({
+            title: "Invalid drop location",
+            description: "Please drop on the calendar grid",
+            variant: "destructive",
+            duration: 3000,
+          });
+          return;
+        }
+
+        const startTime = targetDate;
+
+        // Calculate end time based on estimated hours
+        const endTime = new Date(startTime);
+        endTime.setHours(endTime.getHours() + Math.floor(data.estimatedHours));
+        endTime.setMinutes(endTime.getMinutes() + Math.round((data.estimatedHours % 1) * 60));
+
+        // Check for overlapping events and compress if needed
+        const overlappingEvents = events.filter(event => {
+          if (event.projectId !== data.projectId) return false;
+          const eventStart = new Date(event.startTime);
+          const eventEnd = new Date(event.endTime);
+          return (startTime < eventEnd && endTime > eventStart);
+        });
+
+        let finalEndTime = endTime;
+        if (overlappingEvents.length > 0) {
+          // Find the earliest overlapping event
+          const earliestOverlap = overlappingEvents.reduce((earliest, event) => {
+            const eventStart = new Date(event.startTime);
+            return eventStart < earliest ? eventStart : earliest;
+          }, new Date(endTime));
+
+          // Compress to fit before the overlap
+          if (earliestOverlap > startTime) {
+            finalEndTime = earliestOverlap;
+          } else {
+            // Can't fit, show toast
+            toast({
+              title: "Cannot create event",
+              description: "No space available at this time",
+              variant: "destructive",
+              duration: 3000,
+            });
+            return;
+          }
+        }
+
+        // Create the event - store project ID for modal to use
+        (window as any).__pendingEventProjectId = data.projectId;
+        setCreatingNewEvent({
+          startTime,
+          endTime: finalEndTime
+        });
+
+      } catch (error) {
+        console.error('Error handling drop:', error);
+      }
+    };
+
+    calendarEl.addEventListener('dragover', handleDragOver as EventListener);
+    calendarEl.addEventListener('drop', handleDrop as EventListener);
+
+    return () => {
+      calendarEl.removeEventListener('dragover', handleDragOver as EventListener);
+      calendarEl.removeEventListener('drop', handleDrop as EventListener);
+    };
+  }, [events, toast, setCreatingNewEvent]);
+
   return (
     <div className="h-full flex flex-col bg-gray-50 overflow-hidden">
       {/* Calendar Controls */}
@@ -688,8 +920,26 @@ export function PlannerView() {
           </div>
         </div>
       </div>
+
+      {/* Daily Project Summary Row */}
+      <div className="px-6 pb-[21px]">
+        <div className="bg-gray-50 border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+          <DailyProjectSummaryRow
+            dates={summaryDates}
+            projects={projects}
+            milestonesMap={milestonesMap}
+            events={events}
+            settings={settings}
+            holidays={holidays}
+            viewMode={currentView}
+            onDragStart={handleProjectDragStart}
+            onDragEnd={handleProjectDragEnd}
+          />
+        </div>
+      </div>
+
       {/* Calendar Content */}
-      <div className="flex-1 px-6 pb-6 min-h-0">
+      <div className="flex-1 px-6 pb-[21px] min-h-0">
         <div className="h-full bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
           <FullCalendar
             ref={calendarRef}
@@ -699,7 +949,7 @@ export function PlannerView() {
         </div>
       </div>
       {/* Calendar Insight Card */}
-      <div className="px-6 pb-6">
+      <div className="px-6 pb-[21px]">
         <PlannerInsightCard 
           dates={(() => {
             if (currentView === 'day') {

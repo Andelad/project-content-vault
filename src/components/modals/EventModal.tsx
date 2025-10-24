@@ -201,16 +201,27 @@ export function EventModal({
         // Reset for new event
         const startDate = defaultStartTime || new Date();
         const endDate = defaultEndTime || new Date(startDate.getTime() + 60 * 60 * 1000);
+        
+        // Check for pending project ID from drag-and-drop
+        const pendingProjectId = (window as any).__pendingEventProjectId;
+        if (pendingProjectId) {
+          delete (window as any).__pendingEventProjectId;
+        }
+        
+        // Find project's group ID if project is specified
+        const pendingProject = pendingProjectId ? projects.find(p => p.id === pendingProjectId) : null;
+        const groupId = pendingProject?.groupId || '';
+        
         setFormData({
           description: '',
           notes: '',
-          groupId: '',
+          groupId,
           startDate: formatDate(startDate),
           startTime: formatTime(startDate),
           endDate: formatDate(endDate),
           endTime: formatTime(endDate),
-          projectId: '',
-          color: OKLCH_FALLBACK_GRAY,
+          projectId: pendingProjectId || '',
+          color: pendingProject?.color || OKLCH_FALLBACK_GRAY,
           completed: false,
           isRecurring: false,
           recurringType: 'weekly',
