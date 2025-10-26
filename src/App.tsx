@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AppProviders } from './contexts/AppProviders';
 import { Toaster } from './components/ui/toaster';
-import { ErrorBoundary } from './components/ErrorBoundary';
+import { ErrorBoundary } from './components/debug/ErrorBoundary';
 
 // Pages
 import LandingPage from './pages/LandingPage';

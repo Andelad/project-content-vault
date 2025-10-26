@@ -1,4 +1,4 @@
-// Modal components barrel exports
+// Project modal section components barrel exports
 export { AutoEstimateDaysSection } from './AutoEstimateDaysSection';
 export { ProjectInsightsSection } from './ProjectInsightsSection';
 export { ProjectMilestoneSection } from './ProjectMilestoneSection';

@@ -1,7 +1,7 @@
 // Projects feature barrel exports
 
-// Modal Components
-export * from './modal';
+// Section Components (used within modals)
+export * from './sections';
 
 // Bar Components
 export * from './bar';

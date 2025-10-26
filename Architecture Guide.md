@@ -42,7 +42,7 @@ Components/Hooks → Orchestrators (complex workflows) → Domain Rules + Direct
 - ✅ Domain rules remain single source of truth
 - ✅ Clear separation: Orchestrators (workflows) vs Unified Services (calculations)
 
-### Directory Structure (Current - October 21, 2025):
+### Directory Structure (Current - October 26, 2025):
 ```
 src/
 ├── domain/                      # ⭐ Business Logic Layer (Single Source of Truth)
@@ -99,6 +99,10 @@ src/
 │   │   ├── dragPerformanceService.ts
 │   │   └── performanceMetricsService.ts
 │   └── index.ts                 # ✅ Barrel exports (single import point)
+├── utils/                       # ✅ Framework & format utilities (2 files)
+│   ├── dateFormatUtils.ts       # Date display formatting
+│   ├── normalizeProjectColor.ts # Color format migrations (pure transformation)
+│   └── index.ts
 └── types/
     └── core.ts                  # ✅ Type definitions (single source of truth)
 ```
@@ -107,6 +111,7 @@ src/
 - ❌ `validators/` - **ELIMINATED** (logic moved inline to orchestrators)
 - ❌ `repositories/` - **99% ELIMINATED** (only timeTrackingRepository remains)
 - ✅ `utilities/` - **NEW** (lightweight utilities, not business logic)
+- ✅ `utils/` - **CLARIFIED** (framework utilities + pure transformations only)
 - ✅ Orchestrators now handle validation + data access directly
 
 ## 🎨 Type Architecture - Single Source of Truth
@@ -209,6 +214,7 @@ interface ProjectModalProps {
 - Pure formatting (currency, date display)
 - Generic algorithms (debounce, throttle)
 - Validation helpers (email, phone format)
+- **Legacy format migrations** (pure transformations with no side effects)
 
 ### ❌ Forbidden Utils/Lib:
 - Business calculations
@@ -222,9 +228,13 @@ interface ProjectModalProps {
 export function cn(...classes: string[]): string // Framework utility
 export function formatCurrency(amount: number): string // Pure formatting
 export function debounce<T>(fn: T, delay: number): T // Generic algorithm
+export function normalizeProjectColor(color: string): string // Legacy format migration
 
 // ❌ FORBIDDEN in utils/ - Must go in services/
 export function calculateProjectDuration() // Business calculation
+export function validateMilestone() // Domain logic
+export function createProject() // Application workflow
+```
 export function validateMilestone() // Domain logic
 export function createProject() // Application workflow
 ```

@@ -15,6 +15,7 @@ export * from './dialog';
 export * from './debug';
 export * from './views';
 export * from './layout';
+export * from './shared';
 
 // Known working individual components
 // (Now exported through their respective feature directories)
