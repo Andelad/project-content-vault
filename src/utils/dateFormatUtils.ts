@@ -151,3 +151,46 @@ export const formatTimeRange = (startDate: Date, endDate: Date): string => {
   const endFormatted = endDate.toLocaleDateString(APP_LOCALE, DATE_FORMAT_OPTIONS.monthDay);
   return `${startFormatted} - ${endFormatted}`;
 };
+
+// Day name formatting utilities (for recurring patterns)
+/**
+ * Convert day number to day name
+ * @param dayOfWeek 0-6 (Sunday-Saturday)
+ * @returns Day name (e.g., "Monday")
+ */
+export const getDayName = (dayOfWeek: number): string => {
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  return days[dayOfWeek] || 'Sunday';
+};
+
+/**
+ * Format number with ordinal suffix (1st, 2nd, 3rd, etc.)
+ * Used for recurring milestone patterns and date displays
+ * @param num Number to format
+ * @returns Formatted string with ordinal suffix
+ */
+export const getOrdinalNumber = (num: number): string => {
+  const mod10 = num % 10;
+  const mod100 = num % 100;
+  
+  if (mod100 >= 11 && mod100 <= 13) {
+    return num + 'th';
+  }
+  
+  switch (mod10) {
+    case 1: return num + 'st';
+    case 2: return num + 'nd';
+    case 3: return num + 'rd';
+    default: return num + 'th';
+  }
+};
+
+/**
+ * Convert week number to week name for monthly recurring patterns
+ * @param week Week number (1-6)
+ * @returns Week name (e.g., "1st", "last")
+ */
+export const getWeekOfMonthName = (week: number): string => {
+  const weeks = ['', '1st', '2nd', '3rd', '4th', '2nd last', 'last'];
+  return weeks[week] || 'last';
+};

@@ -19,60 +19,14 @@ import {
   detectRecurringPattern, 
   // NEW: Unified service imports (replacing legacy MilestoneManagementService)
   UnifiedMilestoneService,
+  UnifiedMilestoneEntity,
   // MilestoneOrchestrator, // Deprecated - using ProjectMilestoneOrchestrator instead
   ProjectOrchestrator,
   ProjectMilestoneOrchestrator
 } from '@/services';
 import { MilestoneRules } from '@/domain/rules/MilestoneRules';
 import { supabase } from '@/integrations/supabase/client';
-
-// Helper functions for day and date patterns
-const getDayName = (dayOfWeek: number): string => {
-  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  return days[dayOfWeek];
-};
-
-const getOrdinalNumber = (num: number): string => {
-  const suffixes = ['st', 'nd', 'rd', 'th'];
-  const mod10 = num % 10;
-  const mod100 = num % 100;
-  
-  if (mod100 >= 11 && mod100 <= 13) {
-    return num + 'th';
-  }
-  
-  switch (mod10) {
-    case 1: return num + 'st';
-    case 2: return num + 'nd';
-    case 3: return num + 'rd';
-    default: return num + 'th';
-  }
-};
-
-const getWeekOfMonthName = (week: number): string => {
-  const weeks = ['', '1st', '2nd', '3rd', '4th', '2nd last', 'last'];
-  return weeks[week] || 'last';
-};
-
-// Compatibility function for calculateMilestoneInterval with the expected signature
-const calculateMilestoneInterval = (
-  firstDate: Date, 
-  secondDate: Date
-): { type: 'daily' | 'weekly' | 'monthly' | 'custom'; interval: number } => {
-  const daysDifference = Math.round((secondDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24));
-  
-  if (daysDifference === 1) {
-    return { type: 'daily', interval: 1 };
-  } else if (daysDifference === 7) {
-    return { type: 'weekly', interval: 1 };
-  } else if (daysDifference >= 28 && daysDifference <= 31) {
-    return { type: 'monthly', interval: 1 };
-  } else if (daysDifference % 7 === 0) {
-    return { type: 'weekly', interval: daysDifference / 7 };
-  } else {
-    return { type: 'custom', interval: daysDifference };
-  }
-};
+import { getDayName, getOrdinalNumber, getWeekOfMonthName } from '@/utils/dateFormatUtils';
 
 interface ProjectMilestoneSectionProps {
   projectId?: string; // Made optional to support new projects
@@ -204,26 +158,6 @@ export function ProjectMilestoneSection({
     }
     
     setEditingRecurringLoad(false);
-  };
-
-  // Helper function to check if milestone allocation would exceed budget using domain rules
-  const wouldExceedBudget = (milestoneId: string, newTimeAllocation: number) => {
-    const validMilestones = projectMilestones.filter(m => m.id) as Milestone[];
-    
-    // Simulate the updated milestone list with the new time allocation
-    const updatedMilestones = validMilestones.map(m => 
-      m.id === milestoneId 
-        ? { ...m, timeAllocation: newTimeAllocation, timeAllocationHours: newTimeAllocation }
-        : m
-    );
-    
-    // Use domain rules to check budget constraint
-    const budgetCheck = MilestoneRules.checkBudgetConstraint(
-      updatedMilestones,
-      projectEstimatedHours
-    );
-    
-    return !budgetCheck.isValid;
   };
 
   // Helper function to handle property saving for milestones
@@ -557,7 +491,7 @@ export function ProjectMilestoneSection({
         // Calculate interval between milestones using service
         const firstDate = new Date(sortedMilestones[0].dueDate);
         const secondDate = new Date(sortedMilestones[1].dueDate);
-        const intervalResult = calculateMilestoneInterval(firstDate, secondDate);
+        const intervalResult = UnifiedMilestoneService.calculateMilestoneInterval(firstDate, secondDate);
         
         recurringType = intervalResult.type === 'custom' ? 'daily' : intervalResult.type;
         interval = intervalResult.interval;
@@ -788,14 +722,24 @@ export function ProjectMilestoneSection({
   };
 
   const handleUpdateMilestone = async (milestoneId: string, updates: Partial<Milestone>) => {
-    // Check if this update would exceed budget
-    if (updates.timeAllocation !== undefined && wouldExceedBudget(milestoneId, updates.timeAllocation)) {
-      toast({
-        title: "Error",
-        description: `Cannot update milestone: Total milestone allocation would exceed project budget (${projectEstimatedHours}h).`,
-        variant: "destructive",
-      });
-      return;
+    // Check if this update would exceed budget using service
+    if (updates.timeAllocation !== undefined) {
+      const validMilestones = projectMilestones.filter(m => m.id) as Milestone[];
+      const budgetCheck = UnifiedMilestoneEntity.wouldUpdateExceedBudget(
+        validMilestones,
+        milestoneId,
+        updates.timeAllocation,
+        projectEstimatedHours
+      );
+      
+      if (!budgetCheck.isValid) {
+        toast({
+          title: "Error",
+          description: `Cannot update milestone: Total milestone allocation would exceed project budget (${projectEstimatedHours}h).`,
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     try {

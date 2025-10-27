@@ -445,6 +445,34 @@ export class UnifiedMilestoneService {
     
     return occurrences;
   }
+
+  /**
+   * Calculate recurring interval between two milestone dates
+   * Used for detecting recurring patterns in milestone sequences
+   * @param firstDate First milestone date
+   * @param secondDate Second milestone date
+   * @returns Object with interval type and count
+   */
+  static calculateMilestoneInterval(
+    firstDate: Date,
+    secondDate: Date
+  ): { type: 'daily' | 'weekly' | 'monthly' | 'custom'; interval: number } {
+    const daysDifference = Math.round(
+      (secondDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    
+    if (daysDifference === 1) {
+      return { type: 'daily', interval: 1 };
+    } else if (daysDifference === 7) {
+      return { type: 'weekly', interval: 1 };
+    } else if (daysDifference >= 28 && daysDifference <= 31) {
+      return { type: 'monthly', interval: 1 };
+    } else if (daysDifference % 7 === 0) {
+      return { type: 'weekly', interval: daysDifference / 7 };
+    } else {
+      return { type: 'custom', interval: daysDifference };
+    }
+  }
 }
 
 // ============================================================================

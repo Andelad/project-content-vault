@@ -77,6 +77,9 @@ Essential documentation for ongoing development and platform setup.
 
 ### `docs/` - Business Logic & Analysis
 - **`BUSINESS_LOGIC_REFERENCE.md`** ⭐ - **CORE** - Complete business rules specification
+- **`DOMAIN_DEFINITIONS.md`** ⭐ - **NEW** - Plain-English guide to what entities are/are not
+- **`CALCULATION_REFERENCE.md`** ⭐ - **NEW** - Complete list of all calculations with formulas
+- **`LOGIC_CONSOLIDATION_PROCESS.md`** - **NEW** - Systematic guide to consolidate business logic
 - **`CLIENT_GROUP_LABEL_IMPLEMENTATION.md`** - Client/Group/Label implementation status
 - **`COMPONENTS_CLEANUP_SUMMARY.md`** - Components organization improvements
 - **`DOCUMENTATION_CLEANUP_SUMMARY.md`** - Documentation consolidation summary
