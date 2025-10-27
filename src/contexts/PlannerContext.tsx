@@ -10,6 +10,8 @@ import { PlannerV2CalculationService } from '@/services/calculations/insights/pl
 import { supabase } from '@/integrations/supabase/client';
 import { generateRecurringEvents } from '@/services';
 import { ensureRecurringEventsExist } from '@/services';
+import { UnifiedTimeTrackerService } from '@/services';
+import { useSettingsContext } from './SettingsContext';
 interface PlannerContextType {
   // Calendar Events
   events: CalendarEvent[];
@@ -69,6 +71,8 @@ interface PlannerContextType {
 }
 const PlannerContext = createContext<PlannerContextType | undefined>(undefined);
 export function PlannerProvider({ children }: { children: React.ReactNode }) {
+  const { isTimeTracking, currentTrackingEventId, setIsTimeTracking, setCurrentTrackingEventId } = useSettingsContext();
+  
   // Database hooks
   const { 
     events: dbEvents, 
@@ -242,9 +246,19 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
     if (updates.type !== undefined) dbUpdates.event_type = updates.type;
     await dbUpdateEvent(id, dbUpdates, options);
   }, [dbUpdateEvent]);
+  
   const deleteEvent = useCallback(async (id: string, options?: { silent?: boolean }): Promise<void> => {
+    // Check if the event being deleted is currently being tracked
+    if (isTimeTracking && currentTrackingEventId === id) {
+      // Stop tracking before deleting the event
+      await UnifiedTimeTrackerService.stopTracking();
+      setIsTimeTracking(false);
+      setCurrentTrackingEventId(null);
+    }
+    
     await dbDeleteEvent(id, options);
-  }, [dbDeleteEvent]);
+  }, [dbDeleteEvent, isTimeTracking, currentTrackingEventId, setIsTimeTracking, setCurrentTrackingEventId]);
+  
   // Utility functions
   const getEventsForDate = useCallback((date: Date): CalendarEvent[] => {
     return PlannerV2CalculationService.getEventsForDate(processedEvents, date);

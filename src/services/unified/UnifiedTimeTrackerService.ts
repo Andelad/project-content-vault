@@ -277,12 +277,12 @@ export class UnifiedTimeTrackerService {
     const projectName = selectedProject?.name || searchQuery || 'Time Tracking';
 
     return {
-      title: `🔴 ${projectName}`,
+      title: 'Tracked Time',
       startTime,
       endTime: new Date(startTime.getTime() + 60000), // Start with 1 minute
       projectId: selectedProject?.id,
       color: selectedProject?.color || '#DC2626', // Red color for tracking
-      description: `Active time tracking${selectedProject ? ` for ${selectedProject.name}` : ''}`,
+      description: `🔴 ${projectName}`,
       duration: 0.0167, // 1 minute in hours
       type: 'tracked',
       completed: true // Time being tracked is considered completed by default
@@ -306,8 +306,8 @@ export class UnifiedTimeTrackerService {
     return {
       endTime,
       duration,
-      title: projectName, // Clean title
-      description: `Completed time tracking${selectedProject ? ` for ${selectedProject.name}` : ''} - ${formatTimeFn(totalSeconds)}`,
+      title: 'Tracked Time',
+      description: `🔴 ${projectName} - ${formatTimeFn(totalSeconds)}`,
       completed: true, // Mark as completed
       type: 'completed' // Change type to completed
     };

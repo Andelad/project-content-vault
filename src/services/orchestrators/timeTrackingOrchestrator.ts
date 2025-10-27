@@ -415,12 +415,12 @@ class TimeTrackingOrchestrator {
       // Use the same format as the original working implementation
       const projectName = selectedProject?.name || searchQuery || 'Time Tracking';
       const eventData = {
-        title: `🔴 ${projectName}`,
+        title: 'Tracked Time',
         startTime: now,
         endTime: new Date(now.getTime() + 60000), // Start with 1 minute
         projectId: selectedProject?.id,
         color: selectedProject?.color || '#DC2626', // Red color for tracking
-        description: `Active time tracking${selectedProject ? ` for ${selectedProject.name}` : ''}`,
+        description: `🔴 ${projectName}`,
         duration: 0.0167, // 1 minute in hours
         type: 'tracked' as const,
         completed: true // Time being tracked is considered completed by default

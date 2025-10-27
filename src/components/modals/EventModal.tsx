@@ -17,6 +17,8 @@ import { OKLCH_FALLBACK_GRAY } from '@/constants/colors';
 import { RecurringDeleteDialog } from '../dialog/RecurringDeleteDialog';
 import { RecurringUpdateDialog } from '../dialog/RecurringUpdateDialog';
 import { StandardModal } from './StandardModal';
+import { ProjectSearchInput } from '../shared/ProjectSearchInput';
+import { ProjectModal } from './ProjectModal';
 
 // Helper functions for monthly pattern calculations
 const getDayName = (dayOfWeek: number): string => {
@@ -133,6 +135,8 @@ export function EventModal({
   const [pendingUpdateData, setPendingUpdateData] = useState<Omit<CalendarEvent, 'id'> | null>(null);
   const [isRecurringEvent, setIsRecurringEvent] = useState(false);
   const [isCreatingRecurring, setIsCreatingRecurring] = useState(false);
+  const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const isEditing = !!eventId;
   let existingEvent = isEditing ? events.find(e => e.id === eventId) : null;
@@ -197,6 +201,16 @@ export function EventModal({
           monthlyWeekOfMonth: existingEvent.recurring?.monthlyWeekOfMonth || getWeekOfMonth(eventDate),
           monthlyDayOfWeek: existingEvent.recurring?.monthlyDayOfWeek || eventDate.getDay()
         });
+        
+        // Set search query for existing project
+        if (existingProject) {
+          const displayText = existingProject.client 
+            ? `${existingProject.name} • ${existingProject.client}` 
+            : existingProject.name;
+          setSearchQuery(displayText);
+        } else {
+          setSearchQuery('');
+        }
       } else {
         // Reset for new event
         const startDate = defaultStartTime || new Date();
@@ -235,6 +249,16 @@ export function EventModal({
           monthlyWeekOfMonth: getWeekOfMonth(startDate),
           monthlyDayOfWeek: startDate.getDay()
         });
+        
+        // Set search query for pending project
+        if (pendingProject) {
+          const displayText = pendingProject.client 
+            ? `${pendingProject.name} • ${pendingProject.client}` 
+            : pendingProject.name;
+          setSearchQuery(displayText);
+        } else {
+          setSearchQuery('');
+        }
       }
       setErrors({});
     }
@@ -481,18 +505,6 @@ export function EventModal({
     onClose();
   };
 
-  // Group projects by group for better organization
-  const projectsByGroup = projects.reduce((acc, project) => {
-    const group = groups.find(g => g.id === project.groupId);
-    const groupName = group?.name || 'Ungrouped';
-    
-    if (!acc[groupName]) {
-      acc[groupName] = [];
-    }
-    acc[groupName].push(project);
-    return acc;
-  }, {} as Record<string, typeof projects>);
-
   return (
     <>
       <StandardModal
@@ -524,24 +536,47 @@ export function EventModal({
       >
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Description */}
-          <div className="space-y-1.5 relative">
-            {/* Completion toggle positioned in top right, moved up into header gap */}
-            <div className="absolute -top-3 right-0 z-10">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="completed"
-                  checked={formData.completed}
-                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, completed: !!checked }))}
-                />
-                <Label htmlFor="completed" className="flex items-center gap-2 cursor-pointer text-sm">
-                  <CheckCircle2 className="w-4 h-4" />
-                  Mark as completed
-                </Label>
-              </div>
+          {/* Completion toggle positioned in top right */}
+          <div className="flex justify-end -mb-2">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="completed"
+                checked={formData.completed}
+                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, completed: !!checked }))}
+              />
+              <Label htmlFor="completed" className="flex items-center gap-2 cursor-pointer text-sm">
+                <CheckCircle2 className="w-4 h-4" />
+                Mark as completed
+              </Label>
             </div>
-            
-            <Label htmlFor="description">Description *</Label>
+          </div>
+
+          {/* Allocate to Project */}
+          <ProjectSearchInput
+            value={searchQuery}
+            onChange={setSearchQuery}
+            selectedProjectId={formData.projectId}
+            onProjectSelect={(project) => {
+              setFormData(prev => ({ 
+                ...prev, 
+                projectId: project.id || '',
+                groupId: project.groupId || '',
+                color: project.color || OKLCH_FALLBACK_GRAY
+              }));
+            }}
+            onAddProject={() => {
+              // Pass the first group's ID to the ProjectModal, or undefined if no groups exist
+              // The ProjectModal will handle project creation
+              setIsProjectModalOpen(true);
+            }}
+            label="Allocate to Project"
+            placeholder="Search for a project or client..."
+            showAddButton={true}
+          />
+
+          {/* Description */}
+          <div className="space-y-1.5">
+            <Label htmlFor="description">Description</Label>
             <Input
               id="description"
               value={formData.description}
@@ -554,98 +589,9 @@ export function EventModal({
             )}
           </div>
 
-          {/* Allocate to Project */}
-          <div className="space-y-2">
-            <Label>Allocate to Project</Label>
-            
-            {/* Group Selection */}
-            <div className="space-y-1.5">
-              <Select value={formData.groupId || "none"} onValueChange={(value) => {
-                const newGroupId = value === "none" ? "" : value;
-                
-                // When group changes, reset project and set to first project if group is selected
-                let newProjectId = "";
-                if (newGroupId) {
-                  const groupProjects = projects.filter(project => project.groupId === newGroupId);
-                  if (groupProjects.length > 0) {
-                    newProjectId = groupProjects[0].id;
-                  }
-                }
-                
-                setFormData(prev => ({ 
-                  ...prev, 
-                  groupId: newGroupId,
-                  projectId: newProjectId
-                }));
-              }}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a group" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {groups.map((group) => (
-                    <SelectItem key={group.id} value={group.id}>
-                      {group.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Project Selection - Only show when group is selected */}
-            {formData.groupId && (
-              <div className="space-y-1.5">
-                <Select 
-                  value={formData.projectId || ""} 
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, projectId: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a project" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {projects
-                      .filter(project => project.groupId === formData.groupId)
-                      .map((project) => (
-                      <SelectItem key={project.id} value={project.id}>
-                        <div className="flex items-center gap-2">
-                          <div 
-                            className="w-3 h-3 rounded-full border border-gray-300"
-                            style={{ backgroundColor: project.color }}
-                          />
-                          <span>{project.name}</span>
-                          <span className="text-xs text-muted-foreground">({project.client})</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {selectedProject && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <div 
-                      className="w-3 h-3 rounded-full border border-gray-300"
-                      style={{ backgroundColor: selectedProject.color }}
-                    />
-                    <span>Event will use project color: {selectedProject.name}</span>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
           {/* Date and Time Range */}
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="startDate">Start Date *</Label>
-                <Input
-                  id="startDate"
-                  type="date"
-                  value={formData.startDate}
-                  onChange={(e) => setFormData(prev => ({ ...prev, startDate: e.target.value }))}
-                  className={errors.startDateTime ? 'border-destructive' : ''}
-                />
-              </div>
-              
               <div className="space-y-1.5">
                 <Label htmlFor="startTime">Start Time *</Label>
                 <Input
@@ -656,30 +602,49 @@ export function EventModal({
                   className={errors.startDateTime ? 'border-destructive' : ''}
                 />
               </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="endDate">End Date *</Label>
-                <Input
-                  id="endDate"
-                  type="date"
-                  value={formData.endDate}
-                  onChange={(e) => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
-                  className={errors.endDateTime ? 'border-destructive' : ''}
-                />
-              </div>
               
               <div className="space-y-1.5">
                 <Label htmlFor="endTime">End Time *</Label>
-                <Input
-                  id="endTime"
-                  type="time"
-                  value={formData.endTime}
-                  onChange={(e) => setFormData(prev => ({ ...prev, endTime: e.target.value }))}
-                  className={errors.endDateTime ? 'border-destructive' : ''}
-                />
+                <div className="relative">
+                  <Input
+                    id="endTime"
+                    type="time"
+                    value={formData.endTime}
+                    onChange={(e) => setFormData(prev => ({ ...prev, endTime: e.target.value }))}
+                    className={`${errors.endDateTime ? 'border-destructive' : ''} ${isEditing ? 'pr-16' : ''}`}
+                  />
+                  {isEditing && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        const now = new Date();
+                        const currentTime = now.toTimeString().slice(0, 5);
+                        setFormData(prev => ({ ...prev, endTime: currentTime }));
+                      }}
+                      className="absolute right-1 top-1/2 -translate-y-1/2 h-7 px-2 text-xs"
+                    >
+                      Now
+                    </Button>
+                  )}
+                </div>
               </div>
+            </div>
+            
+            <div className="space-y-1.5">
+              <Label htmlFor="startDate">Date *</Label>
+              <Input
+                id="startDate"
+                type="date"
+                value={formData.startDate}
+                onChange={(e) => setFormData(prev => ({ 
+                  ...prev, 
+                  startDate: e.target.value,
+                  endDate: e.target.value // Set end date to same as start date
+                }))}
+                className={errors.startDateTime ? 'border-destructive' : ''}
+              />
             </div>
             
             {(errors.startDateTime || errors.endDateTime) && (
@@ -690,7 +655,7 @@ export function EventModal({
           </div>
 
           {/* Duration Display */}
-          {formData.startDate && formData.startTime && formData.endDate && formData.endTime && (
+          {formData.startDate && formData.startTime && formData.endTime && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Clock className="w-4 h-4" />
               <span>
@@ -933,6 +898,13 @@ export function EventModal({
         onUpdateAll={handleUpdateAll}
         eventTitle={existingEvent?.title || ''}
         isRecurring={isRecurringEvent}
+      />
+
+      {/* Project Modal for adding new projects */}
+      <ProjectModal
+        isOpen={isProjectModalOpen}
+        onClose={() => setIsProjectModalOpen(false)}
+        groupId={groups.length > 0 ? groups[0].id : undefined}
       />
     </>
   );

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Play, Square, Search } from 'lucide-react';
+import { Play, Square, Search, Plus } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Card, CardContent } from '../ui/card';
@@ -20,6 +20,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { ConflictDialog } from './ConflictDialog';
 import type { TimeTrackingState } from '@/types/timeTracking';
 import { toast } from '@/hooks/use-toast';
+import { ProjectModal } from '../modals/ProjectModal';
 interface TimeTrackerProps {
   className?: string;
   isExpanded?: boolean;
@@ -27,7 +28,7 @@ interface TimeTrackerProps {
   fadeBorder?: boolean;
 }
 export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fadeBorder = false }: TimeTrackerProps) {
-  const { projects } = useProjectContext();
+  const { projects, groups } = useProjectContext();
   const { events, addEvent, updateEvent, deleteEvent } = usePlannerContext();
   const { isTimeTracking, setIsTimeTracking, currentTrackingEventId, setCurrentTrackingEventId: setGlobalTrackingEventId } = useSettingsContext();
   const [searchQuery, setSearchQuery] = useState('');
@@ -38,6 +39,7 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
   const [affectedPlannedEvents, setAffectedPlannedEvents] = useState<string[]>([]);
   const [showConflictDialog, setShowConflictDialog] = useState(false);
   const [conflictingSession, setConflictingSession] = useState<TimeTrackingState | null>(null);
+  const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null); // UI timer (1s)
   const dbSyncIntervalRef = useRef<NodeJS.Timeout | null>(null); // DB sync (30s)
   const overlapCheckIntervalRef = useRef<NodeJS.Timeout | null>(null); // Overlap check (60s)
@@ -560,38 +562,74 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
                 <div className="absolute top-full left-0 w-64 mt-1 bg-popover border border-border rounded-md shadow-lg z-[100]">
                   <div className="max-h-64 overflow-y-auto">
                     {searchResults.length > 0 ? (
-                      searchResults.map((item) => (
-                        <button
-                          key={`${item.type}-${item.id}`}
-                          className="w-full px-3 py-2 text-left hover:bg-accent/50 border-b border-border/30 last:border-b-0"
-                          onClick={() => handleSelectItem(item)}
-                        >
-                          <div className="flex items-center gap-2">
-                            {item.type === 'project' && (
-                              <div 
-                                className="w-3 h-3 rounded-full flex-shrink-0" 
-                                style={{ backgroundColor: projects.find(p => p.id === item.id)?.color || '#8B5CF6' }}
-                              />
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium truncate">
-                                {item.type === 'project' && item.client 
-                                  ? `${item.name} • ${item.client}`
-                                  : item.name
-                                }
+                      <>
+                        {searchResults.map((item) => (
+                          <button
+                            key={`${item.type}-${item.id}`}
+                            className="w-full px-3 py-2 text-left hover:bg-accent/50 border-b border-border/30 last:border-b-0"
+                            onClick={() => handleSelectItem(item)}
+                          >
+                            <div className="flex items-center gap-2">
+                              {item.type === 'project' && (
+                                <div 
+                                  className="w-3 h-3 rounded-full flex-shrink-0" 
+                                  style={{ backgroundColor: projects.find(p => p.id === item.id)?.color || '#8B5CF6' }}
+                                />
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-medium truncate">
+                                  {item.type === 'project' && item.client 
+                                    ? `${item.name} • ${item.client}`
+                                    : item.name
+                                  }
+                                </div>
                               </div>
                             </div>
-                          </div>
+                          </button>
+                        ))}
+                        <button
+                          className="w-full px-3 py-2 text-left hover:bg-accent/50 border-t border-border flex items-center gap-2 text-primary"
+                          onClick={() => {
+                            setShowSearchDropdown(false);
+                            setIsProjectModalOpen(true);
+                          }}
+                        >
+                          <Plus className="w-4 h-4" />
+                          <span className="text-sm">Create New</span>
                         </button>
-                      ))
+                      </>
                     ) : searchQuery.trim() ? (
-                      <div className="px-3 py-4 text-sm text-muted-foreground text-center">
-                        No projects or clients found
-                      </div>
+                      <>
+                        <div className="px-3 py-4 text-sm text-muted-foreground text-center">
+                          No projects or clients found
+                        </div>
+                        <button
+                          className="w-full px-3 py-2 text-left hover:bg-accent/50 border-t border-border flex items-center gap-2 text-primary"
+                          onClick={() => {
+                            setShowSearchDropdown(false);
+                            setIsProjectModalOpen(true);
+                          }}
+                        >
+                          <Plus className="w-4 h-4" />
+                          <span className="text-sm">Create New</span>
+                        </button>
+                      </>
                     ) : (
-                      <div className="px-3 py-4 text-sm text-muted-foreground text-center">
-                        Start typing to search projects and clients
-                      </div>
+                      <>
+                        <div className="px-3 py-4 text-sm text-muted-foreground text-center">
+                          Start typing to search projects and clients
+                        </div>
+                        <button
+                          className="w-full px-3 py-2 text-left hover:bg-accent/50 border-t border-border flex items-center gap-2 text-primary"
+                          onClick={() => {
+                            setShowSearchDropdown(false);
+                            setIsProjectModalOpen(true);
+                          }}
+                        >
+                          <Plus className="w-4 h-4" />
+                          <span className="text-sm">Create New</span>
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -630,6 +668,13 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
           )}
         </CardContent>
       </Card>
+      
+      {/* Project Modal for adding new projects */}
+      <ProjectModal
+        isOpen={isProjectModalOpen}
+        onClose={() => setIsProjectModalOpen(false)}
+        groupId={groups.length > 0 ? groups[0].id : undefined}
+      />
     </div>
   );
 }

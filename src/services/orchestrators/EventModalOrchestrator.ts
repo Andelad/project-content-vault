@@ -57,10 +57,6 @@ export class EventModalOrchestrator {
   validateEventForm(formData: EventFormData): EventFormErrors {
     const errors: EventFormErrors = {};
 
-    if (!formData.description.trim()) {
-      errors.description = 'Description is required';
-    }
-
     if (!formData.startDate || !formData.startTime) {
       errors.startDateTime = 'Start date and time are required';
     }
