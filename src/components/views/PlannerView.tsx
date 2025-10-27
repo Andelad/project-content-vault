@@ -464,8 +464,13 @@ export function PlannerView() {
       const viewEnd = new Date(dateInfo.end);
       viewStart.setHours(0, 0, 0, 0);
       viewEnd.setHours(0, 0, 0, 0);
+      
+      // Calculate the number of days in the view to determine if it's day or week view
+      const daysDiff = Math.round((viewEnd.getTime() - viewStart.getTime()) / (1000 * 60 * 60 * 24));
+      const isDayView = daysDiff === 1;
+      
       const next: string[] = [];
-      if (currentView === 'day') {
+      if (isDayView) {
         next.push(getDateKey(viewStart));
       } else {
         const cur = new Date(viewStart);
@@ -967,6 +972,7 @@ export function PlannerView() {
       {/* Calendar Insight Card */}
       <div className="px-6 pb-[21px]">
         <PlannerInsightCard 
+          key={currentView}
           dates={(() => {
             if (currentView === 'day') {
               return [calendarDate];
@@ -976,8 +982,8 @@ export function PlannerView() {
               startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay() + 1); // Monday
               const dates = [];
               for (let i = 0; i < 7; i++) {
-                const date = new Date(startOfWeek);
-                date.setDate(startOfWeek.getDate() + i);
+                const date = new Date(startOfWeek.getTime());
+                date.setDate(date.getDate() + i);
                 dates.push(date);
               }
               return dates;

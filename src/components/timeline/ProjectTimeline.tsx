@@ -117,7 +117,7 @@ export function ProjectTimeline({ project, dates, currentDate }: ProjectTimeline
       ></div>
       <span className="text-sm font-medium text-[#595956]">{project.name}</span>
       <span className="text-sm text-[#adaba1]">
-        • {project.clientId ? `Client: ${project.clientId}` : 'No client'}
+        • {project.clientData?.name || project.client || 'No client'}
       </span>
       <span className="text-xs text-[#adaba1] ml-2">
         ({project.estimatedHours}h estimated)

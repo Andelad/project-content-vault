@@ -114,10 +114,23 @@ export function useProjects() {
         return;
       }
 
-      // Test user-specific query
+      // Fetch projects with client data joined
       const { data, error } = await supabase
         .from('projects')
-        .select('*')
+        .select(`
+          *,
+          clients (
+            id,
+            name,
+            status,
+            contact_email,
+            contact_phone,
+            billing_address,
+            notes,
+            created_at,
+            updated_at
+          )
+        `)
         .eq('user_id', user.id)
         .order('created_at', { ascending: true });
 
@@ -129,6 +142,22 @@ export function useProjects() {
       // Transform database projects to frontend format
       const transformedProjects = (data || []).map((dbProject, index) => {
         const transformed = transformDatabaseProject(dbProject);
+        // Add client data if available
+        if (dbProject.clients && typeof dbProject.clients === 'object' && !Array.isArray(dbProject.clients)) {
+          const clientData = dbProject.clients as any;
+          transformed.clientData = {
+            id: clientData.id,
+            name: clientData.name,
+            status: clientData.status,
+            contactEmail: clientData.contact_email,
+            contactPhone: clientData.contact_phone,
+            billingAddress: clientData.billing_address,
+            notes: clientData.notes,
+            userId: dbProject.user_id || '',
+            createdAt: new Date(clientData.created_at),
+            updatedAt: new Date(clientData.updated_at),
+          };
+        }
         return transformed;
       });
       

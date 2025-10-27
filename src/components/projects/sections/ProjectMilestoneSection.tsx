@@ -1125,8 +1125,10 @@ export function ProjectMilestoneSection({
           localMilestonesState.setMilestones([]);
         } else {
           // For existing projects, delete recurring milestone pattern
+          // NEW SYSTEM: Delete template milestones with isRecurring=true
+          // OLD SYSTEM: Delete numbered instances (name pattern ending with space and number)
           const recurringMilestones = projectMilestones.filter(m => 
-            m.name && /\s\d+$/.test(m.name) // Ends with space and number
+            m.isRecurring || (m.name && /\s\d+$/.test(m.name))
           );
           
           // Delete each recurring milestone from database silently in background

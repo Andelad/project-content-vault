@@ -17,6 +17,7 @@ import { Separator } from '../ui/separator';
 import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
 import { StandardModal } from '../modals/StandardModal';
+import { ProjectModal } from '../modals/ProjectModal';
 import { Group, Project, ProjectStatus } from '../../types';
 import { AppPageLayout } from '../layout/AppPageLayout';
 import { getEffectiveProjectStatus, DurationFormattingService } from '@/services';
@@ -137,7 +138,7 @@ function DraggableProject({
 }
 
 export function ProjectsView() {
-  const { groups, projects, deleteGroup, addProject, updateProject, deleteProject, reorderGroups, reorderProjects, setSelectedProjectId } = useProjectContext();
+  const { groups, projects, deleteGroup, addProject, updateProject, deleteProject, reorderGroups, reorderProjects, selectedProjectId, setSelectedProjectId } = useProjectContext();
   const { addGroup, updateGroup, refetch: fetchGroups } = useGroups();
   const { toast } = useToast();
 
@@ -409,7 +410,8 @@ export function ProjectsView() {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(p => 
         p.name.toLowerCase().includes(query) ||
-        (p.clientId && p.clientId.toLowerCase().includes(query))
+        (p.clientData?.name && p.clientData.name.toLowerCase().includes(query)) ||
+        (p.client && p.client.toLowerCase().includes(query))
       );
     }
 
@@ -447,15 +449,15 @@ export function ProjectsView() {
       // Group by client
       const byClient: { [key: string]: Project[] } = {};
       filteredProjects.forEach(project => {
-        const client = project.clientId || 'No Client';
-        if (!byClient[client]) {
-          byClient[client] = [];
+        const clientName = project.clientData?.name || project.client || 'No Client';
+        if (!byClient[clientName]) {
+          byClient[clientName] = [];
         }
-        byClient[client].push(project);
+        byClient[clientName].push(project);
       });
-      return Object.entries(byClient).map(([client, projects]) => ({
-        key: client,
-        label: client,
+      return Object.entries(byClient).map(([clientName, projects]) => ({
+        key: clientName,
+        label: clientName,
         projects
       }));
     } else {
@@ -522,7 +524,7 @@ export function ProjectsView() {
               <div className="min-w-0 flex-1">
                 <CardTitle className="text-sm font-medium truncate">{project.name}</CardTitle>
                 <CardDescription className="text-xs truncate">
-                  {project.clientId || 'No client'}
+                  {project.clientData?.name || project.client || 'No client'}
                 </CardDescription>
               </div>
             </div>
@@ -582,7 +584,7 @@ export function ProjectsView() {
                 <div className="flex items-center gap-2">
                   <h3 className="font-medium text-gray-900 truncate text-sm">{project.name}</h3>
                   <span className="text-xs text-gray-600 whitespace-nowrap">
-                    {project.clientId || 'No client'}
+                    {project.clientData?.name || project.client || 'No client'}
                   </span>
                 </div>
               </div>
@@ -960,6 +962,13 @@ export function ProjectsView() {
         </Tabs>
       </AppPageLayout.Content>
     </AppPageLayout>
+
+    {/* Project Edit Modal */}
+    <ProjectModal
+      isOpen={!!selectedProjectId}
+      onClose={() => setSelectedProjectId(null)}
+      projectId={selectedProjectId || undefined}
+    />
     </DndProvider>
   );
 }

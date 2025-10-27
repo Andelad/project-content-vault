@@ -641,13 +641,13 @@ export function AddHolidayRow({ dates, collapsed, isDragging, dragState, handleH
 
   return (
     <div className="flex h-[52px] bg-white">
-      {/* Sidebar section - must match TimelineSidebar and AvailabilitySidebar widths exactly */}
+      {/* Sidebar section - must match TimelineSidebar widths exactly */}
       <div 
         className="bg-white border-r border-gray-200 transition-all duration-300 flex items-center relative"
         style={{ 
-          width: collapsed ? '64px' : '192px',
-          minWidth: collapsed ? '64px' : '192px',
-          maxWidth: collapsed ? '64px' : '192px',
+          width: collapsed ? '48px' : '280px',
+          minWidth: collapsed ? '48px' : '280px',
+          maxWidth: collapsed ? '48px' : '280px',
           paddingLeft: collapsed ? '0px' : '16px',
           paddingRight: collapsed ? '0px' : '16px',
           justifyContent: collapsed ? 'center' : 'flex-start'

@@ -34,13 +34,30 @@ interface TimelineContextType {
 const TimelineContext = createContext<TimelineContextType | undefined>(undefined);
 
 export function TimelineProvider({ children }: { children: React.ReactNode }) {
-  // Timeline view state
-  const [currentView, setCurrentView] = useState<string>('timeline');
+  // Timeline view state - initialize from localStorage
+  const [currentView, setCurrentView] = useState<string>(() => {
+    try {
+      const savedView = localStorage.getItem('currentView');
+      return savedView || 'timeline';
+    } catch (error) {
+      console.error('Failed to load currentView from localStorage:', error);
+      return 'timeline';
+    }
+  });
   const [timelineMode, setTimelineMode] = useState<'days' | 'weeks'>('days');
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [timelineEntries, setTimelineEntries] = useState<any[]>([]);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [mainSidebarCollapsed, setMainSidebarCollapsed] = useState<boolean>(false);
+
+  // Persist currentView to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('currentView', currentView);
+    } catch (error) {
+      console.error('Failed to save currentView to localStorage:', error);
+    }
+  }, [currentView]);
 
   // Timeline navigation functions
   const navigateToToday = useCallback(() => {

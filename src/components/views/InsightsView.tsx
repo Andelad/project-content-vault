@@ -540,7 +540,7 @@ export function InsightsView() {
                               />
                               <div>
                                 <div className="font-medium">{project.name}</div>
-                                <div className="text-sm text-gray-500">{project.client}</div>
+                                <div className="text-sm text-gray-500">{project.clientData?.name || project.client || 'No client'}</div>
                               </div>
                             </div>
                             
@@ -591,7 +591,7 @@ export function InsightsView() {
                                 />
                                 <div>
                                   <div className="font-medium">{project.name}</div>
-                                  <div className="text-sm text-gray-500">{project.client}</div>
+                                  <div className="text-sm text-gray-500">{project.clientData?.name || project.client || 'No client'}</div>
                                 </div>
                               </div>
                               
