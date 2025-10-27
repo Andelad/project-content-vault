@@ -6,7 +6,7 @@ Essential documentation for ongoing development and platform setup.
 
 ## ⭐ **CORE DOCUMENTS - READ FIRST**
 
-### 1. **`Architecture Guide.md`** (Root) 🏗️
+### 1. **`docs/architecture/Architecture Guide.md`** 🏗️
 **THE SINGLE SOURCE OF TRUTH** for AI development and system architecture.
 
 **Critical for**:
@@ -29,7 +29,7 @@ Essential documentation for ongoing development and platform setup.
 
 ---
 
-### 2. **`AI_DEVELOPMENT_RULES.md`** (Root) 🤖
+### 2. **`AI Dev Rules.md`** (Root) 🤖
 **AI-specific development guidelines and constraints**
 
 **Critical for**:
@@ -68,8 +68,8 @@ Essential documentation for ongoing development and platform setup.
 ## 📁 Directory Structure
 
 ### Root Documentation Files
-- **`Architecture Guide.md`** ⭐ - **CORE** - Services architecture and AI development patterns
-- **`AI_DEVELOPMENT_RULES.md`** ⭐ - **CORE** - AI-specific development constraints
+- **`docs/architecture/Architecture Guide.md`** ⭐ - **CORE** - Services architecture and AI development patterns
+- **`AI Dev Rules.md`** ⭐ - **CORE** - AI-specific development constraints
 - **`CLIENT_GROUP_LABEL_SPECIFICATION.md`** - Client/Group/Label system specification
 - **`FEEDBACK_FEATURE_SUMMARY.md`** - Feedback system feature overview
 - **`FEEDBACK_IMPLEMENTATION_INSTRUCTIONS.md`** - Feedback implementation guide
@@ -109,14 +109,14 @@ Essential documentation for ongoing development and platform setup.
 ## 🚀 Quick Start for Different Roles
 
 ### **For AI Agents**
-1. ⭐ **READ FIRST**: `/Architecture Guide.md` - Understand the entire architecture
-2. ⭐ **READ SECOND**: `/AI_DEVELOPMENT_RULES.md` - Know the constraints
+1. ⭐ **READ FIRST**: `/docs/architecture/Architecture Guide.md` - Understand the entire architecture
+2. ⭐ **READ SECOND**: `/AI Dev Rules.md` - Know the constraints
 3. Read: `/docs/BUSINESS_LOGIC_REFERENCE.md` - Understand business rules
 4. Reference: `/src/components/README.md` - Component organization
 5. Check: `/docs/architecture/` - For specific architecture decisions
 
 ### **For Human Developers**
-1. ⭐ **Start with**: `/Architecture Guide.md` - Core architecture patterns
+1. ⭐ **Start with**: `/docs/architecture/Architecture Guide.md` - Core architecture patterns
 2. Read: `/docs/BUSINESS_LOGIC_REFERENCE.md` - Business rules
 3. Review: `/src/components/README.md` - Component structure
 4. Check: `/docs/CLIENT_GROUP_LABEL_IMPLEMENTATION.md` - Current features
@@ -124,7 +124,7 @@ Essential documentation for ongoing development and platform setup.
 
 ### **For New Features**
 1. Check business rules in `BUSINESS_LOGIC_REFERENCE.md`
-2. Follow patterns in `Architecture Guide.md`
+2. Follow patterns in `docs/architecture/Architecture Guide.md`
 3. Place code according to service layer rules
 4. Add components following `src/components/README.md`
 5. Update business logic reference if needed
@@ -134,15 +134,16 @@ Essential documentation for ongoing development and platform setup.
 ## 📚 Document Hierarchy
 
 ```
+```
 ┌─────────────────────────────────────────┐
-│   Architecture Guide.md (ROOT)          │  ← START HERE
+│   docs/architecture/                    │  ← START HERE
+│   Architecture Guide.md                 │
 │   Single Source of Truth for System     │
 └─────────────────────────────────────────┘
-              ↓
+            ↓
 ┌─────────────────────────────────────────┐
-│   AI_DEVELOPMENT_RULES.md (ROOT)        │  ← AI Constraints
-│   Forbidden/Allowed Patterns            │
-└─────────────────────────────────────────┘
+│   AI Dev Rules.md (ROOT)                │  ← AI Constraints
+│   Development Rules & Patterns          │
               ↓
 ┌─────────────────────────────────────────┐
 │   BUSINESS_LOGIC_REFERENCE.md (docs/)   │  ← Business Rules
@@ -206,8 +207,8 @@ src/
 ## 🔍 Finding Information
 
 **Looking for...**  
-- **Architecture patterns?** → `/Architecture Guide.md`
-- **AI development rules?** → `/AI_DEVELOPMENT_RULES.md`
+- **Architecture patterns?** → `/docs/architecture/Architecture Guide.md`
+- **AI development rules?** → `/AI Dev Rules.md`
 - **Business rules?** → `/docs/BUSINESS_LOGIC_REFERENCE.md`
 - **Component organization?** → `/src/components/README.md`
 - **Database schema?** → `/docs/architecture/SUPABASE_REQUIREMENTS.md`

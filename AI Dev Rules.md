@@ -3,7 +3,7 @@
 ## INSTRUCTION FOR AI COPILOT
 This guide must be followed for ALL code changes in this project.
 
-> **🤖 AI REMINDER**: For complex features involving multiple service layers, workflows, or architectural decisions, ALSO read `Architecture Guide.md` to understand the complete services architecture, service layer responsibilities, and development workflow patterns.
+> **🤖 AI REMINDER**: For complex features involving multiple service layers, workflows, or architectural decisions, ALSO read `docs/architecture/Architecture Guide.md` to understand the complete services architecture, service layer responsibilities, and development workflow patterns.
 
 ---
 

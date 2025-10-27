@@ -539,7 +539,7 @@ const InsightsView = React.lazy(() =>
 
 ## 📚 References
 
-- **Architecture Guide**: `/Architecture Guide.md` - Services architecture and patterns
+- **Architecture Guide**: `/docs/architecture/Architecture Guide.md` - Services architecture and patterns
 - **Business Logic Reference**: `/docs/BUSINESS_LOGIC_REFERENCE.md` - Domain rules
 - **Cleanup Summary**: `/docs/COMPONENTS_CLEANUP_SUMMARY.md` - Recent improvements
 
