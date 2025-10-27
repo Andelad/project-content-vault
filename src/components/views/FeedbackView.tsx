@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { MessageCircle, Paperclip, X, Send } from 'lucide-react';
 import { AppPageLayout } from '../layout/AppPageLayout';
 import { Badge } from '../ui/badge';
+import { supabase } from '@/integrations/supabase/client';
 
 export function FeedbackView() {
   const { toast } = useToast();
@@ -49,19 +50,78 @@ export function FeedbackView() {
       return;
     }
 
+    // Validate file sizes
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+    const MAX_TOTAL_SIZE = 10 * 1024 * 1024; // 10MB total
+    
+    for (const file of attachments) {
+      if (file.size > MAX_FILE_SIZE) {
+        toast({
+          title: "File too large",
+          description: `${file.name} exceeds the 5MB limit`,
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+    
+    const totalSize = attachments.reduce((sum, f) => sum + f.size, 0);
+    if (totalSize > MAX_TOTAL_SIZE) {
+      toast({
+        title: "Total size too large",
+        description: "Maximum total attachment size is 10MB",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // TODO: Implement the actual submission logic
-      // This will be handled by Lovable with Supabase integration
+      const { data: { user } } = await supabase.auth.getUser();
       
-      // Placeholder for the submission
-      console.log('Feedback submission:', {
-        usageContext: usageContext,
-        type: feedbackType,
-        feedback: feedbackText,
-        attachments: attachments.map(f => f.name)
-      });
+      // Insert feedback into database
+      const { data: feedbackData, error: feedbackError } = await supabase
+        .from('feedback')
+        .insert({
+          user_id: user?.id,
+          usage_context: usageContext,
+          feedback_type: feedbackType,
+          feedback_text: feedbackText,
+          user_email: user?.email,
+          user_agent: navigator.userAgent,
+          url: window.location.href
+        })
+        .select()
+        .single();
+
+      if (feedbackError) throw feedbackError;
+
+      // Upload attachments if any
+      if (attachments.length > 0 && feedbackData) {
+        for (const file of attachments) {
+          const filePath = `${user?.id}/${feedbackData.id}/${file.name}`;
+          
+          const { error: uploadError } = await supabase.storage
+            .from('feedback-attachments')
+            .upload(filePath, file);
+
+          if (uploadError) throw uploadError;
+
+          // Save attachment metadata
+          const { error: attachmentError } = await supabase
+            .from('feedback_attachments')
+            .insert({
+              feedback_id: feedbackData.id,
+              file_name: file.name,
+              file_path: filePath,
+              file_size: file.size,
+              mime_type: file.type
+            });
+
+          if (attachmentError) throw attachmentError;
+        }
+      }
 
       toast({
         title: "Feedback submitted!",
@@ -73,11 +133,18 @@ export function FeedbackView() {
       setFeedbackType('like');
       setFeedbackText('');
       setAttachments([]);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error submitting feedback:', error);
+      
+      let errorMessage = "Failed to submit feedback. Please try again.";
+      
+      if (error.message?.includes('rate limit')) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Error",
-        description: "Failed to submit feedback. Please try again.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {

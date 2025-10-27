@@ -246,6 +246,83 @@ export type Database = {
         }
         Relationships: []
       }
+      feedback: {
+        Row: {
+          created_at: string | null
+          feedback_text: string
+          feedback_type: string
+          id: string
+          status: string | null
+          url: string | null
+          usage_context: string
+          user_agent: string | null
+          user_email: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          feedback_text: string
+          feedback_type: string
+          id?: string
+          status?: string | null
+          url?: string | null
+          usage_context: string
+          user_agent?: string | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          feedback_text?: string
+          feedback_type?: string
+          id?: string
+          status?: string | null
+          url?: string | null
+          usage_context?: string
+          user_agent?: string | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      feedback_attachments: {
+        Row: {
+          created_at: string | null
+          feedback_id: string | null
+          file_name: string
+          file_path: string
+          file_size: number
+          id: string
+          mime_type: string
+        }
+        Insert: {
+          created_at?: string | null
+          feedback_id?: string | null
+          file_name: string
+          file_path: string
+          file_size: number
+          id?: string
+          mime_type: string
+        }
+        Update: {
+          created_at?: string | null
+          feedback_id?: string | null
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          id?: string
+          mime_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_attachments_feedback_id_fkey"
+            columns: ["feedback_id"]
+            isOneToOne: false
+            referencedRelation: "feedback"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       groups: {
         Row: {
           created_at: string
@@ -691,10 +768,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      hash_user_id: {
-        Args: { user_uuid: string }
-        Returns: string
-      }
+      hash_user_id: { Args: { user_uuid: string }; Returns: string }
     }
     Enums: {
       [_ in never]: never
