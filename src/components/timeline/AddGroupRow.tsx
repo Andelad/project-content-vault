@@ -13,9 +13,7 @@ export function AddGroupRow() {
     e.preventDefault();
     if (groupName.trim()) {
       addGroup({ 
-        name: groupName.trim(), 
-        description: '',
-        color: '' // Will be assigned automatically by the context
+        name: groupName.trim()
       });
       setGroupName(''); 
       setIsAdding(false);

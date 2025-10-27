@@ -20,6 +20,7 @@ import { formatDate, formatDateForInput } from '@/utils/dateFormatUtils';
 import { useToast } from '@/hooks/use-toast';
 import { StandardModal } from './StandardModal';
 import { OKLCH_PROJECT_COLORS, PROJECT_ICONS } from '@/constants';
+import type { Project } from '@/types/core';
 interface ProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -334,21 +335,31 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
   }, [isCreating, handleCreateProject, handleClose, projectId, groupId, rowId, resolvedGroupId, resolvedRowId, dlog, toast]);
   // Calculate project time metrics using real data
   const metrics = useMemo(() => {
-    const currentProject = project || {
+    const fallbackProject: Project = {
       id: 'temp',
       name: localValues.name,
       client: localValues.client,
+      clientId: project?.clientId ?? '',
       startDate: localValues.startDate,
       endDate: localValues.endDate,
       estimatedHours: localValues.estimatedHours,
-      color: localValues.color,
-      groupId: groupId || '',
-      rowId: rowId || 'work-row-1',
+      color: localValues.color || '#000000',
+      groupId: groupId || project?.groupId,
+      rowId: rowId || project?.rowId,
       notes: localValues.notes,
-      icon: localValues.icon
+      icon: localValues.icon,
+      continuous: localValues.continuous,
+      autoEstimateDays: localValues.autoEstimateDays,
+      userId: project?.userId ?? '',
+      createdAt: project?.createdAt ?? new Date(),
+      updatedAt: project?.updatedAt ?? new Date(),
+  status: project?.status ?? 'current',
+  milestones: project?.milestones ?? [],
     };
+
+    const currentProject = project ?? fallbackProject;
     return calculateProjectTimeMetrics(currentProject, events as any, holidays, new Date());
-  }, [project, localValues.name, localValues.client, localValues.startDate, localValues.endDate, localValues.estimatedHours, localValues.color, groupId, rowId, localValues.notes, localValues.icon, events, holidays]);
+  }, [project, localValues.name, localValues.client, localValues.startDate, localValues.endDate, localValues.estimatedHours, localValues.color, localValues.notes, localValues.icon, localValues.continuous, localValues.autoEstimateDays, groupId, rowId, events, holidays, localProjectMilestones]);
   // Special TimeMetric component for auto-estimate that shows daily breakdown
   const AutoEstimateTimeMetric = ({ 
     label, 
@@ -1159,7 +1170,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
   return (
     <>
       <StandardModal
-        isOpen={isOpen && (project || isCreating)}
+  isOpen={isOpen && (!!project || isCreating)}
         onClose={handleClose}
         title={isCreating ? 'Create New Project' : (project?.name || 'Project Details')}
         description={isCreating 

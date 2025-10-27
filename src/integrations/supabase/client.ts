@@ -2,16 +2,54 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = "https://hhzmaadhndtrvgnqujnn.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhoem1hYWRobmR0cnZnbnF1am5uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUyNjM5MDIsImV4cCI6MjA3MDgzOTkwMn0.cQiQ5lBt6HwqcCgZueNlP3YsGFpjaoIOO39dPOXffdE";
+const loadEnvVar = (key: 'VITE_SUPABASE_URL' | 'VITE_SUPABASE_ANON_KEY'): string | undefined => {
+  if (typeof import.meta !== 'undefined' && (import.meta as ImportMeta).env) {
+    const value = ((import.meta as ImportMeta).env as Record<string, string | undefined>)[key];
+    if (value) {
+      return value;
+    }
+  }
+
+  if (typeof process !== 'undefined' && process.env) {
+    return process.env[key];
+  }
+
+  return undefined;
+};
+
+const SUPABASE_URL = loadEnvVar('VITE_SUPABASE_URL');
+const SUPABASE_PUBLISHABLE_KEY = loadEnvVar('VITE_SUPABASE_ANON_KEY');
+
+export const isSupabaseConfigured = Boolean(SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY);
+export const supabaseConfigError = isSupabaseConfigured
+  ? null
+  : 'Supabase credentials are missing. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.';
+
+type SupabaseClient = ReturnType<typeof createClient<Database>>;
+
+const createMissingClientProxy = (message: string): SupabaseClient => {
+  if (typeof console !== 'undefined') {
+    console.error(message);
+  }
+
+  return new Proxy({}, {
+    get() {
+      throw new Error(message);
+    }
+  }) as SupabaseClient;
+};
+
+const supabaseClient: SupabaseClient = isSupabaseConfigured
+  ? createClient<Database>(SUPABASE_URL!, SUPABASE_PUBLISHABLE_KEY!, {
+      auth: {
+        storage: localStorage,
+        persistSession: true,
+        autoRefreshToken: true,
+      }
+    })
+  : createMissingClientProxy(supabaseConfigError!);
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: {
-    storage: localStorage,
-    persistSession: true,
-    autoRefreshToken: true,
-  }
-});
+export const supabase = supabaseClient;

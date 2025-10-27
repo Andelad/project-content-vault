@@ -1047,9 +1047,9 @@ export function ProjectMilestoneSection({
       const savePromises = newMilestones.map(milestone =>
         addMilestone({
           name: milestone.name,
-          due_date: milestone.dueDate.toISOString(),
-          time_allocation: milestone.timeAllocation,
-          project_id: projectId
+          dueDate: milestone.dueDate,
+          timeAllocation: milestone.timeAllocation,
+          projectId,
         }, { silent: true })
       );
       
@@ -1570,9 +1570,9 @@ export function ProjectMilestoneSection({
                                     for (const milestone of generatedMilestones) {
                                       await addMilestone({
                                         name: milestone.name,
-                                        due_date: milestone.dueDate.toISOString(),
-                                        time_allocation: milestone.timeAllocation,
-                                        project_id: projectId!
+                                        dueDate: milestone.dueDate,
+                                        timeAllocation: milestone.timeAllocation,
+                                        projectId: projectId!,
                                       }, { silent: true });
                                     }
                                     

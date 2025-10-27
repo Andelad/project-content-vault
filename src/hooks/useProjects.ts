@@ -55,7 +55,14 @@ function transformToDatabase(projectData: any): any {
   const dbData: any = {};
   
   if (projectData.name !== undefined) dbData.name = projectData.name;
-  if (projectData.clientId !== undefined) dbData.client = projectData.clientId;
+  if (projectData.clientId !== undefined) {
+    dbData.client_id = projectData.clientId;
+  } else if (projectData.client !== undefined) {
+    // Legacy fallback: populate client_id with the string client name until UI provides the new ID
+    dbData.client_id = projectData.client;
+  }
+
+  if (projectData.client !== undefined) dbData.client = projectData.client;
   if (projectData.startDate !== undefined) {
     dbData.start_date = projectData.startDate instanceof Date 
       ? projectData.startDate.toISOString().split('T')[0] 
@@ -100,12 +107,6 @@ export function useProjects() {
 
   const fetchProjects = async () => {
     try {
-      // Test the connection first
-      const { data: testData, error: testError } = await supabase
-        .from('projects')
-        .select('count')
-        .limit(1);
-      
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
