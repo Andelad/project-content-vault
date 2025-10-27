@@ -108,7 +108,12 @@ export function FeedbackView() {
 
           if (uploadError) throw uploadError;
 
-          // Save attachment metadata
+          // Get public URL for the uploaded file
+          const { data: { publicUrl } } = supabase.storage
+            .from('feedback-attachments')
+            .getPublicUrl(filePath);
+
+          // Save attachment metadata with public URL
           const { error: attachmentError } = await supabase
             .from('feedback_attachments')
             .insert({
@@ -116,7 +121,8 @@ export function FeedbackView() {
               file_name: file.name,
               file_path: filePath,
               file_size: file.size,
-              mime_type: file.type
+              mime_type: file.type,
+              storage_url: publicUrl
             });
 
           if (attachmentError) throw attachmentError;

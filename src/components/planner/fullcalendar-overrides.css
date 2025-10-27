@@ -112,16 +112,21 @@
   box-shadow: none !important;
 }
 
-/* Non-completed events get dashed borders in project color (like regular planner) */
+/* Non-completed events get dashed outline in project color (like regular planner) */
+/* Using outline instead of border to avoid layout shift */
 .fc-event.future-event,
 .planner-v2-event.future-event {
-  border: 2px dashed var(--future-event-border-color) !important;
+  border: none !important;
+  outline: 2px dashed var(--future-event-border-color) !important;
+  outline-offset: -2px !important; /* Place outline inside the element */
 }
 
-/* Selected events get solid borders in project color */
+/* Selected events get solid outline in project color */
 .fc-event.selected-event,
 .planner-v2-event.selected-event {
-  border: 2px solid var(--selected-event-border-color) !important;
+  border: none !important;
+  outline: 2px solid var(--selected-event-border-color) !important;
+  outline-offset: -2px !important; /* Place outline inside the element */
 }
 
 /* Pulse animation for tracking indicator */

@@ -1,8 +1,31 @@
 # Feedback Feature - Implementation Plan
 
-**Status**: Phase 1 Complete (UI) | Phase 2 Pending (Backend Integration)  
+**Status**: Phase 2A Complete (Backend) | Fixes Required (Storage & Linking)  
 **Date Created**: October 27, 2025  
+**Last Updated**: October 27, 2025
 **Target**: Lovable AI Assistant
+
+---
+
+## 🔧 FIXES REQUIRED
+
+### Issues Identified:
+1. **Attachments table is separate** - Hard to see which files belong to which feedback entry
+2. **Storage bucket is private** - Cannot access uploaded images via Supabase dashboard
+
+### Quick Fix Summary:
+**What needs to be done in Supabase:**
+1. Make storage bucket public: `UPDATE storage.buckets SET public = true WHERE id = 'feedback-attachments';`
+2. Add URL column: `ALTER TABLE feedback_attachments ADD COLUMN storage_url text;`
+
+**What was updated in code:**
+- ✅ `FeedbackView.tsx` - Now saves public URLs when uploading attachments
+
+**Result:**
+- Click image URLs directly in Supabase to view uploaded screenshots
+- Easier to review feedback with visual context
+
+See **"Phase 2A-FIX"** section below for detailed instructions.
 
 ---
 
@@ -304,6 +327,177 @@ FROM feedback
 GROUP BY feedback_type 
 ORDER BY COUNT(*) DESC;
 ```
+
+---
+
+## 🔧 Phase 2A-FIX: Storage & Linking Improvements (REQUIRED)
+
+### Problem Statement:
+1. **Separate Tables Issue**: The `feedback_attachments` table is separate from `feedback`, making it hard to see which files belong to which feedback in the Supabase dashboard.
+2. **Private Storage Issue**: The storage bucket is set to `public = false`, preventing direct access to uploaded images even with authentication.
+
+### Solution:
+
+#### Step 1: Make Storage Bucket Public
+
+In Supabase Dashboard:
+1. Go to **Storage** → **feedback-attachments** bucket
+2. Click **Settings** (gear icon)
+3. Toggle **Public bucket** to **ON**
+4. Save changes
+
+**OR** run this SQL in the SQL Editor:
+
+```sql
+UPDATE storage.buckets 
+SET public = true 
+WHERE id = 'feedback-attachments';
+```
+
+#### Step 2: Add Public URL Column to Attachments Table
+
+Run this migration in Supabase SQL Editor:
+
+```sql
+-- Add storage_url column to feedback_attachments table
+ALTER TABLE feedback_attachments 
+ADD COLUMN storage_url text;
+
+-- Add comment for clarity
+COMMENT ON COLUMN feedback_attachments.storage_url IS 'Public URL to access the uploaded file';
+```
+
+#### Step 3: Update FeedbackView.tsx
+
+Replace the attachment upload logic in `handleSubmit` function:
+
+**OLD CODE (lines ~105-120):**
+```typescript
+// Upload attachments if any
+if (attachments.length > 0 && feedbackData) {
+  for (const file of attachments) {
+    const filePath = `${user?.id}/${feedbackData.id}/${file.name}`;
+    
+    const { error: uploadError } = await supabase.storage
+      .from('feedback-attachments')
+      .upload(filePath, file);
+
+    if (uploadError) throw uploadError;
+
+    // Save attachment metadata
+    const { error: attachmentError } = await supabase
+      .from('feedback_attachments')
+      .insert({
+        feedback_id: feedbackData.id,
+        file_name: file.name,
+        file_path: filePath,
+        file_size: file.size,
+        mime_type: file.type
+      });
+
+    if (attachmentError) throw attachmentError;
+  }
+}
+```
+
+**NEW CODE:**
+```typescript
+// Upload attachments if any
+if (attachments.length > 0 && feedbackData) {
+  for (const file of attachments) {
+    const filePath = `${user?.id}/${feedbackData.id}/${file.name}`;
+    
+    const { error: uploadError } = await supabase.storage
+      .from('feedback-attachments')
+      .upload(filePath, file);
+
+    if (uploadError) throw uploadError;
+
+    // Get public URL for the uploaded file
+    const { data: { publicUrl } } = supabase.storage
+      .from('feedback-attachments')
+      .getPublicUrl(filePath);
+
+    // Save attachment metadata with public URL
+    const { error: attachmentError } = await supabase
+      .from('feedback_attachments')
+      .insert({
+        feedback_id: feedbackData.id,
+        file_name: file.name,
+        file_path: filePath,
+        file_size: file.size,
+        mime_type: file.type,
+        storage_url: publicUrl  // Add public URL
+      });
+
+    if (attachmentError) throw attachmentError;
+  }
+}
+```
+
+#### Step 4: Verify the Fix
+
+**Test in Supabase Dashboard:**
+
+1. Submit feedback with an image attachment
+2. Go to **Table Editor** → **feedback_attachments**
+3. You should now see:
+   - `feedback_id` - Links to the feedback entry
+   - `storage_url` - Clickable URL to view the image directly
+4. Click the `storage_url` - the image should open in a new tab
+
+**Improved Queries:**
+
+```sql
+-- View feedback WITH attachments (easier to review)
+SELECT 
+  f.id,
+  f.feedback_type,
+  f.feedback_text,
+  f.created_at,
+  f.user_email,
+  COALESCE(
+    json_agg(
+      json_build_object(
+        'file_name', fa.file_name,
+        'storage_url', fa.storage_url,
+        'file_size', fa.file_size
+      )
+    ) FILTER (WHERE fa.id IS NOT NULL),
+    '[]'
+  ) as attachments
+FROM feedback f
+LEFT JOIN feedback_attachments fa ON f.id = fa.feedback_id
+GROUP BY f.id
+ORDER BY f.created_at DESC;
+
+-- View all attachments with their feedback context
+SELECT 
+  fa.file_name,
+  fa.storage_url,
+  fa.created_at as uploaded_at,
+  f.feedback_type,
+  f.feedback_text,
+  f.user_email
+FROM feedback_attachments fa
+JOIN feedback f ON fa.feedback_id = f.id
+ORDER BY fa.created_at DESC;
+
+-- Count feedback entries with attachments
+SELECT 
+  COUNT(DISTINCT f.id) as total_feedback,
+  COUNT(DISTINCT fa.feedback_id) as feedback_with_attachments,
+  COUNT(fa.id) as total_attachments
+FROM feedback f
+LEFT JOIN feedback_attachments fa ON f.id = fa.feedback_id;
+```
+
+### Benefits After Fix:
+✅ Storage URLs are visible directly in the attachments table  
+✅ Click any `storage_url` to view/download the file instantly  
+✅ No need to construct URLs manually  
+✅ Easier to review feedback with screenshots in Supabase  
+✅ Better debugging when users report upload issues  
 
 ---
 

@@ -4,6 +4,7 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Button } from '../ui/button';
 import { useProjectContext } from '../../contexts/ProjectContext';
+import { usePlannerContext } from '../../contexts/PlannerContext';
 import { UnifiedTimeTrackerService } from '@/services';
 
 interface ProjectSearchInputProps {
@@ -32,9 +33,26 @@ export function ProjectSearchInput({
   selectedProjectId
 }: ProjectSearchInputProps) {
   const { projects } = useProjectContext();
+  const { events } = usePlannerContext();
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedProjectColor, setSelectedProjectColor] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
+
+  // Get the 3 most recently used projects based on events
+  const recentProjects = useMemo(() => {
+    // Get unique project IDs from events, sorted by most recent
+    const projectIds = events
+      .filter(event => event.projectId)
+      .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
+      .map(event => event.projectId)
+      .filter((id, index, self) => self.indexOf(id) === index) // Remove duplicates
+      .slice(0, 3); // Take top 3
+
+    // Map project IDs to full project objects
+    return projectIds
+      .map(id => projects.find(p => p.id === id))
+      .filter(Boolean); // Remove undefined values
+  }, [events, projects]);
 
   // Update color when selectedProjectId changes
   useEffect(() => {
@@ -50,8 +68,17 @@ export function ProjectSearchInput({
 
   // Filter projects and clients based on search query
   const searchResults = useMemo(() => {
+    if (!value.trim()) {
+      // When there's no search query, show recent projects
+      return recentProjects.map(project => ({
+        id: project.id,
+        name: project.name,
+        client: project.client,
+        type: 'project' as const
+      }));
+    }
     return UnifiedTimeTrackerService.filterSearchResults(projects, value);
-  }, [value, projects]);
+  }, [value, projects, recentProjects]);
 
   // Handle search selection
   const handleSelectItem = (item: any) => {

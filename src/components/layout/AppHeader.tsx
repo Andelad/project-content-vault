@@ -72,11 +72,6 @@ export function AppHeader({
         
         <div className="flex items-center space-x-4">
           <h1 className="text-lg font-semibold text-[#595956]">{viewTitle}</h1>
-          {lastAction && (
-            <div className="flex items-center text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-              <span>Press Cmd+Z to undo</span>
-            </div>
-          )}
         </div>
         
         {/* Desktop TimeTracker */}

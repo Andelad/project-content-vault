@@ -1221,7 +1221,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
                 <h3 className="text-lg font-medium text-gray-900">Project Insights</h3>
               </div>
             </button>
-            <AnimatePresence>
+            <AnimatePresence initial={false}>
               {isInsightsExpanded && (
                 <motion.div
                   initial={{ height: 0, opacity: 0 }}
@@ -1308,7 +1308,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
                 <h3 className="text-lg font-medium text-gray-900">Auto-Estimate Days</h3>
               </div>
             </button>
-            <AnimatePresence>
+            <AnimatePresence initial={false}>
               {isAutoEstimateDaysExpanded && (
                 <motion.div
                   initial={{ height: 0, opacity: 0 }}
@@ -1343,7 +1343,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
                 <h3 className="text-lg font-medium text-gray-900">Project Notes</h3>
               </div>
             </button>
-            <AnimatePresence>
+            <AnimatePresence initial={false}>
               {isNotesExpanded && (
                 <motion.div
                   initial={{ height: 0, opacity: 0 }}

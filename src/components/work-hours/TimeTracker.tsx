@@ -278,10 +278,35 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
       handlePlannedEventOverlaps(startTime, new Date());
     }, 1000); // Wait 1 second after start
   };
+  // Get the 3 most recently used projects based on events
+  const recentProjects = useMemo(() => {
+    // Get unique project IDs from events, sorted by most recent
+    const projectIds = events
+      .filter(event => event.projectId)
+      .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
+      .map(event => event.projectId)
+      .filter((id, index, self) => self.indexOf(id) === index) // Remove duplicates
+      .slice(0, 3); // Take top 3
+
+    // Map project IDs to full project objects
+    return projectIds
+      .map(id => projects.find(p => p.id === id))
+      .filter(Boolean); // Remove undefined values
+  }, [events, projects]);
+
   // Filter projects and clients based on search query
   const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) {
+      // When there's no search query, show recent projects
+      return recentProjects.map(project => ({
+        id: project.id,
+        name: project.name,
+        client: project.client,
+        type: 'project' as const
+      }));
+    }
     return UnifiedTimeTrackerService.filterSearchResults(projects, searchQuery);
-  }, [searchQuery, projects]);
+  }, [searchQuery, projects, recentProjects]);
   // Format time display (simple inline function)
   const formatTime = (seconds: number): string => {
     const hrs = Math.floor(seconds / 3600);
