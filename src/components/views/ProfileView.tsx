@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -11,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { CardSidebarLayout } from '../shared/CardSidebarLayout';
 import { 
   CreditCard, 
   Crown, 
@@ -31,9 +31,7 @@ import {
   LogOut,
   Camera,
   Upload,
-  Save,
-  Menu,
-  ChevronLeft
+  Save
 } from 'lucide-react';
 
 export function ProfileView() {
@@ -42,8 +40,6 @@ export function ProfileView() {
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('account');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   
   // Form states
   const [emailForm, setEmailForm] = useState({
@@ -827,111 +823,15 @@ export function ProfileView() {
     }
   };
 
-
   return (
     <div className="h-full flex flex-col bg-gray-50 p-8">
-      <Card className="h-full flex overflow-hidden max-w-[1216px]">
-        {/* Sidebar */}
-        <div className={cn(
-          "relative flex-shrink-0 border-r border-gray-200 bg-gray-50 transition-all duration-300",
-          sidebarOpen ? (sidebarCollapsed ? "w-16" : "w-64") : "w-0"
-        )}>
-          <div className={cn(
-            "h-full flex flex-col",
-            !sidebarOpen && "opacity-0"
-          )}>
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-              {!sidebarCollapsed && <h2 className="font-semibold text-gray-900">Profile</h2>}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => sidebarCollapsed ? setSidebarCollapsed(false) : (window.innerWidth < 1024 ? setSidebarOpen(false) : setSidebarCollapsed(true))}
-                className="h-8 w-8 p-0"
-              >
-                <ChevronLeft className={cn(
-                  "h-4 w-4 transition-transform duration-300",
-                  sidebarCollapsed && "rotate-180"
-                )} />
-              </Button>
-            </div>
-            
-            <nav className="flex-1 overflow-y-auto light-scrollbar p-2">
-              <div className={cn(
-                "space-y-0",
-                sidebarCollapsed && "space-y-1"
-              )}>
-                {tabs.map((tab, index) => (
-                  <React.Fragment key={tab.id}>
-                    <button
-                      onClick={() => setActiveTab(tab.id)}
-                      title={sidebarCollapsed ? tab.label : undefined}
-                      className={cn(
-                        "w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-all",
-                        sidebarCollapsed && "justify-center px-0",
-                        activeTab === tab.id
-                          ? "bg-[#02c0b7] text-white"
-                          : "text-gray-700 hover:bg-gray-200/70 hover:text-gray-900"
-                      )}
-                    >
-                      <tab.icon className="w-4 h-4 flex-shrink-0" />
-                      {!sidebarCollapsed && <span>{tab.label}</span>}
-                    </button>
-                    {index < tabs.length - 1 && (
-                      <div className="border-b border-gray-200 mx-2" />
-                    )}
-                  </React.Fragment>
-                ))}
-              </div>
-            </nav>
-          </div>
-        </div>
-
-        {/* Main content area */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Mobile menu button / Toggle button */}
-          <div className={cn(
-            "p-4 border-b border-gray-200 flex items-center",
-            (sidebarOpen && !sidebarCollapsed) && "lg:hidden"
-          )}>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                if (window.innerWidth < 1024) {
-                  setSidebarOpen(!sidebarOpen);
-                } else {
-                  setSidebarOpen(true);
-                  setSidebarCollapsed(false);
-                }
-              }}
-              className="h-8 w-8 p-0"
-            >
-              <Menu className="h-4 w-4" />
-            </Button>
-            <h2 className="ml-3 font-semibold text-gray-900">
-              {tabs.find(tab => tab.id === activeTab)?.label}
-            </h2>
-          </div>
-
-          {/* Tab content */}
-          <div className="flex-1 overflow-y-auto light-scrollbar">
-            <div className="p-8 w-full max-w-4xl">
-              {renderTabContent()}
-            </div>
-          </div>
-        </div>
-      </Card>
-
-      {/* Mobile overlay */}
-      {sidebarOpen && (
-        <div 
-          className="lg:hidden fixed inset-0 bg-black/20 z-40"
-          onClick={() => {
-            setSidebarOpen(false);
-            setSidebarCollapsed(false);
-          }}
-        />
-      )}
+      <CardSidebarLayout
+        tabs={tabs}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        sidebarTitle="Profile"
+        renderContent={renderTabContent}
+      />
     </div>
   );
 }
