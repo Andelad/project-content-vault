@@ -77,6 +77,11 @@ export function Sidebar() {
       icon: AlignLeft,
     },
     {
+      id: 'timeline-2' as const,
+      label: 'Timeline 2.0',
+      icon: AlignLeft,
+    },
+    {
       id: 'calendar' as const,
       label: 'Planner',
       icon: Calendar,

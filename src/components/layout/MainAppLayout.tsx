@@ -9,6 +9,7 @@ import { usePlannerContext } from '../../contexts/PlannerContext';
 // Lazy load views for better performance
 const PlannerView = React.lazy(() => import('../views/PlannerView').then(module => ({ default: module.PlannerView })));
 const TimelineView = React.lazy(() => import('../views/TimelineView').then(module => ({ default: module.TimelineView })));
+const Timeline20View = React.lazy(() => import('../views/Timeline20View').then(module => ({ default: module.Timeline20View })));
 const ProjectsView = React.lazy(() => import('../views/ProjectsView').then(module => ({ default: module.ProjectsView })));
 const InsightsView = React.lazy(() => import('../views/InsightsView').then(module => ({ default: module.InsightsView })));
 const ProfileView = React.lazy(() => import('../views/ProfileView').then(module => ({ default: module.ProfileView })));
@@ -57,6 +58,7 @@ export function MainAppLayout() {
   const getViewTitle = () => {
     switch (currentView) {
       case 'timeline': return 'Timeline';
+      case 'timeline-2': return 'Timeline 2.0';
       case 'calendar': return 'Planner';
       case 'insights': return 'Insights';
       case 'projects': return 'Overview';
@@ -71,6 +73,8 @@ export function MainAppLayout() {
     switch (currentView) {
       case 'timeline':
         return <TimelineView />;
+      case 'timeline-2':
+        return <Timeline20View />;
       case 'calendar':
         return <PlannerView />;
       case 'insights':

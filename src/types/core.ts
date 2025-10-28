@@ -197,7 +197,7 @@ export interface TimelineEntry {
   hours: number;
 }
 
-export type ViewType = 'timeline' | 'calendar' | 'projects' | 'reports' | 'settings' | 'profile';
+export type ViewType = 'timeline' | 'timeline-2' | 'calendar' | 'projects' | 'reports' | 'settings' | 'profile';
 
 export interface DragState {
   projectId?: string;

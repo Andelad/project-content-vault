@@ -3,6 +3,7 @@ export { InsightsView } from './InsightsView';
 export { ProfileView } from './ProfileView';
 export { PlannerView } from './PlannerView';
 export { TimelineView } from './TimelineView';
+export { Timeline20View } from './Timeline20View';
 export { ProjectsView } from './ProjectsView';
 export { FeedbackView } from './FeedbackView';
 export { ClientsListView } from './ClientsListView';

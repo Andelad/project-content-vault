@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, useEffect } from 'react';
 import { CalendarEvent, Holiday } from '@/types';
 import { useEvents } from '@/hooks/useEvents';
 import { useHolidays } from '@/hooks/useHolidays';
@@ -98,6 +98,23 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
   const [creatingNewEvent, setCreatingNewEvent] = useState<{ startTime?: Date; endTime?: Date } | null>(null);
   const [layerMode, setLayerMode] = useState<'events' | 'work-hours' | 'both'>('both');
   const [currentView, setCurrentView] = useState<'week' | 'day'>('week');
+  
+  // Tracking state for live event updates
+  const [trackingTick, setTrackingTick] = useState(0);
+  
+  // Update tracking tick every second when tracking is active to force re-render of events
+  useEffect(() => {
+    if (!isTimeTracking || !currentTrackingEventId) {
+      return;
+    }
+    
+    const interval = setInterval(() => {
+      setTrackingTick(prev => prev + 1);
+    }, 1000); // Update every second
+    
+    return () => clearInterval(interval);
+  }, [isTimeTracking, currentTrackingEventId]);
+  
   // Holiday UI state
   const [creatingNewHoliday, setCreatingNewHoliday] = useState<{ startDate: Date; endDate: Date } | null>(null);
   const [editingHolidayId, setEditingHolidayId] = useState<string | null>(null);
@@ -204,25 +221,35 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
   } | null>(null);
   // Process events (convert database format to frontend format)
   const processedEvents: CalendarEvent[] = useMemo(() => {
-    return (dbEvents || []).map(event => ({
-      id: event.id,
-      title: event.title,
-      description: event.description || '',
-      startTime: new Date(event.start_time),
-      endTime: new Date(event.end_time),
-      projectId: event.project_id,
-      color: normalizeProjectColor(event.color), // Automatically normalize old colors
-      completed: event.completed || false,
-      duration: event.duration || 0,
-      type: (event.event_type as 'planned' | 'tracked' | 'completed') || 'planned',
-      recurring: event.recurring_type ? {
-        type: event.recurring_type as 'daily' | 'weekly' | 'monthly' | 'yearly',
-        interval: event.recurring_interval || 1,
-        endDate: event.recurring_end_date ? new Date(event.recurring_end_date) : undefined,
-        count: event.recurring_count || undefined
-      } : undefined
-    }));
-  }, [dbEvents]);
+    return (dbEvents || []).map(event => {
+      const startTime = new Date(event.start_time);
+      let endTime = new Date(event.end_time);
+      
+      // For currently tracking events, use current time as endTime to make them grow in real-time
+      if (isTimeTracking && currentTrackingEventId === event.id) {
+        endTime = new Date();
+      }
+      
+      return {
+        id: event.id,
+        title: event.title,
+        description: event.description || '',
+        startTime,
+        endTime,
+        projectId: event.project_id,
+        color: normalizeProjectColor(event.color), // Automatically normalize old colors
+        completed: event.completed || false,
+        duration: event.duration || 0,
+        type: (event.event_type as 'planned' | 'tracked' | 'completed') || 'planned',
+        recurring: event.recurring_type ? {
+          type: event.recurring_type as 'daily' | 'weekly' | 'monthly' | 'yearly',
+          interval: event.recurring_interval || 1,
+          endDate: event.recurring_end_date ? new Date(event.recurring_end_date) : undefined,
+          count: event.recurring_count || undefined
+        } : undefined
+      };
+    });
+  }, [dbEvents, isTimeTracking, currentTrackingEventId, trackingTick]);
   // Process holidays
   const processedHolidays: Holiday[] = useMemo(() => {
     return (dbHolidays || []).map(holiday => ({

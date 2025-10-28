@@ -31,6 +31,7 @@ export * from './orchestrators/GroupOrchestrator';
 export * from './orchestrators/PlannerViewOrchestrator';
 export * from './orchestrators/recurringEventsOrchestrator';
 export * from './calculations';      // Pure data calculations - projectCalculations, timeCalculations
+export * from './timeline/TimelineAutoLayoutService'; // Timeline 2.0 auto-layout service
 export * from './ui';               // View positioning & UI math - TimelinePositioning, DragPositioning, ViewportPositioning, ColorCalculations
 export * from './performance';      // Performance optimization - dragPerformanceService, cachePerformanceService, calculationCache, dateCache
 
