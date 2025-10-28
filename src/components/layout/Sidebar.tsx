@@ -3,11 +3,29 @@ import { useTimelineContext } from '../../contexts/TimelineContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Calendar, AlignLeft, Folders, Settings, ChevronLeft, ChevronRight, PieChart, MessageCircle } from 'lucide-react';
 import { supabase } from '../../integrations/supabase/client';
+import { Sheet, SheetContent } from '../ui/sheet';
+
+const isBrowser = typeof window !== 'undefined';
 
 export function Sidebar() {
-  const { currentView, setCurrentView, mainSidebarCollapsed, setMainSidebarCollapsed } = useTimelineContext();
+  const { currentView, setCurrentView, mainSidebarCollapsed, setMainSidebarCollapsed, mobileMenuOpen, setMobileMenuOpen } = useTimelineContext();
   const { user } = useAuth();
   const [profile, setProfile] = useState<any>(null);
+  const [isMobile, setIsMobile] = useState(() => (isBrowser ? window.innerWidth < 768 : false));
+
+  // Detect mobile size (< 768px)
+  useEffect(() => {
+    if (!isBrowser) return;
+
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -86,11 +104,13 @@ export function Sidebar() {
     },
   ];
 
-  return (
-    <div className={`${mainSidebarCollapsed ? 'w-16' : 'w-48'} h-full bg-gray-50 border-r border-gray-200 flex flex-col transition-all duration-300 ease-in-out relative flex-shrink-0`}>
+  // Sidebar content component (reused for both mobile Sheet and desktop sidebar)
+  // Pass isCollapsed prop to control layout
+  const SidebarContent = ({ isCollapsed = false }: { isCollapsed?: boolean }) => (
+    <>
       {/* Header */}
-      <div className={`h-20 border-b border-gray-200 flex items-center ${mainSidebarCollapsed ? 'px-6 justify-center' : 'px-[14px] justify-between'}`}>
-        {mainSidebarCollapsed ? (
+      <div className={`h-20 border-b border-gray-200 flex items-center ${isCollapsed ? 'px-6 justify-center' : 'px-[14px] justify-between'}`}>
+        {isCollapsed ? (
           <img src="/lovable-uploads/b7b3f5f1-d45e-4fc7-9113-f39c988b4951.png" alt="Budgi Logo" className="w-4 h-4" />
         ) : (
           <div className="flex items-center gap-3">
@@ -99,37 +119,42 @@ export function Sidebar() {
           </div>
         )}
         
-        {/* Collapse Toggle Button - Positioned over right edge */}
-        <button
-          onClick={() => setMainSidebarCollapsed(!mainSidebarCollapsed)}
-          className="absolute top-7 -right-3 w-6 h-6 bg-white border border-gray-200 rounded-md flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-colors duration-200 z-10"
-        >
-          {mainSidebarCollapsed ? (
-            <ChevronRight className="w-4 h-4" />
-          ) : (
-            <ChevronLeft className="w-4 h-4" />
-          )}
-        </button>
+        {/* Collapse Toggle Button - Desktop only */}
+        {!isMobile && (
+          <button
+            onClick={() => setMainSidebarCollapsed(!mainSidebarCollapsed)}
+            className="absolute top-7 -right-3 w-6 h-6 bg-white border border-gray-200 rounded-md flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-colors duration-200 z-10"
+          >
+            {mainSidebarCollapsed ? (
+              <ChevronRight className="w-4 h-4" />
+            ) : (
+              <ChevronLeft className="w-4 h-4" />
+            )}
+          </button>
+        )}
       </div>
 
       {/* Main Navigation */}
-      <nav className={`flex-1 overflow-y-auto ${mainSidebarCollapsed ? 'px-[14px] py-[21px]' : 'px-[14px] pt-[21px] pb-4'} flex flex-col`}>
+      <nav className={`flex-1 overflow-y-auto ${isCollapsed ? 'px-[14px] py-[21px]' : 'px-[14px] pt-[21px] pb-4'} flex flex-col`}>
         <ul className="space-y-2">
           {mainNavItems.filter(item => item.id !== 'feedback').map((item) => {
             const Icon = item.icon;
             return (
               <li key={item.id}>
                 <button
-                  onClick={() => setCurrentView(item.id)}
-                  className={`${mainSidebarCollapsed ? 'w-9 h-9 flex items-center justify-center' : 'w-full h-9 flex items-center px-4'} rounded-lg transition-colors duration-200 ${
+                  onClick={() => {
+                    setCurrentView(item.id);
+                    if (isMobile) setMobileMenuOpen(false);
+                  }}
+                  className={`${isCollapsed ? 'w-9 h-9 flex items-center justify-center' : 'w-full h-9 flex items-center px-4'} rounded-lg transition-colors duration-200 ${
                     currentView === item.id
                       ? 'bg-gray-200 text-gray-800'
                       : 'text-gray-600 hover:bg-gray-150 hover:text-gray-800'
                   }`}
-                  title={mainSidebarCollapsed ? item.label : undefined}
+                  title={isCollapsed ? item.label : undefined}
                 >
-                  <Icon className={`w-4 h-4 flex-shrink-0 ${!mainSidebarCollapsed ? 'mr-3' : ''}`} />
-                  {!mainSidebarCollapsed && <span className="font-medium text-sm">{item.label}</span>}
+                  <Icon className={`w-4 h-4 flex-shrink-0 ${!isCollapsed ? 'mr-3' : ''}`} />
+                  {!isCollapsed && <span className="font-medium text-sm">{item.label}</span>}
                 </button>
               </li>
             );
@@ -143,16 +168,19 @@ export function Sidebar() {
             return (
               <li key={item.id}>
                 <button
-                  onClick={() => setCurrentView(item.id)}
-                  className={`${mainSidebarCollapsed ? 'w-9 h-9 flex items-center justify-center' : 'w-full h-9 flex items-center px-4'} rounded-lg transition-colors duration-200 ${
+                  onClick={() => {
+                    setCurrentView(item.id);
+                    if (isMobile) setMobileMenuOpen(false);
+                  }}
+                  className={`${isCollapsed ? 'w-9 h-9 flex items-center justify-center' : 'w-full h-9 flex items-center px-4'} rounded-lg transition-colors duration-200 ${
                     currentView === item.id
                       ? 'bg-gray-200 text-gray-800'
                       : 'text-gray-600 hover:bg-gray-150 hover:text-gray-800'
                   }`}
-                  title={mainSidebarCollapsed ? item.label : undefined}
+                  title={isCollapsed ? item.label : undefined}
                 >
-                  <Icon className={`w-4 h-4 flex-shrink-0 ${!mainSidebarCollapsed ? 'mr-3' : ''}`} />
-                  {!mainSidebarCollapsed && <span className="font-medium text-sm">{item.label}</span>}
+                  <Icon className={`w-4 h-4 flex-shrink-0 ${!isCollapsed ? 'mr-3' : ''}`} />
+                  {!isCollapsed && <span className="font-medium text-sm">{item.label}</span>}
                 </button>
               </li>
             );
@@ -161,20 +189,23 @@ export function Sidebar() {
       </nav>
 
       {/* Avatar and Bottom Navigation */}
-      <div className={`${mainSidebarCollapsed ? 'px-[14px] py-4' : 'px-[14px] py-4'} border-t border-gray-200 flex-shrink-0 space-y-4`}>
+      <div className={`${isCollapsed ? 'px-[14px] py-4' : 'px-[14px] py-4'} border-t border-gray-200 flex-shrink-0 space-y-4`}>
         {/* Profile Navigation with Avatar */}
         <ul className="space-y-2">
           <li>
             <button
-              onClick={() => setCurrentView('profile')}
-              className={`${mainSidebarCollapsed ? 'w-9 h-9 flex items-center justify-center' : 'w-full h-9 flex items-center px-4'} rounded-lg transition-colors duration-200 ${
+              onClick={() => {
+                setCurrentView('profile');
+                if (isMobile) setMobileMenuOpen(false);
+              }}
+              className={`${isCollapsed ? 'w-9 h-9 flex items-center justify-center' : 'w-full h-9 flex items-center px-4'} rounded-lg transition-colors duration-200 ${
                 currentView === 'profile'
                   ? 'bg-gray-200 text-gray-800'
                   : 'text-gray-600 hover:bg-gray-150 hover:text-gray-800'
               }`}
-              title={mainSidebarCollapsed ? 'Profile' : undefined}
+              title={isCollapsed ? 'Profile' : undefined}
             >
-              <div className={`${mainSidebarCollapsed ? 'w-8 h-8' : 'w-5 h-5 mr-3'} rounded-full flex items-center justify-center font-semibold text-xs flex-shrink-0 overflow-hidden`}>
+              <div className={`${isCollapsed ? 'w-8 h-8' : 'w-5 h-5 mr-3'} rounded-full flex items-center justify-center font-semibold text-xs flex-shrink-0 overflow-hidden`}>
                 {profile?.avatar_url ? (
                   <img 
                     src={profile.avatar_url} 
@@ -187,7 +218,7 @@ export function Sidebar() {
                   </div>
                 )}
               </div>
-              {!mainSidebarCollapsed && <span className="font-medium text-sm">Profile</span>}
+              {!isCollapsed && <span className="font-medium text-sm">Profile</span>}
             </button>
           </li>
         </ul>
@@ -199,22 +230,43 @@ export function Sidebar() {
             return (
               <li key={item.id}>
                 <button
-                  onClick={() => setCurrentView(item.id)}
-                  className={`${mainSidebarCollapsed ? 'w-9 h-9 flex items-center justify-center' : 'w-full h-9 flex items-center px-4'} rounded-lg transition-colors duration-200 ${
+                  onClick={() => {
+                    setCurrentView(item.id);
+                    if (isMobile) setMobileMenuOpen(false);
+                  }}
+                  className={`${isCollapsed ? 'w-9 h-9 flex items-center justify-center' : 'w-full h-9 flex items-center px-4'} rounded-lg transition-colors duration-200 ${
                     currentView === item.id
                       ? 'bg-gray-200 text-gray-800'
                       : 'text-gray-600 hover:bg-gray-150 hover:text-gray-800'
                   }`}
-                  title={mainSidebarCollapsed ? item.label : undefined}
+                  title={isCollapsed ? item.label : undefined}
                 >
-                  <Icon className={`w-4 h-4 flex-shrink-0 ${!mainSidebarCollapsed ? 'mr-3' : ''}`} />
-                  {!mainSidebarCollapsed && <span className="font-medium text-sm">{item.label}</span>}
+                  <Icon className={`w-4 h-4 flex-shrink-0 ${!isCollapsed ? 'mr-3' : ''}`} />
+                  {!isCollapsed && <span className="font-medium text-sm">{item.label}</span>}
                 </button>
               </li>
             );
           })}
         </ul>
       </div>
+    </>
+  );
+
+  // Mobile: Sheet overlay from left edge
+  if (isMobile) {
+    return (
+      <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+        <SheetContent side="left" className="w-48 p-0 bg-gray-50">
+          <SidebarContent isCollapsed={false} />
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
+  // Desktop: Regular sidebar
+  return (
+    <div className={`${mainSidebarCollapsed ? 'w-16' : 'w-48'} h-full bg-gray-50 border-r border-gray-200 flex flex-col transition-all duration-300 ease-in-out relative flex-shrink-0`}>
+      <SidebarContent isCollapsed={mainSidebarCollapsed} />
     </div>
   );
 }

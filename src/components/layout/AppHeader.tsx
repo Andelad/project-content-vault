@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { TimeTracker } from '../work-hours/TimeTracker';
 import { TimeTrackerBookmark } from '../work-hours/TimeTrackerBookmark';
 import { useSettingsContext } from '../../contexts/SettingsContext';
+import { useTimelineContext } from '../../contexts/TimelineContext';
+import { Button } from '../ui/button';
+import { Menu } from 'lucide-react';
 
 interface AppHeaderProps {
   currentView: string;
@@ -19,6 +22,7 @@ export function AppHeader({
   onToggleTracker
 }: AppHeaderProps) {
   const { isTimeTracking } = useSettingsContext();
+  const { setMobileMenuOpen } = useTimelineContext();
   const [isTablet, setIsTablet] = useState(false);
 
   // Detect tablet size (< 768px)
@@ -71,6 +75,23 @@ export function AppHeader({
         )}
         
         <div className="flex items-center space-x-4">
+          {/* Mobile hamburger menu */}
+          {isTablet && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setMobileMenuOpen(true)}
+              className="h-8 w-8 p-0"
+            >
+              <Menu className="h-4 w-4" />
+            </Button>
+          )}
+          
+          {/* Logo on mobile */}
+          {isTablet && (
+            <img src="/lovable-uploads/b7b3f5f1-d45e-4fc7-9113-f39c988b4951.png" alt="Budgi Logo" className="w-5 h-5" />
+          )}
+          
           <h1 className="text-lg font-semibold text-[#595956]">{viewTitle}</h1>
         </div>
         

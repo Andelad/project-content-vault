@@ -31,24 +31,27 @@ export function MainAppLayout() {
   const { lastAction } = usePlannerContext();
   const [isTrackerExpanded, setIsTrackerExpanded] = useState(false);
   const [isTablet, setIsTablet] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   
   // Use favicon hook to monitor global time tracking state
   useFavicon(isTimeTracking);
   
-  // Detect tablet size (< 768px)
+  // Detect mobile and tablet sizes
   useEffect(() => {
-    const checkTablet = () => {
-      setIsTablet(window.innerWidth < 768);
+    const checkSize = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      setIsTablet(mobile);
       // Auto-collapse on resize to desktop
-      if (window.innerWidth >= 768) {
+      if (!mobile) {
         setIsTrackerExpanded(false);
       }
     };
     
-    checkTablet();
-    window.addEventListener('resize', checkTablet);
+    checkSize();
+    window.addEventListener('resize', checkSize);
     
-    return () => window.removeEventListener('resize', checkTablet);
+    return () => window.removeEventListener('resize', checkSize);
   }, []);
 
   const getViewTitle = () => {
@@ -98,7 +101,7 @@ export function MainAppLayout() {
       <div 
         className="flex-1 overflow-hidden flex flex-col transition-all duration-300"
         style={{
-          marginLeft: mainSidebarCollapsed ? '64px' : '192px', // w-16 = 64px, w-48 = 192px
+          marginLeft: isMobile ? '0' : (mainSidebarCollapsed ? '64px' : '192px'), // 0 on mobile, w-16 = 64px, w-48 = 192px
         }}
       >
         <div 
