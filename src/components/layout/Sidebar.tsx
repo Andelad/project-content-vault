@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTimelineContext } from '../../contexts/TimelineContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { Calendar, AlignLeft, Folders, Settings, ChevronLeft, ChevronRight, PieChart, MessageCircle } from 'lucide-react';
+import { Calendar, AlignLeft, Folders, Settings, ChevronLeft, ChevronRight, PieChart, MessageCircle, HelpCircle } from 'lucide-react';
 import { supabase } from '../../integrations/supabase/client';
 import { Sheet, SheetContent } from '../ui/sheet';
+import { HelpModal } from '../modals/HelpModal';
 
 const isBrowser = typeof window !== 'undefined';
 
@@ -12,6 +13,7 @@ export function Sidebar() {
   const { user } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [isMobile, setIsMobile] = useState(() => (isBrowser ? window.innerWidth < 768 : false));
+  const [helpModalOpen, setHelpModalOpen] = useState(false);
 
   // Detect mobile size (< 768px)
   useEffect(() => {
@@ -86,8 +88,17 @@ export function Sidebar() {
     },
     {
       id: 'projects' as const,
-      label: 'Projects',
+      label: 'Overview',
       icon: Folders,
+    },
+  ];
+
+  const bottomNavItems = [
+    {
+      id: 'help' as const,
+      label: 'Help',
+      icon: HelpCircle,
+      onClick: () => setHelpModalOpen(true),
     },
     {
       id: 'feedback' as const,
@@ -96,7 +107,7 @@ export function Sidebar() {
     },
   ];
 
-  const bottomNavItems = [
+  const settingsNavItems = [
     {
       id: 'settings' as const,
       label: 'Settings',
@@ -137,7 +148,7 @@ export function Sidebar() {
       {/* Main Navigation */}
       <nav className={`flex-1 overflow-y-auto ${isCollapsed ? 'px-[14px] py-[21px]' : 'px-[14px] pt-[21px] pb-4'} flex flex-col`}>
         <ul className="space-y-2">
-          {mainNavItems.filter(item => item.id !== 'feedback').map((item) => {
+          {mainNavItems.map((item) => {
             const Icon = item.icon;
             return (
               <li key={item.id}>
@@ -161,19 +172,23 @@ export function Sidebar() {
           })}
         </ul>
         
-        {/* Feedback button aligned to bottom */}
+        {/* Bottom navigation buttons aligned to bottom */}
         <ul className="mt-auto space-y-2">
-          {mainNavItems.filter(item => item.id === 'feedback').map((item) => {
+          {bottomNavItems.map((item) => {
             const Icon = item.icon;
             return (
               <li key={item.id}>
                 <button
                   onClick={() => {
-                    setCurrentView(item.id);
+                    if (item.onClick) {
+                      item.onClick();
+                    } else {
+                      setCurrentView(item.id);
+                    }
                     if (isMobile) setMobileMenuOpen(false);
                   }}
                   className={`${isCollapsed ? 'w-9 h-9 flex items-center justify-center' : 'w-full h-9 flex items-center px-4'} rounded-lg transition-colors duration-200 ${
-                    currentView === item.id
+                    currentView === item.id && !item.onClick
                       ? 'bg-gray-200 text-gray-800'
                       : 'text-gray-600 hover:bg-gray-150 hover:text-gray-800'
                   }`}
@@ -225,7 +240,7 @@ export function Sidebar() {
         
         {/* Bottom Navigation */}
         <ul className="space-y-2">
-          {bottomNavItems.map((item) => {
+          {settingsNavItems.map((item) => {
             const Icon = item.icon;
             return (
               <li key={item.id}>
@@ -255,11 +270,14 @@ export function Sidebar() {
   // Mobile: Sheet overlay from left edge
   if (isMobile) {
     return (
-      <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-        <SheetContent side="left" className="w-48 p-0 bg-gray-50">
-          <SidebarContent isCollapsed={false} />
-        </SheetContent>
-      </Sheet>
+      <>
+        <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+          <SheetContent side="left" className="w-48 p-0 bg-gray-50">
+            <SidebarContent isCollapsed={false} />
+          </SheetContent>
+        </Sheet>
+        <HelpModal open={helpModalOpen} onOpenChange={setHelpModalOpen} />
+      </>
     );
   }
 
@@ -267,6 +285,7 @@ export function Sidebar() {
   return (
     <div className={`${mainSidebarCollapsed ? 'w-16' : 'w-48'} h-full bg-gray-50 border-r border-gray-200 flex flex-col transition-all duration-300 ease-in-out relative flex-shrink-0`}>
       <SidebarContent isCollapsed={mainSidebarCollapsed} />
+      <HelpModal open={helpModalOpen} onOpenChange={setHelpModalOpen} />
     </div>
   );
 }

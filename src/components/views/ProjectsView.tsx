@@ -3,6 +3,7 @@ import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { useGroups } from '../../hooks/useGroups';
+import { useHolidays } from '../../hooks/useHolidays';
 import { useToast } from '../../hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Plus, Edit, Trash2, Calendar, Clock, Users, FolderPlus, Grid3X3, List, GripVertical, Archive, PlayCircle, Clock4, ChevronDown, ChevronRight, Search, Tag, Building2 } from 'lucide-react';
@@ -18,6 +19,7 @@ import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
 import { StandardModal } from '../modals/StandardModal';
 import { ProjectModal } from '../modals/ProjectModal';
+import { HolidayModal } from '../modals/HolidayModal';
 import { Group, Project, ProjectStatus } from '../../types';
 import { AppPageLayout } from '../layout/AppPageLayout';
 import { getEffectiveProjectStatus, DurationFormattingService } from '@/services';
@@ -27,7 +29,7 @@ import { ClientsListView } from './ClientsListView';
 type ViewType = 'grid' | 'list';
 type FilterByStatus = 'all' | 'active' | 'future' | 'past';
 type OrganizeBy = 'group' | 'tag' | 'client';
-type MainTab = 'projects' | 'clients';
+type MainTab = 'projects' | 'clients' | 'holidays';
 type ClientStatusFilter = 'all' | 'active' | 'archived';
 
 // Drag and drop item types
@@ -140,6 +142,7 @@ function DraggableProject({
 export function ProjectsView() {
   const { groups, projects, deleteGroup, addProject, updateProject, deleteProject, reorderGroups, reorderProjects, selectedProjectId, setSelectedProjectId } = useProjectContext();
   const { addGroup, updateGroup, refetch: fetchGroups } = useGroups();
+  const { holidays, addHoliday, updateHoliday, deleteHoliday } = useHolidays();
   const { toast } = useToast();
 
   // Main tab state
@@ -156,6 +159,11 @@ export function ProjectsView() {
   
   // Client-specific filter state
   const [clientStatusFilter, setClientStatusFilter] = useState<ClientStatusFilter>('active');
+
+  // Holiday-specific state
+  const [holidayStatusFilter, setHolidayStatusFilter] = useState<FilterByStatus>('all');
+  const [isHolidayModalOpen, setIsHolidayModalOpen] = useState(false);
+  const [editingHoliday, setEditingHoliday] = useState<any>(null);
 
   // Group dialog state
   const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
@@ -644,6 +652,7 @@ export function ProjectsView() {
           <TabsList className="mb-4">
             <TabsTrigger value="projects">Projects</TabsTrigger>
             <TabsTrigger value="clients">Clients</TabsTrigger>
+            <TabsTrigger value="holidays">Holidays</TabsTrigger>
           </TabsList>
 
           {/* Projects Tab Content - Filters */}
@@ -798,6 +807,50 @@ export function ProjectsView() {
                   <Grid3X3 className="w-4 h-4" />
                 </ToggleGroupItem>
               </ToggleGroup>
+            </div>
+          </TabsContent>
+
+          {/* Holidays Tab Content - Filters */}
+          <TabsContent value="holidays" className="mt-0">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center" style={{ gap: '21px' }}>
+                {/* Status Filter */}
+                <ToggleGroup
+                  type="single"
+                  value={holidayStatusFilter}
+                  onValueChange={(value) => value && setHolidayStatusFilter(value as FilterByStatus)}
+                  variant="outline"
+                  className="border border-gray-200 rounded-lg h-9 p-1"
+                >
+                  <ToggleGroupItem value="all" aria-label="All holidays" className="px-3 py-1 h-7">
+                    All
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="active" aria-label="Active holidays" className="px-3 py-1 h-7 gap-1.5">
+                    <PlayCircle className="w-3 h-3" />
+                    Active
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="future" aria-label="Future holidays" className="px-3 py-1 h-7 gap-1.5">
+                    <Clock4 className="w-3 h-3" />
+                    Future
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="past" aria-label="Past holidays" className="px-3 py-1 h-7 gap-1.5">
+                    <Archive className="w-3 h-3" />
+                    Past
+                  </ToggleGroupItem>
+                </ToggleGroup>
+              </div>
+
+              {/* Add Holiday Button */}
+              <Button
+                onClick={() => {
+                  setEditingHoliday(null);
+                  setIsHolidayModalOpen(true);
+                }}
+                className="h-9 gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                New Holiday
+              </Button>
             </div>
           </TabsContent>
         </Tabs>
@@ -959,6 +1012,142 @@ export function ProjectsView() {
               />
             </div>
           </TabsContent>
+
+          {/* Holidays Tab Content */}
+          <TabsContent value="holidays" className="h-full mt-0">
+            <div className="px-[21px] pb-[21px] pt-[35px]">
+              {/* Filtered holidays list */}
+              {(() => {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                const filteredHolidays = holidays.filter(holiday => {
+                  const startDate = new Date(holiday.startDate);
+                  const endDate = new Date(holiday.endDate);
+                  startDate.setHours(0, 0, 0, 0);
+                  endDate.setHours(0, 0, 0, 0);
+
+                  if (holidayStatusFilter === 'all') return true;
+                  
+                  if (holidayStatusFilter === 'active') {
+                    // Active: ongoing now (today is between start and end)
+                    return today >= startDate && today <= endDate;
+                  }
+                  
+                  if (holidayStatusFilter === 'future') {
+                    // Future: starts after today
+                    return startDate > today;
+                  }
+                  
+                  if (holidayStatusFilter === 'past') {
+                    // Past: ended before today
+                    return endDate < today;
+                  }
+                  
+                  return true;
+                });
+
+                return (
+                  <div className="space-y-2">
+                    {filteredHolidays.length === 0 ? (
+                      <Card className="border-dashed">
+                        <CardContent className="flex flex-col items-center justify-center py-16">
+                          <div className="text-gray-400 mb-4">
+                            <Calendar className="w-16 h-16" />
+                          </div>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                            No holidays found
+                          </h3>
+                          <p className="text-gray-600 text-center mb-6 max-w-md">
+                            {holidayStatusFilter !== 'all'
+                              ? 'Try adjusting your filter to see more holidays'
+                              : 'Add your first holiday to get started.'
+                            }
+                          </p>
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      filteredHolidays.map((holiday) => {
+                        const startDate = new Date(holiday.startDate);
+                        const endDate = new Date(holiday.endDate);
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        
+                        let statusBadge = null;
+                        let statusVariant: "default" | "secondary" | "outline" = "secondary";
+                        if (today >= startDate && today <= endDate) {
+                          statusBadge = 'Active';
+                          statusVariant = "default";
+                        } else if (startDate > today) {
+                          statusBadge = 'Future';
+                          statusVariant = "outline";
+                        } else {
+                          statusBadge = 'Past';
+                          statusVariant = "secondary";
+                        }
+
+                        // Calculate duration
+                        const durationMs = endDate.getTime() - startDate.getTime();
+                        const durationDays = Math.ceil(durationMs / (1000 * 60 * 60 * 24)) + 1;
+
+                        return (
+                          <Card
+                            key={holiday.id}
+                            onClick={() => {
+                              setEditingHoliday(holiday);
+                              setIsHolidayModalOpen(true);
+                            }}
+                            className="hover:shadow-lg transition-shadow cursor-pointer"
+                          >
+                            <CardContent className="p-4">
+                              <div className="flex items-center justify-between">
+                                {/* Left section - Holiday info */}
+                                <div className="flex items-center gap-3 flex-1 min-w-0">
+                                  <Calendar className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-2">
+                                      <h3 className="font-medium text-gray-900 truncate text-sm">{holiday.title}</h3>
+                                      <Badge 
+                                        variant={statusVariant}
+                                        className="flex-shrink-0 text-xs"
+                                      >
+                                        {statusBadge}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Middle section - Date range */}
+                                <div className="flex items-center gap-4 flex-1 justify-center">
+                                  <div className="text-xs text-gray-600">
+                                    <span className="whitespace-nowrap">
+                                      {startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                    </span>
+                                    <span className="mx-2 text-gray-400">→</span>
+                                    <span className="whitespace-nowrap">
+                                      {endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* Right section - Duration */}
+                                <div className="flex items-center gap-3 flex-shrink-0">
+                                  <div className="flex items-center gap-1 text-xs text-gray-600">
+                                    <Clock className="w-3 h-3" />
+                                    <span>{durationDays} {durationDays === 1 ? 'day' : 'days'}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          </TabsContent>
         </Tabs>
       </AppPageLayout.Content>
     </AppPageLayout>
@@ -968,6 +1157,16 @@ export function ProjectsView() {
       isOpen={!!selectedProjectId}
       onClose={() => setSelectedProjectId(null)}
       projectId={selectedProjectId || undefined}
+    />
+
+    {/* Holiday Modal */}
+    <HolidayModal
+      isOpen={isHolidayModalOpen}
+      onClose={() => {
+        setIsHolidayModalOpen(false);
+        setEditingHoliday(null);
+      }}
+      holidayId={editingHoliday?.id}
     />
     </DndProvider>
   );

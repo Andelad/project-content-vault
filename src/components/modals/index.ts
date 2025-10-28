@@ -1,5 +1,6 @@
 // Modals feature components
 export { EventModal } from './EventModal';
+export { HelpModal } from './HelpModal';
 export { HolidayModal } from './HolidayModal';
 export { ProjectModal } from './ProjectModal';
 export { StandardModal, ConfirmationModal } from './StandardModal';

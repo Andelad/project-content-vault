@@ -59,7 +59,7 @@ export function MainAppLayout() {
       case 'timeline': return 'Timeline';
       case 'calendar': return 'Planner';
       case 'insights': return 'Insights';
-      case 'projects': return 'Projects';
+      case 'projects': return 'Overview';
       case 'profile': return 'Profile';
       case 'feedback': return 'Feedback';
       case 'settings': return 'Settings';
