@@ -42,7 +42,6 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null); // UI timer (1s)
   const dbSyncIntervalRef = useRef<NodeJS.Timeout | null>(null); // DB sync (30s)
-  const overlapCheckIntervalRef = useRef<NodeJS.Timeout | null>(null); // Overlap check (60s)
   const startTimeRef = useRef<Date | null>(null);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const currentStateRef = useRef<any>(null); // Track current state for sync
@@ -154,7 +153,7 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
                   }
                 }, 1000);
               }
-              if (!dbSyncIntervalRef.current || !overlapCheckIntervalRef.current) {
+              if (!dbSyncIntervalRef.current) {
                 // // console.log('🔍 CROSS-WINDOW SYNC - Starting optimized intervals');
                 startOptimizedIntervals(currentTrackingEventId, startTime);
               }
@@ -194,11 +193,6 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
           clearInterval(dbSyncIntervalRef.current);
           dbSyncIntervalRef.current = null;
         }
-        if (overlapCheckIntervalRef.current) {
-          // // console.log('🔍 CROSS-WINDOW SYNC - Clearing overlap check interval');
-          clearInterval(overlapCheckIntervalRef.current);
-          overlapCheckIntervalRef.current = null;
-        }
       }
     };
     syncWithGlobalState();
@@ -218,18 +212,27 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
     return affectedEvents;
   };
   // Start optimized intervals for tracking event
-  // Separate UI updates, DB syncs, and overlap checks for efficiency
+  // Separate UI updates and DB syncs for efficiency
+  // Note: Overlap check runs ONCE at start, not continuously
   const startOptimizedIntervals = (eventId: string, startTime: Date) => {
     // // console.log('🔍 Starting optimized intervals for event:', eventId);
     // Clear any existing intervals
     if (dbSyncIntervalRef.current) {
       clearInterval(dbSyncIntervalRef.current);
     }
-    if (overlapCheckIntervalRef.current) {
-      clearInterval(overlapCheckIntervalRef.current);
-    }
     // DB Sync: Update database every 30 seconds
     dbSyncIntervalRef.current = setInterval(async () => {
+      // CRITICAL: Check if we're still tracking this event
+      // This prevents updating events that have already been stopped
+      if (!isTimeTracking || currentEventId !== eventId) {
+        // // console.log('💾 DB sync - Tracking stopped or different event, clearing interval');
+        if (dbSyncIntervalRef.current) {
+          clearInterval(dbSyncIntervalRef.current);
+          dbSyncIntervalRef.current = null;
+        }
+        return;
+      }
+
       const { duration } = UnifiedTimeTrackerService.calculateElapsedTime(startTime);
       // // console.log('💾 DB sync - updating event:', eventId, 'duration:', duration);
       try {
@@ -248,7 +251,6 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
           // Clear all intervals
           if (intervalRef.current) clearInterval(intervalRef.current);
           if (dbSyncIntervalRef.current) clearInterval(dbSyncIntervalRef.current);
-          if (overlapCheckIntervalRef.current) clearInterval(overlapCheckIntervalRef.current);
           // Reset state
           setCurrentEventId(null);
           setIsTimeTracking(false);
@@ -266,16 +268,13 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
         console.error('💾 DB sync - failed:', error);
       }
     }, 30000); // 30 seconds
-    // Overlap Check: Check for overlaps every 60 seconds
-    overlapCheckIntervalRef.current = setInterval(() => {
-      // // console.log('🔍 Overlap check - running');
+    // Overlap Check: Run ONLY ONCE when tracking starts
+    // Running this repeatedly causes events to be re-trimmed with the current time,
+    // which makes the "second to last event" keep updating its end time
+    setTimeout(() => {
       const affected = handlePlannedEventOverlaps(startTime, new Date());
       localStorage.setItem(STORAGE_KEYS.affectedEvents, JSON.stringify(affected));
-      // // console.log('🔍 Overlap check - complete, affected events:', affected.length);
-    }, 60000); // 60 seconds
-    // Run initial checks immediately
-    setTimeout(() => {
-      handlePlannedEventOverlaps(startTime, new Date());
+      // // console.log('🔍 Initial overlap check - complete, affected events:', affected.length);
     }, 1000); // Wait 1 second after start
   };
   // Get the 3 most recently used projects based on events
@@ -421,10 +420,6 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
           clearInterval(dbSyncIntervalRef.current);
           dbSyncIntervalRef.current = null;
         }
-        if (overlapCheckIntervalRef.current) {
-          clearInterval(overlapCheckIntervalRef.current);
-          overlapCheckIntervalRef.current = null;
-        }
         // Reset all state
         setCurrentEventId(null);
         setIsTimeTracking(false);
@@ -456,10 +451,6 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
       if (dbSyncIntervalRef.current) {
         clearInterval(dbSyncIntervalRef.current);
         dbSyncIntervalRef.current = null;
-      }
-      if (overlapCheckIntervalRef.current) {
-        clearInterval(overlapCheckIntervalRef.current);
-        overlapCheckIntervalRef.current = null;
       }
       // Handle final event completion logic
       if (currentEventId && startTimeRef.current) {
@@ -509,9 +500,6 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
       }
       if (dbSyncIntervalRef.current) {
         clearInterval(dbSyncIntervalRef.current);
-      }
-      if (overlapCheckIntervalRef.current) {
-        clearInterval(overlapCheckIntervalRef.current);
       }
     };
   }, []);

@@ -3,7 +3,7 @@ import { Dialog, DialogContent } from '../ui/dialog';
 import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
-import { Search, ChevronDown, ChevronRight, BookOpen, Calendar, PieChart, Folders, Settings as SettingsIcon, Zap, Menu, ChevronLeft } from 'lucide-react';
+import { Search, BookOpen, Calendar, PieChart, Folders, Settings as SettingsIcon, Zap, Menu, ChevronLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const isBrowser = typeof window !== 'undefined';
@@ -542,16 +542,8 @@ export function HelpModal({ open, onOpenChange }: HelpModalProps) {
                   onClick={() => toggleSection(section.id)}
                   className="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-200/70 hover:text-gray-900 transition-colors rounded-lg"
                 >
-                  {expandedSections.has(section.id) ? (
-                    <ChevronDown className="w-4 h-4 flex-shrink-0" />
-                  ) : (
-                    <ChevronRight className="w-4 h-4 flex-shrink-0" />
-                  )}
                   <section.icon className="w-4 h-4 flex-shrink-0" />
                   <span className="flex-1 text-left">{section.label}</span>
-                  <Badge variant="secondary" className="text-xs">
-                    {section.subTopics.length}
-                  </Badge>
                 </button>
 
                 {/* Sub-topics */}
@@ -568,7 +560,6 @@ export function HelpModal({ open, onOpenChange }: HelpModalProps) {
                             : "text-gray-600 hover:bg-gray-200/70 hover:text-gray-900"
                         )}
                       >
-                        <div className="w-1.5 h-1.5 rounded-full bg-current flex-shrink-0" />
                         <span className="flex-1 text-left">{topic.label}</span>
                       </button>
                     ))}
