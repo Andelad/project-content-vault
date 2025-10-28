@@ -566,7 +566,7 @@ export type Database = {
           created_at: string
           end_date: string
           estimated_hours: number
-          group_id: string | null
+          group_id: string
           icon: string | null
           id: string
           name: string
@@ -585,7 +585,7 @@ export type Database = {
           created_at?: string
           end_date: string
           estimated_hours: number
-          group_id?: string | null
+          group_id: string
           icon?: string | null
           id?: string
           name: string
@@ -604,7 +604,7 @@ export type Database = {
           created_at?: string
           end_date?: string
           estimated_hours?: number
-          group_id?: string | null
+          group_id?: string
           icon?: string | null
           id?: string
           name?: string
