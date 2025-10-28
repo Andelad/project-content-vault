@@ -8,7 +8,7 @@ import { Separator } from '../ui/separator';
 import { Badge } from '../ui/badge';
 import { cn } from '@/lib/utils';
 
-import { Bell, Palette, Clock, Globe, Shield, Trash2, User, Plus, X, Calendar } from 'lucide-react';
+import { Bell, Palette, Clock, Globe, Shield, Trash2, User, Plus, X, Calendar, FolderKanban } from 'lucide-react';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 import { WorkSlot } from '@/types/core';
 import { CalendarImport } from './CalendarImport';
@@ -18,6 +18,7 @@ import { AppPageLayout } from '../layout/AppPageLayout';
 import { formatWorkSlotDurationDisplay } from '@/services';
 import { SettingsOrchestrator } from '@/services/orchestrators/SettingsOrchestrator';
 import { CardSidebarLayout } from '../shared/CardSidebarLayout';
+import { useGroups } from '@/hooks/useGroups';
 import {
   generateTimeOptions,
   calculateDayTotalHours,
@@ -30,7 +31,11 @@ import {
 export function SettingsView() {
   const { settings: appSettings, updateSettings, setDefaultView } = useSettingsContext();
   const { toast } = useToast();
+  const { groups, loading: groupsLoading, addGroup, updateGroup, deleteGroup } = useGroups();
   const [activeTab, setActiveTab] = useState('general');
+  const [newGroupName, setNewGroupName] = useState('');
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+  const [editingGroupName, setEditingGroupName] = useState('');
   const [localSettings, setLocalSettings] = useState({
     notifications: true,
     emailNotifications: false,
@@ -183,9 +188,10 @@ export function SettingsView() {
 
   const tabs = [
     { id: 'general', label: 'General', icon: Globe },
-    { id: 'work', label: 'Work Preferences', icon: User },
+    { id: 'groups', label: 'Groups', icon: FolderKanban },
+    { id: 'work', label: 'Work Hours', icon: Clock },
     { id: 'appearance', label: 'Appearance', icon: Palette },
-    { id: 'time', label: 'Time & Date', icon: Clock },
+    { id: 'time', label: 'Time & Date', icon: Globe },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'calendar', label: 'Calendar Integration', icon: Calendar },
     { id: 'privacy', label: 'Data & Privacy', icon: Shield },
@@ -256,7 +262,7 @@ export function SettingsView() {
         return (
           <div className="space-y-6">
             <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">Work Preferences</h2>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">Work Hours</h2>
               <p className="text-sm text-gray-600">Configure your daily work schedule and time allocation</p>
             </div>
             
@@ -431,6 +437,202 @@ export function SettingsView() {
                   <p>• Timeline and availability calculations use your complete schedule</p>
                   <p>• Recommended: 6-8 hours per workday for sustainable productivity</p>
                 </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'groups':
+        const MAX_GROUPS = 8;
+        const canAddGroup = groups.length < MAX_GROUPS;
+        
+        const handleAddGroup = async () => {
+          if (!newGroupName.trim()) {
+            toast({
+              title: "Error",
+              description: "Group name cannot be empty",
+              variant: "destructive",
+            });
+            return;
+          }
+          
+          if (groups.length >= MAX_GROUPS) {
+            toast({
+              title: "Error",
+              description: `Maximum of ${MAX_GROUPS} groups allowed`,
+              variant: "destructive",
+            });
+            return;
+          }
+          
+          try {
+            await addGroup({ name: newGroupName.trim() });
+            setNewGroupName('');
+          } catch (error) {
+            // Error is already handled by useGroups hook
+          }
+        };
+        
+        const handleStartEdit = (groupId: string, currentName: string) => {
+          setEditingGroupId(groupId);
+          setEditingGroupName(currentName);
+        };
+        
+        const handleSaveEdit = async (groupId: string) => {
+          if (!editingGroupName.trim()) {
+            toast({
+              title: "Error",
+              description: "Group name cannot be empty",
+              variant: "destructive",
+            });
+            return;
+          }
+          
+          try {
+            await updateGroup(groupId, { name: editingGroupName.trim() });
+            setEditingGroupId(null);
+            setEditingGroupName('');
+          } catch (error) {
+            // Error is already handled by useGroups hook
+          }
+        };
+        
+        const handleCancelEdit = () => {
+          setEditingGroupId(null);
+          setEditingGroupName('');
+        };
+        
+        const handleDeleteGroup = async (groupId: string, groupName: string) => {
+          if (!confirm(`Are you sure you want to delete the group "${groupName}"? This will affect all projects in this group.`)) {
+            return;
+          }
+          
+          try {
+            await deleteGroup(groupId);
+          } catch (error) {
+            // Error is already handled by useGroups hook
+          }
+        };
+        
+        return (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">Groups</h2>
+              <p className="text-sm text-gray-600">
+                Organize your projects into groups. The first group is the default for new projects.
+              </p>
+            </div>
+            
+            <div className="space-y-4">
+              {/* Add new group */}
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Enter group name..."
+                  value={newGroupName}
+                  onChange={(e) => setNewGroupName(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleAddGroup()}
+                  disabled={!canAddGroup}
+                  className="flex-1"
+                />
+                <Button
+                  onClick={handleAddGroup}
+                  disabled={!canAddGroup || !newGroupName.trim()}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Group
+                </Button>
+              </div>
+              
+              {!canAddGroup && (
+                <p className="text-sm text-amber-600">
+                  Maximum of {MAX_GROUPS} groups reached
+                </p>
+              )}
+              
+              {/* Groups list */}
+              <div className="space-y-2">
+                {groupsLoading ? (
+                  <div className="text-sm text-gray-500">Loading groups...</div>
+                ) : groups.length === 0 ? (
+                  <div className="p-4 border-2 border-dashed border-gray-200 rounded-lg text-center text-sm text-gray-500">
+                    No groups yet. Add your first group above.
+                  </div>
+                ) : (
+                  groups.map((group, index) => (
+                    <div
+                      key={group.id}
+                      className={cn(
+                        "flex items-center gap-3 p-3 rounded-lg border",
+                        index === 0 
+                          ? "bg-blue-50 border-blue-200" 
+                          : "bg-gray-50 border-gray-200"
+                      )}
+                    >
+                      {index === 0 && (
+                        <Badge variant="default" className="bg-blue-600">
+                          Default
+                        </Badge>
+                      )}
+                      
+                      {editingGroupId === group.id ? (
+                        <>
+                          <Input
+                            value={editingGroupName}
+                            onChange={(e) => setEditingGroupName(e.target.value)}
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') handleSaveEdit(group.id);
+                              if (e.key === 'Escape') handleCancelEdit();
+                            }}
+                            className="flex-1"
+                            autoFocus
+                          />
+                          <Button
+                            size="sm"
+                            onClick={() => handleSaveEdit(group.id)}
+                          >
+                            Save
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={handleCancelEdit}
+                          >
+                            Cancel
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <FolderKanban className="w-4 h-4 text-gray-500" />
+                          <span className="flex-1 font-medium text-gray-900">
+                            {group.name}
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleStartEdit(group.id, group.name)}
+                          >
+                            Rename
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDeleteGroup(group.id, group.name)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+              
+              <div className="text-xs text-gray-500 space-y-1 pt-2">
+                <p>• The first group in the list is the default for new projects</p>
+                <p>• You can have up to {MAX_GROUPS} groups</p>
+                <p>• Deleting a group will affect all projects assigned to it</p>
+                <p>• Recommended default groups: "Work" and "Personal"</p>
               </div>
             </div>
           </div>

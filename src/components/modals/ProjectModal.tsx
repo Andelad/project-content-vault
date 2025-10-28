@@ -238,7 +238,17 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
   const handleCreateProject = useCallback(async () => {
     const gid = resolvedGroupId ?? groupId;
     const rid = resolvedRowId ?? rowId;
-    if (isCreating && gid && gid !== '') {
+    
+    if (!gid || gid === '') {
+      toast({
+        title: "Error",
+        description: "Please select a group for this project",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (isCreating && gid) {
       try {
         // Use ProjectOrchestrator for complex creation workflow
         const result = await ProjectOrchestrator.executeProjectCreationWorkflow(
@@ -602,8 +612,10 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
     if (!isCreating && projectId && projectId !== '') {
       // For existing projects, update the group - use silent mode to prevent toasts
       updateProject(projectId, { groupId: newGroupId }, { silent: true });
+    } else if (isCreating) {
+      // For new projects, update the resolved group ID
+      setResolvedGroupId(newGroupId);
     }
-    // Note: For new projects, we can't change the group as it's determined by the creation context
   };
   // Compact date component for header
   const HeaderDateField = ({ 
@@ -1103,9 +1115,9 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
       <div className="flex items-end justify-between">
         <div className="flex items-end gap-3 relative z-10 pointer-events-auto">
           <HeaderGroupField
-            currentGroupId={project?.groupId || groupId}
+            currentGroupId={project?.groupId || resolvedGroupId || groupId}
             onGroupChange={handleGroupChange}
-            disabled={isCreating} // Can't change group when creating
+            disabled={false} // Allow changing group for both new and existing projects
           />
           <HeaderClientField
             value={localValues.client}

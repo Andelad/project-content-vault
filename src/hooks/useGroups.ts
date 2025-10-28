@@ -25,6 +25,11 @@ export function useGroups() {
 
       if (error) throw error;
       setGroups(data || []);
+      
+      // Initialize default groups if none exist
+      if (!data || data.length === 0) {
+        await initializeDefaultGroups();
+      }
     } catch (error) {
       console.error('Error fetching groups:', error);
       toast({
@@ -34,6 +39,31 @@ export function useGroups() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const initializeDefaultGroups = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Create default groups: Work and Personal
+      const defaultGroups = [
+        { name: 'Work', user_id: user.id },
+        { name: 'Personal', user_id: user.id }
+      ];
+
+      const { data, error } = await supabase
+        .from('groups')
+        .insert(defaultGroups)
+        .select();
+
+      if (error) throw error;
+      if (data) {
+        setGroups(data);
+      }
+    } catch (error) {
+      console.error('Error initializing default groups:', error);
     }
   };
 

@@ -46,7 +46,7 @@ export interface Project {
   endDate: Date;
   estimatedHours: number;
   color: string;
-  groupId?: string; // CHANGED: Optional (Phase 5B)
+  groupId: string; // REQUIRED: Projects must belong to a group
   rowId?: string; // DEPRECATED: Keep for current timeline (Phase 5B)
   notes?: string;
   icon?: string; // Lucide icon name, defaults to 'folder'
