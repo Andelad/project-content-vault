@@ -41,7 +41,7 @@ export function calculateTimelinePositions(
         dates
       );
     } else {
-      const columnWidth = 40; // Standard column width for days mode
+      const columnWidth = 52; // Standard column width for days mode
       return calculateDaysModePositions(
         projectStart,
         projectEnd,
@@ -477,10 +477,13 @@ export interface MouseToIndexConversion {
 
 /**
  * Timeline constants for UI calculations
+ * These values must match TimelineView's column width calculations:
+ * - Days mode: 52px per day
+ * - Weeks mode: 77px per week (which is 11px per day: 77 ÷ 7)
  */
 const TIMELINE_CONSTANTS = {
-  COLUMN_WIDTH_DAYS: 40,
-  COLUMN_WIDTH_WEEKS: 60,
+  COLUMN_WIDTH_DAYS: 52,
+  COLUMN_WIDTH_WEEKS: 77,
   CIRCLE_SIZE: 8,
   TRIANGLE_SIZE: 8,
   VIEWPORT_DAYS: 14,

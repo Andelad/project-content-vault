@@ -131,13 +131,25 @@ export const TimelineBar = memo(function TimelineBar({
     if (!project) return [];
     // CRITICAL: Filter milestones to only include those for THIS project and WITHIN project dates
     const projectStart = new Date(project.startDate);
-    const projectEnd = new Date(project.endDate);
+    // For continuous projects, don't filter by end date
+    // For non-continuous projects, only include milestones up to project end date
+    const projectEnd = project.continuous ? null : new Date(project.endDate);
+    
     // Filter milestones for this project within date boundaries
-    let projectMilestones = milestones.filter(m => 
-      m.projectId === project.id &&
-      new Date(m.endDate || m.dueDate) >= projectStart &&
-      new Date(m.endDate || m.dueDate) <= projectEnd
-    );
+    let projectMilestones = milestones.filter(m => {
+      if (m.projectId !== project.id) return false;
+      
+      const milestoneDate = new Date(m.endDate || m.dueDate);
+      
+      // Must be after or on project start
+      if (milestoneDate < projectStart) return false;
+      
+      // For continuous projects, no end date filter
+      if (project.continuous) return true;
+      
+      // For non-continuous projects, must be before or on project end
+      return milestoneDate <= projectEnd!;
+    });
     // HYBRID SYSTEM: If there's a template milestone (isRecurring=true), 
     // exclude old numbered instances to prevent double-counting
     const hasTemplateMilestone = projectMilestones.some(m => m.isRecurring === true);
@@ -200,13 +212,25 @@ export const TimelineBar = memo(function TimelineBar({
     }
     // CRITICAL: Filter milestones to only include those for THIS project and WITHIN project dates
     const projectStart = new Date(project.startDate);
-    const projectEnd = new Date(project.endDate);
+    // For continuous projects, don't filter by end date
+    // For non-continuous projects, only include milestones up to project end date
+    const projectEnd = project.continuous ? null : new Date(project.endDate);
+    
     // Filter milestones for this project within date boundaries
-    let projectMilestones = milestones.filter(m => 
-      m.projectId === project.id &&
-      new Date(m.endDate || m.dueDate) >= projectStart &&
-      new Date(m.endDate || m.dueDate) <= projectEnd
-    );
+    let projectMilestones = milestones.filter(m => {
+      if (m.projectId !== project.id) return false;
+      
+      const milestoneDate = new Date(m.endDate || m.dueDate);
+      
+      // Must be after or on project start
+      if (milestoneDate < projectStart) return false;
+      
+      // For continuous projects, no end date filter
+      if (project.continuous) return true;
+      
+      // For non-continuous projects, must be before or on project end
+      return milestoneDate <= projectEnd!;
+    });
     // HYBRID SYSTEM: If there's a template milestone (isRecurring=true), 
     // exclude old numbered instances to prevent double-counting
     const hasTemplateMilestone = projectMilestones.some(m => m.isRecurring === true);
@@ -254,21 +278,123 @@ export const TimelineBar = memo(function TimelineBar({
     return null;
   }
   if (projectDays.length === 0) {
+    if (project.name === 'Budgi') {
+      console.log('[TimelineBar] Budgi has 0 projectDays - not rendering', {
+        continuous: project.continuous,
+        projectStart: project.startDate,
+        projectEnd: project.endDate,
+        viewportStart: viewportStart.toDateString(),
+        viewportEnd: viewportEnd.toDateString()
+      });
+    }
     return null; // Don't render anything for projects with no duration
   }
   try {
     // Add buffer for partial column in days mode
-    const columnWidth = mode === 'weeks' ? 77 : 40;
+    const columnWidth = mode === 'weeks' ? 77 : 52;
     const bufferWidth = mode === 'days' ? columnWidth : 0;
     return (
-      <div className="relative h-[52px] group pointer-events-none">
-      <div className="h-full relative flex flex-col pointer-events-none">
+      <div className="relative h-[54px] group pointer-events-none">
+      <div className="h-[52px] relative flex flex-col pointer-events-none">
+        {/* White background - render first so it's behind everything */}
+        {(() => {
+          const projectStart = new Date(project.startDate);
+          const projectEnd = project.continuous 
+            ? new Date(viewportEnd)
+            : new Date(project.endDate);
+          
+          const positions = (() => {
+            try {
+              const result = getTimelinePositions(
+                projectStart,
+                projectEnd,
+                viewportStart,
+                viewportEnd,
+                dates,
+                mode
+              );
+              return result;
+            } catch (error) {
+              console.error('Error getting timeline positions:', error);
+              return null;
+            }
+          })();
+          
+          if (!positions) return null;
+          
+          const adjustedPositions = calculateBaselineVisualOffsets(
+            positions, isDragging, dragState, project.id, mode
+          );
+          
+          // Determine if project extends beyond viewport edges
+          const normalizedProjectStart = new Date(project.startDate);
+          normalizedProjectStart.setHours(0, 0, 0, 0);
+          const normalizedViewportStart = new Date(viewportStart);
+          normalizedViewportStart.setHours(0, 0, 0, 0);
+          const normalizedViewportEnd = new Date(viewportEnd);
+          normalizedViewportEnd.setHours(0, 0, 0, 0);
+          
+          const extendsLeft = normalizedProjectStart < normalizedViewportStart;
+          const extendsRight = project.continuous; // Continuous projects always extend right
+          
+          // Calculate position and width, extending beyond viewport for continuous projects
+          let leftPx = adjustedPositions.baselineStartPx;
+          let widthPx = (adjustedPositions as any).baselineWidthPx ?? positions.baselineWidthPx;
+          
+          // Extend width to viewport edge (plus buffer) for continuous projects
+          if (extendsRight) {
+            const columnWidth = mode === 'weeks' ? 77 : 52;
+            const bufferWidth = mode === 'days' ? columnWidth : 0;
+            const totalViewportWidth = dates.length * columnWidth + bufferWidth;
+            widthPx = totalViewportWidth - leftPx + 100; // Add 100px buffer to extend beyond edge
+          }
+          
+                    // Calculate border radius based on extensions
+          let borderRadius = '6px';
+          if (extendsLeft && extendsRight) {
+            borderRadius = '0px';
+          } else if (extendsLeft) {
+            borderRadius = '0px 6px 6px 0px';
+          } else if (extendsRight) {
+            borderRadius = '6px 0px 0px 6px';
+          }
+          
+          // Calculate which borders to show
+          const borderLeft = extendsLeft ? 'none' : '1px solid #e5e7eb';
+          const borderRight = extendsRight ? 'none' : '1px solid #e5e7eb';
+          const borderTop = '1px solid #e5e7eb';
+          const borderBottom = '1px solid #e5e7eb';
+          
+          return (
+            <>
+              {/* White background with outline, rounded corners, and drop shadow */}
+              <div
+                className="absolute pointer-events-none"
+                style={{
+                  backgroundColor: 'white',
+                  left: `${leftPx}px`,
+                  width: `${widthPx}px`,
+                  top: '0px',
+                  height: '52px',
+                  zIndex: 1,
+                  borderLeft,
+                  borderRight,
+                  borderTop,
+                  borderBottom,
+                  borderRadius,
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)'
+                }}
+              />
+            </>
+          );
+        })()}
         {/* Project rectangles area - positioned to rest bottom edge on top of baseline */}
         <div 
           className="flex w-full relative z-20 flex-1 pointer-events-none" 
           style={{ 
             minWidth: `${dates.length * columnWidth + bufferWidth}px`,
-            zIndex: 20
+            zIndex: 20,
+            gap: 0
           }}
         >
           {(() => {
@@ -377,14 +503,17 @@ export const TimelineBar = memo(function TimelineBar({
                                   allocType,
                                   colorScheme
                                 );
-                                return {
-                                  ...timelineStyle,
-                                  height: `${heightInPixels}px`,
-                                  width: `${dayWidth}px`, // Full width since gap-px handles spacing
-                                  borderTopLeftRadius: '2px',
-                                  borderTopRightRadius: '2px',
-                                };
-                              })()}
+                              return {
+                                ...timelineStyle,
+                                height: `${heightInPixels}px`,
+                                width: `${dayWidth}px`, // Full width since gap-px handles spacing
+                                borderTopLeftRadius: '2px',
+                                borderTopRightRadius: '2px',
+                                // For continuous projects, also round bottom corners
+                                borderBottomLeftRadius: project.continuous ? '2px' : '0px',
+                                borderBottomRightRadius: project.continuous ? '2px' : '0px',
+                              };
+                            })()}
                               onMouseDown={(e) => { 
                                 e.stopPropagation(); 
                                 handleMouseDown(e, project.id, 'move'); 
@@ -503,7 +632,7 @@ export const TimelineBar = memo(function TimelineBar({
               }
               // Don't render if no time allocation (the calculation already ensured this is in project range)
               if (allocationType === 'none') {
-                return <div key={dateIndex} className="h-full" style={{ minWidth: '40px', width: '40px' }}></div>;
+                return <div key={dateIndex} className="h-full" style={{ minWidth: '52px', width: '52px' }}></div>;
               }
               // NOTE: Work day filtering already handled by dayEstimateCalculations
               // If an estimate exists, we should render it (trust the calculation)
@@ -542,26 +671,43 @@ export const TimelineBar = memo(function TimelineBar({
               // Always round upper corners by 3px, remove bottom rounding on last rectangles
               let borderTopLeftRadius = '3px';
               let borderTopRightRadius = '3px';
-              const borderBottomLeftRadius = '0px';
-              const borderBottomRightRadius = '0px';
+              // For continuous projects, also round bottom corners
+              let borderBottomLeftRadius = project.continuous ? '3px' : '0px';
+              let borderBottomRightRadius = project.continuous ? '3px' : '0px';
               // Handle horizontal continuity for grouped rectangles
               if (visibleWorkingDays.length === 1) {
                 // Single working day - handle extensions
                 if (extendsLeft && extendsRight) {
                   borderTopLeftRadius = '0px';
                   borderTopRightRadius = '0px';
+                  if (project.continuous) {
+                    borderBottomLeftRadius = '0px';
+                    borderBottomRightRadius = '0px';
+                  }
                 } else if (extendsLeft) {
                   borderTopLeftRadius = '0px';
+                  if (project.continuous) {
+                    borderBottomLeftRadius = '0px';
+                  }
                 } else if (extendsRight) {
                   borderTopRightRadius = '0px';
+                  if (project.continuous) {
+                    borderBottomRightRadius = '0px';
+                  }
                 }
               } else {
                 // Multiple working days - handle first/last
                 if (isFirstWorkingDay && extendsLeft) {
                   borderTopLeftRadius = '0px';
+                  if (project.continuous) {
+                    borderBottomLeftRadius = '0px';
+                  }
                 }
                 if (isLastWorkingDay && extendsRight) {
                   borderTopRightRadius = '0px';
+                  if (project.continuous) {
+                    borderBottomRightRadius = '0px';
+                  }
                 }
               }
               // Determine allocation type for centralized styling
@@ -587,10 +733,10 @@ export const TimelineBar = memo(function TimelineBar({
                 borderBottomLeftRadius: borderBottomLeftRadius,
                 borderBottomRightRadius: borderBottomRightRadius,
                 height: `${rectangleHeight}px`,
-                width: isLastWorkingDay ? '40px' : '39px',
+                width: isLastWorkingDay ? '52px' : '51px',
               };
               return (
-                <div key={dateIndex} className="flex items-end h-full" style={{ minWidth: '40px', width: '40px' }}>
+                <div key={dateIndex} className="flex items-end h-full" style={{ minWidth: '52px', width: '52px' }}>
                   <Tooltip delayDuration={100}>
                     <TooltipTrigger asChild>
                       <div 
@@ -746,24 +892,11 @@ export const TimelineBar = memo(function TimelineBar({
           }
           return (
             <div className="relative flex w-full h-[8px]" style={{ overflow: 'visible', zIndex: 20 }}>
-              {/* Baseline line using absolute pixel positioning like HolidayOverlay */}
+              {/* Baseline line hidden - keeping structure for drag functionality */}
               <div
-                className="absolute top-0 h-[3px] cursor-move hover:opacity-80 pointer-events-auto"
-                style={project.continuous ? {
-                  // For continuous projects, use hazard stripe pattern
-                  background: `repeating-linear-gradient(
-                    -45deg,
-                    ${colorScheme.baseline},
-                    ${colorScheme.baseline} 3px,
-                    ${project.color} 3px,
-                    ${project.color} 6px
-                  )`,
-                  left: `${adjustedPositions.baselineStartPx}px`,
-                  width: `${(adjustedPositions as any).baselineWidthPx ?? positions.baselineWidthPx}px`,
-                  zIndex: 25
-                } : {
-                  // For regular projects, use solid background
-                  backgroundColor: colorScheme.baseline,
+                className="absolute top-0 cursor-move hover:opacity-80 pointer-events-auto"
+                style={{
+                  height: '0px',
                   left: `${adjustedPositions.baselineStartPx}px`,
                   width: `${(adjustedPositions as any).baselineWidthPx ?? positions.baselineWidthPx}px`,
                   zIndex: 25
@@ -781,7 +914,7 @@ export const TimelineBar = memo(function TimelineBar({
                 style={{ 
                   backgroundColor: colorScheme.baseline,
                   left: `${adjustedPositions.circleLeftPx - 5.5}px`, // Center circle at left edge of start column
-                  top: '-4px', // Center 11px circle on 3px baseline (5.5px above, 2.5px below)
+                  top: project.continuous ? '-5.5px' : '-4px', // Adjust position based on baseline height
                   zIndex: 30
                 }}
                 onMouseDown={(e) => {

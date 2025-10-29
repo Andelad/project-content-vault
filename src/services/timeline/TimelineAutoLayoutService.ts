@@ -62,11 +62,26 @@ function projectsOverlap(p1: Project, p2: Project, minGap: number): boolean {
  */
 function isProjectVisible(project: Project, dateRange: { start: Date; end: Date }): boolean {
   const projectStart = new Date(project.startDate);
-  const projectEnd = new Date(project.endDate);
   const rangeStart = dateRange.start;
   const rangeEnd = dateRange.end;
 
-  // Project is visible if it overlaps with date range at all
+  // For continuous projects, they're visible as long as they've started
+  if (project.continuous) {
+    const isVisible = projectStart <= rangeEnd;
+    if (project.name === 'Budgi') {
+      console.log('[TimelineAutoLayoutService] Budgi continuous project visibility check:', {
+        projectStart: projectStart.toDateString(),
+        rangeStart: rangeStart.toDateString(),
+        rangeEnd: rangeEnd.toDateString(),
+        isVisible,
+        continuous: project.continuous
+      });
+    }
+    return isVisible;
+  }
+
+  // For non-continuous projects, check both start and end dates
+  const projectEnd = new Date(project.endDate);
   return projectStart <= rangeEnd && projectEnd >= rangeStart;
 }
 

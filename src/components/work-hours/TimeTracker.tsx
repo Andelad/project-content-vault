@@ -225,7 +225,11 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
       // CRITICAL: Check if we're still tracking this event
       // This prevents updating events that have already been stopped
       if (!isTimeTracking || currentEventId !== eventId) {
-        // // console.log('💾 DB sync - Tracking stopped or different event, clearing interval');
+        console.log('💾 DB sync - Tracking stopped or different event, clearing interval', {
+          isTimeTracking,
+          currentEventId,
+          eventId
+        });
         if (dbSyncIntervalRef.current) {
           clearInterval(dbSyncIntervalRef.current);
           dbSyncIntervalRef.current = null;
@@ -234,7 +238,7 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
       }
 
       const { duration } = UnifiedTimeTrackerService.calculateElapsedTime(startTime);
-      // // console.log('💾 DB sync - updating event:', eventId, 'duration:', duration);
+      console.log('💾 DB sync - updating event:', eventId, 'duration:', duration);
       try {
         // First verify the event still exists
         const { data: eventExists } = await supabase
@@ -263,7 +267,7 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
           duration,
           completed: true
         }, { silent: true });
-        // // console.log('💾 DB sync - success');
+        console.log('💾 DB sync - success, duration:', duration);
       } catch (error: any) {
         console.error('💾 DB sync - failed:', error);
       }
@@ -445,17 +449,25 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
     }
     // Handle post-toggle actions for stop tracking
     if (!result.eventId && isTimeTracking) {
-      // Clear global tracking event ID
-      setGlobalTrackingEventId(null);
-      // Clear all tracking intervals
+      // CRITICAL: Clear intervals FIRST to prevent any further DB updates
       if (dbSyncIntervalRef.current) {
         clearInterval(dbSyncIntervalRef.current);
         dbSyncIntervalRef.current = null;
       }
-      // Handle final event completion logic
+      
+      // Clear global tracking event ID
+      setGlobalTrackingEventId(null);
+      
+      // Handle final event completion logic - MUST happen AFTER intervals are cleared
       if (currentEventId && startTimeRef.current) {
         const endTime = new Date();
         const duration = UnifiedTimeTrackerService.calculateDurationInHours(startTimeRef.current, endTime);
+        console.log('⏹️ STOP TRACKING - Final update:', {
+          eventId: currentEventId,
+          duration,
+          endTime: endTime.toISOString(),
+          startTime: startTimeRef.current.toISOString()
+        });
         try {
           const completedEventData = UnifiedTimeTrackerService.createCompletedEventData(
             selectedProject,
@@ -466,10 +478,20 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
             seconds,
             formatTime
           );
-          await updateEvent(currentEventId, completedEventData);
+          // CRITICAL: Wait for the update to complete before proceeding
+          const updatedEvent = await updateEvent(currentEventId, completedEventData);
+          console.log('✅ STOP TRACKING - Final update complete:', {
+            updatedEventId: updatedEvent?.id,
+            updatedDuration: updatedEvent?.duration,
+            updatedEndTime: updatedEvent?.end_time
+          });
+          
+          // Small delay to ensure database transaction completes
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
           handlePlannedEventOverlaps(startTimeRef.current, endTime);
         } catch (error) {
-          console.error('Failed to complete tracking event:', error);
+          console.error('❌ STOP TRACKING - Failed to complete tracking event:', error);
         }
       }
       // Reset UI state

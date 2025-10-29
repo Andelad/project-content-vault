@@ -186,8 +186,8 @@ export const SmartHoverAddHolidayBar: React.FC<SmartHoverAddHolidayBarProps> = (
       width = (endIndex - startIndex + 1) * dayWidth;
       left = startIndex * dayWidth;
     } else {
-      // Days mode: use actual column width with no gaps
-      const columnWidth = 40;
+      // Days mode: use actual column width to match timeline
+      const columnWidth = 52; // Match TimelineView's column width
       width = (endIndex - startIndex + 1) * columnWidth;
       left = startIndex * columnWidth;
     }

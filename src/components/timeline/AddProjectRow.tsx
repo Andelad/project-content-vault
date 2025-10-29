@@ -69,8 +69,8 @@ export function TimelineAddProjectRow({ groupId, dates, mode = 'days' }: Timelin
   // Check if there are any rows in this group
   const groupRows = rows.filter(row => row.groupId === groupId);
 
-  // Get column width based on mode
-  const columnWidth = mode === 'weeks' ? 77 : 40;
+  // Get column width based on mode - match TimelineView's column width
+  const columnWidth = mode === 'weeks' ? 77 : 52;
   const gap = mode === 'weeks' ? 0 : 1; // No gaps in weeks mode
   const defaultSpan = mode === 'weeks' ? 2 : 5; // 2 weeks or 5 days
 
@@ -756,7 +756,7 @@ function HolidayBar({
   handleHolidayMouseDown,
   mode = 'days'
 }: HolidayBarProps) {
-  const columnWidth = mode === 'weeks' ? 77 : 40;
+  const columnWidth = mode === 'weeks' ? 77 : 52; // Match TimelineView's column width
   const [mouseDownTime, setMouseDownTime] = useState<number | null>(null);
   const [mouseDownPos, setMouseDownPos] = useState<{ x: number; y: number } | null>(null);
   const [hasMoved, setHasMoved] = useState(false);

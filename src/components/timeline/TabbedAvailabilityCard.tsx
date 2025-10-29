@@ -283,7 +283,7 @@ export const TabbedAvailabilityCard = memo(function TabbedAvailabilityCard({
             style={{ 
               minWidth: mode === 'weeks'
                 ? `${dates.length * 77}px`
-                : `${dates.length * 40 + 40}px`, // Add buffer for days mode
+                : `${dates.length * 52 + 52}px`, // Match timeline column width: 52px per day + buffer
               borderTopLeftRadius: '8px',
               borderTopRightRadius: '8px',
             }}

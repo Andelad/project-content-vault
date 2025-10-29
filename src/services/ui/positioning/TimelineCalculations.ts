@@ -284,7 +284,7 @@ export function dateToPixel(
 export function calculateOptimalColumnWidth(
   containerWidth: number,
   desiredColumns: number,
-  minColumnWidth: number = 40,
+  minColumnWidth: number = 52,
   maxColumnWidth: number = 120
 ): number {
   const idealWidth = containerWidth / desiredColumns;
@@ -524,18 +524,44 @@ export function calculateProjectDays(
   const normalizedViewportEnd = new Date(viewportEnd);
   normalizedViewportEnd.setHours(0, 0, 0, 0);
 
-  if (projectEnd < normalizedViewportStart || projectStart > normalizedViewportEnd) {
-    return [];
+  // For continuous projects, only check if project has started
+  // For regular projects, check both start and end dates
+  if (isContinuous) {
+    if (projectStart > normalizedViewportEnd) {
+      return [];
+    }
+  } else {
+    if (projectEnd < normalizedViewportStart || projectStart > normalizedViewportEnd) {
+      return [];
+    }
   }
 
   const projectDays = [];
   const visibleStart = projectStart < normalizedViewportStart ? normalizedViewportStart : projectStart;
   const visibleEnd = projectEnd > normalizedViewportEnd ? normalizedViewportEnd : projectEnd;
 
+  // Debug logging for Budgi
+  const debugBudgi = projectStartDate.toDateString().includes('Aug 03 2025');
+  
   for (let d = new Date(visibleStart); d <= visibleEnd; d.setDate(d.getDate() + 1)) {
     const dayToAdd = new Date(d);
     dayToAdd.setHours(0, 0, 0, 0); // Normalize time component
     projectDays.push(dayToAdd);
+  }
+
+  if (debugBudgi) {
+    console.log('[calculateProjectDays] Budgi project:', {
+      isContinuous,
+      projectStart: projectStart.toDateString(),
+      projectEnd: projectEnd.toDateString(),
+      normalizedViewportStart: normalizedViewportStart.toDateString(),
+      normalizedViewportEnd: normalizedViewportEnd.toDateString(),
+      visibleStart: visibleStart.toDateString(),
+      visibleEnd: visibleEnd.toDateString(),
+      generatedDaysCount: projectDays.length,
+      firstDay: projectDays[0]?.toDateString(),
+      lastDay: projectDays[projectDays.length - 1]?.toDateString()
+    });
   }
 
   return projectDays;
@@ -592,7 +618,7 @@ export function calculateTimelineColumnMarkerData(
   dates: Date[], 
   mode: 'days' | 'weeks' = 'days'
 ): TimelineColumnData[] {
-  const columnWidth = mode === 'weeks' ? 77 : 40;
+  const columnWidth = mode === 'weeks' ? 77 : 52;
   const today = new Date();
   
   return dates.map((date, index) => {

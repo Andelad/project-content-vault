@@ -26,16 +26,23 @@ export const RowScrollIndicator = memo(function RowScrollIndicator({
   const visibleProjects = useMemo(() => 
     rowProjects.filter(project => {
       const projectStart = new Date(project.startDate);
-      const projectEnd = new Date(project.endDate);
       
       // Normalize dates for comparison
       projectStart.setHours(0, 0, 0, 0);
-      projectEnd.setHours(23, 59, 59, 999);
       
       const normalizedViewportStart = new Date(viewportStart);
       normalizedViewportStart.setHours(0, 0, 0, 0);
       const normalizedViewportEnd = new Date(viewportEnd);
       normalizedViewportEnd.setHours(23, 59, 59, 999);
+      
+      // For continuous projects, they're visible as long as they've started
+      if (project.continuous) {
+        return projectStart <= normalizedViewportEnd;
+      }
+      
+      // For non-continuous projects, check both start and end dates
+      const projectEnd = new Date(project.endDate);
+      projectEnd.setHours(23, 59, 59, 999);
       
       // Project is visible if it overlaps with the viewport
       return !(projectEnd < normalizedViewportStart || projectStart > normalizedViewportEnd);

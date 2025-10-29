@@ -302,17 +302,30 @@ export class UnifiedTimelineService {
       holidays,
       events || [] // Pass events to calculation
     );
+    
+    const projectDays = this.calculateProjectDays(
+      project.startDate,
+      project.endDate,
+      project.continuous,
+      viewportStart,
+      viewportEnd
+    );
+    
+    // Debug for Budgi
+    if (project.name === 'Budgi') {
+      console.log('[getTimelineBarData] Budgi projectDays:', {
+        count: projectDays.length,
+        first: projectDays[0]?.toDateString(),
+        last: projectDays[projectDays.length - 1]?.toDateString(),
+        continuous: project.continuous
+      });
+    }
+    
     return {
       // Project basics
       projectData: this.getProjectTimelineData(project),
       // Timeline calculations
-      projectDays: this.calculateProjectDays(
-        project.startDate,
-        project.endDate,
-        project.continuous,
-        viewportStart,
-        viewportEnd
-      ),
+      projectDays,
       // Work hours
       workHoursForPeriod: this.generateProjectWorkHours(project, settings, viewportEnd),
       // Day estimates (NEW - single source of truth)
@@ -533,7 +546,7 @@ export class UnifiedTimelineService {
     return {
       // Basic data
       dates,
-      columnWidth: mode === 'weeks' ? 77 : 40,
+      columnWidth: mode === 'weeks' ? 77 : 52,
       expandedHolidays: this.getExpandedHolidayDates(holidays),
       // Helper methods for components
       isWorkingDay: (date: Date) => this.isWorkingDay(date, holidays, settings),

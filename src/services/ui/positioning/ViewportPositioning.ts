@@ -161,6 +161,20 @@ export class TimelineViewport {
       // Filter projects that intersect with viewport
       const filteredProjects = (projects || []).filter(project => {
         const projectStart = new Date(project.startDate);
+        // For continuous projects, they're visible as long as they've started
+        // For non-continuous projects, check both start and end dates
+        if (project.continuous) {
+          const isVisible = projectStart <= viewportEnd;
+          if (project.name === 'Budgi') {
+            console.log('[ViewportPositioning WEEKS] Budgi continuous project:', {
+              projectStart: projectStart.toDateString(),
+              viewportEnd: viewportEnd.toDateString(),
+              isVisible,
+              continuous: project.continuous
+            });
+          }
+          return isVisible;
+        }
         const projectEnd = new Date(project.endDate);
         // Project intersects if it starts before viewport ends and ends after viewport starts
         return !(projectEnd < weekStart || projectStart > viewportEnd);
@@ -201,6 +215,21 @@ export class TimelineViewport {
       // Filter projects that intersect with viewport
       const filteredProjects = (projects || []).filter(project => {
         const projectStart = new Date(project.startDate);
+        // For continuous projects, they're visible as long as they've started
+        // For non-continuous projects, check both start and end dates
+        if (project.continuous) {
+          const isVisible = projectStart <= viewportEnd;
+          if (project.name === 'Budgi') {
+            console.log('[ViewportPositioning DAYS] Budgi continuous project:', {
+              projectStart: projectStart.toDateString(),
+              viewportEnd: viewportEnd.toDateString(),
+              actualViewportStart: actualViewportStart.toDateString(),
+              isVisible,
+              continuous: project.continuous
+            });
+          }
+          return isVisible;
+        }
         const projectEnd = new Date(project.endDate);
         return !(projectEnd < actualViewportStart || projectStart > viewportEnd);
       });

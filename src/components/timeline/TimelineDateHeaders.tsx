@@ -14,7 +14,7 @@ export const TimelineDateHeaders = memo(function TimelineDateHeaders({ dates, mo
     const monthGroups = UnifiedTimelineService.groupDatesByMonth(dates);
 
     return (
-      <div className="h-12 border-b border-gray-200 bg-gray-50 relative">
+      <div className="h-12 border-b border-gray-200 bg-white relative">
         {/* Sticky month labels layer - positioned at top */}
         <div className="absolute top-0 left-0 right-0 h-6 overflow-hidden">
           {monthGroups.map((group, groupIndex) => {
@@ -39,7 +39,7 @@ export const TimelineDateHeaders = memo(function TimelineDateHeaders({ dates, mo
                 }}
               >
                 <div 
-                  className="sticky left-0 bg-gray-50 h-full flex items-center"
+                  className="sticky left-0 bg-white h-full flex items-center"
                   style={{ 
                     width: 'fit-content',
                     minWidth: '120px',
@@ -56,7 +56,7 @@ export const TimelineDateHeaders = memo(function TimelineDateHeaders({ dates, mo
         </div>
         
         {/* Week date ranges layer - aligned to bottom */}
-        <div className="flex h-full items-end pb-2" style={{ minWidth: 'fit-content' }}>
+        <div className="flex h-full items-end pb-2" style={{ minWidth: 'fit-content', gap: 0 }}>
           {dates.map((weekStart, index) => {
             const isCurrentWeek = UnifiedTimelineService.isTodayInWeek(weekStart);
             
@@ -82,7 +82,7 @@ export const TimelineDateHeaders = memo(function TimelineDateHeaders({ dates, mo
   const monthGroups = UnifiedTimelineService.groupDatesByMonth(dates);
 
   return (
-    <div className="h-12 border-b border-gray-200 bg-gray-50 relative">
+    <div className="h-12 border-b border-gray-200 bg-white relative">
       {/* Sticky month labels layer - positioned at top */}
       <div className="absolute top-0 left-0 right-0 h-6 overflow-hidden">
         {monthGroups.map((group, groupIndex) => {
@@ -99,8 +99,8 @@ export const TimelineDateHeaders = memo(function TimelineDateHeaders({ dates, mo
           });
           
           // Calculate the width and position of this month section in pixels
-          const monthWidthPx = (group.endIndex - group.startIndex + 1) * 40; // 40px per column
-          const leftPositionPx = group.startIndex * 40; // 40px per column
+          const monthWidthPx = (group.endIndex - group.startIndex + 1) * 52; // 52px per column
+          const leftPositionPx = group.startIndex * 52; // 52px per column
           
           return (
             <div
@@ -112,7 +112,7 @@ export const TimelineDateHeaders = memo(function TimelineDateHeaders({ dates, mo
               }}
             >
               <div 
-                className="sticky left-0 bg-gray-50 h-full flex items-center"
+                className="sticky left-0 bg-white h-full flex items-center"
                 style={{ 
                   width: 'fit-content',
                   minWidth: '120px',
@@ -129,14 +129,14 @@ export const TimelineDateHeaders = memo(function TimelineDateHeaders({ dates, mo
       </div>
       
       {/* Date numbers layer - aligned to bottom */}
-      <div className="flex h-full items-end pb-2" style={{ minWidth: 'fit-content' }}>
+      <div className="flex h-full items-end pb-2" style={{ minWidth: 'fit-content', gap: 0 }}>
         {dates.map((date, index) => {
           const isToday = UnifiedTimelineService.isTodayDate(date);
           const isWeekend = UnifiedTimelineService.isWeekendDate(date);
           
           return (
-            <div key={index} className="text-center" style={{ minWidth: '40px', width: '40px' }}>
-              <HoverableDateCell date={date} mode={mode} width={40}>
+            <div key={index} className="text-center" style={{ minWidth: '52px', width: '52px' }}>
+              <HoverableDateCell date={date} mode={mode} width={52}>
                 <div className={`text-xs ${isToday ? 'font-medium text-blue-600 bg-blue-100 rounded-full w-5 h-5 flex items-center justify-center mx-auto' : isWeekend ? 'text-gray-400' : 'text-gray-700'}`}>
                   {date.getDate()}
                 </div>

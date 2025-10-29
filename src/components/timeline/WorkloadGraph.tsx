@@ -21,7 +21,8 @@ export const WorkloadGraph = memo(function WorkloadGraph({
   const { holidays, events } = usePlannerContext();
   const { milestones } = useProjectContext();
   
-  const columnWidth = mode === 'weeks' ? 77 : 40;
+  // Match TimelineView's column width: 77px for weeks, 52px for days
+  const columnWidth = mode === 'weeks' ? 77 : 52;
 
   // Calculate data for each date
   const graphData = useMemo(() => {

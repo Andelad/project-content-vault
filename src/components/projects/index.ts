@@ -3,7 +3,7 @@
 // Section Components (used within modals)
 export * from './sections';
 
-// Bar Components
+// Bar Components (icon indicators and milestones for timeline bars)
 export * from './bar';
 
 // UI Components (shared)

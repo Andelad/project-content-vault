@@ -6,11 +6,7 @@ export { ProjectTimeline } from './ProjectTimeline';
 // Timeline sub-components
 export { AddGroupRow } from './AddGroupRow';
 export { AddProjectRow } from './AddProjectRow';
-export { AddRowComponent } from './AddRowComponent';
-export { AvailabilitySidebar } from './AvailabilitySidebar';
 export { DragPerformanceMonitor } from './DragPerformanceMonitor';
-export { DraggableGroupRow } from './DraggableGroupRow';
-export { DraggableRowComponent } from './DraggableRowComponent';
 export { HoverableDateCell } from './HoverableDateCell';
 export { HoverableTimelineScrollbar } from './HoverableTimelineScrollbar';
 export { RowScrollIndicator } from './RowScrollIndicator';
@@ -18,9 +14,7 @@ export { SmartHoverAddHolidayBar } from './SmartHoverAddHolidayBar';
 export { TimelineBar } from './TimelineBar';
 export { TimelineColumnMarkers } from './TimelineColumnMarkers';
 export { TimelineDateHeaders } from './TimelineDateHeaders';
-export { TimelineHeader } from './TimelineHeader';
 export { TimelineScrollbar } from './TimelineScrollbar';
-export { TimelineSidebar } from './TimelineSidebar';
 export { UnifiedAvailabilityCircles } from './UnifiedAvailabilityCircles';
 export { TabbedAvailabilityCard } from './TabbedAvailabilityCard';
 export { WorkloadGraph } from './WorkloadGraph';
@@ -37,6 +31,12 @@ export { WorkloadGraph } from './WorkloadGraph';
 // ✅ Removed: sections/AvailabilityContent.tsx (empty)
 // ✅ Removed: TimelineBar.tsx.backup (backup file)
 // ✅ Removed: DraggableRowComponent.tsx.backup (backup file)
+// ✅ Removed: DraggableRowComponent.tsx (row-based timeline component, replaced by auto-layout)
+// ✅ Removed: AddRowComponent.tsx (row-based timeline component, replaced by auto-layout)
+// ✅ Removed: DraggableGroupRow.tsx (row-based timeline component, replaced by auto-layout)
+// ✅ Removed: TimelineSidebar.tsx (row-based timeline component, replaced by auto-layout)
+// ✅ Removed: TimelineHeader.tsx (row-based timeline component, replaced by auto-layout)
+// ✅ Removed: AvailabilitySidebar.tsx (row-based timeline component, replaced by auto-layout)
 
 // Business logic extracted to UnifiedTimelineService:
 // ✅ TimelineBar.tsx - major calculations moved to service
