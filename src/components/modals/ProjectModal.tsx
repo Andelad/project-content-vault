@@ -85,13 +85,11 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
   const [editingProperty, setEditingProperty] = useState<string | null>(null);
   const [stylePickerOpen, setStylePickerOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   // State for collapsible sections
   const [isInsightsExpanded, setIsInsightsExpanded] = useState(false);
   const [isNotesExpanded, setIsNotesExpanded] = useState(true);
   const [isAutoEstimateDaysExpanded, setIsAutoEstimateDaysExpanded] = useState(false);
-  // Temporary state for style picker
-  const [tempColor, setTempColor] = useState('');
-  const [tempIcon, setTempIcon] = useState('');
   // State for milestones in new projects
   const [localProjectMilestones, setLocalProjectMilestones] = useState<Array<{
     name: string;
@@ -236,6 +234,12 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
   }, [onClose]);
   // Handle creating the new project
   const handleCreateProject = useCallback(async () => {
+    // Prevent double submission
+    if (isSubmitting) {
+      console.log('⚠️ Already submitting, ignoring duplicate call');
+      return;
+    }
+
     const gid = resolvedGroupId ?? groupId;
     const rid = resolvedRowId ?? rowId;
     
@@ -249,6 +253,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
     }
     
     if (isCreating && gid) {
+      setIsSubmitting(true);
       try {
         // Use ProjectOrchestrator for complex creation workflow
         const result = await ProjectOrchestrator.executeProjectCreationWorkflow(
@@ -295,9 +300,11 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
           description: "An unexpected error occurred",
           variant: "destructive",
         });
+      } finally {
+        setIsSubmitting(false);
       }
     }
-  }, [resolvedGroupId, groupId, resolvedRowId, rowId, isCreating, localValues.name, localValues.client, localValues.startDate, localValues.endDate, localValues.estimatedHours, localValues.color, localValues.notes, localValues.icon, localValues.continuous, localValues.autoEstimateDays, localProjectMilestones, addProject, addMilestone, toast, handleClose]);
+  }, [resolvedGroupId, groupId, resolvedRowId, rowId, isCreating, localValues.name, localValues.client, localValues.startDate, localValues.endDate, localValues.estimatedHours, localValues.color, localValues.notes, localValues.icon, localValues.continuous, localValues.autoEstimateDays, localProjectMilestones, addProject, addMilestone, toast, handleClose, isSubmitting]);
   // Handle deleting the project
   const handleDeleteProject = () => {
     if (projectId && projectId !== '') {
@@ -305,15 +312,16 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
       handleClose();
     }
   };
-  // Handle canceling changes - restore original values for existing projects
+  // Handle canceling changes - just close without saving
   const handleCancel = useCallback(() => {
+    // For existing projects, restore original values in local state
+    // (the database still has the original values, so no update needed)
     if (!isCreating && project && projectId) {
-      // Restore all original values to the actual project - use silent mode to prevent toasts
-      updateProject(projectId, originalValues, { silent: true });
       setLocalValues(originalValues);
     }
+    // Just close - any changes in localValues are discarded
     handleClose();
-  }, [isCreating, project, projectId, originalValues, updateProject, handleClose]);
+  }, [isCreating, project, projectId, originalValues, handleClose]);
   // Handle confirming changes
   const handleConfirm = useCallback(async () => {
   dlog('🎯 handleConfirm clicked', {
@@ -332,17 +340,30 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
     if (isCreating) {
       return handleCreateProject();
     }
-    // For existing projects, show a success toast when confirming
+    // For existing projects, save any changes made in the modal
     if (!isCreating && projectId) {
+      // Check if there are any changes compared to original values
+      const hasChanges = 
+        localValues.color !== originalValues.color ||
+        localValues.icon !== originalValues.icon;
+      
+      if (hasChanges) {
+        // Save the changes
+        await updateProject(projectId, {
+          color: localValues.color,
+          icon: localValues.icon
+        });
+      }
+      
       toast({
         title: "Success",
         description: "Project updated successfully",
       });
     }
-    // Otherwise treat as edit modal and just close
-  dlog('🎯 Not in create mode; closing modal');
+    // Close modal
+  dlog('🎯 Closing modal after save');
     handleClose();
-  }, [isCreating, handleCreateProject, handleClose, projectId, groupId, rowId, resolvedGroupId, resolvedRowId, dlog, toast]);
+  }, [isCreating, handleCreateProject, handleClose, projectId, groupId, rowId, resolvedGroupId, resolvedRowId, dlog, toast, localValues, originalValues, updateProject]);
   // Calculate project time metrics using real data
   const metrics = useMemo(() => {
     const fallbackProject: Project = {
@@ -556,33 +577,15 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
     setEditingTitle(false);
   };
   const handleColorChange = (color: string) => {
-    setTempColor(color);
+    // Update local state immediately for visual feedback
+    setLocalValues(prev => ({ ...prev, color }));
+    // Note: Changes are saved when user clicks "Create Project" or "Update Project"
   };
+  
   const handleIconChange = (icon: string) => {
-    setTempIcon(icon);
-  };
-  const handleStylePickerOpen = () => {
-    // Initialize temp values with current values
-    setTempColor(project?.color || localValues.color || OKLCH_PROJECT_COLORS[0]);
-    setTempIcon(project?.icon || localValues.icon || 'folder');
-    setStylePickerOpen(true);
-  };
-  const handleStyleSave = () => {
-    // Apply the changes to local state immediately
-    setLocalValues(prev => ({ ...prev, color: tempColor, icon: tempIcon }));
-    
-    // For existing projects, also update in database
-    if (!isCreating && projectId && projectId !== '') {
-      updateProject(projectId, { color: tempColor, icon: tempIcon }, { silent: true });
-    }
-    
-    setStylePickerOpen(false);
-  };
-  const handleStyleCancel = () => {
-    // Reset temp values and close
-    setTempColor('');
-    setTempIcon('');
-    setStylePickerOpen(false);
+    // Update local state immediately for visual feedback
+    setLocalValues(prev => ({ ...prev, icon }));
+    // Note: Changes are saved when user clicks "Create Project" or "Update Project"
   };
   const handleNotesChange = (value: string) => {
     setLocalValues(prev => ({ ...prev, notes: value }));
@@ -740,16 +743,19 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
     placeholder?: string;
   }) => {
     const isEditing = editingProperty === property;
+    const isEmpty = !value || value.trim() === '';
     const displayValue = value || placeholder;
     return (
       <div className="min-w-[80px]">
-        <Label className="text-xs text-muted-foreground mb-1 block">Client</Label>
+        <Label className="text-xs text-muted-foreground mb-1 block">
+          Client <span className="text-destructive">*</span>
+        </Label>
   {isEditing ? (
           <Input
             type="text"
             defaultValue={value}
             placeholder={placeholder}
-            className="h-10 text-sm border-border bg-background min-w-[80px] max-w-[200px]"
+            className={`h-10 text-sm bg-background min-w-[80px] max-w-[200px] ${isEmpty ? 'border-destructive' : 'border-border'}`}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 const newValue = (e.target as HTMLInputElement).value;
@@ -766,7 +772,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
           />
         ) : (
           <div
-            className="h-10 text-sm justify-start text-left font-normal px-3 border border-input rounded-md bg-background hover:bg-accent hover:text-accent-foreground cursor-pointer flex items-center min-w-[80px] max-w-[200px] relative z-20 pointer-events-auto"
+            className={`h-10 text-sm justify-start text-left font-normal px-3 border rounded-md bg-background hover:bg-accent hover:text-accent-foreground cursor-pointer flex items-center min-w-[80px] max-w-[200px] relative z-20 pointer-events-auto ${isEmpty ? 'border-destructive text-muted-foreground italic' : 'border-input'}`}
             role="button"
             tabIndex={0}
             onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setEditingProperty(property); }}
@@ -960,11 +966,10 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
             <PopoverTrigger asChild>
               <div 
                 className="w-8 h-8 rounded-lg flex-shrink-0 cursor-pointer relative group transition-all duration-200 hover:scale-105 hover:shadow-md ring-2 ring-transparent hover:ring-primary/20"
-                style={{ backgroundColor: project?.color || localValues.color || OKLCH_PROJECT_COLORS[0] }}
-                onClick={handleStylePickerOpen}
+                style={{ backgroundColor: localValues.color || OKLCH_PROJECT_COLORS[0] }}
               >
                 {(() => {
-                  const currentIcon = PROJECT_ICONS.find(icon => icon.name === (project?.icon || localValues.icon || 'folder'));
+                  const currentIcon = PROJECT_ICONS.find(icon => icon.name === (localValues.icon || 'folder'));
                   const IconComponent = currentIcon?.component || Folder;
                   return <IconComponent className="w-4 h-4 text-foreground absolute inset-0 m-auto" />;
                 })()}
@@ -984,7 +989,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
                     <button
                       key={color}
                       className={`w-8 h-8 rounded border-2 transition-all duration-200 hover:scale-110 ${
-                        tempColor === color 
+                        localValues.color === color 
                           ? 'border-primary ring-2 ring-primary/20' 
                           : 'border-border hover:border-primary/50'
                       }`}
@@ -1003,11 +1008,11 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
                     <button
                       key={icon.name}
                       className={`w-8 h-8 rounded border-2 transition-all duration-200 hover:scale-110 flex items-center justify-center ${
-                        tempIcon === icon.name 
+                        localValues.icon === icon.name 
                           ? 'border-primary ring-2 ring-primary/20' 
                           : 'border-border hover:border-primary/50'
                       }`}
-                      style={{ backgroundColor: tempColor || project?.color || localValues.color || OKLCH_PROJECT_COLORS[0] }}
+                      style={{ backgroundColor: localValues.color || OKLCH_PROJECT_COLORS[0] }}
                       onClick={() => handleIconChange(icon.name)}
                       title={icon.label}
                     >
@@ -1015,24 +1020,6 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
                     </button>
                   ))}
                 </div>
-              </div>
-              {/* Action buttons */}
-              <div className="flex gap-2 pt-2 border-t border-border">
-                <Button 
-                  size="sm" 
-                  onClick={handleStyleSave}
-                  className="flex-1"
-                >
-                  Save
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  onClick={handleStyleCancel}
-                  className="flex-1"
-                >
-                  Cancel
-                </Button>
               </div>
             </PopoverContent>
           </Popover>
@@ -1201,7 +1188,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
         primaryAction={{
           label: isCreating ? "Create Project" : "Update Project",
           onClick: handleConfirm,
-          disabled: !localValues.name?.trim()
+          disabled: !localValues.name?.trim() || !localValues.client?.trim() || isSubmitting
         }}
         secondaryAction={{
           label: "Cancel",

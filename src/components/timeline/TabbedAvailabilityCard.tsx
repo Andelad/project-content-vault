@@ -155,7 +155,6 @@ export const TabbedAvailabilityCard = memo(function TabbedAvailabilityCard({
       <div 
         className="flex items-end border-b border-gray-200"
         style={{
-          paddingLeft: collapsed ? '48px' : '280px',
           backgroundColor: 'rgb(249, 250, 251)', // bg-gray-50 to match page background
           paddingTop: '4px',
         }}
@@ -206,119 +205,51 @@ export const TabbedAvailabilityCard = memo(function TabbedAvailabilityCard({
         {columnMarkersOverlay && (
           <div 
             className="absolute inset-0 pointer-events-none z-1 overflow-hidden"
-            style={{
-              left: collapsed ? '48px' : '280px',
-              transition: 'left 300ms cubic-bezier(0.4, 0, 0.2, 1)',
-            }}
           >
             {columnMarkersOverlay}
           </div>
         )}
-        <div className="flex h-full">
-          {/* Sidebar */}
-          <div 
-            className="bg-white border-r border-gray-200"
-            style={{ 
-              width: collapsed ? '48px' : '280px',
-              minWidth: collapsed ? '48px' : '280px',
-              maxWidth: collapsed ? '48px' : '280px',
-              transition: 'all 300ms cubic-bezier(0.4, 0, 0.2, 1)',
-              borderTopLeftRadius: '8px',
-            }}
-          >
-            {isGraphTab ? (
-              /* Graph tab sidebar - single label */
-              <div className="h-24 flex items-center px-4 rounded-tl-lg">
-                {!collapsed && (
-                  <div className="flex items-center justify-between w-full">
-                    <div className="flex items-center gap-3">
-                      <div className="w-3 h-3 rounded-full bg-gray-500" />
-                      <span className="text-sm font-medium text-gray-800">Workload Over Time</span>
-                    </div>
-                    <InfoButton
-                      title="Workload Over Time"
-                      description="Visual representation of planned and completed time vs available work hours. Green indicates available capacity, red indicates overcommitment."
-                    />
-                  </div>
-                )}
-                {collapsed && (
-                  <div className="w-3 h-3 rounded-full bg-gray-500 mx-auto" />
-                )}
-              </div>
-            ) : (
-              /* Regular tabs sidebar - multiple rows */
-              <div className="flex-1 min-h-0">
-                {currentRows && currentRows.map((row, index) => (
-                  <div 
-                    key={row.type}
-                    className={`h-12 flex items-center ${
-                      index < currentRows.length - 1 ? 'border-b border-gray-100' : ''
-                    } ${collapsed ? 'px-0 justify-center' : 'px-4'} ${
-                      index === 0 ? 'rounded-tl-lg' : ''
-                    }`}
-                  >
-                    {collapsed ? (
-                      <div className={`w-3 h-3 rounded-full ${row.color}`} />
-                    ) : (
-                      <div className="flex items-center justify-between w-full">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-3 h-3 rounded-full ${row.color}`} />
-                          <span className="text-sm font-medium text-gray-800">{row.label}</span>
-                        </div>
-                        <InfoButton
-                          title={row.label}
-                          description={row.description}
-                        />
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Timeline Content */}
-          <div 
-            className="flex-1 flex flex-col bg-white relative availability-timeline-content" 
-            style={{ 
-              minWidth: mode === 'weeks'
-                ? `${dates.length * 77}px`
-                : `${dates.length * 52 + 52}px`, // Match timeline column width: 52px per day + buffer
-              borderTopLeftRadius: '8px',
-              borderTopRightRadius: '8px',
-            }}
-          >
-            {isGraphTab ? (
-              /* Graph tab content */
-              <div className="h-24 rounded-t-lg overflow-hidden">
-                <WorkloadGraph
+        {/* Timeline Content */}
+        <div 
+          className="flex-1 flex flex-col bg-white relative availability-timeline-content" 
+          style={{ 
+            minWidth: mode === 'weeks'
+              ? `${dates.length * 77}px`
+              : `${dates.length * 52 + 52}px`, // Match timeline column width: 52px per day + buffer
+            borderTopLeftRadius: '8px',
+            borderTopRightRadius: '8px',
+          }}
+        >
+          {isGraphTab ? (
+            /* Graph tab content */
+            <div className="h-24 rounded-t-lg overflow-hidden">
+              <WorkloadGraph
+                dates={dates}
+                projects={projects}
+                settings={settings}
+                mode={mode}
+              />
+            </div>
+          ) : (
+            /* Regular tabs content - availability circles */
+            currentRows && currentRows.map((row, index) => (
+              <div 
+                key={row.type}
+                className={`h-12 ${
+                  index < currentRows.length - 1 ? 'border-b border-gray-100' : ''
+                } ${index === 0 ? 'rounded-t-lg overflow-hidden' : ''}`}
+              >
+                <UnifiedAvailabilityCircles
                   dates={dates}
-                  projects={projects}
+                  projects={row.type === 'available' || row.type === 'busy' ? projects : undefined}
                   settings={settings}
+                  type={row.type}
                   mode={mode}
+                  displayMode={availabilityDisplayMode}
                 />
               </div>
-            ) : (
-              /* Regular tabs content - availability circles */
-              currentRows && currentRows.map((row, index) => (
-                <div 
-                  key={row.type}
-                  className={`h-12 ${
-                    index < currentRows.length - 1 ? 'border-b border-gray-100' : ''
-                  } ${index === 0 ? 'rounded-t-lg overflow-hidden' : ''}`}
-                >
-                  <UnifiedAvailabilityCircles
-                    dates={dates}
-                    projects={row.type === 'available' || row.type === 'busy' ? projects : undefined}
-                    settings={settings}
-                    type={row.type}
-                    mode={mode}
-                    displayMode={availabilityDisplayMode}
-                  />
-                </div>
-              ))
-            )}
-          </div>
+            ))
+          )}
         </div>
       </Card>
     </div>

@@ -55,24 +55,41 @@ function transformToDatabase(projectData: any): any {
   const dbData: any = {};
   
   if (projectData.name !== undefined) dbData.name = projectData.name;
-  if (projectData.clientId !== undefined) {
+  
+  // Handle client and client_id
+  if (projectData.clientId !== undefined && projectData.clientId !== '') {
     dbData.client_id = projectData.clientId;
-  } else if (projectData.client !== undefined) {
-    // Legacy fallback: populate client_id with the string client name until UI provides the new ID
+    // Also set client field if not explicitly provided
+    if (projectData.client === undefined) {
+      dbData.client = projectData.clientId;
+    }
+  } else if (projectData.client !== undefined && projectData.client !== '') {
+    // Legacy: use client string as both fields
     dbData.client_id = projectData.client;
+    dbData.client = projectData.client;
   }
+  // Note: If neither is provided, validation should catch this before we get here
 
   if (projectData.client !== undefined) dbData.client = projectData.client;
+  
   if (projectData.startDate !== undefined) {
     dbData.start_date = projectData.startDate instanceof Date 
       ? projectData.startDate.toISOString().split('T')[0] 
       : projectData.startDate;
   }
+  
+  // Handle end_date (required in database, even for continuous projects)
   if (projectData.endDate !== undefined) {
     dbData.end_date = projectData.endDate instanceof Date 
       ? projectData.endDate.toISOString().split('T')[0] 
       : projectData.endDate;
+  } else if (projectData.continuous) {
+    // For continuous projects, set a far future date as placeholder
+    const farFuture = new Date();
+    farFuture.setFullYear(farFuture.getFullYear() + 100);
+    dbData.end_date = farFuture.toISOString().split('T')[0];
   }
+  
   if (projectData.estimatedHours !== undefined) dbData.estimated_hours = projectData.estimatedHours;
   if (projectData.color !== undefined) dbData.color = projectData.color;
   if (projectData.groupId !== undefined) dbData.group_id = projectData.groupId;
@@ -176,13 +193,54 @@ export function useProjects() {
 
   const addProject = async (projectData: any, options: { silent?: boolean } = {}) => {
     try {
+      console.log('🚀 useProjects.addProject: Starting with projectData:', projectData);
+      
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
       // Transform frontend data to database format
       const dbData = transformToDatabase(projectData);
+      console.log('🔄 useProjects.addProject: Transformed to dbData:', dbData);
+
+      // Ensure we have a valid client_id UUID (required in database)
+      // Check if client_id is a valid UUID format (if it's just a string name, we need to convert it)
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const hasValidClientId = dbData.client_id && uuidRegex.test(dbData.client_id);
+      
+      if (!hasValidClientId) {
+        const clientName = dbData.client || 'N/A';
+        console.log(`⚠️ No valid client_id UUID, finding/creating client for: "${clientName}"`);
+        
+        // Try to find existing client with this name
+        const { data: existingClient } = await supabase
+          .from('clients')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('name', clientName)
+          .maybeSingle();
+        
+        if (existingClient) {
+          dbData.client_id = existingClient.id;
+          console.log('✅ Found existing client:', existingClient.id);
+        } else {
+          // Create new client
+          const { data: newClient, error: createError } = await supabase
+            .from('clients')
+            .insert([{ user_id: user.id, name: clientName, status: 'active' }])
+            .select('id')
+            .single();
+          
+          if (createError) {
+            console.error('❌ Failed to create client:', createError);
+            throw new Error(`Failed to create client: ${createError.message}`);
+          }
+          dbData.client_id = newClient.id;
+          console.log('✅ Created new client:', newClient.id);
+        }
+      }
 
       const finalData = { ...dbData, user_id: user.id };
+      console.log('📤 useProjects.addProject: Sending to Supabase:', finalData);
 
       const { data, error } = await supabase
         .from('projects')

@@ -53,7 +53,7 @@ export interface ProjectCreationRequest {
   continuous?: boolean;
   color: string;
   groupId: string;
-  rowId: string;
+  rowId?: string; // Optional - deprecated in Phase 5B
   notes?: string;
   icon?: string;
   autoEstimateDays?: {
@@ -135,8 +135,9 @@ export class ProjectOrchestrator {
       errors.push('Project name is required');
     }
 
+    // Business rule: Validate client (required for database constraint)
     if (!request.client || request.client.trim().length === 0) {
-      errors.push('Client name is required');
+      errors.push('Client is required');
     }
 
     // Business rule: Validate estimated hours range
@@ -407,20 +408,37 @@ export class ProjectOrchestrator {
     }
   ): Promise<ProjectCreationResult> {
     try {
+      console.log('🚀 ProjectOrchestrator: Starting project creation workflow', {
+        request: {
+          ...request,
+          groupId: request.groupId,
+          rowId: request.rowId,
+          name: request.name,
+          client: request.client
+        }
+      });
+
       // Step 1: Validate inputs
+      const validation = this.validateProjectCreation(request);
+      if (!validation.isValid) {
+        console.error('❌ ProjectOrchestrator: Validation failed:', validation.errors);
+        return {
+          success: false,
+          errors: validation.errors,
+          warnings: validation.warnings
+        };
+      }
+
       if (!request.groupId || request.groupId === '') {
+        console.error('❌ ProjectOrchestrator: Missing groupId');
         return {
           success: false,
           errors: ['Group ID is required for project creation']
         };
       }
 
-      if (!request.rowId || request.rowId === '') {
-        return {
-          success: false,
-          errors: ['No row selected. Please select a row before creating a project.']
-        };
-      }
+      // Note: rowId is optional (deprecated in Phase 5B)
+      // Projects can be created without a specific row assignment
 
       // Step 2: Prepare project data following AI Development Rules
       const preparedProject = this.prepareProjectForCreation(request);
@@ -442,9 +460,34 @@ export class ProjectOrchestrator {
       };
 
       // Step 3: Create project via context (delegates to existing project creation logic)
-      const createdProject = await projectContext.addProject(projectData);
+      console.log('🔄 ProjectOrchestrator: Calling addProject with data:', projectData);
+      let createdProject: Project;
+      try {
+        createdProject = await projectContext.addProject(projectData);
+        console.log('✅ ProjectOrchestrator: Project created successfully:', createdProject);
+      } catch (addProjectError) {
+        console.error('❌ ProjectOrchestrator: addProject threw error:', addProjectError);
+        console.error('❌ ProjectOrchestrator: Error type:', typeof addProjectError);
+        console.error('❌ ProjectOrchestrator: Error constructor:', addProjectError?.constructor?.name);
+        console.error('❌ ProjectOrchestrator: Full error:', JSON.stringify(addProjectError, null, 2));
+        
+        let errorMessage = 'Unknown error';
+        if (addProjectError instanceof Error) {
+          errorMessage = addProjectError.message;
+        } else if (typeof addProjectError === 'string') {
+          errorMessage = addProjectError;
+        } else if (addProjectError && typeof addProjectError === 'object') {
+          errorMessage = JSON.stringify(addProjectError);
+        }
+        
+        return {
+          success: false,
+          errors: [`Project creation failed: ${errorMessage}`]
+        };
+      }
 
       if (!createdProject) {
+        console.error('❌ ProjectOrchestrator: addProject returned null/undefined');
         return {
           success: false,
           errors: ['Project creation failed - no project returned']

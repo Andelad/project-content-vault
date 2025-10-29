@@ -99,22 +99,6 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
   const [layerMode, setLayerMode] = useState<'events' | 'work-hours' | 'both'>('both');
   const [currentView, setCurrentView] = useState<'week' | 'day'>('week');
   
-  // Tracking state for live event updates
-  const [trackingTick, setTrackingTick] = useState(0);
-  
-  // Update tracking tick every second when tracking is active to force re-render of events
-  useEffect(() => {
-    if (!isTimeTracking || !currentTrackingEventId) {
-      return;
-    }
-    
-    const interval = setInterval(() => {
-      setTrackingTick(prev => prev + 1);
-    }, 1000); // Update every second
-    
-    return () => clearInterval(interval);
-  }, [isTimeTracking, currentTrackingEventId]);
-  
   // Holiday UI state
   const [creatingNewHoliday, setCreatingNewHoliday] = useState<{ startDate: Date; endDate: Date } | null>(null);
   const [editingHolidayId, setEditingHolidayId] = useState<string | null>(null);
@@ -249,7 +233,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
         } : undefined
       };
     });
-  }, [dbEvents, isTimeTracking, currentTrackingEventId, trackingTick]);
+  }, [dbEvents, isTimeTracking, currentTrackingEventId]);
   // Process holidays
   const processedHolidays: Holiday[] = useMemo(() => {
     return (dbHolidays || []).map(holiday => ({

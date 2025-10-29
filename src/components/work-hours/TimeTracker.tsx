@@ -396,6 +396,10 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
         return;
       }
     }
+    
+    // CRITICAL: Capture stop time BEFORE workflow to ensure accuracy
+    const stopTime = isTimeTracking ? new Date() : undefined;
+    
     const context: TimeTrackerWorkflowContext = {
       selectedProject,
       searchQuery,
@@ -407,7 +411,10 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
       setSearchQuery,
       startTimeRef,
       intervalRef,
-      currentStateRef
+      dbSyncIntervalRef,
+      currentStateRef,
+      updateEvent,
+      stopTime
     };
     const result = await UnifiedTimeTrackerService.handleTimeTrackingToggle(context);
     if (!result.success && result.error) {
@@ -449,51 +456,21 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
     }
     // Handle post-toggle actions for stop tracking
     if (!result.eventId && isTimeTracking) {
-      // CRITICAL: Clear intervals FIRST to prevent any further DB updates
-      if (dbSyncIntervalRef.current) {
-        clearInterval(dbSyncIntervalRef.current);
-        dbSyncIntervalRef.current = null;
-      }
-      
       // Clear global tracking event ID
       setGlobalTrackingEventId(null);
       
-      // Handle final event completion logic - MUST happen AFTER intervals are cleared
-      if (currentEventId && startTimeRef.current) {
-        const endTime = new Date();
-        const duration = UnifiedTimeTrackerService.calculateDurationInHours(startTimeRef.current, endTime);
-        console.log('⏹️ STOP TRACKING - Final update:', {
-          eventId: currentEventId,
-          duration,
-          endTime: endTime.toISOString(),
-          startTime: startTimeRef.current.toISOString()
-        });
+      // Handle planned event overlaps if we have the necessary data
+      if (currentEventId && startTimeRef.current && stopTime) {
         try {
-          const completedEventData = UnifiedTimeTrackerService.createCompletedEventData(
-            selectedProject,
-            searchQuery,
-            startTimeRef.current,
-            endTime,
-            duration,
-            seconds,
-            formatTime
-          );
-          // CRITICAL: Wait for the update to complete before proceeding
-          const updatedEvent = await updateEvent(currentEventId, completedEventData);
-          console.log('✅ STOP TRACKING - Final update complete:', {
-            updatedEventId: updatedEvent?.id,
-            updatedDuration: updatedEvent?.duration,
-            updatedEndTime: updatedEvent?.end_time
-          });
-          
           // Small delay to ensure database transaction completes
-          await new Promise(resolve => setTimeout(resolve, 500));
+          await new Promise(resolve => setTimeout(resolve, 300));
           
-          handlePlannedEventOverlaps(startTimeRef.current, endTime);
+          handlePlannedEventOverlaps(startTimeRef.current, stopTime);
         } catch (error) {
-          console.error('❌ STOP TRACKING - Failed to complete tracking event:', error);
+          console.error('❌ STOP TRACKING - Failed to handle overlaps:', error);
         }
       }
+      
       // Reset UI state
       setSelectedProject(null);
       setSearchQuery('');

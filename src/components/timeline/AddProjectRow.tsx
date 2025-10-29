@@ -640,52 +640,27 @@ export function AddHolidayRow({ dates, collapsed, isDragging, dragState, handleH
   const dayWidth = dates.length > 0 ? (containerRef.current?.clientWidth || 0) / dates.length : 0;
 
   return (
-    <div className="flex h-[52px] bg-white">
-      {/* Sidebar section - must match TimelineSidebar widths exactly */}
-      <div 
-        className="bg-white border-r border-gray-200 transition-all duration-300 flex items-center relative"
-        style={{ 
-          width: collapsed ? '48px' : '280px',
-          minWidth: collapsed ? '48px' : '280px',
-          maxWidth: collapsed ? '48px' : '280px',
-          paddingLeft: collapsed ? '0px' : '16px',
-          paddingRight: collapsed ? '0px' : '16px',
-          justifyContent: collapsed ? 'center' : 'flex-start'
-        }}
-      >
-        {collapsed ? (
-          <button 
-            onClick={() => {
-              const today = new Date();
-              const endDate = new Date(today);
-              endDate.setDate(today.getDate() + 2); // 2 days from today
-              setCreatingNewHoliday({ startDate: today, endDate });
-            }}
-            className="hover:bg-gray-50 transition-colors p-1 rounded -m-1" 
-          >
-            <ParasolIcon className="w-4 h-4 text-gray-600" />
-          </button>
-        ) : (
-          <button 
-            onClick={() => {
-              const today = new Date();
-              const endDate = new Date(today);
-              endDate.setDate(today.getDate() + 2); // 2 days from today
-              setCreatingNewHoliday({ startDate: today, endDate });
-            }}
-            className="flex items-center gap-3 hover:bg-gray-50 transition-colors px-2 py-1 rounded-md -mx-2 -my-1"
-          >
-            <ParasolIcon className="w-4 h-4 text-gray-600" />
-            <span className="text-sm font-medium text-gray-800">Add holiday</span>
-          </button>
-        )}
-      </div>
-
+    <div className="h-[52px] bg-white relative">
       {/* Timeline section */}
       <div 
         ref={containerRef}
-        className="flex-1 relative flex"
+        className="flex-1 relative flex h-full"
       >
+        {/* Sticky Add Holiday Icon - left edge like scroll indicators */}
+        <div className="absolute left-2 top-1/2 transform -translate-y-1/2 z-30">
+          <button
+            onClick={() => {
+              const today = new Date();
+              const endDate = new Date(today);
+              endDate.setDate(today.getDate() + 2); // 2 days from today
+              setCreatingNewHoliday({ startDate: today, endDate });
+            }}
+            className="h-6 w-6 p-0 bg-white border border-gray-200 shadow-sm hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 rounded-full flex items-center justify-center"
+            title="Add holiday"
+          >
+            <ParasolIcon className="w-3 h-3 text-gray-600" />
+          </button>
+        </div>
         {/* Import and use the new SmartHoverAddHolidayBar */}
         <SmartHoverAddHolidayBar
           dates={dates}

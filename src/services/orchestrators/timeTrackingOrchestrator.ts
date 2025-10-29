@@ -45,7 +45,10 @@ export interface TimeTrackerWorkflowContext {
   setSearchQuery: (query: string) => void;
   startTimeRef: React.MutableRefObject<Date | null>;
   intervalRef: React.MutableRefObject<NodeJS.Timeout | null>;
+  dbSyncIntervalRef?: React.MutableRefObject<NodeJS.Timeout | null>;
   currentStateRef: React.MutableRefObject<any>;
+  updateEvent?: (id: string, updates: any, options?: { silent?: boolean }) => Promise<any>;
+  stopTime?: Date; // Capture the exact stop time
 }
 export interface TimeTrackerWorkflowResult {
   success: boolean;
@@ -521,10 +524,18 @@ class TimeTrackingOrchestrator {
   }
   private async stopTrackingWorkflow(context: TimeTrackerWorkflowContext): Promise<TimeTrackerWorkflowResult> {
     const { setCurrentEventId, setIsTimeTracking, setSeconds, setSelectedProject, 
-            setSearchQuery, startTimeRef, intervalRef, currentStateRef } = context;
+            setSearchQuery, startTimeRef, intervalRef, dbSyncIntervalRef, currentStateRef, 
+            updateEvent, stopTime } = context;
     try {
       const currentState = currentStateRef.current;
       const currentEventId = currentState?.eventId; // Fixed: was currentEventId, should be eventId
+      
+      // CRITICAL: Clear DB sync interval FIRST to prevent race conditions
+      if (dbSyncIntervalRef?.current) {
+        clearInterval(dbSyncIntervalRef.current);
+        dbSyncIntervalRef.current = null;
+      }
+      
       if (!currentEventId) {
         // Even if no event ID, we should still reset the state
         console.warn('No active tracking session found, but resetting state anyway');
@@ -567,15 +578,35 @@ class TimeTrackingOrchestrator {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
-      // Calculate final duration
-      let finalSeconds = 0;
-      if (startTimeRef.current) {
-        finalSeconds = Math.floor((Date.now() - startTimeRef.current.getTime()) / 1000);
+      
+      // CRITICAL: Update event with stop time BEFORE resetting state
+      // Use the captured stopTime to ensure accuracy
+      const actualStopTime = stopTime || new Date();
+      
+      if (updateEvent && startTimeRef.current) {
+        try {
+          const duration = (actualStopTime.getTime() - startTimeRef.current.getTime()) / (1000 * 60 * 60);
+          console.log('⏹️ STOP TRACKING WORKFLOW - Updating event with stop time:', {
+            eventId: currentEventId,
+            startTime: startTimeRef.current.toISOString(),
+            stopTime: actualStopTime.toISOString(),
+            duration
+          });
+          
+          await updateEvent(currentEventId, {
+            endTime: actualStopTime,
+            duration,
+            completed: true,
+            type: 'completed'
+          }, { silent: true });
+          
+          console.log('✅ STOP TRACKING WORKFLOW - Event updated successfully');
+        } catch (error) {
+          console.error('❌ STOP TRACKING WORKFLOW - Failed to update event:', error);
+        }
       }
-      // Update event with actual end time
-      const actualEnd = new Date();
-      // Note: Event end time update should be handled by the addEvent context function
-      // Reset tracking state
+      
+      // Reset tracking state AFTER event update
       setCurrentEventId(null);
       setIsTimeTracking(false);
       setSeconds(0);
