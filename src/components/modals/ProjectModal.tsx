@@ -627,7 +627,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
     property: string;
     placeholder?: string;
   }) => {
-    const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
     // Get relevant milestones
     const relevantMilestones = isCreating
       ? localProjectMilestones
@@ -660,9 +660,13 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
       }
       return (date: Date) => false;
     };
+    const handleOpenChange = useCallback((nextOpen: boolean) => {
+      setIsOpen(nextOpen);
+    }, []);
+
     return (
       <div className="min-w-[80px]">
-        <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <Popover open={isOpen} onOpenChange={handleOpenChange}>
           <PopoverTrigger asChild>
             <Button
               variant="outline"
@@ -672,7 +676,10 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
               {formatDate(value)}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
+          <PopoverContent
+            className="w-auto p-0"
+            align="start"
+          >
             {relevantMilestones && relevantMilestones.length > 0 && (
               <div className="p-3 border-b bg-gray-50">
                 <div className="text-sm font-medium text-gray-700 mb-1">
@@ -716,7 +723,6 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
                   fontWeight: 'bold'
                 }
               }}
-              initialFocus
             />
           </PopoverContent>
         </Popover>
@@ -1130,7 +1136,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
           />
         </div>
         {/* Date Range - aligned to the right */}
-        <div className="flex items-end gap-3 text-sm">
+        <div className="flex items-end gap-3 text-sm relative z-10 pointer-events-auto">
           <div className="min-w-[80px]">
             <Label className="text-xs text-muted-foreground mb-1 block">Start</Label>
             <HeaderDateField

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Dialog, DialogContent } from '../ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { cn } from '@/lib/utils';
 
@@ -78,6 +78,9 @@ export interface StandardModalProps {
 
   // Additional styling
   className?: string;
+  
+  // Dialog behavior
+  modal?: boolean; // Whether to trap pointer events (default true)
 }
 
 const sizeClasses = {
@@ -102,7 +105,34 @@ export const StandardModal: React.FC<StandardModalProps> = ({
   customHeader,
   contentClassName,
   className,
+  modal = true,
 }) => {
+  const isEventFromNestedLayer = React.useCallback((event: any) => {
+    const originalEvent = event?.detail?.originalEvent ?? event;
+    const target = (originalEvent?.target || originalEvent?.currentTarget || event?.target) as HTMLElement | null;
+
+    if (!target) {
+      return false;
+    }
+
+    const nestedLayerSelectors = [
+      '[data-radix-popover-content]',
+      '[data-radix-popover-content-wrapper]',
+      '[data-radix-select-content]',
+      '[data-radix-tooltip-content]',
+      '[role="listbox"]'
+    ];
+
+    return nestedLayerSelectors.some((selector) => target.closest(selector));
+  }, []);
+
+  const preventCloseForNestedLayers = React.useCallback((event: any) => {
+    if (isEventFromNestedLayer(event)) {
+      event.preventDefault();
+      event.stopPropagation?.();
+    }
+  }, [isEventFromNestedLayer]);
+
   const renderActionButton = (action: ModalAction, key: string) => (
     <Button
       key={key}
@@ -155,7 +185,7 @@ export const StandardModal: React.FC<StandardModalProps> = ({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={onClose} modal={modal}>
       <DialogContent
         className={cn(
           sizeClasses[size],
@@ -163,16 +193,35 @@ export const StandardModal: React.FC<StandardModalProps> = ({
           'p-0 gap-0 max-h-[95vh] overflow-hidden flex flex-col',
           className
         )}
+        onPointerDownOutside={preventCloseForNestedLayers}
+        onInteractOutside={preventCloseForNestedLayers}
+        onFocusOutside={(event) => {
+          if (isEventFromNestedLayer(event)) {
+            event.preventDefault();
+          }
+        }}
+        onEscapeKeyDown={(event) => {
+          if (isEventFromNestedLayer(event)) {
+            event.preventDefault();
+          }
+        }}
       >
+        {/* Hidden DialogTitle for accessibility when using custom header */}
+        {customHeader && (
+          <DialogTitle style={{ position: 'absolute', left: '-9999px', top: '-9999px', visibility: 'hidden' }}>
+            {title}
+          </DialogTitle>
+        )}
+
         {/* 1. Header Section - standard or custom */}
         {customHeader ? (
           customHeader
         ) : !hideHeader ? (
           <div className="flex-shrink-0 px-6 py-4 border-b-[1px] border-border">
             <div className="flex-1 min-w-0">
-              <h2 className="text-lg font-semibold leading-6 text-foreground">
+              <DialogTitle className="text-lg font-semibold leading-6 text-foreground">
                 {title}
-              </h2>
+              </DialogTitle>
               {description && (
                 <p className="mt-1 text-sm text-muted-foreground">
                   {description}

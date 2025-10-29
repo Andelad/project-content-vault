@@ -850,7 +850,11 @@ export function TimelineView() {
               {/* Timeline Mode Toggle and Today Button */}
               <div className="flex items-center" style={{ gap: '21px' }}>
                 <Button 
-                  onClick={() => setCreatingNewProject(null)}
+                  onClick={() => {
+                    // Get the first group ID or null if no groups exist
+                    const firstGroupId = groups.length > 0 ? groups[0].id : null;
+                    setCreatingNewProject(firstGroupId);
+                  }}
                   className="h-9 gap-2 px-3 shadow"
                   style={{ backgroundColor: BRAND_COLORS.primary }}
                 >

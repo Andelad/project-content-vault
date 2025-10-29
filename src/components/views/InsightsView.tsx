@@ -33,6 +33,21 @@ import {
   calculateFutureCommitments,
   calculateWeeklyCapacity
 } from '../../services';
+import type { Project, CalendarEvent } from '@/types/core';
+
+const buildProjectsSignature = (projects: Project[]) => {
+  return projects
+    .map(project => `${project.id}:${project.estimatedHours}:${project.name}:${project.color}:${project.icon}`)
+    .sort()
+    .join('|');
+};
+
+const buildEventsSignature = (events: CalendarEvent[]) => {
+  return events
+    .map(event => `${event.id}:${event.projectId ?? ''}:${event.title}:${event.description || ''}`)
+    .sort()
+    .join('|');
+};
 
 type TimeFrame = 'week' | 'month' | 'year';
 
@@ -89,10 +104,16 @@ export function InsightsView() {
   
   const today = useMemo(() => new Date(), []);
 
-  // Trigger animation when data changes
+  const animationSignature = useMemo(() => {
+  const projectsSignature = buildProjectsSignature(projects);
+  const eventsSignature = buildEventsSignature(events);
+    return `${projectsSignature}__${eventsSignature}__${timeAnalysisTimeFrame}__${timeOffset}`;
+  }, [projects, events, timeAnalysisTimeFrame, timeOffset]);
+
+  // Trigger animation when data meaningfully changes
   useEffect(() => {
     setAnimationKey(prev => prev + 1);
-  }, [projects, events, timeAnalysisTimeFrame, timeOffset]);
+  }, [animationSignature]);
 
   // Add CSS for bar animations - use clipPath to grow from bottom without any position changes
   useEffect(() => {
