@@ -34,6 +34,14 @@ export const SmartHoverAddHolidayBar: React.FC<SmartHoverAddHolidayBarProps> = (
     if (dragStart !== null || globalIsDragging) return; // Don't update hover during any drag operation
 
     const rect = e.currentTarget.getBoundingClientRect();
+    const relativeX = e.clientX - rect.left;
+    
+    // Don't show hover in the first 52px where the add holiday button is
+    if (relativeX < 52) {
+      setHoveredIndex(null);
+      return;
+    }
+    
     const { dayIndex: index, isValid } = convertMousePositionToTimelineIndex(
       e.clientX,
       rect,
@@ -58,6 +66,13 @@ export const SmartHoverAddHolidayBar: React.FC<SmartHoverAddHolidayBarProps> = (
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     // Don't handle mouse down if we're over an occupied area (existing holiday)
     const rect = e.currentTarget.getBoundingClientRect();
+    const relativeX = e.clientX - rect.left;
+    
+    // Don't handle clicks in the first 52px where the add holiday button is
+    if (relativeX < 52) {
+      return;
+    }
+    
     const { dayIndex: clickIndex, isValid: clickIsValid } = convertMousePositionToTimelineIndex(
       e.clientX,
       rect,

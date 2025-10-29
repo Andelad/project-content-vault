@@ -27,7 +27,7 @@ export const TIMELINE_ALLOCATION_STYLES = {
     border: {
       width: 2,
       style: 'dashed' as const,
-      sides: ['left', 'right', 'top'] as const,
+      sides: ['left', 'right', 'top', 'bottom'] as const,
       colorKey: 'baseline' as const,
     },
     opacity: 1,

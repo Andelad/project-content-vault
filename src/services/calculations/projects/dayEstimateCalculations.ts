@@ -106,16 +106,7 @@ export function calculateMilestoneDayEstimates(
   // Get working days between start and end
   const workingDays = getWorkingDaysBetween(startDate, endDate, settings, holidays, project);
 
-  if (workingDays.length === 0) {
-    // If no working days, allocate everything to the end date
-    estimates.push({
-      date: new Date(endDate),
-      projectId: project.id,
-      hours: timeAllocationHours,
-      source: 'milestone-allocation',
-      milestoneId: milestone.id,
-      isWorkingDay: false
-    });
+  if (workingDays.length === 0 || !Number.isFinite(timeAllocationHours) || timeAllocationHours <= 0) {
     return estimates;
   }
 
@@ -189,28 +180,21 @@ export function calculateRecurringMilestoneDayEstimates(
       project
     );
 
-    if (workingDays.length === 0) {
+    if (workingDays.length === 0 || !Number.isFinite(timeAllocationHours) || timeAllocationHours <= 0) {
+      return;
+    }
+
+    const hoursPerDay = timeAllocationHours / workingDays.length;
+    workingDays.forEach(date => {
       estimates.push({
-        date: new Date(occurrenceEndDate),
+        date: new Date(date),
         projectId: project.id,
-        hours: timeAllocationHours,
+        hours: hoursPerDay,
         source: 'milestone-allocation',
         milestoneId: milestone.id,
-        isWorkingDay: false
+        isWorkingDay: true
       });
-    } else {
-      const hoursPerDay = timeAllocationHours / workingDays.length;
-      workingDays.forEach(date => {
-        estimates.push({
-          date: new Date(date),
-          projectId: project.id,
-          hours: hoursPerDay,
-          source: 'milestone-allocation',
-          milestoneId: milestone.id,
-          isWorkingDay: true
-        });
-      });
-    }
+    });
   });
 
   return estimates;
@@ -441,7 +425,14 @@ export function calculateProjectDayEstimates(
 
   // PRIORITY 3 - If no milestones, use project's auto-estimate logic
   // Domain Rule: Auto-estimates only on days WITHOUT events
-  if (milestones.length === 0 && project.estimatedHours > 0) {
+  // Note: Skip auto-estimates for continuous projects or when no budget is defined
+  if (milestones.length === 0 && Number.isFinite(project.estimatedHours) && project.estimatedHours > 0 && !project.continuous) {
+    console.log(`[DayEstimateCalcs] Auto-estimate triggered for project ${project.name}:`, {
+      estimatedHours: project.estimatedHours,
+      continuous: project.continuous,
+      startDate: project.startDate,
+      endDate: project.endDate
+    });
     const workingDays = getWorkingDaysBetween(
       project.startDate,
       project.endDate,
@@ -452,14 +443,14 @@ export function calculateProjectDayEstimates(
 
     if (workingDays.length > 0) {
       const hoursPerDay = project.estimatedHours / workingDays.length;
-      
+
       // Filter out working days that have ANY events (planned or completed)
       // Domain Rule: Auto-estimates only on days WITHOUT events
       const filteredWorkingDays = workingDays.filter(date => {
         const dateKey = getDateKey(date);
         return !allEventDates.has(dateKey);
       });
-      
+
       filteredWorkingDays.forEach(date => {
         allEstimates.push({
           date: new Date(date),

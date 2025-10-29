@@ -311,16 +311,6 @@ export class UnifiedTimelineService {
       viewportEnd
     );
     
-    // Debug for Budgi
-    if (project.name === 'Budgi') {
-      console.log('[getTimelineBarData] Budgi projectDays:', {
-        count: projectDays.length,
-        first: projectDays[0]?.toDateString(),
-        last: projectDays[projectDays.length - 1]?.toDateString(),
-        continuous: project.continuous
-      });
-    }
-    
     return {
       // Project basics
       projectData: this.getProjectTimelineData(project),
@@ -357,11 +347,13 @@ export class UnifiedTimelineService {
     if (isHolidayDateCapacity(date, holidays)) {
       return false;
     }
-    // Delegate to pure calculation function
-    const dayOfWeek = getDayOfWeek(date);
-    const weeklyWorkHours = settings?.weeklyWorkHours || {};
-    const dayHours = weeklyWorkHours[dayOfWeek];
-    return dayHours && dayHours.hours > 0;
+    // Delegate to pure calculation function - consistent with getWorkHoursForDay
+    const dayName = getDayName(date);
+    const dayData = settings.weeklyWorkHours[dayName];
+    if (Array.isArray(dayData)) {
+      return this.calculateWorkHoursTotal(dayData) > 0;
+    }
+    return typeof dayData === 'number' ? dayData > 0 : false;
   }
   /**
    * Get expanded holiday dates
@@ -410,18 +402,21 @@ export class UnifiedTimelineService {
     const targetDate = new Date(date);
     targetDate.setHours(0, 0, 0, 0);
     const dateKey = targetDate.toDateString();
+    
     // Calculate day estimates for each project (same logic as project bars)
     projects.forEach((project: any) => {
       const projectStart = new Date(project.startDate);
       projectStart.setHours(0, 0, 0, 0);
-      const projectEnd = project.continuous ? new Date() : new Date(project.endDate);
+      const projectEnd = project.continuous ? new Date('2099-12-31') : new Date(project.endDate);
       projectEnd.setHours(23, 59, 59, 999);
+      
       // Only process if date is within project range
       if (targetDate >= projectStart && targetDate <= projectEnd) {
         // Get milestones for this project
         const projectMilestones = milestones.filter((m: any) => m.projectId === project.id);
         // Get events for this project
         const projectEvents = events.filter((e: any) => e.projectId === project.id);
+        
         // Calculate day estimates using the same method as project bars
         const dayEstimates = calculateProjectDayEstimates(
           project,
@@ -430,6 +425,7 @@ export class UnifiedTimelineService {
           holidays,
           projectEvents
         );
+        
         // Find estimate for this specific date
         const estimateForDate = dayEstimates.find((est: any) => {
           const estDate = new Date(est.date);
@@ -437,16 +433,14 @@ export class UnifiedTimelineService {
           return estDate.toDateString() === dateKey;
         });
         if (estimateForDate) {
-          // Only count non-event estimates (milestones and auto-estimates)
-          // Events are already subtracted in calculateDailyAvailableHours
-          if (estimateForDate.source !== 'event') {
-            totalHours += estimateForDate.hours;
-          }
+          // Count ALL project time: events, milestones, and auto-estimates
+          totalHours += estimateForDate.hours;
         } else {
         }
       } else {
       }
     });
+    
     return totalHours;
   }
   /**

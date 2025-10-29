@@ -27,21 +27,6 @@ export const TimelineColumnMarkers = memo(function TimelineColumnMarkers({ dates
                   width: `${column.columnWidth}px`
                 }}
               >
-                {/* Weekend day overlays inside week column */}
-                {column.weekendDays.map((weekendDay, dayIndex) => (
-                  <React.Fragment key={`week-${column.index}-day-${dayIndex}`}>
-                    <div
-                      className="absolute top-0 bottom-0 pointer-events-none"
-                      style={{
-                        left: `${weekendDay.leftPx}px`,
-                        width: `${weekendDay.dayWidthPx}px`,
-                        backgroundColor: 'rgba(229, 231, 235, 0.15)',
-                        zIndex: 1
-                      }}
-                    />
-                  </React.Fragment>
-                ))}
-
                 {/* Today column overlay */}
                 {column.isToday && (
                   <div 
@@ -72,7 +57,6 @@ export const TimelineColumnMarkers = memo(function TimelineColumnMarkers({ dates
                 key={`day-${column.index}`} 
                 className={`h-full relative ${column.isNewMonth ? 'border-l-2 border-gray-300' : column.isNewWeek ? 'border-l border-gray-200' : ''}`}
                 style={{ 
-                  backgroundColor: column.isWeekend ? 'rgba(156, 163, 175, 0.15)' : 'transparent',
                   minWidth: `${column.columnWidth}px`,
                   width: `${column.columnWidth}px`
                 }} 

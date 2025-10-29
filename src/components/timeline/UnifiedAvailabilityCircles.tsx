@@ -65,7 +65,25 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
   const getHours = (dateOrWeekStart: Date) => {
     if (mode === 'weeks') {
       const weekDates = getWeekDates(dateOrWeekStart);
-      return weekDates.reduce((total, date) => total + getDailyHours(date), 0);
+      switch (type) {
+        case 'available':
+        case 'busy': {
+          // For weeks, calculate total work hours and total project hours for the entire week
+          const totalWorkHours = weekDates.reduce((total, date) => total + getWorkHoursForDay(date), 0);
+          const totalProjectHours = weekDates.reduce((total, date) => total + getDailyProjectHours(date), 0);
+
+          if (type === 'available') {
+            // Show remaining work hours after subtracting allocated project time
+            return Math.max(0, totalWorkHours - totalProjectHours);
+          } else {
+            // Show time worked over the total work hours available
+            return Math.max(0, totalProjectHours - totalWorkHours);
+          }
+        }
+        default:
+          // For other types, sum the daily values
+          return weekDates.reduce((total, date) => total + getDailyHours(date), 0);
+      }
     } else {
       return getDailyHours(dateOrWeekStart);
     }
@@ -74,15 +92,16 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
   const getDailyHours = (date: Date) => {
     switch (type) {
       case 'available': {
-        const availableHours = getDailyAvailableHours(date);
+        // Show remaining work hours after subtracting allocated project time
+        const workHours = getWorkHoursForDay(date);
         const projectHours = getDailyProjectHours(date);
-        // Debug for all dates in the current viewport
-        return Math.max(0, availableHours - projectHours);
+        return Math.max(0, workHours - projectHours);
       }
       case 'busy': {
-        const availableHours = getDailyAvailableHours(date);
+        // Show time worked over the total work hours available
+        const workHours = getWorkHoursForDay(date);
         const projectHours = getDailyProjectHours(date);
-        return Math.max(0, projectHours - availableHours);
+        return Math.max(0, projectHours - workHours);
       }
       case 'overtime-planned': {
         return UnifiedTimelineService.calculateOvertimePlannedHours(date, events, settings);
@@ -103,7 +122,7 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
         return {
           colorClass: 'bg-green-500',
           darkColorClass: 'bg-green-700',
-          label: 'Available Work Slots'
+          label: 'Work Hours'
         };
       case 'busy':
         return {
@@ -164,12 +183,12 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
                       <TooltipContent>
                         <div className="text-xs">
                           <div className="font-medium text-gray-500">
-                            No {type === 'available' ? 'availability' : 'overcommitment'}
+                            No {type === 'available' ? 'work hours' : 'overcommitment'}
                           </div>
                           <div className="text-gray-500">
                             {type === 'available' 
-                              ? `${formatDuration(getDailyAvailableHours(date))} available, ${formatDuration(getDailyProjectHours(date))} scheduled`
-                              : `${formatDuration(getDailyProjectHours(date))} scheduled, ${formatDuration(getDailyAvailableHours(date))} available`
+                              ? `${formatDuration(getWorkHoursForDay(date))} work hours`
+                              : `${formatDuration(getDailyProjectHours(date))} scheduled, ${formatDuration(getWorkHoursForDay(date))} work hours`
                             }
                           </div>
                         </div>
@@ -199,8 +218,8 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
                                 style={{
                                   width: `${outerDiameter}px`,
                                   height: `${outerDiameter}px`,
-                                  minWidth: outerDiameter > 0 ? '6px' : '0px',
-                                  minHeight: outerDiameter > 0 ? '6px' : '0px'
+                                  minWidth: outerDiameter > 0 ? '10px' : '0px', // Scaled from 11px to 10px for 5px/hour scaling
+                                  minHeight: outerDiameter > 0 ? '10px' : '0px' // Scaled from 11px to 10px for 5px/hour scaling
                                 }}
                               >
                                 {/* Inner circle for additional hours */}
@@ -210,8 +229,8 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
                                     style={{
                                       width: `${Math.min(innerDiameter, outerDiameter - 3)}px`,
                                       height: `${Math.min(innerDiameter, outerDiameter - 3)}px`,
-                                      minWidth: innerDiameter > 0 ? '3px' : '0px',
-                                      minHeight: innerDiameter > 0 ? '3px' : '0px'
+                                      minWidth: innerDiameter > 0 ? '5px' : '0px', // Scaled from 6px to 5px for 5px/hour scaling
+                                      minHeight: innerDiameter > 0 ? '5px' : '0px' // Scaled from 6px to 5px for 5px/hour scaling
                                     }}
                                   />
                                 )}
@@ -245,7 +264,7 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
                     </div>
                     <div className="text-gray-500">
                       {formatDuration(targetHours)} {
-                        type === 'available' ? 'free' : 
+                        type === 'available' ? 'remaining' : 
                         type === 'busy' ? 'over' : ''
                       }
                     </div>
@@ -260,7 +279,18 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
                     )}
                     {(type === 'available' || type === 'busy') && (
                       <div className="text-xs text-gray-400">
-                        {formatDuration(getDailyAvailableHours(date))} available, {formatDuration(getDailyProjectHours(date))} scheduled
+                        {mode === 'weeks' ? (() => {
+                          const weekDates = getWeekDates(date);
+                          const totalWorkHours = weekDates.reduce((total, d) => total + getWorkHoursForDay(d), 0);
+                          const totalProjectHours = weekDates.reduce((total, d) => total + getDailyProjectHours(d), 0);
+                          return type === 'available' 
+                            ? `${formatDuration(totalWorkHours)} work hours - ${formatDuration(totalProjectHours)} allocated`
+                            : `${formatDuration(totalProjectHours)} allocated - ${formatDuration(totalWorkHours)} work hours`;
+                        })() : (
+                          type === 'available' 
+                            ? `${formatDuration(getWorkHoursForDay(date))} work hours - ${formatDuration(getDailyProjectHours(date))} allocated`
+                            : `${formatDuration(getDailyProjectHours(date))} allocated - ${formatDuration(getWorkHoursForDay(date))} work hours`
+                        )}
                       </div>
                     )}
                   </div>

@@ -123,9 +123,6 @@ export class ColorCalculationService {
         const key = `border${side.charAt(0).toUpperCase() + side.slice(1)}` as keyof CSSProperties;
         style[key] = borderValue as any;
       });
-      
-      // Set borderBottom to none for all bordered types
-      style.borderBottom = 'none';
     } else {
       // No borders for non-bordered types
       style.borderRight = 'none';

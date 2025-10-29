@@ -58,7 +58,7 @@ export function AddGroupRow() {
   }
 
   return (
-    <div className="flex items-center h-12 px-4 py-2 hover:bg-gray-50/50 transition-colors">
+    <div className="flex items-center h-12 px-4 py-2">
       <button 
         onClick={() => setIsAdding(true)} 
         className="w-6 h-6 mr-2 rounded flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"

@@ -40,7 +40,6 @@ import { TimelineColumnMarkers } from '../timeline/TimelineColumnMarkers';
 import { UnifiedAvailabilityCircles } from '../timeline/UnifiedAvailabilityCircles';
 import { TabbedAvailabilityCard } from '../timeline/TabbedAvailabilityCard';
 import { TimelineScrollbar } from '../timeline/TimelineScrollbar';
-import { HoverableTimelineScrollbar } from '../timeline/HoverableTimelineScrollbar';
 import { TimelineAddProjectRow, AddHolidayRow } from '../timeline/AddProjectRow';
 import { PerformanceStatus } from '../debug/PerformanceStatus';
 import { AddGroupRow } from '../timeline/AddGroupRow';
@@ -771,14 +770,20 @@ export function TimelineView() {
     };
     
     const handleMouseUp = () => {
+      // Only show toast if there was actual movement (daysDelta !== 0)
+      const daysDelta = dragState?.lastDaysDelta || initialDragState.lastDaysDelta || 0;
+      
       setIsDragging(false);
       setDragState(null);
       stopAutoScroll();
       
-      toast({
-        title: "Success",
-        description: "Holiday updated successfully",
-      });
+      // Only show success toast if the holiday was actually moved/resized
+      if (daysDelta !== 0) {
+        toast({
+          title: "Success",
+          description: "Holiday updated successfully",
+        });
+      }
       
       // Remove ALL possible event listeners for robust pen/tablet support
       document.removeEventListener('mousemove', handleMouseMove);
@@ -903,13 +908,6 @@ export function TimelineView() {
                     />
                   </PopoverContent>
                 </Popover>
-                <Input
-                  type="text"
-                  placeholder="search for project"
-                  value={projectSearchQuery}
-                  onChange={(e) => setProjectSearchQuery(e.target.value)}
-                  className="h-9 w-48"
-                />
               </div>
               {/* Navigation Controls */}
               <div className="flex items-center gap-0.5">
@@ -945,6 +943,114 @@ export function TimelineView() {
                   </div>
                   {/* Scrollable Content Area */}
                   <div className="flex-1 overflow-x-auto overflow-y-auto light-scrollbar-vertical-only relative">
+                    {/* Column overlays - weekends, holidays, and markers spanning entire viewport height */}
+                    <div 
+                      className="absolute top-0 left-0 pointer-events-none" 
+                      style={{ 
+                        width: mode === 'weeks' 
+                          ? `${dates.length * 77}px`
+                          : `${dates.length * 52 + 52}px`,
+                        minHeight: '100%',
+                        height: 'auto',
+                        zIndex: 1
+                      }}
+                    >
+                      {/* Column markers - week/month borders and today overlay */}
+                      <TimelineColumnMarkers dates={dates} mode={mode} />
+                      {/* Weekend overlays */}
+                      {dates.map((date, dateIndex) => {
+                        if (mode === 'weeks') {
+                          // Week mode - render weekend overlays for each day in the week
+                          const weekStart = new Date(date);
+                          const dayOfWeek = weekStart.getDay();
+                          const daysToMonday = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek);
+                          weekStart.setDate(weekStart.getDate() + daysToMonday);
+                          weekStart.setHours(0, 0, 0, 0);
+                          
+                          const weekendDays: { dayIndex: number; leftPx: number }[] = [];
+                          for (let i = 0; i < 7; i++) {
+                            const currentDay = new Date(weekStart);
+                            currentDay.setDate(weekStart.getDate() + i);
+                            const dow = currentDay.getDay();
+                            if (dow === 0 || dow === 6) { // Sunday or Saturday
+                              weekendDays.push({ dayIndex: i, leftPx: dateIndex * 77 + i * 11 });
+                            }
+                          }
+                          
+                          return weekendDays.map((wd, idx) => (
+                            <div
+                              key={`weekend-${dateIndex}-${idx}`}
+                              className="absolute top-0"
+                              style={{
+                                left: `${wd.leftPx}px`,
+                                width: '11px',
+                                height: '100%',
+                                backgroundColor: 'rgba(229, 231, 235, 0.15)',
+                                pointerEvents: 'none'
+                              }}
+                            />
+                          ));
+                        } else {
+                          // Days mode - check if this date is a weekend
+                          const dayOfWeek = date.getDay();
+                          const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                          if (!isWeekend) return null;
+                          
+                          return (
+                            <div
+                              key={`weekend-${dateIndex}`}
+                              className="absolute top-0"
+                              style={{
+                                left: `${dateIndex * 52}px`,
+                                width: '52px',
+                                height: '100%',
+                                backgroundColor: 'rgba(156, 163, 175, 0.15)',
+                                pointerEvents: 'none'
+                              }}
+                            />
+                          );
+                        }
+                      })}
+                      
+                      {/* Holiday overlays */}
+                      {holidays && holidays.length > 0 && holidays.map(holiday => {
+                        const holidayStart = new Date(holiday.startDate);
+                        const holidayEnd = new Date(holiday.endDate || holiday.startDate);
+                        holidayStart.setHours(0, 0, 0, 0);
+                        holidayEnd.setHours(0, 0, 0, 0);
+                        
+                        const columnWidth = mode === 'weeks' ? 77 : 52;
+                        const dayWidth = mode === 'weeks' ? 11 : columnWidth;
+                        
+                        const timelineStart = new Date(dates[0]);
+                        timelineStart.setHours(0, 0, 0, 0);
+                        const msPerDay = 24 * 60 * 60 * 1000;
+                        
+                        const startDay = Math.floor((holidayStart.getTime() - timelineStart.getTime()) / msPerDay);
+                        const endDay = Math.floor((holidayEnd.getTime() - timelineStart.getTime()) / msPerDay);
+                        const holidayLeftPx = startDay * dayWidth;
+                        const holidayWidthPx = (endDay - startDay + 1) * dayWidth;
+                        
+                        const backgroundPattern = mode === 'weeks' 
+                          ? 'repeating-linear-gradient(-45deg, rgba(107,114,128,0.16) 0 1.5px, transparent 1.5px 4px)'
+                          : 'repeating-linear-gradient(-45deg, rgba(107,114,128,0.16) 0 2px, transparent 2px 6px)';
+                        
+                        return (
+                          <div
+                            key={`holiday-${holiday.id}`}
+                            className="absolute top-0"
+                            style={{
+                              left: `${holidayLeftPx}px`,
+                              width: `${holidayWidthPx}px`,
+                              height: '100%',
+                              backgroundImage: backgroundPattern,
+                              pointerEvents: 'none'
+                            }}
+                          />
+                        );
+                      })}
+                    </div>
+                    
                     {/* Timeline Content - full width, no sidebar */}
                     <div className="bg-gray-50 timeline-content-area relative" style={{ 
                       width: '100%',
@@ -952,108 +1058,6 @@ export function TimelineView() {
                     }}>
                       {/* Scrollable Content Layer */}
                       <div className="relative">
-                        {/* Column overlays - weekends and holidays spanning entire timeline */}
-                        <div 
-                          className="absolute top-0 left-0 pointer-events-none" 
-                          style={{ 
-                            width: mode === 'weeks' 
-                              ? `${dates.length * 77}px`
-                              : `${dates.length * 52 + 52}px`,
-                            height: '100%',
-                            zIndex: 1
-                          }}
-                        >
-                          {/* Weekend overlays */}
-                          {dates.map((date, dateIndex) => {
-                            if (mode === 'weeks') {
-                              // Week mode - render weekend overlays for each day in the week
-                              const weekStart = new Date(date);
-                              const dayOfWeek = weekStart.getDay();
-                              const daysToMonday = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek);
-                              weekStart.setDate(weekStart.getDate() + daysToMonday);
-                              weekStart.setHours(0, 0, 0, 0);
-                              
-                              const weekendDays: { dayIndex: number; leftPx: number }[] = [];
-                              for (let i = 0; i < 7; i++) {
-                                const currentDay = new Date(weekStart);
-                                currentDay.setDate(weekStart.getDate() + i);
-                                const dow = currentDay.getDay();
-                                if (dow === 0 || dow === 6) { // Sunday or Saturday
-                                  weekendDays.push({ dayIndex: i, leftPx: dateIndex * 77 + i * 11 });
-                                }
-                              }
-                              
-                              return weekendDays.map((wd, idx) => (
-                                <div
-                                  key={`weekend-${dateIndex}-${idx}`}
-                                  className="absolute top-0 bottom-0"
-                                  style={{
-                                    left: `${wd.leftPx}px`,
-                                    width: '11px',
-                                    backgroundColor: 'rgba(229, 231, 235, 0.15)',
-                                    pointerEvents: 'none'
-                                  }}
-                                />
-                              ));
-                            } else {
-                              // Days mode - check if this date is a weekend
-                              const dayOfWeek = date.getDay();
-                              const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-                              if (!isWeekend) return null;
-                              
-                              return (
-                                <div
-                                  key={`weekend-${dateIndex}`}
-                                  className="absolute top-0 bottom-0"
-                                  style={{
-                                    left: `${dateIndex * 52}px`,
-                                    width: '52px',
-                                    backgroundColor: 'rgba(156, 163, 175, 0.15)',
-                                    pointerEvents: 'none'
-                                  }}
-                                />
-                              );
-                            }
-                          })}
-                          
-                          {/* Holiday overlays */}
-                          {holidays && holidays.length > 0 && holidays.map(holiday => {
-                            const holidayStart = new Date(holiday.startDate);
-                            const holidayEnd = new Date(holiday.endDate || holiday.startDate);
-                            holidayStart.setHours(0, 0, 0, 0);
-                            holidayEnd.setHours(0, 0, 0, 0);
-                            
-                            const columnWidth = mode === 'weeks' ? 77 : 52;
-                            const dayWidth = mode === 'weeks' ? 11 : columnWidth;
-                            
-                            const timelineStart = new Date(dates[0]);
-                            timelineStart.setHours(0, 0, 0, 0);
-                            const msPerDay = 24 * 60 * 60 * 1000;
-                            
-                            const startDay = Math.floor((holidayStart.getTime() - timelineStart.getTime()) / msPerDay);
-                            const endDay = Math.floor((holidayEnd.getTime() - timelineStart.getTime()) / msPerDay);
-                            const holidayLeftPx = startDay * dayWidth;
-                            const holidayWidthPx = (endDay - startDay + 1) * dayWidth;
-                            
-                            const backgroundPattern = mode === 'weeks' 
-                              ? 'repeating-linear-gradient(-45deg, rgba(107,114,128,0.16) 0 1.5px, transparent 1.5px 4px)'
-                              : 'repeating-linear-gradient(-45deg, rgba(107,114,128,0.16) 0 2px, transparent 2px 6px)';
-                            
-                            return (
-                              <div
-                                key={`holiday-${holiday.id}`}
-                                className="absolute top-0 bottom-0"
-                                style={{
-                                  left: `${holidayLeftPx}px`,
-                                  width: `${holidayWidthPx}px`,
-                                  backgroundImage: backgroundPattern,
-                                  pointerEvents: 'none'
-                                }}
-                              />
-                            );
-                          })}
-                        </div>
-                        
                       {/* Project Timeline Bars - Organized by Groups and VISUAL ROWS (Auto-Layout) */}
                       <div className="relative" style={{ zIndex: 2 }}>
                         {groups.map((group, groupIndex) => {
@@ -1067,7 +1071,7 @@ export function TimelineView() {
                           return (
                             <div key={group.id}>
                               {/* Group Header Row - Visual separator with group title and collapse chevron */}
-                              <div className="h-8 bg-gray-50/50 relative flex items-center">
+                              <div className="h-8 relative flex items-center">
                                 {/* Group name with collapse chevron */}
                                 <div className="flex items-center gap-2 px-3">
                                   <button
@@ -1087,11 +1091,11 @@ export function TimelineView() {
                               {/* Visual Rows in this group - Auto-calculated, only render if group is not collapsed */}
                               {!isGroupCollapsed && groupLayout.visualRows.map((visualRow, visualRowIndex) => {
                                 return (
-                                  <div key={`${group.id}-vrow-${visualRowIndex}`} className="h-[58px] border-b border-gray-100 relative p-[2px]">
+                                  <div key={`${group.id}-vrow-${visualRowIndex}`} className="h-[60px] border-b border-gray-100 relative pt-[2px] pr-[2px] pb-[2px] pl-0">
                                     {/* Container for projects in this visual row - fixed height with absolute positioned children */}
-                                    <div className="relative h-[54px]">
-                                      {/* Height enforcer - ensures row maintains 54px height even when empty */}
-                                      <div className="absolute inset-0 min-h-[54px]" />
+                                    <div className="relative h-[56px]">
+                                      {/* Height enforcer - ensures row maintains 56px height even when empty */}
+                                      <div className="absolute inset-0 min-h-[56px]" />
                                       
                                       {/* Render all projects in this visual row - positioned absolutely to overlay */}
                                       {visualRow.projects.map((project: any) => {
@@ -1123,7 +1127,7 @@ export function TimelineView() {
 
                               {/* Show empty row if group has no projects and is not collapsed */}
                               {!isGroupCollapsed && groupLayout.visualRows.length === 0 && (
-                                <div className="h-[58px] border-b border-gray-100 relative p-[2px]">
+                                <div className="h-[58px] border-b border-gray-100 relative pt-[2px] pr-[2px] pb-[2px] pl-0">
                                   <div className="flex items-center justify-center h-full text-xs text-gray-400">
                                     No projects in this group
                                   </div>
@@ -1141,19 +1145,6 @@ export function TimelineView() {
                     </div>
                   </div>
                 </div>
-                {/* Hoverable Timeline Scrollbar */}
-                <HoverableTimelineScrollbar
-                  viewportStart={viewportStart}
-                  setViewportStart={setViewportStart}
-                  setCurrentDate={setCurrentDate}
-                  VIEWPORT_DAYS={VIEWPORT_DAYS}
-                  isAnimating={isAnimating}
-                  setIsAnimating={setIsAnimating}
-                  sidebarWidth={collapsed ? 48 : 280}
-                  bottomOffset={0}
-                  isDragging={isDragging}
-                  stopAutoScroll={stopAutoScroll}
-                />
               </Card>
               {/* Availability Timeline Card */}
               <div className="relative mt-4">
@@ -1167,7 +1158,61 @@ export function TimelineView() {
                   onDisplayModeChange={(mode) => setAvailabilityDisplayMode(mode)}
                   columnMarkersOverlay={
                     <>
+                      {/* Weekend overlays for availability card */}
+                      {dates.map((date, dateIndex) => {
+                        if (mode === 'weeks') {
+                          // Weeks mode - render weekend days within each week
+                          const weekStart = new Date(date);
+                          const dayOfWeek = weekStart.getDay();
+                          const daysToMonday = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek);
+                          weekStart.setDate(weekStart.getDate() + daysToMonday);
+                          
+                          const weekendDays = [];
+                          for (let i = 0; i < 7; i++) {
+                            const currentDay = new Date(weekStart);
+                            currentDay.setDate(weekStart.getDate() + i);
+                            const dow = currentDay.getDay();
+                            if (dow === 0 || dow === 6) {
+                              weekendDays.push({ leftPx: dateIndex * 77 + i * 11 });
+                            }
+                          }
+                          
+                          return weekendDays.map((wd, idx) => (
+                            <div
+                              key={`weekend-avail-${dateIndex}-${idx}`}
+                              className="absolute top-0 bottom-0"
+                              style={{
+                                left: `${wd.leftPx}px`,
+                                width: '11px',
+                                backgroundColor: 'rgba(229, 231, 235, 0.15)',
+                                pointerEvents: 'none'
+                              }}
+                            />
+                          ));
+                        } else {
+                          // Days mode - check if this date is a weekend
+                          const dayOfWeek = date.getDay();
+                          const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                          if (!isWeekend) return null;
+                          
+                          return (
+                            <div
+                              key={`weekend-avail-${dateIndex}`}
+                              className="absolute top-0 bottom-0"
+                              style={{
+                                left: `${dateIndex * 52}px`,
+                                width: '52px',
+                                backgroundColor: 'rgba(156, 163, 175, 0.15)',
+                                pointerEvents: 'none'
+                              }}
+                            />
+                          );
+                        }
+                      })}
+                      
+                      {/* Timeline column markers (borders and today indicator) */}
                       <TimelineColumnMarkers dates={dates} mode={mode} />
+                      
                       {/* Full-column holiday overlays for availability card */}
                       <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }}>
                         {holidays && holidays.length > 0 && holidays.map(holiday => {

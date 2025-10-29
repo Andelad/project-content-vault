@@ -113,21 +113,15 @@ export const TabbedAvailabilityCard = memo(function TabbedAvailabilityCard({
   const availabilityRows = [
     {
       type: 'available' as const,
-      label: 'Available Work Slots',
+      label: 'Work Hours',
       color: 'bg-green-500',
-      description: 'The number of work hours still available in this time period.'
+      description: 'The number of work hours remaining after subtracting allocated project time.'
     },
     {
       type: 'busy' as const,
       label: 'Overcommitted',
       color: 'bg-red-500',
-      description: 'Where planned time is more than the total allowance for work in the column time period.'
-    },
-    {
-      type: 'overtime-planned' as const,
-      label: 'Overtime',
-      color: 'bg-orange-500',
-      description: 'Project time completed or planned outside work hours.'
+      description: 'Time allocated over the total number of available work hours.'
     }
   ];
 
@@ -204,7 +198,8 @@ export const TabbedAvailabilityCard = memo(function TabbedAvailabilityCard({
         {/* Column Markers Overlay - positioned inside card */}
         {columnMarkersOverlay && (
           <div 
-            className="absolute inset-0 pointer-events-none z-1 overflow-hidden"
+            className="absolute inset-0 pointer-events-none"
+            style={{ zIndex: 1 }}
           >
             {columnMarkersOverlay}
           </div>
@@ -235,9 +230,10 @@ export const TabbedAvailabilityCard = memo(function TabbedAvailabilityCard({
             currentRows && currentRows.map((row, index) => (
               <div 
                 key={row.type}
-                className={`h-12 ${
+                className={`${
                   index < currentRows.length - 1 ? 'border-b border-gray-100' : ''
                 } ${index === 0 ? 'rounded-t-lg overflow-hidden' : ''}`}
+                style={{ height: '52px' }}
               >
                 <UnifiedAvailabilityCircles
                   dates={dates}

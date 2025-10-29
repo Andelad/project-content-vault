@@ -646,8 +646,8 @@ export function AddHolidayRow({ dates, collapsed, isDragging, dragState, handleH
         ref={containerRef}
         className="flex-1 relative flex h-full"
       >
-        {/* Sticky Add Holiday Icon - left edge like scroll indicators */}
-        <div className="absolute left-2 top-1/2 transform -translate-y-1/2 z-30">
+        {/* Sticky Add Holiday Icon - matches project indicator style */}
+        <div className="absolute left-2 z-30" style={{ top: '15px' }}>
           <button
             onClick={() => {
               const today = new Date();
@@ -655,10 +655,19 @@ export function AddHolidayRow({ dates, collapsed, isDragging, dragState, handleH
               endDate.setDate(today.getDate() + 2); // 2 days from today
               setCreatingNewHoliday({ startDate: today, endDate });
             }}
-            className="h-6 w-6 p-0 bg-white border border-gray-200 shadow-sm hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 rounded-full flex items-center justify-center"
+            className="relative w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200 shadow-md hover:shadow-lg drop-shadow-sm hover:brightness-95 group"
+            style={{ backgroundColor: '#D1D5DB' }}
             title="Add holiday"
           >
-            <ParasolIcon className="w-3 h-3 text-gray-600" />
+            {/* Parasol icon - default state */}
+            <div className="transition-opacity duration-200 group-hover:opacity-0">
+              <ParasolIcon className="w-3 h-3 text-foreground" />
+            </div>
+            
+            {/* Plus icon - hover state */}
+            <div className="absolute inset-0 flex items-center justify-center transition-opacity duration-200 opacity-0 group-hover:opacity-100">
+              <Plus className="w-3 h-3 text-foreground" />
+            </div>
           </button>
         </div>
         {/* Import and use the new SmartHoverAddHolidayBar */}
