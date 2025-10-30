@@ -2,6 +2,7 @@
 export { DevTools, DevToolsWrapper } from './DevTools';
 export { DatabaseTestComponent } from './DatabaseTestComponent';
 export { ErrorBoundary } from './ErrorBoundary';
+export { OrphanedMilestonesCleaner } from './OrphanedMilestonesCleaner';
 export { ViewErrorFallback } from './ViewErrorFallback';
 export { PerformanceStatus } from './PerformanceStatus';
 

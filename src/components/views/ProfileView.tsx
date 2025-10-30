@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { CardSidebarLayout } from '../shared/CardSidebarLayout';
+import { OrphanedMilestonesCleaner } from '../debug';
 import { 
   CreditCard, 
   Crown, 
@@ -794,6 +795,8 @@ export function ProfileView() {
                   Export Data
                 </Button>
               </div>
+
+              <OrphanedMilestonesCleaner />
 
               <Separator />
 
