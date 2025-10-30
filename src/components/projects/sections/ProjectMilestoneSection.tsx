@@ -1106,6 +1106,8 @@ export function ProjectMilestoneSection({
 
   // Handle deleting recurring milestones
   const handleDeleteRecurringMilestones = async () => {
+    console.log('[ProjectMilestoneSection] Starting deletion of recurring milestones');
+    
     // Set deletion flag to prevent restoration
     setIsDeletingRecurringMilestone(true);
     
@@ -1118,38 +1120,69 @@ export function ProjectMilestoneSection({
     setRecurringMilestone(null);
     setLocalMilestones([]);
     
-    // Asynchronously clean up database in background
-    setTimeout(async () => {
-      try {
-        if (isCreatingProject && localMilestonesState) {
-          localMilestonesState.setMilestones([]);
+    try {
+      if (isCreatingProject && localMilestonesState) {
+        localMilestonesState.setMilestones([]);
+      } else {
+        // For existing projects, delete recurring milestone pattern
+        // NEW SYSTEM: Delete template milestones with isRecurring=true
+        // OLD SYSTEM: Delete numbered instances (name pattern ending with space and number)
+        const recurringMilestones = projectMilestones.filter(m => 
+          m.isRecurring || (m.name && /\s\d+$/.test(m.name))
+        );
+        
+        console.log('[ProjectMilestoneSection] Found', recurringMilestones.length, 'recurring milestones to delete');
+        
+        // If there's a template (isRecurring=true), delete it first (cascade will handle instances)
+        const template = recurringMilestones.find(m => m.isRecurring);
+        if (template && template.id && !template.id.startsWith('temp-')) {
+          console.log('[ProjectMilestoneSection] Deleting template milestone:', template.name);
+          await deleteMilestone(template.id, { silent: true });
+          toast({
+            title: "Success",
+            description: "Recurring milestone deleted successfully",
+          });
         } else {
-          // For existing projects, delete recurring milestone pattern
-          // NEW SYSTEM: Delete template milestones with isRecurring=true
-          // OLD SYSTEM: Delete numbered instances (name pattern ending with space and number)
-          const recurringMilestones = projectMilestones.filter(m => 
-            m.isRecurring || (m.name && /\s\d+$/.test(m.name))
-          );
+          // No template found - these are orphaned instances
+          // Use batch deletion for better performance
+          console.log('[ProjectMilestoneSection] No template found, deleting orphaned instances');
           
-          // Delete each recurring milestone from database silently in background
-          const deletePromises = recurringMilestones
+          const orphanedIds = recurringMilestones
             .filter(milestone => milestone.id && !milestone.id.startsWith('temp-'))
-            .map(milestone => 
-              deleteMilestone(milestone.id!, { silent: true }).catch(error => 
-                console.error('Error deleting milestone:', error)
-              )
-            );
+            .map(m => m.id!);
           
-          // Wait for all deletions to complete
-          await Promise.all(deletePromises);
+          if (orphanedIds.length > 0) {
+            console.log('[ProjectMilestoneSection] Batch deleting', orphanedIds.length, 'orphaned milestones');
+            
+            // Use Supabase batch delete for better performance
+            const { error } = await supabase
+              .from('milestones')
+              .delete()
+              .in('id', orphanedIds);
+            
+            if (error) throw error;
+            
+            // Refetch milestones to update UI
+            await refetchMilestones();
+            
+            toast({
+              title: "Success",
+              description: `Deleted ${orphanedIds.length} orphaned milestones`,
+            });
+          }
         }
-      } catch (error) {
-        console.error('Error deleting some milestones:', error);
-      } finally {
-        // Clear deletion flag after cleanup is complete
-        setIsDeletingRecurringMilestone(false);
       }
-    }, 100);
+    } catch (error) {
+      console.error('[ProjectMilestoneSection] Error deleting milestones:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete some milestones. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      // Clear deletion flag after cleanup is complete
+      setIsDeletingRecurringMilestone(false);
+    }
   };
 
   // Handle adding regular milestone when recurring exists
