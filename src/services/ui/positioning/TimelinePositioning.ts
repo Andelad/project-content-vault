@@ -362,35 +362,35 @@ export function getTimelinePositions(
 
 /**
  * Calculate rectangle height based on hours per day
- * Uses formula: 6px per hour with 48px max (8 hours at full height)
+ * Uses formula: 5px per hour with 40px max (8 hours at full height)
  * Minimum height: 4px for any non-zero hours
  * Migrated from legacy/HeightCalculationService
  */
-export function calculateRectangleHeight(hoursPerDay: number, maxHeight: number = 48): number {
+export function calculateRectangleHeight(hoursPerDay: number, maxHeight: number = 40): number {
   if (hoursPerDay === 0) return 0;
 
-  // Base formula: 6px per hour (8 hours = 48px max base height)
+  // Base formula: 5px per hour (8 hours = 40px max base height)
   const baseHours = Math.min(hoursPerDay, 8);
-  const heightInPixels = Math.max(4, Math.round(baseHours * 6)); // Minimum 4px for visibility
+  const heightInPixels = Math.max(4, Math.round(baseHours * 5)); // Minimum 4px for visibility
 
   // Apply maximum height constraint
   return Math.min(heightInPixels, maxHeight);
 }
 
 /**
- * Calculate project-level rectangle height (8 hours = 48px max)
+ * Calculate project-level rectangle height (8 hours = 40px max)
  * Migrated from legacy/HeightCalculationService
  */
 export function calculateProjectHeight(hoursPerDay: number): number {
-  return calculateRectangleHeight(hoursPerDay, 48);
+  return calculateRectangleHeight(hoursPerDay, 40);
 }
 
 /**
- * Calculate day-level rectangle height (8 hours = 48px max)
+ * Calculate day-level rectangle height (8 hours = 40px max)
  * Migrated from legacy/HeightCalculationService
  */
 export function calculateDayHeight(hoursPerDay: number): number {
-  return calculateRectangleHeight(hoursPerDay, 48);
+  return calculateRectangleHeight(hoursPerDay, 40);
 }
 
 /**

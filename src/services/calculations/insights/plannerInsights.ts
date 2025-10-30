@@ -235,14 +235,14 @@ export function formatMinutesToHoursMinutes(minutes: number): string {
   const remainingMinutes = minutes % 60;
   
   if (hours === 0) {
-    return `${remainingMinutes}m`;
+    return `0:${remainingMinutes.toString().padStart(2, '0')}`;
   }
   
   if (remainingMinutes === 0) {
-    return `${hours}h`;
+    return `${hours}:00`;
   }
   
-  return `${hours}h ${remainingMinutes}m`;
+  return `${hours}:${remainingMinutes.toString().padStart(2, '0')}`;
 }
 
 /**

@@ -1091,11 +1091,11 @@ export function TimelineView() {
                               {/* Visual Rows in this group - Auto-calculated, only render if group is not collapsed */}
                               {!isGroupCollapsed && groupLayout.visualRows.map((visualRow, visualRowIndex) => {
                                 return (
-                                  <div key={`${group.id}-vrow-${visualRowIndex}`} className="h-[60px] border-b border-gray-100 relative pt-[2px] pr-[2px] pb-[2px] pl-0">
+                                  <div key={`${group.id}-vrow-${visualRowIndex}`} className="h-[54px] border-b border-gray-100 relative pt-[2px] pr-[2px] pb-[2px] pl-0">
                                     {/* Container for projects in this visual row - fixed height with absolute positioned children */}
-                                    <div className="relative h-[56px]">
-                                      {/* Height enforcer - ensures row maintains 56px height even when empty */}
-                                      <div className="absolute inset-0 min-h-[56px]" />
+                                    <div className="relative h-[50px]">
+                                      {/* Height enforcer - ensures row maintains 50px height even when empty */}
+                                      <div className="absolute inset-0 min-h-[50px]" />
                                       
                                       {/* Render all projects in this visual row - positioned absolutely to overlay */}
                                       {visualRow.projects.map((project: any) => {
@@ -1127,7 +1127,7 @@ export function TimelineView() {
 
                               {/* Show empty row if group has no projects and is not collapsed */}
                               {!isGroupCollapsed && groupLayout.visualRows.length === 0 && (
-                                <div className="h-[58px] border-b border-gray-100 relative pt-[2px] pr-[2px] pb-[2px] pl-0">
+                                <div className="h-[52px] border-b border-gray-100 relative pt-[2px] pr-[2px] pb-[2px] pl-0">
                                   <div className="flex items-center justify-center h-full text-xs text-gray-400">
                                     No projects in this group
                                   </div>

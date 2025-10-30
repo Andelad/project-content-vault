@@ -270,13 +270,15 @@ export const TimelineBar = memo(function TimelineBar({
   if (projectDays.length === 0) {
     return null; // Don't render anything for projects with no duration
   }
+  
+  // Add buffer for partial column in days mode
+  const columnWidth = mode === 'weeks' ? 77 : 52;
+  const bufferWidth = mode === 'days' ? columnWidth : 0;
+  
   try {
-    // Add buffer for partial column in days mode
-    const columnWidth = mode === 'weeks' ? 77 : 52;
-    const bufferWidth = mode === 'days' ? columnWidth : 0;
+    // ✅ Main return - AFTER all hooks
     return (
-      <div className="relative h-[58px] group pointer-events-none">
-      <div className="h-[54px] relative flex flex-col pointer-events-none">
+      <div className="h-[48px] relative flex flex-col pointer-events-none">
         {/* White background - render first so it's behind everything */}
         {(() => {
           const projectStart = new Date(project.startDate);
@@ -356,7 +358,7 @@ export const TimelineBar = memo(function TimelineBar({
                   left: `${leftPx}px`,
                   width: `${widthPx}px`,
                   top: '0px',
-                  height: '54px',
+                  height: '48px',
                   zIndex: 1,
                   borderLeft,
                   borderRight,
@@ -514,7 +516,17 @@ export const TimelineBar = memo(function TimelineBar({
                                 )}
                               </div>
                             </TooltipTrigger>
-                            <TooltipContent>
+                            <TooltipContent
+                              backgroundColor={(() => {
+                                const match = project.color.match(/oklch\(([0-9.]+) ([0-9.]+) ([0-9.]+)\)/);
+                                if (!match) return project.color;
+                                const [, lightness, chroma, hue] = match;
+                                const newLightness = Math.min(1, parseFloat(lightness) + 0.25);
+                                const newChroma = Math.max(0, parseFloat(chroma) * 0.3);
+                                return `oklch(${newLightness} ${newChroma} ${hue})`;
+                              })()}
+                              textColor="#1f2937"
+                            >
                               <div className="text-xs">
                                 <div className="font-semibold mb-1">
                                   {project.name}
@@ -527,7 +539,7 @@ export const TimelineBar = memo(function TimelineBar({
                                     const hours = Math.floor(dailyHours);
                                     const minutes = Math.round((dailyHours - hours) * 60);
                                     if (hours > 0 && minutes > 0) {
-                                      return `${hours}h ${minutes}m`;
+                                      return `${hours}h${minutes.toString().padStart(2, '0')}`;
                                     } else if (hours > 0) {
                                       return `${hours}h`;
                                     } else {
@@ -548,7 +560,7 @@ export const TimelineBar = memo(function TimelineBar({
                                 bottom: '3px',
                                 left: '0',
                                 width: `${dayWidth}px`,
-                                height: `${Math.max(4, Math.min((dailyHours - 8) * 6, 48))}px`,
+                                height: `${Math.max(4, Math.min((dailyHours - 8) * 5, 40))}px`,
                                 zIndex: 1,
                                 borderRadius: '3px',
                               }}
@@ -564,7 +576,7 @@ export const TimelineBar = memo(function TimelineBar({
                                 bottom: '3px',
                                 left: '0',
                                 width: `${dayWidth}px`,
-                                height: `${Math.max(4, Math.min((dailyHours - 16) * 6, 48))}px`,
+                                height: `${Math.max(4, Math.min((dailyHours - 16) * 5, 40))}px`,
                                 zIndex: 2,
                                 borderRadius: '3px',
                               }}
@@ -608,9 +620,32 @@ export const TimelineBar = memo(function TimelineBar({
               } else {
                 allocationType = 'none';
               }
-              // Don't render if no time allocation (the calculation already ensured this is in project range)
+              
+              // Determine why there's no time for this day (for tooltip)
+              // Check holiday first as it takes precedence
+              let noTimeReason: 'holiday' | 'non-project-day' | 'non-work-day' | null = null;
               if (allocationType === 'none') {
-                return <div key={dateIndex} className="h-full" style={{ minWidth: '52px', width: '52px' }}></div>;
+                if (isHolidayDateCapacity(date, holidays)) {
+                  noTimeReason = 'holiday';
+                } else {
+                  // Normalize project dates for comparison (using visually adjusted dates)
+                  const projectStartCheck = new Date(visualProjectStart);
+                  projectStartCheck.setHours(0, 0, 0, 0);
+                  const projectEndCheck = new Date(visualProjectEnd);
+                  projectEndCheck.setHours(0, 0, 0, 0);
+                  
+                  const isInProjectRange = dateNormalized >= projectStartCheck && dateNormalized <= projectEndCheck;
+                  
+                  if (!isInProjectRange) {
+                    noTimeReason = 'non-project-day';
+                  } else {
+                    const wh = generateWorkHoursForDate(date, settings);
+                    const total = calculateWorkHoursTotal(wh);
+                    if (total === 0) {
+                      noTimeReason = 'non-work-day';
+                    }
+                  }
+                }
               }
               // NOTE: Work day filtering already handled by dayEstimateCalculations
               // If an estimate exists, we should render it (trust the calculation)
@@ -618,7 +653,10 @@ export const TimelineBar = memo(function TimelineBar({
               // Normalize project dates for comparison (using visually adjusted dates)
               const projectStart = new Date(visualProjectStart);
               projectStart.setHours(0, 0, 0, 0);
-              const projectEnd = new Date(visualProjectEnd);
+              // For continuous projects, use viewport end as the effective end date
+              const projectEnd = project.continuous 
+                ? new Date(viewportEnd) 
+                : new Date(visualProjectEnd);
               projectEnd.setHours(0, 0, 0, 0);
               // Normalize viewport dates
               const normalizedViewportStart = new Date(viewportStart);
@@ -626,7 +664,7 @@ export const TimelineBar = memo(function TimelineBar({
               const normalizedViewportEnd = new Date(viewportEnd);
               normalizedViewportEnd.setHours(0, 0, 0, 0);
               const extendsLeft = projectStart < normalizedViewportStart;
-              const extendsRight = projectEnd > normalizedViewportEnd;
+              const extendsRight = project.continuous || projectEnd > normalizedViewportEnd;
               // Find the position of this date among visible working project days
               const visibleWorkingDays = dates.filter((d, i) => {
                 const isInProject = projectDays.some(pd => isSameDate(pd, d));
@@ -644,7 +682,7 @@ export const TimelineBar = memo(function TimelineBar({
               const isPlannedTime = allocationType === 'planned';
               const isCompletedTime = allocationType === 'completed';
               const dailyHours = totalHours;
-              const rectangleHeight = calculateRectangleHeight(dailyHours);
+              const rectangleHeight = allocationType === 'none' ? 0 : calculateRectangleHeight(dailyHours);
               // All rectangles now have rounded corners on all sides (4px)
               let borderTopLeftRadius = '4px';
               let borderTopRightRadius = '4px';
@@ -714,77 +752,117 @@ export const TimelineBar = memo(function TimelineBar({
                 bottom: '3px',
                 zIndex: 0,
               };
+              // Check if this date is within the project date range
+              const isDateInProject = dateNormalized >= projectStart && dateNormalized <= projectEnd;
+              
               return (
                 <div key={dateIndex} className="relative h-full" style={{ minWidth: '52px', width: '52px' }}>
-                  {/* Base rectangle */}
                   <Tooltip delayDuration={100}>
                     <TooltipTrigger asChild>
-                      <div 
-                        className={`cursor-move pointer-events-auto absolute ${ 
-                          isDragging && dragState?.projectId === project.id 
-                            ? 'opacity-90' 
-                            : ''
-                        }`}
-                        style={rectangleStyle}
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleMouseDown(e, project.id, 'move');
-                        }}
-                        title="Drag to move project"
-                      >
-                        {/* Resize handles */}
-                        {isFirstWorkingDay && (
-                          <div
-                            className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-auto"
-                            onMouseDown={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleMouseDown(e, project.id, 'resize-start-date');
+                      <div className="relative h-full w-full">
+                        {/* Hover background - only show for dates within project range */}
+                        {isDateInProject && (
+                          <div 
+                            className="absolute pointer-events-auto hover:bg-gray-100/50 transition-colors rounded"
+                            style={{ 
+                              zIndex: 0,
+                              height: '40px',
+                              width: '50px',
+                              left: '1px',
+                              top: '3px'
                             }}
-                            title="Drag to change start date"
                           />
                         )}
-                        {isLastWorkingDay && (
-                          <div
-                            className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                        
+                        {/* Base rectangle - only render if has time */}
+                        {allocationType !== 'none' && (
+                          <div 
+                            className={`cursor-move pointer-events-auto absolute ${ 
+                              isDragging && dragState?.projectId === project.id 
+                                ? 'opacity-90' 
+                                : ''
+                            }`}
+                            style={rectangleStyle}
                             onMouseDown={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
-                              handleMouseDown(e, project.id, 'resize-end-date');
+                              handleMouseDown(e, project.id, 'move');
                             }}
-                            title="Drag to change end date"
-                          />
+                          >
+                            {/* Resize handles */}
+                            {isFirstWorkingDay && (
+                              <div
+                                className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-auto"
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleMouseDown(e, project.id, 'resize-start-date');
+                                }}
+                                title="Drag to change start date"
+                              />
+                            )}
+                            {isLastWorkingDay && (
+                              <div
+                                className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleMouseDown(e, project.id, 'resize-end-date');
+                                }}
+                                title="Drag to change end date"
+                              />
+                            )}
+                          </div>
                         )}
                       </div>
                     </TooltipTrigger>
-                    <TooltipContent>
+                    <TooltipContent
+                      backgroundColor={(() => {
+                        const match = project.color.match(/oklch\(([0-9.]+) ([0-9.]+) ([0-9.]+)\)/);
+                        if (!match) return project.color;
+                        const [, lightness, chroma, hue] = match;
+                        const newLightness = Math.min(1, parseFloat(lightness) + 0.25);
+                        const newChroma = Math.max(0, parseFloat(chroma) * 0.3);
+                        return `oklch(${newLightness} ${newChroma} ${hue})`;
+                      })()}
+                      textColor="#1f2937"
+                    >
                       <div className="text-xs">
                         <div className="font-semibold mb-1">
                           {project.name}
                         </div>
-                        <div className="font-medium">
-                          {allocationType === 'planned' ? 'Planned Time' : allocationType === 'completed' ? 'Completed Time' : 'Auto-Estimate'}
-                        </div>
-                        <div className="text-gray-600">
-                          {(() => {
-                            const hours = Math.floor(dailyHours);
-                            const minutes = Math.round((dailyHours - hours) * 60);
-                            if (hours > 0 && minutes > 0) {
-                              return `${hours}h ${minutes}m`;
-                            } else if (hours > 0) {
-                              return `${hours}h`;
-                            } else {
-                              return `${minutes}m`;
-                            }
-                          })()}
-                        </div>
+                        {allocationType !== 'none' ? (
+                          <>
+                            <div className="font-medium">
+                              {allocationType === 'planned' ? 'Planned Time' : allocationType === 'completed' ? 'Completed Time' : 'Auto-Estimate'}
+                            </div>
+                            <div className="text-gray-600">
+                              {(() => {
+                                const hours = Math.floor(dailyHours);
+                                const minutes = Math.round((dailyHours - hours) * 60);
+                                if (hours > 0 && minutes > 0) {
+                                  return `${hours}h${minutes.toString().padStart(2, '0')}`;
+                                } else if (hours > 0) {
+                                  return `${hours}h`;
+                                } else {
+                                  return `${minutes}m`;
+                                }
+                              })()}
+                            </div>
+                          </>
+                        ) : (
+                          <div className="text-gray-500">
+                            {noTimeReason === 'holiday' ? 'Holiday' : 
+                             noTimeReason === 'non-project-day' ? 'Non-project day' : 
+                             noTimeReason === 'non-work-day' ? 'Non-work day' : '0 hrs'}
+                          </div>
+                        )}
                       </div>
                     </TooltipContent>
                   </Tooltip>
                   
                   {/* Overflow indicator for hours exceeding 8 (second layer: 8-16 hours) - darker overlay */}
-                  {dailyHours > 8 && (
+                  {allocationType !== 'none' && dailyHours > 8 && (
                     <div 
                       className="absolute pointer-events-none"
                       style={{
@@ -792,7 +870,7 @@ export const TimelineBar = memo(function TimelineBar({
                         bottom: '3px', // Same position as base rectangle - overlays on top
                         left: '0',
                         width: '50px',
-                        height: `${Math.max(4, Math.min((dailyHours - 8) * 6, 48))}px`,
+                        height: `${Math.max(4, Math.min((dailyHours - 8) * 5, 40))}px`,
                         zIndex: 1,
                         borderRadius: '4px',
                       }}
@@ -800,7 +878,7 @@ export const TimelineBar = memo(function TimelineBar({
                   )}
                   
                   {/* Overflow indicator for hours exceeding 16 (third layer: 16-24 hours) - darkest overlay */}
-                  {dailyHours > 16 && (
+                  {allocationType !== 'none' && dailyHours > 16 && (
                     <div 
                       className="absolute pointer-events-none"
                       style={{
@@ -808,7 +886,7 @@ export const TimelineBar = memo(function TimelineBar({
                         bottom: '3px', // Same position as base rectangle - overlays on top
                         left: '0',
                         width: '50px',
-                        height: `${Math.max(4, Math.min((dailyHours - 16) * 6, 48))}px`,
+                        height: `${Math.max(4, Math.min((dailyHours - 16) * 5, 40))}px`,
                         zIndex: 2,
                         borderRadius: '4px',
                       }}
@@ -856,7 +934,7 @@ export const TimelineBar = memo(function TimelineBar({
               className="absolute z-40 pointer-events-auto"
               style={{ 
                 left: `${Math.max(adjustedPositions.circleLeftPx - 12, 8)}px`, // Stick with 8px gap from left edge when scrolling off-screen
-                top: '15px' // Position vertically centered in the 54px project bar
+                top: '12px' // Position vertically centered in the 48px project bar
               }}
             >
               <ProjectIconIndicator project={project} mode={mode} />
@@ -864,8 +942,7 @@ export const TimelineBar = memo(function TimelineBar({
           );
         })()}
       </div>
-      </div>
-    )
+    );
   } catch (error) {
     console.error('Error rendering TimelineBar for project:', project?.id, error);
     return <div style={{ height: '40px', background: '#ffebee' }}>Error rendering project bar</div>;

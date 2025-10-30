@@ -283,17 +283,18 @@
   width: 6px;
 }
 
+/* Align scrollbar color with neutral grays used elsewhere */
 .fc-scroller::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: #f3f4f6;
 }
 
 .fc-scroller::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #d1d5db;
   border-radius: 3px;
 }
 
 .fc-scroller::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #9ca3af;
 }
 
 /* Event interaction states */
@@ -306,11 +307,32 @@
 .planner-calendar-card .fc-scroller.fc-scroller-liquid-absolute,
 .planner-calendar-card .fc-scroller {
   padding-right: 0 !important;
+  overflow-y: scroll !important;
+  overflow-x: hidden !important;
 }
 
-/* Pull day columns flush to the scrollbar only in the body section */
-.planner-calendar-card .fc-timegrid-body .fc-timegrid-cols {
-  margin-right: calc(-1 * var(--planner-scrollbar-width, 0px));
+/* Expand tables to cover the scrollbar width gap */
+.planner-calendar-card .fc-timegrid-body,
+.planner-calendar-card .fc-timegrid-body .fc-timegrid-cols,
+.planner-calendar-card .fc-timegrid-body .fc-timegrid-cols table,
+.planner-calendar-card .fc-timegrid-slots,
+.planner-calendar-card .fc-timegrid-slots table {
+  width: calc(100% + var(--planner-scrollbar-width, 0px)) !important;
+}
+
+.planner-calendar-card .fc-scrollgrid-section-header,
+.planner-calendar-card .fc-scrollgrid-section-header .fc-scroller,
+.planner-calendar-card .fc-scrollgrid-section-header table,
+.planner-calendar-card .fc-timegrid-header .fc-timegrid-cols,
+.planner-calendar-card .fc-timegrid-header .fc-timegrid-cols table {
+  width: calc(100% + var(--planner-scrollbar-width, 0px)) !important;
+}
+
+/* Force equal column widths so last column doesn't absorb extra space */
+.planner-calendar-card .fc-timegrid-cols table,
+.planner-calendar-card .fc-timegrid-slots table,
+.planner-calendar-card .fc-scrollgrid-section-header table {
+  table-layout: fixed !important;
 }
 
 /* Drag and drop */

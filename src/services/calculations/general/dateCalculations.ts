@@ -50,11 +50,11 @@ export function formatDuration(hours: number): string {
   const minutes = Math.round((hours - wholeHours) * 60);
   
   if (wholeHours > 0 && minutes > 0) {
-    return `${wholeHours}h ${minutes}m`;
+    return `${wholeHours}:${minutes.toString().padStart(2, '0')}`;
   } else if (wholeHours > 0) {
-    return `${wholeHours}h`;
+    return `${wholeHours}:00`;
   } else {
-    return `${minutes}m`;
+    return `0:${minutes.toString().padStart(2, '0')}`;
   }
 }
 
@@ -67,11 +67,11 @@ export function formatDurationFromMinutes(minutes: number): string {
   const remainingMinutes = Math.round(minutes % 60);
   
   if (hours > 0 && remainingMinutes > 0) {
-    return `${hours}h ${remainingMinutes}m`;
+    return `${hours}:${remainingMinutes.toString().padStart(2, '0')}`;
   } else if (hours > 0) {
-    return `${hours}h`;
+    return `${hours}:00`;
   } else {
-    return `${remainingMinutes}m`;
+    return `0:${remainingMinutes.toString().padStart(2, '0')}`;
   }
 }
 

@@ -3,16 +3,9 @@ import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 import { calculateWorkHourCapacity, getWorkHoursCapacityForPeriod } from '../../services';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
-  Cell
-} from 'recharts';
+import { ResponsivePie } from '@nivo/pie';
+import { ResponsiveBar, BarDatum } from '@nivo/bar';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import { 
   Calendar, 
   Clock, 
@@ -51,56 +44,18 @@ const buildEventsSignature = (events: CalendarEvent[]) => {
 
 type TimeFrame = 'week' | 'month' | 'year';
 
-// Custom shape component for overlaying bars
-const OverlaidBars = (props: any) => {
-  const { fill, payload, x, y, width, height } = props;
-  
-  if (!payload) return null;
-  
-  const { available, utilized, overbooked } = payload;
-  const cornerRadius = 3;
-  
-  return (
-    <g>
-      {/* Available capacity background bar - no animation, full height with top corners rounded */}
-      <path
-        d={`M ${x} ${y + height} L ${x} ${y + cornerRadius} Q ${x} ${y} ${x + cornerRadius} ${y} L ${x + width - cornerRadius} ${y} Q ${x + width} ${y} ${x + width} ${y + cornerRadius} L ${x + width} ${y + height} Z`}
-        fill="#e7e5e4"
-      />
-      
-      {/* Utilized bar overlaid on top - positioned at bottom, grows from 0 height */}
-      {utilized > 0 && (
-        <g className="utilized-overlay">
-          <path
-            d={`M ${x} ${y + height} L ${x} ${y + height - (height * utilized / available) + cornerRadius} Q ${x} ${y + height - (height * utilized / available)} ${x + cornerRadius} ${y + height - (height * utilized / available)} L ${x + width - cornerRadius} ${y + height - (height * utilized / available)} Q ${x + width} ${y + height - (height * utilized / available)} ${x + width} ${y + height - (height * utilized / available) + cornerRadius} L ${x + width} ${y + height} Z`}
-            fill="#02c0b7"
-          />
-        </g>
-      )}
-      
-      {/* Overbooked bar - same width as main bars, positioned separately */}
-      {overbooked > 0 && (
-        <g className="overbooked-bar">
-          <path
-            d={`M ${x + width + 8} ${y + height} L ${x + width + 8} ${y + height - (height * overbooked / Math.max(available, overbooked)) + cornerRadius} Q ${x + width + 8} ${y + height - (height * overbooked / Math.max(available, overbooked))} ${x + width + 8 + cornerRadius} ${y + height - (height * overbooked / Math.max(available, overbooked))} L ${x + width + 8 + width - cornerRadius} ${y + height - (height * overbooked / Math.max(available, overbooked))} Q ${x + width + 8 + width} ${y + height - (height * overbooked / Math.max(available, overbooked))} ${x + width + 8 + width} ${y + height - (height * overbooked / Math.max(available, overbooked)) + cornerRadius} L ${x + width + 8 + width} ${y + height} Z`}
-            fill="#dc2626"
-          />
-        </g>
-      )}
-    </g>
-  );
-};
-
-
-
 export function InsightsView() {
   const { projects, groups } = useProjectContext();
   const { events } = usePlannerContext();
   const { settings } = useSettingsContext();
   const [timeAnalysisTimeFrame, setTimeAnalysisTimeFrame] = useState<TimeFrame>('month');
-  const [showActiveProjects, setShowActiveProjects] = useState(true);
+  const [projectDistributionTimeFrame, setProjectDistributionTimeFrame] = useState<'last-week' | 'last-month' | 'custom'>('last-week');
+  const [customStartDate, setCustomStartDate] = useState<string>('');
+  const [customEndDate, setCustomEndDate] = useState<string>('');
+
   const [animationKey, setAnimationKey] = useState(0);
   const [timeOffset, setTimeOffset] = useState(0); // For navigating through time
+  const [shouldAnimatePie, setShouldAnimatePie] = useState(true);
   
   const today = useMemo(() => new Date(), []);
 
@@ -330,7 +285,96 @@ export function InsightsView() {
     }
   };
 
+  // Calculate project time distribution for donut chart
+  const projectDistributionData = useMemo(() => {
+    const now = new Date();
+    let startDate: Date;
+    let endDate: Date = new Date(now);
+    
+    // Determine date range based on selection
+    if (projectDistributionTimeFrame === 'last-week') {
+      startDate = new Date(now);
+      startDate.setDate(startDate.getDate() - 7);
+    } else if (projectDistributionTimeFrame === 'last-month') {
+      startDate = new Date(now);
+      startDate.setMonth(startDate.getMonth() - 1);
+    } else {
+      // Custom date range
+      if (!customStartDate || !customEndDate) return [];
+      startDate = new Date(customStartDate);
+      endDate = new Date(customEndDate);
+    }
+    
+    // Normalize dates
+    startDate.setHours(0, 0, 0, 0);
+    endDate.setHours(23, 59, 59, 999);
+    
+    // Filter events within date range that have a projectId and are completed
+    const relevantEvents = events.filter(event => {
+      if (!event.projectId) return false;
+      const eventStart = new Date(event.startTime);
+      const eventEnd = new Date(event.endTime);
+      return eventStart >= startDate && eventEnd <= endDate && event.completed;
+    });
+    
+    // Calculate total hours per project
+    const projectHours: Record<string, { hours: number; project: Project }> = {};
+    
+    relevantEvents.forEach(event => {
+      const duration = (new Date(event.endTime).getTime() - new Date(event.startTime).getTime()) / (1000 * 60 * 60);
+      const project = projects.find(p => p.id === event.projectId);
+      
+      if (project) {
+        if (!projectHours[project.id]) {
+          projectHours[project.id] = { hours: 0, project };
+        }
+        projectHours[project.id].hours += duration;
+      }
+    });
+    
+    // Convert to array format for pie chart
+    const totalHours = Object.values(projectHours).reduce((sum, { hours }) => sum + hours, 0);
+    
+    if (totalHours === 0) return [];
+    
+    return Object.values(projectHours)
+      .map(({ hours, project }) => {
+        const roundedHours = Math.round(hours * 10) / 10;
+        const percentage = parseFloat(((hours / totalHours) * 100).toFixed(1));
+        const hoursDisplay = `${roundedHours % 1 === 0 ? roundedHours.toFixed(0) : roundedHours.toFixed(1)}h`;
+        const percentageDisplay = `${percentage % 1 === 0 ? percentage.toFixed(0) : percentage.toFixed(1)}%`;
+        const clientName = project.clientData?.name || project.client || 'No client';
+        return {
+          name: project.name,
+          clientName,
+          value: parseFloat(hours.toFixed(2)),
+          percentage,
+          color: project.color,
+          project,
+          hours,
+          hoursDisplay,
+          percentageDisplay
+        };
+      })
+      .sort((a, b) => b.value - a.value);
+  }, [events, projects, projectDistributionTimeFrame, customStartDate, customEndDate]);
 
+  const projectDistributionAnimationSignature = useMemo(() => {
+    if (projectDistributionData.length === 0) return 'empty';
+    return projectDistributionData
+      .map(item => `${item.project.id}:${item.hours.toFixed(2)}`)
+      .join('|');
+  }, [projectDistributionData]);
+
+  useEffect(() => {
+    setShouldAnimatePie(true);
+  }, [projectDistributionAnimationSignature]);
+
+  useEffect(() => {
+    if (!shouldAnimatePie) return;
+    const timer = window.setTimeout(() => setShouldAnimatePie(false), 800);
+    return () => window.clearTimeout(timer);
+  }, [shouldAnimatePie]);
 
   return (
     <div className="h-full flex flex-col bg-gray-50 overflow-hidden">
@@ -340,9 +384,111 @@ export function InsightsView() {
 
 
           {/* Charts Row */}
-          <div className="grid grid-cols-1 gap-[21px]">
-            {/* Time Analysis Chart */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-[21px]">
+            {/* Project Time Distribution Chart */}
             <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Project Time Distribution</CardTitle>
+                    <CardDescription>
+                      Percentage of total time spent per project
+                    </CardDescription>
+                  </div>
+                  <Select value={projectDistributionTimeFrame} onValueChange={(value) => setProjectDistributionTimeFrame(value as any)}>
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="last-week">Last Week</SelectItem>
+                      <SelectItem value="last-month">Last Month</SelectItem>
+                      <SelectItem value="custom">Custom Range</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {projectDistributionTimeFrame === 'custom' && (
+                  <div className="flex gap-2 mt-4">
+                    <input
+                      type="date"
+                      value={customStartDate}
+                      onChange={(e) => setCustomStartDate(e.target.value)}
+                      className="px-3 py-2 border border-gray-200 rounded-md text-sm"
+                    />
+                    <span className="text-gray-500 self-center">to</span>
+                    <input
+                      type="date"
+                      value={customEndDate}
+                      onChange={(e) => setCustomEndDate(e.target.value)}
+                      className="px-3 py-2 border border-gray-200 rounded-md text-sm"
+                    />
+                  </div>
+                )}
+              </CardHeader>
+              <CardContent>
+                {projectDistributionData.length === 0 ? (
+                  <div className="h-80 flex items-center justify-center text-gray-500">
+                    No completed project time in this period
+                  </div>
+                ) : (
+                  <div className="h-80">
+                    <TooltipProvider>
+                      <ResponsivePie
+                        data={projectDistributionData}
+                        margin={{ top: 40, right: 80, bottom: 40, left: 80 }}
+                        innerRadius={0.6}
+                        padAngle={2}
+                        cornerRadius={3}
+                        colors={{ datum: 'data.color' }}
+                        borderWidth={0}
+                        enableArcLinkLabels={false}
+                        enableArcLabels={false}
+                        animate={shouldAnimatePie}
+                        motionConfig={{
+                          mass: 1,
+                          tension: 120,
+                          friction: 14,
+                          clamp: false,
+                          precision: 0.01,
+                          velocity: 0
+                        }}
+                        activeInnerRadiusOffset={0}
+                        activeOuterRadiusOffset={0}
+                        isInteractive={true}
+                        tooltip={({ datum }) => (
+                          <div
+                            className="pointer-events-none relative rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-[0_8px_16px_rgba(15,23,42,0.08)]"
+                            style={{ minWidth: 170 }}
+                          >
+                            <div className="font-semibold text-slate-900">
+                              {datum.data.name}
+                              <span className="text-slate-400">{' \u2022 '}</span>
+                              <span className="text-slate-600">{datum.data.clientName}</span>
+                            </div>
+                            <div className="mt-2 space-y-1">
+                              <div className="font-medium text-slate-900">{datum.data.hoursDisplay}</div>
+                              <div className="font-medium text-slate-900">{datum.data.percentageDisplay}</div>
+                            </div>
+                            <svg
+                              className="absolute -bottom-2 left-1/2 -translate-x-1/2"
+                              width="16"
+                              height="8"
+                              viewBox="0 0 16 8"
+                              aria-hidden="true"
+                            >
+                              <path d="M0 0L8 8L16 0" fill="rgba(148, 163, 184, 0.4)" />
+                              <path d="M1 0L8 7L15 0" fill="white" />
+                            </svg>
+                          </div>
+                        )}
+                      />
+                    </TooltipProvider>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Time Analysis Chart */}
+            <Card className="lg:col-span-2">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
@@ -437,212 +583,109 @@ export function InsightsView() {
                 )}
                 
                 <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart 
-                      data={timeAnalysisData} 
-                      maxBarSize={50} 
-                      barCategoryGap="20%" 
-                      margin={{ 
-                        top: timeAnalysisTimeFrame !== 'year' ? 10 : 20, 
-                        right: 60, 
-                        left: 20, 
-                        bottom: 5 
-                      }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis 
-                        dataKey="period" 
-                        tick={{ fontSize: 11 }}
-                        height={40}
-                      />
-                      <YAxis />
-                      <Tooltip 
-                        formatter={(value, name) => {
-                          return [`${value}h`, name];
-                        }}
-                        labelFormatter={(label) => `Period: ${label}`}
-                        cursor={false}
-                        content={({ active, payload, label }) => {
-                          if (active && payload && payload.length) {
-                            const data = payload[0].payload;
-                            return (
-                              <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-sm">
-                                <p className="font-medium">{`Period: ${label}`}</p>
-                                <div className="mt-2 space-y-1">
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-3 h-3 bg-[#e7e5e4] rounded"></div>
-                                    <span className="text-sm">{`Available: ${data.available}h`}</span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-3 h-3 bg-[#02c0b7] rounded"></div>
-                                    <span className="text-sm">{`Utilized: ${data.utilized}h`}</span>
-                                  </div>
-                                  {data.overbooked > 0 && (
-                                    <div className="flex items-center gap-2">
-                                      <div className="w-3 h-3 bg-[#dc2626] rounded"></div>
-                                      <span className="text-sm">{`Overbooked: ${data.overbooked}h`}</span>
-                                    </div>
-                                  )}
-                                </div>
+                  <ResponsiveBar
+                    data={timeAnalysisData}
+                    keys={['available', 'utilized', 'overbooked']}
+                    indexBy="period"
+                    margin={{ 
+                      top: timeAnalysisTimeFrame !== 'year' ? 10 : 20, 
+                      right: 60, 
+                      left: 60, 
+                      bottom: 50 
+                    }}
+                    padding={0.4}
+                    groupMode="grouped"
+                    layout="vertical"
+                    colors={({ id, data }) => {
+                      if (id === 'available') return '#e7e5e4';
+                      if (id === 'utilized') return '#02c0b7';
+                      return '#dc2626';
+                    }}
+                    borderRadius={3}
+                    enableLabel={false}
+                    enableGridY={true}
+                    gridYValues={5}
+                    axisTop={null}
+                    axisRight={null}
+                    axisBottom={{
+                      tickSize: 5,
+                      tickPadding: 5,
+                      tickRotation: 0,
+                      legendOffset: 32
+                    }}
+                    axisLeft={{
+                      tickSize: 5,
+                      tickPadding: 5,
+                      tickRotation: 0,
+                      format: (value) => `${value}h`
+                    }}
+                    tooltip={({ indexValue, data }) => {
+                      const barData = data as any;
+                      return (
+                        <div className="pointer-events-none relative rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-[0_8px_16px_rgba(15,23,42,0.08)]">
+                          <div className="font-semibold text-slate-900">Period {indexValue}</div>
+                          <div className="mt-2 space-y-1">
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="flex items-center gap-2 text-slate-500">
+                                <span className="h-2 w-2 rounded-full bg-[#e7e5e4]" />
+                                Available
+                              </span>
+                              <span className="font-medium text-slate-900">{`${barData.available}h`}</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="flex items-center gap-2 text-slate-500">
+                                <span className="h-2 w-2 rounded-full bg-[#02c0b7]" />
+                                Utilized
+                              </span>
+                              <span className="font-medium text-slate-900">{`${barData.utilized}h`}</span>
+                            </div>
+                            {barData.overbooked > 0 && (
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="flex items-center gap-2 text-slate-500">
+                                  <span className="h-2 w-2 rounded-full bg-[#dc2626]" />
+                                  Overbooked
+                                </span>
+                                <span className="font-medium text-slate-900">{`${barData.overbooked}h`}</span>
                               </div>
-                            );
+                            )}
+                          </div>
+                          <svg
+                            className="absolute -bottom-2 left-1/2 -translate-x-1/2"
+                            width="16"
+                            height="8"
+                            viewBox="0 0 16 8"
+                            aria-hidden="true"
+                          >
+                            <path d="M0 0L8 8L16 0" fill="rgba(148, 163, 184, 0.4)" />
+                            <path d="M1 0L8 7L15 0" fill="white" />
+                          </svg>
+                        </div>
+                      );
+                    }}
+                    theme={{
+                      axis: {
+                        ticks: {
+                          text: {
+                            fontSize: 11
                           }
-                          return null;
-                        }}
-                      />
-                      {/* Single bar with custom shape for overlaying */}
-                      <Bar 
-                        dataKey="available" 
-                        shape={OverlaidBars}
-                        isAnimationActive={false}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
+                        }
+                      },
+                      grid: {
+                        line: {
+                          stroke: '#e5e7eb',
+                          strokeWidth: 1,
+                          strokeDasharray: '3 3'
+                        }
+                      }
+                    }}
+                  />
                 </div>
               </CardContent>
             </Card>
           </div>
 
           {/* Projects and Commitments Row */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-[21px]">
-            {/* Projects Detail */}
-            <Card className="lg:col-span-1">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Target className="h-5 w-5 text-[#02c0b7]" />
-                    <CardTitle>
-                      {showActiveProjects ? 'Active Projects' : 'Future Projects'}
-                    </CardTitle>
-                    <Badge variant="secondary">
-                      {showActiveProjects ? currentProjects.length : futureProjects.length}
-                    </Badge>
-                  </div>
-                  <Select value={showActiveProjects ? 'active' : 'future'} onValueChange={(value) => setShowActiveProjects(value === 'active')}>
-                    <SelectTrigger className="w-32">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="future">Future</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <CardDescription>
-                  {showActiveProjects 
-                    ? 'Projects currently active and their estimated hours'
-                    : 'Upcoming projects and their estimated hours'
-                  }
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {showActiveProjects ? (
-                  // Active Projects View
-                  currentProjects.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
-                      <Clock className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                      <p>No active projects today</p>
-                      <p className="text-sm">Create a new project to get started</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {currentProjects.map(project => {
-                        const progress = Math.round(
-                          ((today.getTime() - new Date(project.startDate).getTime()) / 
-                           (new Date(project.endDate).getTime() - new Date(project.startDate).getTime())) * 100
-                        );
-                        
-                        return (
-                          <div key={project.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                            <div className="flex items-center gap-4">
-                              <div 
-                                className="w-4 h-4 rounded-full"
-                                style={{ backgroundColor: project.color }}
-                              />
-                              <div>
-                                <div className="font-medium">{project.name}</div>
-                                <div className="text-sm text-gray-500">{project.clientData?.name || project.client || 'No client'}</div>
-                              </div>
-                            </div>
-                            
-                            <div className="flex items-center gap-6 text-sm">
-                              <div className="text-center">
-                                <div className="font-medium">{project.estimatedHours}h</div>
-                                <div className="text-gray-500">Estimated</div>
-                              </div>
-                              
-                              <div className="text-center">
-                                <div className="font-medium">{Math.max(0, Math.min(100, progress))}%</div>
-                                <div className="text-gray-500">Progress</div>
-                              </div>
-                              
-                              <div className="text-center">
-                                <div className="font-medium">
-                                  {Math.ceil((new Date(project.endDate).getTime() - today.getTime()) / (24 * 60 * 60 * 1000))}d
-                                </div>
-                                <div className="text-gray-500">Remaining</div>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )
-                ) : (
-                  // Future Projects View
-                  futureProjects.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
-                      <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                      <p>No upcoming projects scheduled</p>
-                      <p className="text-sm">Future projects will appear here</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {futureProjects
-                        .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
-                        .map(project => {
-                          const daysUntilStart = Math.ceil((new Date(project.startDate).getTime() - today.getTime()) / (24 * 60 * 60 * 1000));
-                          
-                          return (
-                            <div key={project.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                              <div className="flex items-center gap-4">
-                                <div 
-                                  className="w-4 h-4 rounded-full"
-                                  style={{ backgroundColor: project.color }}
-                                />
-                                <div>
-                                  <div className="font-medium">{project.name}</div>
-                                  <div className="text-sm text-gray-500">{project.clientData?.name || project.client || 'No client'}</div>
-                                </div>
-                              </div>
-                              
-                              <div className="flex items-center gap-6 text-sm">
-                                <div className="text-center">
-                                  <div className="font-medium">{project.estimatedHours}h</div>
-                                  <div className="text-gray-500">Estimated</div>
-                                </div>
-                                
-                                <div className="text-center">
-                                  <div className="font-medium">
-                                    {formatDateShort(new Date(project.startDate))}
-                                  </div>
-                                  <div className="text-gray-500">Start Date</div>
-                                </div>
-                                
-                                <div className="text-center">
-                                  <div className="font-medium">{daysUntilStart}d</div>
-                                  <div className="text-gray-500">Until Start</div>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                    </div>
-                  )
-                )}
-              </CardContent>
-            </Card>
-
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-[21px]">
             {/* Future Commitments Summary */}
             <Card>
               <CardHeader>

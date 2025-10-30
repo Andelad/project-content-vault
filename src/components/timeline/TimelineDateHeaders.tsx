@@ -14,7 +14,7 @@ export const TimelineDateHeaders = memo(function TimelineDateHeaders({ dates, mo
     const monthGroups = UnifiedTimelineService.groupDatesByMonth(dates);
 
     return (
-      <div className="h-12 border-b border-gray-200 bg-white relative">
+      <div className="h-12 border-b border-gray-200 bg-gray-50 relative">
         {/* Sticky month labels layer - positioned at top */}
         <div className="absolute top-0 left-0 right-0 h-6 overflow-hidden">
           {monthGroups.map((group, groupIndex) => {
@@ -39,7 +39,7 @@ export const TimelineDateHeaders = memo(function TimelineDateHeaders({ dates, mo
                 }}
               >
                 <div 
-                  className="sticky left-0 bg-white h-full flex items-center"
+                  className="sticky left-0 bg-gray-50 h-full flex items-center"
                   style={{ 
                     width: 'fit-content',
                     minWidth: '120px',
@@ -82,7 +82,7 @@ export const TimelineDateHeaders = memo(function TimelineDateHeaders({ dates, mo
   const monthGroups = UnifiedTimelineService.groupDatesByMonth(dates);
 
   return (
-    <div className="h-12 border-b border-gray-200 bg-white relative">
+    <div className="h-12 border-b border-gray-200 bg-gray-50 relative">
       {/* Sticky month labels layer - positioned at top */}
       <div className="absolute top-0 left-0 right-0 h-6 overflow-hidden">
         {monthGroups.map((group, groupIndex) => {
@@ -112,7 +112,7 @@ export const TimelineDateHeaders = memo(function TimelineDateHeaders({ dates, mo
               }}
             >
               <div 
-                className="sticky left-0 bg-white h-full flex items-center"
+                className="sticky left-0 bg-gray-50 h-full flex items-center"
                 style={{ 
                   width: 'fit-content',
                   minWidth: '120px',

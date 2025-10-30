@@ -194,7 +194,7 @@ export const TabbedAvailabilityCard = memo(function TabbedAvailabilityCard({
       </div>
 
       {/* Card Content */}
-      <Card className="overflow-hidden shadow-sm border-x border-b border-t-0 border-gray-200 rounded-t-none relative">
+      <Card className="overflow-hidden shadow-sm border-x border-b border-t-0 border-gray-200 rounded-t-none relative bg-gray-50">
         {/* Column Markers Overlay - positioned inside card */}
         {columnMarkersOverlay && (
           <div 
@@ -206,7 +206,7 @@ export const TabbedAvailabilityCard = memo(function TabbedAvailabilityCard({
         )}
         {/* Timeline Content */}
         <div 
-          className="flex-1 flex flex-col bg-white relative availability-timeline-content" 
+          className="flex-1 flex flex-col bg-gray-50 relative availability-timeline-content" 
           style={{ 
             minWidth: mode === 'weeks'
               ? `${dates.length * 77}px`

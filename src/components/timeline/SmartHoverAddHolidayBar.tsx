@@ -209,7 +209,7 @@ export const SmartHoverAddHolidayBar: React.FC<SmartHoverAddHolidayBarProps> = (
     
     return (
       <div
-        className={`absolute top-1/2 -translate-y-1/2 h-9 border border-solid rounded-md pointer-events-none z-[4] flex items-center justify-center ${
+        className={`absolute top-1/2 -translate-y-1/2 h-10 border border-solid rounded-md pointer-events-none z-[4] flex items-center justify-center ${
           isValid 
             ? 'bg-orange-100/50 border-orange-300/30' 
             : 'bg-red-100/50 border-red-400'
