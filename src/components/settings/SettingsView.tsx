@@ -8,10 +8,11 @@ import { Separator } from '../ui/separator';
 import { Badge } from '../ui/badge';
 import { cn } from '@/lib/utils';
 
-import { Bell, Palette, Clock, Globe, Shield, Trash2, User, Plus, X, Calendar, FolderKanban } from 'lucide-react';
+import { Bell, Palette, Clock, Globe, Shield, Trash2, User, Plus, X, Calendar, FolderKanban, Download } from 'lucide-react';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 import { WorkSlot } from '@/types/core';
 import { CalendarImport } from './CalendarImport';
+import { PWASettings } from './PWASettings';
 import { useToast } from '../../hooks/use-toast';
 import { formatDuration } from '@/services';
 import { AppPageLayout } from '../layout/AppPageLayout';
@@ -194,6 +195,7 @@ export function SettingsView() {
     { id: 'time', label: 'Time & Date', icon: Globe },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'calendar', label: 'Calendar Integration', icon: Calendar },
+    { id: 'pwa', label: 'Install App', icon: Download },
     { id: 'privacy', label: 'Data & Privacy', icon: Shield },
   ];
 
@@ -750,6 +752,9 @@ export function SettingsView() {
             <CalendarImport />
           </div>
         );
+
+      case 'pwa':
+        return <PWASettings />;
 
       case 'privacy':
         return (

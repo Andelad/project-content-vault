@@ -2,3 +2,4 @@
 export { PlannerInsightCard } from './PlannerInsightCard';
 export { HoverablePlannerDateCell } from './HoverablePlannerDateCell';
 export { DailyProjectSummaryRow } from './DailyProjectSummaryRow';
+export { WeekNavigationBar } from './WeekNavigationBar';

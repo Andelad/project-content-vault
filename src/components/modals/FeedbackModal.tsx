@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { Dialog, DialogContent } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { MessageCircle, Paperclip, X, Send } from 'lucide-react';
-import { AppPageLayout } from '../layout/AppPageLayout';
-import { Badge } from '../ui/badge';
+import { Paperclip, X, Send } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
-export function FeedbackView() {
+interface FeedbackModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [usageContext, setUsageContext] = useState('university');
@@ -134,11 +137,12 @@ export function FeedbackView() {
         description: "Thank you for your feedback. We'll review it soon.",
       });
 
-      // Reset form
+      // Reset form and close modal
       setUsageContext('university');
       setFeedbackType('like');
       setFeedbackText('');
       setAttachments([]);
+      onOpenChange(false);
     } catch (error: any) {
       console.error('Error submitting feedback:', error);
       
@@ -167,18 +171,24 @@ export function FeedbackView() {
   };
 
   return (
-    <AppPageLayout className="bg-gray-50">
-      {/* Content - Scrollable */}
-      <AppPageLayout.Content className="flex-1 overflow-auto light-scrollbar p-0">
-        <div className="p-8 space-y-6 max-w-4xl">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[90vh] p-0 overflow-hidden">
+        <div className="flex flex-col h-full">
+          {/* Header */}
+          <div className="p-6 border-b border-gray-200">
+            <h2 className="text-2xl font-semibold text-gray-900">Send Feedback</h2>
+            <p className="text-sm text-gray-600 mt-1">
+              Help us improve Budgi by sharing your thoughts
+            </p>
+          </div>
 
-        <Card>
-          <CardContent className="pt-6">
+          {/* Content - Scrollable */}
+          <div className="flex-1 overflow-y-auto light-scrollbar p-6">
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Usage Context Dropdown */}
               <div className="space-y-2">
                 <Label htmlFor="usage-context">I mainly use Budgi for...</Label>
-                <Select value={usageContext} onValueChange={setUsageContext} defaultValue="university">
+                <Select value={usageContext} onValueChange={setUsageContext}>
                   <SelectTrigger id="usage-context">
                     <SelectValue />
                   </SelectTrigger>
@@ -193,7 +203,7 @@ export function FeedbackView() {
               {/* Feedback Type Dropdown */}
               <div className="space-y-2">
                 <Label htmlFor="feedback-type">What would you like to share?</Label>
-                <Select value={feedbackType} onValueChange={setFeedbackType} defaultValue="like">
+                <Select value={feedbackType} onValueChange={setFeedbackType}>
                   <SelectTrigger id="feedback-type">
                     <SelectValue />
                   </SelectTrigger>
@@ -284,12 +294,36 @@ export function FeedbackView() {
                 </p>
               </div>
 
+              {/* Additional Info */}
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="text-sm text-gray-700">
+                  <p className="mb-2">
+                    <strong>Note:</strong> Your feedback will be sent to our team at{' '}
+                    <a href="mailto:hello@eido.studio" className="text-blue-600 hover:underline">
+                      hello@eido.studio
+                    </a>
+                  </p>
+                  <p>
+                    We review all feedback carefully and use it to improve our product. 
+                    While we may not be able to respond to every submission individually, 
+                    we appreciate you taking the time to help us improve.
+                  </p>
+                </div>
+              </div>
+
               {/* Submit Button */}
-              <div className="flex justify-end pt-4">
+              <div className="flex justify-end gap-3 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                  disabled={loading}
+                >
+                  Cancel
+                </Button>
                 <Button
                   type="submit"
                   disabled={loading}
-                  className="w-full sm:w-auto"
                 >
                   {loading ? (
                     <>
@@ -305,29 +339,9 @@ export function FeedbackView() {
                 </Button>
               </div>
             </form>
-          </CardContent>
-        </Card>
-
-        {/* Additional Info Card */}
-        <Card className="mt-6">
-          <CardContent className="pt-6">
-            <div className="text-sm text-gray-600">
-              <p className="mb-2">
-                <strong>Note:</strong> Your feedback will be sent to our team at{' '}
-                <a href="mailto:hello@eido.studio" className="text-blue-600 hover:underline">
-                  hello@eido.studio
-                </a>
-              </p>
-              <p>
-                We review all feedback carefully and use it to improve our product. 
-                While we may not be able to respond to every submission individually, 
-                we appreciate you taking the time to help us improve.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
         </div>
-      </AppPageLayout.Content>
-    </AppPageLayout>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -12,13 +12,14 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { ChevronLeft, ChevronRight, MapPin, CalendarSearch, CheckCircle2, Circle } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as DatePicker } from '@/components/ui/calendar';
-import { PlannerInsightCard, DailyProjectSummaryRow } from '@/components/planner';
-import { getBaseFullCalendarConfig, getEventStylingConfig, UnifiedDayEstimateService } from '@/services';
+import { PlannerInsightCard, DailyProjectSummaryRow, WeekNavigationBar } from '@/components/planner';
+import { getBaseFullCalendarConfig, getEventStylingConfig, UnifiedDayEstimateService, getResponsiveDayCount } from '@/services';
 // Holidays now sourced from PlannerContext to avoid duplicate fetch/state
 import { getDateKey } from '@/utils/dateFormatUtils';
 import { transformFullCalendarToCalendarEvent } from '@/services';
 import { createPlannerViewOrchestrator, type PlannerInteractionContext } from '@/services/orchestrators/PlannerViewOrchestrator';
 import { useToast } from '@/hooks/use-toast';
+import { useSwipeNavigation } from '@/hooks/useSwipeNavigation';
 import '../planner/fullcalendar-overrides.css';
 // Modal imports
 const EventModal = React.lazy(() => import('../modals/EventModal').then(module => ({ default: module.EventModal })));
@@ -73,6 +74,17 @@ export function PlannerView() {
   const [calendarReady, setCalendarReady] = useState(false);
   const [summaryDateStrings, setSummaryDateStrings] = useState<string[]>([]);
   const [calendarScrollbarWidth, setCalendarScrollbarWidth] = useState(0);
+  const [viewportSize, setViewportSize] = useState<'mobile' | 'tablet' | 'desktop'>(() => {
+    if (typeof window === 'undefined') return 'desktop';
+    if (window.innerWidth < 768) return 'mobile';
+    if (window.innerWidth < 1024) return 'tablet';
+    return 'desktop';
+  });
+  const [visibleRange, setVisibleRange] = useState<{ start: Date; end: Date }>({
+    start: new Date(calendarDate),
+    end: new Date(calendarDate)
+  });
+  const [weekStart, setWeekStart] = useState<Date>(new Date(calendarDate));
 
   // Create milestones map by project ID (use normalized milestones from ProjectContext)
   const milestonesMap = useMemo(() => {
@@ -459,6 +471,21 @@ export function PlannerView() {
     datesSet: (dateInfo) => {
       setCalendarDate(dateInfo.start);
       setCurrentDate(dateInfo.start);
+      
+      // Update visible range for week navigation bar
+      setVisibleRange({
+        start: new Date(dateInfo.start),
+        end: new Date(dateInfo.end)
+      });
+      
+      // Calculate week start (Monday)
+      const weekStartDate = new Date(dateInfo.start);
+      const day = weekStartDate.getDay();
+      const diff = day === 0 ? -6 : 1 - day; // Adjust to Monday
+      weekStartDate.setDate(weekStartDate.getDate() + diff);
+      weekStartDate.setHours(0, 0, 0, 0);
+      setWeekStart(weekStartDate);
+      
       // Compute summary date strings directly from FullCalendar view
       const viewStart = new Date(dateInfo.start);
       const viewEnd = new Date(dateInfo.end);
@@ -680,6 +707,32 @@ export function PlannerView() {
     return () => clearTimeout(timeoutId);
   }, [currentView]); // Re-run when view changes (week/day toggle)
 
+  // Handle swipe navigation on mobile/tablet
+  const swipeRef = useSwipeNavigation({
+    onSwipeLeft: () => {
+      if (viewportSize === 'mobile' || viewportSize === 'tablet') {
+        handleNavigate('next');
+      }
+    },
+    onSwipeRight: () => {
+      if (viewportSize === 'mobile' || viewportSize === 'tablet') {
+        handleNavigate('prev');
+      }
+    },
+    enabled: currentView === 'week' && (viewportSize === 'mobile' || viewportSize === 'tablet')
+  });
+
+  // Handle clicking on week navigation bar days
+  const handleWeekNavDayClick = useCallback((date: Date) => {
+    const api = calendarRef.current?.getApi();
+    if (!api) return;
+    
+    // Navigate to the clicked date
+    api.gotoDate(date);
+    setCalendarDate(date);
+    setCurrentDate(date);
+  }, [setCurrentDate]);
+
   // Handle drop from project summary row
   useEffect(() => {
     const calendarEl = document.querySelector('.fc-timegrid-body');
@@ -823,6 +876,40 @@ export function PlannerView() {
     return () => ro.disconnect();
   }, []);
 
+  // Handle window resize for responsive view changes - force remount on viewport size change
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      let newSize: 'mobile' | 'tablet' | 'desktop';
+      
+      if (width < 768) {
+        newSize = 'mobile';
+      } else if (width < 1024) {
+        newSize = 'tablet';
+      } else {
+        newSize = 'desktop';
+      }
+      
+      // Only update if viewport category changed (forces calendar remount)
+      if (newSize !== viewportSize) {
+        setViewportSize(newSize);
+      }
+    };
+
+    // Debounce resize handler
+    let resizeTimeout: NodeJS.Timeout;
+    const debouncedResize = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(handleResize, 150);
+    };
+
+    window.addEventListener('resize', debouncedResize);
+    return () => {
+      window.removeEventListener('resize', debouncedResize);
+      clearTimeout(resizeTimeout);
+    };
+  }, [viewportSize]);
+
   // Track the vertical scrollbar width of the FullCalendar scroller to align the summary row
   useEffect(() => {
     if (!calendarReady) return;
@@ -935,6 +1022,16 @@ export function PlannerView() {
         </div>
       </div>
 
+      {/* Week Navigation Bar - Mobile/Tablet Only */}
+      <WeekNavigationBar
+        visibleStartDate={visibleRange.start}
+        visibleEndDate={visibleRange.end}
+        weekStartDate={weekStart}
+        visibleDayCount={getResponsiveDayCount()}
+        onDayClick={handleWeekNavDayClick}
+        show={currentView === 'week' && (viewportSize === 'mobile' || viewportSize === 'tablet')}
+      />
+
       {/* Daily Project Summary Row */}
       {calendarReady && summaryDateStrings.length > 0 && !isEventsLoading && !isHolidaysLoading && (
         <div className="px-6 pb-[21px]">
@@ -958,11 +1055,15 @@ export function PlannerView() {
       {/* Calendar Content */}
       <div className="flex-1 px-6 pb-[21px] min-h-0">
         <div
-          ref={calendarCardRef}
+          ref={(el) => {
+            calendarCardRef.current = el;
+            (swipeRef as any).current = el;
+          }}
           className="planner-calendar-card h-full bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden"
           style={{ ['--planner-scrollbar-width' as any]: `${calendarScrollbarWidth}px` }}
         >
           <FullCalendar
+            key={`${currentView}-${viewportSize}`}
             ref={calendarRef}
             {...calendarConfig}
             height="100%"

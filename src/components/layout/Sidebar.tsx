@@ -5,6 +5,7 @@ import { Calendar, AlignLeft, Folders, Settings, ChevronLeft, ChevronRight, PieC
 import { supabase } from '../../integrations/supabase/client';
 import { Sheet, SheetContent } from '../ui/sheet';
 import { HelpModal } from '../modals/HelpModal';
+import { FeedbackModal } from '../modals/FeedbackModal';
 
 const isBrowser = typeof window !== 'undefined';
 
@@ -14,6 +15,7 @@ export function Sidebar() {
   const [profile, setProfile] = useState<any>(null);
   const [isMobile, setIsMobile] = useState(() => (isBrowser ? window.innerWidth < 768 : false));
   const [helpModalOpen, setHelpModalOpen] = useState(false);
+  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
 
   // Detect mobile size (< 768px)
   useEffect(() => {
@@ -104,6 +106,7 @@ export function Sidebar() {
       id: 'feedback' as const,
       label: 'Feedback',
       icon: MessageCircle,
+      onClick: () => setFeedbackModalOpen(true),
     },
   ];
 
@@ -277,6 +280,7 @@ export function Sidebar() {
           </SheetContent>
         </Sheet>
         <HelpModal open={helpModalOpen} onOpenChange={setHelpModalOpen} />
+        <FeedbackModal open={feedbackModalOpen} onOpenChange={setFeedbackModalOpen} />
       </>
     );
   }
@@ -286,6 +290,7 @@ export function Sidebar() {
     <div className={`${mainSidebarCollapsed ? 'w-16' : 'w-48'} h-full bg-gray-50 border-r border-gray-200 flex flex-col transition-all duration-300 ease-in-out relative flex-shrink-0`}>
       <SidebarContent isCollapsed={mainSidebarCollapsed} />
       <HelpModal open={helpModalOpen} onOpenChange={setHelpModalOpen} />
+      <FeedbackModal open={feedbackModalOpen} onOpenChange={setFeedbackModalOpen} />
     </div>
   );
 }

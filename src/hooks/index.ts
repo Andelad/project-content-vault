@@ -11,6 +11,7 @@ export * from './usePerformance';
 export * from './useProjectModalState';
 export * from './useProjectModalState';
 export * from './useProjects';
+export * from './usePWAInstall';
 export * from './useRows';
 export * from './useSettings';
 export * from './useTimelineData';

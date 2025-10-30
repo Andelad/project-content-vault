@@ -374,12 +374,77 @@
 
 /* Mobile responsive adjustments */
 @media (max-width: 768px) {
+  /* Reduce font sizes for better fit */
   .fc-timegrid-event {
     font-size: 11px;
+    padding: 1px 2px;
   }
   
   .fc-timegrid-slot-label {
     font-size: 10px;
+    padding: 2px;
+  }
+  
+  /* Smaller header text on mobile */
+  .fc-col-header-cell-cushion {
+    font-size: 12px !important;
+    padding: 0 2px !important;
+  }
+  
+  /* Increase touch target sizes */
+  .fc-event {
+    min-height: 25px !important;
+  }
+  
+  /* Make resize handles larger for touch */
+  .fc-event .fc-event-resizer {
+    height: 12px;
+  }
+  
+  .fc-event .fc-event-resizer-start {
+    top: -6px;
+  }
+  
+  .fc-event .fc-event-resizer-end {
+    bottom: -6px;
+  }
+  
+  /* Larger scrollbar for touch */
+  .fc-scroller::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  /* Adjust time slot height for larger touch targets */
+  .fc-timegrid-slot {
+    height: 30px !important;
+  }
+  
+  /* Hide some less critical UI on very small screens */
+  @media (max-width: 480px) {
+    .fc-timegrid-slot-label {
+      font-size: 9px;
+    }
+    
+    .fc-col-header-cell-cushion {
+      font-size: 11px !important;
+    }
+  }
+}
+
+/* Tablet responsive adjustments */
+@media (min-width: 768px) and (max-width: 1024px) {
+  /* Slightly smaller fonts for tablet 3-day view */
+  .fc-timegrid-event {
+    font-size: 11px;
+  }
+  
+  .fc-col-header-cell-cushion {
+    font-size: 13px !important;
+  }
+  
+  /* Better touch targets */
+  .fc-event {
+    min-height: 22px !important;
   }
 }
 
@@ -394,4 +459,36 @@
 
 .fc-col-header-cell[data-hoverable-processed]:hover {
   background-color: rgba(59, 130, 246, 0.05) !important;
+}
+
+/* Week Navigation Bar Styles */
+.week-navigation-bar {
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.week-navigation-bar button {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Hide week navigation on desktop */
+@media (min-width: 1024px) {
+  .week-navigation-bar {
+    display: none;
+  }
+}
+
+/* Optimize for smaller mobile screens */
+@media (max-width: 375px) {
+  .week-navigation-bar {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+  
+  .week-navigation-bar button {
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+  }
 }

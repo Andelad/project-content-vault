@@ -67,7 +67,7 @@ export {
   getHolidaysInRangeDetailed,
   countHolidayDaysInRange
 } from './calculations/events/holidayCalculations';
-export { getBaseFullCalendarConfig, getEventStylingConfig } from './ui/FullCalendarConfig';
+export { getBaseFullCalendarConfig, getEventStylingConfig, getResponsiveDayCount, isMobileViewport, isTabletViewport } from './ui/FullCalendarConfig';
 export { throttledDragUpdate as throttleDragUpdate } from './performance/dragPerformanceService';
 
 // 📊 Calculation Functions (Business Logic)

@@ -646,14 +646,17 @@ export function ProjectsView() {
         </AppPageLayout.Header>
 
       {/* Tabs and Filter Controls */}
-      <AppPageLayout.SubHeader>
+      <AppPageLayout.SubHeader className="px-0 py-0">
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as MainTab)} className="w-full">
-          {/* Main Tabs */}
-          <TabsList className="mb-4">
+          {/* Main Tabs - Full width border */}
+          <TabsList className="mb-0 px-6">
             <TabsTrigger value="projects">Projects</TabsTrigger>
             <TabsTrigger value="clients">Clients</TabsTrigger>
             <TabsTrigger value="holidays">Holidays</TabsTrigger>
           </TabsList>
+          
+          {/* Filter section with padding */}
+          <div className="px-6 pt-6">
 
           {/* Projects Tab Content - Filters */}
           <TabsContent value="projects" className="mt-0">
@@ -853,6 +856,7 @@ export function ProjectsView() {
               </Button>
             </div>
           </TabsContent>
+          </div>
         </Tabs>
       </AppPageLayout.SubHeader>
       

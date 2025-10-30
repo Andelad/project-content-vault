@@ -5,20 +5,46 @@ import interactionPlugin from '@fullcalendar/interaction';
 import momentPlugin from '@fullcalendar/moment';
 
 /**
+ * Detect if current viewport is mobile or tablet
+ */
+export function isMobileViewport(): boolean {
+  return typeof window !== 'undefined' && window.innerWidth < 768;
+}
+
+export function isTabletViewport(): boolean {
+  return typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth < 1024;
+}
+
+/**
  * Base FullCalendar configuration for PlannerV2
  */
 export function getBaseFullCalendarConfig(): Partial<CalendarOptions> {
+  const isMobile = isMobileViewport();
+  const isTablet = isTabletViewport();
   return {
     plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin, momentPlugin],
     
     // Initial view and header
-    initialView: 'timeGridWeek',
+    initialView: isMobile ? 'timeGridDay' : 'timeGridWeek',
     headerToolbar: false, // We'll use custom toolbar
     
-    // Time settings
+    // Define custom views for responsive day counts
+    views: {
+      timeGridWeek: {
+        type: 'timeGrid',
+        duration: isMobile ? { days: 2 } : isTablet ? { days: 3 } : { days: 7 },
+        buttonText: 'week'
+      },
+      timeGridDay: {
+        type: 'timeGrid',
+        duration: { days: 1 }
+      }
+    },
+    
+    // Time settings - larger slots on mobile for better touch targets
     slotMinTime: '00:00:00',
     slotMaxTime: '24:00:00',
-    slotDuration: '00:15:00',
+    slotDuration: isMobile ? '00:30:00' : '00:15:00',
     slotLabelInterval: '01:00:00',
     slotLabelFormat: {
       hour: '2-digit',
@@ -55,6 +81,14 @@ export function getBaseFullCalendarConfig(): Partial<CalendarOptions> {
     expandRows: true,
     stickyHeaderDates: true,
     
+    // Responsive settings
+    handleWindowResize: true,
+    windowResizeDelay: 100,
+    
+    // Mobile-specific settings
+    eventMinHeight: isMobile ? 20 : 15,
+    slotEventOverlap: isMobile ? false : true,
+    
     // Time format
     eventTimeFormat: {
       hour: '2-digit',
@@ -62,8 +96,8 @@ export function getBaseFullCalendarConfig(): Partial<CalendarOptions> {
       hour12: false
     },
     
-    // Snap settings for precise time selection
-    snapDuration: '00:15:00',
+    // Snap settings for precise time selection - larger on mobile
+    snapDuration: isMobile ? '00:30:00' : '00:15:00',
     
     // Week number
     weekNumbers: false,
@@ -89,7 +123,7 @@ export function getBaseFullCalendarConfig(): Partial<CalendarOptions> {
 }
 
 /**
- * Get view-specific configurations
+ * Get view-specific configurations with responsive behavior
  */
 export function getViewSpecificConfig(view: 'week' | 'day'): Partial<CalendarOptions> {
   const baseConfig = getBaseFullCalendarConfig();
@@ -101,10 +135,23 @@ export function getViewSpecificConfig(view: 'week' | 'day'): Partial<CalendarOpt
     };
   }
   
+  // Week view - responsive columns handled by custom views definition
   return {
     ...baseConfig,
     initialView: 'timeGridWeek'
   };
+}
+
+/**
+ * Get the number of visible days for current viewport
+ */
+export function getResponsiveDayCount(): number {
+  const isMobile = isMobileViewport();
+  const isTablet = isTabletViewport();
+  
+  if (isMobile) return 2;
+  if (isTablet) return 3;
+  return 7;
 }
 
 /**

@@ -44,7 +44,7 @@ export function AppPageSubHeader({ children, className }: AppPageSubHeaderProps)
   }
   
   return (
-    <div className={cn("px-6 p-[21px] shrink-0", className)}>
+    <div className={cn("px-6 py-[21px] shrink-0", className)}>
       {children}
     </div>
   );
