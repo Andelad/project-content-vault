@@ -28,6 +28,22 @@ export function useHolidays() {
   const updateToastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastUpdatedHolidayRef = useRef<string | null>(null);
 
+  // Helper: parse a YYYY-MM-DD string as a LOCAL date at midnight
+  const parseLocalDate = (yyyyMmDd: string): Date => {
+    // Expect format YYYY-MM-DD
+    const [y, m, d] = yyyyMmDd.split('-').map(Number);
+    // Construct Date in local timezone at midnight
+    return new Date(y, (m || 1) - 1, d || 1, 0, 0, 0, 0);
+  };
+
+  // Helper: format a Date to YYYY-MM-DD using LOCAL components
+  const formatLocalDate = (date: Date): string => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
   useEffect(() => {
     fetchHolidays();
     
@@ -52,8 +68,9 @@ export function useHolidays() {
       const transformedData = (data || []).map(holiday => ({
         id: holiday.id,
         title: holiday.title,
-        startDate: new Date(holiday.start_date),
-        endDate: new Date(holiday.end_date),
+        // Parse as local calendar days to avoid UTC shifts
+        startDate: parseLocalDate(holiday.start_date as unknown as string),
+        endDate: parseLocalDate(holiday.end_date as unknown as string),
         notes: holiday.notes,
         created_at: holiday.created_at,
         updated_at: holiday.updated_at,
@@ -81,11 +98,12 @@ export function useHolidays() {
       // Transform camelCase to snake_case for database
       const dbHolidayData = {
         title: holidayData.title,
+        // Use LOCAL date components when persisting calendar-only dates
         start_date: holidayData.startDate instanceof Date 
-          ? holidayData.startDate.toISOString().split('T')[0]
+          ? formatLocalDate(holidayData.startDate)
           : holidayData.startDate,
         end_date: holidayData.endDate instanceof Date 
-          ? holidayData.endDate.toISOString().split('T')[0] 
+          ? formatLocalDate(holidayData.endDate)
           : holidayData.endDate,
         notes: holidayData.notes || null,
         user_id: user.id
@@ -103,8 +121,8 @@ export function useHolidays() {
       const transformedData = {
         id: data.id,
         title: data.title,
-        startDate: new Date(data.start_date),
-        endDate: new Date(data.end_date),
+        startDate: parseLocalDate(data.start_date as unknown as string),
+        endDate: parseLocalDate(data.end_date as unknown as string),
         notes: data.notes,
         created_at: data.created_at,
         updated_at: data.updated_at,
@@ -135,12 +153,12 @@ export function useHolidays() {
       if (updates.title !== undefined) dbUpdates.title = updates.title;
       if (updates.startDate !== undefined) {
         dbUpdates.start_date = updates.startDate instanceof Date 
-          ? updates.startDate.toISOString().split('T')[0]
+          ? formatLocalDate(updates.startDate)
           : updates.startDate;
       }
       if (updates.endDate !== undefined) {
         dbUpdates.end_date = updates.endDate instanceof Date 
-          ? updates.endDate.toISOString().split('T')[0] 
+          ? formatLocalDate(updates.endDate)
           : updates.endDate;
       }
       if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
@@ -158,8 +176,8 @@ export function useHolidays() {
       const transformedData = {
         id: data.id,
         title: data.title,
-        startDate: new Date(data.start_date),
-        endDate: new Date(data.end_date),
+        startDate: parseLocalDate(data.start_date as unknown as string),
+        endDate: parseLocalDate(data.end_date as unknown as string),
         notes: data.notes,
         created_at: data.created_at,
         updated_at: data.updated_at,

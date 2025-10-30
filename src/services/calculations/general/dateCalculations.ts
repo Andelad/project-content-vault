@@ -205,6 +205,14 @@ export function calculateTimelineViewport(
 }
 
 /**
+ * Add days to a date (immutable)
+ * THE authoritative day-addition helper used everywhere
+ */
+export function addDaysToDate(date: Date, days: number): Date {
+  return addDays(date, days);
+}
+
+/**
  * Check if two dates are the same day
  */
 export function isSameDay(date1: Date, date2: Date): boolean {

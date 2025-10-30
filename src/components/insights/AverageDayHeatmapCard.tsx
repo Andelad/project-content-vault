@@ -1,9 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
-import { Sun, Filter, Calendar } from 'lucide-react';
+import { Filter, Calendar, Info } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Checkbox } from '../ui/checkbox';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { CalendarEvent, Group, Project } from '../../types';
 import { FilterModal } from './FilterModal';
 import { formatDuration } from '@/services';
@@ -262,36 +262,23 @@ export const AverageDayHeatmapCard: React.FC<AverageDayHeatmapCardProps> = ({
 
   return (
     <>
-      <Card className="lg:col-span-2">
+  <Card className="lg:col-span-2 relative">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Sun className="h-5 w-5 text-orange-500" />
-            Average Day Heatmap
-          </CardTitle>
-          <CardDescription>
-            Time frequency heatmap showing when you're most active during an average day
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-6">
-            {/* Controls */}
-            <div className="flex flex-wrap items-center gap-4">
-              {/* Period Selection */}
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600">Period:</span>
-                <Select value={averagePeriod} onValueChange={(value: AveragePeriod) => setAveragePeriod(value)}>
-                  <SelectTrigger className="w-32">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="week">Last Week</SelectItem>
-                    <SelectItem value="month">Last Month</SelectItem>
-                    <SelectItem value="6months">Last 6 Months</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Filter Button */}
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <CardTitle className="text-base">My Average Day</CardTitle>
+            </div>
+            <div className="flex items-center gap-3">
+              <Select value={averagePeriod} onValueChange={(value: AveragePeriod) => setAveragePeriod(value)}>
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="week">Last Week</SelectItem>
+                  <SelectItem value="month">Last Month</SelectItem>
+                  <SelectItem value="6months">Last 6 Months</SelectItem>
+                </SelectContent>
+              </Select>
               <Button
                 variant="outline"
                 size="sm"
@@ -307,71 +294,15 @@ export const AverageDayHeatmapCard: React.FC<AverageDayHeatmapCardProps> = ({
                 )}
               </Button>
             </div>
-
-            {/* Day Filter */}
-            <div className="space-y-2">
-              <span className="text-sm text-gray-600">Include days:</span>
-              <div className="grid grid-cols-4 gap-2 text-sm">
-                {Object.entries(includedDays).map(([day, checked]) => (
-                  <label key={day} className="flex items-center space-x-2 cursor-pointer">
-                    <Checkbox
-                      checked={checked}
-                      onCheckedChange={(isChecked) => 
-                        setIncludedDays(prev => ({ ...prev, [day]: !!isChecked }))
-                      }
-                    />
-                    <span className="capitalize">{day.substring(0, 3)}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* Summary Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 py-4 border-t border-gray-100">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-foreground mb-1">
-                  {formatDuration(summaryStats.averageDailyHours)}
-                </div>
-                <div className="text-sm text-gray-600">Average daily hours</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-foreground mb-1">
-                  {summaryStats.activeSlots}
-                </div>
-                <div className="text-sm text-gray-600">Active time slots</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-foreground mb-1">
-                  {validDaysCount}
-                </div>
-                <div className="text-sm text-gray-600">Days analyzed</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-foreground mb-1">
-                  {getActiveFilterCount()}
-                </div>
-                <div className="text-sm text-gray-600">Active filters</div>
-              </div>
-            </div>
+          </div>
+        </CardHeader>
+  <CardContent className="relative">
+          <div className="space-y-6">
+            {/* Day filter moved into Filters modal for better UX */}
 
             {/* Heatmap */}
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-medium text-gray-700">Time Activity Heatmap</h4>
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <span>Low</span>
-                  <div className="flex gap-0.5">
-                    {[0.1, 0.3, 0.5, 0.7, 1.0].map(intensity => (
-                      <div
-                        key={intensity}
-                        className="w-3 h-3 rounded-sm"
-                        style={{ backgroundColor: getIntensityColor(intensity) }}
-                      />
-                    ))}
-                  </div>
-                  <span>High</span>
-                </div>
-              </div>
+              {/* Inline heading and color key removed; moved to info popover */}
 
               {/* 24-hour vertical calendar layout */}
               <div className="relative">
@@ -399,15 +330,7 @@ export const AverageDayHeatmapCard: React.FC<AverageDayHeatmapCardProps> = ({
                   ))}
                 </div>
                 
-                {/* Legend with time indicators */}
-                <div className="mt-4 text-center">
-                  <div className="text-xs text-gray-500 mb-2">Each bar = 30 minutes, flowing from 00:00 to 23:30</div>
-                  <div className="flex justify-center items-center gap-4 text-xs text-gray-500">
-                    <span>Start of day (top)</span>
-                    <span>→</span>
-                    <span>End of day (bottom)</span>
-                  </div>
-                </div>
+                {/* Legend removed per request */}
               </div>
 
               {summaryStats.activeSlots === 0 && (
@@ -418,9 +341,79 @@ export const AverageDayHeatmapCard: React.FC<AverageDayHeatmapCardProps> = ({
                 </div>
               )}
             </div>
+
+            {/* Summary Stats moved to bottom */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-4 border-t border-gray-100">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-foreground mb-1">
+                  {formatDuration(summaryStats.averageDailyHours)}
+                </div>
+                <div className="text-sm text-gray-600">Average daily hours</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-foreground mb-1">
+                  {summaryStats.activeSlots}
+                </div>
+                <div className="text-sm text-gray-600">Active time slots</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-foreground mb-1">
+                  {validDaysCount}
+                </div>
+                <div className="text-sm text-gray-600">Days analyzed</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-foreground mb-1">
+                  {getActiveFilterCount()}
+                </div>
+                <div className="text-sm text-gray-600">Active filters</div>
+              </div>
+            </div>
           </div>
         </CardContent>
-      </Card>
+
+        {/* Info popover bottom-right of the card */}
+        <div className="absolute bottom-6 right-6">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label="About My Average Day"
+                className="rounded-full"
+              >
+                <Info className="w-4 h-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80" side="top" align="end">
+              <div className="space-y-2">
+                <div className="font-medium text-sm">About My Average Day</div>
+                <p className="text-xs text-gray-600">
+                  Heatmap of when you're most active during an average day within the selected period and filters.
+                </p>
+                <div className="text-xs text-gray-700 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-500">Low</span>
+                    <div className="flex gap-0.5">
+                      {[0.1, 0.3, 0.5, 0.7, 1.0].map((alpha) => (
+                        <div key={alpha} className="w-3 h-3 rounded-sm" style={{ backgroundColor: `rgba(59, 130, 246, ${alpha})` }} />
+                      ))}
+                    </div>
+                    <span className="text-gray-500">High</span>
+                  </div>
+                  <div className="font-medium">Keys</div>
+                  <ul className="list-disc pl-4 space-y-1">
+                    <li>Each bar = 30 minutes, flowing from 00:00 to 23:30</li>
+                    <li>Color intensity indicates activity</li>
+                    <li>Respects selected Groups/Projects and Included Days</li>
+                    <li>Period: Last Week / Last Month / Last 6 Months</li>
+                  </ul>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+  </Card>
 
       <FilterModal
         isOpen={isFilterModalOpen}
@@ -429,6 +422,8 @@ export const AverageDayHeatmapCard: React.FC<AverageDayHeatmapCardProps> = ({
         projects={projects}
         filterRules={filterRules}
         onFilterRulesChange={setFilterRules}
+        includedDays={includedDays}
+        onIncludedDaysChange={setIncludedDays}
       />
     </>
   );

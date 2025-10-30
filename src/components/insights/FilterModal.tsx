@@ -12,7 +12,7 @@ import { Input } from '../ui/input';
 import { Checkbox } from '../ui/checkbox';
 import { Badge } from '../ui/badge';
 import { Search, X, Folder, FileText } from 'lucide-react';
-import { CalendarEvent, Group, Project } from '../../types';
+import { Group, Project } from '../../types';
 import { ScrollArea } from '../ui/scroll-area';
 
 interface FilterRule {
@@ -29,6 +29,25 @@ interface FilterModalProps {
   projects: Project[];
   filterRules: FilterRule[];
   onFilterRulesChange: (rules: FilterRule[]) => void;
+  // New: include days filter
+  includedDays?: {
+    monday: boolean;
+    tuesday: boolean;
+    wednesday: boolean;
+    thursday: boolean;
+    friday: boolean;
+    saturday: boolean;
+    sunday: boolean;
+  };
+  onIncludedDaysChange?: (days: {
+    monday: boolean;
+    tuesday: boolean;
+    wednesday: boolean;
+    thursday: boolean;
+    friday: boolean;
+    saturday: boolean;
+    sunday: boolean;
+  }) => void;
 }
 
 export const FilterModal: React.FC<FilterModalProps> = ({
@@ -37,11 +56,22 @@ export const FilterModal: React.FC<FilterModalProps> = ({
   groups,
   projects,
   filterRules,
-  onFilterRulesChange
+  onFilterRulesChange,
+  includedDays,
+  onIncludedDaysChange
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
   const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
+  const [localIncludedDays, setLocalIncludedDays] = useState({
+    monday: true,
+    tuesday: true,
+    wednesday: true,
+    thursday: true,
+    friday: true,
+    saturday: false,
+    sunday: false
+  });
 
   // Initialize selected items from existing filter rules
   React.useEffect(() => {
@@ -51,8 +81,11 @@ export const FilterModal: React.FC<FilterModalProps> = ({
       
       setSelectedGroupIds(groupRule?.groupIds || []);
       setSelectedProjectIds(projectRule?.projectIds || []);
+      if (includedDays) {
+        setLocalIncludedDays(includedDays);
+      }
     }
-  }, [isOpen, filterRules]);
+  }, [isOpen, filterRules, includedDays]);
 
   // Filter projects based on search term and selected groups
   const filteredProjects = useMemo(() => {
@@ -118,6 +151,9 @@ export const FilterModal: React.FC<FilterModalProps> = ({
     }
     
     onFilterRulesChange(newRules);
+    if (onIncludedDaysChange) {
+      onIncludedDaysChange(localIncludedDays);
+    }
     onClose();
   };
 
@@ -140,11 +176,11 @@ export const FilterModal: React.FC<FilterModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[80vh]">
+      <DialogContent className="max-w-3xl max-h-[80vh]">
         <DialogHeader>
           <DialogTitle>Filter Heatmap Data</DialogTitle>
           <DialogDescription>
-            Select groups and projects to include in the heatmap analysis
+            Select groups, projects, and days to include in the heatmap analysis
           </DialogDescription>
         </DialogHeader>
 
@@ -178,78 +214,164 @@ export const FilterModal: React.FC<FilterModalProps> = ({
             </div>
           )}
 
-          {/* Groups Section */}
+          {/* Include Days */}
           <div className="space-y-3">
-            <h4 className="text-sm font-medium">Groups</h4>
-            <div className="space-y-2 max-h-40 overflow-y-auto">
-              {groups.map(group => (
-                <label
-                  key={group.id}
-                  className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded"
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-medium">Include days</h4>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setLocalIncludedDays({
+                    monday: true,
+                    tuesday: true,
+                    wednesday: true,
+                    thursday: true,
+                    friday: true,
+                    saturday: false,
+                    sunday: false
+                  })}
                 >
+                  Weekdays
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setLocalIncludedDays({
+                    monday: false,
+                    tuesday: false,
+                    wednesday: false,
+                    thursday: false,
+                    friday: false,
+                    saturday: true,
+                    sunday: true
+                  })}
+                >
+                  Weekends
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setLocalIncludedDays({
+                    monday: true,
+                    tuesday: true,
+                    wednesday: true,
+                    thursday: true,
+                    friday: true,
+                    saturday: true,
+                    sunday: true
+                  })}
+                >
+                  All
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setLocalIncludedDays({
+                    monday: false,
+                    tuesday: false,
+                    wednesday: false,
+                    thursday: false,
+                    friday: false,
+                    saturday: false,
+                    sunday: false
+                  })}
+                >
+                  None
+                </Button>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+              {Object.entries(localIncludedDays).map(([day, checked]) => (
+                <label key={day} className="flex items-center space-x-2 cursor-pointer">
                   <Checkbox
-                    checked={selectedGroupIds.includes(group.id)}
-                    onCheckedChange={(checked) => handleGroupToggle(group.id, !!checked)}
+                    checked={checked}
+                    onCheckedChange={(isChecked) =>
+                      setLocalIncludedDays(prev => ({ ...prev, [day]: !!isChecked }))
+                    }
                   />
-                  <div className="flex items-center gap-2 flex-1">
-                    <Folder className="h-4 w-4 text-gray-500" />
-                    <span className="text-sm">{group.name}</span>
-                    <span className="text-xs text-gray-500">
-                      ({projects.filter(p => p.groupId === group.id).length} projects)
-                    </span>
-                  </div>
+                  <span className="capitalize">{day.substring(0, 3)}</span>
                 </label>
               ))}
             </div>
           </div>
 
-          {/* Projects Section */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-medium">Projects</h4>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Search projects..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 w-60"
-                />
-              </div>
-            </div>
-            
-            <ScrollArea className="max-h-60">
-              <div className="space-y-2">
-                {filteredProjects.map(project => {
-                  const group = groups.find(g => g.id === project.groupId);
-                  return (
+          {/* Grid: Groups and Projects side-by-side for better space usage */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Groups Section */}
+            <div className="space-y-3">
+              <h4 className="text-sm font-medium">Groups</h4>
+              <ScrollArea className="max-h-64">
+                <div className="space-y-2">
+                  {groups.map(group => (
                     <label
-                      key={project.id}
+                      key={group.id}
                       className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded"
                     >
                       <Checkbox
-                        checked={selectedProjectIds.includes(project.id)}
-                        onCheckedChange={(checked) => handleProjectToggle(project.id, !!checked)}
+                        checked={selectedGroupIds.includes(group.id)}
+                        onCheckedChange={(checked) => handleGroupToggle(group.id, !!checked)}
                       />
                       <div className="flex items-center gap-2 flex-1">
-                        <FileText className="h-4 w-4 text-gray-500" />
-                        <div className="flex-1">
-                          <div className="text-sm">{project.name}</div>
-                          {group && (
-                            <div className="text-xs text-gray-500">{group.name}</div>
-                          )}
-                        </div>
+                        <Folder className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm">{group.name}</span>
+                        <span className="text-xs text-gray-500">
+                          ({projects.filter(p => p.groupId === group.id).length} projects)
+                        </span>
                       </div>
                     </label>
-                  );
-                })}
-                {filteredProjects.length === 0 && (
-                  <div className="text-center py-4 text-gray-500 text-sm">
-                    No projects found
-                  </div>
-                )}
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+
+            {/* Projects Section */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-medium">Projects</h4>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Search projects..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-9 w-56 md:w-60"
+                  />
+                </div>
               </div>
-            </ScrollArea>
+              <ScrollArea className="max-h-64">
+                <div className="space-y-2">
+                  {filteredProjects.map(project => {
+                    const group = groups.find(g => g.id === project.groupId);
+                    return (
+                      <label
+                        key={project.id}
+                        className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded"
+                      >
+                        <Checkbox
+                          checked={selectedProjectIds.includes(project.id)}
+                          onCheckedChange={(checked) => handleProjectToggle(project.id, !!checked)}
+                        />
+                        <div className="flex items-center gap-2 flex-1">
+                          <FileText className="h-4 w-4 text-gray-500" />
+                          <div className="flex-1">
+                            <div className="text-sm">{project.name}</div>
+                            {group && (
+                              <div className="text-xs text-gray-500">{group.name}</div>
+                            )}
+                          </div>
+                        </div>
+                      </label>
+                    );
+                  })}
+                  {filteredProjects.length === 0 && (
+                    <div className="text-center py-4 text-gray-500 text-sm">
+                      No projects found
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+            </div>
           </div>
         </div>
 

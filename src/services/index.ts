@@ -115,6 +115,7 @@ export {
   isBusinessDay,
   isBusinessHour,
   isWorkingDay,
+  addDaysToDate,
   // New pure date calculation functions
   isToday,
   isTodayInWeek,

@@ -1,5 +1,4 @@
 import React, { memo, useMemo } from 'react';
-import { AlertTriangle } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
@@ -10,19 +9,17 @@ import { UnifiedTimelineService } from '@/services';
 import { ColorCalculationService } from '@/services/ui/ColorCalculations';
 import type { TimelineAllocationType } from '@/constants/styles';
 import { 
-  calculateWeekProjectIntersection,
   generateWorkHoursForDate,
   calculateWorkHoursTotal,
   isHolidayDateCapacity,
   getMilestoneSegmentForDate,
   getTimelinePositions,
-  UnifiedDayEstimateService,
-  calculateRectangleHeight
+  calculateRectangleHeight,
+  normalizeToMidnight
 } from '@/services';
-import { getDateKey } from '@/utils/dateFormatUtils';
-import { ProjectIconIndicator, ProjectMilestones } from '@/components';
+import { ProjectIconIndicator } from '@/components';
 interface TimelineBarProps {
-  project: any;
+  project: Project;
   dates: Date[];
   viewportStart: Date;
   viewportEnd: Date;
@@ -125,53 +122,39 @@ export const TimelineBar = memo(function TimelineBar({
     settings.weeklyWorkHours, 
     holidays
   );
+  // Centralized filtered milestones for this project (once per relevant change)
+  const filteredProjectMilestones = useMemo(() => {
+    if (!project) return [] as any[];
+    const projectStart = new Date(project.startDate);
+    const projectEnd = project.continuous ? null : new Date(project.endDate);
+    let projectMilestones = milestones.filter(m => {
+      if (m.projectId !== project.id) return false;
+      const milestoneDate = new Date(m.endDate || m.dueDate);
+      if (milestoneDate < projectStart) return false;
+      if (project.continuous) return true;
+      return milestoneDate <= projectEnd!;
+    });
+    const hasTemplateMilestone = projectMilestones.some(m => m.isRecurring === true);
+    if (hasTemplateMilestone) {
+      projectMilestones = projectMilestones.filter(m => 
+        m.isRecurring === true || (!m.isRecurring && (!m.name || !/\s\d+$/.test(m.name)))
+      );
+    }
+    return projectMilestones;
+  }, [project, milestones]);
+
   // Calculate day estimates ONCE per project/milestones/events change
   // This should NOT recalculate when scrolling (viewport changes)
   const dayEstimates = useMemo(() => {
     if (!project) return [];
-    
-    // CRITICAL: Filter milestones to only include those for THIS project and WITHIN project dates
-    const projectStart = new Date(project.startDate);
-    // For continuous projects, don't filter by end date
-    // For non-continuous projects, only include milestones up to project end date
-    const projectEnd = project.continuous ? null : new Date(project.endDate);
-    
-    // Filter milestones for this project within date boundaries
-    let projectMilestones = milestones.filter(m => {
-      if (m.projectId !== project.id) return false;
-      
-      const milestoneDate = new Date(m.endDate || m.dueDate);
-      
-      // Must be after or on project start
-      if (milestoneDate < projectStart) return false;
-      
-      // For continuous projects, no end date filter
-      if (project.continuous) return true;
-      
-      // For non-continuous projects, must be before or on project end
-      return milestoneDate <= projectEnd!;
-    });
-    // HYBRID SYSTEM: If there's a template milestone (isRecurring=true), 
-    // exclude old numbered instances to prevent double-counting
-    const hasTemplateMilestone = projectMilestones.some(m => m.isRecurring === true);
-    if (hasTemplateMilestone) {
-      projectMilestones = projectMilestones.filter(m => 
-        // Keep template milestones
-        m.isRecurring === true ||
-        // Keep non-recurring regular milestones
-        (!m.isRecurring && (!m.name || !/\s\d+$/.test(m.name)))
-      );
-    }
-    const result = UnifiedTimelineService.calculateProjectDayEstimates(
+    return UnifiedTimelineService.calculateProjectDayEstimates(
       project,
-      projectMilestones, // Use filtered milestones, not all milestones
+      filteredProjectMilestones,
       settings,
       holidays,
       events
     );
-    
-    return result;
-  }, [project, milestones, settings, holidays, events]);
+  }, [project, filteredProjectMilestones, settings, holidays, events]);
   // Get comprehensive timeline bar data from UnifiedTimelineService - MUST be before early returns
   const timelineData = useMemo(() => {
     if (!project) {
@@ -201,44 +184,12 @@ export const TimelineBar = memo(function TimelineBar({
         isWorkingDay: () => false
       };
     }
-    // CRITICAL: Filter milestones to only include those for THIS project and WITHIN project dates
-    const projectStart = new Date(project.startDate);
-    // For continuous projects, don't filter by end date
-    // For non-continuous projects, only include milestones up to project end date
-    const projectEnd = project.continuous ? null : new Date(project.endDate);
-    
-    // Filter milestones for this project within date boundaries
-    let projectMilestones = milestones.filter(m => {
-      if (m.projectId !== project.id) return false;
-      
-      const milestoneDate = new Date(m.endDate || m.dueDate);
-      
-      // Must be after or on project start
-      if (milestoneDate < projectStart) return false;
-      
-      // For continuous projects, no end date filter
-      if (project.continuous) return true;
-      
-      // For non-continuous projects, must be before or on project end
-      return milestoneDate <= projectEnd!;
-    });
-    // HYBRID SYSTEM: If there's a template milestone (isRecurring=true), 
-    // exclude old numbered instances to prevent double-counting
-    const hasTemplateMilestone = projectMilestones.some(m => m.isRecurring === true);
-    if (hasTemplateMilestone) {
-      projectMilestones = projectMilestones.filter(m => 
-        // Keep template milestones
-        m.isRecurring === true ||
-        // Keep non-recurring regular milestones
-        (!m.isRecurring && (!m.name || !/\s\d+$/.test(m.name)))
-      );
-    }
     return UnifiedTimelineService.getTimelineBarData(
       project,
       dates,
       viewportStart,
       viewportEnd,
-      projectMilestones, // Use filtered milestones, not all milestones
+      filteredProjectMilestones, // Use filtered milestones, not all milestones
       holidays,
       settings,
       isDragging,
@@ -246,7 +197,7 @@ export const TimelineBar = memo(function TimelineBar({
       isWorkingDayChecker, // Pass the hook result, don't call hook inside service
       events // Pass events for planned time calculations
     );
-  }, [project, dates, viewportStart, viewportEnd, milestones, holidays, settings, isDragging, dragState, events]);
+  }, [project, dates, viewportStart, viewportEnd, filteredProjectMilestones, holidays, settings, isDragging, dragState, events]);
   // Override dayEstimates in timelineData with the memoized version
   const finalTimelineData = useMemo(() => ({
     ...timelineData,
@@ -310,12 +261,9 @@ export const TimelineBar = memo(function TimelineBar({
           );
           
           // Determine if project extends beyond viewport edges
-          const normalizedProjectStart = new Date(project.startDate);
-          normalizedProjectStart.setHours(0, 0, 0, 0);
-          const normalizedViewportStart = new Date(viewportStart);
-          normalizedViewportStart.setHours(0, 0, 0, 0);
-          const normalizedViewportEnd = new Date(viewportEnd);
-          normalizedViewportEnd.setHours(0, 0, 0, 0);
+          const normalizedProjectStart = normalizeToMidnight(new Date(project.startDate));
+          const normalizedViewportStart = normalizeToMidnight(new Date(viewportStart));
+          const normalizedViewportEnd = normalizeToMidnight(new Date(viewportEnd));
           
           const extendsLeft = normalizedProjectStart < normalizedViewportStart;
           const extendsRight = project.continuous; // Continuous projects always extend right
@@ -354,7 +302,8 @@ export const TimelineBar = memo(function TimelineBar({
               <div
                 className="absolute pointer-events-none"
                 style={{
-                  backgroundColor: 'white',
+                  // Make project bar background 85% opacity for partial see-through
+                  backgroundColor: 'rgba(255, 255, 255, 0.85)',
                   left: `${leftPx}px`,
                   width: `${widthPx}px`,
                   top: '0px',
@@ -404,46 +353,10 @@ export const TimelineBar = memo(function TimelineBar({
                       const currentDay = new Date(weekStart);
                       currentDay.setDate(weekStart.getDate() + dayIndex);
                       currentDay.setHours(0, 0, 0, 0);
-                      // Get time allocation for this day from day estimates
-                      const dateEstimates = dayEstimates?.filter(est => {
-                        const estDate = new Date(est.date);
-                        estDate.setHours(0, 0, 0, 0);
-                        return estDate.getTime() === currentDay.getTime();
-                      }) || [];
-                      const totalHours = dateEstimates.reduce((sum, est) => sum + est.hours, 0);
-                      // If no allocation, skip (the calculation already ensured this is in project range)
-                      if (totalHours === 0) {
-                        return <div key={dayIndex} style={{ width: `${dayWidth}px` }}></div>;
-                      }
-                      // CRITICAL: Events and estimates are mutually exclusive
-                      // Domain Rule: Only one type of time per day
-                      const eventEstimate = dateEstimates.find(est => est.source === 'event');
-                      let allocationType: 'planned' | 'completed' | 'auto-estimate' | 'none';
-                      let isPlannedTime = false;
-                      let isCompletedTime = false;
-                      if (eventEstimate) {
-                        // This day has EVENT time (not estimates)
-                        // Check if it's planned, completed, or both
-                        if (eventEstimate.isPlannedEvent && eventEstimate.isCompletedEvent) {
-                          // Mixed: has both planned and completed events (show as planned for now)
-                          allocationType = 'planned';
-                          isPlannedTime = true;
-                        } else if (eventEstimate.isPlannedEvent) {
-                          allocationType = 'planned';
-                          isPlannedTime = true;
-                        } else if (eventEstimate.isCompletedEvent) {
-                          allocationType = 'completed';
-                          isCompletedTime = true;
-                        } else {
-                          allocationType = 'none';
-                        }
-                      } else if (totalHours > 0) {
-                        // No events, but has hours = auto-estimate
-                        allocationType = 'auto-estimate';
-                      } else {
-                        allocationType = 'none';
-                      }
-                      const dailyHours = totalHours;
+                      // Get pre-aggregated summary for this day from service data
+                      const { dailyHours, allocationType, isPlannedTime, isCompletedTime } = (finalTimelineData as any).getPerDateSummary
+                        ? (finalTimelineData as any).getPerDateSummary(currentDay)
+                        : { dailyHours: 0, allocationType: 'none' as const, isPlannedTime: false, isCompletedTime: false };
                       const rectangleHeight = calculateRectangleHeight(dailyHours);
                       
                       // Determine allocation type for centralized styling
@@ -472,50 +385,89 @@ export const TimelineBar = memo(function TimelineBar({
                       // NOTE: Work day filtering already handled by dayEstimateCalculations
                       // If an estimate exists, we should render it (trust the calculation)
                       // For planned/completed time, always show regardless of work day settings
+                      // Check if this day is within the project date range
+                      const currentDayNormalized = normalizeToMidnight(new Date(currentDay));
+                      const projectStart = normalizeToMidnight(new Date(visualProjectStart));
+                      // For continuous projects, treat viewportEnd as the effective end for range checks; otherwise use visual end
+                      const effectiveProjectEnd = normalizeToMidnight(project.continuous 
+                        ? new Date(viewportEnd)
+                        : new Date(visualProjectEnd));
+                      const isDateInProjectRange = currentDayNormalized >= projectStart && currentDayNormalized <= effectiveProjectEnd;
+                      
                       return (
                         <div key={dayIndex} className="relative h-full" style={{ width: `${dayWidth}px` }}>
-                          {/* Base rectangle */}
                           <Tooltip delayDuration={100}>
                             <TooltipTrigger asChild>
-                              <div
-                                className={`cursor-move pointer-events-auto absolute ${
-                                  isDragging && dragState?.projectId === project.id 
-                                    ? 'opacity-90' 
-                                    : ''
-                                }`}
-                                style={rectangleStyle}
-                                onMouseDown={(e) => { 
-                                  e.preventDefault();
-                                  e.stopPropagation(); 
-                                  handleMouseDown(e, project.id, 'move'); 
-                                }}
-                                title="Drag to move project"
-                              >
-                                {/* Resize handles for first and last day segments */}
-                                {dayIndex === 0 && (
-                                  <div
-                                    className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-black/10 opacity-0 group-hover:opacity-100"
-                                    onMouseDown={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      handleMouseDown(e, project.id, 'resize-start-date');
+                              <div className="relative h-full w-full group">
+                                  {/* Base hover background */}
+                                  <div 
+                                    className="absolute pointer-events-auto group-hover:bg-gray-100/50 transition-colors rounded"
+                                    style={{
+                                      top: '3px',
+                                      bottom: '3px',
+                                      left: 0,
+                                      right: 0,
+                                      zIndex: 0
                                     }}
-                                    title="Drag to change start date"
                                   />
-                                )}
-                                {dayIndex === 6 && (
-                                  <div
-                                    className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-black/10 opacity-0 group-hover:opacity-100"
-                                    onMouseDown={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      handleMouseDown(e, project.id, 'resize-end-date');
-                                    }}
-                                    title="Drag to change end date"
-                                  />
-                                )}
-                              </div>
-                            </TooltipTrigger>
+                                  {/* Holiday pattern overlay - only visible on hover */}
+                                  {isHolidayDateCapacity(currentDay, holidays) && (
+                                    <div 
+                                      className="absolute pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity rounded"
+                                      style={{
+                                        top: '3px',
+                                        bottom: '3px',
+                                        left: 0,
+                                        right: 0,
+                                        backgroundImage: 'repeating-linear-gradient(-45deg, rgba(107,114,128,0.16) 0 1.5px, transparent 1.5px 4px)',
+                                        zIndex: 1
+                                      }}
+                                    />
+                                  )}
+                                  
+                                  {/* Time rectangle - only render if has time */}
+                                  {allocationType !== 'none' && (
+                                    <div
+                                      className={`cursor-move pointer-events-auto absolute ${
+                                        isDragging && dragState?.projectId === project.id 
+                                          ? 'opacity-90' 
+                                          : ''
+                                      }`}
+                                      style={rectangleStyle}
+                                      onMouseDown={(e) => { 
+                                        e.preventDefault();
+                                        e.stopPropagation(); 
+                                        handleMouseDown(e, project.id, 'move'); 
+                                      }}
+                                      title="Drag to move project"
+                                    >
+                                      {/* Resize handles for first and last day segments */}
+                                      {dayIndex === 0 && (
+                                        <div
+                                          className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-black/10 opacity-0 group-hover:opacity-100"
+                                          onMouseDown={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            handleMouseDown(e, project.id, 'resize-start-date');
+                                          }}
+                                          title="Drag to change start date"
+                                        />
+                                      )}
+                                      {dayIndex === 6 && (
+                                        <div
+                                          className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-black/10 opacity-0 group-hover:opacity-100"
+                                          onMouseDown={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            handleMouseDown(e, project.id, 'resize-end-date');
+                                          }}
+                                          title="Drag to change end date"
+                                        />
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </TooltipTrigger>
                             <TooltipContent
                               backgroundColor={(() => {
                                 const match = project.color.match(/oklch\(([0-9.]+) ([0-9.]+) ([0-9.]+)\)/);
@@ -531,28 +483,36 @@ export const TimelineBar = memo(function TimelineBar({
                                 <div className="font-semibold mb-1">
                                   {project.name}
                                 </div>
-                                <div className="font-medium">
-                                  {allocationType === 'planned' ? 'Planned Time' : allocationType === 'completed' ? 'Completed Time' : 'Auto-Estimate'}
-                                </div>
-                                <div className="text-gray-600">
-                                  {(() => {
-                                    const hours = Math.floor(dailyHours);
-                                    const minutes = Math.round((dailyHours - hours) * 60);
-                                    if (hours > 0 && minutes > 0) {
-                                      return `${hours}h${minutes.toString().padStart(2, '0')}`;
-                                    } else if (hours > 0) {
-                                      return `${hours}h`;
-                                    } else {
-                                      return `${minutes}m`;
-                                    }
-                                  })()}
-                                </div>
+                                {allocationType !== 'none' ? (
+                                  <>
+                                    <div className="font-medium">
+                                      {allocationType === 'planned' ? 'Planned Time' : allocationType === 'completed' ? 'Completed Time' : 'Auto-Estimate'}
+                                    </div>
+                                    <div className="text-gray-600">
+                                      {(() => {
+                                        const hours = Math.floor(dailyHours);
+                                        const minutes = Math.round((dailyHours - hours) * 60);
+                                        if (hours > 0 && minutes > 0) {
+                                          return `${hours}h${minutes.toString().padStart(2, '0')}`;
+                                        } else if (hours > 0) {
+                                          return `${hours}h`;
+                                        } else {
+                                          return `${minutes}m`;
+                                        }
+                                      })()}
+                                    </div>
+                                  </>
+                                ) : (
+                                  <div className="text-gray-600">
+                                    {currentDay.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                  </div>
+                                )}
                               </div>
                             </TooltipContent>
                           </Tooltip>
                           
                           {/* Overflow indicator for hours exceeding 8 (second layer: 8-16 hours) - darker overlay */}
-                          {dailyHours > 8 && (
+                          {isDateInProjectRange && dailyHours > 8 && (
                             <div 
                               className="absolute pointer-events-none"
                               style={{
@@ -591,35 +551,10 @@ export const TimelineBar = memo(function TimelineBar({
             } else {
               // Original days mode logic
               // Get time allocation info from day estimates
-              const dateNormalized = new Date(date);
-              dateNormalized.setHours(0, 0, 0, 0);
-              const estimatesForDate = dayEstimates?.filter(est => {
-                const estDate = new Date(est.date);
-                estDate.setHours(0, 0, 0, 0);
-                return estDate.getTime() === dateNormalized.getTime();
-              }) || [];
-              const totalHours = estimatesForDate.reduce((sum, est) => sum + est.hours, 0);
-              // CRITICAL: Events and estimates are mutually exclusive
-              const eventEstimate = estimatesForDate.find(est => est.source === 'event');
-              let allocationType: 'planned' | 'completed' | 'auto-estimate' | 'none';
-              if (eventEstimate) {
-                // This day has EVENT time (not estimates)
-                if (eventEstimate.isPlannedEvent && eventEstimate.isCompletedEvent) {
-                  // Mixed: has both planned and completed events (show as planned for now)
-                  allocationType = 'planned';
-                } else if (eventEstimate.isPlannedEvent) {
-                  allocationType = 'planned';
-                } else if (eventEstimate.isCompletedEvent) {
-                  allocationType = 'completed';
-                } else {
-                  allocationType = 'none';
-                }
-              } else if (totalHours > 0) {
-                // No events, but has hours = auto-estimate
-                allocationType = 'auto-estimate';
-              } else {
-                allocationType = 'none';
-              }
+              const dateNormalized = normalizeToMidnight(new Date(date));
+              const { dailyHours: totalHours, allocationType } = (finalTimelineData as any).getPerDateSummary
+                ? (finalTimelineData as any).getPerDateSummary(dateNormalized)
+                : { dailyHours: 0, allocationType: 'none' as const };
               
               // Determine why there's no time for this day (for tooltip)
               // Check holiday first as it takes precedence
@@ -629,10 +564,8 @@ export const TimelineBar = memo(function TimelineBar({
                   noTimeReason = 'holiday';
                 } else {
                   // Normalize project dates for comparison (using visually adjusted dates)
-                  const projectStartCheck = new Date(visualProjectStart);
-                  projectStartCheck.setHours(0, 0, 0, 0);
-                  const projectEndCheck = new Date(visualProjectEnd);
-                  projectEndCheck.setHours(0, 0, 0, 0);
+                  const projectStartCheck = normalizeToMidnight(new Date(visualProjectStart));
+                  const projectEndCheck = normalizeToMidnight(new Date(visualProjectEnd));
                   
                   const isInProjectRange = dateNormalized >= projectStartCheck && dateNormalized <= projectEndCheck;
                   
@@ -651,18 +584,14 @@ export const TimelineBar = memo(function TimelineBar({
               // If an estimate exists, we should render it (trust the calculation)
               // For planned/completed time, always show regardless of work day settings
               // Normalize project dates for comparison (using visually adjusted dates)
-              const projectStart = new Date(visualProjectStart);
-              projectStart.setHours(0, 0, 0, 0);
+              const projectStart = normalizeToMidnight(new Date(visualProjectStart));
               // For continuous projects, use viewport end as the effective end date
-              const projectEnd = project.continuous 
+              const projectEnd = normalizeToMidnight(project.continuous 
                 ? new Date(viewportEnd) 
-                : new Date(visualProjectEnd);
-              projectEnd.setHours(0, 0, 0, 0);
+                : new Date(visualProjectEnd));
               // Normalize viewport dates
-              const normalizedViewportStart = new Date(viewportStart);
-              normalizedViewportStart.setHours(0, 0, 0, 0);
-              const normalizedViewportEnd = new Date(viewportEnd);
-              normalizedViewportEnd.setHours(0, 0, 0, 0);
+              const normalizedViewportStart = normalizeToMidnight(new Date(viewportStart));
+              const normalizedViewportEnd = normalizeToMidnight(new Date(viewportEnd));
               const extendsLeft = projectStart < normalizedViewportStart;
               const extendsRight = project.continuous || projectEnd > normalizedViewportEnd;
               // Find the position of this date among visible working project days
@@ -759,19 +688,36 @@ export const TimelineBar = memo(function TimelineBar({
                 <div key={dateIndex} className="relative h-full" style={{ minWidth: '52px', width: '52px' }}>
                   <Tooltip delayDuration={100}>
                     <TooltipTrigger asChild>
-                      <div className="relative h-full w-full">
+                      <div className="relative h-full w-full group">
                         {/* Hover background - only show for dates within project range */}
                         {isDateInProject && (
-                          <div 
-                            className="absolute pointer-events-auto hover:bg-gray-100/50 transition-colors rounded"
-                            style={{ 
-                              zIndex: 0,
-                              height: '40px',
-                              width: '50px',
-                              left: '1px',
-                              top: '3px'
-                            }}
-                          />
+                          <>
+                            {/* Base hover background */}
+                            <div 
+                              className="absolute pointer-events-auto group-hover:bg-gray-100/50 transition-colors rounded"
+                              style={{ 
+                                zIndex: 0,
+                                height: '40px',
+                                width: '50px',
+                                left: '1px',
+                                top: '3px'
+                              }}
+                            />
+                            {/* Holiday pattern overlay - only visible on hover */}
+                            {isHolidayDateCapacity(date, holidays) && (
+                              <div 
+                                className="absolute pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity rounded"
+                                style={{ 
+                                  zIndex: 1,
+                                  height: '40px',
+                                  width: '50px',
+                                  left: '1px',
+                                  top: '3px',
+                                  backgroundImage: 'repeating-linear-gradient(-45deg, rgba(107,114,128,0.16) 0 2px, transparent 2px 6px)'
+                                }}
+                              />
+                            )}
+                          </>
                         )}
                         
                         {/* Base rectangle - only render if has time */}

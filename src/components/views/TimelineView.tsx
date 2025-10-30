@@ -14,7 +14,7 @@ import { useProjectContext } from '../../contexts/ProjectContext';
 import { useTimelineContext } from '../../contexts/TimelineContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
-import { TimelineViewportService, expandHolidayDates } from '@/services';
+import { TimelineViewportService, expandHolidayDates, normalizeToMidnight, addDaysToDate } from '@/services';
 import { validateAndAutoFix } from '@/services/utilities/projectDataIntegrity';
 import { useTimelineData } from '../../hooks/useTimelineData';
 import { useDynamicViewportDays } from '../../hooks/useDynamicViewportDays';
@@ -115,13 +115,11 @@ export function TimelineView() {
       console.warn('⚠️ TimelineView: currentDate is invalid, using current date');
       const fallbackDate = new Date();
       fallbackDate.setDate(1); // Start at beginning of month
-      fallbackDate.setHours(0, 0, 0, 0); // Normalize time component
-      return fallbackDate;
+      return normalizeToMidnight(fallbackDate); // Normalize time component
     }
     const start = new Date(currentDate);
     start.setDate(1); // Start at beginning of month
-    start.setHours(0, 0, 0, 0); // Normalize time component
-    return start;
+    return normalizeToMidnight(start); // Normalize time component
   });
   // Protected viewport setter that respects scrollbar blocking using service
   const protectedSetViewportStart = useCallback((date: Date) => {
@@ -246,8 +244,7 @@ export function TimelineView() {
   }, [viewportStart, setCurrentDate, isAnimating, VIEWPORT_DAYS, timelineMode]);
   const handleGoToToday = useCallback(() => {
     if (isAnimating) return;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = normalizeToMidnight(new Date());
     const targetViewport = TimelineViewportService.calculateTodayTarget({
       currentDate: today,
       viewportDays: VIEWPORT_DAYS,
@@ -282,11 +279,9 @@ export function TimelineView() {
   const handleDateSelect = useCallback((selectedDate: Date | undefined) => {
     if (!selectedDate || isAnimating) return;
     // Normalize the selected date
-    const normalizedDate = new Date(selectedDate);
-    normalizedDate.setHours(0, 0, 0, 0);
+    const normalizedDate = normalizeToMidnight(new Date(selectedDate));
     // Calculate target viewport start to center the selected date
-    const targetViewportStart = new Date(normalizedDate);
-    targetViewportStart.setDate(normalizedDate.getDate() - Math.floor(VIEWPORT_DAYS / 4));
+    const targetViewportStart = addDaysToDate(normalizedDate, -Math.floor(VIEWPORT_DAYS / 4));
     const currentStart = viewportStart.getTime();
     const targetStart = targetViewportStart.getTime();
     const daysDifference = Math.abs((targetStart - currentStart) / (24 * 60 * 60 * 1000));
@@ -419,14 +414,13 @@ export function TimelineView() {
         }
         // Create smooth navigation
         const currentStart = viewportStart.getTime();
-        const targetStart = new Date(viewportStart);
-        targetStart.setDate(targetStart.getDate() + (scrollDirection === 'next' ? daysToScroll : -daysToScroll));
+        const targetStartDate = addDaysToDate(viewportStart, (scrollDirection === 'next' ? daysToScroll : -daysToScroll));
         // Faster, more responsive animation
         setIsAnimating(true);
         const animationDuration = Math.min(150, daysToScroll * 25); // Even faster for better responsiveness
         const animationConfig = {
           currentStart,
-          targetStart: targetStart.getTime(),
+          targetStart: targetStartDate.getTime(),
           duration: animationDuration
         };
         createSmoothDragAnimation(
@@ -512,22 +506,21 @@ export function TimelineView() {
   React.useEffect(() => {
     // Check if currentDate is outside current viewport
     const currentStart = viewportStart;
-    const currentEnd = new Date(currentStart);
-    currentEnd.setDate(currentStart.getDate() + VIEWPORT_DAYS - 1);
+    const currentEnd = addDaysToDate(currentStart, VIEWPORT_DAYS - 1);
     // If currentDate is outside viewport, navigate to include it
     if (currentDate < currentStart || currentDate > currentEnd) {
       // Center the viewport around the currentDate
-      const newViewportStart = new Date(currentDate);
+      let newViewportStart = new Date(currentDate);
       if (timelineMode === 'weeks') {
         // In weeks mode, align to week boundary  
         const dayOfWeek = newViewportStart.getDay();
         const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Monday = 1
-        newViewportStart.setDate(newViewportStart.getDate() + mondayOffset);
+        newViewportStart = addDaysToDate(newViewportStart, mondayOffset);
       } else {
         // In days mode, go back by half viewport to center the date
-        newViewportStart.setDate(newViewportStart.getDate() - Math.floor(VIEWPORT_DAYS / 2));
+        newViewportStart = addDaysToDate(newViewportStart, -Math.floor(VIEWPORT_DAYS / 2));
       }
-      newViewportStart.setHours(0, 0, 0, 0);
+      newViewportStart = normalizeToMidnight(newViewportStart);
       setViewportStart(newViewportStart);
     }
   }, [currentDate, viewportStart, VIEWPORT_DAYS, timelineMode]);
@@ -591,28 +584,22 @@ export function TimelineView() {
           const throttleMs = timelineMode === 'weeks' ? 100 : 50;
           throttledDragUpdate(async () => {
             if (action === 'resize-start-date') {
-              const newStartDate = new Date(initialDragState.originalStartDate);
-              newStartDate.setDate(newStartDate.getDate() + daysDelta);
+              const newStartDate = addDaysToDate(new Date(initialDragState.originalStartDate), daysDelta);
               const endDate = new Date(initialDragState.originalEndDate);
-              const oneDayBefore = new Date(endDate);
-              oneDayBefore.setDate(endDate.getDate() - 1);
+              const oneDayBefore = addDaysToDate(endDate, -1);
               if (newStartDate <= oneDayBefore) {
                 updateProject(projectId, { startDate: newStartDate }, { silent: true });
               }
             } else if (action === 'resize-end-date') {
-              const newEndDate = new Date(initialDragState.originalEndDate);
-              newEndDate.setDate(newEndDate.getDate() + daysDelta);
+              const newEndDate = addDaysToDate(new Date(initialDragState.originalEndDate), daysDelta);
               const startDate = new Date(initialDragState.originalStartDate);
-              const oneDayAfter = new Date(startDate);
-              oneDayAfter.setDate(startDate.getDate() + 1);
+              const oneDayAfter = addDaysToDate(startDate, 1);
               if (newEndDate >= oneDayAfter) {
                 updateProject(projectId, { endDate: newEndDate }, { silent: true });
               }
             } else if (action === 'move') {
-              const newStartDate = new Date(initialDragState.originalStartDate);
-              const newEndDate = new Date(initialDragState.originalEndDate);
-              newStartDate.setDate(newStartDate.getDate() + daysDelta);
-              newEndDate.setDate(newEndDate.getDate() + daysDelta);
+              const newStartDate = addDaysToDate(new Date(initialDragState.originalStartDate), daysDelta);
+              const newEndDate = addDaysToDate(new Date(initialDragState.originalEndDate), daysDelta);
               // Update project and all milestones in parallel
               const projectUpdate = updateProject(projectId, { 
                 startDate: newStartDate,
@@ -621,8 +608,7 @@ export function TimelineView() {
               const projectMilestones = milestones.filter(m => m.projectId === projectId);
               const milestoneUpdates = projectMilestones.map(milestone => {
                 const originalMilestoneDate = new Date(milestone.dueDate);
-                const newMilestoneDate = new Date(originalMilestoneDate);
-                newMilestoneDate.setDate(originalMilestoneDate.getDate() + daysDelta);
+                const newMilestoneDate = addDaysToDate(originalMilestoneDate, daysDelta);
                 return updateMilestone(milestone.id, { 
                   dueDate: new Date(newMilestoneDate.toISOString().split('T')[0] + 'T00:00:00+00:00')
                 }, { silent: true });
@@ -737,26 +723,22 @@ export function TimelineView() {
           const throttleMs = timelineMode === 'weeks' ? 100 : 50;
           throttledDragUpdate(async () => {
             if (action === 'resize-start-date') {
-              const newStartDate = new Date(initialDragState.originalStartDate);
-              newStartDate.setDate(initialDragState.originalStartDate.getDate() + daysDelta);
+              const newStartDate = addDaysToDate(new Date(initialDragState.originalStartDate), daysDelta);
               const endDate = new Date(initialDragState.originalEndDate);
               // Allow start date to equal end date (single day holiday)
               if (newStartDate <= endDate) {
                 updateHoliday(holidayId, { startDate: newStartDate }, { silent: true });
               }
             } else if (action === 'resize-end-date') {
-              const newEndDate = new Date(initialDragState.originalEndDate);
-              newEndDate.setDate(initialDragState.originalEndDate.getDate() + daysDelta);
+              const newEndDate = addDaysToDate(new Date(initialDragState.originalEndDate), daysDelta);
               const startDate = new Date(initialDragState.originalStartDate);
               // Allow end date to equal start date (single day holiday)
               if (newEndDate >= startDate) {
                 updateHoliday(holidayId, { endDate: newEndDate }, { silent: true });
               }
             } else if (action === 'move') {
-              const newStartDate = new Date(initialDragState.originalStartDate);
-              const newEndDate = new Date(initialDragState.originalEndDate);
-              newStartDate.setDate(initialDragState.originalStartDate.getDate() + daysDelta);
-              newEndDate.setDate(initialDragState.originalEndDate.getDate() + daysDelta);
+              const newStartDate = addDaysToDate(new Date(initialDragState.originalStartDate), daysDelta);
+              const newEndDate = addDaysToDate(new Date(initialDragState.originalEndDate), daysDelta);
               updateHoliday(holidayId, { 
                 startDate: newStartDate,
                 endDate: newEndDate 
@@ -943,34 +925,35 @@ export function TimelineView() {
                   </div>
                   {/* Scrollable Content Area */}
                   <div className="flex-1 overflow-x-auto overflow-y-auto light-scrollbar-vertical-only relative">
-                    {/* Column overlays - weekends, holidays, and markers spanning entire viewport height */}
-                    <div 
-                      className="absolute top-0 left-0 pointer-events-none" 
-                      style={{ 
-                        width: mode === 'weeks' 
-                          ? `${dates.length * 77}px`
-                          : `${dates.length * 52 + 52}px`,
-                        minHeight: '100%',
-                        height: 'auto',
-                        zIndex: 1
-                      }}
-                    >
-                      {/* Column markers - week/month borders and today overlay */}
-                      <TimelineColumnMarkers dates={dates} mode={mode} />
+                    {/* Timeline Content - full width, no sidebar */}
+                    <div className="bg-gray-50 timeline-content-area relative" style={{ 
+                      width: '100%',
+                      minHeight: '100%'
+                    }}>
+                      {/* Column overlays - weekends, holidays, and markers spanning entire content height */}
+                      <div 
+                        className="absolute top-0 left-0 bottom-0 pointer-events-none" 
+                        style={{ 
+                          width: mode === 'weeks' 
+                            ? `${dates.length * 77}px`
+                            : `${dates.length * 52 + 52}px`,
+                          zIndex: 1
+                        }}
+                      >
+                        {/* Column markers - week/month borders and today overlay */}
+                        <TimelineColumnMarkers dates={dates} mode={mode} />
                       {/* Weekend overlays */}
                       {dates.map((date, dateIndex) => {
                         if (mode === 'weeks') {
                           // Week mode - render weekend overlays for each day in the week
-                          const weekStart = new Date(date);
-                          const dayOfWeek = weekStart.getDay();
+                          const rawWeekStart = new Date(date);
+                          const dayOfWeek = rawWeekStart.getDay();
                           const daysToMonday = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek);
-                          weekStart.setDate(weekStart.getDate() + daysToMonday);
-                          weekStart.setHours(0, 0, 0, 0);
+                          const weekStart = normalizeToMidnight(addDaysToDate(rawWeekStart, daysToMonday));
                           
                           const weekendDays: { dayIndex: number; leftPx: number }[] = [];
                           for (let i = 0; i < 7; i++) {
-                            const currentDay = new Date(weekStart);
-                            currentDay.setDate(weekStart.getDate() + i);
+                            const currentDay = addDaysToDate(weekStart, i);
                             const dow = currentDay.getDay();
                             if (dow === 0 || dow === 6) { // Sunday or Saturday
                               weekendDays.push({ dayIndex: i, leftPx: dateIndex * 154 + i * 22 });
@@ -1016,18 +999,17 @@ export function TimelineView() {
                       {holidays && holidays.length > 0 && holidays.map(holiday => {
                         const holidayStart = new Date(holiday.startDate);
                         const holidayEnd = new Date(holiday.endDate || holiday.startDate);
-                        holidayStart.setHours(0, 0, 0, 0);
-                        holidayEnd.setHours(0, 0, 0, 0);
+                        const normalizedHolidayStart = normalizeToMidnight(holidayStart);
+                        const normalizedHolidayEnd = normalizeToMidnight(holidayEnd);
                         
                         const columnWidth = mode === 'weeks' ? 154 : 52;
                         const dayWidth = mode === 'weeks' ? 22 : columnWidth;
                         
-                        const timelineStart = new Date(dates[0]);
-                        timelineStart.setHours(0, 0, 0, 0);
+                        const timelineStart = normalizeToMidnight(new Date(dates[0]));
                         const msPerDay = 24 * 60 * 60 * 1000;
                         
-                        const startDay = Math.floor((holidayStart.getTime() - timelineStart.getTime()) / msPerDay);
-                        const endDay = Math.floor((holidayEnd.getTime() - timelineStart.getTime()) / msPerDay);
+                        const startDay = Math.floor((normalizedHolidayStart.getTime() - timelineStart.getTime()) / msPerDay);
+                        const endDay = Math.floor((normalizedHolidayEnd.getTime() - timelineStart.getTime()) / msPerDay);
                         const holidayLeftPx = startDay * dayWidth;
                         const holidayWidthPx = (endDay - startDay + 1) * dayWidth;
                         
@@ -1051,11 +1033,6 @@ export function TimelineView() {
                       })}
                     </div>
                     
-                    {/* Timeline Content - full width, no sidebar */}
-                    <div className="bg-gray-50 timeline-content-area relative" style={{ 
-                      width: '100%',
-                      height: '100%'
-                    }}>
                       {/* Scrollable Content Layer */}
                       <div className="relative">
                       {/* Project Timeline Bars - Organized by Groups and VISUAL ROWS (Auto-Layout) */}
@@ -1142,8 +1119,8 @@ export function TimelineView() {
                         <AddGroupRow />
                       </div>
                       </div> {/* End of Scrollable Content Layer */}
-                    </div>
-                  </div>
+                    </div> {/* End of Timeline Content */}
+                  </div> {/* End of Scrollable Content Area */}
                 </div>
               </Card>
               {/* Availability Timeline Card */}
@@ -1162,15 +1139,14 @@ export function TimelineView() {
                       {dates.map((date, dateIndex) => {
                         if (mode === 'weeks') {
                           // Weeks mode - render weekend days within each week
-                          const weekStart = new Date(date);
-                          const dayOfWeek = weekStart.getDay();
+                          const rawWeekStart = new Date(date);
+                          const dayOfWeek = rawWeekStart.getDay();
                           const daysToMonday = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek);
-                          weekStart.setDate(weekStart.getDate() + daysToMonday);
+                          const weekStart = addDaysToDate(rawWeekStart, daysToMonday);
                           
                           const weekendDays = [];
                           for (let i = 0; i < 7; i++) {
-                            const currentDay = new Date(weekStart);
-                            currentDay.setDate(weekStart.getDate() + i);
+                            const currentDay = addDaysToDate(weekStart, i);
                             const dow = currentDay.getDay();
                             if (dow === 0 || dow === 6) {
                               weekendDays.push({ leftPx: dateIndex * 154 + i * 22 });
@@ -1221,8 +1197,7 @@ export function TimelineView() {
                           const dayWidth = mode === 'weeks' ? 22 : columnWidth; // 22px per day in weeks mode
                           const totalDays = mode === 'weeks' ? dates.length * 7 : dates.length;
                           // Calculate day positions for the holiday
-                          const timelineStart = new Date(dates[0]);
-                          timelineStart.setHours(0,0,0,0);
+                          const timelineStart = normalizeToMidnight(new Date(dates[0]));
                           const msPerDay = 24 * 60 * 60 * 1000;
                           const startDay = Math.floor((expandedDates[0].getTime() - timelineStart.getTime()) / msPerDay);
                           const holidayDays = expandedDates.length;
@@ -1307,8 +1282,8 @@ export function TimelineView() {
                         
                         // Calculate new viewport start from scrollbar position
                         const dayOfYear = Math.round((newLeft / 100) * 365);
-                        const newStart = new Date(viewportStart.getFullYear(), 0, 1);
-                        newStart.setDate(newStart.getDate() + dayOfYear);
+                        let newStart = new Date(viewportStart.getFullYear(), 0, 1);
+                        newStart = addDaysToDate(newStart, dayOfYear);
                         
                         protectedSetViewportStart(newStart);
                         setCurrentDate(newStart);

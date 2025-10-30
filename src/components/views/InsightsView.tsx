@@ -8,14 +8,14 @@ import { ResponsiveBar, BarDatum } from '@nivo/bar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import { 
   Calendar, 
-  Clock, 
   AlertTriangle, 
   Target,
   ChevronLeft,
-  ChevronRight,
-  Sun
+  ChevronRight
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { Info } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
@@ -386,14 +386,11 @@ export function InsightsView() {
           {/* Charts Row */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-[21px]">
             {/* Project Time Distribution Chart */}
-            <Card>
+            <Card className="relative">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle>Project Time Distribution</CardTitle>
-                    <CardDescription>
-                      Percentage of total time spent per project
-                    </CardDescription>
+                    <CardTitle className="text-base">Time Distribution</CardTitle>
                   </div>
                   <Select value={projectDistributionTimeFrame} onValueChange={(value) => setProjectDistributionTimeFrame(value as any)}>
                     <SelectTrigger className="w-32">
@@ -424,7 +421,7 @@ export function InsightsView() {
                   </div>
                 )}
               </CardHeader>
-              <CardContent>
+              <CardContent className="relative">
                 {projectDistributionData.length === 0 ? (
                   <div className="h-80 flex items-center justify-center text-gray-500">
                     No completed project time in this period
@@ -485,17 +482,47 @@ export function InsightsView() {
                   </div>
                 )}
               </CardContent>
+
+              {/* Info popover bottom-right of the card */}
+              <div className="absolute bottom-6 right-6">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      aria-label="About Time Distribution"
+                      className="rounded-full"
+                    >
+                      <Info className="w-4 h-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80" side="top" align="end">
+                    <div className="space-y-2">
+                      <div className="font-medium text-sm">About Time Distribution</div>
+                      <p className="text-xs text-gray-600">
+                        Donut showing percentage of total time spent per project for the selected period.
+                      </p>
+                      <div className="text-xs text-gray-700 space-y-1">
+                        <div className="font-medium">Keys</div>
+                        <ul className="list-disc pl-4 space-y-1">
+                          <li>Each slice = a project, sized by hours</li>
+                          <li>Hover to see project, client, hours, and %</li>
+                          <li>Period: Last Week / Last Month / Custom range</li>
+                          <li>Includes only completed events with a project</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
             </Card>
 
             {/* Time Analysis Chart */}
-            <Card className="lg:col-span-2">
+            <Card className="lg:col-span-2 relative">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle>Time Analysis - {formatTimeFrame(timeAnalysisTimeFrame)}</CardTitle>
-                    <CardDescription>
-                      Available time vs. committed and overbooked hours
-                    </CardDescription>
+                    <CardTitle className="text-base">Availability Used</CardTitle>
                   </div>
                   <div className="flex items-center gap-4">
                     <Select value={timeAnalysisTimeFrame} onValueChange={(value: TimeFrame) => {
@@ -553,7 +580,7 @@ export function InsightsView() {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="relative">
                 {/* Sticky Year/Month Headers for Week and Month views */}
                 {timeAnalysisTimeFrame !== 'year' && headerData.length > 0 && (
                   <div className="relative mb-4">
@@ -681,23 +708,59 @@ export function InsightsView() {
                   />
                 </div>
               </CardContent>
+
+              {/* Info popover bottom-right of the card */}
+              <div className="absolute bottom-6 right-6">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      aria-label="About Availability Used"
+                      className="rounded-full"
+                    >
+                      <Info className="w-4 h-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80" side="top" align="end">
+                    <div className="space-y-2">
+                      <div className="font-medium text-sm">About Availability Used</div>
+                      <p className="text-xs text-gray-600">
+                        Grouped bars comparing available, utilized, and overbooked hours per period.
+                      </p>
+                      <div className="text-xs text-gray-700 space-y-1">
+                        <div className="font-medium">Keys</div>
+                        <ul className="list-disc pl-4 space-y-1">
+                          <li><span className="inline-block w-2 h-2 rounded-full align-middle mr-1" style={{background:'#e7e5e4'}}></span>Available (capacity)</li>
+                          <li><span className="inline-block w-2 h-2 rounded-full align-middle mr-1" style={{background:'#02c0b7'}}></span>Utilized (booked)</li>
+                          <li><span className="inline-block w-2 h-2 rounded-full align-middle mr-1" style={{background:'#dc2626'}}></span>Overbooked (excess)</li>
+                          <li>Timeframes: Weekly / Monthly / Yearly with navigation</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
             </Card>
           </div>
 
-          {/* Projects and Commitments Row */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-[21px]">
+          {/* Average Day Heatmap and Future Commitments Row */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-[21px]">
+            {/* Average Day Heatmap Card */}
+            <div className="lg:col-span-2">
+              <AverageDayHeatmapCard 
+                events={events}
+                groups={groups || []}
+                projects={projects || []}
+              />
+            </div>
+
             {/* Future Commitments Summary */}
-            <Card>
+            <Card className="relative">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Clock className="h-5 w-5 text-amber-600" />
-                  Future Commitments
-                </CardTitle>
-                <CardDescription>
-                  Total hours in upcoming projects
-                </CardDescription>
+                <CardTitle className="text-base">Future Commitments</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="relative">
                 <div className="space-y-6">
                   <div className="text-center">
                     <div className="text-4xl font-bold text-foreground mb-2">{futureCommitments}h</div>
@@ -736,14 +799,39 @@ export function InsightsView() {
                   )}
                 </div>
               </CardContent>
-            </Card>
 
-            {/* Average Day Heatmap Card */}
-            <AverageDayHeatmapCard 
-              events={events}
-              groups={groups || []}
-              projects={projects || []}
-            />
+              {/* Info popover bottom-right of the card */}
+              <div className="absolute bottom-6 right-6">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      aria-label="About Future Commitments"
+                      className="rounded-full"
+                    >
+                      <Info className="w-4 h-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80" side="top" align="end">
+                    <div className="space-y-2">
+                      <div className="font-medium text-sm">About Future Commitments</div>
+                      <p className="text-xs text-gray-600">
+                        Summary of upcoming project workload based on estimated hours and start dates.
+                      </p>
+                      <div className="text-xs text-gray-700 space-y-1">
+                        <div className="font-medium">Includes</div>
+                        <ul className="list-disc pl-4 space-y-1">
+                          <li>Total estimated hours for future projects</li>
+                          <li>Upcoming projects count and next start in days</li>
+                          <li>Average project size (hours)</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </Card>
           </div>
 
 

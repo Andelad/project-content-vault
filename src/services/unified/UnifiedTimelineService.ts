@@ -303,6 +303,80 @@ export class UnifiedTimelineService {
       events || [] // Pass events to calculation
     );
     
+    // Pre-aggregate per-date summaries to avoid per-render filtering in components
+    // Key: midnight timestamp of the date (number) for stable lookup
+    const summariesByDate = new Map<number, {
+      dailyHours: number;
+      allocationType: 'planned' | 'completed' | 'auto-estimate' | 'none';
+      isPlannedTime: boolean;
+      isCompletedTime: boolean;
+    }>();
+    try {
+      const getMidnightTime = (d: Date) => {
+        const n = new Date(d);
+        n.setHours(0, 0, 0, 0);
+        return n.getTime();
+      };
+      // Group estimates by date
+      const grouped = new Map<number, Array<any>>();
+      for (const est of dayEstimates) {
+        const key = getMidnightTime(new Date(est.date));
+        if (!grouped.has(key)) grouped.set(key, []);
+        grouped.get(key)!.push(est);
+      }
+      // Build summaries per date
+      for (const [key, estimates] of grouped.entries()) {
+        const totalHours = estimates.reduce((sum, e) => sum + (e?.hours || 0), 0);
+        // Events and estimates are mutually exclusive at the day level by rule;
+        // but if present, event wins the classification
+        const eventEstimate = estimates.find(e => e?.source === 'event');
+        let allocationType: 'planned' | 'completed' | 'auto-estimate' | 'none' = 'none';
+        let isPlannedTime = false;
+        let isCompletedTime = false;
+        if (eventEstimate) {
+          if (eventEstimate.isPlannedEvent && eventEstimate.isCompletedEvent) {
+            allocationType = 'planned';
+            isPlannedTime = true;
+            isCompletedTime = true;
+          } else if (eventEstimate.isPlannedEvent) {
+            allocationType = 'planned';
+            isPlannedTime = true;
+          } else if (eventEstimate.isCompletedEvent) {
+            allocationType = 'completed';
+            isCompletedTime = true;
+          } else {
+            allocationType = 'none';
+          }
+        } else if (totalHours > 0) {
+          allocationType = 'auto-estimate';
+        }
+        summariesByDate.set(key, {
+          dailyHours: totalHours,
+          allocationType,
+          isPlannedTime,
+          isCompletedTime
+        });
+      }
+    } catch (e) {
+      // Fail-safe: if aggregation fails, leave summaries empty; component should handle gracefully
+      console.error('[UnifiedTimelineService] Failed to aggregate per-date summaries:', e);
+    }
+    
+    // Helper accessor for components: get summary for a date without re-filtering arrays
+    const getPerDateSummary = (date: Date) => {
+      const keyDate = new Date(date);
+      keyDate.setHours(0, 0, 0, 0);
+      const key = keyDate.getTime();
+      return (
+        summariesByDate.get(key) || {
+          dailyHours: 0,
+          allocationType: 'none' as const,
+          isPlannedTime: false,
+          isCompletedTime: false
+        }
+      );
+    };
+    
     const projectDays = this.calculateProjectDays(
       project.startDate,
       project.endDate,
@@ -320,6 +394,8 @@ export class UnifiedTimelineService {
       workHoursForPeriod: this.generateProjectWorkHours(project, settings, viewportEnd),
       // Day estimates (NEW - single source of truth)
       dayEstimates,
+      // Fast per-date accessor to avoid filter/reduce in components
+      getPerDateSummary,
       // Milestone segments (DEPRECATED - kept for backward compatibility)
       milestoneSegments: this.calculateMilestoneSegments(
         milestones,

@@ -5,7 +5,7 @@ import { usePlannerContext } from '../../contexts/PlannerContext';
 import { ParasolIcon } from '@/assets';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import { Button } from '../ui/button';
-import { wouldOverlapHolidays } from '@/services';
+import { wouldOverlapHolidays, normalizeToMidnight, normalizeToEndOfDay, addDaysToDate } from '@/services';
 import { SmartHoverAddHolidayBar } from './SmartHoverAddHolidayBar';
 
 interface AddProjectRowProps {
@@ -537,26 +537,23 @@ export function AddHolidayRow({ dates, collapsed, isDragging, dragState, handleH
   const { holidays: globalHolidays, addHoliday, setCreatingNewHoliday, setEditingHolidayId } = usePlannerContext();
   
   // Convert global holidays to timeline format
-  const timelineHolidays = globalHolidays.map(holiday => {
+      const timelineHolidays = globalHolidays.map(holiday => {
     if (mode === 'weeks') {
       // For weeks mode, we need to calculate which weeks contain the holiday
       // and then calculate the exact day positions within those weeks
-      const holidayStart = new Date(holiday.startDate);
-      holidayStart.setHours(0, 0, 0, 0);
-      const holidayEnd = new Date(holiday.endDate);
-      holidayEnd.setHours(0, 0, 0, 0);
+          const holidayStart = normalizeToMidnight(new Date(holiday.startDate));
+          const holidayEnd = normalizeToMidnight(new Date(holiday.endDate));
       
       // Find which week columns this holiday spans
       let startWeekIndex = -1;
       let endWeekIndex = -1;
       
-      dates.forEach((weekStart, weekIndex) => {
-        const weekEnd = new Date(weekStart);
-        weekEnd.setDate(weekStart.getDate() + 6);
-        weekEnd.setHours(23, 59, 59, 999);
+          dates.forEach((weekStart, weekIndex) => {
+            const weekStartMidnight = normalizeToMidnight(new Date(weekStart));
+            const weekEnd = normalizeToEndOfDay(addDaysToDate(weekStartMidnight, 6));
         
         // Check if holiday overlaps with this week
-        if (!(holidayEnd < weekStart || holidayStart > weekEnd)) {
+            if (!(holidayEnd < weekStartMidnight || holidayStart > weekEnd)) {
           if (startWeekIndex === -1) {
             startWeekIndex = weekIndex;
           }
@@ -590,12 +587,11 @@ export function AddHolidayRow({ dates, collapsed, isDragging, dragState, handleH
         actualStartWeek: startWeekIndex,
         actualEndWeek: endWeekIndex
       };
-    } else {
+      } else {
       // Days mode: Calculate position relative to viewport, but maintain full holiday width
-      const holidayStart = new Date(holiday.startDate);
-      holidayStart.setHours(0, 0, 0, 0);
-      const holidayEnd = new Date(holiday.endDate);
-      holidayEnd.setHours(23, 59, 59, 999);
+  const holidayStart = normalizeToMidnight(new Date(holiday.startDate));
+  // Use midnight for end as well to match overlay logic and avoid DST off-by-one
+  const holidayEnd = normalizeToMidnight(new Date(holiday.endDate));
       
       if (dates.length === 0) return null;
       
@@ -607,8 +603,8 @@ export function AddHolidayRow({ dates, collapsed, isDragging, dragState, handleH
       // This can be negative if the holiday starts before the viewport
       const startIndex = Math.floor((holidayStart.getTime() - firstVisibleDate.getTime()) / msPerDay);
       
-      // Calculate the full duration of the holiday in days
-      const dayCount = Math.floor((holidayEnd.getTime() - holidayStart.getTime()) / msPerDay) + 1;
+  // Calculate the full duration of the holiday in days (inclusive)
+  const dayCount = Math.floor((holidayEnd.getTime() - holidayStart.getTime()) / msPerDay) + 1;
       
       // Check if holiday is completely outside viewport (optimization)
       const holidayEndIndex = startIndex + dayCount - 1;
@@ -650,9 +646,8 @@ export function AddHolidayRow({ dates, collapsed, isDragging, dragState, handleH
         <div className="absolute left-2 z-30" style={{ top: '15px' }}>
           <button
             onClick={() => {
-              const today = new Date();
-              const endDate = new Date(today);
-              endDate.setDate(today.getDate() + 2); // 2 days from today
+              const today = normalizeToMidnight(new Date());
+              const endDate = addDaysToDate(today, 2); // 2 days from today
               setCreatingNewHoliday({ startDate: today, endDate });
             }}
             className="relative w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200 shadow-md hover:shadow-lg drop-shadow-sm hover:brightness-95 group"
