@@ -15,11 +15,25 @@ const ProfileView = React.lazy(() => import('../views/ProfileView').then(module 
 const FeedbackView = React.lazy(() => import('../views/FeedbackView').then(module => ({ default: module.FeedbackView })));
 const SettingsView = React.lazy(() => import('../settings/SettingsView').then(module => ({ default: module.SettingsView })));
 
-// Loading component for lazy-loaded views
+// Loading component for lazy-loaded views - modern circle segments spinner
 const ViewLoader = () => (
   <div className="flex h-full items-center justify-center">
-    <div className="flex flex-col items-center space-y-2">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+    <div className="flex flex-col items-center space-y-3">
+      <div className="relative w-10 h-10">
+        {/* Circle segments spinner with rounded caps */}
+        <svg className="animate-spin" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+          <circle
+            cx="25"
+            cy="25"
+            r="20"
+            fill="none"
+            stroke="#3b82f6"
+            strokeWidth="4"
+            strokeLinecap="round"
+            strokeDasharray="31.4 94.2"
+          />
+        </svg>
+      </div>
       <div className="text-sm text-gray-600">Loading...</div>
     </div>
   </div>

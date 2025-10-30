@@ -973,7 +973,7 @@ export function TimelineView() {
                             currentDay.setDate(weekStart.getDate() + i);
                             const dow = currentDay.getDay();
                             if (dow === 0 || dow === 6) { // Sunday or Saturday
-                              weekendDays.push({ dayIndex: i, leftPx: dateIndex * 77 + i * 11 });
+                              weekendDays.push({ dayIndex: i, leftPx: dateIndex * 154 + i * 22 });
                             }
                           }
                           
@@ -983,7 +983,7 @@ export function TimelineView() {
                               className="absolute top-0"
                               style={{
                                 left: `${wd.leftPx}px`,
-                                width: '11px',
+                                width: '22px',
                                 height: '100%',
                                 backgroundColor: 'rgba(229, 231, 235, 0.15)',
                                 pointerEvents: 'none'
@@ -1019,8 +1019,8 @@ export function TimelineView() {
                         holidayStart.setHours(0, 0, 0, 0);
                         holidayEnd.setHours(0, 0, 0, 0);
                         
-                        const columnWidth = mode === 'weeks' ? 77 : 52;
-                        const dayWidth = mode === 'weeks' ? 11 : columnWidth;
+                        const columnWidth = mode === 'weeks' ? 154 : 52;
+                        const dayWidth = mode === 'weeks' ? 22 : columnWidth;
                         
                         const timelineStart = new Date(dates[0]);
                         timelineStart.setHours(0, 0, 0, 0);
@@ -1173,7 +1173,7 @@ export function TimelineView() {
                             currentDay.setDate(weekStart.getDate() + i);
                             const dow = currentDay.getDay();
                             if (dow === 0 || dow === 6) {
-                              weekendDays.push({ leftPx: dateIndex * 77 + i * 11 });
+                              weekendDays.push({ leftPx: dateIndex * 154 + i * 22 });
                             }
                           }
                           
@@ -1183,7 +1183,7 @@ export function TimelineView() {
                               className="absolute top-0 bottom-0"
                               style={{
                                 left: `${wd.leftPx}px`,
-                                width: '11px',
+                                width: '22px',
                                 backgroundColor: 'rgba(229, 231, 235, 0.15)',
                                 pointerEvents: 'none'
                               }}
@@ -1217,8 +1217,8 @@ export function TimelineView() {
                       <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }}>
                         {holidays && holidays.length > 0 && holidays.map(holiday => {
                           const expandedDates = expandHolidayDates([{ ...holiday, name: holiday.title || 'Holiday' }]);
-                          const columnWidth = mode === 'weeks' ? 77 : 52;
-                          const dayWidth = mode === 'weeks' ? 11 : columnWidth; // 11px per day in weeks mode
+                          const columnWidth = mode === 'weeks' ? 154 : 52;
+                          const dayWidth = mode === 'weeks' ? 22 : columnWidth; // 22px per day in weeks mode
                           const totalDays = mode === 'weeks' ? dates.length * 7 : dates.length;
                           // Calculate day positions for the holiday
                           const timelineStart = new Date(dates[0]);

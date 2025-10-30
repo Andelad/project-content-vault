@@ -11,7 +11,7 @@ export const TimelineColumnMarkers = memo(function TimelineColumnMarkers({ dates
   const columnData = UnifiedTimelineService.calculateColumnMarkerData(dates, mode);
   
   // Add buffer for partial column in days mode
-  const bufferWidth = mode === 'days' ? columnData[0]?.columnWidth || 40 : 0;
+  const bufferWidth = mode === 'days' ? columnData[0]?.columnWidth || 52 : 0;
   
   return (
     <div className="absolute inset-0 pointer-events-none" style={{ minWidth: `${dates.length * columnData[0]?.columnWidth + bufferWidth}px`, zIndex: 10 }}>

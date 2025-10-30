@@ -272,7 +272,7 @@ export const TimelineBar = memo(function TimelineBar({
   }
   
   // Add buffer for partial column in days mode
-  const columnWidth = mode === 'weeks' ? 77 : 52;
+  const columnWidth = mode === 'weeks' ? 154 : 52;
   const bufferWidth = mode === 'days' ? columnWidth : 0;
   
   try {
@@ -326,7 +326,7 @@ export const TimelineBar = memo(function TimelineBar({
           
           // Extend width to viewport edge (plus buffer) for continuous projects
           if (extendsRight) {
-            const columnWidth = mode === 'weeks' ? 77 : 52;
+            const columnWidth = mode === 'weeks' ? 154 : 52;
             const bufferWidth = mode === 'days' ? columnWidth : 0;
             const totalViewportWidth = dates.length * columnWidth + bufferWidth;
             widthPx = totalViewportWidth - leftPx + 100; // Add 100px buffer to extend beyond edge
@@ -394,10 +394,10 @@ export const TimelineBar = memo(function TimelineBar({
               const daysToMonday = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek); // Adjust to Monday
               weekStart.setDate(weekStart.getDate() + daysToMonday);
               weekStart.setHours(0, 0, 0, 0);
-              // Each week column is 77px, with each day getting exactly 10px
-              const dayWidths = [10, 10, 10, 10, 10, 10, 10]; // Mon, Tue, Wed, Thu, Fri, Sat, Sun
+              // Each week column is 154px, with each day getting exactly 20px
+              const dayWidths = [20, 20, 20, 20, 20, 20, 20]; // Mon, Tue, Wed, Thu, Fri, Sat, Sun
               return (
-                <div key={dateIndex} className="relative h-full items-end" style={{ minWidth: '77px', width: '77px' }}>
+                <div key={dateIndex} className="relative h-full items-end" style={{ minWidth: '154px', width: '154px' }}>
                   {/* Flexbox container to align rectangles to baseline */}
                   <div className="flex w-full items-end gap-px h-full">
                     {dayWidths.map((dayWidth, dayIndex) => {

@@ -70,7 +70,7 @@ export function TimelineAddProjectRow({ groupId, dates, mode = 'days' }: Timelin
   const groupRows = rows.filter(row => row.groupId === groupId);
 
   // Get column width based on mode - match TimelineView's column width
-  const columnWidth = mode === 'weeks' ? 77 : 52;
+  const columnWidth = mode === 'weeks' ? 154 : 52;
   const gap = mode === 'weeks' ? 0 : 1; // No gaps in weeks mode
   const defaultSpan = mode === 'weeks' ? 2 : 5; // 2 weeks or 5 days
 
@@ -129,7 +129,7 @@ export function TimelineAddProjectRow({ groupId, dates, mode = 'days' }: Timelin
       // Calculate left position based on mode
       let left: number;
       if (mode === 'weeks') {
-        left = dragState.startDayIndex * 11; // 11px per day
+        left = dragState.startDayIndex * 22; // 22px per day
       } else {
         const getColumnLeftPosition = (index: number) => {
           return (index * columnWidth) + (index * gap);
@@ -166,7 +166,7 @@ export function TimelineAddProjectRow({ groupId, dates, mode = 'days' }: Timelin
       // Calculate left position based on mode
       let left: number;
       if (mode === 'weeks') {
-        left = clampedDayIndex * 11; // 11px per day
+        left = clampedDayIndex * 22; // 22px per day
       } else {
         const getColumnLeftPosition = (index: number) => {
           return (index * columnWidth) + (index * gap);
@@ -239,7 +239,7 @@ export function TimelineAddProjectRow({ groupId, dates, mode = 'days' }: Timelin
     // Set initial bar position with default span from click position
     let left: number;
     if (mode === 'weeks') {
-      left = clampedStartDayIndex * 11; // 11px per day
+      left = clampedStartDayIndex * 22; // 22px per day
     } else {
       const getColumnLeftPosition = (index: number) => {
         return (index * columnWidth) + (index * gap);
@@ -301,7 +301,7 @@ export function TimelineAddProjectRow({ groupId, dates, mode = 'days' }: Timelin
       // Calculate left position based on mode
       let left: number;
       if (mode === 'weeks') {
-        left = currentDragState.startDayIndex * 11; // 11px per day
+        left = currentDragState.startDayIndex * 22; // 22px per day
       } else {
         const getColumnLeftPosition = (index: number) => {
           return (index * columnWidth) + (index * gap);
@@ -474,7 +474,7 @@ export function TimelineAddProjectRow({ groupId, dates, mode = 'days' }: Timelin
   let barWidth: number;
   if (hoverBar) {
     if (mode === 'weeks') {
-      // In weeks mode, each day is 11px wide
+      // In weeks mode, each day is 22px wide
       barWidth = hoverBar.dayCount * 11;
     } else {
       // Days mode - use column width and gaps
@@ -740,7 +740,7 @@ function HolidayBar({
   handleHolidayMouseDown,
   mode = 'days'
 }: HolidayBarProps) {
-  const columnWidth = mode === 'weeks' ? 77 : 52; // Match TimelineView's column width
+  const columnWidth = mode === 'weeks' ? 154 : 52; // Match TimelineView's column width
   const [mouseDownTime, setMouseDownTime] = useState<number | null>(null);
   const [mouseDownPos, setMouseDownPos] = useState<{ x: number; y: number } | null>(null);
   const [hasMoved, setHasMoved] = useState(false);
@@ -809,7 +809,7 @@ function HolidayBar({
           style={(() => {
             if (mode === 'weeks') {
               // For week mode, calculate the precise positioning within week columns
-              const dayWidth = 11; // Exact 11px per day (77px ÷ 7 days)
+              const dayWidth = 22; // Exact 22px per day (154px ÷ 7 days)
               
               // Use modulo to get position within the current week
               const holidayStartInCurrentWeek = holiday.startIndex % 7; // Day of week (0-6)

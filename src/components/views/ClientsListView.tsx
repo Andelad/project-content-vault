@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Client } from '@/types/core';
+import { ClientModal } from '@/components/modals/ClientModal';
 
 type ViewType = 'grid' | 'list';
 type ClientStatusFilter = 'all' | 'active' | 'archived';
@@ -29,6 +30,22 @@ export function ClientsListView({
 }: ClientsListViewProps) {
   const { clients, loading } = useClients();
   const { projects } = useProjectContext();
+
+  // Modal state
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [isClientModalOpen, setIsClientModalOpen] = useState(false);
+
+  // Handle client click
+  const handleClientClick = (clientId: string) => {
+    setSelectedClientId(clientId);
+    setIsClientModalOpen(true);
+  };
+
+  // Handle modal close
+  const handleModalClose = () => {
+    setIsClientModalOpen(false);
+    setSelectedClientId(null);
+  };
 
   // Filter clients
   const filteredClients = useMemo(() => {
@@ -127,7 +144,11 @@ export function ClientsListView({
             
             return viewType === 'grid' ? (
               // Grid view
-              <Card key={client.id} className="hover:shadow-lg transition-shadow">
+              <Card 
+                key={client.id} 
+                className="hover:shadow-lg transition-shadow cursor-pointer"
+                onClick={() => handleClientClick(client.id)}
+              >
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -197,7 +218,11 @@ export function ClientsListView({
               </Card>
             ) : (
               // List view
-              <Card key={client.id} className="hover:shadow-lg transition-shadow">
+              <Card 
+                key={client.id} 
+                className="hover:shadow-lg transition-shadow cursor-pointer"
+                onClick={() => handleClientClick(client.id)}
+              >
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     {/* Left section - Client info */}
@@ -276,6 +301,13 @@ export function ClientsListView({
           </CardContent>
         </Card>
       )}
+
+      {/* Client Modal */}
+      <ClientModal
+        isOpen={isClientModalOpen}
+        onClose={handleModalClose}
+        clientId={selectedClientId}
+      />
     </div>
   );
 }

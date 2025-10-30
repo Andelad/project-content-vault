@@ -73,7 +73,7 @@ function calculateWeeksModePositions(
   }
 
   const msPerDay = 24 * 60 * 60 * 1000;
-  const dayWidth = 11; // Each day is exactly 11px wide in weeks mode
+  const dayWidth = 22; // Each day is exactly 22px wide in weeks mode
 
   // Calculate day offsets from first week start
   const daysFromStartToProjectStart = Math.floor(
@@ -481,11 +481,11 @@ export interface MouseToIndexConversion {
  * Timeline constants for UI calculations
  * These values must match TimelineView's column width calculations:
  * - Days mode: 52px per day
- * - Weeks mode: 77px per week (which is 11px per day: 77 ÷ 7)
+ * - Weeks mode: 154px per week (which is 22px per day: 154 ÷ 7)
  */
 const TIMELINE_CONSTANTS = {
   COLUMN_WIDTH_DAYS: 52,
-  COLUMN_WIDTH_WEEKS: 77,
+  COLUMN_WIDTH_WEEKS: 154,
   CIRCLE_SIZE: 8,
   TRIANGLE_SIZE: 8,
   VIEWPORT_DAYS: 14,
@@ -694,12 +694,24 @@ export function convertMousePositionToTimelineIndex(
   mode: 'days' | 'weeks' = 'days',
   occupiedIndices: number[] = []
 ): { dayIndex: number; isValid: boolean } {
-  const columnWidth = mode === 'weeks' ? TIMELINE_CONSTANTS.COLUMN_WIDTH_WEEKS : TIMELINE_CONSTANTS.COLUMN_WIDTH_DAYS;
   const relativeX = clientX - containerRect.left;
-  const dayIndex = Math.floor(relativeX / columnWidth);
+  let dayIndex: number;
+  let maxIndex: number;
+  
+  if (mode === 'weeks') {
+    // In weeks mode, calculate day-level index (22px per day)
+    const dayWidth = 22; // 154px ÷ 7 days
+    dayIndex = Math.floor(relativeX / dayWidth);
+    maxIndex = dates.length * 7; // Total days across all weeks
+  } else {
+    // In days mode, use column width
+    const columnWidth = TIMELINE_CONSTANTS.COLUMN_WIDTH_DAYS;
+    dayIndex = Math.floor(relativeX / columnWidth);
+    maxIndex = dates.length;
+  }
   
   const isValid = dayIndex >= 0 && 
-                  dayIndex < dates.length && 
+                  dayIndex < maxIndex && 
                   relativeX >= 0 && 
                   relativeX <= containerRect.width &&
                   !occupiedIndices.includes(dayIndex);

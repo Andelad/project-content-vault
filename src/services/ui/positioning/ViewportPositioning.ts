@@ -55,8 +55,8 @@ export interface ViewportBlockingState {
  */
 export class TimelineViewport {
   // Constants for viewport calculations
-  private static readonly MIN_DAY_COLUMN_WIDTH = 40;
-  private static readonly MIN_WEEK_COLUMN_WIDTH = 77;
+  private static readonly MIN_DAY_COLUMN_WIDTH = 52;
+  private static readonly MIN_WEEK_COLUMN_WIDTH = 154;
   private static readonly MIN_VIEWPORT_DAYS = 7;
   private static readonly MAX_VIEWPORT_DAYS = 60;
   private static readonly MIN_VIEWPORT_WEEKS = 4;
@@ -105,11 +105,11 @@ export class TimelineViewport {
     const calculatedAvailableWidth = Math.max(600, viewportWidth - mainSidebarWidth - timelineSidebarWidth - this.VIEWPORT_MARGINS);
     if (mode === 'weeks') {
       // Use ceil to include partial final week
-      const theoreticalColumns = calculatedAvailableWidth / 72;
+      const theoreticalColumns = calculatedAvailableWidth / 154;
       return Math.max(1, Math.ceil(theoreticalColumns));
     } else {
       // For days, use ceil + 1 to show partial final column
-      const theoreticalColumns = calculatedAvailableWidth / 40;
+      const theoreticalColumns = calculatedAvailableWidth / 52;
       return Math.max(1, Math.ceil(theoreticalColumns) + 1);
     }
   }

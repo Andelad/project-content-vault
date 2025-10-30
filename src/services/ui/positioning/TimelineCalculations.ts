@@ -138,7 +138,7 @@ export function calculateMilestonePosition(
   const offsetFromProjectStart = getDateOffset(milestoneDate, projectStart, mode);
 
   // Determine actual day width based on mode
-  const dayWidth = mode === 'weeks' ? 11 : columnWidth; // 11px per day in weeks, columnWidth in days
+  const dayWidth = mode === 'weeks' ? 22 : columnWidth; // 22px per day in weeks, 52px in days
   const relativeLeft = offsetFromProjectStart * dayWidth;
 
   // Position milestone at END of its day column (add day width)
@@ -247,8 +247,8 @@ export function pixelToDate(
   const { startDate, columnWidth, mode } = viewport;
 
   if (mode === 'weeks') {
-    // In weeks mode, each day is exactly 11px (77px ÷ 7 days = 11px per day)
-    const dayWidth = 11;
+    // In weeks mode, each day is exactly 22px (154px ÷ 7 days = 22px per day)
+    const dayWidth = 22;
     const dayOffset = Math.round(pixelPosition / dayWidth);
     return addDateOffset(startDate, dayOffset, 'days');
   }
@@ -268,8 +268,8 @@ export function dateToPixel(
   const { startDate, columnWidth, mode } = viewport;
 
   if (mode === 'weeks') {
-    // In weeks mode, calculate exact day offset and multiply by 11px per day
-    const dayWidth = 11;
+    // In weeks mode, calculate exact day offset and multiply by 22px per day
+    const dayWidth = 22;
     const dayOffset = getDateOffset(date, startDate, 'days');
     return dayOffset * dayWidth;
   }
@@ -342,7 +342,7 @@ export function calculateBaselineVisualOffsets(
   if (isDragging && dragState?.projectId === projectId) {
     // In days view: use snapped daysDelta for day boundary snapping
     // In weeks view: use smooth pixelDeltaX for responsive movement
-    const dayWidth = mode === 'weeks' ? 11 : 40;
+    const dayWidth = mode === 'weeks' ? 22 : 52;
     const dragOffsetPx = mode === 'days'
       ? (dragState.daysDelta || 0) * dayWidth  // Snapped to day boundaries in days view
       : (typeof dragState.pixelDeltaX === 'number' ? dragState.pixelDeltaX : (dragState.daysDelta || 0) * dayWidth);  // Smooth in weeks view
@@ -618,7 +618,7 @@ export function calculateTimelineColumnMarkerData(
   dates: Date[], 
   mode: 'days' | 'weeks' = 'days'
 ): TimelineColumnData[] {
-  const columnWidth = mode === 'weeks' ? 77 : 52;
+  const columnWidth = mode === 'weeks' ? 154 : 52;
   const today = new Date();
   
   return dates.map((date, index) => {
@@ -645,7 +645,7 @@ export function calculateTimelineColumnMarkerData(
         if (!isWeekendDay) return null;
         
         const leftPx = (dayOffset / 7) * columnWidth;
-        const dayWidthPx = 11; // 77px ÷ 7 days
+        const dayWidthPx = 22; // 154px ÷ 7 days
         
         return {
           leftPx,

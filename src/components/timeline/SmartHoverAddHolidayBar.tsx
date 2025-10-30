@@ -36,7 +36,7 @@ export const SmartHoverAddHolidayBar: React.FC<SmartHoverAddHolidayBarProps> = (
     const rect = e.currentTarget.getBoundingClientRect();
     const relativeX = e.clientX - rect.left;
     
-    // Don't show hover in the first 52px where the add holiday button is
+    // Don't show hover in the first 52px (days) / 154px (weeks) where the add holiday button is
     if (relativeX < 52) {
       setHoveredIndex(null);
       return;
@@ -68,7 +68,7 @@ export const SmartHoverAddHolidayBar: React.FC<SmartHoverAddHolidayBarProps> = (
     const rect = e.currentTarget.getBoundingClientRect();
     const relativeX = e.clientX - rect.left;
     
-    // Don't handle clicks in the first 52px where the add holiday button is
+    // Don't handle clicks in the first 52px (days) / 154px (weeks) where the add holiday button is
     if (relativeX < 52) {
       return;
     }
@@ -197,7 +197,7 @@ export const SmartHoverAddHolidayBar: React.FC<SmartHoverAddHolidayBarProps> = (
     
     if (mode === 'weeks') {
       // For week mode with day-level precision
-      const dayWidth = 11; // Exact 11px per day (77px ÷ 7 days)
+      const dayWidth = 22; // Exact 22px per day (154px ÷ 7 days)
       width = (endIndex - startIndex + 1) * dayWidth;
       left = startIndex * dayWidth;
     } else {

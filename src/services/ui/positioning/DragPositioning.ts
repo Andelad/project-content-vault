@@ -102,10 +102,10 @@ export interface DragPositionResult {
  * Constants for drag calculations
  */
 export const DRAG_CONSTANTS = {
-  DAYS_MODE_COLUMN_WIDTH: 40,
-  WEEKS_MODE_COLUMN_WIDTH: 77,
-  WEEKS_MODE_DAY_WIDTH: 11, // 77px ÷ 7 days = 11px per day
-  HOLIDAY_FIXED_WIDTH: 40,
+  DAYS_MODE_COLUMN_WIDTH: 52,
+  WEEKS_MODE_COLUMN_WIDTH: 154,
+  WEEKS_MODE_DAY_WIDTH: 22, // 154px ÷ 7 days = 22px per day
+  HOLIDAY_FIXED_WIDTH: 52,
   MIN_PROJECT_DURATION_DAYS: 1,
   MAX_PROJECT_DURATION_DAYS: 365,
   PIXELS_PER_HOUR: 5, // For vertical time adjustments

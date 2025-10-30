@@ -25,9 +25,9 @@ export const TimelineDateHeaders = memo(function TimelineDateHeaders({ dates, mo
               return false;
             });
             
-            // Calculate the width and position of this month section in pixels (77px per week column)
-            const monthWidthPx = (group.endIndex - group.startIndex + 1) * 77;
-            const leftPositionPx = group.startIndex * 77;
+            // Calculate the width and position of this month section in pixels (154px per week column)
+            const monthWidthPx = (group.endIndex - group.startIndex + 1) * 154;
+            const leftPositionPx = group.startIndex * 154;
             
             return (
               <div
@@ -64,8 +64,8 @@ export const TimelineDateHeaders = memo(function TimelineDateHeaders({ dates, mo
             const dateRange = UnifiedTimelineService.formatWeekDateRange(weekStart);
             
             return (
-              <div key={index} className="text-center" style={{ minWidth: '77px', width: '77px' }}>
-                <HoverableDateCell date={weekStart} mode={mode} width={77}>
+              <div key={index} className={`text-center ${index < dates.length - 1 ? 'border-r border-gray-200' : ''}`} style={{ minWidth: '154px', width: '154px' }}>
+                <HoverableDateCell date={weekStart} mode={mode} width={154}>
                   <div className={`text-xs px-1 ${isCurrentWeek ? 'font-medium text-blue-600' : 'text-gray-700'}`}>
                     {dateRange}
                   </div>
