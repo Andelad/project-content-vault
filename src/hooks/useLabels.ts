@@ -11,6 +11,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Label } from '@/types/core';
 import { useToast } from '@/hooks/use-toast';
+import { LabelRules } from '@/domain/rules/LabelRules';
 
 export interface UseLabelsReturn {
   labels: Label[];
@@ -85,6 +86,17 @@ export function useLabels(): UseLabelsReturn {
    */
   const addLabel = async (labelData: Partial<Label>): Promise<Label | null> => {
     try {
+      // Validate label data before submission
+      const validation = LabelRules.validateLabel(labelData);
+      if (!validation.isValid) {
+        toast({
+          title: 'Validation Error',
+          description: validation.errors.join(', '),
+          variant: 'destructive',
+        });
+        return null;
+      }
+
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         throw new Error('User not authenticated');
@@ -136,6 +148,17 @@ export function useLabels(): UseLabelsReturn {
    */
   const updateLabel = async (id: string, updates: Partial<Label>): Promise<void> => {
     try {
+      // Validate updates before submission
+      const validation = LabelRules.validateLabel(updates);
+      if (!validation.isValid) {
+        toast({
+          title: 'Validation Error',
+          description: validation.errors.join(', '),
+          variant: 'destructive',
+        });
+        throw new Error(validation.errors.join(', '));
+      }
+
       const { error: updateError } = await supabase
         .from('labels')
         .update({
