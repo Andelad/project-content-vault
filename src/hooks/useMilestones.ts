@@ -170,13 +170,44 @@ export function useMilestones(projectId?: string) {
 
   const deleteMilestone = async (id: string, options: { silent?: boolean } = {}) => {
     try {
+      // First, fetch the milestone to check if it's a recurring template
+      const milestone = milestones.find(m => m.id === id);
+      
+      if (milestone?.is_recurring === true) {
+        // This is a recurring template - delete all numbered instances first
+        // Numbered instances have names like "Sprint 1", "Sprint 2", etc.
+        const baseName = milestone.name;
+        const numberedPattern = `${baseName} `;
+        
+        // Delete all numbered instances (name starts with base name + space + number)
+        const { error: instancesError } = await supabase
+          .from('milestones')
+          .delete()
+          .eq('project_id', milestone.project_id)
+          .eq('is_recurring', false)
+          .like('name', `${numberedPattern}%`);
+        
+        if (instancesError) {
+          console.error('Error deleting milestone instances:', instancesError);
+          throw instancesError;
+        }
+        
+        // Update local state to remove numbered instances
+        setMilestones(prev => prev.filter(m => 
+          !(m.project_id === milestone.project_id && 
+            m.is_recurring === false && 
+            m.name.startsWith(numberedPattern))
+        ));
+      }
+      
+      // Then delete the template itself
       const { error } = await supabase
         .from('milestones')
         .delete()
         .eq('id', id);
 
       if (error) throw error;
-      setMilestones(prev => prev.filter(milestone => milestone.id !== id));
+      setMilestones(prev => prev.filter(m => m.id !== id));
       
       // Only show toast if not in silent mode
       if (!options.silent) {
