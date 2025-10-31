@@ -11,6 +11,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Client, ClientStatus } from '@/types/core';
 import { useToast } from '@/hooks/use-toast';
+import { ClientRules } from '@/domain/rules/ClientRules';
 
 export interface UseClientsReturn {
   clients: Client[];
@@ -86,6 +87,17 @@ export function useClients(): UseClientsReturn {
    */
   const addClient = async (clientData: Partial<Client>): Promise<Client | null> => {
     try {
+      // Validate client data before submission
+      const validation = ClientRules.validateClient(clientData);
+      if (!validation.isValid) {
+        toast({
+          title: 'Validation Error',
+          description: validation.errors.join(', '),
+          variant: 'destructive',
+        });
+        return null;
+      }
+
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         throw new Error('User not authenticated');
@@ -145,6 +157,17 @@ export function useClients(): UseClientsReturn {
    */
   const updateClient = async (id: string, updates: Partial<Client>): Promise<void> => {
     try {
+      // Validate updates before submission
+      const validation = ClientRules.validateClient(updates);
+      if (!validation.isValid) {
+        toast({
+          title: 'Validation Error',
+          description: validation.errors.join(', '),
+          variant: 'destructive',
+        });
+        throw new Error(validation.errors.join(', '));
+      }
+
       const { error: updateError } = await supabase
         .from('clients')
         .update({
