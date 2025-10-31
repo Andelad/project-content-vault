@@ -56,8 +56,8 @@ export interface ViewportBlockingState {
 export class TimelineViewport {
   // Constants for viewport calculations
   private static readonly MIN_DAY_COLUMN_WIDTH = 52;
-  private static readonly MIN_WEEK_COLUMN_WIDTH = 154;
-  private static readonly MIN_VIEWPORT_DAYS = 7;
+  private static readonly MIN_WEEK_COLUMN_WIDTH = 153;
+  private static readonly MIN_VIEWPORT_DAYS = 14;
   private static readonly MAX_VIEWPORT_DAYS = 60;
   private static readonly MIN_VIEWPORT_WEEKS = 4;
   private static readonly MAX_VIEWPORT_WEEKS = 30;
@@ -105,7 +105,7 @@ export class TimelineViewport {
     const calculatedAvailableWidth = Math.max(600, viewportWidth - mainSidebarWidth - timelineSidebarWidth - this.VIEWPORT_MARGINS);
     if (mode === 'weeks') {
       // Use ceil to include partial final week
-      const theoreticalColumns = calculatedAvailableWidth / 154;
+      const theoreticalColumns = calculatedAvailableWidth / 153;
       return Math.max(1, Math.ceil(theoreticalColumns));
     } else {
       // For days, use ceil + 1 to show partial final column
@@ -296,32 +296,35 @@ export class TimelineViewport {
   }
   /**
    * Calculate target for "Go to Today" navigation
+   * Centers today in the visible viewport for both days and weeks modes
    */
   static calculateTodayTarget(params: {
     currentDate: Date;
     viewportDays: number;
     timelineMode: 'days' | 'weeks';
+    timelineSidebarCollapsed?: boolean;
+    mainSidebarCollapsed?: boolean;
   }): { start: Date; end: Date } {
-    const { currentDate, viewportDays, timelineMode } = params;
-    let start: Date;
-    if (timelineMode === 'weeks') {
-      // Center today in the week view
-      start = new Date(currentDate);
-      const weeksToShow = Math.ceil(viewportDays / 7);
-      const daysToGoBack = Math.floor((weeksToShow * 7) / 2);
-      start.setDate(start.getDate() - daysToGoBack);
-      // Adjust to start of week (Monday)
-      const day = start.getDay();
-      const daysToSubtract = day === 0 ? 6 : day - 1;
-      start.setDate(start.getDate() - daysToSubtract);
-    } else {
-      // Center today in the days view
-      start = new Date(currentDate);
-      start.setDate(start.getDate() - Math.floor(viewportDays / 2));
-    }
+    const { currentDate, viewportDays, timelineMode, timelineSidebarCollapsed = true, mainSidebarCollapsed = false } = params;
+    
+    // Calculate the actual visible columns (not including buffer)
+    const visibleColumns = this.calculateVisibleColumns({
+      timelineSidebarCollapsed,
+      mainSidebarCollapsed,
+      mode: timelineMode
+    });
+    
+    // Calculate visible days based on mode
+    const visibleDays = timelineMode === 'weeks' ? visibleColumns * 7 : visibleColumns;
+    
+    // Center today in the VISIBLE viewport by going back half the visible days
+    const start = new Date(currentDate);
+    start.setDate(start.getDate() - Math.floor(visibleDays / 2));
     start.setHours(0, 0, 0, 0);
+    
     const end = new Date(start);
     end.setDate(start.getDate() + viewportDays - 1);
+    
     return { start, end };
   }
   /**

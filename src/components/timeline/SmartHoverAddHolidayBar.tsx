@@ -197,7 +197,7 @@ export const SmartHoverAddHolidayBar: React.FC<SmartHoverAddHolidayBarProps> = (
     
     if (mode === 'weeks') {
       // For week mode with day-level precision
-      const dayWidth = 22; // Exact 22px per day (154px ÷ 7 days)
+      const dayWidth = 22; // 22px effective spacing (21px + 1px gap)
       width = (endIndex - startIndex + 1) * dayWidth;
       left = startIndex * dayWidth;
     } else {

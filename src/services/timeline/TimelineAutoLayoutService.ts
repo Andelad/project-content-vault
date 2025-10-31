@@ -50,9 +50,21 @@ function daysBetween(date1: Date, date2: Date): number {
 
 /**
  * Check if two projects overlap with minimum gap requirement
+ * CRITICAL: Continuous projects are treated as having no end date
  */
 function projectsOverlap(p1: Project, p2: Project, minGap: number): boolean {
-  // Calculate gap from p1 end to p2 start
+  // If p1 is continuous, it extends indefinitely and always conflicts with any project after it
+  if (p1.continuous) {
+    return true;
+  }
+  
+  // If p2 is continuous, check if it starts before p1 ends (with gap)
+  if (p2.continuous) {
+    const gap = daysBetween(p1.endDate, p2.startDate);
+    return gap < minGap;
+  }
+  
+  // Both projects have end dates - calculate gap from p1 end to p2 start
   const gap = daysBetween(p1.endDate, p2.startDate);
   return gap < minGap;
 }

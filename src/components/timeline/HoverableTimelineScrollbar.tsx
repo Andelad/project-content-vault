@@ -68,14 +68,17 @@ export const HoverableTimelineScrollbar = memo(function HoverableTimelineScrollb
   const [isVisible, setIsVisible] = useState(false);
   
   // Use service for scrollbar calculations with adaptive total days
-  const TOTAL_DAYS = Math.max(365, VIEWPORT_DAYS * 2); // At least a year, or double the viewport
+  // Dynamic range that expands as needed - always keep viewport centered with buffer on both sides
+  // Use 180 days (6 months) buffer on each side for smooth scrolling
+  const BUFFER_DAYS = 180;
+  const TOTAL_DAYS = BUFFER_DAYS * 2 + VIEWPORT_DAYS;
   
   // Calculate viewport end and timeline bounds
   const viewportEnd = new Date(viewportStart);
   viewportEnd.setDate(viewportEnd.getDate() + VIEWPORT_DAYS);
   
   const fullTimelineStart = new Date(viewportStart);
-  fullTimelineStart.setDate(fullTimelineStart.getDate() - Math.floor(TOTAL_DAYS / 2));
+  fullTimelineStart.setDate(fullTimelineStart.getDate() - BUFFER_DAYS);
   
   const fullTimelineEnd = new Date(fullTimelineStart);
   fullTimelineEnd.setDate(fullTimelineEnd.getDate() + TOTAL_DAYS);

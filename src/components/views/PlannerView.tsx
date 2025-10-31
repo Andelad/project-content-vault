@@ -326,6 +326,7 @@ export function PlannerView() {
     layerMode, 
     setLayerMode
   ]);
+
   // Custom event content renderer
   const renderEventContent = useCallback((eventInfo: any) => {
     const event = eventInfo.event;
@@ -445,15 +446,36 @@ export function PlannerView() {
     events: getStyledFullCalendarEvents({ selectedEventId, projects }),
     initialView: currentView === 'week' ? 'timeGridWeek' : 'timeGridDay',
     initialDate: calendarDate,
-    // Custom event content renderer
-    eventContent: renderEventContent,
+    // Custom event content renderer - also handles CSS property updates
+    eventContent: (arg: any) => {
+      // Update CSS properties on the container element
+      // This runs every time the event is rendered, including when properties change
+      const { futureEventBorderColor, selectedEventBorderColor } = arg.event.extendedProps;
+      
+      // Schedule CSS property update to happen after DOM is ready
+      setTimeout(() => {
+        // Find the event element - FullCalendar wraps our content
+        const eventEl = arg.el?.closest('.fc-event');
+        if (eventEl) {
+          if (futureEventBorderColor) {
+            (eventEl as HTMLElement).style.setProperty('--future-event-border-color', futureEventBorderColor);
+          }
+          if (selectedEventBorderColor) {
+            (eventEl as HTMLElement).style.setProperty('--selected-event-border-color', selectedEventBorderColor);
+          }
+        }
+      }, 0);
+      
+      // Return custom content
+      return renderEventContent(arg);
+    },
     // Event handlers
     eventClick: handleEventClick,
     eventDrop: handleEventDrop,
     eventResize: handleEventResize,
     select: handleDateSelect,
     eventDidMount: (info: any) => {
-      // Set custom CSS properties for border colors
+      // Set custom CSS properties for border colors on initial mount
       const { futureEventBorderColor, selectedEventBorderColor } = info.event.extendedProps;
       if (futureEventBorderColor) {
         info.el.style.setProperty('--future-event-border-color', futureEventBorderColor);

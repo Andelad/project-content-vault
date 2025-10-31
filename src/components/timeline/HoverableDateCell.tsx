@@ -20,7 +20,7 @@ export function HoverableDateCell({ date, mode, children, width }: HoverableDate
       // Calculate which day within the week is being hovered
       const rect = e.currentTarget.getBoundingClientRect();
       const x = e.clientX - rect.left;
-      const dayWidth = 22; // 154px / 7 days = 22px per day
+      const dayWidth = 22; // 22px effective spacing (21px + 1px gap)
       const dayIndex = Math.floor(x / dayWidth);
       setHoveredDayIndex(dayIndex >= 0 && dayIndex < 7 ? dayIndex : null);
     } else {

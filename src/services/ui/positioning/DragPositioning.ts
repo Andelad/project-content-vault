@@ -103,8 +103,8 @@ export interface DragPositionResult {
  */
 export const DRAG_CONSTANTS = {
   DAYS_MODE_COLUMN_WIDTH: 52,
-  WEEKS_MODE_COLUMN_WIDTH: 154,
-  WEEKS_MODE_DAY_WIDTH: 22, // 154px ÷ 7 days = 22px per day
+  WEEKS_MODE_COLUMN_WIDTH: 153,
+  WEEKS_MODE_DAY_WIDTH: 22, // 21px day + 1px gap = 22px effective spacing
   HOLIDAY_FIXED_WIDTH: 52,
   MIN_PROJECT_DURATION_DAYS: 1,
   MAX_PROJECT_DURATION_DAYS: 365,

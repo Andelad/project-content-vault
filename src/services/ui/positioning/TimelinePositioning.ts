@@ -11,8 +11,6 @@ import type { Holiday } from '../../../types';
 export type TimelinePositionCalculation = {
   baselineStartPx: number;
   baselineWidthPx: number;
-  circleLeftPx: number;
-  triangleLeftPx: number;
 };
 
 // ============================================================================
@@ -53,7 +51,7 @@ export function calculateTimelinePositions(
     }
   } catch (error) {
     console.error('Error in calculateTimelinePositions:', error);
-    return { baselineStartPx: 0, baselineWidthPx: 0, circleLeftPx: 0, triangleLeftPx: 0 };
+    return { baselineStartPx: 0, baselineWidthPx: 0 };
   }
 }
 
@@ -69,11 +67,11 @@ function calculateWeeksModePositions(
 ): TimelinePositionCalculation {
   const firstWeekStart = dates[0];
   if (!firstWeekStart) {
-    return { baselineStartPx: 0, baselineWidthPx: 0, circleLeftPx: 0, triangleLeftPx: 0 };
+    return { baselineStartPx: 0, baselineWidthPx: 0 };
   }
 
   const msPerDay = 24 * 60 * 60 * 1000;
-  const dayWidth = 22; // Each day is exactly 22px wide in weeks mode
+  const daySpacing = 22; // Effective spacing: 21px day + 1px gap = 22px per day position
 
   // Calculate day offsets from first week start
   const daysFromStartToProjectStart = Math.floor(
@@ -83,10 +81,6 @@ function calculateWeeksModePositions(
     (projectEnd.getTime() - firstWeekStart.getTime()) / msPerDay
   );
 
-  // Calculate exact pixel positions
-  const circleLeftPx = daysFromStartToProjectStart * dayWidth;
-  const triangleLeftPx = (daysFromStartToProjectEnd + 1) * dayWidth;
-
   // Calculate baseline for project intersection with viewport
   const projectIntersectsViewport = !(projectEnd < viewportStart || projectStart > viewportEnd);
 
@@ -94,24 +88,26 @@ function calculateWeeksModePositions(
   let baselineWidthPx: number;
 
   if (projectIntersectsViewport) {
-    baselineStartPx = daysFromStartToProjectStart * dayWidth;
+    baselineStartPx = daysFromStartToProjectStart * daySpacing - 2; // Start 2px before
+    const numDays = daysFromStartToProjectEnd + 1 - daysFromStartToProjectStart;
+    // Width: numDays × 22px - 1px (no gap after last day) + 4px (2px padding on each side)
     baselineWidthPx = Math.max(
-      dayWidth * 0.5,
-      (daysFromStartToProjectEnd + 1 - daysFromStartToProjectStart) * dayWidth
+      daySpacing * 0.5,
+      numDays * daySpacing - 1 + 4
     );
   } else {
-    baselineStartPx = daysFromStartToProjectStart * dayWidth;
+    baselineStartPx = daysFromStartToProjectStart * daySpacing - 2; // Start 2px before
+    const numDays = daysFromStartToProjectEnd + 1 - daysFromStartToProjectStart;
+    // Width: numDays × 22px - 1px (no gap after last day) + 4px (2px padding on each side)
     baselineWidthPx = Math.max(
       0,
-      (daysFromStartToProjectEnd + 1 - daysFromStartToProjectStart) * dayWidth
+      numDays * daySpacing - 1 + 4
     );
   }
 
   return {
     baselineStartPx,
-    baselineWidthPx,
-    circleLeftPx,
-    triangleLeftPx
+    baselineWidthPx
   };
 }
 
@@ -128,7 +124,7 @@ function calculateDaysModePositions(
 ): TimelinePositionCalculation {
   const firstDate = dates[0];
   if (!firstDate) {
-    return { baselineStartPx: 0, baselineWidthPx: 0, circleLeftPx: 0, triangleLeftPx: 0 };
+    return { baselineStartPx: 0, baselineWidthPx: 0 };
   }
 
   // Normalize all dates for consistent comparison
@@ -136,20 +132,6 @@ function calculateDaysModePositions(
   const normalizedProjectEnd = normalizeToMidnight(projectEnd);
   const normalizedViewportStart = normalizeToMidnight(viewportStart);
   const normalizedViewportEnd = normalizeToMidnight(viewportEnd);
-  const normalizedFirstDate = normalizeToMidnight(firstDate);
-
-  // Calculate positions based on day offsets from first date (like weeks mode)
-  const msPerDay = 24 * 60 * 60 * 1000;
-  const daysFromStartToProjectStart = Math.floor(
-    (normalizedProjectStart.getTime() - normalizedFirstDate.getTime()) / msPerDay
-  );
-  const daysFromStartToProjectEnd = Math.floor(
-    (normalizedProjectEnd.getTime() - normalizedFirstDate.getTime()) / msPerDay
-  );
-
-  // Calculate exact pixel positions
-  const circleLeftPx = daysFromStartToProjectStart * columnWidth;
-  const triangleLeftPx = (daysFromStartToProjectEnd + 1) * columnWidth;
 
   // Find project start/end indices in dates array for baseline calculation
   const projectStartIndex = findDateIndex(dates, normalizedProjectStart);
@@ -173,9 +155,7 @@ function calculateDaysModePositions(
 
   return {
     baselineStartPx,
-    baselineWidthPx,
-    circleLeftPx,
-    triangleLeftPx
+    baselineWidthPx
   };
 }
 
@@ -478,14 +458,13 @@ export interface MouseToIndexConversion {
 }
 
 /**
- * Timeline constants for UI calculations
- * These values must match TimelineView's column width calculations:
- * - Days mode: 52px per day
- * - Weeks mode: 154px per week (which is 22px per day: 154 ÷ 7)
+ * Timeline positioning constants and utilities
+ * - Days mode: 52px per day column
+ * - Weeks mode: 153px per week (which is 21px per day + 1px gap: 7×21 + 6×1 = 153)
  */
-const TIMELINE_CONSTANTS = {
+export const TIMELINE_CONSTANTS = {
   COLUMN_WIDTH_DAYS: 52,
-  COLUMN_WIDTH_WEEKS: 154,
+  COLUMN_WIDTH_WEEKS: 153,
   CIRCLE_SIZE: 8,
   TRIANGLE_SIZE: 8,
   VIEWPORT_DAYS: 14,
@@ -699,8 +678,8 @@ export function convertMousePositionToTimelineIndex(
   let maxIndex: number;
   
   if (mode === 'weeks') {
-    // In weeks mode, calculate day-level index (22px per day)
-    const dayWidth = 22; // 154px ÷ 7 days
+    // In weeks mode, calculate day-level index (21px per day + 1px gap)
+    const dayWidth = 22; // 21px day + 1px gap = 22px effective spacing
     dayIndex = Math.floor(relativeX / dayWidth);
     maxIndex = dates.length * 7; // Total days across all weeks
   } else {

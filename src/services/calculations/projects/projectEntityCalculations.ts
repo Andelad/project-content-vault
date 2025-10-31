@@ -107,8 +107,10 @@ export interface DateAdjustmentResult {
 
 /**
  * Calculate project duration in days
+ * CRITICAL: Continuous projects have no fixed duration
  */
 export function calculateProjectDuration(project: Project): number {
+  if (project.continuous) return -1; // Infinite duration
   if (!project.startDate || !project.endDate) return 0;
   return calculateDurationDays(new Date(project.startDate), new Date(project.endDate));
 }
@@ -268,6 +270,7 @@ export function buildPlannedTimeMap(
 
 /**
  * Calculate comprehensive project time metrics
+ * CRITICAL: Continuous projects have no fixed end date or duration
  */
 export function calculateProjectTimeMetrics(
   project: Project,
@@ -279,7 +282,6 @@ export function calculateProjectTimeMetrics(
   
   const projectEvents = filterProjectEvents(events, project.id);
   const projectStart = new Date(project.startDate);
-  const projectEnd = new Date(project.endDate);
   
   // Calculate total planned and completed hours
   let totalPlannedHours = 0;
@@ -299,7 +301,7 @@ export function calculateProjectTimeMetrics(
   
   // Calculate project duration and average hours per day
   const durationDays = calculateProjectDuration(project);
-  const averageHoursPerDay = durationDays > 0 ? totalPlannedHours / durationDays : 0;
+  const averageHoursPerDay = (durationDays > 0 && durationDays !== -1) ? totalPlannedHours / durationDays : 0;
   
   // Calculate milestone progress
   const relevantMilestones = milestones.filter(m => m.projectId === project.id);
@@ -311,13 +313,22 @@ export function calculateProjectTimeMetrics(
   };
   
   // Calculate remaining days and required hours per day
+  // For continuous projects, these values are undefined/infinite
   const today = new Date();
-  const daysRemaining = projectEnd > today ? calculateDurationDays(today, projectEnd) : 0;
-  const hoursPerDayNeeded = daysRemaining > 0 ? remainingHours / daysRemaining : 0;
+  let daysRemaining = 0;
+  let hoursPerDayNeeded = 0;
+  let expectedProgress = 0;
+  
+  if (!project.continuous && project.endDate) {
+    const projectEnd = new Date(project.endDate);
+    daysRemaining = projectEnd > today ? calculateDurationDays(today, projectEnd) : 0;
+    hoursPerDayNeeded = daysRemaining > 0 ? remainingHours / daysRemaining : 0;
+    expectedProgress = durationDays > 0 ? (calculateDurationDays(projectStart, currentDate) / durationDays) * 100 : 0;
+  }
   
   // Simple on-track calculation (more sophisticated logic could be added)
-  const expectedProgress = durationDays > 0 ? (calculateDurationDays(projectStart, currentDate) / durationDays) * 100 : 0;
-  const isOnTrack = completionPercentage >= (expectedProgress * 0.8); // Within 80% of expected progress
+  // Continuous projects are always on track (no deadline to miss)
+  const isOnTrack = project.continuous || completionPercentage >= (expectedProgress * 0.8);
   
   return {
     totalPlannedHours,
@@ -336,12 +347,12 @@ export function calculateProjectTimeMetrics(
     totalBudgetedTime: totalPlannedHours,
     originalDailyEstimateFormatted: `${averageHoursPerDay.toFixed(1)}h/day`,
     workDaysLeft: daysRemaining,
-    totalWorkDays: durationDays,
+    totalWorkDays: durationDays === -1 ? 0 : durationDays, // 0 for continuous projects
     exactDailyHours: averageHoursPerDay,
     dailyHours: Math.floor(averageHoursPerDay),
     dailyMinutes: Math.round((averageHoursPerDay % 1) * 60),
     heightInPixels: averageHoursPerDay * 20, // Rough pixel height calculation
-    workingDaysCount: durationDays
+    workingDaysCount: durationDays === -1 ? 0 : durationDays
   };
 }
 
@@ -351,6 +362,7 @@ export function calculateProjectTimeMetrics(
 
 /**
  * Calculate project status based on dates and continuous flag
+ * CRITICAL: Continuous projects are never overdue or completed
  */
 export function calculateProjectStatus(project: Project): {
   isOverdue: boolean;
@@ -358,7 +370,7 @@ export function calculateProjectStatus(project: Project): {
   status: 'upcoming' | 'active' | 'completed' | 'overdue';
   daysUntilDue?: number;
 } {
-  if (!project.startDate || !project.endDate) {
+  if (!project.startDate) {
     return {
       isOverdue: false,
       isActive: false,
@@ -367,10 +379,30 @@ export function calculateProjectStatus(project: Project): {
   }
 
   const start = new Date(project.startDate);
-  const end = new Date(project.endDate);
   const now = new Date();
 
-  const isOverdue = end < now && !project.continuous;
+  // Continuous projects are active once started, never overdue
+  if (project.continuous) {
+    const isActive = start <= now;
+    return {
+      isOverdue: false,
+      isActive,
+      status: isActive ? 'active' : 'upcoming',
+      daysUntilDue: undefined // No due date for continuous projects
+    };
+  }
+
+  // Non-continuous projects need an end date
+  if (!project.endDate) {
+    return {
+      isOverdue: false,
+      isActive: false,
+      status: 'upcoming'
+    };
+  }
+
+  const end = new Date(project.endDate);
+  const isOverdue = end < now;
   const isActive = start <= now && end >= now;
 
   let status: 'upcoming' | 'active' | 'completed' | 'overdue';
@@ -399,23 +431,32 @@ export function calculateProjectStatus(project: Project): {
 
 /**
  * Determine project status for organization
+ * CRITICAL: Continuous projects are never archived
  */
 export function determineProjectStatus(project: Project): 'future' | 'current' | 'archived' {
-  if (!project.startDate || !project.endDate) {
+  if (!project.startDate) {
     return 'future';
   }
 
   const now = new Date();
   const start = new Date(project.startDate);
-  const end = new Date(project.endDate);
 
   if (start > now) {
     return 'future';
-  } else if (project.continuous || end >= now) {
-    return 'current';
-  } else {
-    return 'archived';
   }
+  
+  // Continuous projects are always current once started
+  if (project.continuous) {
+    return 'current';
+  }
+  
+  // Non-continuous projects need an end date
+  if (!project.endDate) {
+    return 'future';
+  }
+
+  const end = new Date(project.endDate);
+  return end >= now ? 'current' : 'archived';
 }
 
 /**
@@ -457,6 +498,7 @@ export function organizeProjectsByStatus(projects: Project[]) {
 
 /**
  * Check if two projects overlap in their date ranges
+ * CRITICAL: Continuous projects are treated as having no end date
  */
 export function checkProjectOverlap(
   startDate: Date,
@@ -472,19 +514,38 @@ export function checkProjectOverlap(
   for (const project of projects) {
     if (excludeProjectId && project.id === excludeProjectId) continue;
     if (sameRowOnly && targetRowId !== undefined && project.rowId !== targetRowId) continue;
-    if (!project.startDate || !project.endDate) continue;
+    if (!project.startDate) continue;
 
-    if (datesOverlap(startDate, endDate, new Date(project.startDate), new Date(project.endDate))) {
+    const projectStart = new Date(project.startDate);
+    
+    // For continuous projects, check if the new project's date range intersects with the continuous project's start
+    if (project.continuous) {
+      // Continuous project conflicts with anything that starts after or overlaps with its start date
+      if (endDate >= projectStart) {
+        conflictingProjects.push(project);
+        conflictDetails.push({
+          projectId: project.id,
+          overlapType: 'complete', // Continuous projects always have complete overlap
+          overlapDays: -1 // Infinite overlap
+        });
+      }
+      continue;
+    }
+    
+    // For non-continuous projects, use standard overlap detection
+    if (!project.endDate) continue;
+    
+    if (datesOverlap(startDate, endDate, projectStart, new Date(project.endDate))) {
       conflictingProjects.push(project);
       
       const overlapDays = calculateOverlapDays(
         startDate, endDate,
-        new Date(project.startDate), new Date(project.endDate)
+        projectStart, new Date(project.endDate)
       );
       
       const overlapType = determineOverlapType(
         startDate, endDate,
-        new Date(project.startDate), new Date(project.endDate)
+        projectStart, new Date(project.endDate)
       );
       
       conflictDetails.push({
@@ -589,6 +650,7 @@ export function resolveDragConflicts(
 
 /**
  * Find the nearest available time slot for a project
+ * CRITICAL: Continuous projects block all slots after their start date
  */
 export function findNearestAvailableSlot(
   requestedStartDate: Date,
@@ -607,9 +669,23 @@ export function findNearestAvailableSlot(
     
     let hasConflict = false;
     for (const project of existingProjects) {
-      if (!project.startDate || !project.endDate) continue;
+      if (!project.startDate) continue;
       
-      if (datesOverlap(testStart, testEnd, new Date(project.startDate), new Date(project.endDate))) {
+      const projectStart = new Date(project.startDate);
+      
+      // Continuous projects block everything after their start
+      if (project.continuous) {
+        if (testEnd >= projectStart) {
+          hasConflict = true;
+          break;
+        }
+        continue;
+      }
+      
+      // Non-continuous projects need an end date
+      if (!project.endDate) continue;
+      
+      if (datesOverlap(testStart, testEnd, projectStart, new Date(project.endDate))) {
         hasConflict = true;
         break;
       }
@@ -632,9 +708,23 @@ export function findNearestAvailableSlot(
     
     let hasConflict = false;
     for (const project of existingProjects) {
-      if (!project.startDate || !project.endDate) continue;
+      if (!project.startDate) continue;
       
-      if (datesOverlap(testStart, testEnd, new Date(project.startDate), new Date(project.endDate))) {
+      const projectStart = new Date(project.startDate);
+      
+      // Continuous projects block everything after their start
+      if (project.continuous) {
+        if (testEnd >= projectStart) {
+          hasConflict = true;
+          break;
+        }
+        continue;
+      }
+      
+      // Non-continuous projects need an end date
+      if (!project.endDate) continue;
+      
+      if (datesOverlap(testStart, testEnd, projectStart, new Date(project.endDate))) {
         hasConflict = true;
         break;
       }

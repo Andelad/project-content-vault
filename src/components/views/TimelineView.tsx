@@ -39,7 +39,6 @@ import { TimelineBar } from '../timeline/TimelineBar';
 import { TimelineColumnMarkers } from '../timeline/TimelineColumnMarkers';
 import { UnifiedAvailabilityCircles } from '../timeline/UnifiedAvailabilityCircles';
 import { TabbedAvailabilityCard } from '../timeline/TabbedAvailabilityCard';
-import { TimelineScrollbar } from '../timeline/TimelineScrollbar';
 import { TimelineAddProjectRow, AddHolidayRow } from '../timeline/AddProjectRow';
 import { PerformanceStatus } from '../debug/PerformanceStatus';
 import { AddGroupRow } from '../timeline/AddGroupRow';
@@ -152,8 +151,38 @@ export function TimelineView() {
     direction: null,
     intervalId: null
   });
+  
   // Get dynamic viewport days based on available width
   const VIEWPORT_DAYS = useDynamicViewportDays(collapsed, mainSidebarCollapsed, timelineMode);
+  
+  // Scrollbar range management - centered on today, extends dynamically
+  const scrollbarRangeRef = React.useRef<{ start: Date; end: Date } | null>(null);
+  if (!scrollbarRangeRef.current) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    scrollbarRangeRef.current = {
+      start: new Date(today.getTime() - 182 * 24 * 60 * 60 * 1000), // 6 months before
+      end: new Date(today.getTime() + 182 * 24 * 60 * 60 * 1000)    // 6 months after
+    };
+  }
+  
+  // Auto-extend scrollbar range when approaching edges
+  React.useEffect(() => {
+    if (!scrollbarRangeRef.current) return;
+    
+    const { start, end } = scrollbarRangeRef.current;
+    const totalDays = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    const viewportEnd = new Date(viewportStart.getTime() + VIEWPORT_DAYS * 24 * 60 * 60 * 1000);
+    const startOffset = Math.floor((viewportStart.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    const endOffset = Math.floor((viewportEnd.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    
+    const THRESHOLD = 90;
+    if (startOffset < THRESHOLD && startOffset >= 0) {
+      scrollbarRangeRef.current.start = new Date(start.getTime() - 90 * 24 * 60 * 60 * 1000);
+    } else if ((totalDays - endOffset) < THRESHOLD && (totalDays - endOffset) >= 0) {
+      scrollbarRangeRef.current.end = new Date(end.getTime() + 90 * 24 * 60 * 60 * 1000);
+    }
+  }, [viewportStart, VIEWPORT_DAYS]);
   // Get timeline data using your existing hook
   const { dates, viewportEnd, filteredProjects, mode, actualViewportStart } = useTimelineData(
     projects, 
@@ -248,7 +277,9 @@ export function TimelineView() {
     const targetViewport = TimelineViewportService.calculateTodayTarget({
       currentDate: today,
       viewportDays: VIEWPORT_DAYS,
-      timelineMode
+      timelineMode,
+      timelineSidebarCollapsed: collapsed,
+      mainSidebarCollapsed
     });
     // Check if animation should be skipped
     if (TimelineViewportService.shouldSkipAnimation(viewportStart.getTime(), targetViewport.start.getTime())) {
@@ -275,7 +306,7 @@ export function TimelineView() {
         setIsAnimating(false);
       }
     );
-  }, [viewportStart, setCurrentDate, isAnimating, VIEWPORT_DAYS, timelineMode]);
+  }, [viewportStart, setCurrentDate, isAnimating, VIEWPORT_DAYS, timelineMode, collapsed, mainSidebarCollapsed]);
   const handleDateSelect = useCallback((selectedDate: Date | undefined) => {
     if (!selectedDate || isAnimating) return;
     // Normalize the selected date
@@ -917,7 +948,7 @@ export function TimelineView() {
                     {/* Date Headers - full width, no sidebar */}
                     <div className="flex-1 bg-white" style={{ 
                       minWidth: mode === 'weeks' 
-                        ? `${dates.length * 77}px`
+                        ? `${dates.length * 77}px` // Using 77px for header (not same as content 153px)
                         : `${dates.length * 52 + 52}px` // Add buffer for days mode
                     }}>
                       <TimelineDateHeaders dates={dates} mode={mode} />
@@ -935,7 +966,7 @@ export function TimelineView() {
                         className="absolute top-0 left-0 bottom-0 pointer-events-none" 
                         style={{ 
                           width: mode === 'weeks' 
-                            ? `${dates.length * 77}px`
+                            ? `${dates.length * 77}px` // Using 77px for header
                             : `${dates.length * 52 + 52}px`,
                           zIndex: 1
                         }}
@@ -956,7 +987,7 @@ export function TimelineView() {
                             const currentDay = addDaysToDate(weekStart, i);
                             const dow = currentDay.getDay();
                             if (dow === 0 || dow === 6) { // Sunday or Saturday
-                              weekendDays.push({ dayIndex: i, leftPx: dateIndex * 154 + i * 22 });
+                              weekendDays.push({ dayIndex: i, leftPx: dateIndex * 153 + i * 22 });
                             }
                           }
                           
@@ -1002,8 +1033,8 @@ export function TimelineView() {
                         const normalizedHolidayStart = normalizeToMidnight(holidayStart);
                         const normalizedHolidayEnd = normalizeToMidnight(holidayEnd);
                         
-                        const columnWidth = mode === 'weeks' ? 154 : 52;
-                        const dayWidth = mode === 'weeks' ? 22 : columnWidth;
+                        const columnWidth = mode === 'weeks' ? 153 : 52;
+                        const dayWidth = mode === 'weeks' ? 22 : columnWidth; // 22px effective spacing (21px + 1px gap)
                         
                         const timelineStart = normalizeToMidnight(new Date(dates[0]));
                         const msPerDay = 24 * 60 * 60 * 1000;
@@ -1149,7 +1180,7 @@ export function TimelineView() {
                             const currentDay = addDaysToDate(weekStart, i);
                             const dow = currentDay.getDay();
                             if (dow === 0 || dow === 6) {
-                              weekendDays.push({ leftPx: dateIndex * 154 + i * 22 });
+                              weekendDays.push({ leftPx: dateIndex * 153 + i * 22 });
                             }
                           }
                           
@@ -1193,8 +1224,8 @@ export function TimelineView() {
                       <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }}>
                         {holidays && holidays.length > 0 && holidays.map(holiday => {
                           const expandedDates = expandHolidayDates([{ ...holiday, name: holiday.title || 'Holiday' }]);
-                          const columnWidth = mode === 'weeks' ? 154 : 52;
-                          const dayWidth = mode === 'weeks' ? 22 : columnWidth; // 22px per day in weeks mode
+                          const columnWidth = mode === 'weeks' ? 153 : 52;
+                          const dayWidth = mode === 'weeks' ? 22 : columnWidth; // 22px effective spacing (21px + 1px gap)
                           const totalDays = mode === 'weeks' ? dates.length * 7 : dates.length;
                           // Calculate day positions for the holiday
                           const timelineStart = normalizeToMidnight(new Date(dates[0]));
@@ -1240,66 +1271,62 @@ export function TimelineView() {
                   />
                 </div>
               </Card>
-              {/* Unified Timeline Scrollbar - positioned after all cards */}
-              <div className="w-full mt-4 mb-4 px-0">
-                <div 
-                  className="w-full h-2 bg-gray-150 relative overflow-hidden"
-                  style={{
-                    marginLeft: '0px',
-                    marginRight: '0px',
-                    backgroundColor: '#e8e8e8'
-                  }}
-                >
-                  <div 
-                    className="absolute top-0 h-full cursor-grab active:cursor-grabbing transition-colors rounded-sm"
-                    style={{
-                      left: `${Math.max(0, Math.min(100 - (VIEWPORT_DAYS / 365) * 100, ((viewportStart.getTime() - new Date(viewportStart.getFullYear(), 0, 1).getTime()) / (365 * 24 * 60 * 60 * 1000)) * 100))}%`,
-                      width: `${(VIEWPORT_DAYS / 365) * 100}%`,
-                      minWidth: '40px',
-                      backgroundColor: '#9a9a9a'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = '#7a7a7a';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = '#9a9a9a';
-                    }}
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      const scrollbarEl = e.currentTarget.parentElement;
-                      if (!scrollbarEl) return;
-                      
-                      const startX = e.clientX;
-                      const scrollbarWidth = scrollbarEl.clientWidth;
-                      const thumbWidth = e.currentTarget.clientWidth;
-                      const startLeft = parseFloat(e.currentTarget.style.left || '0');
-                      
-                      const handleMouseMove = (moveEvent: MouseEvent) => {
-                        moveEvent.preventDefault();
-                        const deltaX = moveEvent.clientX - startX;
-                        const percentMoved = (deltaX / scrollbarWidth) * 100;
-                        const newLeft = Math.max(0, Math.min(100 - (thumbWidth / scrollbarWidth) * 100, startLeft + percentMoved));
-                        
-                        // Calculate new viewport start from scrollbar position
-                        const dayOfYear = Math.round((newLeft / 100) * 365);
-                        let newStart = new Date(viewportStart.getFullYear(), 0, 1);
-                        newStart = addDaysToDate(newStart, dayOfYear);
-                        
-                        protectedSetViewportStart(newStart);
-                        setCurrentDate(newStart);
-                      };
-                      
-                      const handleMouseUp = () => {
-                        document.removeEventListener('mousemove', handleMouseMove);
-                        document.removeEventListener('mouseup', handleMouseUp);
-                      };
-                      
-                      document.addEventListener('mousemove', handleMouseMove);
-                      document.addEventListener('mouseup', handleMouseUp);
-                    }}
-                  />
-                </div>
-              </div>
+              {/* Unified Timeline Scrollbar */}
+              {(() => {
+                if (!scrollbarRangeRef.current) return null;
+                
+                const { start, end } = scrollbarRangeRef.current;
+                const totalDays = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+                const offset = Math.floor((viewportStart.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+                const thumbPosition = (offset / totalDays) * 100;
+                const thumbWidth = (VIEWPORT_DAYS / totalDays) * 100;
+                
+                return (
+                  <div className="w-full mt-4 mb-4 px-0">
+                    <div className="w-full h-2 bg-gray-150 relative overflow-hidden" style={{ backgroundColor: '#e8e8e8' }}>
+                      <div 
+                        className="absolute top-0 h-full cursor-grab active:cursor-grabbing transition-colors rounded-sm"
+                        style={{
+                          left: `${Math.max(0, Math.min(100 - thumbWidth, thumbPosition))}%`,
+                          width: `${thumbWidth}%`,
+                          minWidth: '40px',
+                          backgroundColor: '#9a9a9a'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#7a7a7a'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#9a9a9a'}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          const scrollbarEl = e.currentTarget.parentElement;
+                          if (!scrollbarEl) return;
+                          
+                          const startX = e.clientX;
+                          const startPos = thumbPosition;
+                          
+                          const handleMouseMove = (moveEvent: MouseEvent) => {
+                            moveEvent.preventDefault();
+                            const deltaX = moveEvent.clientX - startX;
+                            const percentMoved = (deltaX / scrollbarEl.clientWidth) * 100;
+                            const newPos = Math.max(0, Math.min(100 - thumbWidth, startPos + percentMoved));
+                            const newDayOffset = Math.round((newPos / 100) * totalDays);
+                            const newStart = new Date(start.getTime() + newDayOffset * 24 * 60 * 60 * 1000);
+                            
+                            protectedSetViewportStart(newStart);
+                            setCurrentDate(newStart);
+                          };
+                          
+                          const handleMouseUp = () => {
+                            document.removeEventListener('mousemove', handleMouseMove);
+                            document.removeEventListener('mouseup', handleMouseUp);
+                          };
+                          
+                          document.addEventListener('mousemove', handleMouseMove);
+                          document.addEventListener('mouseup', handleMouseUp);
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </AppPageLayout.Content>
         </AppPageLayout>

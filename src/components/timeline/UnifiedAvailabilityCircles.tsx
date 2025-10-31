@@ -29,7 +29,7 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
   const { holidays, events } = usePlannerContext();
   const { milestones } = useProjectContext();
   // Match TimelineView's column width: 154px for weeks, 52px for days
-  const columnWidth = mode === 'weeks' ? 154 : 52;
+  const columnWidth = mode === 'weeks' ? 153 : 52;
   // Helper function to check if a day has working hours - using service
   const isWorkingDay = (date: Date) => {
     return UnifiedTimelineService.isWorkingDay(date, holidays, settings);

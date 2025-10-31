@@ -213,15 +213,15 @@ export const ProjectMilestones = memo(function ProjectMilestones({
       let milestonePosition: number;
       
       if (mode === 'weeks') {
-        // In weeks mode, use simple 11px per day calculation
-        const dayWidth = 11; // Same as in timelinePositioning.ts
-        // Position milestone at END of day column (start + offset days + current day width)
-        milestonePosition = projectPositions.circleLeftPx + (daysFromProjectStart * dayWidth) + dayWidth;
+        // In weeks mode, use 22px effective spacing
+        const daySpacing = 22;
+        // Position milestone at END of day column (start + offset days + current day spacing)
+        milestonePosition = projectPositions.baselineStartPx + (daysFromProjectStart * daySpacing) + daySpacing;
       } else {
         // In days mode, use column-based positioning
         const columnWidth = 40;
         // Position milestone at END of day column (start + offset days + current day width)
-        milestonePosition = projectPositions.circleLeftPx + (daysFromProjectStart * columnWidth) + columnWidth;
+        milestonePosition = projectPositions.baselineStartPx + (daysFromProjectStart * columnWidth) + columnWidth;
       }
 
       return {

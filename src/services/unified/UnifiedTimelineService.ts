@@ -616,7 +616,7 @@ export class UnifiedTimelineService {
     return {
       // Basic data
       dates,
-      columnWidth: mode === 'weeks' ? 154 : 52,
+      columnWidth: mode === 'weeks' ? 153 : 52,
       expandedHolidays: this.getExpandedHolidayDates(holidays),
       // Helper methods for components
       isWorkingDay: (date: Date) => this.isWorkingDay(date, holidays, settings),

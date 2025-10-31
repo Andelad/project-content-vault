@@ -54,7 +54,7 @@ export function SmartHoverAddBar<T>({
     let index: number;
     
     if (mode === 'weeks') {
-      const dayWidth = 22; // 22px per day (154px ÷ 7 days)
+      const dayWidth = 22; // 22px effective spacing (21px + 1px gap)
       const totalDays = dates.length * 7;
       index = Math.floor(x / dayWidth);
       index = Math.max(0, Math.min(totalDays - 1, index));

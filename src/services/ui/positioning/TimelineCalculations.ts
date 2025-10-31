@@ -137,12 +137,12 @@ export function calculateMilestonePosition(
   // Calculate offset from project start
   const offsetFromProjectStart = getDateOffset(milestoneDate, projectStart, mode);
 
-  // Determine actual day width based on mode
-  const dayWidth = mode === 'weeks' ? 22 : columnWidth; // 22px per day in weeks, 52px in days
-  const relativeLeft = offsetFromProjectStart * dayWidth;
+  // Determine actual day spacing based on mode
+  const daySpacing = mode === 'weeks' ? 22 : columnWidth; // 22px effective spacing in weeks (21px + 1px gap), 52px in days
+  const relativeLeft = offsetFromProjectStart * daySpacing;
 
-  // Position milestone at END of its day column (add day width)
-  const left = projectPosition.left + relativeLeft + dayWidth;
+  // Position milestone at END of its day column (add day spacing)
+  const left = projectPosition.left + relativeLeft + daySpacing;
   const width = 16; // Diamond size
   const height = 16;
 
@@ -247,7 +247,7 @@ export function pixelToDate(
   const { startDate, columnWidth, mode } = viewport;
 
   if (mode === 'weeks') {
-    // In weeks mode, each day is exactly 22px (154px ÷ 7 days = 22px per day)
+    // In weeks mode, each day is 21px + 1px gap = 22px effective spacing
     const dayWidth = 22;
     const dayOffset = Math.round(pixelPosition / dayWidth);
     return addDateOffset(startDate, dayOffset, 'days');
@@ -268,7 +268,7 @@ export function dateToPixel(
   const { startDate, columnWidth, mode } = viewport;
 
   if (mode === 'weeks') {
-    // In weeks mode, calculate exact day offset and multiply by 22px per day
+    // In weeks mode, calculate exact day offset and multiply by 22px effective spacing (21px + 1px gap)
     const dayWidth = 22;
     const dayOffset = getDateOffset(date, startDate, 'days');
     return dayOffset * dayWidth;
@@ -354,8 +354,6 @@ export function calculateBaselineVisualOffsets(
       adjustedPositions = {
         ...positions,
         baselineStartPx: positions.baselineStartPx + dragOffsetPx,
-        circleLeftPx: positions.circleLeftPx + dragOffsetPx,
-        triangleLeftPx: positions.triangleLeftPx + dragOffsetPx,
         baselineWidthPx: positions.baselineWidthPx // width unchanged when moving
       };
     } else if (action === 'resize-start-date') {
@@ -363,18 +361,14 @@ export function calculateBaselineVisualOffsets(
       adjustedPositions = {
         ...positions,
         baselineStartPx: positions.baselineStartPx + dragOffsetPx,
-        circleLeftPx: positions.circleLeftPx + dragOffsetPx,
-        triangleLeftPx: positions.triangleLeftPx, // keep end fixed
         // Width must shrink/grow opposite to left edge movement to keep right edge fixed
         baselineWidthPx: positions.baselineWidthPx - dragOffsetPx
       };
     } else if (action === 'resize-end-date') {
-      // Only end date should move visually; keep baseline start and start circle fixed
+      // Only end date should move visually; keep baseline start fixed
       adjustedPositions = {
         ...positions,
         baselineStartPx: positions.baselineStartPx,
-        circleLeftPx: positions.circleLeftPx,
-        triangleLeftPx: positions.triangleLeftPx + dragOffsetPx,
         // Width grows/shrinks with right edge movement
         baselineWidthPx: positions.baselineWidthPx + dragOffsetPx
       };
@@ -393,7 +387,11 @@ export function calculateVisualProjectDates(
   dragState: any
 ): { visualProjectStart: Date; visualProjectEnd: Date } {
   let visualProjectStart = new Date(project.startDate);
-  let visualProjectEnd = new Date(project.endDate);
+  // CRITICAL: For continuous projects, endDate should not be used for visuals
+  // The calling code should use viewport end instead
+  let visualProjectEnd = project.continuous 
+    ? new Date(project.startDate) // Placeholder - caller should override with viewport end
+    : new Date(project.endDate);
 
   // Apply drag offset based on action type for immediate visual feedback
   if (isDragging && dragState?.projectId === project.id) {
@@ -402,20 +400,25 @@ export function calculateVisualProjectDates(
     const action = dragState.action;
 
     if (action === 'move') {
-      // Move both start and end
+      // Move both start and end (for continuous projects, only start matters)
       visualProjectStart = new Date(project.startDate);
       visualProjectStart.setDate(visualProjectStart.getDate() + daysOffset);
-      visualProjectEnd = new Date(project.endDate);
-      visualProjectEnd.setDate(visualProjectEnd.getDate() + daysOffset);
+      
+      if (!project.continuous) {
+        visualProjectEnd = new Date(project.endDate);
+        visualProjectEnd.setDate(visualProjectEnd.getDate() + daysOffset);
+      }
     } else if (action === 'resize-start-date') {
       // Only move start date
       visualProjectStart = new Date(project.startDate);
       visualProjectStart.setDate(visualProjectStart.getDate() + daysOffset);
       // End date stays the same
     } else if (action === 'resize-end-date') {
-      // Only move end date
-      visualProjectEnd = new Date(project.endDate);
-      visualProjectEnd.setDate(visualProjectEnd.getDate() + daysOffset);
+      // Only move end date (not applicable for continuous projects)
+      if (!project.continuous) {
+        visualProjectEnd = new Date(project.endDate);
+        visualProjectEnd.setDate(visualProjectEnd.getDate() + daysOffset);
+      }
       // Start date stays the same
     }
   }
@@ -618,7 +621,7 @@ export function calculateTimelineColumnMarkerData(
   dates: Date[], 
   mode: 'days' | 'weeks' = 'days'
 ): TimelineColumnData[] {
-  const columnWidth = mode === 'weeks' ? 154 : 52;
+  const columnWidth = mode === 'weeks' ? 153 : 52;
   const today = new Date();
   
   return dates.map((date, index) => {
@@ -645,7 +648,7 @@ export function calculateTimelineColumnMarkerData(
         if (!isWeekendDay) return null;
         
         const leftPx = (dayOffset / 7) * columnWidth;
-        const dayWidthPx = 22; // 154px ÷ 7 days
+        const dayWidthPx = 22; // 21px day + 1px gap = 22px effective spacing
         
         return {
           leftPx,

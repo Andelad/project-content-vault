@@ -70,7 +70,7 @@ export function TimelineAddProjectRow({ groupId, dates, mode = 'days' }: Timelin
   const groupRows = rows.filter(row => row.groupId === groupId);
 
   // Get column width based on mode - match TimelineView's column width
-  const columnWidth = mode === 'weeks' ? 154 : 52;
+  const columnWidth = mode === 'weeks' ? 153 : 52;
   const gap = mode === 'weeks' ? 0 : 1; // No gaps in weeks mode
   const defaultSpan = mode === 'weeks' ? 2 : 5; // 2 weeks or 5 days
 
@@ -735,7 +735,7 @@ function HolidayBar({
   handleHolidayMouseDown,
   mode = 'days'
 }: HolidayBarProps) {
-  const columnWidth = mode === 'weeks' ? 154 : 52; // Match TimelineView's column width
+  const columnWidth = mode === 'weeks' ? 153 : 52; // Match TimelineView's column width
   const [mouseDownTime, setMouseDownTime] = useState<number | null>(null);
   const [mouseDownPos, setMouseDownPos] = useState<{ x: number; y: number } | null>(null);
   const [hasMoved, setHasMoved] = useState(false);
@@ -804,7 +804,7 @@ function HolidayBar({
           style={(() => {
             if (mode === 'weeks') {
               // For week mode, calculate the precise positioning within week columns
-              const dayWidth = 22; // Exact 22px per day (154px ÷ 7 days)
+              const dayWidth = 22; // 22px effective spacing (21px + 1px gap)
               
               // Use modulo to get position within the current week
               const holidayStartInCurrentWeek = holiday.startIndex % 7; // Day of week (0-6)

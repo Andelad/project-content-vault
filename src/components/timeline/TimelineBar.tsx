@@ -223,7 +223,7 @@ export const TimelineBar = memo(function TimelineBar({
   }
   
   // Add buffer for partial column in days mode
-  const columnWidth = mode === 'weeks' ? 154 : 52;
+  const columnWidth = mode === 'weeks' ? 153 : 52;
   const bufferWidth = mode === 'days' ? columnWidth : 0;
   
   try {
@@ -274,7 +274,7 @@ export const TimelineBar = memo(function TimelineBar({
           
           // Extend width to viewport edge (plus buffer) for continuous projects
           if (extendsRight) {
-            const columnWidth = mode === 'weeks' ? 154 : 52;
+            const columnWidth = mode === 'weeks' ? 153 : 52;
             const bufferWidth = mode === 'days' ? columnWidth : 0;
             const totalViewportWidth = dates.length * columnWidth + bufferWidth;
             widthPx = totalViewportWidth - leftPx + 100; // Add 100px buffer to extend beyond edge
@@ -343,10 +343,10 @@ export const TimelineBar = memo(function TimelineBar({
               const daysToMonday = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek); // Adjust to Monday
               weekStart.setDate(weekStart.getDate() + daysToMonday);
               weekStart.setHours(0, 0, 0, 0);
-              // Each week column is 154px, with each day getting exactly 20px
-              const dayWidths = [20, 20, 20, 20, 20, 20, 20]; // Mon, Tue, Wed, Thu, Fri, Sat, Sun
+              // Each week column is 153px, with each day getting exactly 21px (plus 1px gaps = 153px total)
+              const dayWidths = [21, 21, 21, 21, 21, 21, 21]; // Mon, Tue, Wed, Thu, Fri, Sat, Sun
               return (
-                <div key={dateIndex} className="relative h-full items-end" style={{ minWidth: '154px', width: '154px' }}>
+                <div key={dateIndex} className="relative h-full items-end" style={{ minWidth: '153px', width: '153px' }}>
                   {/* Flexbox container to align rectangles to baseline */}
                   <div className="flex w-full items-end gap-px h-full">
                     {dayWidths.map((dayWidth, dayIndex) => {
@@ -879,7 +879,7 @@ export const TimelineBar = memo(function TimelineBar({
             <div 
               className="absolute z-40 pointer-events-auto"
               style={{ 
-                left: `${Math.max(adjustedPositions.circleLeftPx - 12, 8)}px`, // Stick with 8px gap from left edge when scrolling off-screen
+                left: `${Math.max(adjustedPositions.baselineStartPx - 12, 8)}px`, // Center icon on start of project bar (icon is 24px wide, so -12px centers it)
                 top: '12px' // Position vertically centered in the 48px project bar
               }}
             >

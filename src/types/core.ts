@@ -43,7 +43,7 @@ export interface Project {
   client: string; // DEPRECATED: Keep for backward compatibility (Phase 5B)
   clientId: string; // NEW: Required client reference (Phase 5B)
   startDate: Date;
-  endDate: Date;
+  endDate: Date; // Required in DB but should be ignored for continuous projects
   estimatedHours: number;
   color: string;
   groupId: string; // REQUIRED: Projects must belong to a group
@@ -51,7 +51,7 @@ export interface Project {
   notes?: string;
   icon?: string; // Lucide icon name, defaults to 'folder'
   milestones?: Milestone[]; // Project milestones
-  continuous?: boolean; // Whether the project is continuous (no end date)
+  continuous?: boolean; // When true, endDate is meaningless and should be ignored
   status?: ProjectStatus; // Project status for organization
   autoEstimateDays?: {
     monday: boolean;
