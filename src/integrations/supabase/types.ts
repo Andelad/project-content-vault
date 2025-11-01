@@ -64,6 +64,7 @@ export type Database = {
       }
       calendar_events: {
         Row: {
+          category: string | null
           color: string
           completed: boolean | null
           created_at: string
@@ -77,7 +78,6 @@ export type Database = {
           external_url: string | null
           id: string
           is_external_event: boolean | null
-          category: string | null
           project_id: string | null
           recurring_count: number | null
           recurring_end_date: string | null
@@ -90,6 +90,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          category?: string | null
           color: string
           completed?: boolean | null
           created_at?: string
@@ -103,7 +104,6 @@ export type Database = {
           external_url?: string | null
           id?: string
           is_external_event?: boolean | null
-          category?: string | null
           project_id?: string | null
           recurring_count?: number | null
           recurring_end_date?: string | null
@@ -116,6 +116,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          category?: string | null
           color?: string
           completed?: boolean | null
           created_at?: string
@@ -129,7 +130,6 @@ export type Database = {
           external_url?: string | null
           id?: string
           is_external_event?: boolean | null
-          category?: string | null
           project_id?: string | null
           recurring_count?: number | null
           recurring_end_date?: string | null
