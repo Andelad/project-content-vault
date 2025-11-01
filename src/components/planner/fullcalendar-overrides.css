@@ -511,7 +511,6 @@
 
 /* Habit Event Styles */
 .habit-event {
-  opacity: 0.95 !important;
   border-left-width: 3px !important;
   cursor: pointer;
 }
@@ -521,10 +520,6 @@
   transform: scale(1.02);
   transition: all 0.15s ease;
   z-index: 10 !important;
-}
-
-.habit-event .fc-event-main {
-  color: white !important;
 }
 
 /* Ensure habits render between events and work hours */

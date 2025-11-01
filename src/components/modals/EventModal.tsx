@@ -10,16 +10,20 @@ import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Textarea } from '../ui/textarea';
 import { Checkbox } from '../ui/checkbox';
-import { Calendar as CalendarIcon, Clock, Repeat, Trash2, CheckCircle2, CalendarDays, Croissant, Square } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Repeat, Trash2, CheckCircle2, CalendarDays } from 'lucide-react';
+import { HABIT_ICON, TASK_ICON } from '@/constants/icons';
 import { Switch } from '../ui/switch';
 import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group';
 import { cn } from '@/lib/utils';
-import { OKLCH_FALLBACK_GRAY } from '@/constants/colors';
+import { OKLCH_FALLBACK_GRAY, OKLCH_HABIT_BROWN } from '@/constants/colors';
 import { RecurringDeleteDialog } from '../dialog/RecurringDeleteDialog';
 import { RecurringUpdateDialog } from '../dialog/RecurringUpdateDialog';
 import { StandardModal } from './StandardModal';
 import { ProjectSearchInput } from '../shared/ProjectSearchInput';
 import { ProjectModal } from './ProjectModal';
+
+// Habit color constant
+const HABIT_BROWN_COLOR = OKLCH_HABIT_BROWN;
 
 // Helper functions for monthly pattern calculations
 const getDayName = (dayOfWeek: number): string => {
@@ -194,7 +198,7 @@ export function EventModal({
           endDate: formatDate(new Date(existingEvent.endTime)),
           endTime: formatTime(new Date(existingEvent.endTime)),
           projectId: existingEvent.projectId || '',
-          color: existingEvent.color || OKLCH_FALLBACK_GRAY,
+          color: existingEvent.category === 'habit' ? HABIT_BROWN_COLOR : (existingEvent.color || OKLCH_FALLBACK_GRAY),
           completed: existingEvent.completed || false,
           category: existingEvent.category || 'event',
           isRecurring: !!existingEvent.recurring,
@@ -558,7 +562,12 @@ export function EventModal({
                 if (value) {
                   const newCategory = value as 'event' | 'habit' | 'task';
                   setCategory(newCategory);
-                  setFormData(prev => ({ ...prev, category: newCategory }));
+                  setFormData(prev => ({ 
+                    ...prev, 
+                    category: newCategory,
+                    // Set brown color for habits, keep existing color for others
+                    color: newCategory === 'habit' ? HABIT_BROWN_COLOR : prev.color
+                  }));
                 }
               }}
               className="inline-flex"
@@ -567,10 +576,10 @@ export function EventModal({
                 <CalendarDays className="w-5 h-5" />
               </ToggleGroupItem>
               <ToggleGroupItem value="habit" aria-label="Habit" className="px-4 py-2">
-                <Croissant className="w-5 h-5" />
+                <HABIT_ICON className="w-5 h-5" />
               </ToggleGroupItem>
               <ToggleGroupItem value="task" aria-label="Task" className="px-4 py-2">
-                <Square className="w-5 h-5" />
+                <TASK_ICON className="w-5 h-5" />
               </ToggleGroupItem>
             </ToggleGroup>
 

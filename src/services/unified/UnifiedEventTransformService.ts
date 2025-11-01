@@ -1,7 +1,7 @@
 import { CalendarEvent, WorkHour } from '@/types';
 import { EventInput } from '@fullcalendar/core';
 import { calculateEventStyle } from './UnifiedEventWorkHourService';
-import { OKLCH_FALLBACK_GRAY } from '@/constants/colors';
+import { OKLCH_FALLBACK_GRAY, OKLCH_HABIT_BROWN } from '@/constants/colors';
 import { type EventStyleConfig } from './UnifiedEventWorkHourService';
 import { calculateDurationHours } from '@/services/calculations/general/dateCalculations';
 
@@ -14,8 +14,10 @@ export function transformCalendarEventToFullCalendar(event: CalendarEvent, optio
   // Find project for color fallback
   const project = event.projectId ? projects.find(p => p.id === event.projectId) : null;
   
-  // Get the base color (project color or fallback)
-  const baseColor = event.color || (project ? project.color : OKLCH_FALLBACK_GRAY);
+  // Get the base color - habits always use OKLCH brown, regardless of stored color
+  const baseColor = event.category === 'habit' 
+    ? OKLCH_HABIT_BROWN 
+    : (event.color || (project ? project.color : OKLCH_FALLBACK_GRAY));
   
   // Check if event is in the future (non-completed)
   const now = new Date();
@@ -33,6 +35,14 @@ export function transformCalendarEventToFullCalendar(event: CalendarEvent, optio
   
   const { backgroundColor, textColor, borderColor } = calculateEventStyle(baseColor, styleConfig);
   
+  // For habits, make the background more transparent and ensure dark text
+  const finalBackgroundColor = event.category === 'habit' 
+    ? backgroundColor.replace(/oklch\(([\d.]+)\s+([\d.]+)\s+([\d.]+)\)/, 'oklch($1 $2 $3 / 0.7)')
+    : backgroundColor;
+  const finalTextColor = event.category === 'habit'
+    ? 'oklch(0.28 0.07 65)' // Dark brown text matching the habit color
+    : textColor;
+  
   // Determine CSS classes for styling
   const cssClasses = ['planner-v2-event'];
   if (event.completed) {
@@ -44,15 +54,18 @@ export function transformCalendarEventToFullCalendar(event: CalendarEvent, optio
   if (isSelected) {
     cssClasses.push('selected-event');
   }
+  if (event.category === 'habit') {
+    cssClasses.push('habit-event');
+  }
   
   return {
     id: event.id,
     title: event.title,
     start: event.startTime,
     end: event.endTime,
-    backgroundColor,
+    backgroundColor: finalBackgroundColor,
     // Don't set borderColor - let CSS classes handle borders completely
-    textColor,
+    textColor: finalTextColor,
     className: cssClasses,
     extendedProps: {
       description: event.description,
@@ -60,6 +73,7 @@ export function transformCalendarEventToFullCalendar(event: CalendarEvent, optio
       completed: event.completed,
       duration: event.duration,
       type: event.type,
+      category: event.category,
       recurring: event.recurring,
       originalEvent: event,
       // Store colors for CSS custom properties

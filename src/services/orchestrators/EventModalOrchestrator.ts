@@ -167,13 +167,15 @@ export class EventModalOrchestrator {
       // and rely on form validation. Full validation would require context setup.
       // TODO: Add full context validation if needed
 
+      // Pass the camelCase eventData directly to PlannerContext's addEvent
+      // PlannerContext will handle the transformation to database format
       if (eventData.recurring) {
         // For recurring events, create first event immediately
-        await addEvent(eventData);
+        await addEvent(eventData as any);
         return { success: true };
       } else {
         // Single event - process normally
-        await addEvent(eventData);
+        await addEvent(eventData as any);
         return { success: true };
       }
     } catch (error) {
@@ -220,7 +222,8 @@ export class EventModalOrchestrator {
         return { success: false, needsRecurringDialog: true };
       } else {
         // Non-recurring event, update directly
-        await updateEvent(originalEventId, eventData);
+        // Pass camelCase eventData - PlannerContext handles transformation
+        await updateEvent(originalEventId, eventData as any);
         return { success: true };
       }
     } catch (error) {
@@ -275,15 +278,16 @@ export class EventModalOrchestrator {
         ? eventId.split('-split-')[0] 
         : existingEvent.id;
 
+      // Pass camelCase eventData - PlannerContext handles transformation
       switch (updateType) {
         case 'this':
-          await updateEvent(originalEventId, eventData);
+          await updateEvent(originalEventId, eventData as any);
           break;
         case 'future':
-          await updateRecurringSeriesFuture(originalEventId, eventData);
+          await updateRecurringSeriesFuture(originalEventId, eventData as any);
           break;
         case 'all':
-          await updateRecurringSeriesAll(originalEventId, eventData);
+          await updateRecurringSeriesAll(originalEventId, eventData as any);
           break;
       }
 

@@ -136,6 +136,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
         completed: firstRecurringEvent.completed,
         duration: firstRecurringEvent.duration,
         event_type: firstRecurringEvent.type || 'planned',
+        category: firstRecurringEvent.category || 'event',
         recurring_group_id: groupId,
         recurring_type: event.recurring?.type,
         recurring_interval: event.recurring?.interval,
@@ -160,6 +161,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
                 completed: recurringEvent.completed,
                 duration: recurringEvent.duration,
                 event_type: recurringEvent.type || 'planned',
+                category: recurringEvent.category || 'event',
                 recurring_group_id: groupId
               };
               await dbAddEventOriginal(dbEvent, { silent: true });
@@ -196,7 +198,8 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
         color: event.color,
         completed: event.completed,
         duration: event.duration,
-        event_type: event.type || 'planned'
+        event_type: event.type || 'planned',
+        category: event.category || 'event'
       };
       const createdEvent = await dbAddEventOriginal(dbEvent);
       return {
@@ -242,6 +245,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
         completed: event.completed || false,
         duration: event.duration || 0,
         type: (event.event_type as 'planned' | 'tracked' | 'completed') || 'planned',
+        category: (event.category as 'event' | 'habit' | 'task') || 'event',
         recurring: event.recurring_type ? {
           type: event.recurring_type as 'daily' | 'weekly' | 'monthly' | 'yearly',
           interval: event.recurring_interval || 1,
@@ -272,6 +276,8 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
     if (updates.completed !== undefined) dbUpdates.completed = updates.completed;
     if (updates.duration !== undefined) dbUpdates.duration = updates.duration;
     if (updates.type !== undefined) dbUpdates.event_type = updates.type;
+    if (updates.category !== undefined) dbUpdates.category = updates.category;
+    
     await dbUpdateEvent(id, dbUpdates, options);
   }, [dbUpdateEvent]);
   
@@ -481,7 +487,8 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
             color: updates.color,
             completed: updates.completed,
             duration: updates.duration,
-            event_type: updates.type
+            event_type: updates.type,
+            category: updates.category
           })
           .eq('id', eventId);
         if (error) throw error;
@@ -499,7 +506,8 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
           color: updates.color,
           completed: updates.completed,
           duration: updates.duration,
-          event_type: updates.type
+          event_type: updates.type,
+          category: updates.category
         })
         .eq('recurring_group_id', targetEventData.recurring_group_id)
         .gte('start_time', targetEventData.start_time);
@@ -530,7 +538,8 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
             color: updates.color,
             completed: updates.completed,
             duration: updates.duration,
-            event_type: updates.type
+            event_type: updates.type,
+            category: updates.category
           })
           .eq('id', eventId);
         if (error) throw error;
@@ -548,7 +557,8 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
           color: updates.color,
           completed: updates.completed,
           duration: updates.duration,
-          event_type: updates.type
+          event_type: updates.type,
+          category: updates.category
         })
         .eq('recurring_group_id', targetEventData.recurring_group_id);
       if (error) throw error;

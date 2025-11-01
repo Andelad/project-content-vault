@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
+import { OKLCH_HABIT_BROWN } from '@/constants/colors';
 
 type CalendarEvent = Database['public']['Tables']['calendar_events']['Row'];
 type CalendarEventInsert = Database['public']['Tables']['calendar_events']['Insert'];
 type CalendarEventUpdate = Database['public']['Tables']['calendar_events']['Update'];
 
-const HABIT_BROWN_COLOR = '#8B4513'; // Brown color for habits
+const HABIT_BROWN_COLOR = OKLCH_HABIT_BROWN; // Brown color for habits
 
 export function useHabits() {
   const [habits, setHabits] = useState<CalendarEvent[]>([]);

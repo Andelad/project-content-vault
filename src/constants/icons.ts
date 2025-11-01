@@ -1,10 +1,21 @@
 // Project icons mapping
 import {
-  Folder, Briefcase, Zap, Target, Lightbulb, Rocket, Star, Heart, Gift, Music, Camera, Code, Book, Gamepad2, Coffee, Home, Building, Car, Plane, Map, Globe, Infinity, Croissant
+  Folder, Briefcase, Zap, Target, Lightbulb, Rocket, Star, Heart, Gift, Music, Camera, Code, Book, Gamepad2, Coffee, Home, Building, Car, Plane, Map, Globe, Infinity, Croissant, Square
 } from 'lucide-react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { createElement } from 'react';
 
-// Habit icon constant
+// Habit icon constant (React component)
 export const HABIT_ICON = Croissant;
+
+// Task icon constant (React component)
+export const TASK_ICON = Square;
+
+// SVG strings for FullCalendar rendering (HTML-only context)
+// Generated from the actual Lucide React components to ensure they match exactly
+export const HABIT_ICON_SVG = renderToStaticMarkup(createElement(Croissant, { width: 16, height: 16, strokeWidth: 2 }));
+
+export const TASK_ICON_SVG = renderToStaticMarkup(createElement(Square, { width: 16, height: 16, strokeWidth: 2 }));
 
 export const PROJECT_ICONS = [
   { name: 'folder', label: 'Folder', component: Folder },

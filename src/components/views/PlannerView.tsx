@@ -9,7 +9,8 @@ import { useSettingsContext } from '@/contexts/SettingsContext';
 import { formatDateLong, formatDateRange as formatDateRangeUtil } from '@/utils/dateFormatUtils';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { ChevronLeft, ChevronRight, MapPin, CalendarSearch } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MapPin, CalendarSearch, Layers2, Eye, EyeOff, CalendarDays, Clock } from 'lucide-react';
+import { HABIT_ICON, TASK_ICON, HABIT_ICON_SVG, TASK_ICON_SVG } from '@/constants/icons';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as DatePicker } from '@/components/ui/calendar';
 import { PlannerInsightCard, DailyProjectSummaryRow, WeekNavigationBar } from '@/components/planner';
@@ -32,7 +33,7 @@ const EventModal = React.lazy(() => import('../modals/EventModal').then(module =
  * - Arrow Left/Right: Navigate prev/next period
  * - Arrow Up/Down: Switch between Week/Day views
  * - T: Go to Today
- * - W: Toggle layer mode (Events → Work Hours → Both)
+ * - L: Toggle layers visibility menu
  * - Delete/Backspace: Delete selected event
  */
 export function PlannerView() {
@@ -94,10 +95,19 @@ export function PlannerView() {
   
   const [calendarDate, setCalendarDate] = useState(getInitialCalendarDate());
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [isLayersPopoverOpen, setIsLayersPopoverOpen] = useState(false);
   const [isDraggingProject, setIsDraggingProject] = useState(false);
   const [calendarReady, setCalendarReady] = useState(false);
   const [summaryDateStrings, setSummaryDateStrings] = useState<string[]>([]);
   const [calendarScrollbarWidth, setCalendarScrollbarWidth] = useState(0);
+  
+  // Layer visibility state
+  const [layerVisibility, setLayerVisibility] = useState({
+    events: true,
+    habits: true,
+    tasks: true,
+    workHours: true
+  });
   const [viewportSize, setViewportSize] = useState<'mobile' | 'tablet' | 'desktop'>(() => {
     if (typeof window === 'undefined') return 'desktop';
     if (window.innerWidth < 768) return 'mobile';
@@ -358,20 +368,6 @@ export function PlannerView() {
     // No additional handling needed - orchestrator manages everything
   }, [plannerOrchestrator, settings, updateSettings, toast]);
   const handleDateSelect = useCallback((selectInfo: DateSelectArg) => {
-    // When in work-hours mode, create a work slot instead of an event
-    if (layerMode === 'work-hours') {
-      // Open modal to create work slot
-      // For now, we'll need to implement a work slot modal
-      // This will be handled in the next step
-      toast({
-        title: "Work Slot Creation",
-        description: "Creating work slots from the calendar is coming soon. Please use Settings to manage work slots.",
-        duration: 3000,
-      });
-      selectInfo.view.calendar.unselect();
-      return;
-    }
-    
     // Create new event using global context so the modal opens
     setCreatingNewEvent({
       startTime: selectInfo.start,
@@ -379,7 +375,7 @@ export function PlannerView() {
     });
     // Clear the selection
     selectInfo.view.calendar.unselect();
-  }, [setCreatingNewEvent, layerMode, toast]);
+  }, [setCreatingNewEvent]);
 
   // Handle project drag start from summary row
   const handleProjectDragStart = useCallback((projectId: string, date: Date, estimatedHours: number) => {
@@ -516,16 +512,10 @@ export function PlannerView() {
           e.preventDefault();
           handleNavigate('today');
           break;
-        case 'w':
-        case 'W':
+        case 'l':
+        case 'L':
           e.preventDefault();
-          if (layerMode === 'events') {
-            setLayerMode('work-hours');
-          } else if (layerMode === 'work-hours') {
-            setLayerMode('both');
-          } else {
-            setLayerMode('events');
-          }
+          setIsLayersPopoverOpen(prev => !prev);
           break;
         case 'Delete':
         case 'Backspace':
@@ -590,9 +580,6 @@ export function PlannerView() {
       const end = moment(event.end).format('HH:mm');
       const isCompleted = extendedProps.completed;
       
-      // Croissant SVG icon
-      const croissantSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m4.6 13.11 5.79-3.21c1.89-1.05 4.79 1.78 3.71 3.71l-3.22 5.81C8.8 23.16.79 15.23 4.6 13.11Z"/><path d="m10.5 9.5-1-2.29C9.2 6.48 8.8 6 8 6H4.5C2.79 6 2 6.5 2 8.5a7.71 7.71 0 0 0 2 4.83"/><path d="M8 6c0-1.55.24-4-2-4-2 0-2.5 2.17-2.5 4"/><path d="m14.5 13.5 2.29 1c.73.3 1.21.7 1.21 1.5v3.5c0 1.71-.5 2.5-2.5 2.5a7.71 7.71 0 0 1-4.83-2"/><path d="M18 16c1.55 0 4-.24 4 2 0 2-2.17 2.5-4 2.5"/></svg>';
-      
       // Check icon HTML for completion status
       const checkIconSvg = isCompleted 
         ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><path d="m9 12 2 2 4-4"></path><circle cx="12" cy="12" r="10"></circle></svg>'
@@ -617,7 +604,7 @@ export function PlannerView() {
             ${showTwoLines ? `
             <div style="display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; gap: 4px;">
               <div style="display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0;">
-                ${croissantSvg}
+                ${HABIT_ICON_SVG}
                 <div style="font-size: 12px; font-weight: 600; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${event.title}</div>
               </div>
               <div style="display: flex; align-items: center; color: inherit; flex-shrink: 0;">
@@ -627,7 +614,7 @@ export function PlannerView() {
             <div style="font-size: 10px; opacity: 0.8; line-height: 1;">${start} - ${end}</div>
             ` : `
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
-              ${croissantSvg}
+              ${HABIT_ICON_SVG}
               <div style="font-size: 12px; font-weight: 600; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">${event.title}</div>
               <div style="display: flex; align-items: center; color: inherit; flex-shrink: 0;">
                 ${iconHtml}
@@ -765,8 +752,30 @@ export function PlannerView() {
     // Use function for events so refetchEvents() will get fresh data
     events: (fetchInfo: any, successCallback: any, failureCallback: any) => {
       try {
-        const events = getStyledFullCalendarEvents({ selectedEventId, projects });
-        successCallback(events);
+        const allEvents = getStyledFullCalendarEvents({ selectedEventId, projects });
+        
+        // Filter events based on layer visibility
+        const filteredEvents = allEvents.filter((event: any) => {
+          const category = event.extendedProps?.category;
+          const isWorkHour = event.extendedProps?.isWorkHour;
+          
+          // Work hours filtering
+          if (isWorkHour) {
+            return layerVisibility.workHours;
+          }
+          
+          // Category-based filtering
+          if (category === 'habit') {
+            return layerVisibility.habits;
+          }
+          if (category === 'task') {
+            return layerVisibility.tasks;
+          }
+          // Default to events layer
+          return layerVisibility.events;
+        });
+        
+        successCallback(filteredEvents);
       } catch (error) {
         console.error('Error fetching events:', error);
         failureCallback(error);
@@ -868,6 +877,14 @@ export function PlannerView() {
       calendarApi.refetchEvents();
     }
   }, [workHours]);
+  
+  // Refresh calendar when layer visibility changes
+  useEffect(() => {
+    const calendarApi = calendarRef.current?.getApi();
+    if (calendarApi) {
+      calendarApi.refetchEvents();
+    }
+  }, [layerVisibility]);
   
   // Removed early calendarReady timeout to avoid pre-ready fallback flashes
   
@@ -1345,27 +1362,6 @@ export function PlannerView() {
                 Day
               </ToggleGroupItem>
             </ToggleGroup>
-            <ToggleGroup
-              type="single"
-              value={layerMode}
-              onValueChange={(value) => {
-                if (value) {
-                  setLayerMode(value as 'events' | 'work-hours' | 'both');
-                }
-              }}
-              variant="outline"
-              className="border border-gray-200 rounded-lg h-9 p-1"
-            >
-              <ToggleGroupItem value="events" aria-label="Events mode" className="px-3 py-1 h-7">
-                Events
-              </ToggleGroupItem>
-              <ToggleGroupItem value="work-hours" aria-label="Work Hours mode" className="px-3 py-1 h-7">
-                Work Hours
-              </ToggleGroupItem>
-              <ToggleGroupItem value="both" aria-label="Both mode" className="px-3 py-1 h-7">
-                Both
-              </ToggleGroupItem>
-            </ToggleGroup>
             <Button variant="outline" onClick={() => handleNavigate('today')} className="h-9 gap-2">
               <MapPin className="w-4 h-4" />
               Today
@@ -1383,6 +1379,80 @@ export function PlannerView() {
                   onSelect={handleDatePickerSelect}
                   initialFocus
                 />
+              </PopoverContent>
+            </Popover>
+            <Popover open={isLayersPopoverOpen} onOpenChange={setIsLayersPopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="icon" className="h-9 w-9">
+                  <Layers2 className="w-4 h-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 p-2" align="start">
+                <div className="space-y-1">
+                  {/* Events Layer */}
+                  <div 
+                    className="flex items-center justify-between px-3 py-2 rounded-md hover:bg-accent cursor-pointer"
+                    onClick={() => setLayerVisibility(prev => ({ ...prev, events: !prev.events }))}
+                  >
+                    <div className="flex items-center gap-2">
+                      <CalendarDays className="w-4 h-4" />
+                      <span className="text-sm font-medium">Events</span>
+                    </div>
+                    {layerVisibility.events ? (
+                      <Eye className="w-4 h-4 text-muted-foreground" />
+                    ) : (
+                      <EyeOff className="w-4 h-4 text-muted-foreground" />
+                    )}
+                  </div>
+                  
+                  {/* Habits Layer */}
+                  <div 
+                    className="flex items-center justify-between px-3 py-2 rounded-md hover:bg-accent cursor-pointer"
+                    onClick={() => setLayerVisibility(prev => ({ ...prev, habits: !prev.habits }))}
+                  >
+                    <div className="flex items-center gap-2">
+                      <HABIT_ICON className="w-4 h-4" />
+                      <span className="text-sm font-medium">Habits</span>
+                    </div>
+                    {layerVisibility.habits ? (
+                      <Eye className="w-4 h-4 text-muted-foreground" />
+                    ) : (
+                      <EyeOff className="w-4 h-4 text-muted-foreground" />
+                    )}
+                  </div>
+                  
+                  {/* Tasks Layer */}
+                  <div 
+                    className="flex items-center justify-between px-3 py-2 rounded-md hover:bg-accent cursor-pointer"
+                    onClick={() => setLayerVisibility(prev => ({ ...prev, tasks: !prev.tasks }))}
+                  >
+                    <div className="flex items-center gap-2">
+                      <TASK_ICON className="w-4 h-4" />
+                      <span className="text-sm font-medium">Tasks</span>
+                    </div>
+                    {layerVisibility.tasks ? (
+                      <Eye className="w-4 h-4 text-muted-foreground" />
+                    ) : (
+                      <EyeOff className="w-4 h-4 text-muted-foreground" />
+                    )}
+                  </div>
+                  
+                  {/* Work Hours Layer */}
+                  <div 
+                    className="flex items-center justify-between px-3 py-2 rounded-md hover:bg-accent cursor-pointer"
+                    onClick={() => setLayerVisibility(prev => ({ ...prev, workHours: !prev.workHours }))}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4" />
+                      <span className="text-sm font-medium">Work Hours</span>
+                    </div>
+                    {layerVisibility.workHours ? (
+                      <Eye className="w-4 h-4 text-muted-foreground" />
+                    ) : (
+                      <EyeOff className="w-4 h-4 text-muted-foreground" />
+                    )}
+                  </div>
+                </div>
               </PopoverContent>
             </Popover>
           </div>
