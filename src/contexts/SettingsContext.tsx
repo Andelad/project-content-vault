@@ -154,12 +154,20 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     defaultView: 'timeline'
   };
 
-  // Temporary local storage for defaultView until database migration is applied
+  // Temporary local storage for defaultView and isCompactView until database migration is applied
   const [localDefaultView, setLocalDefaultView] = useState<string>(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('defaultView') || defaultSettings.defaultView;
     }
     return defaultSettings.defaultView;
+  });
+
+  const [localIsCompactView, setLocalIsCompactView] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('isCompactView');
+      return stored === 'true';
+    }
+    return false;
   });
 
   const processedSettings: Settings = dbSettings ? {
@@ -169,8 +177,9 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
                      'monday' in dbSettings.weekly_work_hours) 
       ? dbSettings.weekly_work_hours as unknown as Settings['weeklyWorkHours']
       : defaultSettings.weeklyWorkHours,
-    defaultView: localDefaultView // Use local storage value for now
-  } : { ...defaultSettings, defaultView: localDefaultView };
+    defaultView: (dbSettings as any).default_view || localDefaultView,
+    isCompactView: (dbSettings as any).is_compact_view ?? localIsCompactView
+  } : { ...defaultSettings, defaultView: localDefaultView, isCompactView: localIsCompactView };
 
   // Helper function to set view based on default view setting
   const setDefaultView = useCallback((defaultViewSetting: string) => {
@@ -211,7 +220,26 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     if (updates.weeklyWorkHours) {
       dbUpdates.weekly_work_hours = updates.weeklyWorkHours;
     }
-    return dbUpdateSettings(dbUpdates);
+    if (updates.defaultView !== undefined) {
+      dbUpdates.default_view = updates.defaultView;
+      setLocalDefaultView(updates.defaultView);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('defaultView', updates.defaultView);
+      }
+    }
+    if (updates.isCompactView !== undefined) {
+      dbUpdates.is_compact_view = updates.isCompactView;
+      setLocalIsCompactView(updates.isCompactView);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('isCompactView', String(updates.isCompactView));
+      }
+    }
+    // Only attempt database update if there are actual DB fields to update
+    if (Object.keys(dbUpdates).length > 0 && updates.weeklyWorkHours) {
+      return dbUpdateSettings(dbUpdates);
+    }
+    // Return resolved promise for non-DB updates (localStorage only)
+    return Promise.resolve();
   }, [dbUpdateSettings]);
 
   const contextValue: SettingsContextType = {

@@ -13,6 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 //
 import { ClockArrowDown } from 'lucide-react';
+import { NEUTRAL_COLORS } from '@/constants/colors';
 import { getDateKey } from '@/utils/dateFormatUtils';
 import * as DateCalculations from '@/services/calculations/general/dateCalculations';
 
@@ -211,7 +212,7 @@ export function DailyProjectSummaryRow({
                       key={summary.projectId}
                       className="w-4 h-4 rounded-full border border-gray-300"
                       style={{
-                        backgroundColor: summary.color || '#9CA3AF',
+                        backgroundColor: summary.color || NEUTRAL_COLORS.gray400,
                         marginLeft: index === 0 ? '0px' : '-8px',
                         zIndex: summaries.length - index
                       }}

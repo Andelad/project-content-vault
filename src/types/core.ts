@@ -165,6 +165,7 @@ export interface Settings {
     sunday: WorkSlot[];
   };
   defaultView?: string;
+  isCompactView?: boolean; // Compact planner view (half vertical spacing)
 }
 
 export interface WorkHour {

@@ -3,6 +3,7 @@ import { Project, CalendarEvent, Milestone } from '@/types/core';
 import { analyzeProjectProgress } from '@/services';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../../components/ui/tooltip';
 import { formatDateShort } from '@/utils/dateFormatUtils';
+import { NEUTRAL_COLORS } from '@/constants/colors';
 
 interface ProjectProgressGraphProps {
   project: Project;
@@ -75,8 +76,8 @@ export function ProjectProgressGraph({ project, events, milestones = [] }: Proje
               y={padding.top} 
               width={chartWidth} 
               height={chartHeight} 
-              fill="#fafafa" 
-              stroke="#e5e7eb"
+              fill={NEUTRAL_COLORS.gray50} 
+              stroke={NEUTRAL_COLORS.gray200}
               strokeWidth="1"
             />
             

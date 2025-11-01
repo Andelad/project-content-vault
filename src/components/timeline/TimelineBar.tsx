@@ -8,6 +8,7 @@ import type { Project } from '@/types/core';
 import { UnifiedTimelineService } from '@/services';
 import { ColorCalculationService } from '@/services/ui/ColorCalculations';
 import type { TimelineAllocationType } from '@/constants/styles';
+import { NEUTRAL_COLORS } from '@/constants/colors';
 import { 
   generateWorkHoursForDate,
   calculateWorkHoursTotal,
@@ -291,10 +292,10 @@ export const TimelineBar = memo(function TimelineBar({
           }
           
           // Calculate which borders to show
-          const borderLeft = extendsLeft ? 'none' : '1px solid #e5e7eb';
-          const borderRight = extendsRight ? 'none' : '1px solid #e5e7eb';
-          const borderTop = '1px solid #e5e7eb';
-          const borderBottom = '1px solid #e5e7eb';
+          const borderLeft = extendsLeft ? 'none' : `1px solid ${NEUTRAL_COLORS.gray200}`;
+          const borderRight = extendsRight ? 'none' : `1px solid ${NEUTRAL_COLORS.gray200}`;
+          const borderTop = `1px solid ${NEUTRAL_COLORS.gray200}`;
+          const borderBottom = `1px solid ${NEUTRAL_COLORS.gray200}`;
           
           return (
             <>
@@ -877,10 +878,12 @@ export const TimelineBar = memo(function TimelineBar({
           
           return (
             <div 
-              className="absolute z-40 pointer-events-auto"
+              className="absolute z-50 pointer-events-auto"
               style={{ 
-                left: `${Math.max(adjustedPositions.baselineStartPx - 12, 8)}px`, // Center icon on start of project bar (icon is 24px wide, so -12px centers it)
-                top: '12px' // Position vertically centered in the 48px project bar
+                left: `${Math.max(adjustedPositions.baselineStartPx - 26, 0)}px`, // Position container for 52px wide blocking area
+                top: '0px',
+                width: '52px', // Full column width to block pointer events
+                height: '48px' // Full project bar height
               }}
             >
               <ProjectIconIndicator project={project} mode={mode} />

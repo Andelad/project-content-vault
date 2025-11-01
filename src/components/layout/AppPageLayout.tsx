@@ -23,7 +23,7 @@ interface AppPageContentProps {
 
 export function AppPageLayout({ children, className }: AppPageLayoutProps) {
   return (
-    <div className={cn("h-full flex flex-col bg-gray-50 overflow-hidden", className)}>
+    <div className={cn("h-full flex flex-col bg-[#fcfcfc] overflow-hidden", className)}>
       {children}
     </div>
   );

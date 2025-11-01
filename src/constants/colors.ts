@@ -3,8 +3,23 @@ import { ColorCalculationService } from '@/services';
 
 // Brand colors
 export const BRAND_COLORS = {
-  primary: '#02c0b7',
-  primaryHover: '#02a09a',
+  primary: '#3daae0',
+  primaryHover: '#2f8ec4',
+} as const;
+
+// Neutral gray colors - centralized for consistency
+// Using true neutral grays (no color temperature)
+export const NEUTRAL_COLORS = {
+  gray50: '#fafafa',      // neutral-50
+  gray100: '#f5f5f5',     // neutral-100
+  gray200: '#e5e5e5',     // neutral-200
+  gray300: '#d4d4d4',     // neutral-300
+  gray400: '#a3a3a3',     // neutral-400
+  gray500: '#737373',     // neutral-500
+  gray600: '#525252',     // neutral-600
+  gray700: '#404040',     // neutral-700
+  gray800: '#262626',     // neutral-800
+  gray900: '#171717',     // neutral-900
 } as const;
 
 // Project colors using OKLCH color space for better accessibility

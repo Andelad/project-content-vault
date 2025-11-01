@@ -32,7 +32,7 @@ export const TimelineColumnMarkers = memo(function TimelineColumnMarkers({ dates
                   <div 
                     className="absolute top-0 bottom-0 left-0 right-0 pointer-events-none"
                     style={{
-                      backgroundColor: 'rgba(219, 234, 254, 0.4)',
+                      backgroundColor: 'rgba(147, 197, 253, 0.15)',
                       zIndex: 2
                     }}
                   />
@@ -66,7 +66,7 @@ export const TimelineColumnMarkers = memo(function TimelineColumnMarkers({ dates
                   <div 
                     className="absolute top-0 bottom-0 left-0 right-0 pointer-events-none"
                     style={{
-                      backgroundColor: 'rgba(219, 234, 254, 0.4)',
+                      backgroundColor: 'rgba(147, 197, 253, 0.15)',
                       zIndex: 2
                     }}
                   />

@@ -643,25 +643,24 @@ export function AddHolidayRow({ dates, collapsed, isDragging, dragState, handleH
         className="flex-1 relative flex h-full"
       >
         {/* Sticky Add Holiday Icon - matches project indicator style */}
-        <div className="absolute left-2 z-30" style={{ top: '15px' }}>
+        <div className="absolute left-0 top-0 z-50 pointer-events-auto" style={{ width: '52px', height: '52px' }}>
           <button
             onClick={() => {
               const today = normalizeToMidnight(new Date());
               const endDate = addDaysToDate(today, 2); // 2 days from today
               setCreatingNewHoliday({ startDate: today, endDate });
             }}
-            className="relative w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200 shadow-md hover:shadow-lg drop-shadow-sm hover:brightness-95 group"
-            style={{ backgroundColor: '#D1D5DB' }}
+            className="absolute top-[10px] left-[10px] w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 shadow-md hover:shadow-lg drop-shadow-sm hover:brightness-95 group bg-stone-200"
             title="Add holiday"
           >
             {/* Parasol icon - default state */}
             <div className="transition-opacity duration-200 group-hover:opacity-0">
-              <ParasolIcon className="w-3 h-3 text-foreground" />
+              <ParasolIcon className="w-4 h-4 text-foreground" />
             </div>
             
             {/* Plus icon - hover state */}
             <div className="absolute inset-0 flex items-center justify-center transition-opacity duration-200 opacity-0 group-hover:opacity-100">
-              <Plus className="w-3 h-3 text-foreground" />
+              <Plus className="w-4 h-4 text-foreground" />
             </div>
           </button>
         </div>

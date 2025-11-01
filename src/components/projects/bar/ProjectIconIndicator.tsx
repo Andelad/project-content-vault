@@ -55,7 +55,7 @@ export function ProjectIconIndicator({ project, mode = 'days' }: ProjectIconIndi
     <Tooltip delayDuration={100}>
       <TooltipTrigger asChild>
         <button
-          className="relative w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200 shadow-md hover:shadow-lg drop-shadow-sm"
+          className="absolute top-[8px] left-[10px] w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 shadow-md hover:shadow-lg drop-shadow-sm"
           style={{ backgroundColor: project.color }}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
@@ -67,7 +67,7 @@ export function ProjectIconIndicator({ project, mode = 'days' }: ProjectIconIndi
               isHovered ? 'opacity-0' : 'opacity-100'
             }`}
           >
-            <IconComponent className="w-3 h-3 text-foreground" />
+            <IconComponent className="w-4 h-4 text-foreground" />
           </div>
           
           {/* Edit icon overlay */}
@@ -76,7 +76,7 @@ export function ProjectIconIndicator({ project, mode = 'days' }: ProjectIconIndi
               isHovered ? 'opacity-100' : 'opacity-0'
             }`}
           >
-            <Edit3 className="w-3 h-3 text-foreground" />
+            <Edit3 className="w-4 h-4 text-foreground" />
           </div>
         </button>
       </TooltipTrigger>

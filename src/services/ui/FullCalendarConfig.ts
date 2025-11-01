@@ -17,8 +17,9 @@ export function isTabletViewport(): boolean {
 
 /**
  * Base FullCalendar configuration for PlannerV2
+ * @param isCompactView - Whether to use compact view mode (30-min slot labels instead of 1-hour)
  */
-export function getBaseFullCalendarConfig(): Partial<CalendarOptions> {
+export function getBaseFullCalendarConfig(isCompactView: boolean = false): Partial<CalendarOptions> {
   const isMobile = isMobileViewport();
   const isTablet = isTabletViewport();
   
@@ -51,10 +52,11 @@ export function getBaseFullCalendarConfig(): Partial<CalendarOptions> {
     },
     
     // Time settings - larger slots on mobile for better touch targets
+    // Compact view: use 30-min slots to halve vertical space (CSS handles further compression)
     slotMinTime: '00:00:00',
     slotMaxTime: '24:00:00',
-    slotDuration: isMobile ? '00:30:00' : '00:15:00',
-    slotLabelInterval: '01:00:00',
+    slotDuration: isCompactView ? '00:30:00' : (isMobile ? '00:30:00' : '00:15:00'),
+    slotLabelInterval: isCompactView ? '00:30:00' : '01:00:00',
     slotLabelFormat: {
       hour: '2-digit',
       minute: '2-digit',
@@ -133,9 +135,11 @@ export function getBaseFullCalendarConfig(): Partial<CalendarOptions> {
 
 /**
  * Get view-specific configurations with responsive behavior
+ * @param view - The view type ('week' or 'day')
+ * @param isCompactView - Whether to use compact view mode
  */
-export function getViewSpecificConfig(view: 'week' | 'day'): Partial<CalendarOptions> {
-  const baseConfig = getBaseFullCalendarConfig();
+export function getViewSpecificConfig(view: 'week' | 'day', isCompactView: boolean = false): Partial<CalendarOptions> {
+  const baseConfig = getBaseFullCalendarConfig(isCompactView);
   
   if (view === 'day') {
     return {

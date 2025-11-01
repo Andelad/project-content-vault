@@ -682,7 +682,9 @@ export type Database = {
       settings: {
         Row: {
           created_at: string
+          default_view: string | null
           id: string
+          is_compact_view: boolean | null
           time_tracking_state: Json | null
           updated_at: string
           user_id: string
@@ -690,7 +692,9 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          default_view?: string | null
           id?: string
+          is_compact_view?: boolean | null
           time_tracking_state?: Json | null
           updated_at?: string
           user_id: string
@@ -698,7 +702,9 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          default_view?: string | null
           id?: string
+          is_compact_view?: boolean | null
           time_tracking_state?: Json | null
           updated_at?: string
           user_id?: string

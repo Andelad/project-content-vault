@@ -16,8 +16,8 @@ export function TimeTrackerBookmark({ isTracking, onClick, isExpanded }: TimeTra
         width: '80px', // Same as current tracker height (h-20 = 80px)
         height: '53px', // Extra 1px to cover the tracker border
         borderRadius: '0 0 16px 16px',
-        backgroundColor: isExpanded && isTracking ? '#fecaca' : '#f9fafb', // red-200 when tracking and expanded, gray-50 otherwise
-        borderColor: isExpanded && isTracking ? 'rgba(226, 226, 226, 0)' : '#e2e2e2',
+        backgroundColor: isExpanded && isTracking ? '#fecaca' : '#f5f5f4', // red-200 when tracking and expanded, stone-100 (sidebar color) otherwise
+        borderColor: isExpanded && isTracking ? 'rgba(229, 229, 229, 0)' : '#e5e5e5',
       }}
       aria-label="Toggle time tracker"
     >

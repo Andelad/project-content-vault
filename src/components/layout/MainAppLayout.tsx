@@ -99,7 +99,7 @@ export function MainAppLayout() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    <div className="flex h-screen overflow-hidden bg-[#fcfcfc]">
       <div 
         className="fixed left-0 bottom-0 z-30 transition-all duration-500 ease-out"
         style={{

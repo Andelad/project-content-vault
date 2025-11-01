@@ -18,6 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Info } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
+import { NEUTRAL_COLORS } from '@/constants/colors';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Checkbox } from '../ui/checkbox';
 import { AverageDayHeatmapCard } from '../insights/AverageDayHeatmapCard';
@@ -377,9 +378,9 @@ export function InsightsView() {
   }, [shouldAnimatePie]);
 
   return (
-    <div className="h-full flex flex-col bg-gray-50 overflow-hidden">
+    <div className="h-full flex flex-col overflow-hidden">
       {/* Content */}
-      <div className="flex-1 overflow-auto bg-gray-50 light-scrollbar">
+      <div className="flex-1 overflow-auto light-scrollbar">
         <div className="p-[21px] space-y-[21px]">
 
 
@@ -699,7 +700,7 @@ export function InsightsView() {
                       },
                       grid: {
                         line: {
-                          stroke: '#e5e7eb',
+                          stroke: NEUTRAL_COLORS.gray200,
                           strokeWidth: 1,
                           strokeDasharray: '3 3'
                         }

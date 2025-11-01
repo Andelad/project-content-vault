@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Button } from './button';
 import { Separator } from './separator';
+import { NEUTRAL_COLORS } from '@/constants/colors';
 
 interface RichTextEditorProps {
   value: string;
@@ -314,7 +315,7 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
         }
         
         .rich-text-editor [contenteditable="true"] blockquote {
-          border-left: 4px solid #e5e7eb;
+          border-left: 4px solid ${NEUTRAL_COLORS.gray200};
           padding-left: 1rem;
           margin: 1rem 0;
           font-style: italic;
@@ -338,7 +339,7 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
         
         .rich-text-editor [contenteditable="true"] hr {
           border: none;
-          border-top: 2px solid #e5e7eb;
+          border-top: 2px solid ${NEUTRAL_COLORS.gray200};
           margin: 1.5rem 0;
         }
       `}} />

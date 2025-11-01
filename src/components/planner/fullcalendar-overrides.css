@@ -527,3 +527,94 @@
   z-index: 5 !important; /* Below events (10) but above work hours (1) */
 }
 
+/* Task Event Styles */
+.task-event {
+  background-color: rgba(255, 255, 255, 0.6) !important;
+  border: none !important;
+  border-left: none !important;
+  border-radius: 999px !important; /* Fully rounded corners */
+  cursor: pointer;
+  height: 50% !important; /* Half the height */
+  max-height: 24px !important; /* Reasonable max height */
+  min-height: 20px !important; /* Minimum usable height */
+  margin-top: auto !important; /* Center vertically in the time slot */
+  margin-bottom: auto !important;
+}
+
+/* Tasks get light grey dashed outline when planned (non-completed) */
+.task-event.future-event {
+  outline: 2px dashed #d1d5db !important; /* Light grey */
+  outline-offset: -2px !important;
+}
+
+/* Tasks get light grey solid outline when selected */
+.task-event.selected-event {
+  outline: 2px solid #9ca3af !important; /* Slightly darker grey for selection */
+  outline-offset: -2px !important;
+}
+
+.task-event:hover {
+  background-color: rgba(255, 255, 255, 0.8) !important;
+  transform: scale(1.01);
+  transition: all 0.15s ease;
+  z-index: 10 !important;
+}
+
+/* Tasks should render at the same level as habits */
+.task-event {
+  z-index: 5 !important;
+}
+
+/* Ensure task events never show completion icon on the right */
+.task-event .fc-event-main-frame {
+  justify-content: flex-start !important;
+  border-radius: 999px !important; /* Match parent */
+}
+
+/* ============================================
+   COMPACT VIEW MODE - Halves vertical space
+   ============================================ */
+
+/* Normal mode: Each 15-min slot ≈ 21-25px, so 1 hour ≈ 84-100px
+   Compact mode: We want each hour to be half that ≈ 42-50px
+   With 30-min slots in compact mode, we need each slot ≈ 21-25px (half of normal) */
+
+/* Make each 30-minute slot in compact mode = 15px (so 1 hour = 30px total) */
+.planner-compact .fc-timegrid-slot {
+  height: 15px !important;
+  min-height: 15px !important;
+}
+
+.planner-compact .fc-timegrid-slot-lane {
+  height: 15px !important;
+  min-height: 15px !important;
+}
+
+/* Force all slot-related cells */
+.planner-compact .fc-timegrid-slots tr {
+  height: 15px !important;
+}
+
+.planner-compact .fc-timegrid-slots td {
+  height: 15px !important;
+  min-height: 15px !important;
+}
+
+/* Adjust time labels for compact view */
+.planner-compact .fc-timegrid-slot-label-cushion {
+  font-size: 10px;
+  padding: 1px 3px;
+  line-height: 1.2;
+}
+
+/* Events stay at normal font size */
+.planner-compact .fc-timegrid-event {
+  font-size: 12px;
+  min-height: 15px !important;
+}
+
+/* Compact the time column */
+.planner-compact .fc-timegrid-axis-frame {
+  font-size: 10px;
+}
+

@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import colors from "tailwindcss/colors";
 
 export default {
 	darkMode: ["class"],
@@ -20,6 +21,7 @@ export default {
 		extend: {
 			colors: {
 				gray: {
+					...colors.neutral,
 					150: '#f0f0f0',
 				},
 				border: 'hsl(var(--border))',

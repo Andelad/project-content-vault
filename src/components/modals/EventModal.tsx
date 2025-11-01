@@ -263,6 +263,9 @@ export function EventModal({
           monthlyDayOfWeek: startDate.getDay()
         });
         
+        // Reset category state for new events
+        setCategory('event');
+        
         // Set search query for pending project
         if (pendingProject) {
           const displayText = pendingProject.client 

@@ -4,6 +4,7 @@ import { UnifiedTimelineService, formatDuration } from '@/services';
 import { formatWeekdayDate, formatDateShort } from '@/utils/dateFormatUtils';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useProjectContext } from '../../contexts/ProjectContext';
+import { NEUTRAL_COLORS } from '@/constants/colors';
 
 interface WorkloadGraphProps {
   dates: Date[];
@@ -148,7 +149,7 @@ export const WorkloadGraph = memo(function WorkloadGraph({
             y1={plotHeight}
             x2={dates.length * columnWidth}
             y2={plotHeight}
-            stroke="rgb(209, 213, 219)"
+            stroke={NEUTRAL_COLORS.gray300}
             strokeWidth={1}
           />
           

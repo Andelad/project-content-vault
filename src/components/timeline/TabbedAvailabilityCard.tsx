@@ -6,6 +6,7 @@ import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group';
 import { UnifiedAvailabilityCircles } from './UnifiedAvailabilityCircles';
 import { WorkloadGraph } from './WorkloadGraph';
 import { Card } from '../ui/card';
+import { NEUTRAL_COLORS } from '@/constants/colors';
 
 interface TabProps {
   label: string;
@@ -21,18 +22,18 @@ const ChromeTab = ({ label, isActive, onClick }: TabProps) => {
         relative px-6 py-2.5 text-sm font-medium transition-all duration-200
         ${isActive 
           ? 'text-gray-800 z-10' 
-          : 'text-gray-500 hover:text-gray-600 hover:bg-gray-100 z-0'
+          : 'text-gray-500 hover:text-gray-600 z-0'
         }
       `}
       style={{
-        backgroundColor: isActive ? 'white' : 'rgb(229, 231, 235)',
+        backgroundColor: isActive ? 'white' : NEUTRAL_COLORS.gray200,
         borderTopLeftRadius: '8px',
         borderTopRightRadius: '8px',
         marginRight: '-2px',
         paddingBottom: isActive ? '13px' : '10px',
-        borderTop: isActive ? '1px solid rgb(229, 231, 235)' : '1px solid transparent',
-        borderLeft: isActive ? '1px solid rgb(229, 231, 235)' : '1px solid transparent',
-        borderRight: isActive ? '1px solid rgb(229, 231, 235)' : '1px solid transparent',
+        borderTop: isActive ? `1px solid ${NEUTRAL_COLORS.gray200}` : '1px solid transparent',
+        borderLeft: isActive ? `1px solid ${NEUTRAL_COLORS.gray200}` : '1px solid transparent',
+        borderRight: isActive ? `1px solid ${NEUTRAL_COLORS.gray200}` : '1px solid transparent',
         borderBottom: isActive ? '1px solid white' : 'none',
         marginBottom: isActive ? '-1px' : '0',
       }}

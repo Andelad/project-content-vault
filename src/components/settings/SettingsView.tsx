@@ -816,7 +816,7 @@ export function SettingsView() {
   };
 
   return (
-    <AppPageLayout className="bg-gray-50">
+    <AppPageLayout>
       {/* No header */}
 
       {/* Content - Card with sidebar and content area */}

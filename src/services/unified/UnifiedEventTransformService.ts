@@ -36,12 +36,17 @@ export function transformCalendarEventToFullCalendar(event: CalendarEvent, optio
   const { backgroundColor, textColor, borderColor } = calculateEventStyle(baseColor, styleConfig);
   
   // For habits, make the background more transparent and ensure dark text
-  const finalBackgroundColor = event.category === 'habit' 
-    ? backgroundColor.replace(/oklch\(([\d.]+)\s+([\d.]+)\s+([\d.]+)\)/, 'oklch($1 $2 $3 / 0.7)')
-    : backgroundColor;
-  const finalTextColor = event.category === 'habit'
-    ? 'oklch(0.28 0.07 65)' // Dark brown text matching the habit color
-    : textColor;
+  // For tasks, use transparent white background with dark text
+  let finalBackgroundColor = backgroundColor;
+  let finalTextColor = textColor;
+  
+  if (event.category === 'habit') {
+    finalBackgroundColor = backgroundColor.replace(/oklch\(([\d.]+)\s+([\d.]+)\s+([\d.]+)\)/, 'oklch($1 $2 $3 / 0.7)');
+    finalTextColor = 'oklch(0.28 0.07 65)'; // Dark brown text matching the habit color
+  } else if (event.category === 'task') {
+    finalBackgroundColor = 'rgba(255, 255, 255, 0.6)'; // Transparent white
+    finalTextColor = 'oklch(0.3 0 0)'; // Dark text for visibility
+  }
   
   // Determine CSS classes for styling
   const cssClasses = ['planner-v2-event'];
@@ -56,6 +61,9 @@ export function transformCalendarEventToFullCalendar(event: CalendarEvent, optio
   }
   if (event.category === 'habit') {
     cssClasses.push('habit-event');
+  }
+  if (event.category === 'task') {
+    cssClasses.push('task-event');
   }
   
   return {

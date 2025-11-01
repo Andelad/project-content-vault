@@ -42,12 +42,12 @@ export function AppHeader({
       {/* Time Tracker - slides down on tablet */}
       {isTablet && (
         <div 
-          className="fixed top-0 left-0 right-0 z-40 border-b border-[#e2e2e2] transition-all duration-500 ease-out"
+          className="fixed top-0 left-0 right-0 z-40 border-b transition-all duration-500 ease-out"
           style={{
             transform: isTrackerExpanded ? 'translateY(0)' : 'translateY(-100%)',
             height: '84px',
-            backgroundColor: isTrackerExpanded && isTimeTracking ? '#fecaca' : '#f9fafb', // red-200 when tracking and expanded, gray-50 otherwise
-            borderBottomColor: isTrackerExpanded && isTimeTracking ? 'rgba(226, 226, 226, 0)' : '#e2e2e2',
+            backgroundColor: isTrackerExpanded && isTimeTracking ? '#fecaca' : '#f5f5f4', // red-200 when tracking and expanded, stone-100 (sidebar color) otherwise
+            borderBottomColor: isTrackerExpanded && isTimeTracking ? 'rgba(229, 229, 229, 0)' : '#e5e5e5',
           }}
         >
           <div className="w-full p-3 h-full flex items-center">
@@ -62,7 +62,7 @@ export function AppHeader({
       )}
       
       {/* Header */}
-      <div className="h-20 border-b border-[#e2e2e2] flex items-center justify-between px-8 bg-gray-50 relative">
+      <div className="h-20 border-b border-[#e5e5e5] flex items-center justify-between px-8 bg-[#fcfcfc] relative">
         {/* Bookmark for tablet view - positioned at top of header, overlaps tracker border */}
         {isTablet && (
           <div className="absolute -top-px right-8 z-50">

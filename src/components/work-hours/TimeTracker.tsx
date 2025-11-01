@@ -548,9 +548,10 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
       }}
     >
       <Card 
-        className="bg-transparent shadow-none h-full transition-all duration-500"
+        className="shadow-none h-full transition-all duration-500"
         style={{
-          borderColor: fadeBorder ? 'rgba(226, 226, 226, 0)' : undefined,
+          backgroundColor: '#f5f5f4', // stone-100 to match sidebar
+          borderColor: fadeBorder ? 'rgba(229, 229, 229, 0)' : '#e5e5e5',
         }}
       >
         <CardContent className="p-3 h-full flex items-center" style={{ overflow: 'visible' }}>
@@ -565,7 +566,8 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
                   setShowSearchDropdown(true);
                 }}
                 onFocus={() => setShowSearchDropdown(true)}
-                className="w-full h-9 bg-background cursor-text pr-10"
+                className="w-full h-9 cursor-text pr-10"
+                style={{ backgroundColor: '#fcfcfc' }}
                 disabled={isTimeTracking}
               />
               <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />

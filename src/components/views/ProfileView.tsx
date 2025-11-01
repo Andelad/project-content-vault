@@ -827,7 +827,7 @@ export function ProfileView() {
   };
 
   return (
-    <div className="h-full flex flex-col bg-gray-50 p-8">
+    <div className="h-full flex flex-col p-8">
       <CardSidebarLayout
         tabs={tabs}
         activeTab={activeTab}

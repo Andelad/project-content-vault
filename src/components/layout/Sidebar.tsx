@@ -275,7 +275,7 @@ export function Sidebar() {
     return (
       <>
         <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-          <SheetContent side="left" className="w-48 p-0 bg-gray-50">
+          <SheetContent side="left" className="w-48 p-0 bg-stone-100">
             <SidebarContent isCollapsed={false} />
           </SheetContent>
         </Sheet>
@@ -287,7 +287,10 @@ export function Sidebar() {
 
   // Desktop: Regular sidebar
   return (
-    <div className={`${mainSidebarCollapsed ? 'w-16' : 'w-48'} h-full bg-gray-50 border-r border-gray-200 flex flex-col transition-all duration-300 ease-in-out relative flex-shrink-0`}>
+    <div 
+      className={`${mainSidebarCollapsed ? 'w-16' : 'w-48'} h-full bg-stone-100 border-r border-gray-200 flex flex-col transition-all duration-300 ease-in-out relative flex-shrink-0`}
+      style={{ boxShadow: '2px 0 3px 0 rgb(0 0 0 / 0.03), 2px 0 2px -1px rgb(0 0 0 / 0.03)' }}
+    >
       <SidebarContent isCollapsed={mainSidebarCollapsed} />
       <HelpModal open={helpModalOpen} onOpenChange={setHelpModalOpen} />
       <FeedbackModal open={feedbackModalOpen} onOpenChange={setFeedbackModalOpen} />

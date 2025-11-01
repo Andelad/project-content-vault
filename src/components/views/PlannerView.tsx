@@ -9,8 +9,9 @@ import { useSettingsContext } from '@/contexts/SettingsContext';
 import { formatDateLong, formatDateRange as formatDateRangeUtil } from '@/utils/dateFormatUtils';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { ChevronLeft, ChevronRight, MapPin, CalendarSearch, Layers2, Eye, EyeOff, CalendarDays, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MapPin, CalendarSearch, Layers2, Eye, EyeOff, CalendarDays, Clock, ChevronsDownUp, ChevronsUpDown } from 'lucide-react';
 import { HABIT_ICON, TASK_ICON, HABIT_ICON_SVG, TASK_ICON_SVG } from '@/constants/icons';
+import { NEUTRAL_COLORS } from '@/constants/colors';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as DatePicker } from '@/components/ui/calendar';
 import { PlannerInsightCard, DailyProjectSummaryRow, WeekNavigationBar } from '@/components/planner';
@@ -626,6 +627,33 @@ export function PlannerView() {
       };
     }
     
+    // Render tasks with square icon and no time display
+    if (extendedProps.category === 'task') {
+      const isCompleted = extendedProps.completed;
+      
+      // Checkbox icon HTML for completion status - filled square when completed
+      const checkIconSvg = isCompleted 
+        ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><path d="m9 11 3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>'
+        : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><rect width="18" height="18" x="3" y="3" rx="2"></rect></svg>';
+      
+      const iconHtml = `<button type="button" style="cursor: pointer; transition: transform 0.2s; background: none; border: none; color: inherit; padding: 0; margin: 0; display: flex; align-items: center; justify-content: center;" 
+                          onmouseover="this.style.transform='scale(1.1)'" 
+                          onmouseout="this.style.transform='scale(1)'"
+                          onclick="event.stopPropagation(); window.plannerToggleCompletion && window.plannerToggleCompletion('${event.id}')"
+                          title="${isCompleted ? 'Mark as not completed' : 'Mark as completed'}">${checkIconSvg}</button>`;
+      
+      return {
+        html: `
+          <div style="height: 100%; display: flex; align-items: center; gap: 6px; padding: 4px 6px; overflow: hidden;">
+            <div style="display: flex; align-items: center; color: inherit; flex-shrink: 0;">
+              ${iconHtml}
+            </div>
+            <div style="font-size: 12px; font-weight: 600; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">${event.title}</div>
+          </div>
+        `
+      };
+    }
+    
     // Get project info for regular events
     const projectId = extendedProps.projectId;
     const project = projectId ? projects.find(p => p.id === projectId) : null;
@@ -745,9 +773,36 @@ export function PlannerView() {
       delete (window as any).plannerToggleHabitCompletion;
     };
   }, [handleCompletionToggle, handleHabitCompletionToggle]);
+
+  // Handle compact view toggle while preserving scroll position
+  const handleCompactViewToggle = useCallback(() => {
+    // Get current scroll position as percentage
+    const scroller = document.querySelector('.fc-scroller.fc-scroller-liquid-absolute') as HTMLElement;
+    if (!scroller) {
+      updateSettings({ isCompactView: !settings?.isCompactView });
+      return;
+    }
+
+    const scrollPercentage = scroller.scrollTop / scroller.scrollHeight;
+
+    // Toggle the setting
+    updateSettings({ isCompactView: !settings?.isCompactView });
+
+    // After React re-renders, restore scroll position proportionally
+    // Use requestAnimationFrame to wait for DOM update
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const updatedScroller = document.querySelector('.fc-scroller.fc-scroller-liquid-absolute') as HTMLElement;
+        if (updatedScroller) {
+          updatedScroller.scrollTop = scrollPercentage * updatedScroller.scrollHeight;
+        }
+      });
+    });
+  }, [settings?.isCompactView, updateSettings]);
+
   // Prepare FullCalendar configuration
   const calendarConfig = {
-    ...getBaseFullCalendarConfig(),
+    ...getBaseFullCalendarConfig(settings?.isCompactView || false),
     ...getEventStylingConfig(),
     // Use function for events so refetchEvents() will get fresh data
     events: (fetchInfo: any, successCallback: any, failureCallback: any) => {
@@ -938,7 +993,7 @@ export function PlannerView() {
               transform: translateX(-50%) scale(0.95);
               background: #ffffff;
               color: #1f2937;
-              border: 1px solid #e5e7eb;
+              border: 1px solid ${NEUTRAL_COLORS.gray200};
               border-radius: 6px;
               padding: 6px 12px;
               font-size: 14px;
@@ -1338,7 +1393,7 @@ export function PlannerView() {
   }, [calendarReady, calendarScrollbarWidth]);
 
   return (
-    <div className="h-full flex flex-col bg-gray-50 overflow-hidden">
+    <div className="h-full flex flex-col overflow-hidden">
       {/* Calendar Controls */}
       <div className="px-6 p-[21px]">
         <div className="flex items-center justify-between">
@@ -1428,7 +1483,7 @@ export function PlannerView() {
                   >
                     <div className="flex items-center gap-2">
                       <TASK_ICON className="w-4 h-4" />
-                      <span className="text-sm font-medium">Tasks</span>
+                      <span className="text-sm font-medium">Quick Tasks</span>
                     </div>
                     {layerVisibility.tasks ? (
                       <Eye className="w-4 h-4 text-muted-foreground" />
@@ -1455,6 +1510,19 @@ export function PlannerView() {
                 </div>
               </PopoverContent>
             </Popover>
+            <Button 
+              variant="outline" 
+              size="icon" 
+              className="h-9 w-9"
+              onClick={handleCompactViewToggle}
+              title={settings?.isCompactView ? "Expand view" : "Compact view"}
+            >
+              {settings?.isCompactView ? (
+                <ChevronsUpDown className="w-4 h-4" />
+              ) : (
+                <ChevronsDownUp className="w-4 h-4" />
+              )}
+            </Button>
           </div>
           {/* Right side navigation */}
           <div className="flex items-center gap-0.5">
@@ -1508,11 +1576,11 @@ export function PlannerView() {
             calendarCardRef.current = el;
             (swipeRef as any).current = el;
           }}
-          className="planner-calendar-card h-full bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden"
+          className={`planner-calendar-card h-full bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden ${settings?.isCompactView ? 'planner-compact' : ''}`}
           style={{ ['--planner-scrollbar-width' as any]: `${calendarScrollbarWidth}px` }}
         >
           <FullCalendar
-            key={`${currentView}-${viewportSize}`}
+            key={`${currentView}-${viewportSize}-${settings?.isCompactView ? 'compact' : 'normal'}`}
             ref={calendarRef}
             {...calendarConfig}
             height="100%"

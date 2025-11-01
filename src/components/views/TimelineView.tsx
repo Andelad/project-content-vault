@@ -999,7 +999,7 @@ export function TimelineView() {
                                 left: `${wd.leftPx}px`,
                                 width: '22px',
                                 height: '100%',
-                                backgroundColor: 'rgba(229, 231, 235, 0.15)',
+                                backgroundColor: 'rgba(229, 229, 229, 0.15)',
                                 pointerEvents: 'none'
                               }}
                             />
@@ -1018,7 +1018,7 @@ export function TimelineView() {
                                 left: `${dateIndex * 52}px`,
                                 width: '52px',
                                 height: '100%',
-                                backgroundColor: 'rgba(156, 163, 175, 0.15)',
+                                backgroundColor: 'rgba(163, 163, 163, 0.15)',
                                 pointerEvents: 'none'
                               }}
                             />
@@ -1191,7 +1191,7 @@ export function TimelineView() {
                               style={{
                                 left: `${wd.leftPx}px`,
                                 width: '22px',
-                                backgroundColor: 'rgba(229, 231, 235, 0.15)',
+                                backgroundColor: 'rgba(229, 229, 229, 0.15)',
                                 pointerEvents: 'none'
                               }}
                             />
@@ -1209,7 +1209,7 @@ export function TimelineView() {
                               style={{
                                 left: `${dateIndex * 52}px`,
                                 width: '52px',
-                                backgroundColor: 'rgba(156, 163, 175, 0.15)',
+                                backgroundColor: 'rgba(163, 163, 163, 0.15)',
                                 pointerEvents: 'none'
                               }}
                             />
