@@ -569,7 +569,9 @@ export function EventModal({
                     ...prev, 
                     category: newCategory,
                     // Set brown color for habits, keep existing color for others
-                    color: newCategory === 'habit' ? HABIT_BROWN_COLOR : prev.color
+                    color: newCategory === 'habit' ? HABIT_BROWN_COLOR : prev.color,
+                    // Clear project association for habits and tasks
+                    projectId: (newCategory === 'habit' || newCategory === 'task') ? '' : prev.projectId
                   }));
                 }
               }}

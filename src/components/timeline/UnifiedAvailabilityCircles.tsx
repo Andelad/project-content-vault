@@ -1,5 +1,5 @@
 import React, { memo, useMemo } from 'react';
-import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '../ui/tooltip';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { UnifiedTimelineService, formatDuration } from '@/services';
@@ -17,6 +17,7 @@ interface UnifiedAvailabilityCirclesProps {
   type: AvailabilityType;
   mode?: 'days' | 'weeks';
   displayMode?: 'circles' | 'numbers';
+  context?: 'timeline' | 'planner';
 }
 export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircles({ 
   dates, 
@@ -24,7 +25,8 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
   settings, 
   type,
   mode = 'days',
-  displayMode = 'circles'
+  displayMode = 'circles',
+  context = 'timeline'
 }: UnifiedAvailabilityCirclesProps) {
   const { holidays, events } = usePlannerContext();
   const { milestones } = useProjectContext();
@@ -157,17 +159,31 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
     }
   };
   const { colorClass, darkColorClass, label } = getColorData();
-  // Add buffer for partial column in days mode
-  const bufferWidth = mode === 'days' ? columnWidth : 0;
+  // Add buffer for partial column in days mode (timeline only)
+  const bufferWidth = context === 'timeline' && mode === 'days' ? columnWidth : 0;
+  
+  const containerStyle = context === 'planner' 
+    ? { width: '100%' } 
+    : { minWidth: `${dates.length * columnWidth + bufferWidth}px` };
+  
+  const columnStyle = context === 'planner'
+    ? { flex: '1 1 0%' } // flex-1
+    : { minWidth: `${columnWidth}px`, width: `${columnWidth}px` };
+  
   return (
-    <div className="h-full relative flex items-center">
-      <div className="flex w-full" style={{ minWidth: `${dates.length * columnWidth + bufferWidth}px` }}>
+    <TooltipProvider delayDuration={100}>
+      <div className="h-full relative flex items-center">
+        <div className="flex w-full" style={containerStyle}>
         {dates.map((date: Date, dateIndex: number) => {
           const targetHours = getHours(date);
           // Show empty space for zero hours
           if (targetHours === 0) {
             return (
-              <div key={dateIndex} className="flex justify-center items-center" style={{ minWidth: `${columnWidth}px`, width: `${columnWidth}px` }}>
+              <div 
+                key={dateIndex} 
+                className={`flex justify-center items-center ${context === 'planner' ? 'border-r border-gray-200' : ''}`}
+                style={columnStyle}
+              >
                 {displayMode === 'numbers' ? (
                   /* Numbers display for zero hours - show nothing */
                   <div className="flex items-center justify-center min-h-[20px]">
@@ -200,7 +216,11 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
             );
           }
           return (
-            <div key={dateIndex} className="flex justify-center items-center" style={{ minWidth: `${columnWidth}px`, width: `${columnWidth}px` }}>
+            <div 
+              key={dateIndex} 
+              className={`flex justify-center items-center ${context === 'planner' ? 'border-r border-gray-200' : ''}`}
+              style={columnStyle}
+            >
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div className="relative">
@@ -301,5 +321,6 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
         })}
       </div>
     </div>
+    </TooltipProvider>
   );
 });

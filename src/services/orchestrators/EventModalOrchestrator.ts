@@ -113,7 +113,8 @@ export class EventModalOrchestrator {
       startTime: startDateTime,
       endTime: endDateTime,
       duration,
-      projectId: formData.projectId || undefined,
+      // Habits and tasks don't have project associations
+      projectId: (formData.category === 'habit' || formData.category === 'task') ? undefined : (formData.projectId || undefined),
       color: formData.color,
       completed: formData.completed,
       category: formData.category

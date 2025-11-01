@@ -97,6 +97,9 @@ interface TabbedAvailabilityCardProps {
   availabilityDisplayMode: 'circles' | 'numbers';
   onDisplayModeChange: (mode: 'circles' | 'numbers') => void;
   columnMarkersOverlay?: React.ReactNode;
+  context?: 'timeline' | 'planner';
+  timeGutterWidth?: number;
+  scrollbarWidth?: number;
 }
 
 export const TabbedAvailabilityCard = memo(function TabbedAvailabilityCard({
@@ -107,11 +110,14 @@ export const TabbedAvailabilityCard = memo(function TabbedAvailabilityCard({
   mode,
   availabilityDisplayMode,
   onDisplayModeChange,
-  columnMarkersOverlay
+  columnMarkersOverlay,
+  context = 'timeline',
+  timeGutterWidth = 0,
+  scrollbarWidth = 0
 }: TabbedAvailabilityCardProps) {
-  const [activeTab, setActiveTab] = useState<'availability' | 'time-spent' | 'graph'>('availability');
+  const [activeTab, setActiveTab] = useState<'circles' | 'time-spent' | 'availability'>('availability');
 
-  const availabilityRows = [
+  const circlesRows = [
     {
       type: 'available' as const,
       label: 'Work Hours',
@@ -141,8 +147,8 @@ export const TabbedAvailabilityCard = memo(function TabbedAvailabilityCard({
     }
   ];
 
-  const currentRows = activeTab === 'availability' ? availabilityRows : activeTab === 'time-spent' ? timeSpentRows : null;
-  const isGraphTab = activeTab === 'graph';
+  const currentRows = activeTab === 'circles' ? circlesRows : activeTab === 'time-spent' ? timeSpentRows : null;
+  const isGraphTab = activeTab === 'availability';
 
   return (
     <div className="relative">
@@ -164,34 +170,8 @@ export const TabbedAvailabilityCard = memo(function TabbedAvailabilityCard({
           isActive={activeTab === 'time-spent'}
           onClick={() => setActiveTab('time-spent')}
         />
-        <ChromeTab
-          label="Graph"
-          isActive={activeTab === 'graph'}
-          onClick={() => setActiveTab('graph')}
-        />
         {/* Fill remaining space with background */}
         <div className="flex-1 border-b border-gray-200" style={{ marginBottom: '-1px' }} />
-        {/* Display Mode Toggle - aligned with tabs at bottom of container */}
-        <div className="pb-2.5 pr-0">
-          <ToggleGroup
-            type="single"
-            value={availabilityDisplayMode}
-            onValueChange={(value) => {
-              if (value) {
-                onDisplayModeChange(value as 'circles' | 'numbers');
-              }
-            }}
-            variant="outline"
-            className="border border-gray-200 rounded-lg h-9 p-1"
-          >
-            <ToggleGroupItem value="circles" aria-label="Circles mode" className="px-2 py-1 h-7">
-              <Circle className="w-4 h-4" />
-            </ToggleGroupItem>
-            <ToggleGroupItem value="numbers" aria-label="Numbers mode" className="px-2 py-1 h-7">
-              <Hash className="w-4 h-4" />
-            </ToggleGroupItem>
-          </ToggleGroup>
-        </div>
       </div>
 
       {/* Card Content */}
@@ -205,49 +185,108 @@ export const TabbedAvailabilityCard = memo(function TabbedAvailabilityCard({
             {columnMarkersOverlay}
           </div>
         )}
-        {/* Timeline Content */}
-        <div 
-          className="flex-1 flex flex-col bg-gray-50 relative availability-timeline-content" 
-          style={{ 
-            minWidth: mode === 'weeks'
-              ? `${dates.length * 77}px`
-              : `${dates.length * 52 + 52}px`, // Match timeline column width: 52px per day + buffer (unchanged)
-            borderTopLeftRadius: '8px',
-            borderTopRightRadius: '8px',
-          }}
-        >
-          {isGraphTab ? (
-            /* Graph tab content */
-            <div className="h-24 rounded-t-lg overflow-hidden">
-              <WorkloadGraph
-                dates={dates}
-                projects={projects}
-                settings={settings}
-                mode={mode}
-              />
+        
+        {context === 'planner' ? (
+          /* Planner Layout - flex columns with time gutter */
+          <div className="flex h-full">
+            {/* Time gutter */}
+            <div 
+              className="flex-shrink-0 border-r border-gray-100 bg-gray-50"
+              style={{ width: `${timeGutterWidth}px` }}
+            />
+            
+            {/* Content area - grows to fill space */}
+            <div className="flex-1 flex flex-col relative">
+              {isGraphTab ? (
+                /* Graph tab content */
+                <div className="rounded-t-lg overflow-hidden" style={{ height: '104px' }}>
+                  <WorkloadGraph
+                    dates={dates}
+                    projects={projects}
+                    settings={settings}
+                    mode={mode}
+                    context={context}
+                  />
+                </div>
+              ) : (
+                /* Regular tabs content - time spent with numbers */
+                currentRows && currentRows.map((row, index) => (
+                  <div 
+                    key={row.type}
+                    className={`${
+                      index < currentRows.length - 1 ? 'border-b border-gray-100' : ''
+                    } ${index === 0 ? 'rounded-t-lg overflow-hidden' : ''}`}
+                    style={{ height: '52px' }}
+                  >
+                    <UnifiedAvailabilityCircles
+                      dates={dates}
+                      projects={row.type === 'available' || row.type === 'busy' ? projects : undefined}
+                      settings={settings}
+                      type={row.type}
+                      mode={mode}
+                      displayMode="numbers"
+                      context={context}
+                    />
+                  </div>
+                ))
+              )}
             </div>
-          ) : (
-            /* Regular tabs content - availability circles */
-            currentRows && currentRows.map((row, index) => (
+            
+            {/* Scrollbar spacer */}
+            {scrollbarWidth > 0 && (
               <div 
-                key={row.type}
-                className={`${
-                  index < currentRows.length - 1 ? 'border-b border-gray-100' : ''
-                } ${index === 0 ? 'rounded-t-lg overflow-hidden' : ''}`}
-                style={{ height: '52px' }}
-              >
-                <UnifiedAvailabilityCircles
+                className="flex-shrink-0 bg-gray-50" 
+                style={{ width: `${scrollbarWidth}px` }}
+              />
+            )}
+          </div>
+        ) : (
+          /* Timeline Layout - fixed width columns */
+          <div 
+            className="flex-1 flex flex-col bg-gray-50 relative availability-timeline-content" 
+            style={{ 
+              minWidth: mode === 'weeks'
+                ? `${dates.length * 77}px`
+                : `${dates.length * 52 + 52}px`, // Match timeline column width: 52px per day + buffer (unchanged)
+              borderTopLeftRadius: '8px',
+              borderTopRightRadius: '8px',
+            }}
+          >
+            {isGraphTab ? (
+              /* Graph tab content */
+              <div className="rounded-t-lg overflow-hidden" style={{ height: '104px' }}>
+                <WorkloadGraph
                   dates={dates}
-                  projects={row.type === 'available' || row.type === 'busy' ? projects : undefined}
+                  projects={projects}
                   settings={settings}
-                  type={row.type}
                   mode={mode}
-                  displayMode={availabilityDisplayMode}
+                  context={context}
                 />
               </div>
-            ))
-          )}
-        </div>
+            ) : (
+              /* Regular tabs content - time spent with numbers */
+              currentRows && currentRows.map((row, index) => (
+                <div 
+                  key={row.type}
+                  className={`${
+                    index < currentRows.length - 1 ? 'border-b border-gray-100' : ''
+                  } ${index === 0 ? 'rounded-t-lg overflow-hidden' : ''}`}
+                  style={{ height: '52px' }}
+                >
+                  <UnifiedAvailabilityCircles
+                    dates={dates}
+                    projects={row.type === 'available' || row.type === 'busy' ? projects : undefined}
+                    settings={settings}
+                    type={row.type}
+                    mode={mode}
+                    displayMode="numbers"
+                    context={context}
+                  />
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </Card>
     </div>
   );

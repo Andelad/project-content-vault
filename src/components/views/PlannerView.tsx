@@ -14,7 +14,8 @@ import { HABIT_ICON, TASK_ICON, HABIT_ICON_SVG, TASK_ICON_SVG } from '@/constant
 import { NEUTRAL_COLORS } from '@/constants/colors';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as DatePicker } from '@/components/ui/calendar';
-import { PlannerInsightCard, DailyProjectSummaryRow, WeekNavigationBar } from '@/components/planner';
+import { DailyProjectSummaryRow, WeekNavigationBar } from '@/components/planner';
+import { TabbedAvailabilityCard } from '@/components/timeline';
 import { getBaseFullCalendarConfig, getEventStylingConfig, getResponsiveDayCount } from '@/services';
 // Holidays now sourced from PlannerContext to avoid duplicate fetch/state
 import { getDateKey } from '@/utils/dateFormatUtils';
@@ -101,6 +102,7 @@ export function PlannerView() {
   const [calendarReady, setCalendarReady] = useState(false);
   const [summaryDateStrings, setSummaryDateStrings] = useState<string[]>([]);
   const [calendarScrollbarWidth, setCalendarScrollbarWidth] = useState(0);
+  const [timeAxisWidth, setTimeAxisWidth] = useState(0);
   
   // Layer visibility state
   const [layerVisibility, setLayerVisibility] = useState({
@@ -1392,6 +1394,43 @@ export function PlannerView() {
     };
   }, [calendarReady, calendarScrollbarWidth]);
 
+  // Measure the time axis width for TabbedAvailabilityCard alignment
+  useEffect(() => {
+    if (!calendarReady) return;
+    
+    const selectAxis = () => {
+      const el =
+        document.querySelector('.fc-timegrid-axis') ||
+        document.querySelector('.fc-timegrid-slot-label-cushion')?.parentElement ||
+        document.querySelector('.fc-col-header .fc-timegrid-axis');
+      return el as HTMLElement | null;
+    };
+
+    const measure = () => {
+      const el = selectAxis();
+      if (!el) return;
+      const width = Math.round(el.getBoundingClientRect().width);
+      if (width > 0 && width !== timeAxisWidth) {
+        setTimeAxisWidth(width);
+      }
+    };
+
+    // First measure after two animation frames (FullCalendar finalizes layout after mount)
+    const rafId = window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(measure);
+    });
+
+    // Observe future size changes
+    const el = selectAxis();
+    const ro = new ResizeObserver(measure);
+    if (el) ro.observe(el);
+    
+    return () => {
+      cancelAnimationFrame(rafId);
+      ro.disconnect();
+    };
+  }, [calendarReady, timeAxisWidth]);
+
   return (
     <div className="h-full flex flex-col overflow-hidden">
       {/* Calendar Controls */}
@@ -1589,8 +1628,9 @@ export function PlannerView() {
       </div>
       {/* Calendar Insight Card */}
       <div className="px-6 pb-[21px]">
-        <PlannerInsightCard 
+        <TabbedAvailabilityCard 
           key={currentView}
+          collapsed={false}
           dates={(() => {
             if (currentView === 'day') {
               return [calendarDate];
@@ -1607,8 +1647,14 @@ export function PlannerView() {
               return dates;
             }
           })()}
-          events={events}
-          view={currentView === 'day' ? 'day' : 'week'}
+          projects={projects}
+          settings={settings}
+          mode={currentView === 'day' ? 'days' : 'weeks'}
+          availabilityDisplayMode="numbers"
+          onDisplayModeChange={() => {}}
+          context="planner"
+          timeGutterWidth={timeAxisWidth}
+          scrollbarWidth={calendarScrollbarWidth}
         />
       </div>
       {/* Modals */}

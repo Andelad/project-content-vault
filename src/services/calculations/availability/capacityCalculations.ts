@@ -520,7 +520,11 @@ export function calculateTotalPlannedHours(
   events: CalendarEvent[]
 ): number {
   return events
-    .filter(event => event.projectId) // Only events attributed to projects
+    .filter(event => 
+      event.projectId && // Only events attributed to projects
+      event.category !== 'habit' && // Habits never count toward project time
+      event.category !== 'task' // Tasks never count toward project time
+    )
     .reduce((total, event) => {
       return total + calculateEventDurationOnDate({ event, targetDate: date });
     }, 0);
@@ -618,6 +622,8 @@ export function calculateCommittedHoursForDate(
       nextDay.setDate(nextDay.getDate() + 1);
       
       return event.projectId === projectId &&
+        event.category !== 'habit' && // Defensive: habits never belong to projects
+        event.category !== 'task' && // Defensive: tasks never belong to projects
         eventStart < nextDay &&
         eventEnd >= targetDate;
     })

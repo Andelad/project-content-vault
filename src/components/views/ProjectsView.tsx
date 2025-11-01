@@ -25,12 +25,69 @@ import { AppPageLayout } from '../layout/AppPageLayout';
 import { getEffectiveProjectStatus, DurationFormattingService } from '@/services';
 import { GroupOrchestrator } from '@/services/orchestrators/GroupOrchestrator';
 import { ClientsListView } from './ClientsListView';
+import { NEUTRAL_COLORS } from '@/constants/colors';
 
 type ViewType = 'grid' | 'list';
 type FilterByStatus = 'all' | 'active' | 'future' | 'past';
 type OrganizeBy = 'group' | 'tag' | 'client';
 type MainTab = 'projects' | 'clients' | 'holidays';
 type ClientStatusFilter = 'all' | 'active' | 'archived';
+
+// Chrome-style tab component
+interface TabProps {
+  label: string;
+  value: string;
+  isActive: boolean;
+  onClick: () => void;
+}
+
+const ChromeTab = ({ label, isActive, onClick }: TabProps) => {
+  return (
+    <button
+      onClick={onClick}
+      className={`
+        relative px-6 py-2.5 text-sm font-medium transition-all duration-200
+        ${isActive 
+          ? 'text-gray-800 z-10' 
+          : 'text-gray-500 hover:text-gray-600 z-0'
+        }
+      `}
+      style={{
+        backgroundColor: isActive ? 'white' : NEUTRAL_COLORS.gray200,
+        borderTopLeftRadius: '8px',
+        borderTopRightRadius: '8px',
+        marginRight: '-2px',
+        paddingBottom: isActive ? '13px' : '10px',
+        borderTop: isActive ? `1px solid ${NEUTRAL_COLORS.gray200}` : '1px solid transparent',
+        borderLeft: isActive ? `1px solid ${NEUTRAL_COLORS.gray200}` : '1px solid transparent',
+        borderRight: isActive ? `1px solid ${NEUTRAL_COLORS.gray200}` : '1px solid transparent',
+        borderBottom: isActive ? '1px solid white' : 'none',
+        marginBottom: isActive ? '-1px' : '0',
+      }}
+    >
+      {label}
+      {/* Chrome-style curves at bottom corners of active tab */}
+      {isActive && (
+        <>
+          {/* Left curve */}
+          <div
+            className="absolute -left-2 bottom-0 w-2 h-2 pointer-events-none"
+            style={{
+              background: 'radial-gradient(circle at 0 0, transparent 8px, white 8px)',
+            }}
+          />
+          {/* Right curve */}
+          <div
+            className="absolute -right-2 bottom-0 w-2 h-2 pointer-events-none"
+            style={{
+              background: 'radial-gradient(circle at 100% 0, transparent 8px, white 8px)',
+            }}
+          />
+        </>
+      )}
+    </button>
+  );
+};
 
 // Drag and drop item types
 const ItemTypes = {
@@ -648,12 +705,35 @@ export function ProjectsView() {
       {/* Tabs and Filter Controls */}
       <AppPageLayout.SubHeader className="px-0 py-0">
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as MainTab)} className="w-full">
-          {/* Main Tabs - Full width border */}
-          <TabsList className="mb-0 px-6">
-            <TabsTrigger value="projects">Projects</TabsTrigger>
-            <TabsTrigger value="clients">Clients</TabsTrigger>
-            <TabsTrigger value="holidays">Holidays</TabsTrigger>
-          </TabsList>
+          {/* Chrome-style tabs */}
+          <div 
+            className="flex items-end border-b border-gray-200 px-6"
+            style={{
+              backgroundColor: 'rgb(249, 250, 251)', // bg-gray-50
+              paddingTop: '4px',
+            }}
+          >
+            <ChromeTab
+              label="Projects"
+              value="projects"
+              isActive={activeTab === 'projects'}
+              onClick={() => setActiveTab('projects')}
+            />
+            <ChromeTab
+              label="Clients"
+              value="clients"
+              isActive={activeTab === 'clients'}
+              onClick={() => setActiveTab('clients')}
+            />
+            <ChromeTab
+              label="Holidays"
+              value="holidays"
+              isActive={activeTab === 'holidays'}
+              onClick={() => setActiveTab('holidays')}
+            />
+            {/* Fill remaining space with background */}
+            <div className="flex-1 border-b border-gray-200" style={{ marginBottom: '-1px' }} />
+          </div>
           
           {/* Filter section with padding */}
           <div className="px-6 pt-6">

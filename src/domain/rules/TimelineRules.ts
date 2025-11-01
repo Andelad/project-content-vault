@@ -68,15 +68,21 @@ export class TimelineRules {
    * RULE 1: Events must be linked to project to contribute to day estimates
    * 
    * Business Logic Reference: Rule 9 - Event Project Filtering
-   * Formula: event.projectId === project.id
+   * Formula: event.projectId === project.id AND category !== 'habit' AND category !== 'task'
    * 
    * Critical: Events without projectId or with different projectId are ignored.
+   * Double-lock: Habits and tasks cannot be associated with projects, even if
+   * legacy data has projectId set. This protects against data inconsistencies.
    * 
    * @param event - The calendar event to check
    * @param project - The project to check against
    * @returns true if event belongs to this project
    */
   static isEventForProject(event: CalendarEvent, project: Project): boolean {
+    // Defensive filter: habits and tasks never belong to projects
+    if (event.category === 'habit' || event.category === 'task') {
+      return false;
+    }
     return event.projectId === project.id;
   }
   /**
