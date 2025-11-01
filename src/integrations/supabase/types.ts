@@ -77,6 +77,7 @@ export type Database = {
           external_url: string | null
           id: string
           is_external_event: boolean | null
+          category: string | null
           project_id: string | null
           recurring_count: number | null
           recurring_end_date: string | null
@@ -102,6 +103,7 @@ export type Database = {
           external_url?: string | null
           id?: string
           is_external_event?: boolean | null
+          category?: string | null
           project_id?: string | null
           recurring_count?: number | null
           recurring_end_date?: string | null
@@ -127,6 +129,7 @@ export type Database = {
           external_url?: string | null
           id?: string
           is_external_event?: boolean | null
+          category?: string | null
           project_id?: string | null
           recurring_count?: number | null
           recurring_end_date?: string | null

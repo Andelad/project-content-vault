@@ -122,6 +122,7 @@ export interface CalendarEvent {
   description?: string; // Optional description
   duration?: number; // Duration in hours
   type?: 'planned' | 'tracked' | 'completed'; // Type to distinguish between planned, tracked, and completed events
+  category?: 'event' | 'habit' | 'task'; // Event category: 'event' (default), 'habit' (separate layer, no project), or 'task' (no duration, checkbox display)
   recurring?: {
     type: 'daily' | 'weekly' | 'monthly' | 'yearly';
     interval: number; // Every X days/weeks/months/years

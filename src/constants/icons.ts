@@ -1,7 +1,10 @@
 // Project icons mapping
 import {
-  Folder, Briefcase, Zap, Target, Lightbulb, Rocket, Star, Heart, Gift, Music, Camera, Code, Book, Gamepad2, Coffee, Home, Building, Car, Plane, Map, Globe, Infinity
+  Folder, Briefcase, Zap, Target, Lightbulb, Rocket, Star, Heart, Gift, Music, Camera, Code, Book, Gamepad2, Coffee, Home, Building, Car, Plane, Map, Globe, Infinity, Croissant
 } from 'lucide-react';
+
+// Habit icon constant
+export const HABIT_ICON = Croissant;
 
 export const PROJECT_ICONS = [
   { name: 'folder', label: 'Folder', component: Folder },

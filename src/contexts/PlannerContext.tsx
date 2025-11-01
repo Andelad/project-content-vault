@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useMemo, useEffect } from 'react';
 import { CalendarEvent, Holiday } from '@/types';
 import { useEvents } from '@/hooks/useEvents';
+import { useHabits } from '@/hooks/useHabits';
 import { useHolidays } from '@/hooks/useHolidays';
 import { useWorkHours } from '@/hooks/useWorkHours';
 import { EventInput } from '@fullcalendar/core';
@@ -19,6 +20,14 @@ interface PlannerContextType {
   addEvent: (event: Omit<CalendarEvent, 'id' | 'created_at' | 'updated_at'>) => Promise<CalendarEvent>;
   updateEvent: (id: string, updates: Partial<CalendarEvent>, options?: { silent?: boolean }) => Promise<void>;
   deleteEvent: (id: string, options?: { silent?: boolean }) => Promise<void>;
+  // Habits
+  habits: any[];
+  isHabitsLoading: boolean;
+  addHabit: (habit: any) => Promise<any>;
+  updateHabit: (id: string, updates: any, options?: { silent?: boolean }) => Promise<any>;
+  deleteHabit: (id: string, options?: { silent?: boolean }) => Promise<void>;
+  creatingNewHabit: { startTime?: Date; endTime?: Date } | null;
+  setCreatingNewHabit: (times: { startTime: Date; endTime: Date } | null) => void;
   // Recurring Events
   getRecurringGroupEvents: (eventId: string) => Promise<CalendarEvent[]>;
   deleteRecurringSeriesFuture: (eventId: string) => Promise<void>;
@@ -82,6 +91,13 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
     deleteEvent: dbDeleteEvent,
     refetch: refetchEvents
   } = useEvents();
+  const {
+    habits: dbHabits,
+    loading: habitsLoading,
+    addHabit: dbAddHabit,
+    updateHabit: dbUpdateHabit,
+    deleteHabit: dbDeleteHabit
+  } = useHabits();
   const { 
     holidays: dbHolidays, 
     loading: holidaysLoading,
@@ -96,6 +112,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
   // UI state
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [creatingNewEvent, setCreatingNewEvent] = useState<{ startTime?: Date; endTime?: Date } | null>(null);
+  const [creatingNewHabit, setCreatingNewHabit] = useState<{ startTime?: Date; endTime?: Date } | null>(null);
   const [layerMode, setLayerMode] = useState<'events' | 'work-hours' | 'both'>('both');
   const [currentView, setCurrentView] = useState<'week' | 'day'>('week');
   
@@ -552,18 +569,19 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
     return PlannerV2CalculationService.prepareEventsForFullCalendar(
       processedEvents,
       workHours || [],
-      layerMode
+      layerMode,
+      { habits: dbHabits }
     );
-  }, [processedEvents, workHours, layerMode]);
+  }, [processedEvents, workHours, layerMode, dbHabits]);
   // Method to get styled events with project context
   const getStyledFullCalendarEvents = useCallback((options: { selectedEventId?: string | null; projects?: any[] } = {}) => {
     return PlannerV2CalculationService.prepareEventsForFullCalendar(
       processedEvents,
       workHours || [],
       layerMode,
-      options
+      { ...options, habits: dbHabits }
     );
-  }, [processedEvents, workHours, layerMode]);
+  }, [processedEvents, workHours, layerMode, dbHabits]);
   // Method to ensure recurring events exist for future dates
   const ensureEventsForDateRange = useCallback(async (startDate: Date, endDate: Date) => {
     try {
@@ -618,6 +636,14 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
     addEvent,
     updateEvent,
     deleteEvent,
+    // Habits
+    habits: dbHabits || [],
+    isHabitsLoading: habitsLoading,
+    addHabit: dbAddHabit,
+    updateHabit: dbUpdateHabit,
+    deleteHabit: dbDeleteHabit,
+    creatingNewHabit,
+    setCreatingNewHabit,
     // Recurring Events
     getRecurringGroupEvents,
     deleteRecurringSeriesFuture,

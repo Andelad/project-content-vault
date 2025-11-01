@@ -42,20 +42,23 @@ export interface DailyTotals {
 export class PlannerCalculationService {
   
   /**
-   * Combine calendar events and work hours into FullCalendar format
+   * Combine calendar events, habits, and work hours into FullCalendar format
    */
   static prepareEventsForFullCalendar(
     events: CalendarEvent[], 
     workHours: WorkHour[],
     layerMode: 'events' | 'work-hours' | 'both' = 'both',
-    options: { selectedEventId?: string | null; projects?: any[] } = {}
+    options: { selectedEventId?: string | null; projects?: any[]; habits?: any[] } = {}
   ): EventInput[] {
-    const { selectedEventId, projects = [] } = options;
+    const { selectedEventId, projects = [], habits = [] } = options;
     const fcEvents: EventInput[] = [];
 
-    // Add calendar events
+    // Add calendar events (excluding habits which are in the events table but filtered out)
     if (layerMode === 'events' || layerMode === 'both') {
       events.forEach(event => {
+        // Skip habits - they're rendered separately
+        if (event.category === 'habit') return;
+        
         const fcEvent = transformCalendarEventToFullCalendar(event, { projects });
         if (fcEvent) {
           // Highlight selected event
@@ -64,6 +67,29 @@ export class PlannerCalculationService {
           }
           fcEvents.push(fcEvent);
         }
+      });
+    }
+
+    // Add habits (always shown, rendered between events and work hours)
+    if (habits && habits.length > 0) {
+      habits.forEach((habit: any) => {
+        const fcEvent = {
+          id: habit.id,
+          title: habit.title,
+          start: habit.start_time,
+          end: habit.end_time,
+          backgroundColor: habit.color || '#8B4513',
+          borderColor: habit.color || '#8B4513',
+          textColor: '#ffffff',
+          extendedProps: {
+            category: 'habit',
+            completed: habit.completed || false,
+            description: habit.description || '',
+            originalHabit: habit
+          },
+          className: 'habit-event'
+        };
+        fcEvents.push(fcEvent);
       });
     }
 

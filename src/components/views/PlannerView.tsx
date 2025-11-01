@@ -9,11 +9,11 @@ import { useSettingsContext } from '@/contexts/SettingsContext';
 import { formatDateLong, formatDateRange as formatDateRangeUtil } from '@/utils/dateFormatUtils';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { ChevronLeft, ChevronRight, MapPin, CalendarSearch, CheckCircle2, Circle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MapPin, CalendarSearch } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as DatePicker } from '@/components/ui/calendar';
 import { PlannerInsightCard, DailyProjectSummaryRow, WeekNavigationBar } from '@/components/planner';
-import { getBaseFullCalendarConfig, getEventStylingConfig, UnifiedDayEstimateService, getResponsiveDayCount } from '@/services';
+import { getBaseFullCalendarConfig, getEventStylingConfig, getResponsiveDayCount } from '@/services';
 // Holidays now sourced from PlannerContext to avoid duplicate fetch/state
 import { getDateKey } from '@/utils/dateFormatUtils';
 import { transformFullCalendarToCalendarEvent } from '@/services';
@@ -23,7 +23,6 @@ import { useSwipeNavigation } from '@/hooks/useSwipeNavigation';
 import '../planner/fullcalendar-overrides.css';
 // Modal imports
 const EventModal = React.lazy(() => import('../modals/EventModal').then(module => ({ default: module.EventModal })));
-import { WorkSlotModal } from '../modals/WorkSlotModal';
 /**
  * PlannerView - FullCalendar-based planner with keyboard shortcuts
  * 
@@ -40,6 +39,9 @@ export function PlannerView() {
   const { 
     events,
     isEventsLoading,
+    habits,
+    isHabitsLoading,
+    updateHabit,
     holidays,
     isHolidaysLoading,
     fullCalendarEvents,
@@ -52,11 +54,14 @@ export function PlannerView() {
     lastAction,
     setCreatingNewEvent,
     creatingNewEvent,
+    setCreatingNewHabit,
+    creatingNewHabit,
     layerMode,
     setLayerMode,
     currentView,
     setCurrentView,
-    getEventsInDateRange
+    getEventsInDateRange,
+    workHours
   } = usePlannerContext();
   const { projects, milestones: projectMilestones } = useProjectContext();
   const { 
@@ -64,11 +69,30 @@ export function PlannerView() {
     setCurrentDate,
     setCurrentView: setTimelineView 
   } = useTimelineContext();
-  const { isTimeTracking, currentTrackingEventId, settings } = useSettingsContext();
+  const { isTimeTracking, currentTrackingEventId, settings, updateSettings } = useSettingsContext();
   const { toast } = useToast();
   const calendarRef = useRef<FullCalendar>(null);
   const calendarCardRef = useRef<HTMLDivElement | null>(null);
-  const [calendarDate, setCalendarDate] = useState(new Date(currentDate));
+  
+  // Initialize calendar date - for desktop week view, start on Monday of current week
+  const getInitialCalendarDate = () => {
+    const date = new Date(currentDate);
+    const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 1024;
+    
+    if (isDesktop && currentView === 'week') {
+      // Calculate Monday of the current week
+      const dayOfWeek = date.getDay();
+      const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      const monday = new Date(date);
+      monday.setDate(date.getDate() + daysToMonday);
+      monday.setHours(0, 0, 0, 0);
+      return monday;
+    }
+    
+    return date;
+  };
+  
+  const [calendarDate, setCalendarDate] = useState(getInitialCalendarDate());
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isDraggingProject, setIsDraggingProject] = useState(false);
   const [calendarReady, setCalendarReady] = useState(false);
@@ -128,12 +152,104 @@ export function PlannerView() {
 
   // FullCalendar event handlers
   const handleEventClick = (info: any) => {
+    // Don't select work slots - they're not selectable
+    if (info.event.extendedProps.isWorkHour) {
+      return;
+    }
+    
+    // Handle habit clicks - open event modal (will show correct tab based on category)
+    if (info.event.extendedProps.category === 'habit') {
+      setSelectedEventId(info.event.id);
+      return;
+    }
+    
     setSelectedEventId(info.event.id);
   };
   const handleEventDrop = useCallback(async (dropInfo: EventDropArg) => {
     const eventId = dropInfo.event.id;
-    const updates = transformFullCalendarToCalendarEvent(dropInfo.event);
+    const extendedProps = dropInfo.event.extendedProps;
     
+    // Handle habit drag/drop
+    if (extendedProps.category === 'habit') {
+      const newStart = dropInfo.event.start;
+      const newEnd = dropInfo.event.end;
+      
+      if (!newStart || !newEnd) {
+        dropInfo.revert();
+        return;
+      }
+      
+      try {
+        await updateHabit(eventId, {
+          start_time: newStart.toISOString(),
+          end_time: newEnd.toISOString()
+        }, { silent: true });
+      } catch (error) {
+        console.error('Failed to update habit:', error);
+        dropInfo.revert();
+      }
+      return;
+    }
+    
+    // Handle work hour drag/drop - update settings
+    if (extendedProps.isWorkHour) {
+      const workHour = extendedProps.originalWorkHour;
+      const newStart = dropInfo.event.start;
+      const newEnd = dropInfo.event.end;
+      
+      if (!newStart || !newEnd) {
+        dropInfo.revert();
+        return;
+      }
+      
+      // Parse the work hour ID to get day and slot info
+      // Format: settings-{dayName}-{slotId}
+      const match = workHour.id.match(/^settings-(\w+)-([^-]+)$/);
+      if (!match || !settings?.weeklyWorkHours) {
+        toast({
+          title: "Cannot update work slot",
+          description: "Work slot configuration error",
+          variant: "destructive",
+        });
+        dropInfo.revert();
+        return;
+      }
+      
+      const [, dayName, slotId] = match;
+      const weeklyWorkHours = settings.weeklyWorkHours;
+      const daySlots = weeklyWorkHours[dayName as keyof typeof weeklyWorkHours] || [];
+      
+      // Update the slot with new times
+      const updatedSlots = daySlots.map(slot => {
+        if (slot.id === slotId) {
+          const startHours = newStart.getHours().toString().padStart(2, '0');
+          const startMins = newStart.getMinutes().toString().padStart(2, '0');
+          const endHours = newEnd.getHours().toString().padStart(2, '0');
+          const endMins = newEnd.getMinutes().toString().padStart(2, '0');
+          
+          return {
+            ...slot,
+            startTime: `${startHours}:${startMins}`,
+            endTime: `${endHours}:${endMins}`,
+            duration: (newEnd.getTime() - newStart.getTime()) / (1000 * 60 * 60)
+          };
+        }
+        return slot;
+      });
+      
+      await updateSettings({
+        weeklyWorkHours: {
+          ...weeklyWorkHours,
+          [dayName]: updatedSlots
+        }
+      });
+      
+      // Settings updated successfully, useEffect will trigger calendar refetch
+      return;
+    }
+    
+    // Handle regular event drop
+    const updates = transformFullCalendarToCalendarEvent(dropInfo.event);
     const result = await plannerOrchestrator.handleEventDragDrop(
       eventId,
       updates,
@@ -141,11 +257,98 @@ export function PlannerView() {
     );
     
     // No additional handling needed - orchestrator manages everything
-  }, [plannerOrchestrator]);
+  }, [plannerOrchestrator, settings, updateSettings, toast]);
+  
   const handleEventResize = useCallback(async (resizeInfo: any) => {
     const eventId = resizeInfo.event.id;
-    const updates = transformFullCalendarToCalendarEvent(resizeInfo.event);
+    const extendedProps = resizeInfo.event.extendedProps;
     
+    // Handle habit resize
+    if (extendedProps.category === 'habit') {
+      const newStart = resizeInfo.event.start;
+      const newEnd = resizeInfo.event.end;
+      
+      if (!newStart || !newEnd) {
+        resizeInfo.revert();
+        return;
+      }
+      
+      try {
+        await updateHabit(eventId, {
+          start_time: newStart.toISOString(),
+          end_time: newEnd.toISOString()
+        }, { silent: true });
+      } catch (error) {
+        console.error('Failed to resize habit:', error);
+        resizeInfo.revert();
+      }
+      return;
+    }
+    
+    // Handle work hour resize - update settings
+    if (extendedProps.isWorkHour) {
+      console.log('📏 Work slot resize detected, updating settings...');
+      const workHour = extendedProps.originalWorkHour;
+      const newStart = resizeInfo.event.start;
+      const newEnd = resizeInfo.event.end;
+      
+      if (!newStart || !newEnd) {
+        resizeInfo.revert();
+        return;
+      }
+      
+      // Parse the work hour ID to get day and slot info
+      const match = workHour.id.match(/^settings-(\w+)-([^-]+)$/);
+      if (!match || !settings?.weeklyWorkHours) {
+        toast({
+          title: "Cannot update work slot",
+          description: "Work slot configuration error",
+          variant: "destructive",
+        });
+        resizeInfo.revert();
+        return;
+      }
+      
+      const [, dayName, slotId] = match;
+      const weeklyWorkHours = settings.weeklyWorkHours;
+      const daySlots = weeklyWorkHours[dayName as keyof typeof weeklyWorkHours] || [];
+      
+      // Update the slot with new times
+      const updatedSlots = daySlots.map(slot => {
+        if (slot.id === slotId) {
+          const startHours = newStart.getHours().toString().padStart(2, '0');
+          const startMins = newStart.getMinutes().toString().padStart(2, '0');
+          const endHours = newEnd.getHours().toString().padStart(2, '0');
+          const endMins = newEnd.getMinutes().toString().padStart(2, '0');
+          
+          return {
+            ...slot,
+            startTime: `${startHours}:${startMins}`,
+            endTime: `${endHours}:${endMins}`,
+            duration: (newEnd.getTime() - newStart.getTime()) / (1000 * 60 * 60)
+          };
+        }
+        return slot;
+      });
+      
+      await updateSettings({
+        weeklyWorkHours: {
+          ...weeklyWorkHours,
+          [dayName]: updatedSlots
+        }
+      });
+      
+      // Settings updated successfully, useEffect will trigger calendar refetch
+      
+      toast({
+        title: "Work slot updated",
+        description: "Your work schedule has been updated",
+      });
+      return;
+    }
+    
+    // Handle regular event resize
+    const updates = transformFullCalendarToCalendarEvent(resizeInfo.event);
     const result = await plannerOrchestrator.handleEventResize(
       eventId,
       updates,
@@ -153,8 +356,22 @@ export function PlannerView() {
     );
     
     // No additional handling needed - orchestrator manages everything
-  }, [plannerOrchestrator]);
+  }, [plannerOrchestrator, settings, updateSettings, toast]);
   const handleDateSelect = useCallback((selectInfo: DateSelectArg) => {
+    // When in work-hours mode, create a work slot instead of an event
+    if (layerMode === 'work-hours') {
+      // Open modal to create work slot
+      // For now, we'll need to implement a work slot modal
+      // This will be handled in the next step
+      toast({
+        title: "Work Slot Creation",
+        description: "Creating work slots from the calendar is coming soon. Please use Settings to manage work slots.",
+        duration: 3000,
+      });
+      selectInfo.view.calendar.unselect();
+      return;
+    }
+    
     // Create new event using global context so the modal opens
     setCreatingNewEvent({
       startTime: selectInfo.start,
@@ -162,7 +379,7 @@ export function PlannerView() {
     });
     // Clear the selection
     selectInfo.view.calendar.unselect();
-  }, [setCreatingNewEvent]);
+  }, [setCreatingNewEvent, layerMode, toast]);
 
   // Handle project drag start from summary row
   const handleProjectDragStart = useCallback((projectId: string, date: Date, estimatedHours: number) => {
@@ -210,8 +427,23 @@ export function PlannerView() {
     const calendarApi = calendarRef.current?.getApi();
     if (calendarApi) {
       calendarApi.changeView(view === 'week' ? 'timeGridWeek' : 'timeGridDay');
+      
+      // When switching to week view on desktop (7 days), ensure we start on Monday
+      if (view === 'week' && viewportSize === 'desktop') {
+        const currentDate = calendarApi.getDate();
+        const dayOfWeek = currentDate.getDay();
+        const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+        const monday = new Date(currentDate);
+        monday.setDate(currentDate.getDate() + daysToMonday);
+        monday.setHours(0, 0, 0, 0);
+        
+        // Navigate to Monday if not already there
+        if (daysToMonday !== 0) {
+          calendarApi.gotoDate(monday);
+        }
+      }
     }
-  }, [setCurrentView]);
+  }, [setCurrentView, viewportSize]);
   // Format date range for display
   const formatDateRange = useCallback(() => {
     const calendarApi = calendarRef.current?.getApi();
@@ -331,11 +563,83 @@ export function PlannerView() {
   const renderEventContent = useCallback((eventInfo: any) => {
     const event = eventInfo.event;
     const extendedProps = event.extendedProps;
-    // Skip custom rendering for work hours - let them use default display
+    
+    // Render work hours with italic label
     if (extendedProps.isWorkHour) {
-      return { html: '' }; // Use default FullCalendar rendering
+      const workHour = extendedProps.originalWorkHour;
+      const start = moment(event.start).format('HH:mm');
+      const end = moment(event.end).format('HH:mm');
+      
+      return {
+        html: `
+          <div style="height: 100%; display: flex; flex-direction: column; padding: 4px 6px; overflow: hidden;">
+            <div style="font-size: 11px; font-style: italic; color: #1976d2; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+              ${workHour.title}
+            </div>
+            <div style="font-size: 10px; color: #1976d2; opacity: 0.8; margin-top: 2px;">
+              ${start} - ${end}
+            </div>
+          </div>
+        `
+      };
     }
-    // Get project info
+
+    // Render habits with croissant icon
+    if (extendedProps.category === 'habit') {
+      const start = moment(event.start).format('HH:mm');
+      const end = moment(event.end).format('HH:mm');
+      const isCompleted = extendedProps.completed;
+      
+      // Croissant SVG icon
+      const croissantSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m4.6 13.11 5.79-3.21c1.89-1.05 4.79 1.78 3.71 3.71l-3.22 5.81C8.8 23.16.79 15.23 4.6 13.11Z"/><path d="m10.5 9.5-1-2.29C9.2 6.48 8.8 6 8 6H4.5C2.79 6 2 6.5 2 8.5a7.71 7.71 0 0 0 2 4.83"/><path d="M8 6c0-1.55.24-4-2-4-2 0-2.5 2.17-2.5 4"/><path d="m14.5 13.5 2.29 1c.73.3 1.21.7 1.21 1.5v3.5c0 1.71-.5 2.5-2.5 2.5a7.71 7.71 0 0 1-4.83-2"/><path d="M18 16c1.55 0 4-.24 4 2 0 2-2.17 2.5-4 2.5"/></svg>';
+      
+      // Check icon HTML for completion status
+      const checkIconSvg = isCompleted 
+        ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><path d="m9 12 2 2 4-4"></path><circle cx="12" cy="12" r="10"></circle></svg>'
+        : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><circle cx="12" cy="12" r="10"></circle></svg>';
+      
+      const iconHtml = `<button type="button" style="cursor: pointer; transition: transform 0.2s; background: none; border: none; color: inherit; padding: 0; margin: 0; display: flex; align-items: center; justify-content: center;" 
+                          onmouseover="this.style.transform='scale(1.1)'" 
+                          onmouseout="this.style.transform='scale(1)'"
+                          onclick="event.stopPropagation(); window.plannerToggleHabitCompletion && window.plannerToggleHabitCompletion('${event.id}')"
+                          title="${isCompleted ? 'Mark as not completed' : 'Mark as completed'}">${checkIconSvg}</button>`;
+      
+      // Calculate height for layout
+      const durationInMs = event.end ? event.end.getTime() - event.start.getTime() : 0;
+      const durationInMinutes = durationInMs / (1000 * 60);
+      const approximateHeight = (durationInMinutes / 15) * 21;
+      
+      const showTwoLines = approximateHeight >= 32;
+      
+      return {
+        html: `
+          <div style="height: 100%; display: flex; flex-direction: column; gap: 2px; padding: 2px; overflow: hidden;">
+            ${showTwoLines ? `
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; gap: 4px;">
+              <div style="display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0;">
+                ${croissantSvg}
+                <div style="font-size: 12px; font-weight: 600; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${event.title}</div>
+              </div>
+              <div style="display: flex; align-items: center; color: inherit; flex-shrink: 0;">
+                ${iconHtml}
+              </div>
+            </div>
+            <div style="font-size: 10px; opacity: 0.8; line-height: 1;">${start} - ${end}</div>
+            ` : `
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
+              ${croissantSvg}
+              <div style="font-size: 12px; font-weight: 600; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">${event.title}</div>
+              <div style="display: flex; align-items: center; color: inherit; flex-shrink: 0;">
+                ${iconHtml}
+              </div>
+            </div>
+            `}
+          </div>
+        `
+      };
+    }
+    
+    // Get project info for regular events
     const projectId = extendedProps.projectId;
     const project = projectId ? projects.find(p => p.id === projectId) : null;
     // Format time
@@ -432,18 +736,42 @@ export function PlannerView() {
     const result = await plannerOrchestrator.handleCompletionToggle(eventId);
     // No additional handling needed - orchestrator manages everything
   }, [plannerOrchestrator]);
-  // Set up global completion toggle function for HTML onclick events
+
+  // Handle completion toggle for habits
+  const handleHabitCompletionToggle = useCallback(async (habitId: string) => {
+    try {
+      const habit = habits.find(h => h.id === habitId);
+      if (!habit) return;
+      
+      await updateHabit(habitId, { completed: !habit.completed }, { silent: true });
+    } catch (error) {
+      console.error('Failed to toggle habit completion:', error);
+    }
+  }, [habits, updateHabit]);
+
+  // Set up global completion toggle functions for HTML onclick events
   useEffect(() => {
     (window as any).plannerToggleCompletion = handleCompletionToggle;
+    (window as any).plannerToggleHabitCompletion = handleHabitCompletionToggle;
     return () => {
       delete (window as any).plannerToggleCompletion;
+      delete (window as any).plannerToggleHabitCompletion;
     };
-  }, [handleCompletionToggle]);
+  }, [handleCompletionToggle, handleHabitCompletionToggle]);
   // Prepare FullCalendar configuration
   const calendarConfig = {
     ...getBaseFullCalendarConfig(),
     ...getEventStylingConfig(),
-    events: getStyledFullCalendarEvents({ selectedEventId, projects }),
+    // Use function for events so refetchEvents() will get fresh data
+    events: (fetchInfo: any, successCallback: any, failureCallback: any) => {
+      try {
+        const events = getStyledFullCalendarEvents({ selectedEventId, projects });
+        successCallback(events);
+      } catch (error) {
+        console.error('Error fetching events:', error);
+        failureCallback(error);
+      }
+    },
     initialView: currentView === 'week' ? 'timeGridWeek' : 'timeGridDay',
     initialDate: calendarDate,
     // Custom event content renderer - also handles CSS property updates
@@ -532,6 +860,15 @@ export function PlannerView() {
       setCalendarReady(true);
     }
   };
+  
+  // Refresh calendar when work hours change to show updated work slots
+  useEffect(() => {
+    const calendarApi = calendarRef.current?.getApi();
+    if (calendarApi) {
+      calendarApi.refetchEvents();
+    }
+  }, [workHours]);
+  
   // Removed early calendarReady timeout to avoid pre-ready fallback flashes
   
   // Add hoverable functionality to date headers after calendar renders
@@ -915,6 +1252,26 @@ export function PlannerView() {
       // Only update if viewport category changed (forces calendar remount)
       if (newSize !== viewportSize) {
         setViewportSize(newSize);
+        
+        // When switching to desktop (7-day view) in week mode, ensure we're starting from Monday
+        if (newSize === 'desktop' && currentView === 'week') {
+          const calendarApi = calendarRef.current?.getApi();
+          if (calendarApi) {
+            // Get current date
+            const currentDate = calendarApi.getDate();
+            // Calculate Monday of the week
+            const dayOfWeek = currentDate.getDay();
+            const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+            const monday = new Date(currentDate);
+            monday.setDate(currentDate.getDate() + daysToMonday);
+            monday.setHours(0, 0, 0, 0);
+            
+            // Navigate to Monday to ensure week starts correctly
+            setTimeout(() => {
+              calendarApi.gotoDate(monday);
+            }, 100);
+          }
+        }
       }
     };
 
@@ -930,7 +1287,7 @@ export function PlannerView() {
       window.removeEventListener('resize', debouncedResize);
       clearTimeout(resizeTimeout);
     };
-  }, [viewportSize]);
+  }, [viewportSize, currentView]);
 
   // Track the vertical scrollbar width of the FullCalendar scroller to align the summary row
   useEffect(() => {

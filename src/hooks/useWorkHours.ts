@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { WorkHour, WorkSlot, CalendarEvent } from '@/types';
-import { useSettings } from './useSettings';
+import { useSettingsContext } from '@/contexts/SettingsContext';
 import { WorkHourCalculationService } from '@/services/calculations/availability/workHourCalculations';
 
 interface UseWorkHoursReturn {
@@ -34,7 +34,7 @@ interface PendingChange {
 const weekOverrideManager = WorkHourCalculationService.createWeekOverrideManager();
 
 export const useWorkHours = (): UseWorkHoursReturn => {
-  const { settings, updateSettings } = useSettings();
+  const { settings, updateSettings } = useSettingsContext();
   const [workHours, setWorkHours] = useState<WorkHour[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -78,13 +78,13 @@ export const useWorkHours = (): UseWorkHoursReturn => {
 
   // Convert settings work slots to calendar work hours for specified week - now uses service
   const generateWorkHoursFromSettings = useCallback((weekStartDate: Date) => {
-    if (!settings?.weekly_work_hours) return [];
+    if (!settings?.weeklyWorkHours) return [];
     
     return WorkHourCalculationService.generateWorkHoursFromSettings({
       weekStartDate,
-      weeklyWorkHours: settings.weekly_work_hours
+      weeklyWorkHours: settings.weeklyWorkHours
     });
-  }, [settings?.weekly_work_hours]);
+  }, [settings?.weeklyWorkHours]);
 
   const fetchWorkHours = async (viewDate?: Date) => {
     try {
@@ -294,14 +294,14 @@ export const useWorkHours = (): UseWorkHoursReturn => {
 
   const updateSettingsWorkHour = async (id: string, updates: Partial<Omit<WorkHour, 'id'>>) => {
     try {
-      // Extract day and slot ID from settings work hour ID (format: settings-dayName-slotId-weekTimestamp)
-      const match = id.match(/^settings-(\w+)-([^-]+)-\d+$/);
-      if (!match || !settings?.weekly_work_hours) {
+      // Extract day and slot ID from settings work hour ID (format: settings-dayName-slotId)
+      const match = id.match(/^settings-(\w+)-([^-]+)$/);
+      if (!match || !settings?.weeklyWorkHours) {
         return;
       }
       
       const [, dayName, slotId] = match;
-      const weeklyWorkHours = settings.weekly_work_hours as any;
+      const weeklyWorkHours = settings.weeklyWorkHours as any;
       const daySlots = weeklyWorkHours[dayName as keyof typeof weeklyWorkHours] || [];
       
       const updatedSlots = daySlots.map((slot: WorkSlot) => {
@@ -334,7 +334,7 @@ export const useWorkHours = (): UseWorkHoursReturn => {
       };
 
       const result = await updateSettings({
-        weekly_work_hours: newWeeklyWorkHours
+        weeklyWorkHours: newWeeklyWorkHours
       });
     } catch (error) {
       console.error('Error in updateSettingsWorkHour:', error);
@@ -360,11 +360,11 @@ export const useWorkHours = (): UseWorkHoursReturn => {
     };
 
     // Update settings
-    const weeklyWorkHours = settings?.weekly_work_hours as any || {};
+    const weeklyWorkHours = settings?.weeklyWorkHours as any || {};
     const currentDaySlots = weeklyWorkHours[dayName] || [];
     
     await updateSettings({
-      weekly_work_hours: {
+      weeklyWorkHours: {
         ...weeklyWorkHours,
         [dayName]: [...currentDaySlots, newSlot]
       }
@@ -383,17 +383,17 @@ export const useWorkHours = (): UseWorkHoursReturn => {
   };
 
   const deleteSettingsWorkHour = async (id: string) => {
-    const match = id.match(/^settings-(\w+)-([^-]+)-\d+$/);
-    if (!match || !settings?.weekly_work_hours) return;
+    const match = id.match(/^settings-(\w+)-([^-]+)$/);
+    if (!match || !settings?.weeklyWorkHours) return;
     
     const [, dayName, slotId] = match;
-    const weeklyWorkHours = settings.weekly_work_hours as any;
+    const weeklyWorkHours = settings.weeklyWorkHours as any;
     const daySlots = weeklyWorkHours[dayName as keyof typeof weeklyWorkHours] || [];
     
     const updatedSlots = daySlots.filter((slot: WorkSlot) => slot.id !== slotId);
 
     await updateSettings({
-      weekly_work_hours: {
+      weeklyWorkHours: {
         ...weeklyWorkHours,
         [dayName]: updatedSlots
       }

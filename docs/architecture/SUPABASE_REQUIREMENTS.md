@@ -204,9 +204,9 @@ The application uses a **dual-system approach** for work hours:
 ### Work Hour ID Format
 ```typescript
 // Settings-based work hours (appear on all weeks)
-`settings-${dayName}-${slotId}-${weekTimestamp}`
+`settings-${dayName}-${slotId}`
 
-// Example: "settings-wednesday-1692123456-1724284800000"
+// Example: "settings-wednesday-1692123456"
 ```
 
 ### Scope-Based Updates

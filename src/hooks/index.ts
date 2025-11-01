@@ -5,6 +5,7 @@ export * from './useDynamicViewportDays';
 export * from './useEvents';
 export * from './useFavicon';
 export * from './useGroups';
+export * from './useHabits';
 export * from './useHolidays';
 export * from './useMilestones';
 export * from './usePerformance';

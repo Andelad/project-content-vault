@@ -19,6 +19,7 @@ export interface EventFormData {
   projectId: string;
   color: string;
   completed: boolean;
+  category: 'event' | 'habit' | 'task';
   isRecurring: boolean;
   recurringType: 'daily' | 'weekly' | 'monthly' | 'yearly';
   recurringInterval: number;
@@ -114,7 +115,8 @@ export class EventModalOrchestrator {
       duration,
       projectId: formData.projectId || undefined,
       color: formData.color,
-      completed: formData.completed
+      completed: formData.completed,
+      category: formData.category
     };
 
     // Add recurring data if enabled

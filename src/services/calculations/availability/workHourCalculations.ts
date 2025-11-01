@@ -109,7 +109,7 @@ export function generateWorkHoursFromSettings(params: WorkHourGenerationParams):
       endDateTime.setHours(endHour, endMin, 0, 0);
       
       workHours.push({
-        id: `settings-${dayName}-${slot.id}-${weekStartDate.getTime()}`, // Include week to make unique
+        id: `settings-${dayName}-${slot.id}`, // Stable ID not based on timestamp
         title: `Work Hours`,
         description: `Default ${dayName} work hours`,
         startTime: startDateTime,

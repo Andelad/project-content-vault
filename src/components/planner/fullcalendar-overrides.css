@@ -139,10 +139,26 @@
   }
 }
 
-.planner-v2-event.work-hour {
-  opacity: 0.3;
+/* Work slot event styling */
+.work-slot-event {
+  opacity: 0.6 !important;
   background-color: #e3f2fd !important;
-  border-color: #1976d2 !important;
+  border: 1px solid #1976d2 !important;
+  color: #1976d2 !important;
+  cursor: move !important;
+  z-index: 5 !important; /* Below regular events but above background */
+}
+
+.work-slot-event:hover {
+  opacity: 0.8 !important;
+  background-color: #dbeafe !important;
+}
+
+/* Legacy work-hour class for compatibility */
+.planner-v2-event.work-hour {
+  opacity: 0.6 !important;
+  background-color: #e3f2fd !important;
+  border: 1px solid #1976d2 !important;
   color: #1976d2 !important;
 }
 
@@ -492,3 +508,27 @@
     padding-right: 0.25rem;
   }
 }
+
+/* Habit Event Styles */
+.habit-event {
+  opacity: 0.95 !important;
+  border-left-width: 3px !important;
+  cursor: pointer;
+}
+
+.habit-event:hover {
+  opacity: 1 !important;
+  transform: scale(1.02);
+  transition: all 0.15s ease;
+  z-index: 10 !important;
+}
+
+.habit-event .fc-event-main {
+  color: white !important;
+}
+
+/* Ensure habits render between events and work hours */
+.habit-event {
+  z-index: 5 !important; /* Below events (10) but above work hours (1) */
+}
+

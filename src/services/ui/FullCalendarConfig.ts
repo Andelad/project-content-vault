@@ -21,6 +21,10 @@ export function isTabletViewport(): boolean {
 export function getBaseFullCalendarConfig(): Partial<CalendarOptions> {
   const isMobile = isMobileViewport();
   const isTablet = isTabletViewport();
+  
+  // Determine the number of days to show
+  const dayCount = isMobile ? 2 : isTablet ? 3 : 7;
+  
   return {
     plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin, momentPlugin],
     
@@ -32,8 +36,13 @@ export function getBaseFullCalendarConfig(): Partial<CalendarOptions> {
     views: {
       timeGridWeek: {
         type: 'timeGrid',
-        duration: isMobile ? { days: 2 } : isTablet ? { days: 3 } : { days: 7 },
-        buttonText: 'week'
+        duration: { days: dayCount },
+        buttonText: 'week',
+        // Ensure week view always starts on Monday when showing 7 days
+        ...(dayCount === 7 && { 
+          dayCount: 7,
+          dateAlignment: 'week'  // This forces alignment to week boundaries (respects firstDay)
+        })
       },
       timeGridDay: {
         type: 'timeGrid',
@@ -52,7 +61,7 @@ export function getBaseFullCalendarConfig(): Partial<CalendarOptions> {
       hour12: false
     },
     
-    // Week settings
+    // Week settings - CRITICAL: Monday start for all week views
     firstDay: 1, // Monday
     weekends: true,
     

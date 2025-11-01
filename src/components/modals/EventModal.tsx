@@ -10,8 +10,9 @@ import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Textarea } from '../ui/textarea';
 import { Checkbox } from '../ui/checkbox';
-import { Calendar as CalendarIcon, Clock, Repeat, Trash2, CheckCircle2 } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Repeat, Trash2, CheckCircle2, CalendarDays, Croissant, Square } from 'lucide-react';
 import { Switch } from '../ui/switch';
+import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group';
 import { cn } from '@/lib/utils';
 import { OKLCH_FALLBACK_GRAY } from '@/constants/colors';
 import { RecurringDeleteDialog } from '../dialog/RecurringDeleteDialog';
@@ -115,6 +116,7 @@ export function EventModal({
     projectId: '',
     color: OKLCH_FALLBACK_GRAY,
     completed: false,
+    category: 'event',
     isRecurring: false,
     recurringType: 'weekly',
     recurringInterval: 1,
@@ -127,6 +129,8 @@ export function EventModal({
     monthlyWeekOfMonth: 1,
     monthlyDayOfWeek: 1
   });
+  
+  const [category, setCategory] = useState<'event' | 'habit' | 'task'>('event');
 
   const [errors, setErrors] = useState<EventFormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -178,6 +182,9 @@ export function EventModal({
         
         const eventDate = new Date(existingEvent.startTime);
         
+        // Set category from existing event
+        setCategory(existingEvent.category || 'event');
+        
         setFormData({
           description: existingEvent.title,
           notes: existingEvent.description || '',
@@ -189,6 +196,7 @@ export function EventModal({
           projectId: existingEvent.projectId || '',
           color: existingEvent.color || OKLCH_FALLBACK_GRAY,
           completed: existingEvent.completed || false,
+          category: existingEvent.category || 'event',
           isRecurring: !!existingEvent.recurring,
           recurringType: existingEvent.recurring?.type || 'weekly',
           recurringInterval: existingEvent.recurring?.interval || 1,
@@ -237,6 +245,7 @@ export function EventModal({
           projectId: pendingProjectId || '',
           color: pendingProject?.color || OKLCH_FALLBACK_GRAY,
           completed: false,
+          category: 'event',
           isRecurring: false,
           recurringType: 'weekly',
           recurringInterval: 1,
@@ -510,7 +519,10 @@ export function EventModal({
       <StandardModal
         isOpen={isOpen}
         onClose={handleClose}
-        title={isEditing ? 'Edit Event' : 'Create Event'}
+        title={isEditing 
+          ? `Edit ${category.charAt(0).toUpperCase() + category.slice(1)}` 
+          : `Create ${category.charAt(0).toUpperCase() + category.slice(1)}`
+        }
         size="md"
         primaryAction={{
           label: isSubmitting || isCreatingRecurring ? 'Saving...' : (isEditing ? 'Update Event' : 'Create Event'),
@@ -536,8 +548,33 @@ export function EventModal({
       >
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Completion toggle positioned in top right */}
-          <div className="flex justify-end -mb-2">
+          {/* Tab selector and completion toggle on same row */}
+          <div className="flex justify-between items-center -mb-2">
+            {/* Tab selector for event type */}
+            <ToggleGroup 
+              type="single" 
+              value={category} 
+              onValueChange={(value) => {
+                if (value) {
+                  const newCategory = value as 'event' | 'habit' | 'task';
+                  setCategory(newCategory);
+                  setFormData(prev => ({ ...prev, category: newCategory }));
+                }
+              }}
+              className="inline-flex"
+            >
+              <ToggleGroupItem value="event" aria-label="Event" className="px-4 py-2">
+                <CalendarDays className="w-5 h-5" />
+              </ToggleGroupItem>
+              <ToggleGroupItem value="habit" aria-label="Habit" className="px-4 py-2">
+                <Croissant className="w-5 h-5" />
+              </ToggleGroupItem>
+              <ToggleGroupItem value="task" aria-label="Task" className="px-4 py-2">
+                <Square className="w-5 h-5" />
+              </ToggleGroupItem>
+            </ToggleGroup>
+
+            {/* Completion toggle */}
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="completed"
@@ -551,28 +588,30 @@ export function EventModal({
             </div>
           </div>
 
-          {/* Allocate to Project */}
-          <ProjectSearchInput
-            value={searchQuery}
-            onChange={setSearchQuery}
-            selectedProjectId={formData.projectId}
-            onProjectSelect={(project) => {
-              setFormData(prev => ({ 
-                ...prev, 
-                projectId: project.id || '',
-                groupId: project.groupId || '',
-                color: project.color || OKLCH_FALLBACK_GRAY
-              }));
-            }}
-            onAddProject={() => {
-              // Pass the first group's ID to the ProjectModal, or undefined if no groups exist
-              // The ProjectModal will handle project creation
-              setIsProjectModalOpen(true);
-            }}
-            label="Allocate to Project"
-            placeholder="Search for a project or client..."
-            showAddButton={true}
-          />
+          {/* Allocate to Project - only show for events */}
+          {category === 'event' && (
+            <ProjectSearchInput
+              value={searchQuery}
+              onChange={setSearchQuery}
+              selectedProjectId={formData.projectId}
+              onProjectSelect={(project) => {
+                setFormData(prev => ({ 
+                  ...prev, 
+                  projectId: project.id || '',
+                  groupId: project.groupId || '',
+                  color: project.color || OKLCH_FALLBACK_GRAY
+                }));
+              }}
+              onAddProject={() => {
+                // Pass the first group's ID to the ProjectModal, or undefined if no groups exist
+                // The ProjectModal will handle project creation
+                setIsProjectModalOpen(true);
+              }}
+              label="Allocate to Project"
+              placeholder="Search for a project or client..."
+              showAddButton={true}
+            />
+          )}
 
           {/* Description */}
           <div className="space-y-1.5">
@@ -591,7 +630,7 @@ export function EventModal({
 
           {/* Date and Time Range */}
           <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
+            <div className={`grid ${category === 'task' ? 'grid-cols-1' : 'grid-cols-2'} gap-3`}>
               <div className="space-y-1.5">
                 <Label htmlFor="startTime">Start Time *</Label>
                 <Input
@@ -603,33 +642,36 @@ export function EventModal({
                 />
               </div>
               
-              <div className="space-y-1.5">
-                <Label htmlFor="endTime">End Time *</Label>
-                <div className="relative">
-                  <Input
-                    id="endTime"
-                    type="time"
-                    value={formData.endTime}
-                    onChange={(e) => setFormData(prev => ({ ...prev, endTime: e.target.value }))}
-                    className={`${errors.endDateTime ? 'border-destructive' : ''} ${isEditing ? 'pr-16' : ''}`}
-                  />
-                  {isEditing && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        const now = new Date();
-                        const currentTime = now.toTimeString().slice(0, 5);
-                        setFormData(prev => ({ ...prev, endTime: currentTime }));
-                      }}
-                      className="absolute right-1 top-1/2 -translate-y-1/2 h-7 px-2 text-xs"
-                    >
-                      Now
-                    </Button>
-                  )}
+              {/* End Time - hide for tasks */}
+              {category !== 'task' && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="endTime">End Time *</Label>
+                  <div className="relative">
+                    <Input
+                      id="endTime"
+                      type="time"
+                      value={formData.endTime}
+                      onChange={(e) => setFormData(prev => ({ ...prev, endTime: e.target.value }))}
+                      className={`${errors.endDateTime ? 'border-destructive' : ''} ${isEditing ? 'pr-16' : ''}`}
+                    />
+                    {isEditing && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          const now = new Date();
+                          const currentTime = now.toTimeString().slice(0, 5);
+                          setFormData(prev => ({ ...prev, endTime: currentTime }));
+                        }}
+                        className="absolute right-1 top-1/2 -translate-y-1/2 h-7 px-2 text-xs"
+                      >
+                        Now
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
             
             <div className="space-y-1.5">
@@ -654,8 +696,8 @@ export function EventModal({
             )}
           </div>
 
-          {/* Duration Display */}
-          {formData.startDate && formData.startTime && formData.endTime && (
+          {/* Duration Display - hide for tasks */}
+          {category !== 'task' && formData.startDate && formData.startTime && formData.endTime && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Clock className="w-4 h-4" />
               <span>

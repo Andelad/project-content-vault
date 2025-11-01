@@ -79,7 +79,7 @@ export function transformCalendarEventToFullCalendar(event: CalendarEvent, optio
 export function transformWorkHourToFullCalendar(workHour: WorkHour): EventInput {
   return {
     id: `work-${workHour.id}`,
-    title: `Work: ${workHour.title}`,
+    title: workHour.title, // Remove prefix, will be styled in rendering
     start: workHour.startTime,
     end: workHour.endTime,
     backgroundColor: '#e3f2fd',
@@ -93,7 +93,8 @@ export function transformWorkHourToFullCalendar(workHour: WorkHour): EventInput 
     startEditable: true,
     durationEditable: true,
     resizable: true,
-    display: 'background' // Render as background event
+    display: 'block', // Changed from 'background' to allow custom rendering with labels
+    classNames: ['work-slot-event']
   };
 }
 
