@@ -116,6 +116,7 @@ export const TabbedAvailabilityCard = memo(function TabbedAvailabilityCard({
   scrollbarWidth = 0
 }: TabbedAvailabilityCardProps) {
   const [activeTab, setActiveTab] = useState<'circles' | 'time-spent' | 'availability'>('availability');
+  const [hoveredColumnIndex, setHoveredColumnIndex] = useState<number | null>(null);
 
   const circlesRows = [
     {
@@ -206,6 +207,8 @@ export const TabbedAvailabilityCard = memo(function TabbedAvailabilityCard({
                     settings={settings}
                     mode={mode}
                     context={context}
+                    hoveredColumnIndex={hoveredColumnIndex}
+                    onColumnHover={setHoveredColumnIndex}
                   />
                 </div>
               ) : (
@@ -226,6 +229,8 @@ export const TabbedAvailabilityCard = memo(function TabbedAvailabilityCard({
                       mode={mode}
                       displayMode="numbers"
                       context={context}
+                      hoveredColumnIndex={hoveredColumnIndex}
+                      onColumnHover={setHoveredColumnIndex}
                     />
                   </div>
                 ))
@@ -261,6 +266,8 @@ export const TabbedAvailabilityCard = memo(function TabbedAvailabilityCard({
                   settings={settings}
                   mode={mode}
                   context={context}
+                  hoveredColumnIndex={hoveredColumnIndex}
+                  onColumnHover={setHoveredColumnIndex}
                 />
               </div>
             ) : (
@@ -281,6 +288,8 @@ export const TabbedAvailabilityCard = memo(function TabbedAvailabilityCard({
                     mode={mode}
                     displayMode="numbers"
                     context={context}
+                    hoveredColumnIndex={hoveredColumnIndex}
+                    onColumnHover={setHoveredColumnIndex}
                   />
                 </div>
               ))

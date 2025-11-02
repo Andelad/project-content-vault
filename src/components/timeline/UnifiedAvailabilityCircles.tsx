@@ -18,6 +18,8 @@ interface UnifiedAvailabilityCirclesProps {
   mode?: 'days' | 'weeks';
   displayMode?: 'circles' | 'numbers';
   context?: 'timeline' | 'planner';
+  hoveredColumnIndex?: number | null;
+  onColumnHover?: (index: number | null) => void;
 }
 export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircles({ 
   dates, 
@@ -26,7 +28,9 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
   type,
   mode = 'days',
   displayMode = 'circles',
-  context = 'timeline'
+  context = 'timeline',
+  hoveredColumnIndex = null,
+  onColumnHover
 }: UnifiedAvailabilityCirclesProps) {
   const { holidays, events } = usePlannerContext();
   const { milestones } = useProjectContext();
@@ -176,148 +180,151 @@ export const UnifiedAvailabilityCircles = memo(function UnifiedAvailabilityCircl
         <div className="flex w-full" style={containerStyle}>
         {dates.map((date: Date, dateIndex: number) => {
           const targetHours = getHours(date);
-          // Show empty space for zero hours
+
+          const handleMouseEnter = () => onColumnHover?.(dateIndex);
+          const handleMouseLeave = () => onColumnHover?.(null);
+
+          let innerContent: React.ReactNode;
+          let tooltipContent: React.ReactNode | null = null;
+
+          if (displayMode === 'numbers') {
+            innerContent = (
+              <div className="flex items-center justify-center min-h-[20px]">
+                {targetHours > 0 && (
+                  <span
+                    className={`text-xs font-medium ${
+                      type === 'available' ? 'text-green-600' :
+                      type === 'busy' ? 'text-red-600' :
+                      'text-gray-600'
+                    }`}
+                  >
+                    {formatDuration(targetHours)}
+                  </span>
+                )}
+              </div>
+            );
+          } else {
+            if (targetHours === 0) {
+              innerContent = <div className="w-2 h-2" />;
+            } else {
+              const { outerDiameter, innerDiameter } = UnifiedTimelineService.calculateAvailabilityCircleSize(targetHours, mode || 'days');
+              innerContent = (
+                <div
+                  className={`${colorClass} rounded-full flex items-center justify-center transition-opacity ${
+                    hoveredColumnIndex === dateIndex ? 'opacity-100' : 'opacity-70 hover:opacity-100'
+                  }`}
+                  style={{
+                    width: `${outerDiameter}px`,
+                    height: `${outerDiameter}px`,
+                    minWidth: outerDiameter > 0 ? '10px' : '0px',
+                    minHeight: outerDiameter > 0 ? '10px' : '0px'
+                  }}
+                >
+                  {innerDiameter > 0 && (
+                    <div
+                      className={`${darkColorClass} rounded-full`}
+                      style={{
+                        width: `${Math.min(innerDiameter, outerDiameter - 3)}px`,
+                        height: `${Math.min(innerDiameter, outerDiameter - 3)}px`,
+                        minWidth: innerDiameter > 0 ? '5px' : '0px',
+                        minHeight: innerDiameter > 0 ? '5px' : '0px'
+                      }}
+                    />
+                  )}
+                </div>
+              );
+            }
+          }
+
           if (targetHours === 0) {
-            return (
-              <div 
-                key={dateIndex} 
-                className={`flex justify-center items-center ${context === 'planner' ? 'border-r border-gray-200' : ''}`}
-                style={columnStyle}
-              >
-                {displayMode === 'numbers' ? (
-                  /* Numbers display for zero hours - show nothing */
-                  <div className="flex items-center justify-center min-h-[20px]">
-                    {/* Empty div - no content for 0h */}
+            if (displayMode === 'circles' && (type === 'available' || type === 'busy')) {
+              tooltipContent = (
+                <div className="text-xs">
+                  <div className="font-medium text-gray-500">
+                    No {type === 'available' ? 'work hours' : 'overcommitment'}
+                  </div>
+                  <div className="text-gray-500">
+                    {type === 'available'
+                      ? `${formatDuration(getWorkHoursForDay(date))} work hours`
+                      : `${formatDuration(getDailyProjectHours(date))} scheduled, ${formatDuration(getWorkHoursForDay(date))} work hours`}
+                  </div>
+                </div>
+              );
+            }
+          } else {
+            tooltipContent = (
+              <div className="text-xs">
+                <div
+                  className={`font-medium ${
+                    type === 'available' ? 'text-green-600' :
+                    type === 'busy' ? 'text-red-600' :
+                    'text-gray-600'
+                  }`}
+                >
+                  {label}
+                </div>
+                <div className="text-gray-500">
+                  {formatDuration(targetHours)} {
+                    type === 'available' ? 'remaining' :
+                    type === 'busy' ? 'over' : ''
+                  }
+                </div>
+                {mode === 'weeks' ? (
+                  <div className="text-xs text-gray-400">
+                    {getWeekDates(date).map(d => formatDateShort(d)).join(', ')}
                   </div>
                 ) : (
-                  /* Circles display for zero hours - only show tooltip for available/busy types */
-                  (type === 'available' || type === 'busy') && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="relative w-2 h-2"></div>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <div className="text-xs">
-                          <div className="font-medium text-gray-500">
-                            No {type === 'available' ? 'work hours' : 'overcommitment'}
-                          </div>
-                          <div className="text-gray-500">
-                            {type === 'available' 
-                              ? `${formatDuration(getWorkHoursForDay(date))} work hours`
-                              : `${formatDuration(getDailyProjectHours(date))} scheduled, ${formatDuration(getWorkHoursForDay(date))} work hours`
-                            }
-                          </div>
-                        </div>
-                      </TooltipContent>
-                    </Tooltip>
-                  )
+                  <div className="text-xs text-gray-400">
+                    {formatWeekdayDate(date)}
+                  </div>
+                )}
+                {(type === 'available' || type === 'busy') && (
+                  <div className="text-xs text-gray-400">
+                    {mode === 'weeks' ? (() => {
+                      const weekDates = getWeekDates(date);
+                      const totalWorkHours = weekDates.reduce((total, d) => total + getWorkHoursForDay(d), 0);
+                      const totalProjectHours = weekDates.reduce((total, d) => total + getDailyProjectHours(d), 0);
+                      return type === 'available'
+                        ? `${formatDuration(totalWorkHours)} work hours - ${formatDuration(totalProjectHours)} allocated`
+                        : `${formatDuration(totalProjectHours)} allocated - ${formatDuration(totalWorkHours)} work hours`;
+                    })() : (
+                      type === 'available'
+                        ? `${formatDuration(getWorkHoursForDay(date))} work hours - ${formatDuration(getDailyProjectHours(date))} allocated`
+                        : `${formatDuration(getDailyProjectHours(date))} allocated - ${formatDuration(getWorkHoursForDay(date))} work hours`
+                    )}
+                  </div>
                 )}
               </div>
             );
           }
-          return (
-            <div 
-              key={dateIndex} 
+
+          const columnElement = (
+            <div
               className={`flex justify-center items-center ${context === 'planner' ? 'border-r border-gray-200' : ''}`}
               style={columnStyle}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
             >
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="relative">
-                    {displayMode === 'circles' ? (
-                      <>
-                        {/* Split hours: first 8 hours (main circle), then up to 7 more hours (inner circle) */}
-                        {(() => {
-                          // Use service for circle sizing calculation
-                          const { outerDiameter, innerDiameter } = UnifiedTimelineService.calculateAvailabilityCircleSize(targetHours, mode || 'days');
-                          return (
-                            <>
-                              {/* Main circle */}
-                              <div 
-                                className={`${colorClass} rounded-full opacity-70 hover:opacity-100 transition-opacity flex items-center justify-center`}
-                                style={{
-                                  width: `${outerDiameter}px`,
-                                  height: `${outerDiameter}px`,
-                                  minWidth: outerDiameter > 0 ? '10px' : '0px', // Scaled from 11px to 10px for 5px/hour scaling
-                                  minHeight: outerDiameter > 0 ? '10px' : '0px' // Scaled from 11px to 10px for 5px/hour scaling
-                                }}
-                              >
-                                {/* Inner circle for additional hours */}
-                                {innerDiameter > 0 && (
-                                  <div 
-                                    className={`${darkColorClass} rounded-full`}
-                                    style={{
-                                      width: `${Math.min(innerDiameter, outerDiameter - 3)}px`,
-                                      height: `${Math.min(innerDiameter, outerDiameter - 3)}px`,
-                                      minWidth: innerDiameter > 0 ? '5px' : '0px', // Scaled from 6px to 5px for 5px/hour scaling
-                                      minHeight: innerDiameter > 0 ? '5px' : '0px' // Scaled from 6px to 5px for 5px/hour scaling
-                                    }}
-                                  />
-                                )}
-                              </div>
-                            </>
-                          );
-                        })()}
-                      </>
-                    ) : (
-                      /* Numbers display */
-                      <div className="flex items-center justify-center min-h-[20px]">
-                        <span className={`text-xs font-medium ${
-                          type === 'available' ? 'text-green-600' : 
-                          type === 'busy' ? 'text-red-600' : 
-                          'text-gray-600'
-                        }`}>
-                          {formatDuration(targetHours)}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <div className="text-xs">
-                    <div className={`font-medium ${
-                      type === 'available' ? 'text-green-600' : 
-                      type === 'busy' ? 'text-red-600' : 
-                      'text-gray-600'
-                    }`}>
-                      {label}
-                    </div>
-                    <div className="text-gray-500">
-                      {formatDuration(targetHours)} {
-                        type === 'available' ? 'remaining' : 
-                        type === 'busy' ? 'over' : ''
-                      }
-                    </div>
-                    {mode === 'weeks' ? (
-                      <div className="text-xs text-gray-400">
-                        {getWeekDates(date).map(d => formatDateShort(d)).join(', ')}
-                      </div>
-                    ) : (
-                      <div className="text-xs text-gray-400">
-                        {formatWeekdayDate(date)}
-                      </div>
-                    )}
-                    {(type === 'available' || type === 'busy') && (
-                      <div className="text-xs text-gray-400">
-                        {mode === 'weeks' ? (() => {
-                          const weekDates = getWeekDates(date);
-                          const totalWorkHours = weekDates.reduce((total, d) => total + getWorkHoursForDay(d), 0);
-                          const totalProjectHours = weekDates.reduce((total, d) => total + getDailyProjectHours(d), 0);
-                          return type === 'available' 
-                            ? `${formatDuration(totalWorkHours)} work hours - ${formatDuration(totalProjectHours)} allocated`
-                            : `${formatDuration(totalProjectHours)} allocated - ${formatDuration(totalWorkHours)} work hours`;
-                        })() : (
-                          type === 'available' 
-                            ? `${formatDuration(getWorkHoursForDay(date))} work hours - ${formatDuration(getDailyProjectHours(date))} allocated`
-                            : `${formatDuration(getDailyProjectHours(date))} allocated - ${formatDuration(getWorkHoursForDay(date))} work hours`
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </TooltipContent>
-              </Tooltip>
+              <div className="relative">
+                {innerContent}
+              </div>
             </div>
           );
+
+          if (tooltipContent) {
+            return (
+              <Tooltip key={dateIndex} open={hoveredColumnIndex === dateIndex}>
+                <TooltipTrigger asChild>
+                  {columnElement}
+                </TooltipTrigger>
+                <TooltipContent>
+                  {tooltipContent}
+                </TooltipContent>
+              </Tooltip>
+            );
+          }
+
+          return React.cloneElement(columnElement, { key: dateIndex });
         })}
       </div>
     </div>

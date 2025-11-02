@@ -12,6 +12,8 @@ interface WorkloadGraphProps {
   settings: any;
   mode: 'days' | 'weeks';
   context?: 'timeline' | 'planner';
+  hoveredColumnIndex?: number | null;
+  onColumnHover?: (index: number | null) => void;
 }
 
 export const WorkloadGraph = memo(function WorkloadGraph({
@@ -19,7 +21,9 @@ export const WorkloadGraph = memo(function WorkloadGraph({
   projects,
   settings,
   mode,
-  context = 'timeline'
+  context = 'timeline',
+  hoveredColumnIndex = null,
+  onColumnHover
 }: WorkloadGraphProps) {
   const { holidays, events } = usePlannerContext();
   const { milestones } = useProjectContext();
@@ -315,9 +319,72 @@ export const WorkloadGraph = memo(function WorkloadGraph({
         </g>
       </svg>
       
+      {/* Hover detection columns */}
+      <div className="absolute top-0 left-0 h-full flex" style={{ zIndex: 25, minWidth: context === 'timeline' ? `${dates.length * columnWidth}px` : undefined, width: context === 'planner' ? '100%' : undefined }}>
+        {dates.map((_, i) => {
+          const dataIndex = i + 1;
+          const columnData = graphData[dataIndex];
+
+          const columnElement = (
+            <div
+              className={context === 'planner' ? 'flex-1' : ''}
+              style={context === 'planner'
+                ? { height: '100%' }
+                : { minWidth: `${columnWidth}px`, width: `${columnWidth}px`, height: '100%' }}
+              onMouseEnter={() => onColumnHover?.(i)}
+              onMouseLeave={() => onColumnHover?.(null)}
+            />
+          );
+
+          if (!columnData) {
+            return React.cloneElement(columnElement, { key: i });
+          }
+
+          const isPositive = columnData.netAvailability > 0;
+          const isNegative = columnData.netAvailability < 0;
+          const isNeutral = columnData.netAvailability === 0;
+
+          return (
+            <Tooltip key={i} open={hoveredColumnIndex === i}>
+              <TooltipTrigger asChild>
+                {columnElement}
+              </TooltipTrigger>
+              <TooltipContent>
+                <div className="text-xs">
+                  <div className="font-medium text-gray-800">
+                    {mode === 'days' ? formatWeekdayDate(columnData.date) : `Week of ${formatDateShort(columnData.date)}`}
+                  </div>
+                  <div className="text-gray-600 mt-1">
+                    Work Hours: {formatDuration(columnData.workHours)}
+                  </div>
+                  <div className="text-gray-600">
+                    Planned/Completed: {formatDuration(columnData.plannedAndCompletedHours)}
+                  </div>
+                  {isPositive && (
+                    <div className="text-green-600 font-medium mt-1">
+                      Available: {formatDuration(columnData.netAvailability)}
+                    </div>
+                  )}
+                  {isNegative && (
+                    <div className="text-red-600 font-medium mt-1">
+                      Overcommitted: {formatDuration(Math.abs(columnData.netAvailability))}
+                    </div>
+                  )}
+                  {isNeutral && (
+                    <div className="text-stone-600 font-medium mt-1">
+                      Perfectly Balanced
+                    </div>
+                  )}
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          );
+        })}
+      </div>
+      
       {/* Column borders for planner view */}
       {context === 'planner' && (
-        <div className="absolute top-0 left-0 w-full h-full flex" style={{ pointerEvents: 'none', zIndex: 25 }}>
+        <div className="absolute top-0 left-0 w-full h-full flex" style={{ pointerEvents: 'none', zIndex: 26 }}>
           {dates.map((_, i) => (
             <div 
               key={i} 
@@ -331,107 +398,72 @@ export const WorkloadGraph = memo(function WorkloadGraph({
       {/* Data points for tooltips - separate layer with pointer events */}
       <div className="absolute top-0 left-0 w-full h-full" style={{ pointerEvents: 'none', zIndex: 30 }}>
         {graphData.map((d, i) => {
-          // Skip the first and last points (extended dates outside visible range)
           if (i === 0 || i === graphData.length - 1) return null;
-          
+
           const x = (i - 1) * columnWidth + columnWidth / 2;
           const y = netAvailabilityToY(d.netAvailability) + graphPadding.top;
-          
-          // Determine circle color based on net availability
+
           const isPositive = d.netAvailability > 0;
           const isNegative = d.netAvailability < 0;
           const isNeutral = d.netAvailability === 0;
-          
-          // Using OKLCH for perceptually uniform colors
-          const fillColor = isPositive 
-            ? 'oklch(0.75 0.15 145)'  // green - matched chroma
-            : isNegative 
-            ? 'oklch(0.68 0.15 25)'   // red - matched chroma
-            : 'rgb(168, 162, 158)';   // stone-400
-            
-          const hoverColor = isPositive 
-            ? 'oklch(0.85 0.12 145)'  // lighter green
-            : isNegative 
-            ? 'oklch(0.80 0.12 25)'   // lighter red
-            : 'rgb(214, 211, 209)';   // stone-300
-          
+
+          const fillColor = isPositive
+            ? 'oklch(0.75 0.15 145)'
+            : isNegative
+            ? 'oklch(0.68 0.15 25)'
+            : 'rgb(168, 162, 158)';
+
+          const hoverColor = isPositive
+            ? 'oklch(0.85 0.12 145)'
+            : isNegative
+            ? 'oklch(0.80 0.12 25)'
+            : 'rgb(214, 211, 209)';
+
           return (
-            <Tooltip key={i}>
-              <TooltipTrigger asChild>
-                <div
-                  className="absolute cursor-pointer group"
-                  style={{
-                    left: `${x}px`,
-                    top: `${y}px`,
-                    transform: 'translate(-50%, -50%)',
-                    width: '22px',
-                    height: '22px',
-                    pointerEvents: 'auto',
-                  }}
-                >
-                  <svg width="22" height="22" viewBox="0 0 22 22" className="overflow-visible">
-                    {/* Outer circle - grows on hover with lighter shade */}
-                    <circle
-                      cx="11"
-                      cy="11"
-                      r="5"
-                      fill={hoverColor}
-                      className="transition-all duration-300 ease-out opacity-0 group-hover:opacity-100"
-                      style={{ 
-                        transformOrigin: 'center',
-                        transform: 'scale(1)',
-                      }}
-                    />
-                    <circle
-                      cx="11"
-                      cy="11"
-                      r="5"
-                      fill={hoverColor}
-                      className="transition-all duration-300 ease-out opacity-0 group-hover:opacity-100 group-hover:scale-[2.2]"
-                      style={{ 
-                        transformOrigin: 'center',
-                      }}
-                    />
-                    {/* Main circle */}
-                    <circle
-                      cx="11"
-                      cy="11"
-                      r="5"
-                      fill={fillColor}
-                      className="transition-all duration-200 opacity-0 group-hover:opacity-100"
-                    />
-                  </svg>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>
-                <div className="text-xs">
-                  <div className="font-medium text-gray-800">
-                    {mode === 'days' ? formatWeekdayDate(d.date) : `Week of ${formatDateShort(d.date)}`}
-                  </div>
-                  <div className="text-gray-600 mt-1">
-                    Work Hours: {formatDuration(d.workHours)}
-                  </div>
-                  <div className="text-gray-600">
-                    Planned/Completed: {formatDuration(d.plannedAndCompletedHours)}
-                  </div>
-                  {isPositive && (
-                    <div className="text-green-600 font-medium mt-1">
-                      Available: {formatDuration(d.netAvailability)}
-                    </div>
-                  )}
-                  {isNegative && (
-                    <div className="text-red-600 font-medium mt-1">
-                      Overcommitted: {formatDuration(Math.abs(d.netAvailability))}
-                    </div>
-                  )}
-                  {isNeutral && (
-                    <div className="text-stone-600 font-medium mt-1">
-                      Perfectly Balanced
-                    </div>
-                  )}
-                </div>
-              </TooltipContent>
-            </Tooltip>
+            <div
+              key={i}
+              className="absolute"
+              style={{
+                left: `${x}px`,
+                top: `${y}px`,
+                transform: 'translate(-50%, -50%)',
+                width: '22px',
+                height: '22px',
+                pointerEvents: 'none',
+              }}
+            >
+              <svg width="22" height="22" viewBox="0 0 22 22" className="overflow-visible">
+                <circle
+                  cx="11"
+                  cy="11"
+                  r="5"
+                  fill={hoverColor}
+                  className={`transition-all duration-300 ease-out ${
+                    hoveredColumnIndex === (i - 1) ? 'opacity-100' : 'opacity-0'
+                  }`}
+                  style={{ transformOrigin: 'center', transform: 'scale(1)' }}
+                />
+                <circle
+                  cx="11"
+                  cy="11"
+                  r="5"
+                  fill={hoverColor}
+                  className={`transition-all duration-300 ease-out ${
+                    hoveredColumnIndex === (i - 1) ? 'opacity-100 scale-[2.2]' : 'opacity-0'
+                  }`}
+                  style={{ transformOrigin: 'center' }}
+                />
+                <circle
+                  cx="11"
+                  cy="11"
+                  r="5"
+                  fill={fillColor}
+                  className={`transition-all duration-200 ${
+                    hoveredColumnIndex === (i - 1) ? 'opacity-100' : 'opacity-0'
+                  }`}
+                />
+              </svg>
+            </div>
           );
         })}
       </div>

@@ -1,12 +1,14 @@
 import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
-import { Filter, Calendar, Info } from 'lucide-react';
+import { Filter, Calendar, Info, Layers } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { CalendarEvent, Group, Project } from '../../types';
 import { FilterModal } from './FilterModal';
 import { formatDuration } from '@/services';
+import { ResponsiveLine } from '@nivo/line';
+import { BRAND_COLORS } from '@/constants/colors';
 
 interface FilterRule {
   id: string;
@@ -25,6 +27,7 @@ interface HeatmapTimeSlot {
 }
 
 type AveragePeriod = 'week' | 'month' | '6months';
+type LayerMode = 'single' | 'group' | 'project';
 
 interface AverageDayHeatmapCardProps {
   events: CalendarEvent[];
@@ -38,6 +41,7 @@ export const AverageDayHeatmapCard: React.FC<AverageDayHeatmapCardProps> = ({
   projects
 }) => {
   const [averagePeriod, setAveragePeriod] = useState<AveragePeriod>('month');
+  const [layerMode, setLayerMode] = useState<LayerMode>('single');
   const [includedDays, setIncludedDays] = useState({
     monday: true,
     tuesday: true,
@@ -229,6 +233,219 @@ export const AverageDayHeatmapCard: React.FC<AverageDayHeatmapCardProps> = ({
     return slots;
   }, [filteredEvents, dateRange, includedDays, validDaysCount]);
 
+  // Transform data for stream chart
+  const streamData = useMemo(() => {
+    if (layerMode === 'single') {
+      // Single layer showing total work time
+      return heatmapData.map(slot => ({
+        time: slot.timeString,
+        work: Math.min(slot.totalDuration, 1.0) // Cap at 1 hour
+      }));
+    } else if (layerMode === 'group') {
+      // Multiple layers by group
+      const groupData: { [key: string]: { [time: string]: number } } = {};
+      
+      // Initialize group data
+      groups.forEach(group => {
+        groupData[group.id] = {};
+        heatmapData.forEach(slot => {
+          groupData[group.id][slot.timeString] = 0;
+        });
+      });
+
+      // Process events and accumulate by group
+      const relevantEvents = filteredEvents.filter(event => {
+        try {
+          const eventDate = new Date(event.startTime);
+          const isInRange = eventDate >= dateRange.startDate && eventDate <= dateRange.endDate;
+          const isCompleted = event.completed === true || event.type === 'tracked';
+          const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+          const dayName = dayNames[eventDate.getDay()] as keyof typeof includedDays;
+          const isDayIncluded = includedDays[dayName];
+          return isInRange && isCompleted && isDayIncluded;
+        } catch {
+          return false;
+        }
+      });
+
+      relevantEvents.forEach(event => {
+        const project = projects.find(p => p.id === event.projectId);
+        if (!project || !groupData[project.groupId]) return;
+
+        try {
+          const startTime = new Date(event.startTime);
+          const endTime = new Date(event.endTime);
+          const eventStartOfDay = new Date(startTime);
+          eventStartOfDay.setHours(0, 0, 0, 0);
+          const eventEndOfDay = new Date(startTime);
+          eventEndOfDay.setHours(23, 59, 59, 999);
+          const effectiveStart = new Date(Math.max(startTime.getTime(), eventStartOfDay.getTime()));
+          const effectiveEnd = new Date(Math.min(endTime.getTime(), eventEndOfDay.getTime()));
+          
+          if (effectiveEnd <= effectiveStart) return;
+          
+          const current = new Date(effectiveStart);
+          while (current < effectiveEnd) {
+            const hour = current.getHours();
+            const minute = Math.floor(current.getMinutes() / 30) * 30;
+            const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+            
+            const slotStart = new Date(current);
+            slotStart.setHours(hour, minute, 0, 0);
+            const slotEnd = new Date(slotStart);
+            slotEnd.setMinutes(slotEnd.getMinutes() + 30);
+            
+            const overlapStart = new Date(Math.max(effectiveStart.getTime(), slotStart.getTime()));
+            const overlapEnd = new Date(Math.min(effectiveEnd.getTime(), slotEnd.getTime()));
+            
+            if (overlapEnd > overlapStart) {
+              const overlapDuration = (overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60);
+              groupData[project.groupId][timeString] += overlapDuration;
+            }
+            
+            current.setTime(slotStart.getTime() + 30 * 60 * 1000);
+          }
+        } catch {
+          // Skip on error
+        }
+      });
+
+      // Convert to stream format
+      return heatmapData.map(slot => {
+        const dataPoint: any = { time: slot.timeString };
+        groups.forEach(group => {
+          const avgDuration = validDaysCount > 0 ? groupData[group.id][slot.timeString] / validDaysCount : 0;
+          dataPoint[group.name] = Math.min(avgDuration, 1.0);
+        });
+        return dataPoint;
+      });
+    } else {
+      // Multiple layers by project (filtered)
+      const projectData: { [key: string]: { [time: string]: number } } = {};
+      const relevantProjects = new Set<string>();
+      
+      // Get all relevant projects from filtered events
+      const relevantEvents = filteredEvents.filter(event => {
+        try {
+          const eventDate = new Date(event.startTime);
+          const isInRange = eventDate >= dateRange.startDate && eventDate <= dateRange.endDate;
+          const isCompleted = event.completed === true || event.type === 'tracked';
+          const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+          const dayName = dayNames[eventDate.getDay()] as keyof typeof includedDays;
+          const isDayIncluded = includedDays[dayName];
+          if (isInRange && isCompleted && isDayIncluded && event.projectId) {
+            relevantProjects.add(event.projectId);
+          }
+          return isInRange && isCompleted && isDayIncluded;
+        } catch {
+          return false;
+        }
+      });
+
+      // Initialize project data
+      relevantProjects.forEach(projectId => {
+        projectData[projectId] = {};
+        heatmapData.forEach(slot => {
+          projectData[projectId][slot.timeString] = 0;
+        });
+      });
+
+      // Process events and accumulate by project
+      relevantEvents.forEach(event => {
+        if (!event.projectId || !projectData[event.projectId]) return;
+
+        try {
+          const startTime = new Date(event.startTime);
+          const endTime = new Date(event.endTime);
+          const eventStartOfDay = new Date(startTime);
+          eventStartOfDay.setHours(0, 0, 0, 0);
+          const eventEndOfDay = new Date(startTime);
+          eventEndOfDay.setHours(23, 59, 59, 999);
+          const effectiveStart = new Date(Math.max(startTime.getTime(), eventStartOfDay.getTime()));
+          const effectiveEnd = new Date(Math.min(endTime.getTime(), eventEndOfDay.getTime()));
+          
+          if (effectiveEnd <= effectiveStart) return;
+          
+          const current = new Date(effectiveStart);
+          while (current < effectiveEnd) {
+            const hour = current.getHours();
+            const minute = Math.floor(current.getMinutes() / 30) * 30;
+            const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+            
+            const slotStart = new Date(current);
+            slotStart.setHours(hour, minute, 0, 0);
+            const slotEnd = new Date(slotStart);
+            slotEnd.setMinutes(slotEnd.getMinutes() + 30);
+            
+            const overlapStart = new Date(Math.max(effectiveStart.getTime(), slotStart.getTime()));
+            const overlapEnd = new Date(Math.min(effectiveEnd.getTime(), slotEnd.getTime()));
+            
+            if (overlapEnd > overlapStart) {
+              const overlapDuration = (overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60);
+              projectData[event.projectId][timeString] += overlapDuration;
+            }
+            
+            current.setTime(slotStart.getTime() + 30 * 60 * 1000);
+          }
+        } catch {
+          // Skip on error
+        }
+      });
+
+      // Convert to stream format
+      return heatmapData.map(slot => {
+        const dataPoint: any = { time: slot.timeString };
+        relevantProjects.forEach(projectId => {
+          const project = projects.find(p => p.id === projectId);
+          if (project) {
+            const avgDuration = validDaysCount > 0 ? projectData[projectId][slot.timeString] / validDaysCount : 0;
+            dataPoint[project.name] = Math.min(avgDuration, 1.0);
+          }
+        });
+        return dataPoint;
+      });
+    }
+  }, [heatmapData, layerMode, groups, projects, filteredEvents, dateRange, includedDays, validDaysCount]);
+
+  // Convert stream data to line format (30-minute slots)
+  const lineData = useMemo(() => {
+    if (layerMode === 'single') {
+      return [{
+        id: 'work',
+        data: streamData.map((d: any, index) => ({
+          x: index,
+          y: Math.min(d.work || 0, 0.5), // Cap at 30 minutes (0.5 hours)
+          time: d.time
+        }))
+      }];
+    } else if (layerMode === 'group') {
+      return groups.map(group => ({
+        id: group.name,
+        data: streamData.map((d: any, index) => ({
+          x: index,
+          y: Math.min(d[group.name] || 0, 0.5), // Cap at 30 minutes
+          time: d.time
+        }))
+      }));
+    } else {
+      // Get unique project names from filtered events
+      const projectIds = new Set(
+        filteredEvents
+          .filter(e => e.projectId && e.completed)
+          .map(e => e.projectId)
+      );
+      const relevantProjects = projects.filter(p => projectIds.has(p.id));
+      return relevantProjects.map(project => ({
+        id: project.name,
+        data: streamData.map((d: any, index) => ({
+          x: index,
+          y: Math.min(d[project.name] || 0, 0.5), // Cap at 30 minutes
+          time: d.time
+        }))
+      }));
+    }
+  }, [streamData, layerMode, groups, projects, filteredEvents]);
+
   // Calculate summary stats
   const summaryStats = useMemo(() => {
     const totalDuration = heatmapData.reduce((sum, slot) => sum + slot.totalDuration, 0);
@@ -279,6 +496,33 @@ export const AverageDayHeatmapCard: React.FC<AverageDayHeatmapCardProps> = ({
                   <SelectItem value="6months">Last 6 Months</SelectItem>
                 </SelectContent>
               </Select>
+              
+              <Select value={layerMode} onValueChange={(value: LayerMode) => setLayerMode(value)}>
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="single">
+                    <div className="flex items-center gap-2">
+                      <Layers className="h-3 w-3" />
+                      Single
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="group">
+                    <div className="flex items-center gap-2">
+                      <Layers className="h-3 w-3" />
+                      By Group
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="project">
+                    <div className="flex items-center gap-2">
+                      <Layers className="h-3 w-3" />
+                      By Project
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              
               <Button
                 variant="outline"
                 size="sm"
@@ -298,48 +542,111 @@ export const AverageDayHeatmapCard: React.FC<AverageDayHeatmapCardProps> = ({
         </CardHeader>
   <CardContent className="relative">
           <div className="space-y-6">
-            {/* Day filter moved into Filters modal for better UX */}
-
-            {/* Heatmap */}
+            {/* Stream Chart */}
             <div className="space-y-4">
-              {/* Inline heading and color key removed; moved to info popover */}
-
-              {/* 24-hour vertical calendar layout */}
-              <div className="relative">
-                {/* Heatmap grid - vertical flow like a calendar day */}
-                <div className="max-w-lg mx-auto">
-                  {heatmapData.map((slot, index) => (
-                    <div
-                      key={`${slot.hour}-${slot.minute}`}
-                      className="flex items-center"
-                    >
-                      {/* Time label - show only on the hour (every 2nd slot) */}
-                      <div className="w-12 text-xs text-gray-500 text-right pr-2">
-                        {slot.minute === 0 ? `${slot.hour.toString().padStart(2, '0')}:00` : ''}
-                      </div>
-                      
-                      {/* Time slot rectangle - no gaps */}
-                      <div
-                        className="flex-1 h-4 cursor-pointer hover:ring-2 hover:ring-blue-300 transition-all border-r border-gray-100"
-                        style={{ 
-                          backgroundColor: getIntensityColor(slot.intensity)
-                        }}
-                        title={`${slot.timeString}: ${(slot.intensity * 100).toFixed(0)}% activity, ${slot.totalDuration.toFixed(2)}h avg duration`}
-                      />
+              <div className="relative h-80">
+                {summaryStats.activeSlots === 0 ? (
+                  <div className="flex items-center justify-center h-full text-gray-500">
+                    <div className="text-center">
+                      <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                      <p className="text-sm">No activity data for this period</p>
+                      <p className="text-xs">Try adjusting your filters or selecting a different time period</p>
                     </div>
-                  ))}
-                </div>
-                
-                {/* Legend removed per request */}
+                  </div>
+                ) : (
+                  <ResponsiveLine
+                    data={lineData}
+                    margin={{ top: 20, right: 20, bottom: 50, left: 50 }}
+                    xScale={{ type: 'linear', min: 0, max: 47 }}
+                    yScale={{ type: 'linear', min: 0, max: 0.5 }}
+                    axisTop={null}
+                    axisRight={null}
+                    axisBottom={{
+                      tickSize: 5,
+                      tickPadding: 5,
+                      tickRotation: -45,
+                      legend: 'Time of Day',
+                      legendOffset: 45,
+                      tickValues: [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46],
+                      format: (value) => {
+                        const index = Number(value);
+                        const hour = Math.floor(index / 2);
+                        const isHalfHour = index % 2 === 1;
+                        if (isHalfHour) return ''; // Don't show label for 30-min marks
+                        if (hour === 0) return '12am';
+                        if (hour < 12) return `${hour}am`;
+                        if (hour === 12) return '12pm';
+                        return `${hour - 12}pm`;
+                      }
+                    }}
+                    axisLeft={{
+                      tickSize: 0,
+                      tickPadding: 5,
+                      tickRotation: 0,
+                      tickValues: [0, 0.5],
+                      format: (value) => {
+                        const num = Number(value);
+                        if (num <= 0.01) return '0min';
+                        if (num >= 0.49) return '30min';
+                        return String(num);
+                      }
+                    }}
+                    colors={layerMode === 'single' 
+                      ? [BRAND_COLORS.primary] 
+                      : { scheme: 'category10' }
+                    }
+                    lineWidth={1}
+                    enableArea={true}
+                    areaOpacity={0.5}
+                    areaBaselineValue={0}
+                    enablePoints={false}
+                    enableGridX={false}
+                    enableGridY={true}
+                    curve="monotoneX"
+                    animate={true}
+                    motionConfig="gentle"
+                    enableSlices="x"
+                    sliceTooltip={({ slice }) => {
+                      return (
+                        <div
+                          className="pointer-events-none relative rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-[0_8px_16px_rgba(15,23,42,0.08)]"
+                          style={{ minWidth: 170 }}
+                        >
+                          <div className="font-semibold text-slate-900">Avg time spent</div>
+                          <div className="mt-2 space-y-1">
+                            {slice.points.map((point: any) => {
+                              const minutes = Math.round(Number(point.data.y) * 60);
+                              return (
+                                <div key={point.id} className="font-medium text-slate-900">
+                                  {point.serieId} - {minutes} min
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <svg
+                            className="absolute -bottom-2 left-1/2 -translate-x-1/2"
+                            width="16"
+                            height="8"
+                            viewBox="0 0 16 8"
+                            aria-hidden="true"
+                          >
+                            <path d="M0 0L8 8L16 0" fill="rgba(148, 163, 184, 0.4)" />
+                            <path d="M1 0L8 7L15 0" fill="white" />
+                          </svg>
+                        </div>
+                      );
+                    }}
+                    theme={{
+                      grid: {
+                        line: {
+                          stroke: '#f0f0f0',
+                          strokeWidth: 1
+                        }
+                      }
+                    }}
+                  />
+                )}
               </div>
-
-              {summaryStats.activeSlots === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                  <p className="text-sm">No activity data for this period</p>
-                  <p className="text-xs">Try adjusting your filters or selecting a different time period</p>
-                </div>
-              )}
             </div>
 
             {/* Summary Stats moved to bottom */}
@@ -389,24 +696,26 @@ export const AverageDayHeatmapCard: React.FC<AverageDayHeatmapCardProps> = ({
               <div className="space-y-2">
                 <div className="font-medium text-sm">About My Average Day</div>
                 <p className="text-xs text-gray-600">
-                  Heatmap of when you're most active during an average day within the selected period and filters.
+                  Stream chart showing average work hours throughout the day based on your completed events.
                 </p>
                 <div className="text-xs text-gray-700 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-500">Low</span>
-                    <div className="flex gap-0.5">
-                      {[0.1, 0.3, 0.5, 0.7, 1.0].map((alpha) => (
-                        <div key={alpha} className="w-3 h-3 rounded-sm" style={{ backgroundColor: `rgba(59, 130, 246, ${alpha})` }} />
-                      ))}
-                    </div>
-                    <span className="text-gray-500">High</span>
-                  </div>
-                  <div className="font-medium">Keys</div>
+                  <div className="font-medium">How to Read</div>
                   <ul className="list-disc pl-4 space-y-1">
-                    <li>Each bar = 30 minutes, flowing from 00:00 to 23:30</li>
-                    <li>Color intensity indicates activity</li>
-                    <li>Respects selected Groups/Projects and Included Days</li>
+                    <li>X-axis: Time of day (00:00 to 23:30 in 30-min intervals)</li>
+                    <li>Y-axis: Hours worked (0 to 1.0 hour per time slot)</li>
+                    <li>Area shows average work duration for each time slot</li>
+                    <li>Higher peaks = more work during that time</li>
+                  </ul>
+                  <div className="font-medium">Layer Modes</div>
+                  <ul className="list-disc pl-4 space-y-1">
+                    <li><strong>Single:</strong> Total work time across all projects</li>
+                    <li><strong>By Group:</strong> Separate layers for each group</li>
+                    <li><strong>By Project:</strong> Separate layers for each project</li>
+                  </ul>
+                  <div className="font-medium">Settings</div>
+                  <ul className="list-disc pl-4 space-y-1">
                     <li>Period: Last Week / Last Month / Last 6 Months</li>
+                    <li>Filters: Select specific groups/projects and days</li>
                   </ul>
                 </div>
               </div>
