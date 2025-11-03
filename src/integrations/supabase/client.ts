@@ -17,8 +17,8 @@ const loadEnvVar = (key: 'VITE_SUPABASE_URL' | 'VITE_SUPABASE_ANON_KEY' | 'VITE_
   return undefined;
 };
 
-const SUPABASE_URL = loadEnvVar('VITE_SUPABASE_URL');
-const SUPABASE_PUBLISHABLE_KEY = loadEnvVar('VITE_SUPABASE_PUBLISHABLE_KEY') || loadEnvVar('VITE_SUPABASE_ANON_KEY');
+const SUPABASE_URL = loadEnvVar('VITE_SUPABASE_URL') || 'https://hhzmaadhndtrvgnqujnn.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = loadEnvVar('VITE_SUPABASE_PUBLISHABLE_KEY') || loadEnvVar('VITE_SUPABASE_ANON_KEY') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhoem1hYWRobmR0cnZnbnF1am5uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUyNjM5MDIsImV4cCI6MjA3MDgzOTkwMn0.cQiQ5lBt6HwqcCgZueNlP3YsGFpjaoIOO39dPOXffdE';
 
 console.log('Supabase Config:', { 
   url: SUPABASE_URL ? 'LOADED' : 'MISSING', 
