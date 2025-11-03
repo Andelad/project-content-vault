@@ -20,6 +20,12 @@ const loadEnvVar = (key: 'VITE_SUPABASE_URL' | 'VITE_SUPABASE_ANON_KEY' | 'VITE_
 const SUPABASE_URL = loadEnvVar('VITE_SUPABASE_URL');
 const SUPABASE_PUBLISHABLE_KEY = loadEnvVar('VITE_SUPABASE_PUBLISHABLE_KEY') || loadEnvVar('VITE_SUPABASE_ANON_KEY');
 
+console.log('Supabase Config:', { 
+  url: SUPABASE_URL ? 'LOADED' : 'MISSING', 
+  key: SUPABASE_PUBLISHABLE_KEY ? 'LOADED' : 'MISSING',
+  configured: Boolean(SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY)
+});
+
 export const isSupabaseConfigured = Boolean(SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY);
 export const supabaseConfigError = isSupabaseConfigured
   ? null
