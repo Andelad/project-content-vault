@@ -536,6 +536,9 @@ export const TimelineBar = memo(function TimelineBar({
                       <div className="text-xs">
                         <div className="font-semibold mb-1">
                           {project.name}
+                          {(project.clientData?.name || project.client) && (
+                            <span className="text-gray-500 font-normal"> • {project.clientData?.name || project.client}</span>
+                          )}
                         </div>
                         {allocationType !== 'none' ? (
                           <>

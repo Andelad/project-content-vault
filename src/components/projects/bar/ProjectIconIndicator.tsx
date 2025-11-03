@@ -82,7 +82,12 @@ export function ProjectIconIndicator({ project, mode = 'days' }: ProjectIconIndi
       </TooltipTrigger>
       <TooltipContent side="right" className="ml-2">
         <div className="text-xs">
-          <div className="font-medium">{project.name}</div>
+          <div className="font-medium">
+            {project.name}
+            {(project.clientData?.name || project.client) && (
+              <span className="text-muted-foreground font-normal"> • {project.clientData?.name || project.client}</span>
+            )}
+          </div>
           <div className="text-muted-foreground">Click to edit project</div>
         </div>
       </TooltipContent>
