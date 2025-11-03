@@ -292,11 +292,25 @@ export class UnifiedTimelineService {
     isDragging: boolean = false,
     dragState: any = null,
     isWorkingDayChecker?: (date: Date) => boolean, // Accept the hook result as parameter
-    events?: any[] // Add events parameter for planned time calculations
+    events?: any[], // Add events parameter for planned time calculations
+    options?: {
+      visualProjectDates?: {
+        startDate: Date;
+        endDate: Date;
+      };
+    }
   ) {
+    const effectiveProject = options?.visualProjectDates
+      ? {
+          ...project,
+          startDate: options.visualProjectDates.startDate,
+          endDate: options.visualProjectDates.endDate
+        }
+      : project;
+
     // Calculate day estimates using new service (now includes planned events)
     const dayEstimates = this.calculateProjectDayEstimates(
-      project,
+      effectiveProject,
       milestones,
       settings,
       holidays,
@@ -378,9 +392,9 @@ export class UnifiedTimelineService {
     };
     
     const projectDays = this.calculateProjectDays(
-      project.startDate,
-      project.endDate,
-      project.continuous,
+      effectiveProject.startDate,
+      effectiveProject.endDate,
+      effectiveProject.continuous,
       viewportStart,
       viewportEnd
     );
@@ -391,7 +405,7 @@ export class UnifiedTimelineService {
       // Timeline calculations
       projectDays,
       // Work hours
-      workHoursForPeriod: this.generateProjectWorkHours(project, settings, viewportEnd),
+      workHoursForPeriod: this.generateProjectWorkHours(effectiveProject, settings, viewportEnd),
       // Day estimates (NEW - single source of truth)
       dayEstimates,
       // Fast per-date accessor to avoid filter/reduce in components
@@ -399,15 +413,22 @@ export class UnifiedTimelineService {
       // Milestone segments (DEPRECATED - kept for backward compatibility)
       milestoneSegments: this.calculateMilestoneSegments(
         milestones,
-        new Date(project.startDate),
-        new Date(project.endDate)
+        new Date(effectiveProject.startDate),
+        new Date(effectiveProject.endDate)
       ),
       // Metrics
-      projectMetrics: this.calculateProjectMetrics(project, holidays),
+      projectMetrics: this.calculateProjectMetrics(effectiveProject, holidays),
       // Colors
       colorScheme: this.getProjectColorScheme(project.color),
       // Visual calculations (if dragging)
-      visualDates: isDragging ? this.calculateVisualProjectDates(project, isDragging, dragState) : null,
+      visualDates: options?.visualProjectDates
+        ? {
+            visualProjectStart: options.visualProjectDates.startDate,
+            visualProjectEnd: options.visualProjectDates.endDate
+          }
+        : isDragging
+          ? this.calculateVisualProjectDates(project, isDragging, dragState)
+          : null,
       // Working day checker - use provided one or fall back to calling the hook (for backwards compatibility)
       isWorkingDay: isWorkingDayChecker || this.getCachedWorkingDayChecker(settings.weeklyWorkHours, holidays)
     };

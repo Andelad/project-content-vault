@@ -806,36 +806,11 @@ export function calculateDragPositionUpdate(
   dates: Date[],
   mode: 'days' | 'weeks' = 'days'
 ): DragPositionResult {
-  // Calculate incremental delta from start position
-  const incrementalDeltaX = currentMouseX - dragState.startX;
-  const dayWidth = mode === 'weeks' ? DRAG_CONSTANTS.WEEKS_MODE_DAY_WIDTH : DRAG_CONSTANTS.DAYS_MODE_COLUMN_WIDTH;
-
-  // Always accumulate smooth movement for responsive pen/mouse following
-  const currentPixelDeltaX = ((dragState as any).pixelDeltaX || 0) + incrementalDeltaX;
-  const smoothVisualDelta = currentPixelDeltaX / dayWidth;
-
-  // For visual display: snap to day boundaries in days view, smooth in weeks view
-  let visualDelta: number;
-  let snappedDelta: number | undefined;
-
-  if (mode === 'weeks') {
-    visualDelta = smoothVisualDelta; // Smooth movement in weeks
-  } else {
-    // In days view: snap to nearest day boundary but prevent jumping
-    snappedDelta = Math.round(smoothVisualDelta);
-    const currentSnapped = (dragState as any).lastSnappedDelta || 0;
-    const minMovement = 0.3; // Require 30% of day width movement to snap
-
-    if (Math.abs(snappedDelta - currentSnapped) >= 1 && Math.abs(smoothVisualDelta - currentSnapped) > minMovement) {
-      visualDelta = snappedDelta;
-      (dragState as any).lastSnappedDelta = snappedDelta;
-    } else {
-      visualDelta = currentSnapped; // Stay at current snapped position until boundary crossed
-    }
-  }
-
-  // Calculate rounded delta for database updates - use legacy signature
-  const daysDelta = calculateDaysDelta(currentMouseX, dragState.startX, dates, true, mode);
+  // Calculate pixel delta from start position
+  const pixelDeltaX = currentMouseX - dragState.startX;
+  
+  // Calculate days delta directly from pixel movement (always snap to whole days)
+  const daysDelta = Math.round(calculateDaysDelta(pixelDeltaX, mode));
 
   // Determine if update is needed
   const shouldUpdate = daysDelta !== dragState.lastDaysDelta;
@@ -845,10 +820,10 @@ export function calculateDragPositionUpdate(
     newY: currentMouseY,
     daysDelta,
     isValid: true,
-    visualDelta,
-    pixelDeltaX: currentPixelDeltaX,
+    visualDelta: daysDelta, // Use snapped days delta for visual
+    pixelDeltaX: pixelDeltaX,
     shouldUpdate,
-    snappedDelta
+    snappedDelta: daysDelta
   };
 }
 

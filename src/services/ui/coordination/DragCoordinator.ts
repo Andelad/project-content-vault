@@ -13,7 +13,9 @@ import * as ProjectOverlapService from '../../calculations/projects/projectEntit
 import { ConflictDetectionResult, DateAdjustmentResult } from '../../calculations/projects/projectEntityCalculations';
 import { calculateProjectDays, calculateWorkHoursTotal, calculateDayWorkHours } from '../positioning/ProjectBarPositioning';
 import { TimelineViewport as TimelineViewportService } from '../positioning/TimelineViewportService';
+import * as ProjectBarResizeService from '../positioning/ProjectBarResizeService';
 import type { Project } from '@/types/core';
+import type { DayEstimate } from '@/types/core';
 
 export interface TimelineContext {
   projects: Project[];
@@ -21,6 +23,7 @@ export interface TimelineContext {
   viewportEnd: Date;
   timelineMode: 'days' | 'weeks';
   dates: Date[];
+  dayEstimates?: DayEstimate[]; // Optional: for resize validation against planned/completed time
 }
 
 export interface DragCoordinationResult {
@@ -32,6 +35,8 @@ export interface DragCoordinationResult {
   };
   conflictResult?: ConflictDetectionResult;
   adjustmentResult?: DateAdjustmentResult;
+  resizeValidation?: ProjectBarResizeService.ResizeValidationResult;
+  collisionResult?: ProjectBarResizeService.CollisionDetectionResult;
 }
 
 export interface DragCompletionResult {
@@ -114,10 +119,34 @@ export class TimelineDragCoordinatorService {
     // 5. Check for conflicts if we have a project
     let conflictResult: ConflictDetectionResult | undefined;
     let adjustmentResult: DateAdjustmentResult | undefined;
+    let resizeValidation: any = undefined;
+    let collisionResult: any = undefined;
+    const targetProject = dragState.projectId
+      ? projects.find(p => p.id === dragState.projectId)
+      : undefined;
 
-    if (dragState.projectId && boundsValidation.isValid) {
-      const targetProject = projects.find(p => p.id === dragState.projectId);
-      if (targetProject) {
+    if (targetProject && boundsValidation.isValid) {
+      if (dragState.action === 'resize-start-date' || dragState.action === 'resize-end-date') {
+        const { dayEstimates } = timelineContext;
+
+        if (dayEstimates) {
+          const newDate = dragState.action === 'resize-start-date' ? newDates.startDate : newDates.endDate;
+          resizeValidation = ProjectBarResizeService.validateResizeBounds(
+            dragState.action,
+            newDate,
+            targetProject,
+            dayEstimates
+          );
+        }
+
+        const newDateForCollision = dragState.action === 'resize-start-date' ? newDates.startDate : newDates.endDate;
+        collisionResult = ProjectBarResizeService.detectRowCollision(
+          dragState.action,
+          newDateForCollision,
+          targetProject,
+          projects
+        );
+      } else if (dragState.action === 'move') {
         conflictResult = ProjectOverlapService.detectLiveDragConflicts(
           dragState.projectId,
           newDates,
@@ -129,31 +158,132 @@ export class TimelineDragCoordinatorService {
           adjustmentResult = ProjectOverlapService.resolveDragConflicts(
             newDates,
             conflictResult.conflictingProjects,
-            'adjust' // Default to adjust strategy
+            'adjust'
           );
         }
       }
     }
 
-    // 6. Update drag state
-    const finalDates = adjustmentResult?.wasAdjusted
+    // 6. Apply resize-specific adjustments and update drag state
+    let finalDates = adjustmentResult?.wasAdjusted
       ? { startDate: adjustmentResult.adjustedStartDate, endDate: adjustmentResult.adjustedEndDate }
       : newDates;
+    let appliedAdjustment = adjustmentResult;
+
+    if (
+      targetProject &&
+      boundsValidation.isValid &&
+      (dragState.action === 'resize-start-date' || dragState.action === 'resize-end-date')
+    ) {
+      const originalDate = dragState.action === 'resize-start-date'
+        ? new Date(dragState.originalStartDate)
+        : new Date(dragState.originalEndDate);
+      const attemptedDate = dragState.action === 'resize-start-date'
+        ? newDates.startDate
+        : newDates.endDate;
+
+      const updateMinBound = (current: Date | null, candidate: Date) => {
+        if (!current) return candidate;
+        return candidate.getTime() > current.getTime() ? candidate : current;
+      };
+      const updateMaxBound = (current: Date | null, candidate: Date) => {
+        if (!current) return candidate;
+        return candidate.getTime() < current.getTime() ? candidate : current;
+      };
+
+      let minBound: Date | null = null;
+      let maxBound: Date | null = null;
+      let adjustmentReason: string | undefined;
+
+      if (resizeValidation && resizeValidation.isValid === false && resizeValidation.adjustedDate) {
+        adjustmentReason = resizeValidation.toastMessage || resizeValidation.reason || adjustmentReason;
+
+        if (dragState.action === 'resize-start-date') {
+          maxBound = updateMaxBound(maxBound, resizeValidation.adjustedDate);
+        } else {
+          minBound = updateMinBound(minBound, resizeValidation.adjustedDate);
+        }
+      }
+
+      if (collisionResult?.hasCollision && collisionResult.snapToDate) {
+        adjustmentReason = adjustmentReason || collisionResult.toastMessage;
+
+        if (collisionResult.constraint === 'min') {
+          minBound = updateMinBound(minBound, collisionResult.snapToDate);
+        } else if (collisionResult.constraint === 'max') {
+          maxBound = updateMaxBound(maxBound, collisionResult.snapToDate);
+        } else if (dragState.action === 'resize-start-date') {
+          minBound = updateMinBound(minBound, collisionResult.snapToDate);
+        } else {
+          maxBound = updateMaxBound(maxBound, collisionResult.snapToDate);
+        }
+      }
+
+      let snappedDate = attemptedDate;
+
+      if (minBound && snappedDate < minBound) {
+        snappedDate = minBound;
+      }
+      if (maxBound && snappedDate > maxBound) {
+        snappedDate = maxBound;
+      }
+
+      if (minBound && maxBound && minBound.getTime() > maxBound.getTime()) {
+        snappedDate = originalDate;
+      }
+
+      const resizedDates = ProjectBarResizeService.calculateResizedDates(
+        dragState.action,
+        snappedDate,
+        targetProject
+      );
+
+      finalDates = resizedDates;
+
+      if (snappedDate.getTime() !== attemptedDate.getTime()) {
+        appliedAdjustment = {
+          wasAdjusted: true,
+          adjustedStartDate: resizedDates.startDate,
+          adjustedEndDate: resizedDates.endDate,
+          reason: adjustmentReason
+        } as any;
+      }
+    }
+
+    const dayInMs = 24 * 60 * 60 * 1000;
+    let snappedDaysDelta = positionResult.daysDelta;
+
+    if (dragState.action === 'resize-start-date') {
+      snappedDaysDelta = Math.round(
+        (finalDates.startDate.getTime() - dragState.originalStartDate.getTime()) / dayInMs
+      );
+    } else if (dragState.action === 'resize-end-date') {
+      snappedDaysDelta = Math.round(
+        (finalDates.endDate.getTime() - dragState.originalEndDate.getTime()) / dayInMs
+      );
+    } else if (dragState.action === 'move') {
+      snappedDaysDelta = Math.round(
+        (finalDates.startDate.getTime() - dragState.originalStartDate.getTime()) / dayInMs
+      );
+    }
+
+    const shouldUpdate = positionResult.shouldUpdate || snappedDaysDelta !== dragState.lastDaysDelta;
 
     const newDragState: DragState = {
       ...dragState,
-      lastDaysDelta: positionResult.daysDelta,
-      // Store additional state for next iteration
+      lastDaysDelta: snappedDaysDelta,
       pixelDeltaX: positionResult.pixelDeltaX,
-      lastSnappedDelta: positionResult.snappedDelta
+      lastSnappedDelta: snappedDaysDelta
     } as any;
 
     return {
-      shouldUpdate: positionResult.shouldUpdate,
+      shouldUpdate,
       newDragState,
       autoScrollConfig,
       conflictResult,
-      adjustmentResult
+      adjustmentResult: appliedAdjustment,
+      resizeValidation,
+      collisionResult
     };
   }
 

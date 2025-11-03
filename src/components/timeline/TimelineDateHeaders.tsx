@@ -142,7 +142,7 @@ export const TimelineDateHeaders = memo(function TimelineDateHeaders({ dates, mo
             const dateRange = UnifiedTimelineService.formatWeekDateRange(weekStart);
             
             return (
-              <div key={index} className={`text-center ${index < dates.length - 1 ? 'border-r border-gray-200' : ''}`} style={{ minWidth: '154px', width: '154px' }}>
+              <div key={index} className={`text-center ${index < dates.length - 1 ? 'border-r border-gray-200' : ''}`} style={{ minWidth: '153px', width: '153px' }}>
                 {renderDateCell(weekStart, index, 153, 
                   <div className={`text-xs px-1 ${isCurrentWeek ? 'font-medium text-blue-600' : 'text-gray-700'}`}>
                     {dateRange}

@@ -234,12 +234,10 @@ export function calculateBaselineVisualOffsets(
   let adjustedPositions = { ...positions };
 
   if (isDragging && dragState?.projectId === projectId) {
-    // In days view: use snapped daysDelta for day boundary snapping
-    // In weeks view: use smooth pixelDeltaX for responsive movement
+    // Use lastDaysDelta for consistent snapping across all modes
     const dayWidth = mode === 'weeks' ? 22 : 52;
-    const dragOffsetPx = mode === 'days'
-      ? (dragState.daysDelta || 0) * dayWidth  // Snapped to day boundaries in days view
-      : (typeof dragState.pixelDeltaX === 'number' ? dragState.pixelDeltaX : (dragState.daysDelta || 0) * dayWidth);  // Smooth in weeks view
+    const daysDelta = dragState.lastDaysDelta || 0;
+    const dragOffsetPx = daysDelta * dayWidth;
 
     const action = dragState?.action;
 
@@ -290,8 +288,8 @@ export function calculateVisualProjectDates(
 
   // Apply drag offset based on action type for immediate visual feedback
   if (isDragging && dragState?.projectId === project.id) {
-    // Use fractional daysDelta for smooth visual movement (like milestones)
-    const daysOffset = dragState.daysDelta || 0;
+    // Use lastDaysDelta for consistent snapping to whole days
+    const daysOffset = dragState.lastDaysDelta || 0;
     const action = dragState.action;
 
     if (action === 'move') {

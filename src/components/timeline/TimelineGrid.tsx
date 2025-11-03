@@ -14,9 +14,9 @@ interface TimelineGridProps {
   viewportEnd: Date;
   isDragging: boolean;
   dragState: any;
-  handleMouseDown: (e: React.MouseEvent, projectId: string, mode: 'move' | 'resize-start-date' | 'resize-end-date') => void;
   handleMilestoneDrag: (milestoneId: string, newDate: Date) => void;
   handleMilestoneDragEnd: () => void;
+  handleProjectResizeMouseDown?: (e: React.MouseEvent, projectId: string, action: 'resize-start-date' | 'resize-end-date') => void;
   mode: 'days' | 'weeks';
   collapsed: boolean;
   onToggleGroupCollapse: (groupId: string) => void;
@@ -34,9 +34,9 @@ export function TimelineGrid({
   viewportEnd,
   isDragging,
   dragState,
-  handleMouseDown,
   handleMilestoneDrag,
   handleMilestoneDragEnd,
+  handleProjectResizeMouseDown,
   mode,
   collapsed,
   onToggleGroupCollapse
@@ -106,12 +106,12 @@ export function TimelineGrid({
                             viewportEnd={viewportEnd}
                             isDragging={isDragging}
                             dragState={dragState}
-                            handleMouseDown={handleMouseDown}
                             mode={mode}
                             isMultiProjectRow={true}
                             collapsed={collapsed}
                             onMilestoneDrag={handleMilestoneDrag}
                             onMilestoneDragEnd={handleMilestoneDragEnd}
+                            onProjectResizeMouseDown={handleProjectResizeMouseDown}
                           />
                         </div>
                       );

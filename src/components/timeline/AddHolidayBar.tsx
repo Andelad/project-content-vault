@@ -11,7 +11,7 @@ import {
   convertIndicesToDates
 } from '@/services';
 
-interface HolidayBarProps {
+interface AddHolidayBarProps {
   dates: Date[];
   collapsed: boolean;
   isDragging?: boolean;
@@ -20,7 +20,7 @@ interface HolidayBarProps {
   mode?: 'days' | 'weeks';
 }
 
-export function HolidayBar({ dates, collapsed, isDragging, dragState, handleHolidayMouseDown, mode = 'days' }: HolidayBarProps) {
+export function AddHolidayBar({ dates, collapsed, isDragging, dragState, handleHolidayMouseDown, mode = 'days' }: AddHolidayBarProps) {
   const { holidays: globalHolidays, addHoliday, setCreatingNewHoliday, setEditingHolidayId } = usePlannerContext();
   
   // Hover interaction state
@@ -396,7 +396,7 @@ export function HolidayBar({ dates, collapsed, isDragging, dragState, handleHoli
           }
           
           return (
-            <IndividualHolidayBar
+            <HolidayBar
               key={dayIndex}
               dayIndex={dayIndex}
               date={date}
@@ -414,7 +414,7 @@ export function HolidayBar({ dates, collapsed, isDragging, dragState, handleHoli
   );
 }
 
-interface IndividualHolidayBarProps {
+interface HolidayBarProps {
   dayIndex: number;
   date: Date;
   holiday?: { startIndex: number; dayCount: number; id: string; title: string } | null;
@@ -425,7 +425,7 @@ interface IndividualHolidayBarProps {
   mode?: 'days' | 'weeks';
 }
 
-function IndividualHolidayBar({ 
+function HolidayBar({ 
   dayIndex, 
   date, 
   holiday, 
@@ -434,7 +434,7 @@ function IndividualHolidayBar({
   dragState,
   handleHolidayMouseDown,
   mode = 'days'
-}: IndividualHolidayBarProps) {
+}: HolidayBarProps) {
   const columnWidth = mode === 'weeks' ? 153 : 52; // Match TimelineView's column width
   const [mouseDownTime, setMouseDownTime] = useState<number | null>(null);
   const [mouseDownPos, setMouseDownPos] = useState<{ x: number; y: number } | null>(null);

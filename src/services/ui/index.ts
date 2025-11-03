@@ -1,5 +1,6 @@
 // UI Positioning - View-specific layout calculations
 export * from './positioning/ProjectBarPositioning';
+export * from './positioning/ProjectBarResizeService';
 export * from './positioning/TimelineViewportService';
 export * from './positioning/DragPositioning';
 

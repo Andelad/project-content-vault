@@ -11,6 +11,7 @@ export * from './useMilestones';
 export * from './usePerformance';
 export * from './useProjectModalState';
 export * from './useProjectModalState';
+export * from './useProjectResize';
 export * from './useProjects';
 export * from './usePWAInstall';
 export * from './useRows';

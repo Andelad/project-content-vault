@@ -17,13 +17,14 @@ import {
   workingDayStats,
   milestoneStats,
   calculateTimelineRows,
+  UnifiedDayEstimateService,
   type SmoothAnimationConfig,
   type DragState as ServiceDragState
 } from '@/services';
 import { useTimelineData } from '../../hooks/useTimelineData';
 import { useDynamicViewportDays } from '../../hooks/useDynamicViewportDays';
-import { useProjectDrag } from '../../hooks/useProjectDrag';
 import { useHolidayDrag } from '../../hooks/useHolidayDrag';
+import { useProjectResize } from '../../hooks/useProjectResize';
 import { TimelineDateHeaders } from '../timeline/TimelineDateHeaders';
 import { TimelineOverlays } from '../timeline/TimelineOverlays';
 import { TimelineGrid } from '../timeline/TimelineGrid';
@@ -42,14 +43,14 @@ const HolidayModal = React.lazy(() => import('../modals/HolidayModal').then(modu
  * 
  * **Architecture Pattern**:
  * - Contexts: Provides data (projects, groups, holidays, settings)
- * - Custom Hooks: Manage React state + coordinate services (useProjectDrag, useHolidayDrag, useTimelineData)
+ * - Custom Hooks: Manage React state + coordinate services (useHolidayDrag, useTimelineData)
  * - Services: Pure calculations (TimelineViewportService, calculateTimelineRows)
  * - Components: Presentational UI (TimelineToolbar, TimelineGrid, TimelineOverlays)
  * 
  * **Responsibilities**:
  * - Wire up context data to child components
  * - Manage viewport state (viewportStart, isAnimating)
- * - Coordinate drag operations via custom hooks
+ * - Coordinate holiday drag operations via custom hook
  * - Handle navigation and scrolling animations
  * - Render timeline layout with auto-layout algorithm
  * 
@@ -59,7 +60,6 @@ const HolidayModal = React.lazy(() => import('../modals/HolidayModal').then(modu
  * - Access database directly (uses context data)
  * 
  * @see TimelineViewportService - Viewport calculations and animations
- * @see useProjectDrag - Project drag state management
  * @see useHolidayDrag - Holiday drag state management
  * @see calculateTimelineRows - Auto-row arrangement algorithm
  */
@@ -91,6 +91,7 @@ export function TimelineView() {
   } = useTimelineContext();
   const { 
     holidays,
+    events,
     updateHoliday,
     creatingNewHoliday,
     setCreatingNewHoliday,
@@ -435,24 +436,7 @@ export function TimelineView() {
     }
   }, [isDragging, startAutoScroll, stopAutoScroll]);
   
-  // Drag handlers extracted to custom hooks
-  const { handleMouseDown } = useProjectDrag({
-    projects,
-    dates,
-    viewportStart,
-    viewportEnd,
-    timelineMode,
-    milestones,
-    updateProject,
-    updateMilestone,
-    showProjectSuccessToast,
-    checkAutoScroll,
-    stopAutoScroll,
-    setIsDragging,
-    setDragState,
-    dragState
-  });
-  
+  // Holiday drag handler extracted to custom hook
   const { handleHolidayMouseDown } = useHolidayDrag({
     holidays,
     projects,
@@ -461,6 +445,39 @@ export function TimelineView() {
     viewportEnd,
     timelineMode,
     updateHoliday,
+    checkAutoScroll,
+    stopAutoScroll,
+    setIsDragging,
+    setDragState,
+    dragState
+  });
+  
+  // Calculate day estimates for all projects (for resize validation)
+  const allDayEstimates = React.useMemo(() => {
+    const estimates: any[] = [];
+    projects.forEach(project => {
+      const projectMilestones = milestones.filter(m => m.projectId === project.id);
+      const projectEstimates = UnifiedDayEstimateService.calculateProjectDayEstimates(
+        project,
+        projectMilestones,
+        settings,
+        holidays,
+        events
+      );
+      estimates.push(...projectEstimates);
+    });
+    return estimates;
+  }, [projects, milestones, settings, holidays, events]);
+  
+  // Project resize handler extracted to custom hook
+  const { handleProjectResizeMouseDown } = useProjectResize({
+    projects,
+    dates,
+    viewportStart,
+    viewportEnd,
+    timelineMode,
+    dayEstimates: allDayEstimates,
+    updateProject,
     checkAutoScroll,
     stopAutoScroll,
     setIsDragging,
@@ -589,9 +606,9 @@ export function TimelineView() {
                           viewportEnd={viewportEnd}
                           isDragging={isDragging}
                           dragState={dragState}
-                          handleMouseDown={handleMouseDown}
                           handleMilestoneDrag={handleMilestoneDrag}
                           handleMilestoneDragEnd={handleMilestoneDragEnd}
+                          handleProjectResizeMouseDown={handleProjectResizeMouseDown}
                           mode={mode}
                           collapsed={collapsed}
                           onToggleGroupCollapse={toggleGroupCollapse}

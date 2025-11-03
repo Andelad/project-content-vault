@@ -59,8 +59,8 @@ export const TIMELINE_COLUMN_WIDTHS = {
     BUFFER_WIDTH: 52       // Extra scroll buffer for partial column visibility
   },
   WEEKS_MODE: {
-    COLUMN_WIDTH: 154,     // Width of each week column (7 days × 22px + 1px border)
-    DAY_WIDTH: 22,         // Width of each day within a week column
+    COLUMN_WIDTH: 153,     // Width of each week column (7 days × 21px + 6 gaps × 1px = 153px)
+    DAY_WIDTH: 22,         // Width of each day within a week column (21px day + 1px gap)
     BUFFER_WIDTH: 0        // No buffer needed for weeks mode
   }
 } as const;
@@ -72,7 +72,7 @@ export const TIMELINE_COLUMN_WIDTHS = {
 export class TimelineViewport {
   // Constants for viewport calculations
   private static readonly MIN_DAY_COLUMN_WIDTH = 52;
-  private static readonly MIN_WEEK_COLUMN_WIDTH = 154;  // Updated to match TIMELINE_COLUMN_WIDTHS
+  private static readonly MIN_WEEK_COLUMN_WIDTH = 153;  // Updated to match TIMELINE_COLUMN_WIDTHS
   private static readonly MIN_VIEWPORT_DAYS = 14;
   private static readonly MAX_VIEWPORT_DAYS = 60;
   private static readonly MIN_VIEWPORT_WEEKS = 4;
