@@ -3,53 +3,66 @@ import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { TooltipProvider } from '../ui/tooltip';
 import { Card } from '../ui/card';
-import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group';
-import { Button } from '../ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
-import { Calendar } from '../ui/calendar';
-import { Input } from '../ui/input';
-import { ChevronLeft, ChevronRight, ChevronDown, MapPin, CalendarSearch, Folders, Hash, Circle, PanelLeft, Plus } from 'lucide-react';
-import { toast } from '../../hooks/use-toast';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { useTimelineContext } from '../../contexts/TimelineContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
-import { TimelineViewportService, expandHolidayDates, normalizeToMidnight, addDaysToDate } from '@/services';
-import { validateAndAutoFix } from '@/services/utilities/projectDataIntegrity';
-import { useTimelineData } from '../../hooks/useTimelineData';
-import { useDynamicViewportDays } from '../../hooks/useDynamicViewportDays';
 import { 
-  calculateDaysDelta, 
-  createSmoothDragAnimation, 
-  debounceDragUpdate, 
-  throttleDragUpdate,
+  TimelineViewportService, 
+  expandHolidayDates, 
+  normalizeToMidnight, 
+  addDaysToDate,
+  validateAndAutoFix,
+  createSmoothDragAnimation,
+  workingDayStats,
+  milestoneStats,
+  calculateTimelineLayout,
   type SmoothAnimationConfig,
-  TimelineDragCoordinatorService,
-  initializeDragState,
-  initializeHolidayDragState,
   type DragState as ServiceDragState
 } from '@/services';
-import { TIMELINE_CONSTANTS, BRAND_COLORS } from '@/constants';
-import { PerformanceMetrics, throttledDragUpdate, clearDragQueue, throttledVisualUpdate } from '@/services';
-import { checkProjectOverlap, adjustProjectDatesForDrag } from '@/services';
-import { workingDayStats, milestoneStats } from '@/services';
-// Import timeline components
+import { useTimelineData } from '../../hooks/useTimelineData';
+import { useDynamicViewportDays } from '../../hooks/useDynamicViewportDays';
+import { useProjectDrag } from '../../hooks/useProjectDrag';
+import { useHolidayDrag } from '../../hooks/useHolidayDrag';
 import { TimelineDateHeaders } from '../timeline/TimelineDateHeaders';
-import { TimelineBar } from '../timeline/TimelineBar';
-import { TimelineColumnMarkers } from '../timeline/TimelineColumnMarkers';
-import { UnifiedAvailabilityCircles } from '../timeline/UnifiedAvailabilityCircles';
-import { TabbedAvailabilityCard } from '../timeline/TabbedAvailabilityCard';
-import { TimelineAddProjectRow, AddHolidayRow } from '../timeline/AddProjectRow';
-import { PerformanceStatus } from '../debug/PerformanceStatus';
-import { AddGroupRow } from '../timeline/AddGroupRow';
+import { TimelineOverlays } from '../timeline/TimelineOverlays';
+import { TimelineGrid } from '../timeline/TimelineGrid';
+import { AvailabilityCard } from '../shared/AvailabilityCard';
+import { HolidayBar } from '../timeline/HolidayBar';
 import { AppPageLayout } from '../layout/AppPageLayout';
-// Modal imports - Lazy load heavy modals
+import { TimelineToolbar } from '../timeline/TimelineToolbar';
+// Lazy load heavy modals
 const ProjectModal = React.lazy(() => import('../modals/ProjectModal').then(module => ({ default: module.ProjectModal })));
 const HolidayModal = React.lazy(() => import('../modals/HolidayModal').then(module => ({ default: module.HolidayModal })));
 
-// Import auto-layout service
-import { calculateTimelineLayout } from '@/services';
-
+/**
+ * TimelineView - Main coordinator component for the timeline page
+ * 
+ * **Role**: Coordinates contexts, custom hooks, and services to render the timeline UI
+ * 
+ * **Architecture Pattern**:
+ * - Contexts: Provides data (projects, groups, holidays, settings)
+ * - Custom Hooks: Manage React state + coordinate services (useProjectDrag, useHolidayDrag, useTimelineData)
+ * - Services: Pure calculations (TimelineViewportService, calculateTimelineLayout)
+ * - Components: Presentational UI (TimelineToolbar, TimelineGrid, TimelineOverlays)
+ * 
+ * **Responsibilities**:
+ * - Wire up context data to child components
+ * - Manage viewport state (viewportStart, isAnimating)
+ * - Coordinate drag operations via custom hooks
+ * - Handle navigation and scrolling animations
+ * - Render timeline layout with auto-layout algorithm
+ * 
+ * **Does NOT**:
+ * - Implement business logic (delegated to services)
+ * - Calculate dates manually (uses @/services/dateCalculations)
+ * - Access database directly (uses context data)
+ * 
+ * @see TimelineViewportService - Viewport calculations and animations
+ * @see useProjectDrag - Project drag state management
+ * @see useHolidayDrag - Holiday drag state management
+ * @see calculateTimelineLayout - Auto-layout algorithm
+ */
 export function TimelineView() {
   // Get data from specific contexts
   const { 
@@ -136,11 +149,8 @@ export function TimelineView() {
   // Timeline 2.0: Sidebar always collapsed
   const collapsed = true;
   const [isDragging, setIsDragging] = useState(false);
-  const [dragState, setDragState] = useState<any>(null);
-  const [isAnimating, setIsAnimating] = useState(false);
-  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-  const [projectSearchQuery, setProjectSearchQuery] = useState('');
-  const [availabilityDisplayMode, setAvailabilityDisplayMode] = useState<'circles' | 'numbers'>('circles');
+  const [dragState, setDragState] = useState<ServiceDragState | null>(null);
+  const [isAnimating, setIsAnimating] = useState(false); // Shared state for scrolling animations
   // Auto-scroll state for drag operations
   const [autoScrollState, setAutoScrollState] = useState<{
     isScrolling: boolean;
@@ -155,34 +165,41 @@ export function TimelineView() {
   // Get dynamic viewport days based on available width
   const VIEWPORT_DAYS = useDynamicViewportDays(collapsed, mainSidebarCollapsed, timelineMode);
   
-  // Scrollbar range management - centered on today, extends dynamically
-  const scrollbarRangeRef = React.useRef<{ start: Date; end: Date } | null>(null);
-  if (!scrollbarRangeRef.current) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    scrollbarRangeRef.current = {
-      start: new Date(today.getTime() - 182 * 24 * 60 * 60 * 1000), // 6 months before
-      end: new Date(today.getTime() + 182 * 24 * 60 * 60 * 1000)    // 6 months after
+  // Scrollbar range - centered on today with 6 months buffer, auto-extends near edges
+  const [scrollbarRange, setScrollbarRange] = useState<{ start: Date; end: Date }>(() => {
+    const today = normalizeToMidnight(new Date());
+    const MS_PER_DAY = 24 * 60 * 60 * 1000;
+    return {
+      start: new Date(today.getTime() - 182 * MS_PER_DAY), // 6 months before
+      end: new Date(today.getTime() + 182 * MS_PER_DAY)    // 6 months after
     };
-  }
+  });
   
   // Auto-extend scrollbar range when approaching edges
-  React.useEffect(() => {
-    if (!scrollbarRangeRef.current) return;
+  useEffect(() => {
+    const MS_PER_DAY = 24 * 60 * 60 * 1000;
+    const THRESHOLD_DAYS = 90;
     
-    const { start, end } = scrollbarRangeRef.current;
-    const totalDays = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-    const viewportEnd = new Date(viewportStart.getTime() + VIEWPORT_DAYS * 24 * 60 * 60 * 1000);
-    const startOffset = Math.floor((viewportStart.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-    const endOffset = Math.floor((viewportEnd.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    const totalDays = Math.floor((scrollbarRange.end.getTime() - scrollbarRange.start.getTime()) / MS_PER_DAY);
+    const viewportEnd = new Date(viewportStart.getTime() + VIEWPORT_DAYS * MS_PER_DAY);
+    const startOffset = Math.floor((viewportStart.getTime() - scrollbarRange.start.getTime()) / MS_PER_DAY);
+    const endOffset = Math.floor((viewportEnd.getTime() - scrollbarRange.start.getTime()) / MS_PER_DAY);
     
-    const THRESHOLD = 90;
-    if (startOffset < THRESHOLD && startOffset >= 0) {
-      scrollbarRangeRef.current.start = new Date(start.getTime() - 90 * 24 * 60 * 60 * 1000);
-    } else if ((totalDays - endOffset) < THRESHOLD && (totalDays - endOffset) >= 0) {
-      scrollbarRangeRef.current.end = new Date(end.getTime() + 90 * 24 * 60 * 60 * 1000);
+    // Extend backward if approaching start
+    if (startOffset < THRESHOLD_DAYS && startOffset >= 0) {
+      setScrollbarRange(prev => ({
+        ...prev,
+        start: new Date(prev.start.getTime() - THRESHOLD_DAYS * MS_PER_DAY)
+      }));
+    } 
+    // Extend forward if approaching end
+    else if ((totalDays - endOffset) < THRESHOLD_DAYS && (totalDays - endOffset) >= 0) {
+      setScrollbarRange(prev => ({
+        ...prev,
+        end: new Date(prev.end.getTime() + THRESHOLD_DAYS * MS_PER_DAY)
+      }));
     }
-  }, [viewportStart, VIEWPORT_DAYS]);
+  }, [viewportStart, VIEWPORT_DAYS, scrollbarRange]);
   // Get timeline data using your existing hook
   const { dates, viewportEnd, filteredProjects, mode, actualViewportStart } = useTimelineData(
     projects, 
@@ -239,110 +256,7 @@ export function TimelineView() {
     });
   }, [timelineMode, dates.length, filteredProjects.length]);
   // Memoize date range formatting using service
-  const dateRangeText = useMemo(() => {
-    return TimelineViewportService.formatDateRange(actualViewportStart, viewportEnd);
-  }, [actualViewportStart, viewportEnd]);
-  // Navigation handlers with smooth scrolling using service
-  const handleNavigate = useCallback((direction: 'prev' | 'next') => {
-    if (isAnimating) return;
-    const targetViewport = TimelineViewportService.calculateNavigationTarget({
-      currentViewportStart: viewportStart,
-      viewportDays: VIEWPORT_DAYS,
-      direction,
-      timelineMode
-    });
-    const animationDuration = TimelineViewportService.calculateAnimationDuration(
-      viewportStart.getTime(),
-      targetViewport.start.getTime()
-    );
-    setIsAnimating(true);
-    const animationConfig: SmoothAnimationConfig = {
-      currentStart: viewportStart.getTime(),
-      targetStart: targetViewport.start.getTime(),
-      duration: animationDuration
-    };
-    createSmoothDragAnimation(
-      animationConfig,
-      (intermediateStart) => setViewportStart(intermediateStart),
-      () => {
-        setViewportStart(new Date(animationConfig.targetStart));
-        setCurrentDate(new Date(animationConfig.targetStart));
-        setIsAnimating(false);
-      }
-    );
-  }, [viewportStart, setCurrentDate, isAnimating, VIEWPORT_DAYS, timelineMode]);
-  const handleGoToToday = useCallback(() => {
-    if (isAnimating) return;
-    const today = normalizeToMidnight(new Date());
-    const targetViewport = TimelineViewportService.calculateTodayTarget({
-      currentDate: today,
-      viewportDays: VIEWPORT_DAYS,
-      timelineMode,
-      timelineSidebarCollapsed: collapsed,
-      mainSidebarCollapsed
-    });
-    // Check if animation should be skipped
-    if (TimelineViewportService.shouldSkipAnimation(viewportStart.getTime(), targetViewport.start.getTime())) {
-      setViewportStart(targetViewport.start);
-      setCurrentDate(today);
-      return;
-    }
-    const animationDuration = TimelineViewportService.calculateAnimationDuration(
-      viewportStart.getTime(),
-      targetViewport.start.getTime()
-    );
-    setIsAnimating(true);
-    const animationConfig: SmoothAnimationConfig = {
-      currentStart: viewportStart.getTime(),
-      targetStart: targetViewport.start.getTime(),
-      duration: animationDuration
-    };
-    createSmoothDragAnimation(
-      animationConfig,
-      (intermediateStart) => setViewportStart(intermediateStart),
-      () => {
-        setViewportStart(targetViewport.start);
-        setCurrentDate(today);
-        setIsAnimating(false);
-      }
-    );
-  }, [viewportStart, setCurrentDate, isAnimating, VIEWPORT_DAYS, timelineMode, collapsed, mainSidebarCollapsed]);
-  const handleDateSelect = useCallback((selectedDate: Date | undefined) => {
-    if (!selectedDate || isAnimating) return;
-    // Normalize the selected date
-    const normalizedDate = normalizeToMidnight(new Date(selectedDate));
-    // Calculate target viewport start to center the selected date
-    const targetViewportStart = addDaysToDate(normalizedDate, -Math.floor(VIEWPORT_DAYS / 4));
-    const currentStart = viewportStart.getTime();
-    const targetStart = targetViewportStart.getTime();
-    const daysDifference = Math.abs((targetStart - currentStart) / (24 * 60 * 60 * 1000));
-    // Close the date picker
-    setIsDatePickerOpen(false);
-    if (daysDifference < 1) {
-      setViewportStart(targetViewportStart);
-      setCurrentDate(normalizedDate);
-      return;
-    }
-    setIsAnimating(true);
-    const animationDuration = Math.min(
-      TIMELINE_CONSTANTS.SCROLL_ANIMATION_MAX_DURATION, 
-      daysDifference * TIMELINE_CONSTANTS.SCROLL_ANIMATION_MS_PER_DAY
-    );
-    const animationConfig: SmoothAnimationConfig = {
-      currentStart,
-      targetStart,
-      duration: animationDuration
-    };
-    createSmoothDragAnimation(
-      animationConfig,
-      (intermediateStart) => setViewportStart(intermediateStart),
-      () => {
-        setViewportStart(targetViewportStart);
-        setCurrentDate(normalizedDate);
-        setIsAnimating(false);
-      }
-    );
-  }, [viewportStart, setCurrentDate, isAnimating, VIEWPORT_DAYS]);
+  // Navigation handlers moved to TimelineToolbar component
 
   // Timeline 2.0: No sidebar toggle - always collapsed
 
@@ -520,6 +434,40 @@ export function TimelineView() {
       stopAutoScroll();
     }
   }, [isDragging, startAutoScroll, stopAutoScroll]);
+  
+  // Drag handlers extracted to custom hooks
+  const { handleMouseDown } = useProjectDrag({
+    projects,
+    dates,
+    viewportStart,
+    viewportEnd,
+    timelineMode,
+    milestones,
+    updateProject,
+    updateMilestone,
+    showProjectSuccessToast,
+    checkAutoScroll,
+    stopAutoScroll,
+    setIsDragging,
+    setDragState,
+    dragState
+  });
+  
+  const { handleHolidayMouseDown } = useHolidayDrag({
+    holidays,
+    projects,
+    dates,
+    viewportStart,
+    viewportEnd,
+    timelineMode,
+    updateHoliday,
+    checkAutoScroll,
+    stopAutoScroll,
+    setIsDragging,
+    setDragState,
+    dragState
+  });
+  
   // Clean up auto-scroll on unmount or when dragging stops
   React.useEffect(() => {
     if (!isDragging) {
@@ -555,297 +503,7 @@ export function TimelineView() {
       setViewportStart(newViewportStart);
     }
   }, [currentDate, viewportStart, VIEWPORT_DAYS, timelineMode]);
-  // Mouse handlers for timeline bar interactions - using unified drag system
-  const handleMouseDown = useCallback((e: React.MouseEvent, projectId: string, action: string) => {
-    // 🚫 PREVENT BROWSER DRAG-AND-DROP: Stop the globe/drag indicator
-    e.preventDefault();
-    e.stopPropagation();
-    const targetProject = projects.find(p => p.id === projectId);
-    if (!targetProject) return;
-    
-    // Initialize drag state using unified service
-    const initialDragState = initializeDragState(
-      {
-        id: projectId,
-        startDate: targetProject.startDate,
-        endDate: targetProject.endDate
-      },
-      action,
-      e.clientX,
-      e.clientY,
-      timelineMode
-    );
-    
-    setIsDragging(true);
-    setDragState(initialDragState);
-    
-    const handleMouseMove = (e: MouseEvent) => {
-      try {
-        // 🚫 PREVENT BROWSER DRAG BEHAVIOR
-        e.preventDefault();
-        
-        // Use unified drag coordinator for all calculations
-        const result = TimelineDragCoordinatorService.coordinateDragOperation(
-          dragState || initialDragState,
-          e,
-          {
-            projects,
-            viewportStart,
-            viewportEnd,
-            timelineMode,
-            dates
-          }
-        );
-        
-        // Check for auto-scroll during drag
-        if (result.autoScrollConfig?.shouldScroll) {
-          checkAutoScroll(e.clientX);
-        }
-        
-        // Update visual state if needed
-        if (result.shouldUpdate) {
-          throttledVisualUpdate(() => {
-            setDragState(result.newDragState);
-          }, timelineMode);
-        }
-        
-        // Handle background persistence (throttled database updates)
-        const daysDelta = result.newDragState.lastDaysDelta;
-        if (daysDelta !== (dragState?.lastDaysDelta || 0)) {
-          const throttleMs = timelineMode === 'weeks' ? 100 : 50;
-          throttledDragUpdate(async () => {
-            if (action === 'resize-start-date') {
-              const newStartDate = addDaysToDate(new Date(initialDragState.originalStartDate), daysDelta);
-              const endDate = new Date(initialDragState.originalEndDate);
-              const oneDayBefore = addDaysToDate(endDate, -1);
-              if (newStartDate <= oneDayBefore) {
-                updateProject(projectId, { startDate: newStartDate }, { silent: true });
-              }
-            } else if (action === 'resize-end-date') {
-              const newEndDate = addDaysToDate(new Date(initialDragState.originalEndDate), daysDelta);
-              const startDate = new Date(initialDragState.originalStartDate);
-              const oneDayAfter = addDaysToDate(startDate, 1);
-              if (newEndDate >= oneDayAfter) {
-                updateProject(projectId, { endDate: newEndDate }, { silent: true });
-              }
-            } else if (action === 'move') {
-              const newStartDate = addDaysToDate(new Date(initialDragState.originalStartDate), daysDelta);
-              const newEndDate = addDaysToDate(new Date(initialDragState.originalEndDate), daysDelta);
-              // Update project and all milestones in parallel
-              const projectUpdate = updateProject(projectId, { 
-                startDate: newStartDate,
-                endDate: newEndDate 
-              }, { silent: true });
-              const projectMilestones = milestones.filter(m => m.projectId === projectId);
-              const milestoneUpdates = projectMilestones.map(milestone => {
-                const originalMilestoneDate = new Date(milestone.dueDate);
-                const newMilestoneDate = addDaysToDate(originalMilestoneDate, daysDelta);
-                return updateMilestone(milestone.id, { 
-                  dueDate: new Date(newMilestoneDate.toISOString().split('T')[0] + 'T00:00:00+00:00')
-                }, { silent: true });
-              });
-              Promise.all([projectUpdate, ...milestoneUpdates]);
-            }
-          }, throttleMs);
-        }
-      } catch (error) {
-        console.error('🚨 PROJECT DRAG ERROR:', error);
-      }
-    };
-    const handleMouseUp = () => {
-      const hadMovement = dragState && dragState.lastDaysDelta !== 0;
-      setIsDragging(false);
-      setDragState(null);
-      stopAutoScroll(); // Fix infinite scrolling
-      // Clear any pending drag updates for better performance
-      clearDragQueue();
-      // Only show success toast if there was actual movement/change
-      if (hadMovement) {
-        showProjectSuccessToast("Project updated successfully");
-      }
-      // Remove ALL possible event listeners for robust pen/tablet support
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.removeEventListener('pointermove', handleMouseMove);
-      document.removeEventListener('pointerup', handleMouseUp);
-      document.removeEventListener('pointercancel', handleMouseUp);
-      document.removeEventListener('touchmove', handleTouchMove);
-      document.removeEventListener('touchend', handleMouseUp);
-      document.removeEventListener('touchcancel', handleMouseUp);
-    };
-    const handleTouchMove = (e: TouchEvent) => {
-      if (e.touches.length > 0) {
-        const touch = e.touches[0];
-        // Create a more complete mouse event for touch with both coordinates
-        const mouseEvent = {
-          clientX: touch.clientX,
-          clientY: touch.clientY,
-          preventDefault: () => e.preventDefault(),
-          stopPropagation: () => e.stopPropagation()
-        } as MouseEvent;
-        handleMouseMove(mouseEvent);
-      }
-    };
-    // Add comprehensive event listeners for all input types (mouse, pen, touch)
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-    document.addEventListener('pointermove', handleMouseMove);
-    document.addEventListener('pointerup', handleMouseUp);
-    document.addEventListener('pointercancel', handleMouseUp); // Critical for pen input
-    document.addEventListener('touchmove', handleTouchMove);
-    document.addEventListener('touchend', handleMouseUp);
-    document.addEventListener('touchcancel', handleMouseUp);
-  }, [projects, dates, updateProject, checkAutoScroll, stopAutoScroll, timelineMode, milestones, updateMilestone, showProjectSuccessToast]);
-
-  // Holiday drag handler - using unified drag system
-  const handleHolidayMouseDown = useCallback((e: React.MouseEvent, holidayId: string, action: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    const targetHoliday = holidays.find(h => h.id === holidayId);
-    if (!targetHoliday) return;
-    
-    // Use unified drag initialization
-    const initialDragState = initializeHolidayDragState(
-      holidayId,
-      new Date(targetHoliday.startDate),
-      new Date(targetHoliday.endDate),
-      e.clientX,
-      e.clientY,
-      action as 'move' | 'resize-start-date' | 'resize-end-date',
-      timelineMode
-    );
-    
-    setIsDragging(true);
-    setDragState(initialDragState);
-    
-    const handleMouseMove = (e: MouseEvent) => {
-      try {
-        e.preventDefault();
-        
-        // Use unified drag coordinator for all calculations
-        const result = TimelineDragCoordinatorService.coordinateDragOperation(
-          dragState || initialDragState,
-          e,
-          {
-            projects,
-            viewportStart,
-            viewportEnd,
-            timelineMode,
-            dates
-          }
-        );
-        
-        // Check for auto-scroll during drag
-        if (result.autoScrollConfig?.shouldScroll) {
-          checkAutoScroll(e.clientX);
-        }
-        
-        // Update visual state if needed
-        if (result.shouldUpdate) {
-          throttledVisualUpdate(() => {
-            setDragState(result.newDragState);
-          }, timelineMode);
-        }
-        
-        // Handle background persistence (throttled database updates)
-        const daysDelta = result.newDragState.lastDaysDelta;
-        if (daysDelta !== (dragState?.lastDaysDelta || 0)) {
-          const throttleMs = timelineMode === 'weeks' ? 100 : 50;
-          throttledDragUpdate(async () => {
-            if (action === 'resize-start-date') {
-              const newStartDate = addDaysToDate(new Date(initialDragState.originalStartDate), daysDelta);
-              const endDate = new Date(initialDragState.originalEndDate);
-              // Allow start date to equal end date (single day holiday)
-              if (newStartDate <= endDate) {
-                updateHoliday(holidayId, { startDate: newStartDate }, { silent: true });
-              }
-            } else if (action === 'resize-end-date') {
-              const newEndDate = addDaysToDate(new Date(initialDragState.originalEndDate), daysDelta);
-              const startDate = new Date(initialDragState.originalStartDate);
-              // Allow end date to equal start date (single day holiday)
-              if (newEndDate >= startDate) {
-                updateHoliday(holidayId, { endDate: newEndDate }, { silent: true });
-              }
-            } else if (action === 'move') {
-              const newStartDate = addDaysToDate(new Date(initialDragState.originalStartDate), daysDelta);
-              const newEndDate = addDaysToDate(new Date(initialDragState.originalEndDate), daysDelta);
-              updateHoliday(holidayId, { 
-                startDate: newStartDate,
-                endDate: newEndDate 
-              }, { silent: true });
-            }
-          }, throttleMs);
-        }
-      } catch (error) {
-        console.error('🚨 HOLIDAY DRAG ERROR:', error);
-      }
-    };
-    
-    const handleMouseUp = () => {
-      // Only show toast if there was actual movement (daysDelta !== 0)
-      const daysDelta = dragState?.lastDaysDelta || initialDragState.lastDaysDelta || 0;
-      
-      setIsDragging(false);
-      setDragState(null);
-      stopAutoScroll();
-      
-      // Only show success toast if the holiday was actually moved/resized
-      if (daysDelta !== 0) {
-        toast({
-          title: "Success",
-          description: "Holiday updated successfully",
-        });
-      }
-      
-      // Remove ALL possible event listeners for robust pen/tablet support
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.removeEventListener('pointermove', handleMouseMove);
-      document.removeEventListener('pointerup', handleMouseUp);
-      document.removeEventListener('pointercancel', handleMouseUp);
-      document.removeEventListener('touchmove', handleTouchMove);
-      document.removeEventListener('touchend', handleMouseUp);
-      document.removeEventListener('touchcancel', handleMouseUp);
-    };
-    
-    const handleTouchMove = (e: TouchEvent) => {
-      if (e.touches.length > 0) {
-        const touch = e.touches[0];
-        handleMouseMove({ clientX: touch.clientX } as MouseEvent);
-      }
-    };
-    
-    // Add comprehensive event listeners for all input types (mouse, pen, touch)
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-    document.addEventListener('pointermove', handleMouseMove);
-    document.addEventListener('pointerup', handleMouseUp);
-    document.addEventListener('pointercancel', handleMouseUp); // Critical for pen input
-    document.addEventListener('touchmove', handleTouchMove, { passive: false });
-    document.addEventListener('touchend', handleMouseUp);
-    document.addEventListener('touchcancel', handleMouseUp);
-  }, [holidays, updateHoliday, checkAutoScroll, stopAutoScroll, timelineMode, projects, viewportStart, viewportEnd, dates, dragState]);
-  // Organize projects by groups for sidebar
-  const groupsWithProjects = useMemo(() => {
-    return groups.map(group => ({
-      ...group,
-      projects: projects.filter(project => project.groupId === group.id)
-    }));
-  }, [groups, projects]);
-  // Handle creating projects from hover drag - opens modal for confirmation
-  const handleCreateProject = useCallback((rowId: string, startDate: Date, endDate: Date) => {
-    const row = rows.find(r => r.id === rowId);
-    if (!row) {
-      console.error('❌ Row not found for rowId:', rowId);
-      console.error('❌ Available row IDs:', rows.map(r => r.id));
-      return;
-    }
-    // REMOVED: Competing overlap check - SmartHoverAddProjectBar already validated this is safe
-    // SmartHoverAddProjectBar prevents creation in occupied spaces, so we trust its validation
-    // Open the project creation modal with the selected dates and row
-    setCreatingNewProject(row.groupId, { startDate, endDate }, rowId);
-  }, [rows, setCreatingNewProject, projects]);
+  
   // Handle milestone drag updates
   const handleMilestoneDrag = useCallback((milestoneId: string, newDate: Date) => {
     updateMilestone(milestoneId, { dueDate: newDate }, { silent: true });
@@ -862,83 +520,27 @@ export function TimelineView() {
           <AppPageLayout.Header className="h-0 overflow-hidden">
             <div />
           </AppPageLayout.Header>
-          {/* Timeline Mode Toggle and Navigation */}
-          <AppPageLayout.SubHeader>
-            <div className="flex items-center justify-between">
-              {/* Timeline Mode Toggle and Today Button */}
-              <div className="flex items-center" style={{ gap: '21px' }}>
-                <Button 
-                  onClick={() => {
-                    // Get the first group ID or null if no groups exist
-                    const firstGroupId = groups.length > 0 ? groups[0].id : null;
-                    setCreatingNewProject(firstGroupId);
-                  }}
-                  className="h-9 gap-2 px-3 shadow"
-                  style={{ backgroundColor: BRAND_COLORS.primary }}
-                >
-                  <Plus className="w-4 h-4" />
-                  Add Project
-                </Button>
-                <ToggleGroup
-                  type="single"
-                  value={timelineMode}
-                  onValueChange={(value) => {
-                    if (value) {
-                      console.time(`⏱️ Timeline mode change to ${value}`);
-                      setTimelineMode(value as 'days' | 'weeks');
-                      // Use setTimeout to measure after render
-                      setTimeout(() => {
-                        console.timeEnd(`⏱️ Timeline mode change to ${value}`);
-                      }, 100);
-                    }
-                  }}
-                  variant="outline"
-                  className="border border-gray-200 rounded-lg h-9 p-1"
-                >
-                  <ToggleGroupItem value="weeks" aria-label="Weeks mode" className="px-3 py-1 h-7">
-                    Weeks
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="days" aria-label="Days mode" className="px-3 py-1 h-7">
-                    Days
-                  </ToggleGroupItem>
-                </ToggleGroup>
-                <Button variant="outline" onClick={handleGoToToday} className="h-9 gap-2">
-                  <MapPin className="w-4 h-4" />
-                  Today
-                </Button>
-                <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="icon" className="h-9 w-9">
-                      <CalendarSearch className="w-4 h-4" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={currentDate}
-                      onSelect={handleDateSelect}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-              {/* Navigation Controls */}
-              <div className="flex items-center gap-0.5">
-                <Button variant="ghost" className="h-9 w-9 px-0" onClick={() => handleNavigate('prev')}>
-                  <ChevronLeft className="w-4 h-4" />
-                </Button>
-                <h2 className="text-sm font-semibold text-gray-900 text-center px-2">
-                  {dateRangeText}
-                </h2>
-                <Button variant="ghost" className="h-9 w-9 px-0" onClick={() => handleNavigate('next')}>
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          </AppPageLayout.SubHeader>
+          {/* Timeline Toolbar - extracted to separate component */}
+          <TimelineToolbar
+            timelineMode={timelineMode}
+            currentDate={currentDate}
+            viewportStart={viewportStart}
+            actualViewportStart={actualViewportStart}
+            viewportEnd={viewportEnd}
+            viewportDays={VIEWPORT_DAYS}
+            collapsed={collapsed}
+            mainSidebarCollapsed={mainSidebarCollapsed}
+            isAnimating={isAnimating}
+            groups={groups}
+            onTimelineModeChange={setTimelineMode}
+            onCurrentDateChange={setCurrentDate}
+            onViewportStartChange={setViewportStart}
+            onAnimatingChange={setIsAnimating}
+            onCreateNewProject={setCreatingNewProject}
+          />
           {/* Main Content Area with Card */}
           <AppPageLayout.Content>
-            <div className="flex-1 flex flex-col min-h-0 pt-[0px] pr-[0px] pb-[21px] pl-[0px]">
+            <div className="flex-1 flex flex-col min-h-0">
               {/* Timeline Card */}
               <Card className="flex-1 flex flex-col overflow-hidden relative timeline-card-container">
                 {/* Column Markers removed from here - will be added per-row */}
@@ -971,184 +573,29 @@ export function TimelineView() {
                           zIndex: 1
                         }}
                       >
-                        {/* Column markers - week/month borders and today overlay */}
-                        <TimelineColumnMarkers dates={dates} mode={mode} />
-                      {/* Weekend overlays */}
-                      {dates.map((date, dateIndex) => {
-                        if (mode === 'weeks') {
-                          // Week mode - render weekend overlays for each day in the week
-                          const rawWeekStart = new Date(date);
-                          const dayOfWeek = rawWeekStart.getDay();
-                          const daysToMonday = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek);
-                          const weekStart = normalizeToMidnight(addDaysToDate(rawWeekStart, daysToMonday));
-                          
-                          const weekendDays: { dayIndex: number; leftPx: number }[] = [];
-                          for (let i = 0; i < 7; i++) {
-                            const currentDay = addDaysToDate(weekStart, i);
-                            const dow = currentDay.getDay();
-                            if (dow === 0 || dow === 6) { // Sunday or Saturday
-                              weekendDays.push({ dayIndex: i, leftPx: dateIndex * 153 + i * 22 });
-                            }
-                          }
-                          
-                          return weekendDays.map((wd, idx) => (
-                            <div
-                              key={`weekend-${dateIndex}-${idx}`}
-                              className="absolute top-0"
-                              style={{
-                                left: `${wd.leftPx}px`,
-                                width: '22px',
-                                height: '100%',
-                                backgroundColor: 'rgba(229, 229, 229, 0.15)',
-                                pointerEvents: 'none'
-                              }}
-                            />
-                          ));
-                        } else {
-                          // Days mode - check if this date is a weekend
-                          const dayOfWeek = date.getDay();
-                          const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-                          if (!isWeekend) return null;
-                          
-                          return (
-                            <div
-                              key={`weekend-${dateIndex}`}
-                              className="absolute top-0"
-                              style={{
-                                left: `${dateIndex * 52}px`,
-                                width: '52px',
-                                height: '100%',
-                                backgroundColor: 'rgba(163, 163, 163, 0.15)',
-                                pointerEvents: 'none'
-                              }}
-                            />
-                          );
-                        }
-                      })}
-                      
-                      {/* Holiday overlays */}
-                      {holidays && holidays.length > 0 && holidays.map(holiday => {
-                        const holidayStart = new Date(holiday.startDate);
-                        const holidayEnd = new Date(holiday.endDate || holiday.startDate);
-                        const normalizedHolidayStart = normalizeToMidnight(holidayStart);
-                        const normalizedHolidayEnd = normalizeToMidnight(holidayEnd);
-                        
-                        const columnWidth = mode === 'weeks' ? 153 : 52;
-                        const dayWidth = mode === 'weeks' ? 22 : columnWidth; // 22px effective spacing (21px + 1px gap)
-                        
-                        const timelineStart = normalizeToMidnight(new Date(dates[0]));
-                        const msPerDay = 24 * 60 * 60 * 1000;
-                        
-                        const startDay = Math.floor((normalizedHolidayStart.getTime() - timelineStart.getTime()) / msPerDay);
-                        const endDay = Math.floor((normalizedHolidayEnd.getTime() - timelineStart.getTime()) / msPerDay);
-                        const holidayLeftPx = startDay * dayWidth;
-                        const holidayWidthPx = (endDay - startDay + 1) * dayWidth;
-                        
-                        const backgroundPattern = mode === 'weeks' 
-                          ? 'repeating-linear-gradient(-45deg, rgba(107,114,128,0.16) 0 1.5px, transparent 1.5px 4px)'
-                          : 'repeating-linear-gradient(-45deg, rgba(107,114,128,0.16) 0 2px, transparent 2px 6px)';
-                        
-                        return (
-                          <div
-                            key={`holiday-${holiday.id}`}
-                            className="absolute top-0"
-                            style={{
-                              left: `${holidayLeftPx}px`,
-                              width: `${holidayWidthPx}px`,
-                              height: '100%',
-                              backgroundImage: backgroundPattern,
-                              pointerEvents: 'none'
-                            }}
-                          />
-                        );
-                      })}
-                    </div>
+                        {/* All timeline overlays: borders, today, weekends, holidays */}
+                        <TimelineOverlays dates={dates} mode={mode} holidays={holidays} />
+                      </div>
                     
                       {/* Scrollable Content Layer */}
                       <div className="relative">
-                      {/* Project Timeline Bars - Organized by Groups and VISUAL ROWS (Auto-Layout) */}
-                      <div className="relative" style={{ zIndex: 2 }}>
-                        {groups.map((group, groupIndex) => {
-                          // Get the calculated layout for this group
-                          const groupLayout = groupLayouts[groupIndex];
-                          if (!groupLayout) return null;
-
-                          // Check if group is collapsed
-                          const isGroupCollapsed = collapsedGroups.has(group.id);
-                          
-                          return (
-                            <div key={group.id}>
-                              {/* Group Header Row - Visual separator with group title and collapse chevron */}
-                              <div className="h-8 relative flex items-center">
-                                {/* Group name with collapse chevron */}
-                                <div className="flex items-center gap-2 px-3">
-                                  <button
-                                    onClick={() => toggleGroupCollapse(group.id)}
-                                    className="p-0.5 hover:bg-gray-200 rounded transition-colors"
-                                  >
-                                    {isGroupCollapsed ? (
-                                      <ChevronRight className="w-3 h-3 text-gray-500" />
-                                    ) : (
-                                      <ChevronDown className="w-3 h-3 text-gray-500" />
-                                    )}
-                                  </button>
-                                  <span className="text-xs font-medium text-gray-700">{group.name}</span>
-                                </div>
-                              </div>
-
-                              {/* Visual Rows in this group - Auto-calculated, only render if group is not collapsed */}
-                              {!isGroupCollapsed && groupLayout.visualRows.map((visualRow, visualRowIndex) => {
-                                return (
-                                  <div key={`${group.id}-vrow-${visualRowIndex}`} className="h-[54px] border-b border-gray-100 relative pt-[2px] pr-[2px] pb-[2px] pl-0">
-                                    {/* Container for projects in this visual row - fixed height with absolute positioned children */}
-                                    <div className="relative h-[50px]">
-                                      {/* Height enforcer - ensures row maintains 50px height even when empty */}
-                                      <div className="absolute inset-0 min-h-[50px]" />
-                                      
-                                      {/* Render all projects in this visual row - positioned absolutely to overlay */}
-                                      {visualRow.projects.map((project: any) => {
-                                        return (
-                                          <div key={project.id} className="absolute inset-0 pointer-events-none">
-                                            <TimelineBar
-                                              project={project}
-                                              dates={dates}
-                                              viewportStart={viewportStart}
-                                              viewportEnd={viewportEnd}
-                                              isDragging={isDragging}
-                                              dragState={dragState}
-                                              handleMouseDown={handleMouseDown}
-                                              mode={mode}
-                                              isMultiProjectRow={true}
-                                              collapsed={collapsed}
-                                              onMilestoneDrag={handleMilestoneDrag}
-                                              onMilestoneDragEnd={handleMilestoneDragEnd}
-                                            />
-                                          </div>
-                                        );
-                                      })}
-                                      
-                                      {/* NO SmartHoverAddProjectBar - projects are auto-positioned */}
-                                    </div>
-                                  </div>
-                                );
-                              })}
-
-                              {/* Show empty row if group has no projects and is not collapsed */}
-                              {!isGroupCollapsed && groupLayout.visualRows.length === 0 && (
-                                <div className="h-[52px] border-b border-gray-100 relative pt-[2px] pr-[2px] pb-[2px] pl-0">
-                                  <div className="flex items-center justify-center h-full text-xs text-gray-400">
-                                    No projects in this group
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* No Add Row spacer needed - rows are auto-generated */}
-                            </div>
-                          );
-                        })}
-                        {/* Add Group Row */}
-                        <AddGroupRow />
-                      </div>
+                        {/* Project Timeline Grid - Organized by Groups and VISUAL ROWS (Auto-Layout) */}
+                        <TimelineGrid
+                          groups={groups}
+                          groupLayouts={groupLayouts}
+                          collapsedGroups={collapsedGroups}
+                          dates={dates}
+                          viewportStart={viewportStart}
+                          viewportEnd={viewportEnd}
+                          isDragging={isDragging}
+                          dragState={dragState}
+                          handleMouseDown={handleMouseDown}
+                          handleMilestoneDrag={handleMilestoneDrag}
+                          handleMilestoneDragEnd={handleMilestoneDragEnd}
+                          mode={mode}
+                          collapsed={collapsed}
+                          onToggleGroupCollapse={toggleGroupCollapse}
+                        />
                       </div> {/* End of Scrollable Content Layer */}
                     </div> {/* End of Timeline Content */}
                   </div> {/* End of Scrollable Content Area */}
@@ -1156,112 +603,22 @@ export function TimelineView() {
               </Card>
               {/* Availability Timeline Card */}
               <div className="relative mt-4">
-                <TabbedAvailabilityCard
+                <AvailabilityCard
                   collapsed={collapsed}
                   dates={dates}
                   projects={projects}
                   settings={settings}
                   mode={mode}
-                  availabilityDisplayMode={availabilityDisplayMode}
-                  onDisplayModeChange={(mode) => setAvailabilityDisplayMode(mode)}
                   columnMarkersOverlay={
-                    <>
-                      {/* Weekend overlays for availability card */}
-                      {dates.map((date, dateIndex) => {
-                        if (mode === 'weeks') {
-                          // Weeks mode - render weekend days within each week
-                          const rawWeekStart = new Date(date);
-                          const dayOfWeek = rawWeekStart.getDay();
-                          const daysToMonday = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek);
-                          const weekStart = addDaysToDate(rawWeekStart, daysToMonday);
-                          
-                          const weekendDays = [];
-                          for (let i = 0; i < 7; i++) {
-                            const currentDay = addDaysToDate(weekStart, i);
-                            const dow = currentDay.getDay();
-                            if (dow === 0 || dow === 6) {
-                              weekendDays.push({ leftPx: dateIndex * 153 + i * 22 });
-                            }
-                          }
-                          
-                          return weekendDays.map((wd, idx) => (
-                            <div
-                              key={`weekend-avail-${dateIndex}-${idx}`}
-                              className="absolute top-0 bottom-0"
-                              style={{
-                                left: `${wd.leftPx}px`,
-                                width: '22px',
-                                backgroundColor: 'rgba(229, 229, 229, 0.15)',
-                                pointerEvents: 'none'
-                              }}
-                            />
-                          ));
-                        } else {
-                          // Days mode - check if this date is a weekend
-                          const dayOfWeek = date.getDay();
-                          const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-                          if (!isWeekend) return null;
-                          
-                          return (
-                            <div
-                              key={`weekend-avail-${dateIndex}`}
-                              className="absolute top-0 bottom-0"
-                              style={{
-                                left: `${dateIndex * 52}px`,
-                                width: '52px',
-                                backgroundColor: 'rgba(163, 163, 163, 0.15)',
-                                pointerEvents: 'none'
-                              }}
-                            />
-                          );
-                        }
-                      })}
-                      
-                      {/* Timeline column markers (borders and today indicator) */}
-                      <TimelineColumnMarkers dates={dates} mode={mode} />
-                      
-                      {/* Full-column holiday overlays for availability card */}
-                      <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }}>
-                        {holidays && holidays.length > 0 && holidays.map(holiday => {
-                          const expandedDates = expandHolidayDates([{ ...holiday, name: holiday.title || 'Holiday' }]);
-                          const columnWidth = mode === 'weeks' ? 153 : 52;
-                          const dayWidth = mode === 'weeks' ? 22 : columnWidth; // 22px effective spacing (21px + 1px gap)
-                          const totalDays = mode === 'weeks' ? dates.length * 7 : dates.length;
-                          // Calculate day positions for the holiday
-                          const timelineStart = normalizeToMidnight(new Date(dates[0]));
-                          const msPerDay = 24 * 60 * 60 * 1000;
-                          const startDay = Math.floor((expandedDates[0].getTime() - timelineStart.getTime()) / msPerDay);
-                          const holidayDays = expandedDates.length;
-                          const startDayIndex = Math.max(0, startDay);
-                          const endDayIndex = Math.min(totalDays - 1, startDay + holidayDays - 1);
-                          if (endDayIndex < 0 || startDayIndex > totalDays - 1) return null;
-                          const leftPx = startDayIndex * dayWidth;
-                          const widthPx = (endDayIndex - startDayIndex + 1) * dayWidth;
-                          // More condensed pattern for weeks view (thinner lines, smaller gaps)
-                          const backgroundPattern = mode === 'weeks' 
-                            ? 'repeating-linear-gradient(-45deg, rgba(107,114,128,0.16) 0 1.5px, transparent 1.5px 4px)'
-                            : 'repeating-linear-gradient(-45deg, rgba(107,114,128,0.16) 0 2px, transparent 2px 6px)';
-                          return (
-                            <div
-                              key={`holiday-avail-${holiday.id}`}
-                              className="absolute top-0 bottom-0 pointer-events-none"
-                              style={{
-                                left: `${leftPx}px`,
-                                width: `${widthPx}px`,
-                                backgroundImage: backgroundPattern
-                              }}
-                            />
-                          );
-                        })}
-                      </div>
-                    </>
+                    /* All timeline overlays: borders, today, weekends, holidays */
+                    <TimelineOverlays dates={dates} mode={mode} holidays={holidays} />
                   }
                 />
               </div>
               {/* Holiday Card */}
               <Card className="mt-4 overflow-hidden shadow-sm border border-gray-200 relative">
                 <div className="bg-yellow-200">
-                  <AddHolidayRow 
+                  <HolidayBar 
                     dates={dates} 
                     collapsed={collapsed} 
                     isDragging={isDragging}
@@ -1273,27 +630,23 @@ export function TimelineView() {
               </Card>
               {/* Unified Timeline Scrollbar */}
               {(() => {
-                if (!scrollbarRangeRef.current) return null;
-                
-                const { start, end } = scrollbarRangeRef.current;
+                const { start, end } = scrollbarRange;
                 const totalDays = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
                 const offset = Math.floor((viewportStart.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
                 const thumbPosition = (offset / totalDays) * 100;
                 const thumbWidth = (VIEWPORT_DAYS / totalDays) * 100;
                 
                 return (
-                  <div className="w-full mt-4 mb-4 px-0">
+                  <div className="w-full mt-4 mb-0 px-0">
                     <div className="w-full h-2 bg-gray-150 relative overflow-hidden" style={{ backgroundColor: '#e8e8e8' }}>
                       <div 
-                        className="absolute top-0 h-full cursor-grab active:cursor-grabbing transition-colors rounded-sm"
+                        className="absolute top-0 h-full cursor-grab active:cursor-grabbing transition-colors rounded-sm hover:bg-gray-600"
                         style={{
                           left: `${Math.max(0, Math.min(100 - thumbWidth, thumbPosition))}%`,
                           width: `${thumbWidth}%`,
                           minWidth: '40px',
                           backgroundColor: '#9a9a9a'
                         }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#7a7a7a'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#9a9a9a'}
                         onMouseDown={(e) => {
                           e.preventDefault();
                           const scrollbarEl = e.currentTarget.parentElement;
@@ -1330,7 +683,6 @@ export function TimelineView() {
             </div>
           </AppPageLayout.Content>
         </AppPageLayout>
-        {/* Modals */}
         <React.Suspense fallback={<div>Loading...</div>}>
           <ProjectModal
             isOpen={!!creatingNewProject}
@@ -1338,7 +690,6 @@ export function TimelineView() {
             groupId={creatingNewProject?.groupId || null}
             rowId={creatingNewProject?.rowId}
           />
-          {/* Project Edit Modal */}
           <ProjectModal
             isOpen={!!selectedProjectId}
             onClose={() => setSelectedProjectId(null)}
@@ -1350,7 +701,6 @@ export function TimelineView() {
             defaultStartDate={creatingNewHoliday?.startDate}
             defaultEndDate={creatingNewHoliday?.endDate}
           />
-          {/* Holiday Edit Modal */}
           <HolidayModal
             isOpen={!!editingHolidayId}
             onClose={() => setEditingHolidayId(null)}

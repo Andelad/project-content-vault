@@ -15,7 +15,7 @@ import { NEUTRAL_COLORS } from '@/constants/colors';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as DatePicker } from '@/components/ui/calendar';
 import { DailyProjectSummaryRow, WeekNavigationBar } from '@/components/planner';
-import { TabbedAvailabilityCard } from '@/components/timeline';
+import { AvailabilityCard } from '@/components/shared';
 import { getBaseFullCalendarConfig, getEventStylingConfig, getResponsiveDayCount } from '@/services';
 // Holidays now sourced from PlannerContext to avoid duplicate fetch/state
 import { getDateKey } from '@/utils/dateFormatUtils';
@@ -1394,7 +1394,7 @@ export function PlannerView() {
     };
   }, [calendarReady, calendarScrollbarWidth]);
 
-  // Measure the time axis width for TabbedAvailabilityCard alignment
+  // Measure the time axis width for AvailabilityCard alignment
   useEffect(() => {
     if (!calendarReady) return;
     
@@ -1628,7 +1628,7 @@ export function PlannerView() {
       </div>
       {/* Calendar Insight Card */}
       <div className="px-6 pb-[21px]">
-        <TabbedAvailabilityCard 
+        <AvailabilityCard 
           key={currentView}
           collapsed={false}
           dates={(() => {
@@ -1650,8 +1650,6 @@ export function PlannerView() {
           projects={projects}
           settings={settings}
           mode={currentView === 'day' ? 'days' : 'weeks'}
-          availabilityDisplayMode="numbers"
-          onDisplayModeChange={() => {}}
           context="planner"
           timeGutterWidth={timeAxisWidth}
           scrollbarWidth={calendarScrollbarWidth}

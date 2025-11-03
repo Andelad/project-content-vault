@@ -8,6 +8,7 @@ export * from './settings';
 export * from './timeline';
 export * from './projects';
 export * from './insights';
+export * from './tracker';
 export * from './work-hours';
 export * from './planner';
 export * from './modals';

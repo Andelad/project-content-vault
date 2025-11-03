@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { TimeTracker } from '../work-hours/TimeTracker';
-import { TimeTrackerBookmark } from '../work-hours/TimeTrackerBookmark';
+import { TimeTracker } from '../tracker/TimeTracker';
+import { TimeTrackerBookmark } from '../tracker/TimeTrackerBookmark';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 import { useTimelineContext } from '../../contexts/TimelineContext';
 import { Button } from '../ui/button';

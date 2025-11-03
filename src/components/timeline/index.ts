@@ -1,21 +1,14 @@
 // Timeline feature components
 // Main timeline components
 export { TimelineView } from '../views/TimelineView';
-export { ProjectTimeline } from './ProjectTimeline';
 
 // Timeline sub-components
-export { AddGroupRow } from './AddGroupRow';
-export { AddProjectRow } from './AddProjectRow';
-export { DragPerformanceMonitor } from './DragPerformanceMonitor';
-export { HoverableDateCell } from './HoverableDateCell';
-export { RowScrollIndicator } from './RowScrollIndicator';
-export { SmartHoverAddHolidayBar } from './SmartHoverAddHolidayBar';
+export { HolidayBar } from './HolidayBar';
 export { TimelineBar } from './TimelineBar';
-export { TimelineColumnMarkers } from './TimelineColumnMarkers';
 export { TimelineDateHeaders } from './TimelineDateHeaders';
-export { UnifiedAvailabilityCircles } from './UnifiedAvailabilityCircles';
-export { TabbedAvailabilityCard } from './TabbedAvailabilityCard';
-export { WorkloadGraph } from './WorkloadGraph';
+export { TimelineGrid } from './TimelineGrid';
+export { TimelineOverlays } from './TimelineOverlays';
+export { TimelineToolbar } from './TimelineToolbar';
 
 // Cleaned up - removed empty/deprecated files:
 // ✅ Removed: DraggableHolidayBar.tsx (deprecated, functionality moved to AddProjectRow)
@@ -41,4 +34,4 @@ export { WorkloadGraph } from './WorkloadGraph';
 // ✅ ProjectTimeline.tsx - project duration calculation delegated
 // ✅ UnifiedAvailabilityCircles.tsx - availability calculations delegated  
 // ✅ TimelineDateHeaders.tsx - date grouping logic delegated
-// ✅ TimelineColumnMarkers.tsx - column marker calculations delegated
+// ✅ TimelineOverlays.tsx - column markers, weekend/holiday calculations delegated (merged with TimelineColumnMarkers)

@@ -8,6 +8,7 @@ import { usePlannerContext } from '../../contexts/PlannerContext';
 import { UnifiedTimelineService, formatDuration } from '@/services';
 import { formatWeekdayDate, formatDateShort } from '@/utils/dateFormatUtils';
 import { NEUTRAL_COLORS } from '@/constants/colors';
+import type { Project, Settings } from '@/types/core';
 
 interface TabProps {
   label: string;
@@ -89,11 +90,11 @@ const InfoButton = ({ title, description }: InfoButtonProps) => {
   );
 };
 
-interface TabbedAvailabilityCardProps {
+interface AvailabilityCardProps {
   collapsed: boolean;
   dates: Date[];
-  projects: any[];
-  settings: any;
+  projects: Project[];
+  settings: Settings;
   mode: 'days' | 'weeks';
   columnMarkersOverlay?: React.ReactNode;
   context?: 'timeline' | 'planner';
@@ -101,7 +102,7 @@ interface TabbedAvailabilityCardProps {
   scrollbarWidth?: number;
 }
 
-export const TabbedAvailabilityCard = memo(function TabbedAvailabilityCard({
+export const AvailabilityCard = memo(function AvailabilityCard({
   collapsed,
   dates,
   projects,
@@ -111,7 +112,7 @@ export const TabbedAvailabilityCard = memo(function TabbedAvailabilityCard({
   context = 'timeline',
   timeGutterWidth = 0,
   scrollbarWidth = 0
-}: TabbedAvailabilityCardProps) {
+}: AvailabilityCardProps) {
   const [activeTab, setActiveTab] = useState<'time-spent' | 'availability-graph'>('availability-graph');
   const [hoveredColumnIndex, setHoveredColumnIndex] = useState<number | null>(null);
   

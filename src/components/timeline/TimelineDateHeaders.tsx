@@ -1,7 +1,9 @@
-import React, { memo } from 'react';
-import { HoverableDateCell } from './HoverableDateCell';
+import React, { memo, useState } from 'react';
+import { Calendar } from 'lucide-react';
 import { formatMonthYear } from '@/utils/dateFormatUtils';
-import { UnifiedTimelineService } from '@/services';
+import { UnifiedTimelineService, addDaysToDate } from '@/services';
+import { useTimelineContext } from '@/contexts/TimelineContext';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface TimelineDateHeadersProps {
   dates: Date[];
@@ -9,6 +11,82 @@ interface TimelineDateHeadersProps {
 }
 
 export const TimelineDateHeaders = memo(function TimelineDateHeaders({ dates, mode = 'days' }: TimelineDateHeadersProps) {
+  const { setCurrentView, setCurrentDate } = useTimelineContext();
+  const [hoveredCellIndex, setHoveredCellIndex] = useState<number | null>(null);
+  const [hoveredDayIndex, setHoveredDayIndex] = useState<number | null>(null);
+
+  const renderDateCell = (date: Date, cellIndex: number, width: number, children: React.ReactNode) => {
+    const isThisCellHovered = hoveredCellIndex === cellIndex;
+
+    const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+      setHoveredCellIndex(cellIndex);
+      
+      if (mode === 'weeks') {
+        // Calculate which day within the week is being hovered
+        const rect = e.currentTarget.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const dayWidth = 22; // 22px effective spacing (21px + 1px gap)
+        const dayIndex = Math.floor(x / dayWidth);
+        setHoveredDayIndex(dayIndex >= 0 && dayIndex < 7 ? dayIndex : null);
+      } else {
+        setHoveredDayIndex(0); // In days mode, treat as single day
+      }
+    };
+
+    const handleMouseLeave = () => {
+      setHoveredCellIndex(null);
+      setHoveredDayIndex(null);
+    };
+
+    const handleClick = () => {
+      let targetDate = new Date(date);
+      if (mode === 'weeks' && hoveredDayIndex !== null) {
+        // Navigate to the specific day within the week
+        targetDate = addDaysToDate(date, hoveredDayIndex);
+      }
+      
+      setCurrentDate(targetDate);
+      setCurrentView('calendar');
+    };
+
+    return (
+      <TooltipProvider>
+        <Tooltip delayDuration={300}>
+          <TooltipTrigger asChild>
+            <div
+              className="relative cursor-pointer h-full w-full"
+              onMouseMove={handleMouseMove}
+              onMouseLeave={handleMouseLeave}
+              onClick={handleClick}
+            >
+              <div className={`transition-opacity duration-200 ${isThisCellHovered ? 'opacity-30' : 'opacity-100'}`}>
+                {children}
+              </div>
+              
+              {/* Minimal hover overlay with calendar icon */}
+              {isThisCellHovered && hoveredDayIndex !== null && (
+                <div 
+                  className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                  style={mode === 'weeks' ? {
+                    left: `${hoveredDayIndex * 22}px`,
+                    width: '22px'
+                  } : undefined}
+                >
+                  <div className="bg-white bg-opacity-90 rounded-full p-1 shadow-sm border">
+                    <Calendar size={12} className="text-blue-600" />
+                  </div>
+                </div>
+              )}
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Go to Planner</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  };
+
   if (mode === 'weeks') {
     // Group dates by month to create sticky headers using service
     const monthGroups = UnifiedTimelineService.groupDatesByMonth(dates);
@@ -65,11 +143,11 @@ export const TimelineDateHeaders = memo(function TimelineDateHeaders({ dates, mo
             
             return (
               <div key={index} className={`text-center ${index < dates.length - 1 ? 'border-r border-gray-200' : ''}`} style={{ minWidth: '154px', width: '154px' }}>
-                <HoverableDateCell date={weekStart} mode={mode} width={153}>
+                {renderDateCell(weekStart, index, 153, 
                   <div className={`text-xs px-1 ${isCurrentWeek ? 'font-medium text-blue-600' : 'text-gray-700'}`}>
                     {dateRange}
                   </div>
-                </HoverableDateCell>
+                )}
               </div>
             );
           })}
@@ -136,11 +214,11 @@ export const TimelineDateHeaders = memo(function TimelineDateHeaders({ dates, mo
           
           return (
             <div key={index} className="text-center" style={{ minWidth: '52px', width: '52px' }}>
-              <HoverableDateCell date={date} mode={mode} width={52}>
+              {renderDateCell(date, index, 52,
                 <div className={`text-xs ${isToday ? 'font-medium text-blue-600 bg-blue-100 rounded-full w-5 h-5 flex items-center justify-center mx-auto' : isWeekend ? 'text-gray-400' : 'text-gray-700'}`}>
                   {date.getDate()}
                 </div>
-              </HoverableDateCell>
+              )}
             </div>
           );
         })}
