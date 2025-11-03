@@ -46,23 +46,24 @@ const ChromeTab = ({ label, isActive, onClick }: TabProps) => {
     <button
       onClick={onClick}
       className={`
-        relative px-6 py-2.5 text-sm font-medium transition-all duration-200
+        relative px-6 text-sm font-medium transition-all duration-200 flex items-center justify-center
         ${isActive 
           ? 'text-gray-800 z-10' 
           : 'text-gray-500 hover:text-gray-600 z-0'
         }
       `}
       style={{
+        height: '40px',
         backgroundColor: isActive ? 'white' : NEUTRAL_COLORS.gray200,
         borderTopLeftRadius: '8px',
         borderTopRightRadius: '8px',
         marginRight: '-2px',
-        paddingBottom: isActive ? '13px' : '10px',
-        borderTop: isActive ? `1px solid ${NEUTRAL_COLORS.gray200}` : '1px solid transparent',
-        borderLeft: isActive ? `1px solid ${NEUTRAL_COLORS.gray200}` : '1px solid transparent',
-        borderRight: isActive ? `1px solid ${NEUTRAL_COLORS.gray200}` : '1px solid transparent',
-        borderBottom: isActive ? '1px solid white' : 'none',
-        marginBottom: isActive ? '-1px' : '0',
+        borderTop: `1px solid ${isActive ? NEUTRAL_COLORS.gray200 : 'transparent'}`,
+        borderLeft: `1px solid ${isActive ? NEUTRAL_COLORS.gray200 : 'transparent'}`,
+        borderRight: `1px solid ${isActive ? NEUTRAL_COLORS.gray200 : 'transparent'}`,
+        borderBottom: isActive ? '1px solid white' : '1px solid transparent',
+        marginBottom: '-1px',
+        boxSizing: 'border-box',
       }}
     >
       {label}

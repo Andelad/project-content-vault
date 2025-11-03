@@ -33,11 +33,12 @@ const ChromeTab = ({ label, isActive, onClick }: TabProps) => {
         borderTopLeftRadius: '8px',
         borderTopRightRadius: '8px',
         marginRight: '-2px',
-        borderTop: isActive ? `1px solid ${NEUTRAL_COLORS.gray200}` : '1px solid transparent',
-        borderLeft: isActive ? `1px solid ${NEUTRAL_COLORS.gray200}` : '1px solid transparent',
-        borderRight: isActive ? `1px solid ${NEUTRAL_COLORS.gray200}` : '1px solid transparent',
-        borderBottom: isActive ? '1px solid white' : 'none',
-        marginBottom: isActive ? '-1px' : '0',
+        borderTop: `1px solid ${isActive ? NEUTRAL_COLORS.gray200 : 'transparent'}`,
+        borderLeft: `1px solid ${isActive ? NEUTRAL_COLORS.gray200 : 'transparent'}`,
+        borderRight: `1px solid ${isActive ? NEUTRAL_COLORS.gray200 : 'transparent'}`,
+        borderBottom: isActive ? '1px solid white' : '1px solid transparent',
+        marginBottom: '-1px',
+        boxSizing: 'border-box',
       }}
     >
       {label}
