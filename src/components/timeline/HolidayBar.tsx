@@ -20,6 +20,42 @@ interface HolidayBarProps {
   mode?: 'days' | 'weeks';
 }
 
+// Helper function to calculate visual holiday dates during drag (like projects)
+function calculateVisualHolidayDates(
+  holiday: any,
+  isDragging: boolean,
+  dragState: any
+): { visualStartDate: Date; visualEndDate: Date } {
+  let visualStartDate = new Date(holiday.startDate);
+  let visualEndDate = new Date(holiday.endDate);
+
+  // Apply drag offset for immediate visual feedback
+  if (isDragging && dragState?.holidayId === holiday.id) {
+    const daysOffset = dragState.lastDaysDelta || 0;
+    const action = dragState.action;
+
+    if (action === 'move') {
+      // Move both start and end
+      visualStartDate = new Date(holiday.startDate);
+      visualStartDate.setDate(visualStartDate.getDate() + daysOffset);
+      visualEndDate = new Date(holiday.endDate);
+      visualEndDate.setDate(visualEndDate.getDate() + daysOffset);
+    } else if (action === 'resize-start-date') {
+      // Only move start date
+      visualStartDate = new Date(holiday.startDate);
+      visualStartDate.setDate(visualStartDate.getDate() + daysOffset);
+      // End date stays the same
+    } else if (action === 'resize-end-date') {
+      // Only move end date
+      visualEndDate = new Date(holiday.endDate);
+      visualEndDate.setDate(visualEndDate.getDate() + daysOffset);
+      // Start date stays the same
+    }
+  }
+
+  return { visualStartDate, visualEndDate };
+}
+
 export function HolidayBar({ dates, collapsed, isDragging, dragState, handleHolidayMouseDown, mode = 'days' }: HolidayBarProps) {
   const { holidays: globalHolidays, addHoliday, setCreatingNewHoliday, setEditingHolidayId } = usePlannerContext();
   
@@ -32,13 +68,15 @@ export function HolidayBar({ dates, collapsed, isDragging, dragState, handleHoli
   const dragStartRef = useRef<number | null>(null);
   const dragEndRef = useRef<number | null>(null);
   
-  // Convert global holidays to timeline format
+  // Convert global holidays to timeline format with visual drag feedback
   const timelineHolidays = globalHolidays.map(holiday => {
+    // Calculate visual dates if this holiday is being dragged
+    const { visualStartDate, visualEndDate } = calculateVisualHolidayDates(holiday, isDragging, dragState);
     if (mode === 'weeks') {
       // For weeks mode, we need to calculate which weeks contain the holiday
       // and then calculate the exact day positions within those weeks
-      const holidayStart = normalizeToMidnight(new Date(holiday.startDate));
-      const holidayEnd = normalizeToMidnight(new Date(holiday.endDate));
+      const holidayStart = normalizeToMidnight(new Date(visualStartDate));
+      const holidayEnd = normalizeToMidnight(new Date(visualEndDate));
       
       // Find which week columns this holiday spans
       let startWeekIndex = -1;
@@ -85,9 +123,9 @@ export function HolidayBar({ dates, collapsed, isDragging, dragState, handleHoli
       };
     } else {
       // Days mode: Calculate position relative to viewport, but maintain full holiday width
-      const holidayStart = normalizeToMidnight(new Date(holiday.startDate));
+      const holidayStart = normalizeToMidnight(new Date(visualStartDate));
       // Use midnight for end as well to match overlay logic and avoid DST off-by-one
-      const holidayEnd = normalizeToMidnight(new Date(holiday.endDate));
+      const holidayEnd = normalizeToMidnight(new Date(visualEndDate));
       
       if (dates.length === 0) return null;
       

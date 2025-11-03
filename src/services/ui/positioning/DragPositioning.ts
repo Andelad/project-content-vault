@@ -644,46 +644,33 @@ export function initializeHolidayDragState(
 }
 
 /**
- * Calculate holiday drag update with snap behavior
- * Holidays snap to day boundaries in days mode, smooth in weeks mode
+ * Calculate holiday drag update with smooth behavior like projects
+ * Uses the same smooth drag math as projects while respecting holiday-specific constraints
  */
 export function calculateHolidayDragUpdate(
   currentMouseX: number,
   dragState: DragState,
   mode: 'days' | 'weeks'
 ): DragPositionResult {
-  const deltaX = currentMouseX - dragState.startX;
-  const dayWidth = mode === 'weeks' ? DRAG_CONSTANTS.WEEKS_MODE_DAY_WIDTH : DRAG_CONSTANTS.DAYS_MODE_COLUMN_WIDTH;
+  // Calculate pixel delta from start position
+  const pixelDeltaX = currentMouseX - dragState.startX;
   
-  // Calculate smooth movement
-  const smoothDaysDelta = deltaX / dayWidth;
-  
-  // Apply snap behavior based on mode
-  let visualDelta: number;
-  let daysDelta: number;
-  
-  if (mode === 'weeks') {
-    // Smooth movement in weeks view
-    visualDelta = smoothDaysDelta;
-    daysDelta = Math.round(smoothDaysDelta); // Round for final date calculation
-  } else {
-    // Snap to day boundaries in days view
-    daysDelta = Math.round(smoothDaysDelta);
-    visualDelta = daysDelta;
-  }
-  
-  // Determine if we should update
-  const shouldUpdate = Math.abs(daysDelta - dragState.lastDaysDelta) >= 1;
-  
+  // Calculate days delta directly from pixel movement (always snap to whole days)
+  const daysDelta = Math.round(calculateDaysDelta(pixelDeltaX, mode));
+
+  // Determine if update is needed (same logic as projects for consistency)
+  const shouldUpdate = daysDelta !== dragState.lastDaysDelta;
+
   return {
     newX: currentMouseX,
     newY: dragState.startY,
     daysDelta,
     isValid: true,
-    visualDelta,
-    pixelDeltaX: deltaX,
+    visualDelta: daysDelta, // Use snapped days delta for visual consistency with projects
+    pixelDeltaX: pixelDeltaX,
     shouldUpdate,
-    shouldSnap: mode === 'days'
+    snappedDelta: daysDelta,
+    shouldSnap: true // Always snap to day boundaries
   };
 }
 

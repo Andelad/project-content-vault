@@ -4,7 +4,6 @@ import {
   TimelineDragCoordinatorService,
   initializeHolidayDragState,
   throttledDragUpdate,
-  throttledVisualUpdate,
   addDaysToDate
 } from '@/services';
 
@@ -21,6 +20,34 @@ interface UseHolidayDragProps {
   setIsDragging: (dragging: boolean) => void;
   setDragState: (state: any) => void;
   dragState: any;
+}
+
+/**
+ * Check if a holiday date range overlaps with any existing holidays
+ * Returns true if there's an overlap (excluding the current holiday being dragged)
+ */
+function checkHolidayOverlap(
+  startDate: Date,
+  endDate: Date,
+  currentHolidayId: string,
+  allHolidays: any[]
+): boolean {
+  return allHolidays.some(holiday => {
+    // Skip the holiday being dragged
+    if (holiday.id === currentHolidayId) return false;
+    
+    const holidayStart = new Date(holiday.startDate);
+    const holidayEnd = new Date(holiday.endDate);
+    
+    // Normalize all dates to midnight for comparison
+    holidayStart.setHours(0, 0, 0, 0);
+    holidayEnd.setHours(0, 0, 0, 0);
+    startDate.setHours(0, 0, 0, 0);
+    endDate.setHours(0, 0, 0, 0);
+    
+    // Check if dates overlap
+    return startDate <= holidayEnd && holidayStart <= endDate;
+  });
 }
 
 /**
@@ -63,13 +90,15 @@ export function useHolidayDrag({
     setIsDragging(true);
     setDragState(initialDragState);
     
+    let currentDragStateRef = initialDragState; // Track current drag state in closure
+    
     const handleMouseMove = (e: MouseEvent) => {
       try {
         e.preventDefault();
         
         // Use unified drag coordinator for all calculations
         const result = TimelineDragCoordinatorService.coordinateDragOperation(
-          dragState || initialDragState,
+          currentDragStateRef,
           e,
           {
             projects,
@@ -85,35 +114,48 @@ export function useHolidayDrag({
           checkAutoScroll(e.clientX);
         }
         
-        // Update visual state if needed
-        if (result.shouldUpdate) {
-          throttledVisualUpdate(() => {
-            setDragState(result.newDragState);
-          }, timelineMode);
+        // Update visual state immediately for smooth dragging (like projects)
+        if (result.shouldUpdate || action === 'resize-start-date' || action === 'resize-end-date' || action === 'move') {
+          currentDragStateRef = result.newDragState; // Keep latest state in closure
+          setDragState(result.newDragState);
         }
         
         // Handle background persistence (throttled database updates)
         const daysDelta = result.newDragState.lastDaysDelta;
-        if (daysDelta !== (dragState?.lastDaysDelta || 0)) {
+        if (daysDelta !== (currentDragStateRef?.lastDaysDelta || 0)) {
           const throttleMs = timelineMode === 'weeks' ? 100 : 50;
           throttledDragUpdate(async () => {
+            let newStartDate: Date, newEndDate: Date;
+            
             if (action === 'resize-start-date') {
-              const newStartDate = addDaysToDate(new Date(initialDragState.originalStartDate), daysDelta);
-              const endDate = new Date(initialDragState.originalEndDate);
-              // Allow start date to equal end date (single day holiday)
-              if (newStartDate <= endDate) {
-                updateHoliday(holidayId, { startDate: newStartDate }, { silent: true });
-              }
+              newStartDate = addDaysToDate(new Date(initialDragState.originalStartDate), daysDelta);
+              newEndDate = new Date(initialDragState.originalEndDate);
+              
+              // Validate: start date must be <= end date
+              if (newStartDate > newEndDate) return;
+              
+              // Check for overlaps with other holidays
+              if (checkHolidayOverlap(newStartDate, newEndDate, holidayId, holidays)) return;
+              
+              updateHoliday(holidayId, { startDate: newStartDate }, { silent: true });
             } else if (action === 'resize-end-date') {
-              const newEndDate = addDaysToDate(new Date(initialDragState.originalEndDate), daysDelta);
-              const startDate = new Date(initialDragState.originalStartDate);
-              // Allow end date to equal start date (single day holiday)
-              if (newEndDate >= startDate) {
-                updateHoliday(holidayId, { endDate: newEndDate }, { silent: true });
-              }
+              newStartDate = new Date(initialDragState.originalStartDate);
+              newEndDate = addDaysToDate(new Date(initialDragState.originalEndDate), daysDelta);
+              
+              // Validate: end date must be >= start date
+              if (newEndDate < newStartDate) return;
+              
+              // Check for overlaps with other holidays
+              if (checkHolidayOverlap(newStartDate, newEndDate, holidayId, holidays)) return;
+              
+              updateHoliday(holidayId, { endDate: newEndDate }, { silent: true });
             } else if (action === 'move') {
-              const newStartDate = addDaysToDate(new Date(initialDragState.originalStartDate), daysDelta);
-              const newEndDate = addDaysToDate(new Date(initialDragState.originalEndDate), daysDelta);
+              newStartDate = addDaysToDate(new Date(initialDragState.originalStartDate), daysDelta);
+              newEndDate = addDaysToDate(new Date(initialDragState.originalEndDate), daysDelta);
+              
+              // Check for overlaps with other holidays
+              if (checkHolidayOverlap(newStartDate, newEndDate, holidayId, holidays)) return;
+              
               updateHoliday(holidayId, { 
                 startDate: newStartDate,
                 endDate: newEndDate 
@@ -126,20 +168,69 @@ export function useHolidayDrag({
       }
     };
     
-    const handleMouseUp = () => {
-      // Only show toast if there was actual movement (daysDelta !== 0)
-      const daysDelta = dragState?.lastDaysDelta || initialDragState.lastDaysDelta || 0;
+    const handleMouseUp = async () => {
+      // Capture final delta from closure ref
+      const daysDelta = currentDragStateRef?.lastDaysDelta || 0;
       
       setIsDragging(false);
       setDragState(null);
       stopAutoScroll();
       
-      // Only show success toast if the holiday was actually moved/resized
+      // Perform final update to sync local state with database
+      // This ensures the holiday stays in its new position after drag ends
       if (daysDelta !== 0) {
-        toast({
-          title: "Success",
-          description: "Holiday updated successfully",
-        });
+        try {
+          let newStartDate: Date, newEndDate: Date;
+          let isValid = false;
+          
+          if (action === 'resize-start-date') {
+            newStartDate = addDaysToDate(new Date(initialDragState.originalStartDate), daysDelta);
+            newEndDate = new Date(initialDragState.originalEndDate);
+            
+            // Validate: start date must be <= end date and no overlaps
+            isValid = newStartDate <= newEndDate && 
+                      !checkHolidayOverlap(newStartDate, newEndDate, holidayId, holidays);
+            
+            if (isValid) {
+              await updateHoliday(holidayId, { startDate: newStartDate }, { silent: false });
+            }
+          } else if (action === 'resize-end-date') {
+            newStartDate = new Date(initialDragState.originalStartDate);
+            newEndDate = addDaysToDate(new Date(initialDragState.originalEndDate), daysDelta);
+            
+            // Validate: end date must be >= start date and no overlaps
+            isValid = newEndDate >= newStartDate && 
+                      !checkHolidayOverlap(newStartDate, newEndDate, holidayId, holidays);
+            
+            if (isValid) {
+              await updateHoliday(holidayId, { endDate: newEndDate }, { silent: false });
+            }
+          } else if (action === 'move') {
+            newStartDate = addDaysToDate(new Date(initialDragState.originalStartDate), daysDelta);
+            newEndDate = addDaysToDate(new Date(initialDragState.originalEndDate), daysDelta);
+            
+            // Validate: no overlaps
+            isValid = !checkHolidayOverlap(newStartDate, newEndDate, holidayId, holidays);
+            
+            if (isValid) {
+              await updateHoliday(holidayId, { 
+                startDate: newStartDate,
+                endDate: newEndDate 
+              }, { silent: false });
+            }
+          }
+          
+          // If the final position was invalid, show a warning
+          if (!isValid) {
+            toast({
+              title: "Invalid Position",
+              description: "Holiday cannot overlap with existing holidays",
+              variant: "destructive",
+            });
+          }
+        } catch (error) {
+          console.error('Error in final holiday update:', error);
+        }
       }
       
       // Remove ALL possible event listeners for robust pen/tablet support

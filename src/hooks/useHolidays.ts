@@ -184,7 +184,12 @@ export function useHolidays() {
         user_id: data.user_id
       };
       
-      setHolidays(prev => prev.map(holiday => holiday.id === id ? transformedData : holiday));
+      // CRITICAL FIX: Don't update local state during drag operations (silent mode)
+      // The visual feedback during drag is handled by dragState in HolidayBar.tsx
+      // Updating state here would overwrite the drag visual offset, causing "ping back"
+      if (!options.silent) {
+        setHolidays(prev => prev.map(holiday => holiday.id === id ? transformedData : holiday));
+      }
       
       // Only show toast if not in silent mode
       if (!options.silent) {
