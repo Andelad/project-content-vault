@@ -558,3 +558,166 @@ export function groupDatesByMonth(dates: Date[]): Array<{
   
   return monthGroups;
 }
+
+// ============================================================================
+// TIMELINE-SPECIFIC DATE CALCULATIONS
+// ============================================================================
+
+/**
+ * Calculate the visible project days within viewport bounds
+ * Used to determine which days to render for a project on the timeline
+ */
+export function calculateProjectDaysInViewport(
+  projectStartDate: Date,
+  projectEndDate: Date,
+  isContinuous: boolean,
+  viewportStart: Date,
+  viewportEnd: Date
+): Date[] {
+  // Normalize project dates to remove time components
+  const projectStart = normalizeToMidnight(projectStartDate);
+  
+  // For continuous projects, use viewport end as the effective end date
+  // This prevents infinite rendering while still showing the project as ongoing
+  const projectEnd = isContinuous
+    ? normalizeToMidnight(viewportEnd)
+    : normalizeToMidnight(projectEndDate);
+
+  // Normalize viewport dates
+  const normalizedViewportStart = normalizeToMidnight(viewportStart);
+  const normalizedViewportEnd = normalizeToMidnight(viewportEnd);
+
+  // For continuous projects, only check if project has started
+  // For regular projects, check both start and end dates
+  if (isContinuous) {
+    if (projectStart > normalizedViewportEnd) {
+      return [];
+    }
+  } else {
+    if (projectEnd < normalizedViewportStart || projectStart > normalizedViewportEnd) {
+      return [];
+    }
+  }
+
+  const projectDays = [];
+  const visibleStart = projectStart < normalizedViewportStart ? normalizedViewportStart : projectStart;
+  const visibleEnd = projectEnd > normalizedViewportEnd ? normalizedViewportEnd : projectEnd;
+
+  // Use addDays from date-fns instead of manual date manipulation
+  let currentDay = visibleStart;
+  while (currentDay <= visibleEnd) {
+    projectDays.push(normalizeToMidnight(currentDay));
+    currentDay = addDays(currentDay, 1);
+  }
+
+  return projectDays;
+}
+
+/**
+ * Convert day indices to actual dates based on a dates array or base date
+ */
+export function convertIndicesToDates(
+  indices: number[],
+  datesArray?: Date[] | Date,
+  mode: 'days' | 'weeks' = 'days'
+): Date[] {
+  // Handle different parameter patterns for backwards compatibility
+  if (Array.isArray(datesArray)) {
+    // New pattern: convertIndicesToDates([startIndex, endIndex], dates, mode)
+    return indices.map(index => {
+      if (index >= 0 && index < datesArray.length) {
+        return datesArray[index];
+      }
+      // Fallback if index is out of bounds - use addDays instead of setDate
+      const firstDate = datesArray[0] || new Date();
+      return addDays(firstDate, index);
+    });
+  } else {
+    // Original pattern: convertIndicesToDates(indices, baseDate)
+    const baseDate = datesArray instanceof Date ? datesArray : new Date();
+    return indices.map(index => addDays(baseDate, index));
+  }
+}
+
+/**
+ * Calculate which timeline indices are occupied by existing holidays
+ * Returns sorted array of unique indices
+ */
+export function calculateOccupiedHolidayIndices(
+  holidays: Array<{ startDate: Date; endDate?: Date }>,
+  dates: Date[],
+  mode: 'days' | 'weeks' = 'days'
+): number[] {
+  const occupied: number[] = [];
+  
+  if (!holidays || holidays.length === 0 || !dates || dates.length === 0) {
+    return occupied;
+  }
+  
+  holidays.forEach(holiday => {
+    // Ensure we have valid dates
+    if (!isValidDate(holiday.startDate)) {
+      console.warn('Invalid holiday startDate:', holiday);
+      return;
+    }
+    
+    const holidayEnd = holiday.endDate || holiday.startDate;
+    
+    // Calculate day indices for the holiday period using addDays
+    const normalizedStart = normalizeToMidnight(holiday.startDate);
+    const normalizedEnd = normalizeToMidnight(holidayEnd);
+    
+    let currentDay = normalizedStart;
+    while (currentDay <= normalizedEnd) {
+      dates.forEach((date, index) => {
+        if (isSameDay(date, currentDay)) {
+          occupied.push(index);
+        }
+      });
+      currentDay = addDays(currentDay, 1);
+    }
+  });
+  
+  return [...new Set(occupied)].sort((a, b) => a - b);
+}
+
+// ============================================================================
+// DRAG-SPECIFIC DATE CALCULATIONS
+// ============================================================================
+
+/**
+ * Calculate days delta from pixel delta
+ * Converts horizontal mouse movement to number of days based on timeline mode
+ */
+export function calculateDaysDeltaFromPixels(
+  deltaX: number,
+  mode: 'days' | 'weeks',
+  columnWidthDays: number = 52,
+  columnWidthWeeks: number = 154
+): number {
+  if (mode === 'weeks') {
+    // In weeks mode, each column is 7 days wide
+    const columnsDelta = deltaX / columnWidthWeeks;
+    return Math.round(columnsDelta * 7);
+  } else {
+    // In days mode, each column is 1 day wide
+    const columnsDelta = deltaX / columnWidthDays;
+    return Math.round(columnsDelta);
+  }
+}
+
+/**
+ * Add days to a date and return new date
+ * Pure function wrapper around addDays from date-fns
+ */
+export function addDaysToDatePure(date: Date, days: number): Date {
+  return addDays(date, days);
+}
+
+/**
+ * Subtract days from a date and return new date
+ * Pure function wrapper around subDays from date-fns
+ */
+export function subtractDaysFromDate(date: Date, days: number): Date {
+  return subDays(date, days);
+}

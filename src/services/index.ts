@@ -31,8 +31,8 @@ export * from './orchestrators/GroupOrchestrator';
 export * from './orchestrators/PlannerViewOrchestrator';
 export * from './orchestrators/recurringEventsOrchestrator';
 export * from './calculations';      // Pure data calculations - projectCalculations, timeCalculations
-export * from './timeline/TimelineAutoLayoutService'; // Timeline 2.0 auto-layout service
-export * from './ui';               // View positioning & UI math - TimelinePositioning, DragPositioning, ViewportPositioning, ColorCalculations
+export * from './timeline/TimelineAutoRowService'; // Timeline auto-row arrangement service
+export * from './ui';               // View positioning & UI math - ProjectBarPositioning, DragPositioning, TimelineViewportService, ColorCalculations
 export * from './performance';      // Performance optimization - dragPerformanceService, cachePerformanceService, calculationCache, dateCache
 
 // 🚧 Legacy Services (Temporary - During Migration)
@@ -100,7 +100,7 @@ export {
 // TimelineCalculationService migrated to calculations/timelineCalculations.ts
 
 // New architecture services - maintain backward compatibility
-export { TimelineViewport, TimelineViewport as TimelineViewportService } from './ui/positioning/ViewportPositioning';
+export { TimelineViewport, TimelineViewport as TimelineViewportService } from './ui/positioning/TimelineViewportService';
 // Project data integrity utilities (formerly ProjectValidator)
 export * from './utilities/projectDataIntegrity';
 
@@ -225,7 +225,7 @@ export {
 } from './calculations/projects/milestoneCalculations';
 // Legacy project progress analysis - migrated to unified service with compatibility wrapper
 export { wouldOverlapHolidays, isHolidayDateCapacity, calculateCommittedHoursForDate, hasWorkHoursConfigured, dayHasWorkHoursConfigured } from './calculations/availability/capacityCalculations';
-export { calculateProjectDays, calculateWorkHoursTotal, calculateDayWorkHours, calculateTotalDayWorkHours } from './ui/positioning/TimelineCalculations';
+export { calculateProjectDays, calculateWorkHoursTotal, calculateDayWorkHours, calculateTotalDayWorkHours } from './ui/positioning/ProjectBarPositioning';
 export { calculateDailyCapacity } from './calculations/insights/analyticsCalculations';
 export { calculateProjectTimeMetrics as calculateLegacyProjectMetrics } from './calculations/projects/projectEntityCalculations';
 // CoreProjectCalculationService migrated to UnifiedProjectService

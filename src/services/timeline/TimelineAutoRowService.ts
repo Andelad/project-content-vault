@@ -1,10 +1,12 @@
 /**
- * Timeline Auto-Layout Service
+ * Timeline Auto-Row Service
  * 
  * Automatically arranges projects into visual rows within groups based on date overlaps.
  * - Projects sorted by start date (primary) or alphabetically (secondary)
  * - Minimum 2-day gap enforced between projects on the same visual row
  * - Dynamic row count based on concurrent projects in visible date range
+ * 
+ * Renamed from TimelineAutoLayoutService (Nov 2025) for clarity - specifically handles row arrangement
  */
 
 import type { Project, Group } from '@/types/core';
@@ -196,9 +198,9 @@ function calculateGroupLayout(
 }
 
 /**
- * Main function: Calculate complete timeline layout
+ * Main function: Calculate complete timeline row arrangement
  */
-export function calculateTimelineLayout(input: LayoutInput): TimelineLayout {
+export function calculateTimelineRows(input: LayoutInput): TimelineLayout {
   const {
     projects,
     groups,

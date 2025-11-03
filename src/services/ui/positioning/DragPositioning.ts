@@ -6,8 +6,17 @@
  * 
  * Migrated from: services/legacy/events/dragCalculationService.ts (September 8, 2025)
  * Moved to: services/ui/positioning/DragPositioning.ts (October 20, 2025)
- * Reason: Separated UI positioning from pure data calculations
+ * Refactored: November 2025 - Extracted date math, performance utils, and animations
+ * 
+ * Dependencies:
+ * - dateCalculations.ts: Pure date math functions
+ * - utils/performance.ts: Throttle/debounce utilities
+ * - TimelineViewportService: Animation functions
  */
+
+import { calculateDaysDeltaFromPixels, addDaysToDatePure } from '@/services/calculations/general/dateCalculations';
+import { debounce, throttle, cleanupPerformanceTimers } from '@/utils/performance';
+import { TimelineViewport } from './TimelineViewportService';
 
 /**
  * Drag state interface for timeline interactions
@@ -129,75 +138,14 @@ export type DragOperation =
   | 'adjust-time-allocation';
 
 /**
- * Debounced update utilities with cleanup support
+ * Re-export performance utilities for backwards compatibility
  */
-const debouncedUpdateTimeouts = new Map<string, NodeJS.Timeout>();
-
-/**
- * Throttled update utilities
- */
-const throttledCallbacks = new Map<string, NodeJS.Timeout>();
-
-/**
- * Debounce drag updates to prevent excessive API calls
- */
-export function debounceDragUpdate<T extends (...args: any[]) => void>(
-  callback: T,
-  delay: number = DRAG_CONSTANTS.DEBOUNCE_DELAY_MS,
-  key: string = 'default'
-): (...args: Parameters<T>) => void {
-  return (...args: Parameters<T>) => {
-    const timeoutId = debouncedUpdateTimeouts.get(key);
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-    }
-    
-    const newTimeoutId = setTimeout(() => {
-      callback(...args);
-      debouncedUpdateTimeouts.delete(key);
-    }, delay);
-    
-    debouncedUpdateTimeouts.set(key, newTimeoutId);
-  };
-}
-
-/**
- * Throttle drag updates for performance optimization
- */
-export function throttleDragUpdate<T extends (...args: any[]) => void>(
-  callback: T,
-  delay: number = DRAG_CONSTANTS.THROTTLE_DELAY_DAYS_MS,
-  key: string = 'default'
-): (...args: Parameters<T>) => void {
-  let lastCallTime = 0;
-  
-  return (...args: Parameters<T>) => {
-    const now = Date.now();
-    const timeSinceLastCall = now - lastCallTime;
-    
-    if (timeSinceLastCall >= delay) {
-      lastCallTime = now;
-      callback(...args);
-    } else {
-      const timeoutId = throttledCallbacks.get(key);
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-      
-      const newTimeoutId = setTimeout(() => {
-        lastCallTime = Date.now();
-        callback(...args);
-        throttledCallbacks.delete(key);
-      }, delay - timeSinceLastCall);
-      
-      throttledCallbacks.set(key, newTimeoutId);
-    }
-  };
-}
+export const debounceDragUpdate = debounce;
+export const throttleDragUpdate = throttle;
 
 /**
  * Calculate the number of days delta based on mouse movement and timeline mode
- * Legacy-compatible version with additional parameters
+ * Legacy-compatible wrapper that delegates to dateCalculations service
  */
 export function calculateDaysDelta(
   currentMouseXOrDelta: number,
@@ -211,31 +159,28 @@ export function calculateDaysDelta(
     const currentMouseX = currentMouseXOrDelta;
     const startX = startXOrMode;
     const deltaX = currentMouseX - startX;
-    const columnWidth = mode === 'weeks' ? DRAG_CONSTANTS.WEEKS_MODE_COLUMN_WIDTH : DRAG_CONSTANTS.DAYS_MODE_COLUMN_WIDTH;
-    const columnsDelta = deltaX / columnWidth;
+    const timelineMode = mode || 'days';
     
-    if (mode === 'weeks') {
-      // In weeks mode, each column is 7 days
-      return allowFractional ? columnsDelta * 7 : Math.round(columnsDelta * 7);
-    } else {
-      // In days mode, each column is 1 day
-      return allowFractional ? columnsDelta : Math.round(columnsDelta);
-    }
+    const result = calculateDaysDeltaFromPixels(
+      deltaX,
+      timelineMode,
+      DRAG_CONSTANTS.DAYS_MODE_COLUMN_WIDTH,
+      DRAG_CONSTANTS.WEEKS_MODE_COLUMN_WIDTH
+    );
+    
+    return allowFractional ? result : Math.round(result);
   }
   
   // Handle new signature: calculateDaysDelta(deltaX, mode)
   const deltaX = currentMouseXOrDelta;
   const timelineMode = (startXOrMode as 'days' | 'weeks') || 'days';
   
-  if (timelineMode === 'weeks') {
-    // In weeks mode, each column is 7 days wide
-    const columnsDelta = deltaX / DRAG_CONSTANTS.WEEKS_MODE_COLUMN_WIDTH;
-    return Math.round(columnsDelta * 7);
-  } else {
-    // In days mode, each column is 1 day wide
-    const columnsDelta = deltaX / DRAG_CONSTANTS.DAYS_MODE_COLUMN_WIDTH;
-    return Math.round(columnsDelta);
-  }
+  return calculateDaysDeltaFromPixels(
+    deltaX,
+    timelineMode,
+    DRAG_CONSTANTS.DAYS_MODE_COLUMN_WIDTH,
+    DRAG_CONSTANTS.WEEKS_MODE_COLUMN_WIDTH
+  );
 }
 
 /**
@@ -403,37 +348,14 @@ export function isDragThresholdExceeded(
 
 /**
  * Create smooth animation for drag operations
+ * Delegates to TimelineViewportService for consistency
  */
 export function createSmoothDragAnimation(
   config: SmoothAnimationConfig,
   onUpdate: (intermediateValue: Date) => void,
   onComplete?: () => void
 ): void {
-  const startTime = performance.now();
-  const { currentStart, targetStart, duration } = config;
-  const totalChange = targetStart - currentStart;
-  
-  // Default easing function (ease-out cubic)
-  const easing = config.easingFunction || ((t: number) => 1 - Math.pow(1 - t, 3));
-  
-  function animate(currentTime: number) {
-    const elapsed = currentTime - startTime;
-    const progress = Math.min(elapsed / duration, 1);
-    const easedProgress = easing(progress);
-    
-    const currentValue = currentStart + (totalChange * easedProgress);
-    const intermediateDate = new Date(currentValue);
-    
-    onUpdate(intermediateDate);
-    
-    if (progress < 1) {
-      requestAnimationFrame(animate);
-    } else if (onComplete) {
-      onComplete();
-    }
-  }
-  
-  requestAnimationFrame(animate);
+  TimelineViewport.createSmoothAnimation(config, onUpdate, onComplete);
 }
 
 /**
@@ -819,30 +741,9 @@ export function validateHolidayBounds(
 
 /**
  * Cleanup drag operations and clear timeouts
+ * Re-exported from utils/performance for backwards compatibility
  */
-export function cleanupDragOperations(key?: string): void {
-  if (key) {
-    // Clear specific operation
-    const timeoutId = debouncedUpdateTimeouts.get(key);
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-      debouncedUpdateTimeouts.delete(key);
-    }
-    
-    const throttleTimeoutId = throttledCallbacks.get(key);
-    if (throttleTimeoutId) {
-      clearTimeout(throttleTimeoutId);
-      throttledCallbacks.delete(key);
-    }
-  } else {
-    // Clear all operations
-    debouncedUpdateTimeouts.forEach(clearTimeout);
-    debouncedUpdateTimeouts.clear();
-    
-    throttledCallbacks.forEach(clearTimeout);
-    throttledCallbacks.clear();
-  }
-}
+export const cleanupDragOperations = cleanupPerformanceTimers;
 
 /**
  * Calculate drag performance metrics

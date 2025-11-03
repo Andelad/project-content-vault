@@ -436,6 +436,47 @@ export class TimelineViewport {
     // Can add blocking logic here if needed (e.g., during heavy operations)
     return { isBlocked: false };
   }
+
+  /**
+   * Create smooth animation for viewport operations
+   * Used for drag operations, navigation, and scrolling
+   */
+  static createSmoothAnimation(
+    config: {
+      currentStart: number;
+      targetStart: number;
+      duration: number;
+      easingFunction?: (progress: number) => number;
+    },
+    onUpdate: (intermediateValue: Date) => void,
+    onComplete?: () => void
+  ): void {
+    const startTime = performance.now();
+    const { currentStart, targetStart, duration } = config;
+    const totalChange = targetStart - currentStart;
+    
+    // Default easing function (ease-out cubic)
+    const easing = config.easingFunction || ((t: number) => 1 - Math.pow(1 - t, 3));
+    
+    function animate(currentTime: number) {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const easedProgress = easing(progress);
+      
+      const currentValue = currentStart + (totalChange * easedProgress);
+      const intermediateDate = new Date(currentValue);
+      
+      onUpdate(intermediateDate);
+      
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else if (onComplete) {
+        onComplete();
+      }
+    }
+    
+    requestAnimationFrame(animate);
+  }
   /**
    * Calculate viewport performance metrics
    */

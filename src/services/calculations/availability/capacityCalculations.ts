@@ -11,7 +11,7 @@ import {
 } from '../general/dateCalculations';
 
 import { calculateEventDurationOnDate } from '../events/eventCalculations';
-import { calculateWorkHoursTotal, calculateDayWorkHours } from '../../ui/positioning/TimelineCalculations';
+import { calculateWorkHoursTotal, calculateDayWorkHours } from '../../ui/positioning/ProjectBarPositioning';
 import { getDateKey } from '@/utils/dateFormatUtils';
 
 // Import unified functions - these are the single source of truth

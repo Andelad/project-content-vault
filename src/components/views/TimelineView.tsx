@@ -16,7 +16,7 @@ import {
   createSmoothDragAnimation,
   workingDayStats,
   milestoneStats,
-  calculateTimelineLayout,
+  calculateTimelineRows,
   type SmoothAnimationConfig,
   type DragState as ServiceDragState
 } from '@/services';
@@ -43,7 +43,7 @@ const HolidayModal = React.lazy(() => import('../modals/HolidayModal').then(modu
  * **Architecture Pattern**:
  * - Contexts: Provides data (projects, groups, holidays, settings)
  * - Custom Hooks: Manage React state + coordinate services (useProjectDrag, useHolidayDrag, useTimelineData)
- * - Services: Pure calculations (TimelineViewportService, calculateTimelineLayout)
+ * - Services: Pure calculations (TimelineViewportService, calculateTimelineRows)
  * - Components: Presentational UI (TimelineToolbar, TimelineGrid, TimelineOverlays)
  * 
  * **Responsibilities**:
@@ -61,7 +61,7 @@ const HolidayModal = React.lazy(() => import('../modals/HolidayModal').then(modu
  * @see TimelineViewportService - Viewport calculations and animations
  * @see useProjectDrag - Project drag state management
  * @see useHolidayDrag - Holiday drag state management
- * @see calculateTimelineLayout - Auto-layout algorithm
+ * @see calculateTimelineRows - Auto-row arrangement algorithm
  */
 export function TimelineView() {
   // Get data from specific contexts
@@ -226,7 +226,7 @@ export function TimelineView() {
         };
       }
       
-      const layout = calculateTimelineLayout({
+      const layout = calculateTimelineRows({
         projects: groupProjects,
         groups: [group],
         dateRange: {
@@ -550,8 +550,8 @@ export function TimelineView() {
                     {/* Date Headers - full width, no sidebar */}
                     <div className="flex-1 bg-white" style={{ 
                       minWidth: mode === 'weeks' 
-                        ? `${dates.length * 77}px` // Using 77px for header (not same as content 153px)
-                        : `${dates.length * 52 + 52}px` // Add buffer for days mode
+                        ? `${dates.length * 154}px` // 154px per week column (7 days × 22px)
+                        : `${dates.length * 52 + 52}px` // 52px per day + 52px buffer
                     }}>
                       <TimelineDateHeaders dates={dates} mode={mode} />
                     </div>
@@ -568,7 +568,7 @@ export function TimelineView() {
                         className="absolute top-0 left-0 bottom-0 pointer-events-none" 
                         style={{ 
                           width: mode === 'weeks' 
-                            ? `${dates.length * 77}px` // Using 77px for header
+                            ? `${dates.length * 154}px` // 154px per week column (matches headers)
                             : `${dates.length * 52 + 52}px`,
                           zIndex: 1
                         }}

@@ -11,7 +11,8 @@ import * as DragCalculationsService from '../positioning/DragPositioning';
 import { DragState, DragPositionResult } from '../positioning/DragPositioning';
 import * as ProjectOverlapService from '../../calculations/projects/projectEntityCalculations';
 import { ConflictDetectionResult, DateAdjustmentResult } from '../../calculations/projects/projectEntityCalculations';
-import { TimelineViewport as TimelineViewportService } from '../positioning/ViewportPositioning';
+import { calculateProjectDays, calculateWorkHoursTotal, calculateDayWorkHours } from '../positioning/ProjectBarPositioning';
+import { TimelineViewport as TimelineViewportService } from '../positioning/TimelineViewportService';
 import type { Project } from '@/types/core';
 
 export interface TimelineContext {

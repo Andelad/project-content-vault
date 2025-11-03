@@ -1,0 +1,568 @@
+/**
+ * Project Bar Positioning Service
+ * Consolidated service for calculating project bar positions, widths, and visual offsets on the timeline
+ * 
+ * Responsibilities:
+ * - Calculate pixel positions (left/width) for project bars
+ * - Calculate visual offsets for drag operations
+ * - Calculate project days and working hours
+ * - Calculate column marker data for timeline UI
+ * 
+ * Replaces:
+ * - TimelinePositioning.ts (project-specific functions)
+ * - TimelineCalculations.ts (deleted - dead code removed)
+ */
+
+import { 
+  normalizeToMidnight,
+  isToday,
+  isTodayInWeek,
+  isWeekendDate,
+  calculateProjectDaysInViewport,
+  convertIndicesToDates,
+  calculateOccupiedHolidayIndices
+} from '../../calculations/general/dateCalculations';
+import { formatDateShort, formatWeekdayDate } from '@/utils/dateFormatUtils';
+import type { Holiday } from '../../../types';
+
+// Re-export date calculation functions for backwards compatibility
+export { convertIndicesToDates, calculateOccupiedHolidayIndices };
+
+// ============================================================================
+// TYPE DEFINITIONS
+// ============================================================================
+
+export type TimelinePositionCalculation = {
+  baselineStartPx: number;
+  baselineWidthPx: number;
+};
+
+export interface TimelineColumnData {
+  date: Date;
+  index: number;
+  columnWidth: number;
+  isToday: boolean;
+  isNewMonth: boolean;
+  isNewWeek: boolean;
+  mode: 'days' | 'weeks';
+  isWeekend?: boolean;
+  weekendDays?: Array<{
+    leftPx: number;
+    dayWidthPx: number;
+    date: Date;
+  }>;
+  todayPositionPx?: number;
+}
+
+// ============================================================================
+// CORE PROJECT BAR POSITIONING
+// ============================================================================
+
+/**
+ * Calculate timeline element positions for projects/milestones
+ * Core positioning calculation for project bars on the timeline
+ */
+export function calculateTimelinePositions(
+  projectStart: Date,
+  projectEnd: Date,
+  viewportStart: Date,
+  viewportEnd: Date,
+  dates: Date[],
+  mode: 'days' | 'weeks' = 'days'
+): TimelinePositionCalculation {
+  try {
+    if (mode === 'weeks') {
+      return calculateWeeksModePositions(
+        projectStart,
+        projectEnd,
+        viewportStart,
+        viewportEnd,
+        dates
+      );
+    } else {
+      const columnWidth = 52; // Standard column width for days mode
+      return calculateDaysModePositions(
+        projectStart,
+        projectEnd,
+        viewportStart,
+        viewportEnd,
+        dates,
+        columnWidth
+      );
+    }
+  } catch (error) {
+    console.error('Error in calculateTimelinePositions:', error);
+    return { baselineStartPx: 0, baselineWidthPx: 0 };
+  }
+}
+
+/**
+ * Calculate positions for weeks mode timeline
+ */
+function calculateWeeksModePositions(
+  projectStart: Date,
+  projectEnd: Date,
+  viewportStart: Date,
+  viewportEnd: Date,
+  dates: Date[]
+): TimelinePositionCalculation {
+  const firstWeekStart = dates[0];
+  if (!firstWeekStart) {
+    return { baselineStartPx: 0, baselineWidthPx: 0 };
+  }
+
+  const msPerDay = 24 * 60 * 60 * 1000;
+  const daySpacing = 22; // Effective spacing: 21px day + 1px gap = 22px per day position
+
+  // Calculate day offsets from first week start
+  const daysFromStartToProjectStart = Math.floor(
+    (projectStart.getTime() - firstWeekStart.getTime()) / msPerDay
+  );
+  const daysFromStartToProjectEnd = Math.floor(
+    (projectEnd.getTime() - firstWeekStart.getTime()) / msPerDay
+  );
+
+  // Calculate baseline for project intersection with viewport
+  const projectIntersectsViewport = !(projectEnd < viewportStart || projectStart > viewportEnd);
+
+  let baselineStartPx: number;
+  let baselineWidthPx: number;
+
+  if (projectIntersectsViewport) {
+    baselineStartPx = daysFromStartToProjectStart * daySpacing - 2; // Start 2px before
+    const numDays = daysFromStartToProjectEnd + 1 - daysFromStartToProjectStart;
+    // Width: numDays × 22px - 1px (no gap after last day) + 4px (2px padding on each side)
+    baselineWidthPx = Math.max(
+      daySpacing * 0.5,
+      numDays * daySpacing - 1 + 4
+    );
+  } else {
+    baselineStartPx = daysFromStartToProjectStart * daySpacing - 2; // Start 2px before
+    const numDays = daysFromStartToProjectEnd + 1 - daysFromStartToProjectStart;
+    // Width: numDays × 22px - 1px (no gap after last day) + 4px (2px padding on each side)
+    baselineWidthPx = Math.max(
+      daySpacing * 0.5,
+      numDays * daySpacing - 1 + 4
+    );
+  }
+
+  return { baselineStartPx, baselineWidthPx };
+}
+
+/**
+ * Calculate positions for days mode timeline
+ */
+function calculateDaysModePositions(
+  projectStart: Date,
+  projectEnd: Date,
+  viewportStart: Date,
+  viewportEnd: Date,
+  dates: Date[],
+  columnWidth: number
+): TimelinePositionCalculation {
+  const firstDate = dates[0];
+  if (!firstDate) {
+    return { baselineStartPx: 0, baselineWidthPx: 0 };
+  }
+
+  const msPerDay = 24 * 60 * 60 * 1000;
+
+  // Calculate day offsets from first visible date
+  const daysFromStartToProjectStart = Math.floor(
+    (projectStart.getTime() - firstDate.getTime()) / msPerDay
+  );
+  const daysFromStartToProjectEnd = Math.floor(
+    (projectEnd.getTime() - firstDate.getTime()) / msPerDay
+  );
+
+  // Calculate baseline for project intersection with viewport
+  const projectIntersectsViewport = !(projectEnd < viewportStart || projectStart > viewportEnd);
+
+  let baselineStartPx: number;
+  let baselineWidthPx: number;
+
+  if (projectIntersectsViewport) {
+    baselineStartPx = daysFromStartToProjectStart * columnWidth;
+    const numDays = daysFromStartToProjectEnd + 1 - daysFromStartToProjectStart;
+    baselineWidthPx = Math.max(columnWidth * 0.8, numDays * columnWidth);
+  } else {
+    baselineStartPx = daysFromStartToProjectStart * columnWidth;
+    const numDays = daysFromStartToProjectEnd + 1 - daysFromStartToProjectStart;
+    baselineWidthPx = Math.max(columnWidth * 0.8, numDays * columnWidth);
+  }
+
+  return { baselineStartPx, baselineWidthPx };
+}
+
+/**
+ * Public API for getting timeline positions
+ * Used by components that need project bar positioning
+ */
+export function getTimelinePositions(
+  projectStart: Date,
+  projectEnd: Date,
+  viewportStart: Date,
+  viewportEnd: Date,
+  dates: Date[],
+  mode: 'days' | 'weeks' = 'days'
+): TimelinePositionCalculation {
+  return calculateTimelinePositions(
+    projectStart,
+    projectEnd,
+    viewportStart,
+    viewportEnd,
+    dates,
+    mode
+  );
+}
+
+// ============================================================================
+// VISUAL DRAG CALCULATIONS
+// ============================================================================
+
+/**
+ * Calculate baseline visual offsets for drag operations
+ * Handles smooth visual feedback during project bar dragging
+ */
+export function calculateBaselineVisualOffsets(
+  positions: any,
+  isDragging: boolean,
+  dragState: any,
+  projectId: string,
+  mode: 'days' | 'weeks' = 'days'
+): any {
+  let adjustedPositions = { ...positions };
+
+  if (isDragging && dragState?.projectId === projectId) {
+    // In days view: use snapped daysDelta for day boundary snapping
+    // In weeks view: use smooth pixelDeltaX for responsive movement
+    const dayWidth = mode === 'weeks' ? 22 : 52;
+    const dragOffsetPx = mode === 'days'
+      ? (dragState.daysDelta || 0) * dayWidth  // Snapped to day boundaries in days view
+      : (typeof dragState.pixelDeltaX === 'number' ? dragState.pixelDeltaX : (dragState.daysDelta || 0) * dayWidth);  // Smooth in weeks view
+
+    const action = dragState?.action;
+
+    if (action === 'move') {
+      // Move everything together
+      adjustedPositions = {
+        ...positions,
+        baselineStartPx: positions.baselineStartPx + dragOffsetPx,
+        baselineWidthPx: positions.baselineWidthPx // width unchanged when moving
+      };
+    } else if (action === 'resize-start-date') {
+      // Only start date (and baseline left edge) should move visually
+      adjustedPositions = {
+        ...positions,
+        baselineStartPx: positions.baselineStartPx + dragOffsetPx,
+        // Width must shrink/grow opposite to left edge movement to keep right edge fixed
+        baselineWidthPx: positions.baselineWidthPx - dragOffsetPx
+      };
+    } else if (action === 'resize-end-date') {
+      // Only end date should move visually; keep baseline start fixed
+      adjustedPositions = {
+        ...positions,
+        baselineStartPx: positions.baselineStartPx,
+        // Width grows/shrinks with right edge movement
+        baselineWidthPx: positions.baselineWidthPx + dragOffsetPx
+      };
+    }
+  }
+
+  return adjustedPositions;
+}
+
+/**
+ * Calculate visual project dates with consolidated offset logic
+ * Applies drag state to project dates for immediate visual feedback
+ */
+export function calculateVisualProjectDates(
+  project: any,
+  isDragging: boolean,
+  dragState: any
+): { visualProjectStart: Date; visualProjectEnd: Date } {
+  let visualProjectStart = new Date(project.startDate);
+  // CRITICAL: For continuous projects, endDate should not be used for visuals
+  // The calling code should use viewport end instead
+  let visualProjectEnd = project.continuous 
+    ? new Date(project.startDate) // Placeholder - caller should override with viewport end
+    : new Date(project.endDate);
+
+  // Apply drag offset based on action type for immediate visual feedback
+  if (isDragging && dragState?.projectId === project.id) {
+    // Use fractional daysDelta for smooth visual movement (like milestones)
+    const daysOffset = dragState.daysDelta || 0;
+    const action = dragState.action;
+
+    if (action === 'move') {
+      // Move both start and end (for continuous projects, only start matters)
+      visualProjectStart = new Date(project.startDate);
+      visualProjectStart.setDate(visualProjectStart.getDate() + daysOffset);
+      
+      if (!project.continuous) {
+        visualProjectEnd = new Date(project.endDate);
+        visualProjectEnd.setDate(visualProjectEnd.getDate() + daysOffset);
+      }
+    } else if (action === 'resize-start-date') {
+      // Only move start date
+      visualProjectStart = new Date(project.startDate);
+      visualProjectStart.setDate(visualProjectStart.getDate() + daysOffset);
+      // End date stays the same
+    } else if (action === 'resize-end-date') {
+      // Only move end date (not applicable for continuous projects)
+      if (!project.continuous) {
+        visualProjectEnd = new Date(project.endDate);
+        visualProjectEnd.setDate(visualProjectEnd.getDate() + daysOffset);
+      }
+      // Start date stays the same
+    }
+  }
+
+  return { visualProjectStart, visualProjectEnd };
+}
+
+// ============================================================================
+// HEIGHT CALCULATIONS
+// ============================================================================
+
+/**
+ * Calculate rectangle height based on hours per day
+ * Used for project bar rectangles representing time allocation
+ */
+export function calculateRectangleHeight(hoursPerDay: number, maxHeight: number = 40): number {
+  // Scale height proportionally to hours
+  const heightScale = hoursPerDay / 8; // 8 hours = full height
+  const height = Math.min(heightScale * maxHeight, maxHeight);
+  
+  // Minimum 4px height for visibility
+  return Math.max(4, height);
+}
+
+// ============================================================================
+// PROJECT DAYS CALCULATION
+// ============================================================================
+
+/**
+ * Calculate the visible project days within viewport bounds
+ * Delegates to dateCalculations service
+ */
+export function calculateProjectDays(
+  projectStartDate: Date,
+  projectEndDate: Date,
+  isContinuous: boolean,
+  viewportStart: Date,
+  viewportEnd: Date
+): Date[] {
+  return calculateProjectDaysInViewport(
+    projectStartDate,
+    projectEndDate,
+    isContinuous,
+    viewportStart,
+    viewportEnd
+  );
+}
+
+// ============================================================================
+// WORK HOURS CALCULATIONS
+// ============================================================================
+
+/**
+ * Calculate total work hours for a day
+ * Used for capacity calculations
+ */
+export function calculateWorkHoursTotal(workHours: any[]): number {
+  if (!Array.isArray(workHours)) {
+    return 0;
+  }
+  return workHours.reduce((sum, workHour) => sum + (workHour.duration || 0), 0);
+}
+
+/**
+ * Calculate work hours for a specific day from settings
+ */
+export function calculateDayWorkHours(date: Date, settings: any): any[] {
+  if (!settings?.weeklyWorkHours) return [];
+
+  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const dayName = dayNames[date.getDay()] as keyof typeof settings.weeklyWorkHours;
+  return settings.weeklyWorkHours[dayName] || [];
+}
+
+/**
+ * Calculate total work hours for a specific day
+ */
+export function calculateTotalDayWorkHours(date: Date, settings: any): number {
+  const dayWorkHours = calculateDayWorkHours(date, settings);
+  return calculateWorkHoursTotal(dayWorkHours);
+}
+
+// ============================================================================
+// TIMELINE COLUMN MARKERS
+// ============================================================================
+
+/**
+ * Calculate column marker data for timeline columns
+ * THE authoritative column marker calculation used everywhere
+ */
+export function calculateTimelineColumnMarkerData(
+  dates: Date[], 
+  mode: 'days' | 'weeks' = 'days'
+): TimelineColumnData[] {
+  const columnWidth = mode === 'weeks' ? 153 : 52;
+  const today = new Date();
+  
+  return dates.map((date, index) => {
+    // Check if this column represents today
+    let isCurrentDay = false;
+    if (mode === 'days') {
+      isCurrentDay = isToday(date);
+    } else {
+      isCurrentDay = isTodayInWeek(date);
+    }
+    
+    if (mode === 'weeks') {
+      // Week mode: calculate month and week separators
+      const prevDate = index > 0 ? dates[index - 1] : null;
+      const isNewMonth = index > 0 && prevDate && date.getMonth() !== prevDate.getMonth();
+      const isNewWeek = index > 0; // Every column is a new week in weeks mode
+      
+      // Calculate weekend day positions within week
+      const weekendDays = Array.from({ length: 7 }).map((_, dayOffset) => {
+        const dayDate = new Date(date);
+        dayDate.setDate(date.getDate() + dayOffset);
+        const isWeekendDay = isWeekendDate(dayDate);
+        
+        if (!isWeekendDay) return null;
+        
+        const leftPx = (dayOffset / 7) * columnWidth;
+        const dayWidthPx = 22; // 21px day + 1px gap = 22px effective spacing
+        
+        return {
+          leftPx,
+          dayWidthPx,
+          date: dayDate
+        };
+      }).filter(Boolean) as Array<{
+        leftPx: number;
+        dayWidthPx: number;
+        date: Date;
+      }>;
+      
+      // Calculate today position within week
+      let todayPositionPx = 0;
+      if (isCurrentDay) {
+        const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+        const daysFromWeekStart = (dayOfWeek + 6) % 7; // Convert to Monday = 0 system
+        todayPositionPx = (daysFromWeekStart / 7) * columnWidth;
+      }
+      
+      return {
+        date,
+        index,
+        columnWidth,
+        isToday: isCurrentDay,
+        isNewMonth,
+        isNewWeek,
+        weekendDays,
+        todayPositionPx,
+        mode: 'weeks' as const
+      };
+    } else {
+      // Days mode: calculate weekend and month separators
+      const isWeekend = isWeekendDate(date);
+      const prevDate = index > 0 ? dates[index - 1] : null;
+      const isNewMonth = index > 0 && prevDate && date.getMonth() !== prevDate.getMonth();
+      const isNewWeek = index > 0 && prevDate && date.getDay() === 1; // Monday starts new week
+      
+      return {
+        date,
+        index,
+        columnWidth,
+        isToday: isCurrentDay,
+        isWeekend,
+        isNewMonth,
+        isNewWeek,
+        mode: 'days' as const
+      };
+    }
+  });
+}
+
+// ============================================================================
+// LEGACY COMPATIBILITY (DEPRECATED - USE NEW FUNCTIONS ABOVE)
+// ============================================================================
+
+/**
+ * @deprecated Use getTimelinePositions instead
+ * Calculate timeline bar position for a project
+ */
+export function calculateTimelineBarPosition(
+  dates: Date[],
+  project: { startDate: Date; endDate: Date }
+): { startIndex: number; width: number } {
+  const startIndex = dates.findIndex(date =>
+    date.toDateString() === project.startDate.toDateString()
+  );
+  const endIndex = dates.findIndex(date =>
+    date.toDateString() === project.endDate.toDateString()
+  );
+
+  return {
+    startIndex: Math.max(0, startIndex),
+    width: endIndex >= 0 ? (endIndex - Math.max(0, startIndex) + 1) * 48 : 0
+  };
+}
+
+// ============================================================================
+// HOLIDAY BAR CALCULATIONS
+// ============================================================================
+// Note: calculateOccupiedHolidayIndices is imported from dateCalculations
+// Re-exported here for backwards compatibility
+
+/**
+ * Convert mouse position to timeline index for holiday bar interactions
+ */
+export function convertMousePositionToTimelineIndex(
+  clientX: number,
+  containerRect: DOMRect,
+  dates: Date[],
+  mode: 'days' | 'weeks' = 'days',
+  occupiedIndices: number[] = []
+): { dayIndex: number; isValid: boolean } {
+  const relativeX = clientX - containerRect.left;
+  let dayIndex: number;
+  let maxIndex: number;
+  
+  if (mode === 'weeks') {
+    // In weeks mode, calculate day-level index (21px per day + 1px gap)
+    const dayWidth = 22; // 21px day + 1px gap = 22px effective spacing
+    dayIndex = Math.floor(relativeX / dayWidth);
+    maxIndex = dates.length * 7; // Total days across all weeks
+  } else {
+    // In days mode, use column width
+    const columnWidth = 52;
+    dayIndex = Math.floor(relativeX / columnWidth);
+    maxIndex = dates.length;
+  }
+  
+  const isValid = dayIndex >= 0 && 
+                  dayIndex < maxIndex && 
+                  relativeX >= 0 && 
+                  relativeX <= containerRect.width &&
+                  !occupiedIndices.includes(dayIndex);
+  
+  return { dayIndex: Math.max(0, dayIndex), isValid };
+}
+
+// Note: convertIndicesToDates is imported from dateCalculations
+// Re-exported here for backwards compatibility
+
+/**
+ * Calculate minimum size for hover overlay elements
+ */
+export function calculateMinimumHoverOverlaySize(
+  elementWidth: number,
+  minSize: number = 40
+): number {
+  return Math.max(minSize, elementWidth);
+}
