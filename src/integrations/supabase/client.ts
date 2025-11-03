@@ -2,7 +2,7 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const loadEnvVar = (key: 'VITE_SUPABASE_URL' | 'VITE_SUPABASE_ANON_KEY'): string | undefined => {
+const loadEnvVar = (key: 'VITE_SUPABASE_URL' | 'VITE_SUPABASE_ANON_KEY' | 'VITE_SUPABASE_PUBLISHABLE_KEY'): string | undefined => {
   if (typeof import.meta !== 'undefined' && (import.meta as ImportMeta).env) {
     const value = ((import.meta as ImportMeta).env as Record<string, string | undefined>)[key];
     if (value) {
@@ -18,12 +18,12 @@ const loadEnvVar = (key: 'VITE_SUPABASE_URL' | 'VITE_SUPABASE_ANON_KEY'): string
 };
 
 const SUPABASE_URL = loadEnvVar('VITE_SUPABASE_URL');
-const SUPABASE_PUBLISHABLE_KEY = loadEnvVar('VITE_SUPABASE_ANON_KEY');
+const SUPABASE_PUBLISHABLE_KEY = loadEnvVar('VITE_SUPABASE_PUBLISHABLE_KEY') || loadEnvVar('VITE_SUPABASE_ANON_KEY');
 
 export const isSupabaseConfigured = Boolean(SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY);
 export const supabaseConfigError = isSupabaseConfigured
   ? null
-  : 'Supabase credentials are missing. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.';
+  : 'Supabase credentials are missing. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY or VITE_SUPABASE_PUBLISHABLE_KEY.';
 
 type SupabaseClient = ReturnType<typeof createClient<Database>>;
 
