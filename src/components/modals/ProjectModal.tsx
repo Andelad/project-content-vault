@@ -21,6 +21,7 @@ import { formatDate, formatDateForInput } from '@/utils/dateFormatUtils';
 import { useToast } from '@/hooks/use-toast';
 import { StandardModal } from './StandardModal';
 import { OKLCH_PROJECT_COLORS, PROJECT_ICONS } from '@/constants';
+import { NEUTRAL_COLORS } from '@/constants/colors';
 import type { Project } from '@/types/core';
 interface ProjectModalProps {
   isOpen: boolean;
@@ -29,6 +30,64 @@ interface ProjectModalProps {
   groupId?: string;
   rowId?: string;
 }
+
+// Chrome-style tab component
+interface TabProps {
+  label: string;
+  value: string;
+  isActive: boolean;
+  onClick: () => void;
+}
+
+const ChromeTab = ({ label, isActive, onClick }: TabProps) => {
+  return (
+    <button
+      onClick={onClick}
+      className={`
+        relative px-6 text-sm font-medium transition-all duration-200 flex items-center justify-center
+        ${isActive 
+          ? 'text-gray-800 z-10' 
+          : 'text-gray-500 hover:text-gray-600 z-0'
+        }
+      `}
+      style={{
+        height: '40px',
+        backgroundColor: isActive ? 'white' : NEUTRAL_COLORS.gray200,
+        borderTopLeftRadius: '8px',
+        borderTopRightRadius: '8px',
+        marginRight: '-2px',
+        borderTop: `1px solid ${isActive ? NEUTRAL_COLORS.gray200 : 'transparent'}`,
+        borderLeft: `1px solid ${isActive ? NEUTRAL_COLORS.gray200 : 'transparent'}`,
+        borderRight: `1px solid ${isActive ? NEUTRAL_COLORS.gray200 : 'transparent'}`,
+        borderBottom: isActive ? '1px solid white' : '1px solid transparent',
+        marginBottom: '-1px',
+        boxSizing: 'border-box',
+      }}
+    >
+      {label}
+      {/* Chrome-style curves at bottom corners of active tab */}
+      {isActive && (
+        <>
+          {/* Left curve */}
+          <div
+            className="absolute -left-2 bottom-0 w-2 h-2 pointer-events-none"
+            style={{
+              background: 'radial-gradient(circle at 0 0, transparent 8px, white 8px)',
+            }}
+          />
+          {/* Right curve */}
+          <div
+            className="absolute -right-2 bottom-0 w-2 h-2 pointer-events-none"
+            style={{
+              background: 'radial-gradient(circle at 100% 0, transparent 8px, white 8px)',
+            }}
+          />
+        </>
+      )}
+    </button>
+  );
+};
+
 export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: ProjectModalProps) {
   // Debug toggle
   const DEBUG = false;
@@ -87,7 +146,9 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
   const [stylePickerOpen, setStylePickerOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // State for collapsible sections
+  // State for tab navigation
+  const [activeTab, setActiveTab] = useState<'estimate' | 'progress' | 'notes'>('estimate');
+  // State for collapsible sections (kept for backwards compatibility, but no longer used with tabs)
   const [isInsightsExpanded, setIsInsightsExpanded] = useState(false);
   const [isNotesExpanded, setIsNotesExpanded] = useState(true);
   // State for milestones in new projects
@@ -1137,151 +1198,138 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
           </div>
         </div>
 
-        {/* Cards Section */}
-        <div className="px-8 py-6 space-y-4">
-          {/* Time Load Card */}
-          <Card>
-            <ProjectMilestoneSection
-              projectId={!isCreating ? projectId : undefined}
-              projectEstimatedHours={localValues.estimatedHours}
-              projectStartDate={localValues.startDate}
-              projectEndDate={localValues.endDate}
-              projectContinuous={localValues.continuous}
-              onUpdateProjectBudget={handleUpdateProjectBudget}
-              onRecurringMilestoneChange={handleRecurringMilestoneChange}
-              localMilestonesState={localMilestonesStateMemo}
-              isCreatingProject={isCreating}
-              localValues={localValues}
-              setLocalValues={setLocalValues}
-              onAutoEstimateDaysChange={handleAutoEstimateDaysChange}
-              editingProperty={editingProperty}
-              setEditingProperty={setEditingProperty}
-              handleSaveProperty={handleSaveProperty}
-              recurringMilestoneInfo={recurringMilestoneInfo}
+        {/* Tabs Section */}
+        <div>
+          {/* Tab Headers */}
+          <div 
+            className="flex items-end border-b border-gray-200 px-8"
+            style={{
+              backgroundColor: 'rgb(249, 250, 251)', // bg-gray-50
+              paddingTop: '4px',
+            }}
+          >
+            <ChromeTab
+              label="Estimate Hours"
+              value="estimate"
+              isActive={activeTab === 'estimate'}
+              onClick={() => setActiveTab('estimate')}
             />
-          </Card>
+            <ChromeTab
+              label="Track Progress"
+              value="progress"
+              isActive={activeTab === 'progress'}
+              onClick={() => setActiveTab('progress')}
+            />
+            <ChromeTab
+              label="Notes"
+              value="notes"
+              isActive={activeTab === 'notes'}
+              onClick={() => setActiveTab('notes')}
+            />
+            {/* Fill remaining space with background */}
+            <div className="flex-1 border-b border-gray-200" style={{ marginBottom: '-1px' }} />
+          </div>
 
-          {/* Project Insights Card */}
-          <Card>
-            <button
-              onClick={() => setIsInsightsExpanded(!isInsightsExpanded)}
-              className="w-full px-6 py-4 flex items-center justify-between hover:bg-accent/50 transition-colors rounded-lg"
-            >
-              <div className="flex items-center gap-3">
-                {isInsightsExpanded ? (
-                  <ChevronDown className="w-4 h-4 text-gray-500" />
-                ) : (
-                  <ChevronRight className="w-4 h-4 text-gray-500" />
-                )}
-                <h3 className="text-lg font-medium text-gray-900">Project Insights</h3>
-              </div>
-            </button>
-            <AnimatePresence initial={false}>
-              {isInsightsExpanded && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="overflow-hidden"
-                >
-                  {/* Project Insights */}
-                  {!isCreating && (
-                    <div className="border-t border-gray-200">
-                      <ProjectInsightsSection 
-                        project={project || {
-                          ...localValues,
-                          id: projectId || '',
-                          groupId: groupId || '',
-                          rowId: rowId || ''
-                        }}
-                        events={events}
-                        holidays={holidays}
-                      />
-                    </div>
-                  )}
-                  {/* Time Forecasting Dashboard */}
-                  <div className="bg-gray-50 px-6 py-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      <TimeMetric
-                        label="Planned Time"
-                        value={metrics.plannedTime}
-                        showInfo={true}
-                        tooltip="Planned time is time that has been added to your calendar and connected to this project"
-                        actionIcon={<CalendarIcon className="w-3 h-3" />}
-                        onActionClick={() => {
-                          setCurrentView('calendar');
-                          handleClose();
-                        }}
-                        formatAsTime={true}
-                      />
-                      <TimeMetric
-                        label="Completed Time"
-                        value={metrics.completedTime}
-                        showInfo={true}
-                        tooltip="Completed time is time connected to this project that is ticked as done on your calendar"
-                        formatAsTime={true}
-                      />
-                      <AutoEstimateTimeMetric
-                        label="Auto-Estimate Time"
-                        dailyTime={metrics.originalDailyEstimateFormatted}
-                        showInfo={true}
-                        tooltip="Auto-estimated time is the total budgeted hours divided by total working days in the project timeframe"
-                      />
-                      <TimeMetric
-                        label="Work Days Left"
-                        value={metrics.workDaysLeft}
-                        unit="days"
-                        showInfo={true}
-                        tooltip="Number of work days is less holidays, days with no availability, and blocked days"
-                      />
-                      <TimeMetric
-                        label="Total Work Days"
-                        value={metrics.totalWorkDays}
-                        unit="days"
-                        showInfo={true}
-                        tooltip="Total working days in the project timeframe (excluding weekends and holidays)"
-                      />
-                    </div>
+          {/* Tab Content */}
+          <div className="px-8 py-6">
+            {/* Estimate Hours Tab */}
+            {activeTab === 'estimate' && (
+              <ProjectMilestoneSection
+                projectId={!isCreating ? projectId : undefined}
+                projectEstimatedHours={localValues.estimatedHours}
+                projectStartDate={localValues.startDate}
+                projectEndDate={localValues.endDate}
+                projectContinuous={localValues.continuous}
+                onUpdateProjectBudget={handleUpdateProjectBudget}
+                onRecurringMilestoneChange={handleRecurringMilestoneChange}
+                localMilestonesState={localMilestonesStateMemo}
+                isCreatingProject={isCreating}
+                localValues={localValues}
+                setLocalValues={setLocalValues}
+                onAutoEstimateDaysChange={handleAutoEstimateDaysChange}
+                editingProperty={editingProperty}
+                setEditingProperty={setEditingProperty}
+                handleSaveProperty={handleSaveProperty}
+                recurringMilestoneInfo={recurringMilestoneInfo}
+              />
+            )}
+
+            {/* Track Progress Tab */}
+            {activeTab === 'progress' && (
+              <div>
+                {/* Project Insights */}
+                {!isCreating && (
+                  <div className="mb-6">
+                    <ProjectInsightsSection 
+                      project={project || {
+                        ...localValues,
+                        id: projectId || '',
+                        groupId: groupId || '',
+                        rowId: rowId || ''
+                      }}
+                      events={events}
+                      holidays={holidays}
+                    />
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </Card>
-
-          {/* Project Notes Card */}
-          <Card>
-            <button
-              onClick={() => setIsNotesExpanded(!isNotesExpanded)}
-              className="w-full px-6 py-4 flex items-center justify-between hover:bg-accent/50 transition-colors rounded-lg"
-            >
-              <div className="flex items-center gap-3">
-                {isNotesExpanded ? (
-                  <ChevronDown className="w-4 h-4 text-gray-500" />
-                ) : (
-                  <ChevronRight className="w-4 h-4 text-gray-500" />
                 )}
-                <h3 className="text-lg font-medium text-gray-900">Project Notes</h3>
+                {/* Time Forecasting Dashboard */}
+                <div className="bg-gray-50 px-6 py-6 rounded-lg border border-gray-200">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <TimeMetric
+                      label="Planned Time"
+                      value={metrics.plannedTime}
+                      showInfo={true}
+                      tooltip="Planned time is time that has been added to your calendar and connected to this project"
+                      actionIcon={<CalendarIcon className="w-3 h-3" />}
+                      onActionClick={() => {
+                        setCurrentView('calendar');
+                        handleClose();
+                      }}
+                      formatAsTime={true}
+                    />
+                    <TimeMetric
+                      label="Completed Time"
+                      value={metrics.completedTime}
+                      showInfo={true}
+                      tooltip="Completed time is time connected to this project that is ticked as done on your calendar"
+                      formatAsTime={true}
+                    />
+                    <AutoEstimateTimeMetric
+                      label="Auto-Estimate Time"
+                      dailyTime={metrics.originalDailyEstimateFormatted}
+                      showInfo={true}
+                      tooltip="Auto-estimated time is the total budgeted hours divided by total working days in the project timeframe"
+                    />
+                    <TimeMetric
+                      label="Work Days Left"
+                      value={metrics.workDaysLeft}
+                      unit="days"
+                      showInfo={true}
+                      tooltip="Number of work days is less holidays, days with no availability, and blocked days"
+                    />
+                    <TimeMetric
+                      label="Total Work Days"
+                      value={metrics.totalWorkDays}
+                      unit="days"
+                      showInfo={true}
+                      tooltip="Total working days in the project timeframe (excluding weekends and holidays)"
+                    />
+                  </div>
+                </div>
               </div>
-            </button>
-            <AnimatePresence initial={false}>
-              {isNotesExpanded && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="overflow-hidden"
-                >
-                  <ProjectNotesSection
-                    projectId={projectId || ''}
-                    notes={localValues.notes}
-                    onNotesChange={handleNotesChange}
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </Card>
+            )}
+
+            {/* Notes Tab */}
+            {activeTab === 'notes' && (
+              <div>
+                <ProjectNotesSection
+                  projectId={projectId || ''}
+                  notes={localValues.notes}
+                  onNotesChange={handleNotesChange}
+                />
+              </div>
+            )}
+          </div>
         </div>
       </StandardModal>
         {/* Delete confirmation dialog */}

@@ -198,7 +198,6 @@ export function HolidayModal({ isOpen, onClose, holidayId, defaultStartDate, def
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Enter holiday title"
-                autoFocus
               />
             </div>
 

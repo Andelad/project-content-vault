@@ -118,32 +118,72 @@ export const TimelineBackground = memo(function TimelineBackground({ dates, mode
         const normalizedHolidayStart = normalizeToMidnight(holidayStart);
         const normalizedHolidayEnd = normalizeToMidnight(holidayEnd);
         
-        const timelineStart = normalizeToMidnight(new Date(dates[0]));
-        const msPerDay = 24 * 60 * 60 * 1000;
-        
-        const startDay = Math.floor((normalizedHolidayStart.getTime() - timelineStart.getTime()) / msPerDay);
-        const endDay = Math.floor((normalizedHolidayEnd.getTime() - timelineStart.getTime()) / msPerDay);
-        const holidayLeftPx = startDay * dayWidth;
-        const holidayWidthPx = (endDay - startDay + 1) * dayWidth;
-        
         // Using NEUTRAL_COLORS.gray500 with 20% opacity (33 in hex)
         const backgroundPattern = mode === 'weeks' 
           ? `repeating-linear-gradient(-45deg, ${NEUTRAL_COLORS.gray500}33 0 1.5px, transparent 1.5px 4px)`
           : `repeating-linear-gradient(-45deg, ${NEUTRAL_COLORS.gray500}33 0 2px, transparent 2px 6px)`;
         
-        return (
-          <div
-            key={`holiday-${holiday.id}`}
-            className="absolute top-0"
-            style={{
-              left: `${holidayLeftPx}px`,
-              width: `${holidayWidthPx}px`,
-              height: '100%',
-              backgroundImage: backgroundPattern,
-              pointerEvents: 'none'
-            }}
-          />
-        );
+        if (mode === 'weeks') {
+          // Week mode - render holiday overlay for each day in affected weeks
+          const holidayOverlays = [];
+          
+          dates.forEach((date, dateIndex) => {
+            const dayOfWeek = date.getDay();
+            const daysToMonday = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek);
+            const weekStart = addDaysToDate(date, daysToMonday);
+            
+            // Check each day in this week
+            for (let i = 0; i < 7; i++) {
+              const currentDay = addDaysToDate(weekStart, i);
+              const normalizedCurrentDay = normalizeToMidnight(currentDay);
+              
+              // Check if this day falls within the holiday range
+              if (normalizedCurrentDay >= normalizedHolidayStart && normalizedCurrentDay <= normalizedHolidayEnd) {
+                holidayOverlays.push(
+                  <div
+                    key={`holiday-${holiday.id}-${dateIndex}-${i}`}
+                    className="absolute top-0"
+                    style={{
+                      left: `${dateIndex * 153 + i * 22}px`,
+                      width: '22px',
+                      height: '100%',
+                      backgroundImage: backgroundPattern,
+                      pointerEvents: 'none'
+                    }}
+                  />
+                );
+              }
+            }
+          });
+          
+          return holidayOverlays;
+        } else {
+          // Days mode - render holiday overlay for matching dates
+          const holidayOverlays = [];
+          
+          dates.forEach((date, dateIndex) => {
+            const normalizedDate = normalizeToMidnight(date);
+            
+            // Check if this date falls within the holiday range
+            if (normalizedDate >= normalizedHolidayStart && normalizedDate <= normalizedHolidayEnd) {
+              holidayOverlays.push(
+                <div
+                  key={`holiday-${holiday.id}-${dateIndex}`}
+                  className="absolute top-0"
+                  style={{
+                    left: `${dateIndex * 52}px`,
+                    width: '52px',
+                    height: '100%',
+                    backgroundImage: backgroundPattern,
+                    pointerEvents: 'none'
+                  }}
+                />
+              );
+            }
+          });
+          
+          return holidayOverlays;
+        }
       })}
     </div>
   );

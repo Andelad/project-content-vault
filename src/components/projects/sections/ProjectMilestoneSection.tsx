@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Trash2, ChevronDown, ChevronRight, AlertTriangle, Calendar as CalendarIcon, RotateCcw, RefreshCw, X, Flag } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronRight, AlertTriangle, Calendar as CalendarIcon, RotateCcw, RefreshCw, X, Flag, SquareSplitHorizontal } from 'lucide-react';
 import { format } from 'date-fns';
 import { Input } from '../../ui/input';
 import { Button } from '../../ui/button';
@@ -160,6 +160,11 @@ export function ProjectMilestoneSection({
   const [editingMonthlyWeekOfMonth, setEditingMonthlyWeekOfMonth] = useState<number>(1);
   const [editingMonthlyDayOfWeek, setEditingMonthlyDayOfWeek] = useState<number>(1);
 
+  // Split milestone (phases) state
+  const [isSplitMode, setIsSplitMode] = useState(false);
+  const [showSplitWarning, setShowSplitWarning] = useState(false);
+  const [showRecurringFromSplitWarning, setShowRecurringFromSplitWarning] = useState(false);
+
   // Handle updating recurring milestone load
   const handleUpdateRecurringLoad = async (direction: 'forward' | 'both') => {
     if (!recurringMilestone || !projectId) return;
@@ -188,6 +193,140 @@ export function ProjectMilestoneSection({
     }
     
     setEditingRecurringLoad(false);
+  };
+
+  // Handle splitting estimate into phases
+  const handleSplitEstimate = async () => {
+    console.log('[Split] Starting split estimate');
+    console.log('[Split] isCreatingProject:', isCreatingProject);
+    console.log('[Split] projectId:', projectId);
+    
+    // Calculate midpoint date
+    const projectDuration = projectEndDate.getTime() - projectStartDate.getTime();
+    const midpointTime = projectStartDate.getTime() + (projectDuration / 2);
+    const midpointDate = new Date(midpointTime);
+
+    // Create two initial phases
+    const phase1: LocalMilestone = {
+      id: isCreatingProject ? `phase-1-${Date.now()}` : undefined,
+      name: 'Phase 1',
+      projectId: projectId || '',
+      startDate: projectStartDate,
+      endDate: midpointDate,
+      dueDate: midpointDate, // For backward compatibility
+      timeAllocation: projectEstimatedHours, // First phase gets full budget
+      timeAllocationHours: projectEstimatedHours,
+      userId: '',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      isNew: true
+    };
+
+    const phase2: LocalMilestone = {
+      id: isCreatingProject ? `phase-2-${Date.now() + 1}` : undefined,
+      name: 'Phase 2',
+      projectId: projectId || '',
+      startDate: midpointDate,
+      endDate: projectEndDate,
+      dueDate: projectEndDate, // For backward compatibility
+      timeAllocation: 0, // Second phase starts at 0
+      timeAllocationHours: 0,
+      userId: '',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      isNew: true
+    };
+
+    console.log('[Split] Phase 1:', phase1);
+    console.log('[Split] Phase 2:', phase2);
+
+    if (isCreatingProject && localMilestonesState) {
+      // For new projects, add to local state
+      console.log('[Split] Adding to local state for new project');
+      localMilestonesState.setMilestones([phase1, phase2]);
+    } else if (projectId) {
+      // For existing projects, save to database
+      console.log('[Split] Saving to database for existing project');
+      const result1 = await addMilestone(phase1);
+      console.log('[Split] Phase 1 saved, result:', result1);
+      const result2 = await addMilestone(phase2);
+      console.log('[Split] Phase 2 saved, result:', result2);
+    } else {
+      console.log('[Split] Adding to local milestones');
+      setLocalMilestones([phase1, phase2]);
+    }
+
+    setIsSplitMode(true);
+    setShowSplitWarning(false);
+    console.log('[Split] Split complete, isSplitMode set to true');
+  };
+
+  // Handle adding a new phase
+  const handleAddPhase = async () => {
+    const existingPhases = projectMilestones.filter(m => m.startDate !== undefined);
+    const nextPhaseNumber = existingPhases.length + 1;
+
+    // Find the last phase to determine start date
+    const lastPhase = existingPhases.sort((a, b) => 
+      new Date(b.endDate || b.dueDate).getTime() - new Date(a.endDate || a.dueDate).getTime()
+    )[0];
+
+    const phaseStartDate = lastPhase ? new Date(lastPhase.endDate || lastPhase.dueDate) : projectStartDate;
+
+    const newPhase: LocalMilestone = {
+      id: isCreatingProject ? `phase-${nextPhaseNumber}-${Date.now()}` : undefined,
+      name: `Phase ${nextPhaseNumber}`,
+      projectId: projectId || '',
+      startDate: phaseStartDate,
+      endDate: projectEndDate,
+      dueDate: projectEndDate, // For backward compatibility
+      timeAllocation: 0,
+      timeAllocationHours: 0,
+      userId: '',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      isNew: true
+    };
+
+    if (isCreatingProject && localMilestonesState) {
+      localMilestonesState.setMilestones([...localMilestonesState.milestones, newPhase]);
+    } else if (projectId) {
+      await addMilestone(newPhase);
+    } else {
+      setLocalMilestones([...localMilestones, newPhase]);
+    }
+  };
+
+  // Handle initiating split (with warning if milestones exist)
+  const handleInitiateSplit = () => {
+    const hasExistingMilestones = projectMilestones.length > 0;
+    if (hasExistingMilestones) {
+      setShowSplitWarning(true);
+    } else {
+      handleSplitEstimate();
+    }
+  };
+
+  // Handle deleting existing milestones before split
+  const handleDeleteAndSplit = async () => {
+    // Delete all existing milestones
+    if (isCreatingProject && localMilestonesState) {
+      localMilestonesState.setMilestones([]);
+    } else {
+      for (const milestone of projectMilestones) {
+        if (milestone.id) {
+          await deleteMilestone(milestone.id);
+        }
+      }
+      setLocalMilestones([]);
+    }
+
+    // Clear recurring state
+    setRecurringMilestone(null);
+    setIsDeletingRecurringMilestone(false);
+
+    // Now create split phases
+    await handleSplitEstimate();
   };
 
   // Helper function to handle property saving for milestones
@@ -453,6 +592,98 @@ export function ProjectMilestoneSection({
     );
   };
 
+  // Phase date field component (shows both start and end dates)
+  const PhaseDateField = ({ 
+    milestone, 
+    property,
+    isFirst = false,
+    isLast = false
+  }: {
+    milestone: Milestone | LocalMilestone;
+    property: 'startDate' | 'endDate';
+    isFirst?: boolean;
+    isLast?: boolean;
+  }) => {
+    const isEditing = editingProperty === `${milestone.id}-${property}`;
+    const dateValue = property === 'startDate' ? milestone.startDate : (milestone.endDate || milestone.dueDate);
+    const displayValue = dateValue ? format(new Date(dateValue), 'MMM dd') : 'Select date';
+    
+    // Determine if this field is editable
+    const isFixed = (property === 'startDate' && isFirst) || (property === 'endDate' && isLast);
+    const promptText = property === 'startDate' 
+      ? 'Edit project start date' 
+      : 'Edit project end date';
+    
+    return (
+      <div className="min-w-[100px]">
+        <Label className={`text-xs mb-1 block ${isFixed ? 'text-muted-foreground/50' : 'text-muted-foreground'}`}>
+          {property === 'startDate' ? 'Start' : 'End'}
+        </Label>
+        {isFixed ? (
+          <div className="h-10 text-sm px-3 border border-input rounded-md bg-muted/30 flex items-center cursor-not-allowed opacity-60">
+            <CalendarIcon className="mr-2 h-3 w-3 text-muted-foreground/50" />
+            <span className="text-muted-foreground/70">{displayValue}</span>
+          </div>
+        ) : (
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className="h-10 text-sm justify-start text-left font-normal px-3"
+                style={{ width: '100px' }}
+              >
+                <CalendarIcon className="mr-2 h-3 w-3" />
+                {displayValue}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={dateValue ? new Date(dateValue) : undefined}
+                onSelect={(selectedDate) => {
+                  if (selectedDate) {
+                    handleSaveMilestoneProperty(milestone.id!, property, selectedDate);
+                  }
+                }}
+                disabled={(date) => {
+                  // Validate based on adjacent phases
+                  const phases = projectMilestones
+                    .filter(m => m.startDate !== undefined)
+                    .sort((a, b) => new Date(a.startDate!).getTime() - new Date(b.startDate!).getTime());
+                  
+                  const currentIndex = phases.findIndex(p => p.id === milestone.id);
+                  
+                  if (property === 'startDate') {
+                    // Start date must be after previous phase end and before current phase end
+                    const prevPhase = currentIndex > 0 ? phases[currentIndex - 1] : null;
+                    const currentEnd = new Date(milestone.endDate || milestone.dueDate);
+                    
+                    if (prevPhase) {
+                      const prevEnd = new Date(prevPhase.endDate || prevPhase.dueDate);
+                      return date < prevEnd || date >= currentEnd;
+                    }
+                    return date >= currentEnd;
+                  } else {
+                    // End date must be after current phase start and before next phase start
+                    const nextPhase = currentIndex < phases.length - 1 ? phases[currentIndex + 1] : null;
+                    const currentStart = new Date(milestone.startDate!);
+                    
+                    if (nextPhase) {
+                      const nextStart = new Date(nextPhase.startDate!);
+                      return date <= currentStart || date >= nextStart;
+                    }
+                    return date <= currentStart;
+                  }
+                }}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+        )}
+      </div>
+    );
+  };
+
   // Get milestones for this project - handle both new and existing projects
   const projectMilestones = useMemo(() => {
     if (isCreatingProject && localMilestonesState) {
@@ -476,11 +707,27 @@ export function ProjectMilestoneSection({
   // Check if project has recurring milestones and reconstruct config
   // NEW SYSTEM: Look for template milestone with isRecurring=true
   // OLD SYSTEM: Fall back to numbered pattern detection for backward compatibility
+  // Detect split mode based on milestones having startDate - MOVED UP to run first
   React.useEffect(() => {
-    if (recurringMilestone || !projectId || isDeletingRecurringMilestone) return;
+    const phaseMilestones = projectMilestones.filter(m => m.startDate !== undefined);
+    const shouldBeSplitMode = phaseMilestones.length > 0;
+    console.log('[Split Mode Detection] Phase milestones found:', phaseMilestones.length);
+    console.log('[Split Mode Detection] Should be split mode:', shouldBeSplitMode);
+    setIsSplitMode(shouldBeSplitMode);
+  }, [projectMilestones]);
+
+  React.useEffect(() => {
+    // Check if any milestones have startDate (phases) - if so, don't detect recurring
+    const hasPhases = projectMilestones.some(m => m.startDate !== undefined);
+    
+    if (recurringMilestone || !projectId || isDeletingRecurringMilestone || hasPhases) return;
+    
+    console.log('[Recurring Detection] Checking for recurring milestones');
+    console.log('[Recurring Detection] projectMilestones:', projectMilestones);
     
     // NEW SYSTEM: First check for template milestone with isRecurring=true
     const templateMilestone = projectMilestones.find(m => m.isRecurring === true);
+    console.log('[Recurring Detection] Template milestone:', templateMilestone);
     
     if (templateMilestone && templateMilestone.recurringConfig) {
       // Found new-style template milestone - use its configuration
@@ -504,11 +751,15 @@ export function ProjectMilestoneSection({
     }
     
     // OLD SYSTEM: Fall back to pattern detection from numbered milestones
+    // Exclude phases (milestones with startDate) from recurring detection
     const recurringPattern = projectMilestones.filter(m => 
-      m.name && /\s\d+$/.test(m.name) // Ends with space and number
+      m.name && /\s\d+$/.test(m.name) && m.startDate === undefined // Ends with space and number, but not a phase
     );
     
+    console.log('[Recurring Detection] Recurring pattern matches:', recurringPattern);
+    
     if (recurringPattern.length >= 1) {
+      console.log('[Recurring Detection] Found recurring pattern, setting recurring milestone');
       // Detect recurring pattern from existing milestones
       const sortedMilestones = recurringPattern.sort((a, b) => 
         new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
@@ -571,8 +822,8 @@ export function ProjectMilestoneSection({
       
       // Exclude NEW template milestones
       if (m.isRecurring) return false;
-      // Exclude OLD numbered instances
-      if (m.name && /\s\d+$/.test(m.name)) return false;
+      // Exclude OLD numbered instances (but not phases)
+      if (m.name && /\s\d+$/.test(m.name) && m.startDate === undefined) return false;
       return true;
     });
     
@@ -942,9 +1193,9 @@ export function ProjectMilestoneSection({
   const ensureRecurringMilestonesAvailable = React.useCallback(async (targetDate?: Date) => {
     if (!recurringMilestone || !projectId) return;
     
-    // Get current milestone count
+    // Get current milestone count (exclude phases)
     const currentMilestones = projectMilestones.filter(m => 
-      m.name && /\s\d+$/.test(m.name)
+      m.name && /\s\d+$/.test(m.name) && m.startDate === undefined
     );
     
     // Safety check: if we already have too many, don't generate more
@@ -1156,9 +1407,9 @@ export function ProjectMilestoneSection({
       } else {
         // For existing projects, delete recurring milestone pattern
         // NEW SYSTEM: Delete template milestones with isRecurring=true
-        // OLD SYSTEM: Delete numbered instances (name pattern ending with space and number)
+        // OLD SYSTEM: Delete numbered instances (name pattern ending with space and number, excluding phases)
         const recurringMilestones = projectMilestones.filter(m => 
-          m.isRecurring || (m.name && /\s\d+$/.test(m.name))
+          m.isRecurring || (m.name && /\s\d+$/.test(m.name) && m.startDate === undefined)
         );
         
         console.log('[ProjectMilestoneSection] Found', recurringMilestones.length, 'recurring milestones to delete');
@@ -1236,40 +1487,8 @@ export function ProjectMilestoneSection({
   }, [totalRecurringAllocation, recurringMilestone, onRecurringMilestoneChange, ensureRecurringMilestonesAvailable]);
 
   return (
-    <div className="border-b border-gray-200">
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full px-8 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
-      >
-        <div className="flex items-center gap-3">
-          {isExpanded ? (
-            <ChevronDown className="w-4 h-4 text-gray-500" />
-          ) : (
-            <ChevronRight className="w-4 h-4 text-gray-500" />
-          )}
-          <h3 className="text-lg font-medium text-gray-900">Time Load</h3>
-        </div>
-        
-        {isOverBudget && !projectContinuous && (
-          <div className="flex items-center gap-2 text-orange-600">
-            <AlertTriangle className="w-4 h-4" />
-            <span className="text-sm font-medium">
-              {totalTimeAllocation}h / {projectEstimatedHours}h allocated
-            </span>
-          </div>
-        )}
-      </button>
-
-      <AnimatePresence>
-        {isExpanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden"
-          >
-            <div className="px-8 pb-6">
+    <div>
+      <div className="pb-6">
               {/* Time Budget Field */}
               {externalEditingProperty !== undefined && externalSetEditingProperty && externalHandleSaveProperty && recurringMilestoneInfo && (
                 <div className="mb-6 pb-4 border-b border-gray-200">
@@ -1281,36 +1500,67 @@ export function ProjectMilestoneSection({
                     return (
                       <div>
                         <Label className="text-xs text-muted-foreground mb-1 block">Time Budget</Label>
-                        {isEditing ? (
-                          <Input
-                            type="number"
-                            defaultValue={projectEstimatedHours}
-                            className="h-10 text-sm border-border bg-background w-full max-w-[200px]"
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                const newValue = parseInt((e.target as HTMLInputElement).value) || 0;
+                        <div className="flex items-center gap-2">
+                          {isEditing ? (
+                            <Input
+                              type="number"
+                              defaultValue={projectEstimatedHours}
+                              className="h-10 text-sm border-border bg-background w-full max-w-[200px]"
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  const newValue = parseInt((e.target as HTMLInputElement).value) || 0;
+                                  externalHandleSaveProperty('estimatedHours', newValue);
+                                } else if (e.key === 'Escape') {
+                                  externalSetEditingProperty(null);
+                                }
+                              }}
+                              onBlur={(e) => {
+                                const newValue = parseInt(e.target.value) || 0;
                                 externalHandleSaveProperty('estimatedHours', newValue);
-                              } else if (e.key === 'Escape') {
-                                externalSetEditingProperty(null);
+                              }}
+                              autoFocus
+                            />
+                          ) : (
+                            <div
+                              className="h-10 text-sm justify-start text-left font-normal px-3 border border-input rounded-md bg-background hover:bg-accent hover:text-accent-foreground cursor-pointer flex items-center w-full max-w-[200px]"
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => { if (!isContinuousWithRecurring) externalSetEditingProperty('estimatedHours'); }}
+                              onKeyDown={(e) => { if (!isContinuousWithRecurring && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); externalSetEditingProperty('estimatedHours'); } }}
+                            >
+                              <span className="truncate">{displayValue}</span>
+                            </div>
+                          )}
+                          
+                          {/* Split Estimate and Recurring Estimate Buttons */}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleInitiateSplit}
+                            className="flex items-center gap-2"
+                          >
+                            <SquareSplitHorizontal className="w-4 h-4" />
+                            Split Estimate
+                          </Button>
+
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              if (isSplitMode) {
+                                setShowRecurringFromSplitWarning(true);
+                              } else if (projectMilestones.length > 0) {
+                                setShowRecurringWarning(true);
+                              } else {
+                                setShowRecurringConfig(true);
                               }
                             }}
-                            onBlur={(e) => {
-                              const newValue = parseInt(e.target.value) || 0;
-                              externalHandleSaveProperty('estimatedHours', newValue);
-                            }}
-                            autoFocus
-                          />
-                        ) : (
-                          <div
-                            className="h-10 text-sm justify-start text-left font-normal px-3 border border-input rounded-md bg-background hover:bg-accent hover:text-accent-foreground cursor-pointer flex items-center w-full max-w-[200px]"
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => { if (!isContinuousWithRecurring) externalSetEditingProperty('estimatedHours'); }}
-                            onKeyDown={(e) => { if (!isContinuousWithRecurring && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); externalSetEditingProperty('estimatedHours'); } }}
+                            className="flex items-center gap-2"
                           >
-                            <span className="truncate">{displayValue}</span>
-                          </div>
-                        )}
+                            <RefreshCw className="w-4 h-4" />
+                            Recurring Estimate
+                          </Button>
+                        </div>
                       </div>
                     );
                   })()}
@@ -1352,67 +1602,85 @@ export function ProjectMilestoneSection({
                   return false; // Template milestone is shown in recurring panel below
                 }
                 
-                // OLD SYSTEM: Filter out numbered recurring instances
-                if ((recurringMilestone || isDeletingRecurringMilestone) && milestone.name && /\s\d+$/.test(milestone.name)) {
-                  return false; // Don't show individual recurring milestones as cards
+                // OLD SYSTEM: Filter out numbered recurring instances (but not phases)
+                if ((recurringMilestone || isDeletingRecurringMilestone) && milestone.name && /\s\d+$/.test(milestone.name) && milestone.startDate === undefined) {
+                  return false; // Don't show individual recurring milestones as cards, but keep phases
                 }
                 
-                return true; // Show regular milestones
-              }).map((milestone, index) => (
-                <div key={milestone.id || `milestone-${index}`} className="border border-gray-200 rounded-lg p-4 mb-3">
-                  <div className="flex items-end justify-between">
-                    {/* Left side: Name and Budget */}
-                    <div className="flex items-end gap-3">
-                      <MilestoneNameField milestone={milestone} />
-                      <MilestoneBudgetField milestone={milestone} />
-                    </div>
-                    
-                    {/* Right side: Due Date and Delete Button */}
-                    <div className="flex items-end gap-3">
-                      <MilestoneDateField milestone={milestone} />
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-10 w-10 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Milestone</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to delete "{milestone.name}"? This action cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction 
-                              onClick={() => {
-                                if (milestone.id) {
-                                  if (isCreatingProject && localMilestonesState) {
-                                    // Remove from local state for new projects
-                                    const filtered = localMilestonesState.milestones.filter(m => m.id !== milestone.id);
-                                    localMilestonesState.setMilestones(filtered);
-                                  } else {
-                                     // Delete from database for existing projects
-                                     handleDeleteMilestone(milestone.id);
-                                  }
-                                }
-                              }}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                return true; // Show regular milestones and phases
+              }).map((milestone, index) => {
+                const isPhase = milestone.startDate !== undefined;
+                const phases = projectMilestones
+                  .filter(m => m.startDate !== undefined)
+                  .sort((a, b) => new Date(a.startDate!).getTime() - new Date(b.startDate!).getTime());
+                const phaseIndex = phases.findIndex(p => p.id === milestone.id);
+                const isFirst = phaseIndex === 0;
+                const isLast = phaseIndex === phases.length - 1;
+                
+                return (
+                  <div key={milestone.id || `milestone-${index}`} className="border border-gray-200 rounded-lg p-4 mb-3">
+                    <div className="flex items-end justify-between">
+                      {/* Left side: Name and Budget */}
+                      <div className="flex items-end gap-3">
+                        <MilestoneNameField milestone={milestone} />
+                        <MilestoneBudgetField milestone={milestone} />
+                      </div>
+                      
+                      {/* Right side: Date(s) and Delete Button */}
+                      <div className="flex items-end gap-3">
+                        {isPhase ? (
+                          <>
+                            <PhaseDateField milestone={milestone} property="startDate" isFirst={isFirst} />
+                            <span className="text-muted-foreground mb-2">→</span>
+                            <PhaseDateField milestone={milestone} property="endDate" isLast={isLast} />
+                          </>
+                        ) : (
+                          <MilestoneDateField milestone={milestone} />
+                        )}
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-10 w-10 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
                             >
-                              Delete Milestone
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete {isPhase ? 'Phase' : 'Milestone'}</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete "{milestone.name}"? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={() => {
+                                  if (milestone.id) {
+                                    if (isCreatingProject && localMilestonesState) {
+                                      // Remove from local state for new projects
+                                      const filtered = localMilestonesState.milestones.filter(m => m.id !== milestone.id);
+                                      localMilestonesState.setMilestones(filtered);
+                                    } else {
+                                       // Delete from database for existing projects
+                                       handleDeleteMilestone(milestone.id);
+                                    }
+                                  }
+                                }}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Delete {isPhase ? 'Phase' : 'Milestone'}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
 
               {/* Recurring Milestone Card */}
               {recurringMilestone && (
@@ -1762,26 +2030,19 @@ export function ProjectMilestoneSection({
                 </div>
               )}
 
-              {/* Add Milestone Button */}
-              <div className="mt-4 flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={handleAddMilestoneWithWarning}
-                  className="flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add Milestone
-                </Button>
-
-                <Button
-                  variant="outline"
-                  onClick={handleCreateRecurringMilestone}
-                  className="flex items-center gap-2"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                  Add Recurring Milestone
-                </Button>
-              </div>
+              {/* Add Milestone/Phase Button - Only show when in split mode */}
+              {isSplitMode && (
+                <div className="mt-4">
+                  <Button
+                    variant="outline"
+                    onClick={handleAddPhase}
+                    className="flex items-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Phase
+                  </Button>
+                </div>
+              )}
 
               {/* Warning: Regular milestone when recurring exists */}
               <AlertDialog open={showRegularMilestoneWarning} onOpenChange={setShowRegularMilestoneWarning}>
@@ -1828,6 +2089,55 @@ export function ProjectMilestoneSection({
                       className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     >
                       Delete & Continue
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
+              {/* Warning: Split estimate when milestones exist */}
+              <AlertDialog open={showSplitWarning} onOpenChange={setShowSplitWarning}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Existing Milestones?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This project has existing milestones. Splitting the estimate will delete all existing milestones and create phases instead. This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={() => {
+                        handleDeleteAndSplit();
+                      }}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Delete & Split
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
+              {/* Warning: Recurring estimate when in split mode */}
+              <AlertDialog open={showRecurringFromSplitWarning} onOpenChange={setShowRecurringFromSplitWarning}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Split Phases?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This project has split phases. Creating recurring milestones will delete all phases. This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={() => {
+                        handleDeleteAndSplit();
+                        setIsSplitMode(false);
+                        setShowRecurringConfig(true);
+                        setShowRecurringFromSplitWarning(false);
+                      }}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Delete Phases & Continue
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -2129,9 +2439,6 @@ export function ProjectMilestoneSection({
                 </div>
               )}
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+      </div>
   );
 }
