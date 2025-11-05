@@ -1,5 +1,62 @@
 /* Planner FullCalendar Styles */
 
+/* ============================================
+   CSS VARIABLES - Single source of truth
+   Synced with constants/colors.ts
+   ============================================ */
+:root {
+  /* Neutral grays from NEUTRAL_COLORS */
+  --gray-50: #fafafa;
+  --gray-100: #f5f5f5;
+  --gray-200: #e5e5e5;
+  --gray-300: #d4d4d4;
+  --gray-400: #a3a3a3;
+  --gray-500: #737373;
+  --gray-700: #404040;
+  
+  /* Special grays */
+  --stone-50: #fafaf9;
+  --gray-border-light: #e2e2e2;
+  
+  /* Brand colors (OKLCH) */
+  --brand-primary: oklch(0.71 0.127 232);
+  --brand-primary-light: oklch(0.92 0.05 232);
+  --brand-primary-text: oklch(0.50 0.127 232);
+  
+  /* Semantic colors */
+  --error: #ef4444;
+  --selection: rgba(2, 192, 183, 0.1);
+  
+  /* Semantic sizing */
+  --header-height: 36px; /* Matches h-9 from Tailwind */
+  --compact-slot-height: 15px; /* Half of normal 30px for compact mode */
+  --event-min-height: 20px;
+  --event-border-radius: 6px;
+  --task-border-radius: 999px; /* Fully rounded pill */
+  
+  /* Font sizes */
+  --font-xs: 11px;
+  --font-sm: 12px;
+  --font-md: 14px;
+  --font-lg: 18px;
+  
+  /* Z-index scale */
+  --z-base: 1;
+  --z-work-slot: 5;
+  --z-habit-task: 5;
+  --z-event-hover: 10;
+  --z-dragging: 9999;
+  --z-resizer: 99;
+  
+  /* Opacity values */
+  --opacity-work-slot: 0.6;
+  --opacity-work-slot-hover: 0.8;
+  --opacity-planned: 0.6; /* Planned/future events are muted */
+  --opacity-completed: 1.0; /* Completed events are fully prominent */
+  --opacity-hover: 0.85;
+  --opacity-dragging: 0.75;
+}
+
 /* Override FullCalendar default styles to match our design */
 .fc {
   font-family: inherit;
@@ -19,7 +76,7 @@
 
 .fc-theme-standard td, 
 .fc-theme-standard th {
-  border-color: #e2e2e2; /* Restore internal grid borders */
+  border-color: var(--gray-border-light); /* Restore internal grid borders */
 }
 
 .fc-theme-standard .fc-scrollgrid {
@@ -57,24 +114,31 @@
 
 /* Time grid styles */
 .fc-timegrid-slot {
-  border-color: #f3f4f6;
+  border-color: var(--gray-200); /* Gray-200 - darker for visibility */
 }
 
 .fc-timegrid-slot-minor {
-  border-color: #f9fafb;
+  border-color: var(--gray-100); /* Gray-100 */
 }
 
 /* Event styles */
 .planner-v2-event {
-  border-radius: 6px;
-  font-size: 12px;
+  border-radius: var(--event-border-radius);
+  font-size: var(--font-sm);
   padding: 2px 4px;
   position: relative;
   border: none !important; /* No default border */
 }
 
-.planner-v2-event.completed {
-  opacity: 0.7;
+/* Planned/future events are muted - completed events are prominent */
+.planner-v2-event.future-event,
+.fc-event.future-event {
+  opacity: var(--opacity-planned); /* Muted for planned events */
+}
+
+.planner-v2-event.completed,
+.fc-event:not(.future-event):not(.habit-event):not(.task-event) {
+  opacity: var(--opacity-completed); /* Full opacity for completed events */
 }
 
 /* Ensure event content doesn't overflow */
@@ -82,13 +146,13 @@
 .fc-event-main,
 .fc-timegrid-event {
   overflow: hidden !important;
-  min-height: 20px !important; /* Minimum height for one line of text */
+  min-height: var(--event-min-height) !important; /* Minimum height for one line of text */
 }
 
 .fc-event-main-frame {
   overflow: hidden !important;
   height: 100%;
-  min-height: 20px !important;
+  min-height: var(--event-min-height) !important;
 }
 
 /* Remove all default FullCalendar borders and visual effects */
@@ -107,6 +171,15 @@
   box-shadow: none !important;
 }
 
+/* Add drop shadow to regular events (category: event) - not habits or tasks */
+.fc-event:not(.habit-event):not(.task-event):not(.work-slot-event):not(.fc-event-background) {
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1) !important;
+}
+
+.fc-event:not(.habit-event):not(.task-event):not(.work-slot-event):not(.fc-event-background):hover {
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1) !important;
+}
+
 /* Remove box-shadow from selected events too */
 .fc-event.fc-event-selected {
   box-shadow: none !important;
@@ -114,8 +187,9 @@
 
 /* Non-completed events get dashed outline in project color (like regular planner) */
 /* Using outline instead of border to avoid layout shift */
-.fc-event.future-event,
-.planner-v2-event.future-event {
+/* Habits are excluded - they don't distinguish between planned/completed */
+.fc-event.future-event:not(.habit-event),
+.planner-v2-event.future-event:not(.habit-event) {
   border: none !important;
   outline: 2px dashed var(--future-event-border-color) !important;
   outline-offset: -2px !important; /* Place outline inside the element */
@@ -139,34 +213,65 @@
   }
 }
 
-/* Work slot event styling */
-.work-slot-event {
-  opacity: 0.6 !important;
-  background-color: #e3f2fd !important;
-  border: 1px solid #1976d2 !important;
-  color: #1976d2 !important;
-  cursor: move !important;
-  z-index: 5 !important; /* Below regular events but above background */
-}
-
-.work-slot-event:hover {
-  opacity: 0.8 !important;
-  background-color: #dbeafe !important;
-}
-
-/* Legacy work-hour class for compatibility */
+/* Work slot event styling - semi-transparent white background */
+.work-slot-event,
 .planner-v2-event.work-hour {
-  opacity: 0.6 !important;
-  background-color: #e3f2fd !important;
-  border: 1px solid #1976d2 !important;
-  color: #1976d2 !important;
+  opacity: 0.8 !important; /* Semi-transparent to show grid lines */
+  background-color: #ffffff !important;
+  border: none !important;
+  color: var(--gray-500) !important;
+  cursor: move !important;
+  z-index: var(--z-base) !important; /* Base z-index so regular events appear on top */
+}
+
+.work-slot-event:hover,
+.planner-v2-event.work-hour:hover {
+  opacity: 0.9 !important;
+  background-color: #ffffff !important;
+  border: none !important;
+}
+
+/* FullCalendar background events (work hours) - ensure they're editable */
+.fc-timegrid-event.fc-event-background {
+  cursor: move !important;
+  pointer-events: auto !important; /* Ensure they can be clicked and dragged */
+}
+
+/* Make resize handles ALWAYS visible and functional for background events (work hours) */
+.fc-event-background .fc-event-resizer,
+.work-slot-event .fc-event-resizer {
+  display: block !important;
+  position: absolute !important;
+  z-index: 9999 !important;
+  pointer-events: auto !important;
+  background: transparent !important;
+  width: 100% !important;
+}
+
+.fc-event-background .fc-event-resizer-start,
+.work-slot-event .fc-event-resizer-start {
+  cursor: n-resize !important;
+  top: -4px !important;
+  height: 8px !important;
+}
+
+.fc-event-background .fc-event-resizer-end,
+.work-slot-event .fc-event-resizer-end {
+  cursor: s-resize !important;
+  bottom: -4px !important;
+  height: 8px !important;
+}
+
+/* Show visual indicator on hover for resize handles */
+.work-slot-event:hover .fc-event-resizer {
+  background: rgba(0, 0, 0, 0.1) !important;
 }
 
 /* Ensure FullCalendar resizers are visible */
 .fc-timegrid-event .fc-event-resizer {
   display: block !important;
   position: absolute;
-  z-index: 99;
+  z-index: var(--z-resizer);
   overflow: hidden;
   font-size: 1px;
   line-height: 1px;
@@ -191,12 +296,12 @@
 /* Header styles - Match toggle button height (h-9 = 36px) */
 .fc-col-header,
 .fc-col-header-cell {
-  background-color: #f9fafb;
+  background-color: var(--gray-50);
   font-weight: 500;
-  color: #374151;
-  height: 36px !important; /* Match h-9 toggle button height */
-  min-height: 36px !important;
-  font-size: 14px; /* Match text-sm from regular planner */
+  color: var(--gray-700);
+  height: var(--header-height) !important; /* Match h-9 toggle button height */
+  min-height: var(--header-height) !important;
+  font-size: var(--font-md); /* Match text-sm from regular planner */
   position: relative !important;
   vertical-align: middle !important;
 }
@@ -204,8 +309,8 @@
 .fc-col-header-cell-cushion {
   padding: 0 4px !important; /* Horizontal padding only */
   font-weight: 500; /* Match regular planner font weight */
-  height: 36px !important; /* Match the cell height */
-  min-height: 36px !important;
+  height: var(--header-height) !important; /* Match the cell height */
+  min-height: var(--header-height) !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -217,13 +322,13 @@
 /* Day view headers should be larger like regular planner */
 .fc-timegrid-day-view .fc-col-header-cell,
 .fc-timegrid-day-view .fc-col-header-cell-cushion {
-  font-size: 18px; /* Match text-lg from regular planner day headers */
+  font-size: var(--font-lg); /* Match text-lg from regular planner day headers */
 }
 
 /* Week view headers stay smaller */
 .fc-timegrid-week-view .fc-col-header-cell,
 .fc-timegrid-week-view .fc-col-header-cell-cushion {
-  font-size: 14px; /* Match text-sm from regular planner week headers */
+  font-size: var(--font-md); /* Match text-sm from regular planner week headers */
 }
 
 /* Additional fallback centering approach */
@@ -245,53 +350,63 @@
 
 /* Alternative class names for different FullCalendar versions */
 .fc-day-header .fc-col-header-cell-cushion {
-  font-size: 18px; /* Day view fallback */
+  font-size: var(--font-lg); /* Day view fallback */
 }
 
 .fc-week-header .fc-col-header-cell-cushion {
-  font-size: 14px; /* Week view fallback */
+  font-size: var(--font-md); /* Week view fallback */
 }
 
 .fc-daygrid-day-number {
   font-weight: 500;
-  color: #374151;
+  color: var(--gray-700);
 }
 
 /* Time slot labels */
 .fc-timegrid-slot-label {
-  font-size: 11px;
-  color: #6b7280;
+  font-size: var(--font-xs);
+  color: var(--gray-500);
 }
 
-/* Today styling */
+/* Today styling - using brand color in OKLCH */
 .fc-day-today {
-  background-color: #fef3c7 !important;
+  background-color: transparent !important; /* No background shading on today column */
 }
 
 .fc-day-today .fc-col-header-cell-cushion {
-  color: #d97706;
+  color: var(--brand-primary-text); /* Darker brand blue for text */
   font-weight: 600;
 }
 
-/* Now indicator */
-.fc-timegrid-now-indicator-line {
-  border-color: #ef4444;
-  border-width: 1px;
-}
 
-.fc-timegrid-now-indicator-arrow {
-  border-top-color: #ef4444;
-  border-bottom-color: #ef4444;
-}
 
 /* Selection */
 .fc-highlight {
-  background-color: rgba(2, 192, 183, 0.1);
+  background-color: var(--selection);
 }
 
-/* Business hours */
+/* Business hours background styling */
+/* Set base to light gray */
+.fc-timegrid-cols,
+.fc-timegrid-body {
+  background-color: #fcfcfc !important; /* Light gray for non-business */
+}
+
+/* Make the fc-non-business overlay transparent but keep the background color showing through */
 .fc-non-business {
-  background-color: #f9fafb;
+  background-color: transparent !important;
+  opacity: 1 !important;
+}
+
+/* Ensure slot lanes are transparent so borders show */
+.fc-timegrid-slot-lane {
+  background-color: transparent !important;
+}
+
+/* Work hour background events should be white and cover the gray */
+.fc-bg-event {
+  background-color: #ffffff !important;
+  opacity: 1 !important;
 }
 
 /* Scrollbar styles */
@@ -301,22 +416,21 @@
 
 /* Align scrollbar color with neutral grays used elsewhere */
 .fc-scroller::-webkit-scrollbar-track {
-  background: #f3f4f6;
+  background: var(--gray-100);
 }
 
 .fc-scroller::-webkit-scrollbar-thumb {
-  background: #d1d5db;
+  background: var(--gray-300);
   border-radius: 3px;
 }
 
 .fc-scroller::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
+  background: var(--gray-400);
 }
 
 /* Event interaction states */
 .fc-event:hover {
-  opacity: 0.85;
-  /* box-shadow removed - handled above */
+  opacity: var(--opacity-hover);
 }
 
 /* Remove extra whitespace between last day column and scrollbar by clearing scroller gutter */
@@ -353,12 +467,12 @@
 
 /* Drag and drop */
 .fc-event-dragging {
-  opacity: 0.75;
-  z-index: 9999;
+  opacity: var(--opacity-completed)5;
+  z-index: var(--z-resizer)99;
 }
 
 .fc-event-resizing {
-  opacity: 0.75;
+  opacity: var(--opacity-completed)5;
 }
 
 /* Resize handles */
@@ -384,15 +498,14 @@
 
 /* Make resize handles more visible on hover */
 .fc-event:hover {
-  opacity: 0.85;
-  /* box-shadow removed - handled above */
+  opacity: var(--opacity-hover);
 }
 
 /* Mobile responsive adjustments */
 @media (max-width: 768px) {
   /* Reduce font sizes for better fit */
   .fc-timegrid-event {
-    font-size: 11px;
+    font-size: var(--font-xs);
     padding: 1px 2px;
   }
   
@@ -403,7 +516,7 @@
   
   /* Smaller header text on mobile */
   .fc-col-header-cell-cushion {
-    font-size: 12px !important;
+    font-size: var(--font-sm) !important;
     padding: 0 2px !important;
   }
   
@@ -442,7 +555,7 @@
     }
     
     .fc-col-header-cell-cushion {
-      font-size: 11px !important;
+      font-size: var(--font-xs) !important;
     }
   }
 }
@@ -451,7 +564,7 @@
 @media (min-width: 768px) and (max-width: 1024px) {
   /* Slightly smaller fonts for tablet 3-day view */
   .fc-timegrid-event {
-    font-size: 11px;
+    font-size: var(--font-xs);
   }
   
   .fc-col-header-cell-cushion {
@@ -511,6 +624,7 @@
 
 /* Habit Event Styles */
 .habit-event {
+  background-color: var(--gray-200) !important; /* Two shades darker than non-business hours (stone-50) */
   border-left-width: 3px !important;
   cursor: pointer;
 }
@@ -519,12 +633,12 @@
   opacity: 1 !important;
   transform: scale(1.02);
   transition: all 0.15s ease;
-  z-index: 10 !important;
+  z-index: var(--z-event-hover) !important;
 }
 
 /* Ensure habits render between events and work hours */
 .habit-event {
-  z-index: 5 !important; /* Below events (10) but above work hours (1) */
+  z-index: var(--z-habit-task) !important; /* Below events (10) but above work hours (1) */
 }
 
 /* Task Event Styles */
@@ -532,24 +646,24 @@
   background-color: rgba(255, 255, 255, 0.6) !important;
   border: none !important;
   border-left: none !important;
-  border-radius: 999px !important; /* Fully rounded corners */
+  border-radius: var(--task-border-radius) !important; /* Fully rounded corners */
   cursor: pointer;
   height: 50% !important; /* Half the height */
   max-height: 24px !important; /* Reasonable max height */
-  min-height: 20px !important; /* Minimum usable height */
+  min-height: var(--event-min-height) !important; /* Minimum usable height */
   margin-top: auto !important; /* Center vertically in the time slot */
   margin-bottom: auto !important;
 }
 
 /* Tasks get light grey dashed outline when planned (non-completed) */
 .task-event.future-event {
-  outline: 2px dashed #d1d5db !important; /* Light grey */
+  outline: 2px dashed var(--gray-300) !important; /* Light grey */
   outline-offset: -2px !important;
 }
 
 /* Tasks get light grey solid outline when selected */
 .task-event.selected-event {
-  outline: 2px solid #9ca3af !important; /* Slightly darker grey for selection */
+  outline: 2px solid var(--gray-400) !important; /* Slightly darker grey for selection */
   outline-offset: -2px !important;
 }
 
@@ -557,18 +671,18 @@
   background-color: rgba(255, 255, 255, 0.8) !important;
   transform: scale(1.01);
   transition: all 0.15s ease;
-  z-index: 10 !important;
+  z-index: var(--z-event-hover) !important;
 }
 
 /* Tasks should render at the same level as habits */
 .task-event {
-  z-index: 5 !important;
+  z-index: var(--z-habit-task) !important;
 }
 
 /* Ensure task events never show completion icon on the right */
 .task-event .fc-event-main-frame {
   justify-content: flex-start !important;
-  border-radius: 999px !important; /* Match parent */
+  border-radius: var(--task-border-radius) !important; /* Match parent */
 }
 
 /* ============================================
@@ -583,6 +697,12 @@
 .planner-compact .fc-timegrid-slot {
   height: 15px !important;
   min-height: 15px !important;
+  border-color: var(--gray-200) !important; /* Hour lines - darker like expanded view */
+}
+
+/* Half-hour lines (minor slots) in compact view should be lighter */
+.planner-compact .fc-timegrid-slot-minor {
+  border-color: var(--gray-100) !important; /* Lighter like 15-min lines in expanded */
 }
 
 .planner-compact .fc-timegrid-slot-lane {
@@ -600,16 +720,21 @@
   min-height: 15px !important;
 }
 
-/* Adjust time labels for compact view */
+/* Adjust time labels for compact view - only show hours, not half-hours */
 .planner-compact .fc-timegrid-slot-label-cushion {
   font-size: 10px;
   padding: 1px 3px;
   line-height: 1.2;
 }
 
+/* Hide half-hour labels in compact view (only show hour labels) */
+.planner-compact .fc-timegrid-slot-minor .fc-timegrid-slot-label-cushion {
+  display: none;
+}
+
 /* Events stay at normal font size */
 .planner-compact .fc-timegrid-event {
-  font-size: 12px;
+  font-size: var(--font-sm);
   min-height: 15px !important;
 }
 

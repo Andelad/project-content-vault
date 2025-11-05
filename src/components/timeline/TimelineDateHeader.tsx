@@ -5,12 +5,12 @@ import { UnifiedTimelineService, addDaysToDate } from '@/services';
 import { useTimelineContext } from '@/contexts/TimelineContext';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
-interface TimelineDateHeadersProps {
+interface TimelineDateHeaderProps {
   dates: Date[];
   mode?: 'days' | 'weeks';
 }
 
-export const TimelineDateHeaders = memo(function TimelineDateHeaders({ dates, mode = 'days' }: TimelineDateHeadersProps) {
+export const TimelineDateHeader = memo(function TimelineDateHeader({ dates, mode = 'days' }: TimelineDateHeaderProps) {
   const { setCurrentView, setCurrentDate } = useTimelineContext();
   const [hoveredCellIndex, setHoveredCellIndex] = useState<number | null>(null);
   const [hoveredDayIndex, setHoveredDayIndex] = useState<number | null>(null);
@@ -73,7 +73,7 @@ export const TimelineDateHeaders = memo(function TimelineDateHeaders({ dates, mo
                   } : undefined}
                 >
                   <div className="bg-white bg-opacity-90 rounded-full p-1 shadow-sm border">
-                    <Calendar size={12} className="text-blue-600" />
+                    <Calendar size={12} style={{ color: 'oklch(0.50 0.127 232)' }} />
                   </div>
                 </div>
               )}
@@ -124,7 +124,10 @@ export const TimelineDateHeaders = memo(function TimelineDateHeaders({ dates, mo
                     maxWidth: '200px'
                   }}
                 >
-                  <div className={`text-xs pl-4 pr-4 py-1 whitespace-nowrap ${isToday ? 'font-medium text-blue-600' : 'text-gray-600'}`}>
+                  <div 
+                    className={`text-xs pl-4 pr-4 py-1 whitespace-nowrap ${isToday ? 'font-medium' : 'text-gray-600'}`}
+                    style={isToday ? { color: 'oklch(0.50 0.127 232)' } : undefined}
+                  >
                     {group.monthName}
                   </div>
                 </div>
@@ -144,7 +147,10 @@ export const TimelineDateHeaders = memo(function TimelineDateHeaders({ dates, mo
             return (
               <div key={index} className={`text-center ${index < dates.length - 1 ? 'border-r border-gray-200' : ''}`} style={{ minWidth: '153px', width: '153px' }}>
                 {renderDateCell(weekStart, index, 153, 
-                  <div className={`text-xs px-1 ${isCurrentWeek ? 'font-medium text-blue-600' : 'text-gray-700'}`}>
+                  <div 
+                    className={`text-xs px-1 ${isCurrentWeek ? 'font-medium' : 'text-gray-700'}`}
+                    style={isCurrentWeek ? { color: 'oklch(0.50 0.127 232)' } : undefined}
+                  >
                     {dateRange}
                   </div>
                 )}
@@ -197,7 +203,10 @@ export const TimelineDateHeaders = memo(function TimelineDateHeaders({ dates, mo
                   maxWidth: '200px'
                 }}
               >
-                <div className={`text-xs pl-4 pr-4 py-1 whitespace-nowrap ${isToday ? 'font-medium text-blue-600' : hasWeekend ? 'text-gray-400' : 'text-gray-600'}`}>
+                <div 
+                  className={`text-xs pl-4 pr-4 py-1 whitespace-nowrap ${isToday ? 'font-medium' : hasWeekend ? 'text-gray-400' : 'text-gray-600'}`}
+                  style={isToday ? { color: 'oklch(0.50 0.127 232)' } : undefined}
+                >
                   {group.monthName}
                 </div>
               </div>
@@ -215,7 +224,10 @@ export const TimelineDateHeaders = memo(function TimelineDateHeaders({ dates, mo
           return (
             <div key={index} className="text-center" style={{ minWidth: '52px', width: '52px' }}>
               {renderDateCell(date, index, 52,
-                <div className={`text-xs ${isToday ? 'font-medium text-blue-600 bg-blue-100 rounded-full w-5 h-5 flex items-center justify-center mx-auto' : isWeekend ? 'text-gray-400' : 'text-gray-700'}`}>
+                <div 
+                  className={`text-xs ${isToday ? 'font-medium rounded-full w-5 h-5 flex items-center justify-center mx-auto' : isWeekend ? 'text-gray-400' : 'text-gray-700'}`}
+                  style={isToday ? { color: 'oklch(0.50 0.127 232)', backgroundColor: 'oklch(0.92 0.05 232 / 0.5)' } : undefined}
+                >
                   {date.getDate()}
                 </div>
               )}

@@ -566,10 +566,10 @@ export function PlannerView() {
       return {
         html: `
           <div style="height: 100%; display: flex; flex-direction: column; padding: 4px 6px; overflow: hidden;">
-            <div style="font-size: 11px; font-style: italic; color: #1976d2; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            <div style="font-size: 11px; font-style: italic; color: ${NEUTRAL_COLORS.gray500}; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
               ${workHour.title}
             </div>
-            <div style="font-size: 10px; color: #1976d2; opacity: 0.8; margin-top: 2px;">
+            <div style="font-size: 10px; color: ${NEUTRAL_COLORS.gray500}; opacity: 0.8; margin-top: 2px;">
               ${start} - ${end}
             </div>
           </div>
@@ -577,22 +577,10 @@ export function PlannerView() {
       };
     }
 
-    // Render habits with croissant icon
+    // Render habits with croissant icon (no completion checkbox)
     if (extendedProps.category === 'habit') {
       const start = moment(event.start).format('HH:mm');
       const end = moment(event.end).format('HH:mm');
-      const isCompleted = extendedProps.completed;
-      
-      // Check icon HTML for completion status
-      const checkIconSvg = isCompleted 
-        ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><path d="m9 12 2 2 4-4"></path><circle cx="12" cy="12" r="10"></circle></svg>'
-        : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><circle cx="12" cy="12" r="10"></circle></svg>';
-      
-      const iconHtml = `<button type="button" style="cursor: pointer; transition: transform 0.2s; background: none; border: none; color: inherit; padding: 0; margin: 0; display: flex; align-items: center; justify-content: center;" 
-                          onmouseover="this.style.transform='scale(1.1)'" 
-                          onmouseout="this.style.transform='scale(1)'"
-                          onclick="event.stopPropagation(); window.plannerToggleHabitCompletion && window.plannerToggleHabitCompletion('${event.id}')"
-                          title="${isCompleted ? 'Mark as not completed' : 'Mark as completed'}">${checkIconSvg}</button>`;
       
       // Calculate height for layout
       const durationInMs = event.end ? event.end.getTime() - event.start.getTime() : 0;
@@ -605,23 +593,15 @@ export function PlannerView() {
         html: `
           <div style="height: 100%; display: flex; flex-direction: column; gap: 2px; padding: 2px; overflow: hidden;">
             ${showTwoLines ? `
-            <div style="display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; gap: 4px;">
-              <div style="display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0;">
-                ${HABIT_ICON_SVG}
-                <div style="font-size: 12px; font-weight: 600; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${event.title}</div>
-              </div>
-              <div style="display: flex; align-items: center; color: inherit; flex-shrink: 0;">
-                ${iconHtml}
-              </div>
+            <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+              ${HABIT_ICON_SVG}
+              <div style="font-size: 12px; font-weight: 600; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">${event.title}</div>
             </div>
             <div style="font-size: 10px; opacity: 0.8; line-height: 1;">${start} - ${end}</div>
             ` : `
-            <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
+            <div style="display: flex; align-items: center; gap: 4px;">
               ${HABIT_ICON_SVG}
               <div style="font-size: 12px; font-weight: 600; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">${event.title}</div>
-              <div style="display: flex; align-items: center; color: inherit; flex-shrink: 0;">
-                ${iconHtml}
-              </div>
             </div>
             `}
           </div>
@@ -802,10 +782,54 @@ export function PlannerView() {
     });
   }, [settings?.isCompactView, updateSettings]);
 
+  // Convert work hours to FullCalendar businessHours format
+  const businessHoursConfig = useMemo(() => {
+    if (!settings?.weeklyWorkHours) {
+      return {
+        daysOfWeek: [1, 2, 3, 4, 5], // Default: Monday - Friday
+        startTime: '09:00',
+        endTime: '17:00'
+      };
+    }
+
+    // Map day names to FullCalendar day numbers (0=Sunday, 1=Monday, etc.)
+    const dayMap: Record<string, number> = {
+      sunday: 0,
+      monday: 1,
+      tuesday: 2,
+      wednesday: 3,
+      thursday: 4,
+      friday: 5,
+      saturday: 6
+    };
+
+    // Convert work slots to FullCalendar businessHours array format
+    const businessHours: any[] = [];
+    Object.entries(settings.weeklyWorkHours).forEach(([dayName, slots]) => {
+      const dayNumber = dayMap[dayName.toLowerCase()];
+      if (slots && slots.length > 0) {
+        slots.forEach(slot => {
+          businessHours.push({
+            daysOfWeek: [dayNumber],
+            startTime: slot.startTime,
+            endTime: slot.endTime
+          });
+        });
+      }
+    });
+
+    return businessHours.length > 0 ? businessHours : {
+      daysOfWeek: [1, 2, 3, 4, 5],
+      startTime: '09:00',
+      endTime: '17:00'
+    };
+  }, [settings?.weeklyWorkHours]);
+
   // Prepare FullCalendar configuration
   const calendarConfig = {
     ...getBaseFullCalendarConfig(settings?.isCompactView || false),
     ...getEventStylingConfig(),
+    businessHours: businessHoursConfig, // Use work hours for business hours
     // Use function for events so refetchEvents() will get fresh data
     events: (fetchInfo: any, successCallback: any, failureCallback: any) => {
       try {
@@ -977,7 +1001,7 @@ export function PlannerView() {
             hoverOverlay.className = 'absolute inset-0 flex items-center justify-center pointer-events-none z-50';
             hoverOverlay.innerHTML = `
               <div class="bg-white bg-opacity-90 rounded-full p-1 shadow-sm border">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <line x1="21" y1="6" x2="3" y2="6"></line>
                   <line x1="15" y1="12" x2="3" y2="12"></line>
                   <line x1="17" y1="18" x2="3" y2="18"></line>
@@ -993,8 +1017,8 @@ export function PlannerView() {
               top: ${cellRect.top - 40}px;
               left: ${cellRect.left + cellRect.width / 2}px;
               transform: translateX(-50%) scale(0.95);
-              background: #ffffff;
-              color: #1f2937;
+              background: ${NEUTRAL_COLORS.gray50};
+              color: ${NEUTRAL_COLORS.gray800};
               border: 1px solid ${NEUTRAL_COLORS.gray200};
               border-radius: 6px;
               padding: 6px 12px;

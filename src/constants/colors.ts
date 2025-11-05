@@ -5,6 +5,10 @@ import { ColorCalculationService } from '@/services';
 export const BRAND_COLORS = {
   primary: '#3daae0',
   primaryHover: '#2f8ec4',
+  // OKLCH brand color variations (hue 232 to match rgb(61, 170, 224))
+  primaryOklch: 'oklch(0.71 0.127 232)',
+  primaryOklchLight: 'oklch(0.92 0.05 232)',  // Lighter for backgrounds
+  primaryOklchText: 'oklch(0.50 0.127 232)',   // Darker for text
 } as const;
 
 // Neutral gray colors - centralized for consistency

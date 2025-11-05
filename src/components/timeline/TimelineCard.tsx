@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { ChevronRight, ChevronDown, Plus, X } from 'lucide-react';
-import { TimelineBar } from './TimelineBar';
+import { ProjectBar } from './ProjectBar';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { useProjectContext } from '../../contexts/ProjectContext';
 
-interface TimelineGridProps {
+interface TimelineCardProps {
   groups: Array<{ id: string; name: string }>;
   groupLayouts: Array<{ visualRows: Array<{ projects: any[] }> }>;
   collapsedGroups: Set<string>;
@@ -23,9 +23,9 @@ interface TimelineGridProps {
 }
 
 /**
- * TimelineGrid - Renders the main timeline project grid with groups and auto-layout rows
+ * TimelineCard - Renders the main timeline project grid with groups and auto-layout rows
  */
-export function TimelineGrid({
+export function TimelineCard({
   groups,
   groupLayouts,
   collapsedGroups,
@@ -40,7 +40,7 @@ export function TimelineGrid({
   mode,
   collapsed,
   onToggleGroupCollapse
-}: TimelineGridProps) {
+}: TimelineCardProps) {
   const { addGroup } = useProjectContext();
   const [isAddingGroup, setIsAddingGroup] = useState(false);
   const [groupName, setGroupName] = useState('');
@@ -99,7 +99,7 @@ export function TimelineGrid({
                     {visualRow.projects.map((project: any) => {
                       return (
                         <div key={project.id} className="absolute inset-0 pointer-events-none">
-                          <TimelineBar
+                          <ProjectBar
                             project={project}
                             dates={dates}
                             viewportStart={viewportStart}

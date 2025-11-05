@@ -3,7 +3,6 @@ import { toast } from './use-toast';
 import { 
   TimelineDragCoordinatorService,
   initializeHolidayDragState,
-  throttledDragUpdate,
   addDaysToDate
 } from '@/services';
 
@@ -24,7 +23,12 @@ interface UseHolidayDragProps {
 
 /**
  * Check if a holiday date range overlaps with any existing holidays
- * Returns true if there's an overlap (excluding the current holiday being dragged)
+ * 
+ * @param startDate - Proposed start date for the holiday
+ * @param endDate - Proposed end date for the holiday
+ * @param currentHolidayId - ID of the holiday being dragged (excluded from overlap check)
+ * @param allHolidays - Array of all existing holidays
+ * @returns true if there's an overlap with another holiday, false otherwise
  */
 function checkHolidayOverlap(
   startDate: Date,
@@ -52,7 +56,16 @@ function checkHolidayOverlap(
 
 /**
  * Custom hook for handling holiday drag operations (move and resize)
- * Coordinates with TimelineDragCoordinatorService for calculations
+ * 
+ * Coordinates with TimelineDragCoordinatorService for smooth, responsive dragging.
+ * Implements the same drag pattern as project bars:
+ * - Visual updates only during drag (no database writes)
+ * - Single database update on mouseUp
+ * - Overlap validation before committing changes
+ * - Supports mouse, touch, and pen input
+ * 
+ * @param props - Configuration object with timeline context and callbacks
+ * @returns Object containing handleHolidayMouseDown callback
  */
 export function useHolidayDrag({
   holidays,
@@ -120,49 +133,8 @@ export function useHolidayDrag({
           setDragState(result.newDragState);
         }
         
-        // Handle background persistence (throttled database updates)
-        const daysDelta = result.newDragState.lastDaysDelta;
-        if (daysDelta !== (currentDragStateRef?.lastDaysDelta || 0)) {
-          const throttleMs = timelineMode === 'weeks' ? 100 : 50;
-          throttledDragUpdate(async () => {
-            let newStartDate: Date, newEndDate: Date;
-            
-            if (action === 'resize-start-date') {
-              newStartDate = addDaysToDate(new Date(initialDragState.originalStartDate), daysDelta);
-              newEndDate = new Date(initialDragState.originalEndDate);
-              
-              // Validate: start date must be <= end date
-              if (newStartDate > newEndDate) return;
-              
-              // Check for overlaps with other holidays
-              if (checkHolidayOverlap(newStartDate, newEndDate, holidayId, holidays)) return;
-              
-              updateHoliday(holidayId, { startDate: newStartDate }, { silent: true });
-            } else if (action === 'resize-end-date') {
-              newStartDate = new Date(initialDragState.originalStartDate);
-              newEndDate = addDaysToDate(new Date(initialDragState.originalEndDate), daysDelta);
-              
-              // Validate: end date must be >= start date
-              if (newEndDate < newStartDate) return;
-              
-              // Check for overlaps with other holidays
-              if (checkHolidayOverlap(newStartDate, newEndDate, holidayId, holidays)) return;
-              
-              updateHoliday(holidayId, { endDate: newEndDate }, { silent: true });
-            } else if (action === 'move') {
-              newStartDate = addDaysToDate(new Date(initialDragState.originalStartDate), daysDelta);
-              newEndDate = addDaysToDate(new Date(initialDragState.originalEndDate), daysDelta);
-              
-              // Check for overlaps with other holidays
-              if (checkHolidayOverlap(newStartDate, newEndDate, holidayId, holidays)) return;
-              
-              updateHoliday(holidayId, { 
-                startDate: newStartDate,
-                endDate: newEndDate 
-              }, { silent: true });
-            }
-          }, throttleMs);
-        }
+        // Note: We do NOT update the database during drag (only on mouse release)
+        // This matches project bar behavior for smooth, responsive dragging
       } catch (error) {
         console.error('🚨 HOLIDAY DRAG ERROR:', error);
       }

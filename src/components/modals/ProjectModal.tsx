@@ -5,12 +5,13 @@ import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { Label } from '../ui/label';
 import { Badge } from '../ui/badge';
+import { Card } from '../ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Calendar } from '../ui/calendar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
-import { RichTextEditor, ProjectMilestoneSection, ProjectInsightsSection, ProjectNotesSection, AutoEstimateDaysSection } from '../projects';
+import { RichTextEditor, ProjectMilestoneSection, ProjectInsightsSection, ProjectNotesSection } from '../projects';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
@@ -89,7 +90,6 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
   // State for collapsible sections
   const [isInsightsExpanded, setIsInsightsExpanded] = useState(false);
   const [isNotesExpanded, setIsNotesExpanded] = useState(true);
-  const [isAutoEstimateDaysExpanded, setIsAutoEstimateDaysExpanded] = useState(false);
   // State for milestones in new projects
   const [localProjectMilestones, setLocalProjectMilestones] = useState<Array<{
     name: string;
@@ -956,234 +956,14 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
     );
   };
   const modalKey = projectId || (isCreating ? `create-${groupId}` : 'modal');
-  // Create the custom header component
-  const customHeader = (
-    <div className="px-8 pt-6 pb-2 border-b-[1px] border-gray-200 flex-shrink-0">
-      {/* First row: Project Icon and Name */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
-          <Popover open={stylePickerOpen} onOpenChange={setStylePickerOpen}>
-            <PopoverTrigger asChild>
-              <div 
-                className="w-8 h-8 rounded-lg flex-shrink-0 cursor-pointer relative group transition-all duration-200 hover:scale-105 hover:shadow-md ring-2 ring-transparent hover:ring-primary/20"
-                style={{ backgroundColor: localValues.color || OKLCH_PROJECT_COLORS[0] }}
-              >
-                {(() => {
-                  const currentIcon = PROJECT_ICONS.find(icon => icon.name === (localValues.icon || 'folder'));
-                  const IconComponent = currentIcon?.component || Folder;
-                  return <IconComponent className="w-4 h-4 text-foreground absolute inset-0 m-auto" />;
-                })()}
-                {/* Style picker overlay on hover */}
-                <div className="absolute inset-0 rounded-lg bg-black/0 group-hover:bg-black/20 transition-all duration-200 flex items-center justify-center pointer-events-none">
-                  <Palette className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-                </div>
-              </div>
-            </PopoverTrigger>
-            <PopoverContent className="w-64 p-4">
-              <h4 className="text-sm font-medium mb-3">Choose color & icon</h4>
-              {/* Colors section */}
-              <div className="mb-4">
-                <p className="text-xs text-muted-foreground mb-2">Colors</p>
-                <div className="grid grid-cols-6 gap-2">
-                  {OKLCH_PROJECT_COLORS.map((color) => (
-                    <button
-                      key={color}
-                      className={`w-8 h-8 rounded border-2 transition-all duration-200 hover:scale-110 ${
-                        localValues.color === color 
-                          ? 'border-primary ring-2 ring-primary/20' 
-                          : 'border-border hover:border-primary/50'
-                      }`}
-                      style={{ backgroundColor: color }}
-                      onClick={() => handleColorChange(color)}
-                      title={color}
-                    />
-                  ))}
-                </div>
-              </div>
-              {/* Icons section */}
-              <div className="mb-4">
-                <p className="text-xs text-muted-foreground mb-2">Icons</p>
-                <div className="grid grid-cols-6 gap-2">
-                  {PROJECT_ICONS.map((icon) => (
-                    <button
-                      key={icon.name}
-                      className={`w-8 h-8 rounded border-2 transition-all duration-200 hover:scale-110 flex items-center justify-center ${
-                        localValues.icon === icon.name 
-                          ? 'border-primary ring-2 ring-primary/20' 
-                          : 'border-border hover:border-primary/50'
-                      }`}
-                      style={{ backgroundColor: localValues.color || OKLCH_PROJECT_COLORS[0] }}
-                      onClick={() => handleIconChange(icon.name)}
-                      title={icon.label}
-                    >
-                      <icon.component className="w-4 h-4 text-foreground" />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </PopoverContent>
-          </Popover>
-          {editingTitle ? (
-            <Input
-              defaultValue={localValues.name}
-              className="border-0 bg-transparent p-0 focus-visible:ring-0 shadow-none text-2xl font-semibold leading-tight"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  handleTitleSave((e.target as HTMLInputElement).value);
-                } else if (e.key === 'Escape') {
-                  setEditingTitle(false);
-                }
-              }}
-              onBlur={(e) => {
-                handleTitleSave(e.target.value);
-              }}
-              autoFocus
-            />
-          ) : (
-            <h1 
-              className="cursor-pointer hover:text-muted-foreground transition-colors text-2xl font-semibold leading-tight"
-              onClick={() => setEditingTitle(true)}
-            >
-              {localValues.name || 'New Project'}
-            </h1>
-          )}
-        </div>
-        {/* Insights positioned to align above end date field */}
-        {!localValues.continuous && (
-          <div className="flex items-end gap-3 mr-12 pointer-events-none">
-            <div className="min-w-[80px]">
-              <div className="text-xs text-muted-foreground mb-1 block opacity-0">Start</div>
-            </div>
-            <span className="mb-1 opacity-0">→</span>
-            <div className="min-w-[80px] flex flex-col items-start">
-              {/* Average time per day insight */}
-              <div 
-                className="text-xs text-muted-foreground mb-0.5"
-                style={{ color: localValues.color || OKLCH_PROJECT_COLORS[0] }}
-              >
-                {(() => {
-                  // Use the proper auto-estimate calculation that respects autoEstimateDays
-                  if (!localValues.startDate || !localValues.endDate || !localValues.estimatedHours) {
-                    return 'Avg -';
-                  }
-                  const avgHoursPerDay = calculateAutoEstimateHoursPerDay(
-                    {
-                      startDate: localValues.startDate,
-                      endDate: localValues.endDate,
-                      estimatedHours: localValues.estimatedHours,
-                      autoEstimateDays: localValues.autoEstimateDays,
-                      continuous: localValues.continuous
-                    } as any,
-                    settings,
-                    expandHolidayDates(holidays.map(h => ({ 
-                      startDate: new Date(h.startDate), 
-                      endDate: new Date(h.endDate), 
-                      name: h.title || 'Holiday' 
-                    })))
-                  );
-                  return avgHoursPerDay > 0 ? `Avg ${formatDuration(avgHoursPerDay)} per day` : 'Avg -';
-                })()}
-              </div>
-              {/* Working days insight */}
-              <div 
-                className="text-xs text-muted-foreground"
-                style={{ color: localValues.color || OKLCH_PROJECT_COLORS[0] }}
-              >
-                {(() => {
-                  const workingDays = calculateTotalWorkingDays(localValues.startDate, localValues.endDate, settings, holidays);
-                  if (workingDays === 0) {
-                    return '0 working days';
-                  } else if (workingDays === 1) {
-                    return '1 working day';
-                  } else {
-                    return `${workingDays} working days`;
-                  }
-                })()}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-      {/* Second row: Group, Client, Budget (left) and Dates (right) */}
-      <div className="flex items-end justify-between">
-        <div className="flex items-end gap-3 relative z-10 pointer-events-auto">
-          <HeaderGroupField
-            currentGroupId={project?.groupId || resolvedGroupId || groupId}
-            onGroupChange={handleGroupChange}
-            disabled={false} // Allow changing group for both new and existing projects
-          />
-          <HeaderClientField
-            value={localValues.client}
-            property="client"
-            placeholder="Client"
-          />
-          <HeaderBudgetedTimeField
-            value={localValues.estimatedHours}
-            property="estimatedHours"
-          />
-        </div>
-        {/* Date Range - aligned to the right */}
-        <div className="flex items-end gap-3 text-sm relative z-10 pointer-events-auto">
-          <div className="min-w-[80px]">
-            <Label className="text-xs text-muted-foreground mb-1 block">Start</Label>
-            <HeaderDateField
-              value={localValues.startDate}
-              property="startDate"
-            />
-          </div>
-          <span className="text-muted-foreground mb-1">→</span>
-          {localValues.continuous ? (
-            <div className="min-w-[100px]">
-              <Label className="text-xs text-muted-foreground mb-1 block">End</Label>
-              <div className="flex items-center gap-1 px-3 py-1 h-10 rounded border border-input bg-background text-muted-foreground">
-                <Infinity className="w-3 h-3" />
-                <span className="text-sm">Continuous</span>
-              </div>
-            </div>
-          ) : (
-            <div className="min-w-[80px]">
-              <div className="mb-1">
-                <Label className="text-xs text-muted-foreground">End</Label>
-              </div>
-              <HeaderDateField
-                value={localValues.endDate}
-                property="endDate"
-              />
-            </div>
-          )}
-          <TooltipProvider>
-            <Tooltip delayDuration={300}>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-10 w-10 p-0 mb-0"
-                  onClick={handleContinuousToggle}
-                >
-                  <Infinity className="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Make continuous</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-      </div>
-    </div>
-  );
+
   return (
     <>
       <StandardModal
   isOpen={isOpen && (!!project || isCreating)}
         onClose={handleClose}
-        title={isCreating ? 'Create New Project' : (project?.name || 'Project Details')}
-        description={isCreating 
-          ? `Create a new project ${group ? `in the ${group.name} group` : ''}.`
-          : `View and edit project information, properties, and notes for ${project?.name} ${group ? `in the ${group.name} group` : ''}.`
-        }
+        title={isCreating ? 'Create Project' : 'Edit Project'}
         size="project"
-        customHeader={customHeader}
         contentClassName=""
         primaryAction={{
           label: isCreating ? "Create Project" : "Update Project",
@@ -1199,23 +979,193 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
           onClick: () => setShowDeleteConfirm(true)
         } : undefined}
       >
-        {/* Project Milestones */}
-        <ProjectMilestoneSection
-          projectId={!isCreating ? projectId : undefined}
-          projectEstimatedHours={localValues.estimatedHours}
-          projectStartDate={localValues.startDate}
-          projectEndDate={localValues.endDate}
-          projectContinuous={localValues.continuous}
-          onUpdateProjectBudget={handleUpdateProjectBudget}
-          onRecurringMilestoneChange={handleRecurringMilestoneChange}
-          localMilestonesState={localMilestonesStateMemo}
-          isCreatingProject={isCreating}
-        />
-          {/* Project Insights */}
-          <div className="border-b border-gray-200">
+        {/* Project Details Section */}
+        <div className="px-8 py-6 border-b border-gray-200">
+          <div className="space-y-4">
+            {/* Group and Dates Row */}
+            <div className="flex items-end justify-between gap-4">
+              {/* Group Field */}
+              <HeaderGroupField
+                currentGroupId={project?.groupId || resolvedGroupId || groupId}
+                onGroupChange={handleGroupChange}
+                disabled={false}
+              />
+              
+              {/* Date Range on the Right */}
+              <div className="flex items-end gap-2">
+                <HeaderDateField
+                  value={localValues.startDate}
+                  property="startDate"
+                />
+                <span className="text-muted-foreground mb-2">→</span>
+                {localValues.continuous ? (
+                  <div className="flex-1">
+                    <Label className="text-xs text-muted-foreground mb-1 block">End</Label>
+                    <div className="flex items-center gap-1 px-3 py-2 h-10 rounded border border-input bg-background text-muted-foreground">
+                      <Infinity className="w-3 h-3" />
+                      <span className="text-sm">Continuous</span>
+                    </div>
+                  </div>
+                ) : (
+                  <HeaderDateField
+                    value={localValues.endDate}
+                    property="endDate"
+                  />
+                )}
+                <TooltipProvider>
+                  <Tooltip delayDuration={300}>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-10 w-10 p-0 mb-0"
+                        onClick={handleContinuousToggle}
+                      >
+                        <Infinity className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Make continuous</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+            </div>
+
+            {/* Icon, Project Name, and Client Row */}
+            <div className="flex items-end gap-4">
+              {/* Project Icon Field */}
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">Icon</Label>
+                <Popover open={stylePickerOpen} onOpenChange={setStylePickerOpen}>
+                  <PopoverTrigger asChild>
+                    <div 
+                      className="w-10 h-10 rounded-full flex-shrink-0 cursor-pointer relative group transition-all duration-200 hover:scale-105 hover:shadow-md ring-2 ring-transparent hover:ring-primary/20"
+                      style={{ backgroundColor: localValues.color || OKLCH_PROJECT_COLORS[0] }}
+                    >
+                      {(() => {
+                        const currentIcon = PROJECT_ICONS.find(icon => icon.name === (localValues.icon || 'folder'));
+                        const IconComponent = currentIcon?.component || Folder;
+                        return <IconComponent className="w-5 h-5 text-foreground absolute inset-0 m-auto" />;
+                      })()}
+                      <div className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/20 transition-all duration-200 flex items-center justify-center pointer-events-none">
+                        <Palette className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                      </div>
+                    </div>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 p-4">
+                    <h4 className="text-sm font-medium mb-3">Choose color & icon</h4>
+                    <div className="mb-4">
+                      <p className="text-xs text-muted-foreground mb-2">Colors</p>
+                      <div className="grid grid-cols-6 gap-2">
+                        {OKLCH_PROJECT_COLORS.map((color) => (
+                          <button
+                            key={color}
+                            className={`w-8 h-8 rounded border-2 transition-all duration-200 hover:scale-110 ${
+                              localValues.color === color 
+                                ? 'border-primary ring-2 ring-primary/20' 
+                                : 'border-border hover:border-primary/50'
+                            }`}
+                            style={{ backgroundColor: color }}
+                            onClick={() => handleColorChange(color)}
+                            title={color}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <div className="mb-4">
+                      <p className="text-xs text-muted-foreground mb-2">Icons</p>
+                      <div className="grid grid-cols-6 gap-2">
+                        {PROJECT_ICONS.map((icon) => (
+                          <button
+                            key={icon.name}
+                            className={`w-8 h-8 rounded border-2 transition-all duration-200 hover:scale-110 flex items-center justify-center ${
+                              localValues.icon === icon.name 
+                                ? 'border-primary ring-2 ring-primary/20' 
+                                : 'border-border hover:border-primary/50'
+                            }`}
+                            style={{ backgroundColor: localValues.color || OKLCH_PROJECT_COLORS[0] }}
+                            onClick={() => handleIconChange(icon.name)}
+                            title={icon.label}
+                          >
+                            <icon.component className="w-4 h-4 text-foreground" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+              {/* Project Name Field */}
+              <div className="flex-1">
+                <Label className="text-xs text-muted-foreground mb-1 block">Project Name <span className="text-destructive">*</span></Label>
+                {editingTitle ? (
+                  <Input
+                    defaultValue={localValues.name}
+                    placeholder="Enter project name"
+                    className="h-10"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleTitleSave((e.target as HTMLInputElement).value);
+                      } else if (e.key === 'Escape') {
+                        setEditingTitle(false);
+                      }
+                    }}
+                    onBlur={(e) => {
+                      handleTitleSave(e.target.value);
+                    }}
+                    autoFocus
+                  />
+                ) : (
+                  <div 
+                    className="cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors px-3 py-2 h-10 border border-input rounded-md flex items-center"
+                    onClick={() => setEditingTitle(true)}
+                  >
+                    {localValues.name || 'Click to add project name...'}
+                  </div>
+                )}
+              </div>
+              {/* Client Field */}
+              <div className="flex-1">
+                <HeaderClientField
+                  value={localValues.client}
+                  property="client"
+                  placeholder="Client"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Cards Section */}
+        <div className="px-8 py-6 space-y-4">
+          {/* Time Load Card */}
+          <Card>
+            <ProjectMilestoneSection
+              projectId={!isCreating ? projectId : undefined}
+              projectEstimatedHours={localValues.estimatedHours}
+              projectStartDate={localValues.startDate}
+              projectEndDate={localValues.endDate}
+              projectContinuous={localValues.continuous}
+              onUpdateProjectBudget={handleUpdateProjectBudget}
+              onRecurringMilestoneChange={handleRecurringMilestoneChange}
+              localMilestonesState={localMilestonesStateMemo}
+              isCreatingProject={isCreating}
+              localValues={localValues}
+              setLocalValues={setLocalValues}
+              onAutoEstimateDaysChange={handleAutoEstimateDaysChange}
+              editingProperty={editingProperty}
+              setEditingProperty={setEditingProperty}
+              handleSaveProperty={handleSaveProperty}
+              recurringMilestoneInfo={recurringMilestoneInfo}
+            />
+          </Card>
+
+          {/* Project Insights Card */}
+          <Card>
             <button
               onClick={() => setIsInsightsExpanded(!isInsightsExpanded)}
-              className="w-full px-8 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+              className="w-full px-6 py-4 flex items-center justify-between hover:bg-accent/50 transition-colors rounded-lg"
             >
               <div className="flex items-center gap-3">
                 {isInsightsExpanded ? (
@@ -1237,7 +1187,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
                 >
                   {/* Project Insights */}
                   {!isCreating && (
-                    <div className="border-b border-gray-200">
+                    <div className="border-t border-gray-200">
                       <ProjectInsightsSection 
                         project={project || {
                           ...localValues,
@@ -1251,7 +1201,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
                     </div>
                   )}
                   {/* Time Forecasting Dashboard */}
-                  <div className="bg-gray-50 px-8 py-6">
+                  <div className="bg-gray-50 px-6 py-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       <TimeMetric
                         label="Planned Time"
@@ -1297,47 +1247,13 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
                 </motion.div>
               )}
             </AnimatePresence>
-          </div>
-          {/* Auto-Estimate Days */}
-          <div className="border-b border-gray-200">
-            <button
-              onClick={() => setIsAutoEstimateDaysExpanded(!isAutoEstimateDaysExpanded)}
-              className="w-full px-8 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                {isAutoEstimateDaysExpanded ? (
-                  <ChevronDown className="w-4 h-4 text-gray-500" />
-                ) : (
-                  <ChevronRight className="w-4 h-4 text-gray-500" />
-                )}
-                <h3 className="text-lg font-medium text-gray-900">Auto-Estimate Days</h3>
-              </div>
-            </button>
-            <AnimatePresence initial={false}>
-              {isAutoEstimateDaysExpanded && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="overflow-hidden"
-                >
-                  <AutoEstimateDaysSection
-                    isExpanded={isAutoEstimateDaysExpanded}
-                    onToggle={() => setIsAutoEstimateDaysExpanded(!isAutoEstimateDaysExpanded)}
-                    localValues={localValues}
-                    setLocalValues={setLocalValues}
-                    onAutoEstimateDaysChange={handleAutoEstimateDaysChange}
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-          {/* Notes */}
-          <div className="border-b border-gray-200">
+          </Card>
+
+          {/* Project Notes Card */}
+          <Card>
             <button
               onClick={() => setIsNotesExpanded(!isNotesExpanded)}
-              className="w-full px-8 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+              className="w-full px-6 py-4 flex items-center justify-between hover:bg-accent/50 transition-colors rounded-lg"
             >
               <div className="flex items-center gap-3">
                 {isNotesExpanded ? (
@@ -1365,8 +1281,9 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
                 </motion.div>
               )}
             </AnimatePresence>
-          </div>
-        </StandardModal>
+          </Card>
+        </div>
+      </StandardModal>
         {/* Delete confirmation dialog */}
         {!isCreating && project && (
         <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>

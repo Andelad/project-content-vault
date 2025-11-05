@@ -20,7 +20,23 @@ interface HolidayBarProps {
   mode?: 'days' | 'weeks';
 }
 
-// Helper function to calculate visual holiday dates during drag (like projects)
+// Constants for holiday bar dimensions (matching project bar patterns)
+const HOLIDAY_BAR_HEIGHT = 40; // px - h-10 Tailwind class
+const RESIZE_HANDLE_WIDTH = 6; // px - matches project bar RESIZE_ZONE_WIDTH
+const RESIZE_HANDLE_Z_INDEX = 3;
+
+/**
+ * Calculate visual holiday dates during drag operations
+ * 
+ * Applies day offset from dragState to show immediate visual feedback
+ * without waiting for database updates. This creates smooth, responsive
+ * dragging that matches project bar behavior.
+ * 
+ * @param holiday - Holiday object with startDate and endDate
+ * @param isDragging - Whether a drag operation is in progress
+ * @param dragState - Current drag state containing offset information
+ * @returns Object with visualStartDate and visualEndDate
+ */
 function calculateVisualHolidayDates(
   holiday: any,
   isDragging: boolean,
@@ -69,7 +85,8 @@ export function HolidayBar({ dates, collapsed, isDragging, dragState, handleHoli
   const dragEndRef = useRef<number | null>(null);
   
   // Convert global holidays to timeline format with visual drag feedback
-  const timelineHolidays = globalHolidays.map(holiday => {
+  // CRITICAL: Must recalculate whenever dragState changes for smooth drag visual feedback
+  const timelineHolidays = useMemo(() => globalHolidays.map(holiday => {
     // Calculate visual dates if this holiday is being dragged
     const { visualStartDate, visualEndDate } = calculateVisualHolidayDates(holiday, isDragging, dragState);
     if (mode === 'weeks') {
@@ -157,7 +174,7 @@ export function HolidayBar({ dates, collapsed, isDragging, dragState, handleHoli
         weekMode: false
       };
     }
-  }).filter(Boolean) as { startIndex: number; dayCount: number; id: string; title: string; weekMode?: boolean; actualStartWeek?: number; actualEndWeek?: number }[];
+  }).filter(Boolean) as { startIndex: number; dayCount: number; id: string; title: string; weekMode?: boolean; actualStartWeek?: number; actualEndWeek?: number }[], [globalHolidays, dates, mode, isDragging, dragState]);
   
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -534,7 +551,7 @@ function IndividualHolidayBar({
         (mode === 'days' && dayIndex === Math.max(0, holiday.startIndex))
       ) && (
         <div
-          className={`absolute top-1/2 left-0 -translate-y-1/2 h-10 bg-orange-200/80 border border-orange-300/50 rounded-md flex items-center justify-center text-orange-800 text-sm transition-all shadow-sm z-[1] group ${
+          className={`absolute top-1/2 left-0 -translate-y-1/2 h-10 bg-orange-200/80 border border-orange-300/50 rounded-md flex items-center justify-center text-orange-800 text-sm transition-all shadow-sm z-[1] ${
             isDragging && dragState?.holidayId === holiday.id 
               ? 'opacity-90 shadow-lg' 
               : 'hover:bg-orange-300/80'
@@ -576,10 +593,16 @@ function IndividualHolidayBar({
             🏖️ {holiday.title}
           </span>
 
-          {/* Left resize area - Two-way arrow cursor for resizing */}
+          {/* Left resize handle */}
           <div 
-            className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize pointer-events-auto"
-            style={{ zIndex: 3 }}
+            className="absolute cursor-ew-resize pointer-events-auto group"
+            style={{ 
+              left: '0px',
+              top: '0px',
+              width: `${RESIZE_HANDLE_WIDTH}px`,
+              height: `${HOLIDAY_BAR_HEIGHT}px`,
+              zIndex: RESIZE_HANDLE_Z_INDEX
+            }}
             onMouseDown={(e) => {
               e.stopPropagation();
               e.preventDefault();
@@ -605,12 +628,23 @@ function IndividualHolidayBar({
               handleHolidayMouseDown(fakeMouseEvent, holiday.id, 'resize-start-date');
             }}
             title="Drag to change start date"
-          />
+          >
+            {/* Hover highlighting - darkened edge */}
+            <div 
+              className="absolute inset-0 bg-black opacity-0 group-hover:opacity-10 transition-opacity rounded-l"
+            />
+          </div>
           
-          {/* Right resize area - Two-way arrow cursor for resizing */}
+          {/* Right resize handle */}
           <div 
-            className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize pointer-events-auto"
-            style={{ zIndex: 3 }}
+            className="absolute cursor-ew-resize pointer-events-auto group"
+            style={{ 
+              right: '0px',
+              top: '0px',
+              width: `${RESIZE_HANDLE_WIDTH}px`,
+              height: `${HOLIDAY_BAR_HEIGHT}px`,
+              zIndex: RESIZE_HANDLE_Z_INDEX
+            }}
             onMouseDown={(e) => {
               e.stopPropagation();
               e.preventDefault();
@@ -636,7 +670,12 @@ function IndividualHolidayBar({
               handleHolidayMouseDown(fakeMouseEvent, holiday.id, 'resize-end-date');
             }}
             title="Drag to change end date"
-          />
+          >
+            {/* Hover highlighting - darkened edge */}
+            <div 
+              className="absolute inset-0 bg-black opacity-0 group-hover:opacity-10 transition-opacity rounded-r"
+            />
+          </div>
 
           {/* Main clickable area - Single click to open modal, four-way cursor for dragging */}
           <div 

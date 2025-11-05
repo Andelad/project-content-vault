@@ -25,9 +25,9 @@ import { useTimelineData } from '../../hooks/useTimelineData';
 import { useDynamicViewportDays } from '../../hooks/useDynamicViewportDays';
 import { useHolidayDrag } from '../../hooks/useHolidayDrag';
 import { useProjectResize } from '../../hooks/useProjectResize';
-import { TimelineDateHeaders } from '../timeline/TimelineDateHeaders';
-import { TimelineOverlays } from '../timeline/TimelineOverlays';
-import { TimelineGrid } from '../timeline/TimelineGrid';
+import { TimelineDateHeader } from '../timeline/TimelineDateHeader';
+import { TimelineBackground } from '../timeline/TimelineBackground';
+import { TimelineCard } from '../timeline/TimelineCard';
 import { AvailabilityCard } from '../shared/AvailabilityCard';
 import { HolidayBar } from '../timeline/HolidayBar';
 import { AppPageLayout } from '../layout/AppPageLayout';
@@ -45,7 +45,7 @@ const HolidayModal = React.lazy(() => import('../modals/HolidayModal').then(modu
  * - Contexts: Provides data (projects, groups, holidays, settings)
  * - Custom Hooks: Manage React state + coordinate services (useHolidayDrag, useTimelineData)
  * - Services: Pure calculations (TimelineViewportService, calculateTimelineRows)
- * - Components: Presentational UI (TimelineToolbar, TimelineGrid, TimelineOverlays)
+ * - Components: Presentational UI (TimelineToolbar, TimelineCard, TimelineBackground)
  * 
  * **Responsibilities**:
  * - Wire up context data to child components
@@ -570,7 +570,7 @@ export function TimelineView() {
                         ? `${dates.length * 154}px` // 154px per week column (7 days × 22px)
                         : `${dates.length * 52 + 52}px` // 52px per day + 52px buffer
                     }}>
-                      <TimelineDateHeaders dates={dates} mode={mode} />
+                      <TimelineDateHeader dates={dates} mode={mode} />
                     </div>
                   </div>
                   {/* Scrollable Content Area */}
@@ -591,13 +591,13 @@ export function TimelineView() {
                         }}
                       >
                         {/* All timeline overlays: borders, today, weekends, holidays */}
-                        <TimelineOverlays dates={dates} mode={mode} holidays={holidays} />
+                        <TimelineBackground dates={dates} mode={mode} holidays={holidays} />
                       </div>
                     
                       {/* Scrollable Content Layer */}
                       <div className="relative">
                         {/* Project Timeline Grid - Organized by Groups and VISUAL ROWS (Auto-Layout) */}
-                        <TimelineGrid
+                        <TimelineCard
                           groups={groups}
                           groupLayouts={groupLayouts}
                           collapsedGroups={collapsedGroups}
@@ -628,7 +628,7 @@ export function TimelineView() {
                   mode={mode}
                   columnMarkersOverlay={
                     /* All timeline overlays: borders, today, weekends, holidays */
-                    <TimelineOverlays dates={dates} mode={mode} holidays={holidays} />
+                    <TimelineBackground dates={dates} mode={mode} holidays={holidays} />
                   }
                 />
               </div>

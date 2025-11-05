@@ -20,7 +20,6 @@ src/components/
 │   └── sections/        # Project modal sections (reusable modal content)
 ├── planner/             # Calendar/planner feature components
 ├── insights/            # Analytics and insights components
-├── work-hours/          # Time tracking components
 ├── settings/            # Settings page components
 ├── dialog/              # Confirmation dialogs
 ├── debug/               # Development and debugging components
@@ -198,18 +197,6 @@ src/components/
 - `FilterModal.tsx` - Insights filter dialog
 
 **When to use**: Creating analytics dashboards and data visualizations
-
----
-
-#### `/work-hours/` - Time Tracking
-**Purpose**: Time tracking and work session components
-
-**Examples**:
-- `TimeTracker.tsx` - Active time tracking widget
-- `DraggableWorkHour.tsx` - Work session blocks
-- `WorkHourCreator.tsx` - Create work sessions
-
-**When to use**: Adding time tracking functionality
 
 ---
 

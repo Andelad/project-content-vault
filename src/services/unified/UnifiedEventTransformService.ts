@@ -1,7 +1,7 @@
 import { CalendarEvent, WorkHour } from '@/types';
 import { EventInput } from '@fullcalendar/core';
 import { calculateEventStyle } from './UnifiedEventWorkHourService';
-import { OKLCH_FALLBACK_GRAY, OKLCH_HABIT_BROWN } from '@/constants/colors';
+import { OKLCH_FALLBACK_GRAY, OKLCH_HABIT_BROWN, NEUTRAL_COLORS } from '@/constants/colors';
 import { type EventStyleConfig } from './UnifiedEventWorkHourService';
 import { calculateDurationHours } from '@/services/calculations/general/dateCalculations';
 
@@ -101,12 +101,12 @@ export function transformCalendarEventToFullCalendar(event: CalendarEvent, optio
 export function transformWorkHourToFullCalendar(workHour: WorkHour): EventInput {
   return {
     id: `work-${workHour.id}`,
-    title: workHour.title, // Remove prefix, will be styled in rendering
+    title: workHour.title,
     start: workHour.startTime,
     end: workHour.endTime,
-    backgroundColor: '#e3f2fd',
-    borderColor: '#1976d2',
-    textColor: '#1976d2',
+    backgroundColor: '#ffffff',
+    borderColor: NEUTRAL_COLORS.gray200,
+    textColor: NEUTRAL_COLORS.gray500,
     extendedProps: {
       isWorkHour: true,
       originalWorkHour: workHour
@@ -115,7 +115,7 @@ export function transformWorkHourToFullCalendar(workHour: WorkHour): EventInput 
     startEditable: true,
     durationEditable: true,
     resizable: true,
-    display: 'block', // Changed from 'background' to allow custom rendering with labels
+    display: 'background', // Background display so they don't interact with regular events
     classNames: ['work-slot-event']
   };
 }
@@ -136,19 +136,21 @@ export function transformFullCalendarToCalendarEvent(fcEvent: any): Partial<Cale
 
 /**
  * Get contrasting text color based on background color
+ * Returns white for dark backgrounds, black for light backgrounds
  */
 function getContrastTextColor(backgroundColor: string): string {
-  // Simple contrast calculation - could be enhanced with more sophisticated logic
-  if (!backgroundColor) return '#000';
+  const WHITE = '#ffffff';
+  const BLACK = '#000000';
+  
+  if (!backgroundColor) return BLACK;
   
   // Convert OKLCH or hex to a simple brightness check
-  // For now, return white for dark colors, black for light colors
   if (backgroundColor.includes('oklch')) {
     // Extract lightness value from OKLCH
     const lightnessMatch = backgroundColor.match(/oklch\(([0-9.]+)%/);
     if (lightnessMatch) {
       const lightness = parseFloat(lightnessMatch[1]);
-      return lightness < 50 ? '#fff' : '#000';
+      return lightness < 50 ? WHITE : BLACK;
     }
   }
   
@@ -159,8 +161,8 @@ function getContrastTextColor(backgroundColor: string): string {
     const g = parseInt(hex.substr(2, 2), 16);
     const b = parseInt(hex.substr(4, 2), 16);
     const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-    return brightness > 128 ? '#000' : '#fff';
+    return brightness > 128 ? BLACK : WHITE;
   }
   
-  return '#000';
+  return BLACK;
 }

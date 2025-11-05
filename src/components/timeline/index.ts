@@ -4,10 +4,10 @@ export { TimelineView } from '../views/TimelineView';
 
 // Timeline sub-components
 export { HolidayBar } from './HolidayBar';
-export { TimelineBar } from './TimelineBar';
-export { TimelineDateHeaders } from './TimelineDateHeaders';
-export { TimelineGrid } from './TimelineGrid';
-export { TimelineOverlays } from './TimelineOverlays';
+export { ProjectBar } from './ProjectBar';
+export { TimelineDateHeader } from './TimelineDateHeader';
+export { TimelineCard } from './TimelineCard';
+export { TimelineBackground } from './TimelineBackground';
 export { TimelineToolbar } from './TimelineToolbar';
 
 // Cleaned up - removed empty/deprecated files:
@@ -30,8 +30,10 @@ export { TimelineToolbar } from './TimelineToolbar';
 // ✅ Removed: AvailabilitySidebar.tsx (row-based timeline component, replaced by auto-layout)
 
 // Business logic extracted to UnifiedTimelineService:
-// ✅ TimelineBar.tsx - major calculations moved to service
+// ✅ ProjectBar.tsx - major calculations moved to service
 // ✅ ProjectTimeline.tsx - project duration calculation delegated
-// ✅ UnifiedAvailabilityCircles.tsx - availability calculations delegated  
-// ✅ TimelineDateHeaders.tsx - date grouping logic delegated
-// ✅ TimelineOverlays.tsx - column markers, weekend/holiday calculations delegated (merged with TimelineColumnMarkers)
+// ✅ TimelineDateHeader.tsx - date grouping logic delegated
+// ✅ TimelineBackground.tsx - column markers, weekend/holiday calculations delegated (merged with TimelineColumnMarkers)
+// ✅ Removed: AddHolidayBar.tsx (redundant)
+// ✅ Removed: SmartHoverAddHolidayBar.tsx (redundant)
+// ✅ Removed: UnifiedAvailabilityCircles.tsx (redundant)

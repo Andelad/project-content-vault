@@ -1,18 +1,19 @@
 import React, { memo } from 'react';
 import { normalizeToMidnight, addDaysToDate, UnifiedTimelineService } from '@/services';
+import { NEUTRAL_COLORS } from '@/constants/colors';
 
-interface TimelineOverlaysProps {
+interface TimelineBackgroundProps {
   dates: Date[];
   mode: 'days' | 'weeks';
   holidays?: Array<{ id: string; startDate: Date | string; endDate?: Date | string | null }>;
 }
 
 /**
- * TimelineOverlays - Renders all timeline overlays (borders, today, weekends, holidays)
+ * TimelineBackground - Renders all timeline overlays (borders, today, weekends, holidays)
  * Combines the functionality of previous TimelineColumnMarkers and TimelineOverlays
  * This component handles both the main timeline and availability card overlays
  */
-export const TimelineOverlays = memo(function TimelineOverlays({ dates, mode, holidays }: TimelineOverlaysProps) {
+export const TimelineBackground = memo(function TimelineBackground({ dates, mode, holidays }: TimelineBackgroundProps) {
   const columnWidth = mode === 'weeks' ? 153 : 52;
   const dayWidth = mode === 'weeks' ? 22 : columnWidth; // 22px effective spacing (21px + 1px gap)
   
@@ -38,7 +39,7 @@ export const TimelineOverlays = memo(function TimelineOverlays({ dates, mode, ho
               <div 
                 className="absolute top-0 bottom-0 left-0 right-0 pointer-events-none"
                 style={{
-                  backgroundColor: 'rgba(147, 197, 253, 0.15)',
+                  backgroundColor: 'oklch(0.92 0.05 232 / 0.5)',
                   zIndex: 2
                 }}
               />
@@ -47,10 +48,11 @@ export const TimelineOverlays = memo(function TimelineOverlays({ dates, mode, ho
             {/* Today position line */}
             {column.isToday && (
               <div 
-                className="absolute top-0 bottom-0 pointer-events-none border-l-2 border-dashed border-gray-500"
+                className="absolute top-0 bottom-0 pointer-events-none border-l-2 border-dashed"
                 style={{
                   left: column.mode === 'weeks' ? `${column.todayPositionPx}px` : '0px',
-                  zIndex: 5
+                  zIndex: 5,
+                  borderColor: 'oklch(0.50 0.127 232)'
                 }}
               />
             )}
@@ -124,9 +126,10 @@ export const TimelineOverlays = memo(function TimelineOverlays({ dates, mode, ho
         const holidayLeftPx = startDay * dayWidth;
         const holidayWidthPx = (endDay - startDay + 1) * dayWidth;
         
+        // Using NEUTRAL_COLORS.gray500 with 20% opacity (33 in hex)
         const backgroundPattern = mode === 'weeks' 
-          ? 'repeating-linear-gradient(-45deg, rgba(107,114,128,0.16) 0 1.5px, transparent 1.5px 4px)'
-          : 'repeating-linear-gradient(-45deg, rgba(107,114,128,0.16) 0 2px, transparent 2px 6px)';
+          ? `repeating-linear-gradient(-45deg, ${NEUTRAL_COLORS.gray500}33 0 1.5px, transparent 1.5px 4px)`
+          : `repeating-linear-gradient(-45deg, ${NEUTRAL_COLORS.gray500}33 0 2px, transparent 2px 6px)`;
         
         return (
           <div

@@ -56,7 +56,7 @@ export function getBaseFullCalendarConfig(isCompactView: boolean = false): Parti
     slotMinTime: '00:00:00',
     slotMaxTime: '24:00:00',
     slotDuration: isCompactView ? '00:30:00' : (isMobile ? '00:30:00' : '00:15:00'),
-    slotLabelInterval: isCompactView ? '00:30:00' : '01:00:00',
+    slotLabelInterval: '01:00:00', // Always show only hours in time column
     slotLabelFormat: {
       hour: '2-digit',
       minute: '2-digit',

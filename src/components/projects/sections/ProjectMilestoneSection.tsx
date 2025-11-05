@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import { Input } from '../../ui/input';
 import { Button } from '../../ui/button';
 import { Label } from '../../ui/label';
+import { Checkbox } from '../../ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '../../ui/popover';
 import { Calendar } from '../../ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select';
@@ -46,6 +47,28 @@ interface ProjectMilestoneSectionProps {
     setMilestones: (milestones: LocalMilestone[]) => void;
   };
   isCreatingProject?: boolean;
+  // Auto-estimate days
+  localValues?: {
+    autoEstimateDays?: {
+      monday: boolean;
+      tuesday: boolean;
+      wednesday: boolean;
+      thursday: boolean;
+      friday: boolean;
+      saturday: boolean;
+      sunday: boolean;
+    };
+  };
+  setLocalValues?: (updater: (prev: any) => any) => void;
+  onAutoEstimateDaysChange?: (newAutoEstimateDays: any) => void;
+  // Budget field props
+  editingProperty?: string | null;
+  setEditingProperty?: (property: string | null) => void;
+  handleSaveProperty?: (property: string, value: any) => void;
+  recurringMilestoneInfo?: {
+    hasRecurring: boolean;
+    totalAllocation: number;
+  };
 }
 
 interface LocalMilestone extends Omit<Milestone, 'id'> {
@@ -89,7 +112,14 @@ export function ProjectMilestoneSection({
   onUpdateProjectBudget,
   onRecurringMilestoneChange,
   localMilestonesState,
-  isCreatingProject = false
+  isCreatingProject = false,
+  localValues,
+  setLocalValues,
+  onAutoEstimateDaysChange,
+  editingProperty: externalEditingProperty,
+  setEditingProperty: externalSetEditingProperty,
+  handleSaveProperty: externalHandleSaveProperty,
+  recurringMilestoneInfo
 }: ProjectMilestoneSectionProps) {
   const { milestones: contextMilestones, addMilestone, updateMilestone, deleteMilestone, showMilestoneSuccessToast, refetchMilestones } = useProjectContext();
   const milestones = Array.isArray(contextMilestones) ? contextMilestones : [];
@@ -1217,7 +1247,7 @@ export function ProjectMilestoneSection({
           ) : (
             <ChevronRight className="w-4 h-4 text-gray-500" />
           )}
-          <h3 className="text-lg font-medium text-gray-900">Milestones</h3>
+          <h3 className="text-lg font-medium text-gray-900">Time Load</h3>
         </div>
         
         {isOverBudget && !projectContinuous && (
@@ -1240,6 +1270,53 @@ export function ProjectMilestoneSection({
             className="overflow-hidden"
           >
             <div className="px-8 pb-6">
+              {/* Time Budget Field */}
+              {externalEditingProperty !== undefined && externalSetEditingProperty && externalHandleSaveProperty && recurringMilestoneInfo && (
+                <div className="mb-6 pb-4 border-b border-gray-200">
+                  {(() => {
+                    const isEditing = externalEditingProperty === 'estimatedHours';
+                    const isContinuousWithRecurring = projectContinuous && recurringMilestoneInfo.hasRecurring;
+                    const displayValue = isContinuousWithRecurring ? 'N/A' : `${projectEstimatedHours}h`;
+                    
+                    return (
+                      <div>
+                        <Label className="text-xs text-muted-foreground mb-1 block">Time Budget</Label>
+                        {isEditing ? (
+                          <Input
+                            type="number"
+                            defaultValue={projectEstimatedHours}
+                            className="h-10 text-sm border-border bg-background w-full max-w-[200px]"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                const newValue = parseInt((e.target as HTMLInputElement).value) || 0;
+                                externalHandleSaveProperty('estimatedHours', newValue);
+                              } else if (e.key === 'Escape') {
+                                externalSetEditingProperty(null);
+                              }
+                            }}
+                            onBlur={(e) => {
+                              const newValue = parseInt(e.target.value) || 0;
+                              externalHandleSaveProperty('estimatedHours', newValue);
+                            }}
+                            autoFocus
+                          />
+                        ) : (
+                          <div
+                            className="h-10 text-sm justify-start text-left font-normal px-3 border border-input rounded-md bg-background hover:bg-accent hover:text-accent-foreground cursor-pointer flex items-center w-full max-w-[200px]"
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => { if (!isContinuousWithRecurring) externalSetEditingProperty('estimatedHours'); }}
+                            onKeyDown={(e) => { if (!isContinuousWithRecurring && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); externalSetEditingProperty('estimatedHours'); } }}
+                          >
+                            <span className="truncate">{displayValue}</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+              
               {isOverBudget && !projectContinuous && (
                 <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
                   <div className="flex items-center justify-between">
@@ -1952,6 +2029,88 @@ export function ProjectMilestoneSection({
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
+
+              {/* Auto-Estimate Days Section */}
+              {localValues && setLocalValues && (
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <h4 className="text-sm font-medium text-gray-900 mb-3">Auto-Estimate Days</h4>
+                  <div className="text-sm text-muted-foreground mb-4">
+                    Select which days of the week to include when auto-estimating project time. 
+                    Unchecked days will be excluded from receiving auto-estimated time, similar to weekends or holidays.
+                  </div>
+                  
+                  {(() => {
+                    const autoEstimateDays = localValues.autoEstimateDays || {
+                      monday: true,
+                      tuesday: true,
+                      wednesday: true,
+                      thursday: true,
+                      friday: true,
+                      saturday: true,
+                      sunday: true,
+                    };
+
+                    const DAYS = [
+                      { key: 'monday', label: 'Mon' },
+                      { key: 'tuesday', label: 'Tue' },
+                      { key: 'wednesday', label: 'Wed' },
+                      { key: 'thursday', label: 'Thu' },
+                      { key: 'friday', label: 'Fri' },
+                      { key: 'saturday', label: 'Sat' },
+                      { key: 'sunday', label: 'Sun' },
+                    ] as const;
+
+                    const handleDayToggle = (day: keyof typeof autoEstimateDays) => {
+                      const newAutoEstimateDays = {
+                        ...autoEstimateDays,
+                        [day]: !autoEstimateDays[day],
+                      };
+                      
+                      setLocalValues(prev => ({
+                        ...prev,
+                        autoEstimateDays: newAutoEstimateDays,
+                      }));
+                      
+                      if (onAutoEstimateDaysChange) {
+                        onAutoEstimateDaysChange(newAutoEstimateDays);
+                      }
+                    };
+
+                    const enabledDaysCount = Object.values(autoEstimateDays).filter(Boolean).length;
+
+                    return (
+                      <>
+                        <div className="grid grid-cols-7 gap-4">
+                          {DAYS.map(({ key, label }) => (
+                            <div key={key} className="flex flex-col items-center space-y-2">
+                              <span className="text-sm font-medium text-gray-700">
+                                {label}
+                              </span>
+                              <Checkbox
+                                id={`auto-estimate-${key}`}
+                                checked={autoEstimateDays[key]}
+                                onCheckedChange={() => handleDayToggle(key)}
+                              />
+                            </div>
+                          ))}
+                        </div>
+
+                        {enabledDaysCount === 0 && (
+                          <div className="bg-orange-50 border border-orange-200 rounded-md p-3 mt-4">
+                            <p className="text-sm text-orange-700">
+                              ⚠️ Warning: No days are selected. Auto-estimation will not work properly.
+                            </p>
+                          </div>
+                        )}
+
+                        <div className="text-xs text-muted-foreground mt-4">
+                          {enabledDaysCount} day{enabledDaysCount !== 1 ? 's' : ''} enabled for auto-estimation
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
 
               {/* Progress Summary */}
               {(projectMilestones.length > 0 || recurringMilestone) && (

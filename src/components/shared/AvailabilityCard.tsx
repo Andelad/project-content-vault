@@ -290,7 +290,7 @@ export const AvailabilityCard = memo(function AvailabilityCard({
               <line x1={0} y1={plotHeight / 2} x2={(dates.length + 2) * columnWidth} y2={plotHeight / 2} stroke={NEUTRAL_COLORS.gray400} strokeWidth={1} />
               <path d={generatePath((v) => v >= 0)} fill="rgb(34, 197, 94)" fillOpacity={0.3} />
               <path d={generatePath((v) => v <= 0)} fill="rgb(239, 68, 68)" fillOpacity={0.4} />
-              <path d={`M ${columnWidth / 2},${netAvailabilityToY(graphData[0]?.netAvailability || 0)} ${graphData.map((d, i) => `L ${i * columnWidth + columnWidth / 2},${netAvailabilityToY(d.netAvailability)}`).join(' ')}`} fill="none" stroke={NEUTRAL_COLORS.gray400} strokeWidth={1.5} />
+              <path d={`M ${columnWidth / 2},${netAvailabilityToY(graphData[0]?.netAvailability || 0)} ${graphData.map((d, i) => `L ${i * columnWidth + columnWidth / 2},${netAvailabilityToY(d.netAvailability)}`).join(' ')}`} fill="none" stroke={NEUTRAL_COLORS.gray400} strokeWidth={2} />
             </g>
           </svg>
           

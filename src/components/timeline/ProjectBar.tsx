@@ -19,7 +19,7 @@ import {
   normalizeToMidnight
 } from '@/services';
 import { ProjectIconIndicator } from '@/components';
-interface TimelineBarProps {
+interface ProjectBarProps {
   project: Project;
   dates: Date[];
   viewportStart: Date;
@@ -53,7 +53,7 @@ function calculateVisualProjectDates(project: any, isDragging: boolean, dragStat
 }
 
 // Color calculation functions are now centralized in ColorCalculationService
-export const TimelineBar = memo(function TimelineBar({ 
+export const ProjectBar = memo(function ProjectBar({ 
   project, 
   dates, 
   viewportStart, 
@@ -66,7 +66,7 @@ export const TimelineBar = memo(function TimelineBar({
   onMilestoneDrag,
   onMilestoneDragEnd,
   onProjectResizeMouseDown
-}: TimelineBarProps) {
+}: ProjectBarProps) {
   // Always call ALL hooks first, before any early returns (React Rules of Hooks)
   const { milestones } = useProjectContext();
   const { events, holidays } = usePlannerContext();

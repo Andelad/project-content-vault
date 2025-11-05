@@ -217,7 +217,7 @@ export const StandardModal: React.FC<StandardModalProps> = ({
         {customHeader ? (
           customHeader
         ) : !hideHeader ? (
-          <div className="flex-shrink-0 px-6 py-4 border-b-[1px] border-border">
+          <div className="flex-shrink-0 px-6 py-4 border-b-[1px] border-border bg-stone-100">
             <div className="flex-1 min-w-0">
               <DialogTitle className="text-lg font-semibold leading-6 text-foreground">
                 {title}
