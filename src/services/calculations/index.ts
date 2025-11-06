@@ -95,7 +95,10 @@ export {
   getProjectTimeAllocation,
   calculateCommittedHoursForDate,
   hasWorkHoursConfigured,
-  dayHasWorkHoursConfigured
+  dayHasWorkHoursConfigured,
+  calculateHabitTimeWithinWorkSlots,
+  calculatePlannedTimeNotOverlappingHabits,
+  calculateNetAvailability
 } from './availability/capacityCalculations';
 // Note: workHourCalculations re-exports getWeekStart/getCurrentWeekStart from timeCalculations
 export {

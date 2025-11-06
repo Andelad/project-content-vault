@@ -626,6 +626,7 @@ export function TimelineView() {
                   projects={projects}
                   settings={settings}
                   mode={mode}
+                  milestones={milestones}
                   columnMarkersOverlay={
                     /* All timeline overlays: borders, today, weekends, holidays */
                     <TimelineBackground dates={dates} mode={mode} holidays={holidays} />

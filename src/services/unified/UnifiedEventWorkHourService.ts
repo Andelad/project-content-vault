@@ -478,19 +478,25 @@ export function calculateOvertimePlannedHours(
 }
 
 /**
- * Calculate total planned/completed hours for a specific date
- * Shows all work planned in the calendar and attributed to projects
+ * Calculate total planned hours for a specific date
+ * Shows completed and currently tracking project work only
+ * Excludes habits, tasks, and future planned events
  * 
  * @param date - Date to analyze
  * @param events - Calendar events array
- * @returns Total planned hours
+ * @returns Total completed/tracking hours
  */
 export function calculateTotalPlannedHours(
   date: Date,
   events: CalendarEvent[]
 ): number {
   return events
-    .filter(event => event.projectId) // Only project-attributed events
+    .filter(event => 
+      event.projectId && // Only project-attributed events
+      event.category !== 'habit' && // Habits never count toward project time
+      event.category !== 'task' && // Tasks never count toward project time
+      (event.completed || event.type === 'completed' || event.type === 'tracked') // Only completed or tracking
+    )
     .reduce((total, event) => {
       const durationOnDate = calculateEventDurationOnDate(event, date);
       return total + durationOnDate;

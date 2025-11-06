@@ -555,6 +555,122 @@ export function calculateOtherTime(
 }
 
 /**
+ * Calculate habit event time that falls within work slots for a specific date
+ * Only counts the overlapping portion between habit events and work hours
+ * Excludes any portion that overlaps with planned/completed project events (to avoid double-counting)
+ */
+export function calculateHabitTimeWithinWorkSlots(
+  date: Date,
+  events: CalendarEvent[],
+  workHours: WorkHour[]
+): number {
+  // Get habit events for this date
+  const habitEvents = events.filter(event => 
+    event.category === 'habit' && calculateEventDurationOnDate({ event, targetDate: date }) > 0
+  );
+
+  // Get planned/completed project events for this date (regardless of work hours)
+  const plannedEvents = events.filter(event => 
+    event.projectId && 
+    event.category !== 'habit' && 
+    event.category !== 'task' &&
+    calculateEventDurationOnDate({ event, targetDate: date }) > 0
+  );
+
+  let totalHabitTimeHours = 0;
+
+  for (const habitEvent of habitEvents) {
+    // Calculate overlap with work hours
+    const habitWorkOverlapMinutes = calculateEventWorkHourOverlap(habitEvent, workHours);
+    
+    if (habitWorkOverlapMinutes === 0) continue;
+
+    // Calculate overlap with planned/completed events
+    let habitPlannedOverlapMinutes = 0;
+    for (const plannedEvent of plannedEvents) {
+      const overlap = calculateTimeOverlap(
+        habitEvent.startTime,
+        habitEvent.endTime,
+        plannedEvent.startTime,
+        plannedEvent.endTime
+      );
+      if (overlap > 0) {
+        habitPlannedOverlapMinutes += overlap * 60;
+      }
+    }
+
+    // Only count habit time in work hours that's NOT covered by planned events
+    const effectiveMinutes = Math.max(0, habitWorkOverlapMinutes - habitPlannedOverlapMinutes);
+    totalHabitTimeHours += effectiveMinutes / 60;
+  }
+
+  return totalHabitTimeHours;
+}
+
+/**
+ * Calculate ALL planned/completed project event time for a date
+ * Includes events even if they're outside work hours
+ * This represents total committed time to projects
+ */
+export function calculatePlannedTimeNotOverlappingHabits(
+  date: Date,
+  events: CalendarEvent[],
+  workHours: WorkHour[]
+): number {
+  // Get ALL planned/completed project events for this date (regardless of work hours)
+  const plannedEvents = events.filter(event => 
+    event.projectId && 
+    event.category !== 'habit' && 
+    event.category !== 'task' &&
+    calculateEventDurationOnDate({ event, targetDate: date }) > 0
+  );
+
+  let totalPlannedTimeHours = 0;
+
+  for (const plannedEvent of plannedEvents) {
+    // Calculate FULL duration on this date (not limited to work hours)
+    const duration = calculateEventDurationOnDate({ event: plannedEvent, targetDate: date });
+    totalPlannedTimeHours += duration;
+  }
+
+  return totalPlannedTimeHours;
+}
+
+/**
+ * Calculate net availability for a specific date
+ * Formula: Work Hours - (Habit Time not covered by planned) - (ALL Planned/Completed Time) - (Estimated Time)
+ * 
+ * @param date - The date to calculate availability for
+ * @param events - All calendar events
+ * @param workHours - Work hour slots for the date
+ * @param estimatedHours - Auto-estimated project hours for the date (from day estimates)
+ * @returns Net availability in hours (can be negative if overbooked)
+ */
+export function calculateNetAvailability(
+  date: Date,
+  events: CalendarEvent[],
+  workHours: WorkHour[],
+  estimatedHours: number = 0
+): number {
+  // Calculate total work hours for the day
+  const totalWorkHours = workHours.reduce((sum, wh) => {
+    const duration = (wh.endTime.getTime() - wh.startTime.getTime()) / (1000 * 60 * 60);
+    return sum + duration;
+  }, 0);
+
+  // Calculate habit time within work slots (excluding portion covered by planned events)
+  const habitTime = calculateHabitTimeWithinWorkSlots(date, events, workHours);
+
+  // Calculate ALL planned/completed project time (even outside work hours)
+  const plannedTime = calculatePlannedTimeNotOverlappingHabits(date, events, workHours);
+
+  // Net availability = work hours - (habit time not covered + all planned time + estimated time)
+  const netAvailability = totalWorkHours - (habitTime + plannedTime + estimatedHours);
+
+  return netAvailability;
+}
+
+/**
  * Generate work hours for a specific date based on settings
  * DELEGATES to single source of truth in UnifiedEventWorkHourService
  */

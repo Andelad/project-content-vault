@@ -1677,6 +1677,7 @@ export function PlannerView() {
           context="planner"
           timeGutterWidth={timeAxisWidth}
           scrollbarWidth={calendarScrollbarWidth}
+          milestones={projectMilestones}
         />
       </div>
       {/* Modals */}

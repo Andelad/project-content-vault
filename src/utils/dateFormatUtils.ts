@@ -152,6 +152,25 @@ export const formatTimeRange = (startDate: Date, endDate: Date): string => {
   return `${startFormatted} - ${endFormatted}`;
 };
 
+// Week range formatting (e.g., "3 - 9 Nov" or "28 Oct - 3 Nov")
+export const formatWeekRange = (weekStartDate: Date): string => {
+  // Calculate week end (6 days after start)
+  const weekEndDate = new Date(weekStartDate);
+  weekEndDate.setDate(weekEndDate.getDate() + 6);
+  
+  const startDay = weekStartDate.getDate();
+  const endDay = weekEndDate.getDate();
+  const endMonth = weekEndDate.toLocaleDateString(APP_LOCALE, DATE_FORMAT_OPTIONS.shortMonth);
+  
+  // Handle cross-month ranges
+  if (weekStartDate.getMonth() !== weekEndDate.getMonth()) {
+    const startMonth = weekStartDate.toLocaleDateString(APP_LOCALE, DATE_FORMAT_OPTIONS.shortMonth);
+    return `${startDay} ${startMonth} - ${endDay} ${endMonth}`;
+  }
+  
+  return `${startDay} - ${endDay} ${endMonth}`;
+};
+
 // Day name formatting utilities (for recurring patterns)
 /**
  * Convert day number to day name

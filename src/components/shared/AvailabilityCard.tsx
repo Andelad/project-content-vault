@@ -1,4 +1,4 @@
-import React, { memo, useState, useMemo, useEffect } from 'react';
+import React, { memo, useState, useMemo, useEffect, useCallback } from 'react';
 import { Info } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Button } from '../ui/button';
@@ -6,7 +6,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '../ui/
 import { Card } from '../ui/card';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { UnifiedTimelineService, formatDuration } from '@/services';
-import { formatWeekdayDate, formatDateShort } from '@/utils/dateFormatUtils';
+import { formatWeekdayDate, formatDateShort, formatWeekRange } from '@/utils/dateFormatUtils';
 import { NEUTRAL_COLORS } from '@/constants/colors';
 import type { Project, Settings } from '@/types/core';
 
@@ -101,6 +101,7 @@ interface AvailabilityCardProps {
   context?: 'timeline' | 'planner';
   timeGutterWidth?: number;
   scrollbarWidth?: number;
+  milestones?: any[]; // Optional for now to maintain backward compatibility
 }
 
 export const AvailabilityCard = memo(function AvailabilityCard({
@@ -112,7 +113,8 @@ export const AvailabilityCard = memo(function AvailabilityCard({
   columnMarkersOverlay,
   context = 'timeline',
   timeGutterWidth = 0,
-  scrollbarWidth = 0
+  scrollbarWidth = 0,
+  milestones = []
 }: AvailabilityCardProps) {
   const [activeTab, setActiveTab] = useState<'time-spent' | 'availability-graph'>('availability-graph');
   const [hoveredColumnIndex, setHoveredColumnIndex] = useState<number | null>(null);
@@ -146,7 +148,7 @@ export const AvailabilityCard = memo(function AvailabilityCard({
   const timeSpentRows = [
     {
       type: 'total-planned' as const,
-      label: 'Total Project Time'
+      label: 'Completed Project Time'
     },
     {
       type: 'other-time' as const,
@@ -155,6 +157,18 @@ export const AvailabilityCard = memo(function AvailabilityCard({
   ];
 
   const isGraphTab = activeTab === 'availability-graph';
+
+  // ===== HELPER FUNCTIONS =====
+  // Helper function to get week dates
+  const getWeekDates = useCallback((weekStart: Date) => {
+    const weekDates = [];
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(weekStart);
+      date.setDate(weekStart.getDate() + i);
+      weekDates.push(date);
+    }
+    return weekDates;
+  }, []);
 
   // ===== WORKLOAD GRAPH CALCULATION =====
   const graphData = useMemo(() => {
@@ -174,16 +188,57 @@ export const AvailabilityCard = memo(function AvailabilityCard({
     }
     
     return extendedDates.map(date => {
-      const workHours = UnifiedTimelineService.getWorkHoursForDay(date, holidays, settings);
-      const plannedHours = UnifiedTimelineService.calculateTotalPlannedHours(date, events);
+      // For weeks mode in timeline, calculate totals for the entire week
+      // For planner, always show daily totals (even when mode='weeks')
+      const datesToProcess = (mode === 'weeks' && context === 'timeline') ? getWeekDates(date) : [date];
+      
+      let totalWorkHours = 0;
+      let totalHabitTime = 0;
+      let totalPlannedTime = 0;
+      let totalEstimatedHours = 0;
+      
+      datesToProcess.forEach(d => {
+        // Generate work hours for this date
+        const workHoursForDate = UnifiedTimelineService.generateWorkHoursForDate(d, settings);
+        totalWorkHours += UnifiedTimelineService.calculateWorkHoursTotal(workHoursForDate);
+        
+        // Calculate habit time within work slots (excluding portion covered by planned events)
+        totalHabitTime += UnifiedTimelineService.calculateHabitTimeWithinWorkSlots(d, events, workHoursForDate);
+        
+        // Calculate ALL planned/completed project event time (even outside work hours)
+        totalPlannedTime += UnifiedTimelineService.calculatePlannedTimeNotOverlappingHabits(d, events, workHoursForDate);
+        
+        // Calculate total project hours (includes both planned events and auto-estimates)
+        const totalProjectHours = UnifiedTimelineService.calculateDailyProjectHours(
+          d, 
+          projects, 
+          settings, 
+          holidays, 
+          milestones,
+          events
+        );
+        
+        // Get ONLY auto-estimate hours (total project hours minus planned event hours for this day)
+        const dailyPlannedTime = UnifiedTimelineService.calculatePlannedTimeNotOverlappingHabits(d, events, workHoursForDate);
+        totalEstimatedHours += Math.max(0, totalProjectHours - dailyPlannedTime);
+      });
+      
+      // Net Availability = Work Hours - (Habit Time not covered + ALL Planned Time + Estimated Time)
+      // - habitTime: only the portion in work hours NOT covered by planned events
+      // - plannedTime: ALL planned/completed events (even outside work hours)
+      // - estimatedHours: auto-estimates only (don't overlap with planned by design)
+      const netAvailability = totalWorkHours - (totalHabitTime + totalPlannedTime + totalEstimatedHours);
+      
       return {
         date,
-        workHours,
-        plannedHours,
-        netAvailability: workHours - plannedHours
+        workHours: totalWorkHours,
+        habitTime: totalHabitTime,
+        plannedTime: totalPlannedTime,
+        estimatedHours: totalEstimatedHours,
+        netAvailability
       };
     });
-  }, [dates, holidays, settings, events, mode]);
+  }, [dates, holidays, settings, events, projects, milestones, mode, getWeekDates]);
 
   const maxAbsValue = useMemo(() => {
     const absValues = graphData.map(d => Math.abs(d.netAvailability));
@@ -253,16 +308,6 @@ export const AvailabilityCard = memo(function AvailabilityCard({
   };
 
   // ===== TIME SPENT CALCULATION =====
-  const getWeekDates = (weekStart: Date) => {
-    const weekDates = [];
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(weekStart);
-      date.setDate(weekStart.getDate() + i);
-      weekDates.push(date);
-    }
-    return weekDates;
-  };
-
   const getHours = (date: Date, type: 'total-planned' | 'other-time') => {
     const getDailyHours = (d: Date) => {
       return type === 'total-planned'
@@ -270,7 +315,9 @@ export const AvailabilityCard = memo(function AvailabilityCard({
         : UnifiedTimelineService.calculateOtherTime(d, events);
     };
 
-    if (mode === 'weeks') {
+    // For timeline view in weeks mode, aggregate the week
+    // For planner view, always show individual days (even when mode is 'weeks')
+    if (mode === 'weeks' && context === 'timeline') {
       return getWeekDates(date).reduce((total, d) => total + getDailyHours(d), 0);
     }
     return getDailyHours(date);
@@ -372,7 +419,9 @@ export const AvailabilityCard = memo(function AvailabilityCard({
                     <div className="text-xs">
                       <div className="font-medium text-gray-800">{mode === 'days' ? formatWeekdayDate(columnData.date) : `Week of ${formatDateShort(columnData.date)}`}</div>
                       <div className="text-gray-600 mt-1">Work Hours: {formatDuration(columnData.workHours)}</div>
-                      <div className="text-gray-600">Planned: {formatDuration(columnData.plannedHours)}</div>
+                      <div className="text-gray-600">Habit Overlap (net): {formatDuration(columnData.habitTime)}</div>
+                      <div className="text-gray-600">Planned/Completed: {formatDuration(columnData.plannedTime)}</div>
+                      <div className="text-gray-600">Estimated: {formatDuration(columnData.estimatedHours)}</div>
                       {isPositive && <div className="text-green-600 font-medium mt-1">Available: {formatDuration(columnData.netAvailability)}</div>}
                       {isNegative && <div className="text-red-600 font-medium mt-1">Overcommitted: {formatDuration(Math.abs(columnData.netAvailability))}</div>}
                       {!isPositive && !isNegative && <div className="text-stone-600 font-medium mt-1">Perfectly Balanced</div>}
@@ -401,31 +450,37 @@ export const AvailabilityCard = memo(function AvailabilityCard({
             <div className="flex w-full" style={context === 'timeline' ? { minWidth: `${dates.length * columnWidth + (mode === 'days' ? columnWidth : 0)}px` } : undefined}>
               {dates.map((date: Date, dateIndex: number) => {
                 const targetHours = getHours(date, row.type);
-                const columnElement = (
-                  <div className={`flex justify-center items-center relative ${context === 'planner' ? 'flex-1 border-r border-gray-200' : ''}`} style={context === 'timeline' ? { width: `${columnWidth}px` } : undefined} onMouseEnter={() => setHoveredColumnIndex(dateIndex)} onMouseLeave={() => setHoveredColumnIndex(null)}>
-                    <div className={`absolute inset-0 bg-black transition-opacity duration-200 pointer-events-none ${hoveredColumnIndex === dateIndex ? 'opacity-[0.04]' : 'opacity-0'}`} />
-                    <div className="relative flex items-center justify-center min-h-[20px]">
-                      {targetHours > 0 && <span className="text-xs font-medium text-gray-600">{formatDuration(targetHours)}</span>}
+                
+                return (
+                  <div 
+                    key={dateIndex}
+                    className={`flex justify-center items-center relative ${context === 'planner' ? 'flex-1 border-r border-gray-200' : ''}`} 
+                    style={context === 'timeline' ? { width: `${columnWidth}px` } : undefined}
+                  >
+                    <div className="relative flex items-center justify-center min-h-[20px]" style={{ zIndex: 10 }}>
+                      {targetHours > 0 ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="text-xs font-medium text-gray-600 cursor-default hover:bg-gray-100 px-2 py-1 rounded transition-colors relative" style={{ zIndex: 10 }}>
+                              {formatDuration(targetHours)}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <div className="text-xs">
+                              <div className="font-medium text-gray-600">{row.label}</div>
+                              <div className="text-gray-500">{formatDuration(targetHours)}</div>
+                              <div className="text-xs text-gray-400">
+                                {context === 'timeline' && mode === 'weeks' 
+                                  ? formatWeekRange(date)
+                                  : formatWeekdayDate(date)}
+                              </div>
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : null}
                     </div>
                   </div>
                 );
-
-                if (targetHours > 0) {
-                  return (
-                    <Tooltip key={dateIndex} open={hoveredColumnIndex === dateIndex}>
-                      <TooltipTrigger asChild>{columnElement}</TooltipTrigger>
-                      <TooltipContent>
-                        <div className="text-xs">
-                          <div className="font-medium text-gray-600">{row.label}</div>
-                          <div className="text-gray-500">{formatDuration(targetHours)}</div>
-                          <div className="text-xs text-gray-400">{mode === 'weeks' ? getWeekDates(date).map(d => formatDateShort(d)).join(', ') : formatWeekdayDate(date)}</div>
-                        </div>
-                      </TooltipContent>
-                    </Tooltip>
-                  );
-                }
-
-                return React.cloneElement(columnElement, { key: dateIndex });
               })}
             </div>
           </div>

@@ -39,6 +39,9 @@ import {
   getProjectTimeAllocation,
   calculateWorkHoursTotal,
   expandHolidayDates,
+  calculateHabitTimeWithinWorkSlots,
+  calculatePlannedTimeNotOverlappingHabits,
+  calculateNetAvailability,
   calculateAvailabilityCircleSize,
   getMinimumCircleDimensions,
   calculateAutoEstimateHoursPerDay,
@@ -587,6 +590,25 @@ export class UnifiedTimelineService {
    * Delegates to existing calculation service
    */
   static calculateOtherTime = calculateOtherTime;
+  
+  /**
+   * Calculate habit time within work slots
+   * Delegates to existing calculation service
+   */
+  static calculateHabitTimeWithinWorkSlots = calculateHabitTimeWithinWorkSlots;
+  
+  /**
+   * Calculate planned time not overlapping habits
+   * Delegates to existing calculation service
+   */
+  static calculatePlannedTimeNotOverlappingHabits = calculatePlannedTimeNotOverlappingHabits;
+  
+  /**
+   * Calculate net availability
+   * Delegates to existing calculation service
+   */
+  static calculateNetAvailability = calculateNetAvailability;
+  
   /**
    * Group dates by month for timeline headers
    * Delegates to dateCalculations
