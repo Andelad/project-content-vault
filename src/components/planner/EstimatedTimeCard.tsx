@@ -1,5 +1,5 @@
 /**
- * DailyProjectSummaryRow Component
+ * EstimatedTimeCard Component
  *
  * A compact row above the calendar showing project summaries for each day.
  * Each day column shows the count of projects with estimated time and total hours.
@@ -17,7 +17,7 @@ import { NEUTRAL_COLORS } from '@/constants/colors';
 import { getDateKey } from '@/utils/dateFormatUtils';
 import * as DateCalculations from '@/services/calculations/general/dateCalculations';
 
-interface DailyProjectSummaryRowProps {
+interface EstimatedTimeCardProps {
   /** Array of dates to show (one per column) */
   dates: Date[];
   /** All projects */
@@ -42,7 +42,7 @@ interface DailyProjectSummaryRowProps {
 
 //
 
-export function DailyProjectSummaryRow({
+export function EstimatedTimeCard({
   dates,
   projects,
   milestonesMap,
@@ -53,7 +53,7 @@ export function DailyProjectSummaryRow({
   onDragStart,
   onDragEnd,
   scrollbarWidth = 0,
-}: DailyProjectSummaryRowProps) {
+}: EstimatedTimeCardProps) {
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
   const [draggedProject, setDraggedProject] = useState<{ projectId: string; date: Date; estimatedHours: number } | null>(null);
   const [timeAxisWidth, setTimeAxisWidth] = useState<number | null>(null);

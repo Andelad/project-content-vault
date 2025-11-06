@@ -14,7 +14,7 @@ import { HABIT_ICON, TASK_ICON, HABIT_ICON_SVG, TASK_ICON_SVG } from '@/constant
 import { NEUTRAL_COLORS } from '@/constants/colors';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as DatePicker } from '@/components/ui/calendar';
-import { DailyProjectSummaryRow, WeekNavigationBar } from '@/components/planner';
+import { EstimatedTimeCard, WeekNavigationBar } from '@/components/planner';
 import { AvailabilityCard } from '@/components/shared';
 import { getBaseFullCalendarConfig, getEventStylingConfig, getResponsiveDayCount } from '@/services';
 // Holidays now sourced from PlannerContext to avoid duplicate fetch/state
@@ -1612,11 +1612,11 @@ export function PlannerView() {
         show={currentView === 'week' && (viewportSize === 'mobile' || viewportSize === 'tablet')}
       />
 
-      {/* Daily Project Summary Row */}
-      {calendarReady && summaryDateStrings.length > 0 && !isEventsLoading && !isHolidaysLoading && (
+      {/* Estimated Time Card */}
+      {false && calendarReady && summaryDateStrings.length > 0 && !isEventsLoading && !isHolidaysLoading && (
         <div className="px-6 pb-[21px]">
           <div className="bg-gray-50 border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-            <DailyProjectSummaryRow
+            <EstimatedTimeCard
               dates={summaryDates}
               projects={projects}
               milestonesMap={milestonesMap}

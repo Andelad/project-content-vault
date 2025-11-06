@@ -45,13 +45,11 @@ const ChromeTab = ({ label, isActive, onClick }: TabProps) => {
       onClick={onClick}
       className={`
         relative px-6 text-sm font-medium transition-all duration-200 flex items-center justify-center
-        ${isActive 
-          ? 'text-gray-800 z-10' 
-          : 'text-gray-500 hover:text-gray-600 z-0'
-        }
+        text-gray-800
+        ${isActive ? 'z-10' : 'z-0'}
       `}
       style={{
-        height: '40px',
+        height: isActive ? '40px' : '39px',
         backgroundColor: isActive ? 'white' : NEUTRAL_COLORS.gray200,
         borderTopLeftRadius: '8px',
         borderTopRightRadius: '8px',
@@ -65,25 +63,6 @@ const ChromeTab = ({ label, isActive, onClick }: TabProps) => {
       }}
     >
       {label}
-      {/* Chrome-style curves at bottom corners of active tab */}
-      {isActive && (
-        <>
-          {/* Left curve */}
-          <div
-            className="absolute -left-2 bottom-0 w-2 h-2 pointer-events-none"
-            style={{
-              background: 'radial-gradient(circle at 0 0, transparent 8px, white 8px)',
-            }}
-          />
-          {/* Right curve */}
-          <div
-            className="absolute -right-2 bottom-0 w-2 h-2 pointer-events-none"
-            style={{
-              background: 'radial-gradient(circle at 100% 0, transparent 8px, white 8px)',
-            }}
-          />
-        </>
-      )}
     </button>
   );
 };

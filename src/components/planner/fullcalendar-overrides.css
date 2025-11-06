@@ -296,7 +296,7 @@
 /* Header styles - Match toggle button height (h-9 = 36px) */
 .fc-col-header,
 .fc-col-header-cell {
-  background-color: var(--gray-50);
+  background-color: var(--gray-100);
   font-weight: 500;
   color: var(--gray-700);
   height: var(--header-height) !important; /* Match h-9 toggle button height */
@@ -441,21 +441,18 @@
   overflow-x: hidden !important;
 }
 
-/* Expand tables to cover the scrollbar width gap */
+/* Keep all tables at 100% width - don't extend for scrollbar */
 .planner-calendar-card .fc-timegrid-body,
 .planner-calendar-card .fc-timegrid-body .fc-timegrid-cols,
 .planner-calendar-card .fc-timegrid-body .fc-timegrid-cols table,
 .planner-calendar-card .fc-timegrid-slots,
-.planner-calendar-card .fc-timegrid-slots table {
-  width: calc(100% + var(--planner-scrollbar-width, 0px)) !important;
-}
-
+.planner-calendar-card .fc-timegrid-slots table,
 .planner-calendar-card .fc-scrollgrid-section-header,
 .planner-calendar-card .fc-scrollgrid-section-header .fc-scroller,
 .planner-calendar-card .fc-scrollgrid-section-header table,
 .planner-calendar-card .fc-timegrid-header .fc-timegrid-cols,
 .planner-calendar-card .fc-timegrid-header .fc-timegrid-cols table {
-  width: calc(100% + var(--planner-scrollbar-width, 0px)) !important;
+  width: 100% !important;
 }
 
 /* Force equal column widths so last column doesn't absorb extra space */
