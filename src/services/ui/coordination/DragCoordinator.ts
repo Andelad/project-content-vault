@@ -14,6 +14,7 @@ import { ConflictDetectionResult, DateAdjustmentResult } from '../../calculation
 import { calculateProjectDays, calculateWorkHoursTotal, calculateDayWorkHours } from '../positioning/ProjectBarPositioning';
 import { TimelineViewport as TimelineViewportService } from '../positioning/TimelineViewportService';
 import * as ProjectBarResizeService from '../positioning/ProjectBarResizeService';
+import { normalizeToMidnight, addDaysToDate } from '../../calculations/general/dateCalculations';
 import type { Project } from '@/types/core';
 import type { DayEstimate } from '@/types/core';
 
@@ -324,9 +325,9 @@ export class TimelineDragCoordinatorService {
 
     // 3. Calculate new milestone date
     const { daysDelta } = positionResult;
-    const newDate = new Date(dragState.originalStartDate);
-    newDate.setDate(dragState.originalStartDate.getDate() + daysDelta);
-    newDate.setHours(0, 0, 0, 0);
+    let newDate = new Date(dragState.originalStartDate);
+    newDate = addDaysToDate(dragState.originalStartDate, daysDelta);
+    newDate = normalizeToMidnight(newDate);
 
     // 4. Update drag state with visual delta for smooth rendering
     const newDragState: DragState = {
@@ -388,18 +389,18 @@ export class TimelineDragCoordinatorService {
 
     if (dragState.action === 'resize-start-date') {
       newStartDate = new Date(dragState.originalStartDate);
-      newStartDate.setDate(dragState.originalStartDate.getDate() + daysDelta);
+      newStartDate = addDaysToDate(dragState.originalStartDate, daysDelta);
       newEndDate = new Date(dragState.originalEndDate);
     } else if (dragState.action === 'resize-end-date') {
       newStartDate = new Date(dragState.originalStartDate);
       newEndDate = new Date(dragState.originalEndDate);
-      newEndDate.setDate(dragState.originalEndDate.getDate() + daysDelta);
+      newEndDate = addDaysToDate(dragState.originalEndDate, daysDelta);
     } else {
       // move
       newStartDate = new Date(dragState.originalStartDate);
       newEndDate = new Date(dragState.originalEndDate);
-      newStartDate.setDate(dragState.originalStartDate.getDate() + daysDelta);
-      newEndDate.setDate(dragState.originalEndDate.getDate() + daysDelta);
+      newStartDate = addDaysToDate(dragState.originalStartDate, daysDelta);
+      newEndDate = addDaysToDate(dragState.originalEndDate, daysDelta);
     }
 
     // 4. Validate holiday bounds

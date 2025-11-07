@@ -14,7 +14,7 @@ import { Project, Milestone } from '@/types/core';
 import { supabase } from '@/integrations/supabase/client';
 import { UnifiedMilestoneService } from '../unified/UnifiedMilestoneService';
 import { ProjectOrchestrator } from './ProjectOrchestrator';
-import { calculateDurationDays } from '../calculations/general/dateCalculations';
+import { calculateDurationDays, addDaysToDate } from '../calculations/general/dateCalculations';
 import { RecurringMilestoneConfig as BaseRecurringMilestoneConfig } from '../calculations/projects/milestoneCalculations';
 
 export interface ProjectRecurringMilestoneConfig extends BaseRecurringMilestoneConfig {
@@ -374,13 +374,13 @@ export class ProjectMilestoneOrchestrator {
       const endDate = this.calculateNextMilestoneDate(config, baseDate, i);
       
       // Calculate start date (work backwards by interval)
-      const startDate = new Date(endDate);
+      let startDate = new Date(endDate);
       switch (config.recurringType) {
         case 'daily':
-          startDate.setDate(startDate.getDate() - config.recurringInterval);
+          startDate = addDaysToDate(startDate, -config.recurringInterval);
           break;
         case 'weekly':
-          startDate.setDate(startDate.getDate() - (7 * config.recurringInterval));
+          startDate = addDaysToDate(startDate, -(7 * config.recurringInterval));
           break;
         case 'monthly':
           startDate.setMonth(startDate.getMonth() - config.recurringInterval);
@@ -413,18 +413,18 @@ export class ProjectMilestoneOrchestrator {
     baseDate: Date,
     iteration: number
   ): Date {
-    const result = new Date(baseDate);
+    let result = new Date(baseDate);
 
     switch (config.recurringType) {
       case 'daily':
-        result.setDate(result.getDate() + (iteration * config.recurringInterval));
+        result = addDaysToDate(result, iteration * config.recurringInterval);
         break;
       case 'weekly':
-        result.setDate(result.getDate() + (iteration * 7 * config.recurringInterval));
+        result = addDaysToDate(result, iteration * 7 * config.recurringInterval);
         if (config.weeklyDayOfWeek !== undefined) {
           // Adjust to specific day of week
           const dayDiff = config.weeklyDayOfWeek - result.getDay();
-          result.setDate(result.getDate() + dayDiff);
+          result = addDaysToDate(result, dayDiff);
         }
         break;
       case 'monthly':

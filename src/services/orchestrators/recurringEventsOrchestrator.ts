@@ -9,6 +9,7 @@
 import { CalendarEvent } from '@/types/core';
 import { supabase } from '@/integrations/supabase/client';
 import { generateRecurringEvents } from '../calculations/events/eventCalculations';
+import { addDaysToDate } from '../calculations/general/dateCalculations';
 
 /**
  * Checks if a recurring series needs more events generated and creates them if necessary
@@ -156,14 +157,14 @@ function calculateNextOccurrence(
   type: 'daily' | 'weekly' | 'monthly' | 'yearly', 
   interval: number
 ): Date {
-  const nextDate = new Date(date);
+  let nextDate = new Date(date);
   
   switch (type) {
     case 'daily':
-      nextDate.setDate(nextDate.getDate() + interval);
+      nextDate = addDaysToDate(nextDate, interval);
       break;
     case 'weekly':
-      nextDate.setDate(nextDate.getDate() + (7 * interval));
+      nextDate = addDaysToDate(nextDate, 7 * interval);
       break;
     case 'monthly':
       nextDate.setMonth(nextDate.getMonth() + interval);

@@ -16,7 +16,7 @@ import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 import { useTimelineContext } from '../../contexts/TimelineContext';
-import { calculateProjectTimeMetrics, calculateAutoEstimateHoursPerDay, expandHolidayDates, calculateTotalWorkingDays, clearTimelineCache, ProjectOrchestrator, formatDuration } from '@/services';
+import { calculateProjectTimeMetrics, calculateAutoEstimateHoursPerDay, expandHolidayDates, calculateTotalWorkingDays, clearTimelineCache, ProjectOrchestrator, formatDuration, normalizeToMidnight } from '@/services';
 import { formatDate, formatDateForInput } from '@/utils/dateFormatUtils';
 import { useToast } from '@/hooks/use-toast';
 import { StandardModal } from './StandardModal';
@@ -30,7 +30,6 @@ interface ProjectModalProps {
   groupId?: string;
   rowId?: string;
 }
-
 // Chrome-style tab component
 interface TabProps {
   label: string;
@@ -38,7 +37,6 @@ interface TabProps {
   isActive: boolean;
   onClick: () => void;
 }
-
 const ChromeTab = ({ label, isActive, onClick }: TabProps) => {
   return (
     <button
@@ -66,7 +64,6 @@ const ChromeTab = ({ label, isActive, onClick }: TabProps) => {
     </button>
   );
 };
-
 export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: ProjectModalProps) {
   // Debug toggle
   const DEBUG = false;
@@ -148,13 +145,10 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
     totalAllocation: number;
     hasRecurring: boolean;
   }>({ totalAllocation: 0, hasRecurring: false });
-  
   // Track milestones added during this edit session (for rollback on cancel)
   const [milestonesAddedDuringSession, setMilestonesAddedDuringSession] = useState<string[]>([]);
-  
   // Track if we're saving (to prevent rollback on save) - start as false, set true when saving
   const shouldRollbackRef = React.useRef(true); // Default to rollback unless explicitly saving
-  
   // Reset tracking when modal opens
   useEffect(() => {
     if (isOpen && !isCreating) {
@@ -162,23 +156,16 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
       shouldRollbackRef.current = true; // Reset to rollback by default
     }
   }, [isOpen, isCreating]);
-  
   // Wrapper for addMilestone that tracks new milestone IDs for rollback
   const trackedAddMilestone = useCallback(async (milestone: any, options?: { silent?: boolean }) => {
-    console.log('[ProjectModal] trackedAddMilestone called for:', milestone.name);
     const result = await addMilestone(milestone, options);
-    console.log('[ProjectModal] addMilestone result:', result);
-    
     // Track the new milestone ID if we're editing (not creating)
     if (!isCreating && result?.id) {
-      console.log('[ProjectModal] Tracking milestone ID for rollback:', result.id);
       setMilestonesAddedDuringSession(prev => {
         const updated = [...prev, result.id];
-        console.log('[ProjectModal] Updated tracked milestones:', updated);
         return updated;
       });
     }
-    
     return result;
   }, [addMilestone, isCreating]);
   const [localValues, setLocalValues] = useState({
@@ -303,42 +290,29 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
   }, [project, isCreating, creatingNewProject]);
   // Handle smooth modal closing - just call onClose, AnimatePresence will handle the animation
   const handleClose = useCallback(async () => {
-    console.log('[ProjectModal] handleClose called');
-    console.log('[ProjectModal] isCreating:', isCreating);
-    console.log('[ProjectModal] shouldRollback:', shouldRollbackRef.current);
-    console.log('[ProjectModal] milestonesAddedDuringSession:', milestonesAddedDuringSession);
-    
     // If editing (not creating) and should rollback, delete milestones added during this session
     if (!isCreating && shouldRollbackRef.current && milestonesAddedDuringSession.length > 0) {
-      console.log('[ProjectModal] Rolling back milestones added during session:', milestonesAddedDuringSession);
       for (const milestoneId of milestonesAddedDuringSession) {
         try {
-          console.log('[ProjectModal] Deleting milestone:', milestoneId);
           await deleteMilestone(milestoneId, { silent: true });
-          console.log('[ProjectModal] Successfully deleted milestone:', milestoneId);
         } catch (error) {
           console.error('[ProjectModal] Failed to rollback milestone:', milestoneId, error);
         }
       }
       setMilestonesAddedDuringSession([]);
     }
-    
     // Reset rollback flag for next open
     shouldRollbackRef.current = true;
-    
     onClose();
   }, [onClose, isCreating, milestonesAddedDuringSession, deleteMilestone]);
   // Handle creating the new project
   const handleCreateProject = useCallback(async () => {
     // Prevent double submission
     if (isSubmitting) {
-      console.log('⚠️ Already submitting, ignoring duplicate call');
       return;
     }
-
     const gid = resolvedGroupId ?? groupId;
     const rid = resolvedRowId ?? rowId;
-    
     if (!gid || gid === '') {
       toast({
         title: "Error",
@@ -347,7 +321,6 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
       });
       return;
     }
-    
     if (isCreating && gid) {
       setIsSubmitting(true);
       try {
@@ -381,7 +354,6 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
             title: "Success",
             description: "Project created successfully",
           });
-          
           // Show warnings if any dates were auto-adjusted
           if (result.warnings && result.warnings.length > 0) {
             result.warnings.forEach(warning => {
@@ -392,7 +364,6 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
               });
             });
           }
-          
           // Don't rollback on successful save
           shouldRollbackRef.current = false;
           handleClose();
@@ -458,7 +429,6 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
       const hasChanges = 
         localValues.color !== originalValues.color ||
         localValues.icon !== originalValues.icon;
-      
       if (hasChanges) {
         // Save the changes
         await updateProject(projectId, {
@@ -466,7 +436,6 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
           icon: localValues.icon
         });
       }
-      
       toast({
         title: "Success",
         description: "Project updated successfully",
@@ -500,7 +469,6 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
   status: project?.status ?? 'current',
   milestones: project?.milestones ?? [],
     };
-
     const currentProject = project ?? fallbackProject;
     return calculateProjectTimeMetrics(currentProject, events as any, holidays, new Date());
   }, [project, localValues.name, localValues.client, localValues.startDate, localValues.endDate, localValues.estimatedHours, localValues.color, localValues.notes, localValues.icon, localValues.continuous, localValues.autoEstimateDays, groupId, rowId, events, holidays, localProjectMilestones]);
@@ -694,7 +662,6 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
     setLocalValues(prev => ({ ...prev, color }));
     // Note: Changes are saved when user clicks "Create Project" or "Update Project"
   };
-  
   const handleIconChange = (icon: string) => {
     // Update local state immediately for visual feedback
     setLocalValues(prev => ({ ...prev, icon }));
@@ -757,20 +724,18 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
         // Start date cannot be on or after any milestone
         return (date: Date) => {
           return relevantMilestones.some(m => {
-            const milestoneDate = new Date(m.dueDate);
-            milestoneDate.setHours(0, 0, 0, 0);
-            date.setHours(0, 0, 0, 0);
-            return date.getTime() >= milestoneDate.getTime();
+            const milestoneDate = normalizeToMidnight(new Date(m.dueDate));
+            const normalizedDate = normalizeToMidnight(date);
+            return normalizedDate.getTime() >= milestoneDate.getTime();
           });
         };
       } else if (property === 'endDate') {
         // End date cannot be on or before any milestone
         return (date: Date) => {
           return relevantMilestones.some(m => {
-            const milestoneDate = new Date(m.dueDate);
-            milestoneDate.setHours(0, 0, 0, 0);
-            date.setHours(0, 0, 0, 0);
-            return date.getTime() <= milestoneDate.getTime();
+            const milestoneDate = normalizeToMidnight(new Date(m.dueDate));
+            const normalizedDate = normalizeToMidnight(date);
+            return normalizedDate.getTime() <= milestoneDate.getTime();
           });
         };
       }
@@ -779,7 +744,6 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
     const handleOpenChange = useCallback((nextOpen: boolean) => {
       setIsOpen(nextOpen);
     }, []);
-
     return (
       <div className="min-w-[80px]">
         <Popover open={isOpen} onOpenChange={handleOpenChange}>
@@ -1069,7 +1033,6 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
     );
   };
   const modalKey = projectId || (isCreating ? `create-${groupId}` : 'modal');
-
   return (
     <>
       <StandardModal
@@ -1103,7 +1066,6 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
                 onGroupChange={handleGroupChange}
                 disabled={false}
               />
-              
               {/* Date Range on the Right */}
               <div className="flex items-end gap-2">
                 <HeaderDateField
@@ -1144,7 +1106,6 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
                 </TooltipProvider>
               </div>
             </div>
-
             {/* Icon, Project Name, and Client Row */}
             <div className="flex items-end gap-4">
               {/* Project Icon Field */}
@@ -1249,7 +1210,6 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
             </div>
           </div>
         </div>
-
         {/* Tabs Section */}
         <div>
           {/* Tab Headers */}
@@ -1281,7 +1241,6 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
             {/* Fill remaining space with background */}
             <div className="flex-1 border-b border-gray-200" style={{ marginBottom: '-1px' }} />
           </div>
-
           {/* Tab Content */}
           <div className="px-8 py-6">
             {/* Estimate Hours Tab */}
@@ -1306,7 +1265,6 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
                 recurringMilestoneInfo={recurringMilestoneInfo}
               />
             )}
-
             {/* Track Progress Tab */}
             {activeTab === 'progress' && (
               <div>
@@ -1371,7 +1329,6 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
                 </div>
               </div>
             )}
-
             {/* Notes Tab */}
             {activeTab === 'notes' && (
               <div>

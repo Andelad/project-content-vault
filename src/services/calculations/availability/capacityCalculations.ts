@@ -6,9 +6,7 @@
  * Uses single source of truth for all basic calculations.
  */
 
-import { 
-  calculateTimeOverlapMinutes 
-} from '../general/dateCalculations';
+import { calculateTimeOverlapMinutes, addDaysToDate, normalizeToMidnight } from '../general/dateCalculations';
 
 import { calculateEventDurationOnDate } from '../events/eventCalculations';
 import { calculateWorkHoursTotal, calculateDayWorkHours } from '../../ui/positioning/ProjectBarPositioning';
@@ -190,14 +188,14 @@ export function getWorkHoursCapacityForPeriod(
   endDate: Date
 ): Map<string, WorkHourCapacity> {
   const capacityMap = new Map<string, WorkHourCapacity>();
-  const currentDate = new Date(startDate);
+  let currentDate = new Date(startDate);
   
   while (currentDate <= endDate) {
     const dateKey = getDateKey(currentDate);
     const capacity = calculateWorkHourCapacity(workHours, events, currentDate);
     capacityMap.set(dateKey, capacity);
     
-    currentDate.setDate(currentDate.getDate() + 1);
+    currentDate = addDaysToDate(currentDate, 1);
   }
   
   return capacityMap;
@@ -301,13 +299,13 @@ export function wouldOverlapHolidays(
   endDate: Date,
   holidays: any[]
 ): boolean {
-  const currentDate = new Date(startDate);
+  let currentDate = new Date(startDate);
   
   while (currentDate <= endDate) {
     if (isHolidayDateCapacity(currentDate, holidays)) {
       return true;
     }
-    currentDate.setDate(currentDate.getDate() + 1);
+    currentDate = addDaysToDate(currentDate, 1);
   }
   
   return false;
@@ -339,13 +337,13 @@ export function analyzeHolidayOverlap(
   
   // Count affected days
   let affectedDays = 0;
-  const currentDate = new Date(startDate);
+  let currentDate = new Date(startDate);
   
   while (currentDate <= endDate) {
     if (isHolidayDateCapacity(currentDate, holidays)) {
       affectedDays++;
     }
-    currentDate.setDate(currentDate.getDate() + 1);
+    currentDate = addDaysToDate(currentDate, 1);
   }
   
   const recommendations: string[] = [];
@@ -386,7 +384,7 @@ export function performCapacityPlanning(
   const overbookedDays: string[] = [];
   const underutilizedDays: string[] = [];
   
-  const currentDate = new Date(startDate);
+  let currentDate = new Date(startDate);
   
   while (currentDate <= endDate) {
     const dateKey = getDateKey(currentDate);
@@ -405,7 +403,7 @@ export function performCapacityPlanning(
       underutilizedDays.push(dateKey);
     }
     
-    currentDate.setDate(currentDate.getDate() + 1);
+    currentDate = addDaysToDate(currentDate, 1);
   }
   
   const averageUtilization = totalCapacity > 0 ? (totalAllocated / totalCapacity) * 100 : 0;
@@ -733,10 +731,8 @@ export function calculateCommittedHoursForDate(
       const eventEnd = new Date(event.endTime);
       
       // Check if event occurs on the target date
-      const targetDate = new Date(date);
-      targetDate.setHours(0, 0, 0, 0);
-      const nextDay = new Date(targetDate);
-      nextDay.setDate(nextDay.getDate() + 1);
+      const targetDate = normalizeToMidnight(new Date(date));
+      const nextDay = addDaysToDate(new Date(targetDate), 1);
       
       return event.projectId === projectId &&
         event.category !== 'habit' && // Defensive: habits never belong to projects

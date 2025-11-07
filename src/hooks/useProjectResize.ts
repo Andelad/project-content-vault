@@ -11,7 +11,6 @@
  * 
  * Created: November 2025
  */
-
 import { useCallback } from 'react';
 import { toast } from './use-toast';
 import { 
@@ -19,7 +18,6 @@ import {
   addDaysToDate
 } from '@/services';
 import type { DragState } from '@/services/ui/positioning/DragPositioning';
-
 interface UseProjectResizeProps {
   projects: any[];
   dates: Date[];
@@ -34,7 +32,6 @@ interface UseProjectResizeProps {
   setDragState: (state: any) => void;
   dragState: any;
 }
-
 /**
  * Initialize drag state for project resize
  */
@@ -58,7 +55,6 @@ function initializeProjectResizeDragState(
     mode
   };
 }
-
 /**
  * Custom hook for handling project bar resize operations
  * Manages state and coordinates with services
@@ -77,7 +73,6 @@ export function useProjectResize({
   setDragState,
   dragState
 }: UseProjectResizeProps) {
-  
   const handleProjectResizeMouseDown = useCallback((
     e: React.MouseEvent, 
     projectId: string, 
@@ -85,10 +80,8 @@ export function useProjectResize({
   ) => {
     e.preventDefault();
     e.stopPropagation();
-    
     const targetProject = projects.find(p => p.id === projectId);
     if (!targetProject) return;
-    
     // Initialize drag state
     const initialDragState = initializeProjectResizeDragState(
       projectId,
@@ -99,18 +92,13 @@ export function useProjectResize({
       action,
       timelineMode
     );
-    
     setIsDragging(true);
     setDragState(initialDragState);
-    
     let hasShownToast = false; // Track if we've shown a toast to avoid duplicates
     let currentDragStateRef = initialDragState; // Track current drag state in closure
-    
     const handleMouseMove = (e: MouseEvent) => {
       try {
         e.preventDefault();
-        console.log('🖱️ handleMouseMove called for', projectId, 'action:', action);
-        
         // Use unified drag coordinator for all calculations
         const result = TimelineDragCoordinatorService.coordinateDragOperation(
           currentDragStateRef,
@@ -124,12 +112,10 @@ export function useProjectResize({
             dayEstimates // Pass day estimates for validation
           }
         );
-        
         // Check for auto-scroll during drag
         if (result.autoScrollConfig?.shouldScroll) {
           checkAutoScroll(e.clientX);
         }
-        
         // Show toast if collision detected or validation failed (only once)
         if (!hasShownToast) {
           if (result.collisionResult?.hasCollision && result.collisionResult.toastMessage) {
@@ -146,26 +132,21 @@ export function useProjectResize({
             hasShownToast = true;
           }
         }
-        
         // Update visual state if needed. For resize operations we want live feedback,
         // so update even when the snapped delta has not changed yet.
         if (result.shouldUpdate || action === 'resize-start-date' || action === 'resize-end-date') {
           currentDragStateRef = result.newDragState; // keep latest state inside closure
           setDragState(result.newDragState);
         }
-        
         // Note: We do NOT update the database during drag (only on mouse release)
       } catch (error) {
         console.error('🚨 PROJECT RESIZE ERROR:', error);
       }
     };
-    
     const handleMouseUp = () => {
       // Capture final delta from closure ref
       const finalDaysDelta = currentDragStateRef.lastDaysDelta || 0;
-      
       stopAutoScroll();
-      
       // Only update database if there was actual movement
       if (finalDaysDelta !== 0) {
         // Calculate final dates
@@ -184,7 +165,6 @@ export function useProjectResize({
             };
           }
         })();
-        
         // Update database - keep visual state until update completes
         updateProject(projectId, finalDates, { silent: true })
           .then(() => {
@@ -212,7 +192,6 @@ export function useProjectResize({
         setIsDragging(false);
         setDragState(null);
       }
-      
       // Remove all event listeners
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
@@ -223,14 +202,12 @@ export function useProjectResize({
       document.removeEventListener('touchend', handleMouseUp);
       document.removeEventListener('touchcancel', handleMouseUp);
     };
-    
     const handleTouchMove = (e: TouchEvent) => {
       if (e.touches.length > 0) {
         const touch = e.touches[0];
         handleMouseMove({ clientX: touch.clientX, preventDefault: () => {} } as MouseEvent);
       }
     };
-    
     // Add comprehensive event listeners for all input types (mouse, pen, touch)
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
@@ -254,6 +231,5 @@ export function useProjectResize({
     setDragState,
     dragState
   ]);
-  
   return { handleProjectResizeMouseDown };
 }

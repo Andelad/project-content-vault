@@ -26,13 +26,11 @@ import { getEffectiveProjectStatus, DurationFormattingService } from '@/services
 import { GroupOrchestrator } from '@/services/orchestrators/GroupOrchestrator';
 import { ClientsListView } from './ClientsListView';
 import { NEUTRAL_COLORS } from '@/constants/colors';
-
 type ViewType = 'grid' | 'list';
 type FilterByStatus = 'all' | 'active' | 'future' | 'past';
 type OrganizeBy = 'group' | 'tag' | 'client';
 type MainTab = 'projects' | 'clients' | 'holidays';
 type ClientStatusFilter = 'all' | 'active' | 'archived';
-
 // Chrome-style tab component
 interface TabProps {
   label: string;
@@ -40,7 +38,6 @@ interface TabProps {
   isActive: boolean;
   onClick: () => void;
 }
-
 const ChromeTab = ({ label, isActive, onClick }: TabProps) => {
   return (
     <button
@@ -68,13 +65,11 @@ const ChromeTab = ({ label, isActive, onClick }: TabProps) => {
     </button>
   );
 };
-
 // Drag and drop item types
 const ItemTypes = {
   GROUP: 'group',
   PROJECT: 'project'
 };
-
 // Draggable Group Component
 function DraggableGroup({ 
   group, 
@@ -94,22 +89,17 @@ function DraggableGroup({
       isDragging: monitor.isDragging(),
     }),
   });
-
   const [, drop] = useDrop({
     accept: ItemTypes.GROUP,
     hover: (item: { type: string; id: string; index: number }) => {
       if (!item || item.type !== ItemTypes.GROUP) return;
-      
       const dragIndex = item.index;
       const hoverIndex = index;
-
       if (dragIndex === hoverIndex) return;
-
       onMoveGroup(dragIndex, hoverIndex);
       item.index = hoverIndex;
     },
   });
-
   return (
     <div ref={(node) => preview(drop(node))} style={{ opacity: isDragging ? 0.5 : 1 }}>
       <div className="flex items-start gap-3">
@@ -123,7 +113,6 @@ function DraggableGroup({
     </div>
   );
 }
-
 // Draggable Project Component
 function DraggableProject({ 
   project, 
@@ -145,23 +134,18 @@ function DraggableProject({
       isDragging: monitor.isDragging(),
     }),
   });
-
   const [, drop] = useDrop({
     accept: ItemTypes.PROJECT,
     hover: (item: { type: string; id: string; index: number; groupId: string }) => {
       if (!item || item.type !== ItemTypes.PROJECT) return;
       if (item.groupId !== groupId) return; // Only allow reordering within the same group
-      
       const dragIndex = item.index;
       const hoverIndex = index;
-
       if (dragIndex === hoverIndex) return;
-
       onMoveProject(groupId, dragIndex, hoverIndex);
       item.index = hoverIndex;
     },
   });
-
   return (
     <div ref={(node) => preview(drop(node))} style={{ opacity: isDragging ? 0.5 : 1 }}>
       <div className="flex items-center gap-2">
@@ -175,38 +159,30 @@ function DraggableProject({
     </div>
   );
 }
-
 export function ProjectsView() {
   const { groups, projects, deleteGroup, addProject, updateProject, deleteProject, reorderGroups, reorderProjects, selectedProjectId, setSelectedProjectId } = useProjectContext();
   const { addGroup, updateGroup, refetch: fetchGroups } = useGroups();
   const { holidays, addHoliday, updateHoliday, deleteHoliday } = useHolidays();
   const { toast } = useToast();
-
   // Main tab state
   const [activeTab, setActiveTab] = useState<MainTab>('projects');
-
   // View toggle state
   const [viewType, setViewType] = useState<ViewType>('list');
-  
   // Filter and organize state
   const [organizeBy, setOrganizeBy] = useState<OrganizeBy>('group');
   const [filterByStatus, setFilterByStatus] = useState<FilterByStatus>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterByDate, setFilterByDate] = useState('');
-  
   // Client-specific filter state
   const [clientStatusFilter, setClientStatusFilter] = useState<ClientStatusFilter>('active');
-
   // Holiday-specific state
   const [holidayStatusFilter, setHolidayStatusFilter] = useState<FilterByStatus>('all');
   const [isHolidayModalOpen, setIsHolidayModalOpen] = useState(false);
   const [editingHoliday, setEditingHoliday] = useState<any>(null);
-
   // Group dialog state
   const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<Group | null>(null);
   const [groupName, setGroupName] = useState('');
-
   // Project dialog state
   const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
@@ -217,7 +193,6 @@ export function ProjectsView() {
   const [projectEndDate, setProjectEndDate] = useState('');
   const [projectEstimatedHours, setProjectEstimatedHours] = useState('');
   const [projectColor, setProjectColor] = useState('#6366f1');
-
   // Collapsible state for sections and groups
   const [collapsedSections, setCollapsedSections] = useState<{[key: string]: boolean}>({
     current: true,
@@ -225,28 +200,23 @@ export function ProjectsView() {
     archived: true
   });
   const [collapsedGroups, setCollapsedGroups] = useState<{[key: string]: boolean}>({});
-
   const defaultColors = [
     '#6366f1', '#8b5cf6', '#ec4899', '#ef4444', '#f97316',
     '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#6b7280'
   ];
-
   // Group management functions
   const handleAddGroup = () => {
     setEditingGroup(null);
     setGroupName('');
     setIsGroupDialogOpen(true);
   };
-
   const handleEditGroup = (group: Group) => {
     setEditingGroup(group);
     setGroupName(group.name);
     setIsGroupDialogOpen(true);
   };
-
   const handleSaveGroup = async () => {
     if (!groupName.trim()) return;
-
     try {
       // Get current user for Phase 5A API
       const { data: { user } } = await supabase.auth.getUser();
@@ -258,9 +228,7 @@ export function ProjectsView() {
         });
         return;
       }
-
       let result;
-
       if (editingGroup) {
         // Use GroupOrchestrator Phase 5A update workflow
         result = await GroupOrchestrator.executeGroupUpdateWorkflow(
@@ -270,7 +238,6 @@ export function ProjectsView() {
           },
           user.id
         );
-
         if (!result.success) {
           console.error('Group update failed:', result.errors);
           toast({
@@ -280,7 +247,6 @@ export function ProjectsView() {
           });
           return;
         }
-
         if (result.warnings && result.warnings.length > 0) {
           console.warn('Group update warnings:', result.warnings);
           toast({
@@ -289,10 +255,8 @@ export function ProjectsView() {
             variant: "default",
           });
         }
-
         // Refresh groups to get updated data from repository
         await fetchGroups();
-        
       } else {
         // Use GroupOrchestrator Phase 5A creation workflow
         result = await GroupOrchestrator.executeGroupCreationWorkflow(
@@ -301,7 +265,6 @@ export function ProjectsView() {
           },
           user.id
         );
-
         if (!result.success) {
           console.error('Group creation failed:', result.errors);
           toast({
@@ -311,7 +274,6 @@ export function ProjectsView() {
           });
           return;
         }
-
         if (result.warnings && result.warnings.length > 0) {
           console.warn('Group creation warnings:', result.warnings);
           toast({
@@ -320,11 +282,9 @@ export function ProjectsView() {
             variant: "default",
           });
         }
-
         // Refresh groups to get new data from repository
         await fetchGroups();
       }
-
       // Show offline/sync status if relevant
       if (result.metadata?.offlineMode) {
         toast({
@@ -333,7 +293,6 @@ export function ProjectsView() {
           variant: "default",
         });
       }
-
       setIsGroupDialogOpen(false);
       resetGroupForm();
     } catch (error) {
@@ -345,12 +304,10 @@ export function ProjectsView() {
       });
     }
   };
-
   const resetGroupForm = () => {
     setEditingGroup(null);
     setGroupName('');
   };
-
   // Project management functions
   const handleAddProject = (groupId?: string) => {
     setEditingProject(null);
@@ -363,7 +320,6 @@ export function ProjectsView() {
     setProjectColor('#6366f1');
     setIsProjectDialogOpen(true);
   };
-
   const handleEditProject = (project: Project) => {
     setEditingProject(project);
     setProjectName(project.name);
@@ -375,14 +331,11 @@ export function ProjectsView() {
     setProjectColor(project.color);
     setIsProjectDialogOpen(true);
   };
-
   const handleSaveProject = () => {
     if (!projectName.trim() || !projectClient.trim() || !projectStartDate || !projectEndDate || !projectEstimatedHours) return;
-
     const startDate = new Date(projectStartDate);
     const endDate = new Date(projectEndDate);
     const estimatedHours = parseInt(projectEstimatedHours);
-
     if (editingProject) {
       updateProject(editingProject.id, {
         name: projectName,
@@ -393,7 +346,6 @@ export function ProjectsView() {
         estimatedHours,
         color: projectColor
       });
-      
       setIsProjectDialogOpen(false);
       resetProjectForm();
     } else {
@@ -403,7 +355,6 @@ export function ProjectsView() {
       resetProjectForm();
     }
   };
-
   const resetProjectForm = () => {
     setEditingProject(null);
     setProjectName('');
@@ -414,7 +365,6 @@ export function ProjectsView() {
     setProjectEstimatedHours('');
     setProjectColor('#6366f1');
   };
-
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('en-US', {
       month: 'short',
@@ -422,25 +372,19 @@ export function ProjectsView() {
       year: 'numeric'
     });
   };
-
   // Duration formatting is now handled by DurationFormattingService
-
   const getProjectsByGroup = (groupId: string) => {
     return projects.filter(project => project.groupId === groupId);
   };
-
   const getProjectsByGroupAndStatus = (groupId: string, status: ProjectStatus) => {
     return projects.filter(project => project.groupId === groupId && getEffectiveProjectStatus(project) === status);
   };
-
   const getProjectCountByStatus = (status: ProjectStatus) => {
     return projects.filter(project => getEffectiveProjectStatus(project) === status).length;
   };
-
   // Filter and organize projects
   const filteredProjects = useMemo(() => {
     let filtered = [...projects];
-
     // Filter by status
     if (filterByStatus === 'active') {
       filtered = filtered.filter(p => getEffectiveProjectStatus(p) === 'current');
@@ -449,7 +393,6 @@ export function ProjectsView() {
     } else if (filterByStatus === 'past') {
       filtered = filtered.filter(p => getEffectiveProjectStatus(p) === 'archived');
     }
-
     // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
@@ -459,7 +402,6 @@ export function ProjectsView() {
         (p.client && p.client.toLowerCase().includes(query))
       );
     }
-
     // Filter by date
     if (filterByDate) {
       const targetDate = new Date(filterByDate);
@@ -472,10 +414,8 @@ export function ProjectsView() {
         return start <= targetDate && targetDate <= end;
       });
     }
-
     return filtered;
   }, [projects, filterByStatus, searchQuery, filterByDate]);
-
   // Organize filtered projects
   const organizedProjects = useMemo(() => {
     if (organizeBy === 'group') {
@@ -514,7 +454,6 @@ export function ProjectsView() {
       }];
     }
   }, [organizeBy, filteredProjects, groups]);
-
   // Collapsible toggle functions
   const toggleSection = (section: string) => {
     setCollapsedSections(prev => ({
@@ -522,7 +461,6 @@ export function ProjectsView() {
       [section]: !prev[section]
     }));
   };
-
   const toggleGroup = (groupId: string, section: string) => {
     const key = `${section}-${groupId}`;
     setCollapsedGroups(prev => ({
@@ -530,25 +468,20 @@ export function ProjectsView() {
       [key]: !prev[key]
     }));
   };
-
   const isSectionCollapsed = (section: string) => {
     return collapsedSections[section] || false;
   };
-
   const isGroupCollapsed = (groupId: string, section: string) => {
     const key = `${section}-${groupId}`;
     return collapsedGroups[key] !== false; // Default to collapsed (true) unless explicitly set to false
   };
-
   // Handle drag and drop
   const handleMoveGroup = (fromIndex: number, toIndex: number) => {
     reorderGroups(fromIndex, toIndex);
   };
-
   const handleMoveProject = (groupId: string, fromIndex: number, toIndex: number) => {
     reorderProjects(groupId, fromIndex, toIndex);
   };
-
   // Render project in grid format
   const renderGridProject = (project: Project, index: number, groupId: string) => (
     <DraggableProject
@@ -573,7 +506,6 @@ export function ProjectsView() {
                 </CardDescription>
               </div>
             </div>
-            
             <Button
               variant="ghost"
               size="sm"
@@ -587,7 +519,6 @@ export function ProjectsView() {
             </Button>
           </div>
         </CardHeader>
-        
         <CardContent className="space-y-2 pt-0 px-4 pb-3">
           <div className="flex items-center gap-1 text-xs text-gray-600">
             <Calendar className="w-3 h-3" />
@@ -595,7 +526,6 @@ export function ProjectsView() {
               {formatDate(project.startDate)} - {formatDate(project.endDate)}
             </span>
           </div>
-          
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1 text-xs">
               <Clock className="w-3 h-3 text-gray-600" />
@@ -606,7 +536,6 @@ export function ProjectsView() {
       </Card>
     </DraggableProject>
   );
-
   // Render project in list format
   const renderListProject = (project: Project, index: number, groupId: string) => (
     <DraggableProject
@@ -634,7 +563,6 @@ export function ProjectsView() {
                 </div>
               </div>
             </div>
-
             {/* Middle section - Timeline info */}
             <div className="flex items-center gap-4 flex-1 justify-center">
               <div className="flex items-center gap-1 text-xs text-gray-600">
@@ -643,17 +571,14 @@ export function ProjectsView() {
                   {formatDate(project.startDate)} - {formatDate(project.endDate)}
                 </span>
               </div>
-              
               <div className="flex items-center gap-1 text-xs">
                 <Clock className="w-3 h-3 text-gray-600" />
                 <span className="whitespace-nowrap font-medium text-gray-900">{project.estimatedHours}h</span>
               </div>
-              
               <div className="text-xs text-gray-500">
                 <span>{DurationFormattingService.formatDuration(project.startDate, project.endDate)}</span>
               </div>
             </div>
-
             {/* Right section - Actions */}
             <div className="flex items-center gap-2 flex-shrink-0">
               <Button
@@ -673,7 +598,6 @@ export function ProjectsView() {
       </Card>
     </DraggableProject>
   );
-
   return (
     <DndProvider backend={HTML5Backend}>
       <AppPageLayout>
@@ -681,7 +605,6 @@ export function ProjectsView() {
         <AppPageLayout.Header className="h-0 overflow-hidden">
           <div />
         </AppPageLayout.Header>
-
       {/* Tabs and Filter Controls */}
       <AppPageLayout.SubHeader className="px-0 py-0">
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as MainTab)} className="w-full">
@@ -714,10 +637,8 @@ export function ProjectsView() {
             {/* Fill remaining space with background */}
             <div className="flex-1 border-b border-gray-200" style={{ marginBottom: '-1px' }} />
           </div>
-          
           {/* Filter section with padding */}
           <div className="px-6 pt-6">
-
           {/* Projects Tab Content - Filters */}
           <TabsContent value="projects" className="mt-0">
             <div className="flex items-center justify-between">
@@ -741,7 +662,6 @@ export function ProjectsView() {
                   <Plus className="w-4 h-4" />
                   Add Project
                 </Button>
-
                 {/* Organize By */}
                 <ToggleGroup
                   type="single"
@@ -763,7 +683,6 @@ export function ProjectsView() {
                     Tag
                   </ToggleGroupItem>
                 </ToggleGroup>
-
                 {/* Status Filter */}
                 <ToggleGroup
                   type="single"
@@ -788,7 +707,6 @@ export function ProjectsView() {
                     Past
                   </ToggleGroupItem>
                 </ToggleGroup>
-
                 {/* Search */}
                 <div className="relative">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -799,7 +717,6 @@ export function ProjectsView() {
                     className="h-9 pl-8 pr-3 w-[200px]"
                   />
                 </div>
-
                 {/* Date Filter */}
                 <Input
                   type="date"
@@ -809,7 +726,6 @@ export function ProjectsView() {
                   placeholder="Filter by date"
                 />
               </div>
-
               {/* Right side - View toggle */}
               <ToggleGroup
                 type="single"
@@ -827,7 +743,6 @@ export function ProjectsView() {
               </ToggleGroup>
             </div>
           </TabsContent>
-
           {/* Clients Tab Content - Filters */}
           <TabsContent value="clients" className="mt-0">
             <div className="flex items-center justify-between">
@@ -836,14 +751,12 @@ export function ProjectsView() {
                 <Button
                   onClick={() => {
                     // TODO: Implement client creation
-                    console.log('Add client clicked');
                   }}
                   className="h-9 gap-2"
                 >
                   <Plus className="w-4 h-4" />
                   Add Client
                 </Button>
-
                 {/* Status Filter */}
                 <ToggleGroup
                   type="single"
@@ -864,7 +777,6 @@ export function ProjectsView() {
                     Archived
                   </ToggleGroupItem>
                 </ToggleGroup>
-
                 {/* Search */}
                 <div className="relative">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -875,7 +787,6 @@ export function ProjectsView() {
                     className="h-9 pl-8 pr-3 w-[200px]"
                   />
                 </div>
-
                 {/* Date Filter */}
                 <Input
                   type="date"
@@ -885,7 +796,6 @@ export function ProjectsView() {
                   placeholder="Filter by date"
                 />
               </div>
-
               {/* Right side - View toggle */}
               <ToggleGroup
                 type="single"
@@ -903,7 +813,6 @@ export function ProjectsView() {
               </ToggleGroup>
             </div>
           </TabsContent>
-
           {/* Holidays Tab Content - Filters */}
           <TabsContent value="holidays" className="mt-0">
             <div className="flex items-center justify-between">
@@ -919,7 +828,6 @@ export function ProjectsView() {
                   <Plus className="w-4 h-4" />
                   Add Holiday
                 </Button>
-
                 {/* Status Filter */}
                 <ToggleGroup
                   type="single"
@@ -945,7 +853,6 @@ export function ProjectsView() {
                   </ToggleGroupItem>
                 </ToggleGroup>
               </div>
-
               {/* Right side - View toggle */}
               <ToggleGroup
                 type="single"
@@ -966,14 +873,12 @@ export function ProjectsView() {
           </div>
         </Tabs>
       </AppPageLayout.SubHeader>
-      
       {/* Content */}
       <AppPageLayout.Content className="flex-1 overflow-auto light-scrollbar p-0">
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as MainTab)} className="h-full">
           {/* Projects Tab Content */}
           <TabsContent value="projects" className="h-full mt-0">
             <div className="px-[21px] pb-[21px] pt-[35px] space-y-8">
-              
               {/* Results count */}
               {filteredProjects.length > 0 && (
                 <div className="flex items-center gap-2">
@@ -996,7 +901,6 @@ export function ProjectsView() {
                   )}
                 </div>
               )}
-
               {/* Organized Projects Display */}
               {organizedProjects.length > 0 ? (
                 <div className="space-y-6">
@@ -1020,7 +924,6 @@ export function ProjectsView() {
                                 {groupData.projects.length}
                               </Badge>
                             </div>
-
                             {/* Projects Display */}
                             <div className={viewType === 'grid' 
                               ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" 
@@ -1052,7 +955,6 @@ export function ProjectsView() {
                               {sectionData.projects.length}
                             </Badge>
                           </div>
-
                           {/* Projects Display */}
                           <div className={viewType === 'grid' 
                             ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" 
@@ -1109,7 +1011,6 @@ export function ProjectsView() {
               )}
             </div>
           </TabsContent>
-
           {/* Clients Tab Content */}
           <TabsContent value="clients" className="h-full mt-0">
             <div className="px-[21px] pb-[21px] pt-[35px]">
@@ -1123,7 +1024,6 @@ export function ProjectsView() {
               />
             </div>
           </TabsContent>
-
           {/* Holidays Tab Content */}
           <TabsContent value="holidays" className="h-full mt-0">
             <div className="px-[21px] pb-[21px] pt-[35px]">
@@ -1131,33 +1031,26 @@ export function ProjectsView() {
               {(() => {
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
-
                 const filteredHolidays = holidays.filter(holiday => {
                   const startDate = new Date(holiday.startDate);
                   const endDate = new Date(holiday.endDate);
                   startDate.setHours(0, 0, 0, 0);
                   endDate.setHours(0, 0, 0, 0);
-
                   if (holidayStatusFilter === 'all') return true;
-                  
                   if (holidayStatusFilter === 'active') {
                     // Active: ongoing now (today is between start and end)
                     return today >= startDate && today <= endDate;
                   }
-                  
                   if (holidayStatusFilter === 'future') {
                     // Future: starts after today
                     return startDate > today;
                   }
-                  
                   if (holidayStatusFilter === 'past') {
                     // Past: ended before today
                     return endDate < today;
                   }
-                  
                   return true;
                 });
-
                 return (
                   <div className="space-y-2">
                     {filteredHolidays.length === 0 ? (
@@ -1183,7 +1076,6 @@ export function ProjectsView() {
                         const endDate = new Date(holiday.endDate);
                         const today = new Date();
                         today.setHours(0, 0, 0, 0);
-                        
                         let statusBadge = null;
                         let statusVariant: "default" | "secondary" | "outline" = "secondary";
                         if (today >= startDate && today <= endDate) {
@@ -1196,11 +1088,9 @@ export function ProjectsView() {
                           statusBadge = 'Past';
                           statusVariant = "secondary";
                         }
-
                         // Calculate duration
                         const durationMs = endDate.getTime() - startDate.getTime();
                         const durationDays = Math.ceil(durationMs / (1000 * 60 * 60 * 24)) + 1;
-
                         return (
                           <Card
                             key={holiday.id}
@@ -1227,7 +1117,6 @@ export function ProjectsView() {
                                     </div>
                                   </div>
                                 </div>
-
                                 {/* Middle section - Date range */}
                                 <div className="flex items-center gap-4 flex-1 justify-center">
                                   <div className="text-xs text-gray-600">
@@ -1240,7 +1129,6 @@ export function ProjectsView() {
                                     </span>
                                   </div>
                                 </div>
-
                                 {/* Right section - Duration */}
                                 <div className="flex items-center gap-3 flex-shrink-0">
                                   <div className="flex items-center gap-1 text-xs text-gray-600">
@@ -1262,14 +1150,12 @@ export function ProjectsView() {
         </Tabs>
       </AppPageLayout.Content>
     </AppPageLayout>
-
     {/* Project Edit Modal */}
     <ProjectModal
       isOpen={!!selectedProjectId}
       onClose={() => setSelectedProjectId(null)}
       projectId={selectedProjectId || undefined}
     />
-
     {/* Holiday Modal */}
     <HolidayModal
       isOpen={isHolidayModalOpen}

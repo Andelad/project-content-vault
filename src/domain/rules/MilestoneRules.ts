@@ -11,6 +11,7 @@
  */
 
 import type { Milestone, Project } from '@/types/core';
+import { normalizeToMidnight, addDaysToDate } from '@/services';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -590,26 +591,14 @@ export class MilestoneRules {
     const errors: string[] = [];
     
     // Normalize dates to midnight
-    const candidate = new Date(milestoneDate);
-    candidate.setHours(0, 0, 0, 0);
-    
-    const projectStart = new Date(projectStartDate);
-    projectStart.setHours(0, 0, 0, 0);
-    
-    const projectEnd = new Date(projectEndDate);
-    projectEnd.setHours(0, 0, 0, 0);
-    
-    const original = originalDate ? new Date(originalDate) : null;
-    if (original) {
-      original.setHours(0, 0, 0, 0);
-    }
+    const candidate = normalizeToMidnight(new Date(milestoneDate));
+    const projectStart = normalizeToMidnight(new Date(projectStartDate));
+    const projectEnd = normalizeToMidnight(new Date(projectEndDate));
+    const original = originalDate ? normalizeToMidnight(new Date(originalDate)) : null;
     
     // Calculate absolute min/max (project boundaries)
-    const minAllowedDate = new Date(projectStart);
-    minAllowedDate.setDate(projectStart.getDate() + 1); // 1 day after start
-    
-    const maxAllowedDate = new Date(projectEnd);
-    maxAllowedDate.setDate(projectEnd.getDate() - 1); // 1 day before end
+    const minAllowedDate = addDaysToDate(projectStart, 1); // 1 day after start
+    const maxAllowedDate = addDaysToDate(projectEnd, -1); // 1 day before end
     
     // Check project boundary constraints
     if (candidate < minAllowedDate) {
@@ -621,11 +610,7 @@ export class MilestoneRules {
     }
     
     // Check milestone overlap constraints
-    const normalizedOthers = otherMilestoneDates.map(d => {
-      const normalized = new Date(d);
-      normalized.setHours(0, 0, 0, 0);
-      return normalized;
-    });
+    const normalizedOthers = otherMilestoneDates.map(d => normalizeToMidnight(new Date(d)));
     
     for (const otherDate of normalizedOthers) {
       // Skip if this is the original position of the milestone being moved
@@ -692,11 +677,8 @@ export class MilestoneRules {
     }
     
     // Normalize dates to midnight for comparison
-    const todayMidnight = new Date(today);
-    todayMidnight.setHours(0, 0, 0, 0);
-    
-    const phaseEnd = new Date(phase.endDate || phase.dueDate);
-    phaseEnd.setHours(0, 0, 0, 0);
+    const todayMidnight = normalizeToMidnight(new Date(today));
+    const phaseEnd = normalizeToMidnight(new Date(phase.endDate || phase.dueDate));
     
     if (phaseEnd < todayMidnight) {
       errors.push(`Phase "${phase.name}" with estimated time cannot end in the past`);
@@ -730,11 +712,8 @@ export class MilestoneRules {
     }
     
     // Normalize today to midnight
-    const todayMidnight = new Date(today);
-    todayMidnight.setHours(0, 0, 0, 0);
-    
-    const currentEndDate = new Date(phase.endDate || phase.dueDate);
-    currentEndDate.setHours(0, 0, 0, 0);
+    const todayMidnight = normalizeToMidnight(new Date(today));
+    const currentEndDate = normalizeToMidnight(new Date(phase.endDate || phase.dueDate));
     
     // Return the later of today or current end date
     return currentEndDate >= todayMidnight ? currentEndDate : todayMidnight;
@@ -766,15 +745,11 @@ export class MilestoneRules {
       const currentPhase = sortedPhases[i];
       const nextPhase = sortedPhases[i + 1];
       
-      const currentEnd = new Date(currentPhase.endDate || currentPhase.dueDate);
-      currentEnd.setHours(0, 0, 0, 0);
-      
-      const nextStart = new Date(nextPhase.startDate || currentEnd);
-      nextStart.setHours(0, 0, 0, 0);
+      const currentEnd = normalizeToMidnight(new Date(currentPhase.endDate || currentPhase.dueDate));
+      const nextStart = normalizeToMidnight(new Date(nextPhase.startDate || currentEnd));
       
       // Next phase must start at least 1 day after current phase ends
-      const minNextStart = new Date(currentEnd);
-      minNextStart.setDate(minNextStart.getDate() + 1);
+      const minNextStart = addDaysToDate(currentEnd, 1);
       
       if (nextStart < minNextStart) {
         errors.push(
@@ -821,30 +796,24 @@ export class MilestoneRules {
     }
     
     const result = [...sortedPhases];
-    let previousEnd = new Date(newEndDate);
-    previousEnd.setHours(0, 0, 0, 0);
+    let previousEnd = normalizeToMidnight(new Date(newEndDate));
     
     // Cascade forward from the adjusted phase
     for (let i = adjustedIndex + 1; i < result.length; i++) {
       const phase = result[i];
-      const phaseStart = new Date(phase.startDate || previousEnd);
-      phaseStart.setHours(0, 0, 0, 0);
+      const phaseStart = normalizeToMidnight(new Date(phase.startDate || previousEnd));
       
       // Check if we need to move this phase forward
-      const minStart = new Date(previousEnd);
-      minStart.setDate(minStart.getDate() + 1);
+      const minStart = addDaysToDate(previousEnd, 1);
       
       if (phaseStart < minStart) {
         // Calculate how many days to shift
         const daysToShift = Math.ceil((minStart.getTime() - phaseStart.getTime()) / (1000 * 60 * 60 * 24));
         
         // Shift both start and end dates
-        const newStart = new Date(phaseStart);
-        newStart.setDate(newStart.getDate() + daysToShift);
-        
+        const newStart = addDaysToDate(phaseStart, daysToShift);
         const currentEnd = new Date(phase.endDate || phase.dueDate);
-        const newEnd = new Date(currentEnd);
-        newEnd.setDate(newEnd.getDate() + daysToShift);
+        const newEnd = addDaysToDate(currentEnd, daysToShift);
         
         result[i] = {
           ...phase,

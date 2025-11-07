@@ -7,6 +7,7 @@
  */
 
 import { Holiday } from '@/types/core';
+import { addDaysToDate } from '../calculations/general/dateCalculations';
 
 export interface HolidayFormData {
   title: string;
@@ -236,7 +237,7 @@ export class HolidayModalOrchestrator {
     
     if (startOverlap) {
       adjustedStartDate = new Date(startOverlap.endDate);
-      adjustedStartDate.setDate(adjustedStartDate.getDate() + 1);
+      adjustedStartDate = addDaysToDate(adjustedStartDate, 1);
       adjustmentMessage = `Start date moved to ${adjustedStartDate.toDateString()} (after "${startOverlap.title}")`;
     }
     
@@ -247,7 +248,7 @@ export class HolidayModalOrchestrator {
     
     if (endOverlap && !startOverlap) { // Only adjust end if we didn't already adjust start
       adjustedEndDate = new Date(endOverlap.startDate);
-      adjustedEndDate.setDate(adjustedEndDate.getDate() - 1);
+      adjustedEndDate = addDaysToDate(adjustedEndDate, -1);
       adjustmentMessage = `End date moved to ${adjustedEndDate.toDateString()} (before "${endOverlap.title}")`;
     }
 

@@ -11,6 +11,8 @@
  */
 
 import { Milestone } from '@/types/core';
+import { normalizeToMidnight, addDaysToDate } from '../calculations/general/dateCalculations';
+
 import { 
   calculateTotalAllocation,
   calculateBudgetUtilization,
@@ -154,12 +156,11 @@ export class UnifiedMilestoneService {
 
     const result: MilestoneTimeDistributionEntry[] = [];
     let currentDate = new Date(projectStartDate);
-    currentDate.setHours(0, 0, 0, 0);
+    currentDate = normalizeToMidnight(currentDate);
 
     for (let i = 0; i < sortedMilestones.length; i++) {
       const milestone = sortedMilestones[i];
-      const milestoneDate = milestone.endDate || milestone.dueDate;
-      milestoneDate.setHours(0, 0, 0, 0);
+      const milestoneDate = normalizeToMidnight(milestone.endDate || milestone.dueDate);
 
           // Calculate working days using unified service (when available)
     let workingDays: Date[];
@@ -182,10 +183,10 @@ export class UnifiedMilestoneService {
       } else {
         // Fallback to calendar days
         workingDays = [];
-        const tempDate = new Date(currentDate);
+        let tempDate = new Date(currentDate);
         while (tempDate <= milestoneDate) {
           workingDays.push(new Date(tempDate));
-          tempDate.setDate(tempDate.getDate() + 1);
+          tempDate = addDaysToDate(tempDate, 1);
         }
       }
 
@@ -274,11 +275,9 @@ export class UnifiedMilestoneService {
     reason?: string;
   } {
     // Calculate safe positioning range
-    const minDate = new Date(params.projectStartDate);
-    minDate.setDate(minDate.getDate() + 1); // Day after project start
+    const minDate = addDaysToDate(new Date(params.projectStartDate), 1); // Day after project start
     
-    const maxDate = new Date(params.projectEndDate);
-    maxDate.setDate(maxDate.getDate() - 1); // Day before project end
+    const maxDate = addDaysToDate(new Date(params.projectEndDate), -1); // Day before project end
 
     // Find safe date range based on existing milestones
     let actualMinDate = minDate;
@@ -348,15 +347,14 @@ export class UnifiedMilestoneService {
     
     // Start with the day after project start
     let defaultDate = new Date(projectStartDate);
-    defaultDate.setDate(defaultDate.getDate() + 1);
+    defaultDate = addDaysToDate(defaultDate, 1);
     
     // If there are existing milestones, place this one after the last one
     if (existingMilestones.length > 0) {
       const sortedMilestones = [...existingMilestones]
         .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
       const lastMilestone = sortedMilestones[sortedMilestones.length - 1];
-      const dayAfterLast = new Date(lastMilestone.dueDate);
-      dayAfterLast.setDate(dayAfterLast.getDate() + 1);
+      const dayAfterLast = addDaysToDate(new Date(lastMilestone.dueDate), 1);
       
       // Use the later of: day after project start, or day after last milestone
       if (dayAfterLast > defaultDate) {
@@ -365,8 +363,7 @@ export class UnifiedMilestoneService {
     }
     
     // Ensure it's not beyond project end date
-    const projectEnd = new Date(projectEndDate);
-    projectEnd.setDate(projectEnd.getDate() - 1); // Day before project end
+    const projectEnd = addDaysToDate(new Date(projectEndDate), -1); // Day before project end
     if (defaultDate > projectEnd) {
       defaultDate = projectEnd;
     }
@@ -401,7 +398,7 @@ export class UnifiedMilestoneService {
       const daysUntilFirst = targetDay >= projectStartDay
         ? targetDay - projectStartDay
         : 7 - projectStartDay + targetDay;
-      current.setDate(current.getDate() + daysUntilFirst);
+      current = addDaysToDate(current, daysUntilFirst);
     }
     
     // For monthly recurrence with specific date, find first occurrence
@@ -430,7 +427,7 @@ export class UnifiedMilestoneService {
       // Calculate next occurrence
       switch (config.type) {
         case 'daily':
-          current.setDate(current.getDate() + config.interval);
+          current = addDaysToDate(current, config.interval);
           break;
         case 'weekly':
           current.setDate(current.getDate() + (7 * config.interval));

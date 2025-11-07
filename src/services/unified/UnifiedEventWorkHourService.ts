@@ -21,7 +21,9 @@ import {
   calculateBusinessDaysBetween,
   calculateBusinessDaysInRange,
   isHoliday,
-  calculateTimeOverlapMinutes 
+  calculateTimeOverlapMinutes,
+  normalizeToMidnight,
+  addDaysToDate
 } from '../calculations/general/dateCalculations';
 
 import { WorkHour, CalendarEvent } from '@/types';
@@ -184,12 +186,10 @@ export function generateWorkHoursForDate(
 ): WorkHour[] {
   // Check if the date is a holiday - holidays override work hours
   const isHolidayDate = holidays.some(holiday => {
-    const holidayStart = new Date(holiday.startDate);
+    const holidayStart = normalizeToMidnight(new Date(holiday.startDate));
     const holidayEnd = new Date(holiday.endDate);
-    holidayStart.setHours(0, 0, 0, 0);
     holidayEnd.setHours(23, 59, 59, 999);
-    const checkDate = new Date(date);
-    checkDate.setHours(0, 0, 0, 0);
+    const checkDate = normalizeToMidnight(new Date(date));
     return checkDate >= holidayStart && checkDate <= holidayEnd;
   });
 
@@ -246,7 +246,7 @@ export function calculateProjectWorkingDays(
   let totalDays = 0;
   let holidayCount = 0;
   
-  for (let d = new Date(projectStart); d <= projectEnd; d.setDate(d.getDate() + 1)) {
+  for (let d = new Date(projectStart); d <= projectEnd; d = addDaysToDate(d, 1)) {
     totalDays++;
     const checkDate = new Date(d);
     const checkDayName = dayNames[checkDate.getDay()] as keyof typeof settings.weeklyWorkHours;
@@ -349,11 +349,8 @@ export function getProjectTimeAllocation(
   }
 
   // Check if this date is within the project timeframe
-  const normalizedDate = new Date(date);
-  normalizedDate.setHours(0, 0, 0, 0);
-  
-  const projectStart = new Date(project.startDate);
-  projectStart.setHours(0, 0, 0, 0);
+  const normalizedDate = normalizeToMidnight(new Date(date));
+  const projectStart = normalizeToMidnight(new Date(project.startDate));
   
   // For continuous projects, only check start date
   if (project.continuous) {
@@ -361,8 +358,7 @@ export function getProjectTimeAllocation(
       return { type: 'none', hours: 0, isWorkingDay: true };
     }
   } else {
-    const projectEnd = new Date(project.endDate);
-    projectEnd.setHours(0, 0, 0, 0);
+    const projectEnd = normalizeToMidnight(new Date(project.endDate));
     
     if (normalizedDate < projectStart || normalizedDate > projectEnd) {
       return { type: 'none', hours: 0, isWorkingDay: true };
@@ -373,8 +369,7 @@ export function getProjectTimeAllocation(
   let effectiveProjectEnd: Date;
   if (project.continuous) {
     // Use reasonable calculation window for continuous projects
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = normalizeToMidnight(new Date());
     const maxWindow = new Date(projectStart);
     maxWindow.setFullYear(maxWindow.getFullYear() + WORK_HOUR_CALCULATION_LIMITS.MAX_CALCULATION_WINDOW_YEARS);
     const oneYearFromToday = new Date(today);
@@ -382,8 +377,7 @@ export function getProjectTimeAllocation(
     
     effectiveProjectEnd = maxWindow > oneYearFromToday ? maxWindow : oneYearFromToday;
   } else {
-    effectiveProjectEnd = new Date(project.endDate);
-    effectiveProjectEnd.setHours(0, 0, 0, 0);
+    effectiveProjectEnd = normalizeToMidnight(new Date(project.endDate));
   }
 
   // Use the new auto-estimate working days calculation that respects excluded days

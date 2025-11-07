@@ -8,34 +8,27 @@
  *
  * @see CLIENT_GROUP_LABEL_TERMINOLOGY.md for complete label documentation
  */
-
 import type { Label, Project } from '@/types/core';
-
 // ============================================================================
 // TYPE DEFINITIONS
 // ============================================================================
-
 export interface LabelValidation {
   isValid: boolean;
   errors: string[];
   warnings: string[];
 }
-
 // ============================================================================
 // LABEL BUSINESS RULES
 // ============================================================================
-
 /**
  * Label Business Rules
  *
  * Centralized location for all label-related business logic.
  */
 export class LabelRules {
-
   // ==========================================================================
   // RULE 1: LABEL NAME VALIDATION
   // ==========================================================================
-
   /**
    * RULE 1: Label name must be valid
    *
@@ -48,11 +41,9 @@ export class LabelRules {
     const trimmed = name.trim();
     return trimmed.length > 0 && trimmed.length <= 30;
   }
-
   // ==========================================================================
   // RULE 2: LABEL NAME NORMALIZATION
   // ==========================================================================
-
   /**
    * RULE 2: Normalize label name for consistency
    *
@@ -64,7 +55,6 @@ export class LabelRules {
   static normalizeLabelName(name: string): string {
     return name.trim().toLowerCase();
   }
-
   /**
    * RULE 3: Check if two label names are equivalent
    *
@@ -77,11 +67,9 @@ export class LabelRules {
   static areLabelNamesEquivalent(name1: string, name2: string): boolean {
     return this.normalizeLabelName(name1) === this.normalizeLabelName(name2);
   }
-
   // ==========================================================================
   // RULE 4: LABEL COLOR VALIDATION
   // ==========================================================================
-
   /**
    * RULE 4: Label color must be valid hex color (if provided)
    *
@@ -92,16 +80,13 @@ export class LabelRules {
    */
   static validateLabelColor(color?: string): boolean {
     if (!color || color.trim() === '') return true; // Optional field
-
     // Check for valid hex color format (#RGB, #RRGGBB, #RRGGBBAA)
     const hexRegex = /^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$/;
     return hexRegex.test(color.trim());
   }
-
   // ==========================================================================
   // RULE 5: LABEL DELETION CONSTRAINTS
   // ==========================================================================
-
   /**
    * RULE 5: Labels can always be deleted
    *
@@ -114,11 +99,9 @@ export class LabelRules {
   static canDeleteLabel(labelId: string): boolean {
     return true;
   }
-
   // ==========================================================================
   // VALIDATION RULES - COMPREHENSIVE CHECKS
   // ==========================================================================
-
   /**
    * Validate complete label data
    *
@@ -130,17 +113,14 @@ export class LabelRules {
   static validateLabel(label: Partial<Label>): LabelValidation {
     const errors: string[] = [];
     const warnings: string[] = [];
-
     // Name validation
     if (!label.name || !this.validateLabelName(label.name)) {
       errors.push('Label name is required and must be 1-30 characters');
     }
-
     // Color validation
     if (label.color && !this.validateLabelColor(label.color)) {
       errors.push('Label color must be a valid hex color (e.g., #FF0000)');
     }
-
     // Check for potentially confusing names
     if (label.name) {
       const normalized = this.normalizeLabelName(label.name);
@@ -148,18 +128,15 @@ export class LabelRules {
         warnings.push('Label names with many words may be hard to read');
       }
     }
-
     return {
       isValid: errors.length === 0,
       errors,
       warnings
     };
   }
-
   // ==========================================================================
   // BUSINESS LOGIC HELPERS
   // ==========================================================================
-
   /**
    * Get label display name
    *
@@ -169,7 +146,6 @@ export class LabelRules {
   static getLabelDisplayName(label: Label): string {
     return label.name;
   }
-
   /**
    * Get label display color
    *
@@ -179,7 +155,6 @@ export class LabelRules {
   static getLabelDisplayColor(label: Label): string {
     return label.color || '#6b7280'; // Default gray if no color
   }
-
   /**
    * Sort labels for consistent display
    *
@@ -191,7 +166,6 @@ export class LabelRules {
       this.normalizeLabelName(a.name).localeCompare(this.normalizeLabelName(b.name))
     );
   }
-
   /**
    * Filter labels by search term
    *
@@ -201,17 +175,14 @@ export class LabelRules {
    */
   static filterLabels(labels: Label[], searchTerm: string): Label[] {
     if (!searchTerm.trim()) return labels;
-
     const normalizedSearch = this.normalizeLabelName(searchTerm);
     return labels.filter(label =>
       this.normalizeLabelName(label.name).includes(normalizedSearch)
     );
   }
-
   // ==========================================================================
   // PERFORMANCE MONITORING
   // ==========================================================================
-
   /**
    * PERFORMANCE: Monitor label query performance
    * Track how many labels are being queried and processed
@@ -222,7 +193,6 @@ export class LabelRules {
     slowQueries: 0,
     lastQueryTime: 0
   };
-
   /**
    * PERFORMANCE: Record label query metrics
    */
@@ -231,25 +201,20 @@ export class LabelRules {
     this.performanceMetrics.averageLabelsPerQuery =
       (this.performanceMetrics.averageLabelsPerQuery + labels.length) / 2;
     this.performanceMetrics.lastQueryTime = queryTimeMs;
-
     if (queryTimeMs > 100) { // Slow query threshold
       this.performanceMetrics.slowQueries++;
       console.warn(`⚠️ Slow label query: ${queryTimeMs}ms for ${labels.length} labels`);
     }
-
     // Log performance stats every 100 queries
     if (this.performanceMetrics.queriesExecuted % 100 === 0) {
-      console.log(`📊 Label Performance: ${this.performanceMetrics.queriesExecuted} queries, avg ${this.performanceMetrics.averageLabelsPerQuery.toFixed(1)} labels/query, ${this.performanceMetrics.slowQueries} slow queries`);
     }
   }
-
   /**
    * PERFORMANCE: Get current performance metrics
    */
   static getPerformanceMetrics() {
     return { ...this.performanceMetrics };
   }
-
   /**
    * Get suggested labels based on existing usage
    *
@@ -259,7 +224,6 @@ export class LabelRules {
    */
   static getSuggestedLabels(allLabels: Label[], projectLabels: Label[]): Label[] {
     const usedLabelIds = new Set(projectLabels.map(l => l.id));
-
     // For now, just return unused labels sorted by name
     // Could be enhanced with usage frequency analysis
     return this.sortLabels(

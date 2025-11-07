@@ -138,13 +138,13 @@ export function datesOverlap(
  */
 export function calculateBusinessDaysBetween(startDate: Date, endDate: Date, holidays: Date[] = []): number {
   let businessDays = 0;
-  const current = new Date(startDate);
+  let current = new Date(startDate);
   
   while (current <= endDate) {
     if (!isWeekend(current) && !isHoliday(current, holidays)) {
       businessDays++;
     }
-    current.setDate(current.getDate() + 1);
+    current = addDaysToDate(current, 1);
   }
   
   return businessDays;
@@ -155,13 +155,13 @@ export function calculateBusinessDaysBetween(startDate: Date, endDate: Date, hol
  */
 export function calculateBusinessDaysInRange(startDate: Date, endDate: Date, holidays: Date[] = []): Date[] {
   const businessDays: Date[] = [];
-  const current = new Date(startDate);
+  let current = new Date(startDate);
   
   while (current <= endDate) {
     if (!isWeekend(current) && !isHoliday(current, holidays)) {
       businessDays.push(new Date(current));
     }
-    current.setDate(current.getDate() + 1);
+    current = addDaysToDate(current, 1);
   }
   
   return businessDays;
@@ -213,6 +213,14 @@ export function addDaysToDate(date: Date, days: number): Date {
 }
 
 /**
+ * Add hours to a date
+ * THE authoritative way to add hours to dates
+ */
+export function addHoursToDate(date: Date, hours: number): Date {
+  return new Date(date.getTime() + hours * 60 * 60 * 1000);
+}
+
+/**
  * Check if two dates are the same day
  */
 export function isSameDay(date1: Date, date2: Date): boolean {
@@ -242,10 +250,8 @@ export function calculateDateRangeOverlap(
  * Calculate the difference in days between two dates
  */
 export function calculateDayDifference(date1: Date, date2: Date): number {
-  const d1 = new Date(date1);
-  const d2 = new Date(date2);
-  d1.setHours(0, 0, 0, 0);
-  d2.setHours(0, 0, 0, 0);
+  const d1 = normalizeToMidnight(new Date(date1));
+  const d2 = normalizeToMidnight(new Date(date2));
   return Math.round((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24));
 }
 
@@ -493,11 +499,11 @@ export function getDayName(date: Date): string {
  */
 export function generateDateRange(startDate: Date, endDate: Date): Date[] {
   const dates: Date[] = [];
-  const current = new Date(startDate);
+  let current = new Date(startDate);
   
   while (current <= endDate) {
     dates.push(new Date(current));
-    current.setDate(current.getDate() + 1);
+    current = addDaysToDate(current, 1);
   }
   
   return dates;

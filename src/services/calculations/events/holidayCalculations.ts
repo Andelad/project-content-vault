@@ -3,7 +3,7 @@
  * Extracted from TimelineView and other components
  */
 
-import { calculateDurationDays } from '../general/dateCalculations';
+import { calculateDurationDays, normalizeToMidnight, addDaysToDate } from '../general/dateCalculations';
 import { APP_LOCALE } from '@/utils/dateFormatUtils';
 
 export interface Holiday {
@@ -27,12 +27,12 @@ export function expandHolidayDates(holidays: Holiday[]): Date[] {
   
   const result: Date[] = [];
   for (const holiday of holidays) {
-    const start = new Date(holiday.startDate);
-    const end = new Date(holiday.endDate);
-    start.setHours(0, 0, 0, 0);
-    end.setHours(0, 0, 0, 0);
+    let start = new Date(holiday.startDate);
+    let end = new Date(holiday.endDate);
+    start = normalizeToMidnight(start);
+    end = normalizeToMidnight(end);
     
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    for (let d = new Date(start); d <= end; d = addDaysToDate(d, 1)) {
       result.push(new Date(d));
     }
   }
@@ -44,12 +44,12 @@ export function expandHolidayDates(holidays: Holiday[]): Date[] {
  * Check if a specific date is a holiday
  */
 export function isHolidayDate(date: Date, holidayDates: Date[]): boolean {
-  const normalizedDate = new Date(date);
-  normalizedDate.setHours(0, 0, 0, 0);
+  let normalizedDate = new Date(date);
+  normalizedDate = normalizeToMidnight(normalizedDate);
   
   return holidayDates.some(holidayDate => {
-    const normalizedHoliday = new Date(holidayDate);
-    normalizedHoliday.setHours(0, 0, 0, 0);
+    let normalizedHoliday = new Date(holidayDate);
+    normalizedHoliday = normalizeToMidnight(normalizedHoliday);
     return normalizedDate.getTime() === normalizedHoliday.getTime();
   });
 }
@@ -81,7 +81,7 @@ export function expandHolidayDatesDetailed(holidays: Holiday[]): HolidayDate[] {
     const holidayId = holiday.id || 'unknown';
 
     // Iterate through each day in the holiday range
-    const currentDate = new Date(startDate);
+    let currentDate = new Date(startDate);
     while (currentDate <= endDate) {
       holidayDates.push({
         date: new Date(currentDate),
@@ -90,7 +90,7 @@ export function expandHolidayDatesDetailed(holidays: Holiday[]): HolidayDate[] {
       });
 
       // Move to next day
-      currentDate.setDate(currentDate.getDate() + 1);
+      currentDate = addDaysToDate(currentDate, 1);
     }
   });
 
@@ -144,15 +144,15 @@ export function countHolidayDaysInRange(
  */
 export function generateDateSequence(startDate: Date, endDate: Date): Date[] {
   const dates: Date[] = [];
-  const current = new Date(startDate);
-  current.setHours(0, 0, 0, 0);
+  let current = new Date(startDate);
+  current = normalizeToMidnight(current);
   
-  const end = new Date(endDate);
-  end.setHours(0, 0, 0, 0);
+  let end = new Date(endDate);
+  end = normalizeToMidnight(end);
   
   while (current <= end) {
     dates.push(new Date(current));
-    current.setDate(current.getDate() + 1);
+    current = addDaysToDate(current, 1);
   }
   
   return dates;
@@ -163,14 +163,14 @@ export function generateDateSequence(startDate: Date, endDate: Date): Date[] {
  */
 export function calculateBusinessDays(startDate: Date, endDate: Date): number {
   let count = 0;
-  const current = new Date(startDate);
+  let current = new Date(startDate);
   
   while (current <= endDate) {
     const dayOfWeek = current.getDay();
     if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Not Sunday (0) or Saturday (6)
       count++;
     }
-    current.setDate(current.getDate() + 1);
+    current = addDaysToDate(current, 1);
   }
   
   return count;

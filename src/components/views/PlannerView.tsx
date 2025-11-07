@@ -7,6 +7,7 @@ import { useProjectContext } from '@/contexts/ProjectContext';
 import { useTimelineContext } from '@/contexts/TimelineContext';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import { formatDateLong, formatDateRange as formatDateRangeUtil } from '@/utils/dateFormatUtils';
+import { addDaysToDate, normalizeToMidnight } from '@/services';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { ChevronLeft, ChevronRight, MapPin, CalendarSearch, Layers2, Eye, EyeOff, CalendarDays, Clock, ChevronsDownUp, ChevronsUpDown } from 'lucide-react';
@@ -76,25 +77,19 @@ export function PlannerView() {
   const { toast } = useToast();
   const calendarRef = useRef<FullCalendar>(null);
   const calendarCardRef = useRef<HTMLDivElement | null>(null);
-  
   // Initialize calendar date - for desktop week view, start on Monday of current week
   const getInitialCalendarDate = () => {
     const date = new Date(currentDate);
     const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 1024;
-    
     if (isDesktop && currentView === 'week') {
       // Calculate Monday of the current week
       const dayOfWeek = date.getDay();
       const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-      const monday = new Date(date);
-      monday.setDate(date.getDate() + daysToMonday);
-      monday.setHours(0, 0, 0, 0);
+      const monday = normalizeToMidnight(addDaysToDate(date, daysToMonday));
       return monday;
     }
-    
     return date;
   };
-  
   const [calendarDate, setCalendarDate] = useState(getInitialCalendarDate());
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isLayersPopoverOpen, setIsLayersPopoverOpen] = useState(false);
@@ -103,7 +98,6 @@ export function PlannerView() {
   const [summaryDateStrings, setSummaryDateStrings] = useState<string[]>([]);
   const [calendarScrollbarWidth, setCalendarScrollbarWidth] = useState(0);
   const [timeAxisWidth, setTimeAxisWidth] = useState(0);
-  
   // Layer visibility state
   const [layerVisibility, setLayerVisibility] = useState({
     events: true,
@@ -122,7 +116,6 @@ export function PlannerView() {
     end: new Date(calendarDate)
   });
   const [weekStart, setWeekStart] = useState<Date>(new Date(calendarDate));
-
   // Create milestones map by project ID (use normalized milestones from ProjectContext)
   const milestonesMap = useMemo(() => {
     const map = new Map<string, any[]>();
@@ -133,22 +126,17 @@ export function PlannerView() {
     });
     return map;
   }, [projectMilestones]);
-
   // Derive summary dates from the latest strings (set by datesSet)
   // Do not compute from fallback values to avoid flash
-
   // Convert date strings to Date objects (stable based on string keys)
   const summaryDates = useMemo(() => {
     return summaryDateStrings.map(dateStr => {
       const [year, month, day] = dateStr.split('-').map(Number);
       const date = new Date(year, month - 1, day);
-      date.setHours(0, 0, 0, 0);
-      return date;
+      return normalizeToMidnight(date);
     });
   }, [summaryDateStrings]);
-
   // Removed summaryDatesKey to avoid unnecessary re-mount triggers
-
   // Create orchestrator context
   const orchestratorContext: PlannerInteractionContext = useMemo(() => ({
     updateEventWithUndo,
@@ -156,42 +144,35 @@ export function PlannerView() {
     isTimeTracking,
     toast
   }), [updateEventWithUndo, events, isTimeTracking, toast]);
-
   // Create orchestrator instance
   const plannerOrchestrator = useMemo(() => 
     createPlannerViewOrchestrator(orchestratorContext), 
     [orchestratorContext]
   );
-
   // FullCalendar event handlers
   const handleEventClick = (info: any) => {
     // Don't select work slots - they're not selectable
     if (info.event.extendedProps.isWorkHour) {
       return;
     }
-    
     // Handle habit clicks - open event modal (will show correct tab based on category)
     if (info.event.extendedProps.category === 'habit') {
       setSelectedEventId(info.event.id);
       return;
     }
-    
     setSelectedEventId(info.event.id);
   };
   const handleEventDrop = useCallback(async (dropInfo: EventDropArg) => {
     const eventId = dropInfo.event.id;
     const extendedProps = dropInfo.event.extendedProps;
-    
     // Handle habit drag/drop
     if (extendedProps.category === 'habit') {
       const newStart = dropInfo.event.start;
       const newEnd = dropInfo.event.end;
-      
       if (!newStart || !newEnd) {
         dropInfo.revert();
         return;
       }
-      
       try {
         await updateHabit(eventId, {
           start_time: newStart.toISOString(),
@@ -203,18 +184,15 @@ export function PlannerView() {
       }
       return;
     }
-    
     // Handle work hour drag/drop - update settings
     if (extendedProps.isWorkHour) {
       const workHour = extendedProps.originalWorkHour;
       const newStart = dropInfo.event.start;
       const newEnd = dropInfo.event.end;
-      
       if (!newStart || !newEnd) {
         dropInfo.revert();
         return;
       }
-      
       // Parse the work hour ID to get day and slot info
       // Format: settings-{dayName}-{slotId}
       const match = workHour.id.match(/^settings-(\w+)-([^-]+)$/);
@@ -227,11 +205,9 @@ export function PlannerView() {
         dropInfo.revert();
         return;
       }
-      
       const [, dayName, slotId] = match;
       const weeklyWorkHours = settings.weeklyWorkHours;
       const daySlots = weeklyWorkHours[dayName as keyof typeof weeklyWorkHours] || [];
-      
       // Update the slot with new times
       const updatedSlots = daySlots.map(slot => {
         if (slot.id === slotId) {
@@ -239,7 +215,6 @@ export function PlannerView() {
           const startMins = newStart.getMinutes().toString().padStart(2, '0');
           const endHours = newEnd.getHours().toString().padStart(2, '0');
           const endMins = newEnd.getMinutes().toString().padStart(2, '0');
-          
           return {
             ...slot,
             startTime: `${startHours}:${startMins}`,
@@ -249,18 +224,15 @@ export function PlannerView() {
         }
         return slot;
       });
-      
       await updateSettings({
         weeklyWorkHours: {
           ...weeklyWorkHours,
           [dayName]: updatedSlots
         }
       });
-      
       // Settings updated successfully, useEffect will trigger calendar refetch
       return;
     }
-    
     // Handle regular event drop
     const updates = transformFullCalendarToCalendarEvent(dropInfo.event);
     const result = await plannerOrchestrator.handleEventDragDrop(
@@ -268,24 +240,19 @@ export function PlannerView() {
       updates,
       () => dropInfo.revert()
     );
-    
     // No additional handling needed - orchestrator manages everything
   }, [plannerOrchestrator, settings, updateSettings, toast]);
-  
   const handleEventResize = useCallback(async (resizeInfo: any) => {
     const eventId = resizeInfo.event.id;
     const extendedProps = resizeInfo.event.extendedProps;
-    
     // Handle habit resize
     if (extendedProps.category === 'habit') {
       const newStart = resizeInfo.event.start;
       const newEnd = resizeInfo.event.end;
-      
       if (!newStart || !newEnd) {
         resizeInfo.revert();
         return;
       }
-      
       try {
         await updateHabit(eventId, {
           start_time: newStart.toISOString(),
@@ -297,19 +264,15 @@ export function PlannerView() {
       }
       return;
     }
-    
     // Handle work hour resize - update settings
     if (extendedProps.isWorkHour) {
-      console.log('📏 Work slot resize detected, updating settings...');
       const workHour = extendedProps.originalWorkHour;
       const newStart = resizeInfo.event.start;
       const newEnd = resizeInfo.event.end;
-      
       if (!newStart || !newEnd) {
         resizeInfo.revert();
         return;
       }
-      
       // Parse the work hour ID to get day and slot info
       const match = workHour.id.match(/^settings-(\w+)-([^-]+)$/);
       if (!match || !settings?.weeklyWorkHours) {
@@ -321,11 +284,9 @@ export function PlannerView() {
         resizeInfo.revert();
         return;
       }
-      
       const [, dayName, slotId] = match;
       const weeklyWorkHours = settings.weeklyWorkHours;
       const daySlots = weeklyWorkHours[dayName as keyof typeof weeklyWorkHours] || [];
-      
       // Update the slot with new times
       const updatedSlots = daySlots.map(slot => {
         if (slot.id === slotId) {
@@ -333,7 +294,6 @@ export function PlannerView() {
           const startMins = newStart.getMinutes().toString().padStart(2, '0');
           const endHours = newEnd.getHours().toString().padStart(2, '0');
           const endMins = newEnd.getMinutes().toString().padStart(2, '0');
-          
           return {
             ...slot,
             startTime: `${startHours}:${startMins}`,
@@ -343,23 +303,19 @@ export function PlannerView() {
         }
         return slot;
       });
-      
       await updateSettings({
         weeklyWorkHours: {
           ...weeklyWorkHours,
           [dayName]: updatedSlots
         }
       });
-      
       // Settings updated successfully, useEffect will trigger calendar refetch
-      
       toast({
         title: "Work slot updated",
         description: "Your work schedule has been updated",
       });
       return;
     }
-    
     // Handle regular event resize
     const updates = transformFullCalendarToCalendarEvent(resizeInfo.event);
     const result = await plannerOrchestrator.handleEventResize(
@@ -367,7 +323,6 @@ export function PlannerView() {
       updates,
       () => resizeInfo.revert()
     );
-    
     // No additional handling needed - orchestrator manages everything
   }, [plannerOrchestrator, settings, updateSettings, toast]);
   const handleDateSelect = useCallback((selectInfo: DateSelectArg) => {
@@ -379,17 +334,14 @@ export function PlannerView() {
     // Clear the selection
     selectInfo.view.calendar.unselect();
   }, [setCreatingNewEvent]);
-
   // Handle project drag start from summary row
   const handleProjectDragStart = useCallback((projectId: string, date: Date, estimatedHours: number) => {
     setIsDraggingProject(true);
   }, []);
-
   // Handle project drag end
   const handleProjectDragEnd = useCallback(() => {
     setIsDraggingProject(false);
   }, []);
-
   // Handle download project summary
   // Navigation handlers
   const handleNavigate = useCallback((direction: 'prev' | 'next' | 'today') => {
@@ -426,16 +378,12 @@ export function PlannerView() {
     const calendarApi = calendarRef.current?.getApi();
     if (calendarApi) {
       calendarApi.changeView(view === 'week' ? 'timeGridWeek' : 'timeGridDay');
-      
       // When switching to week view on desktop (7 days), ensure we start on Monday
       if (view === 'week' && viewportSize === 'desktop') {
         const currentDate = calendarApi.getDate();
         const dayOfWeek = currentDate.getDay();
         const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-        const monday = new Date(currentDate);
-        monday.setDate(currentDate.getDate() + daysToMonday);
-        monday.setHours(0, 0, 0, 0);
-        
+        const monday = normalizeToMidnight(addDaysToDate(currentDate, daysToMonday));
         // Navigate to Monday if not already there
         if (daysToMonday !== 0) {
           calendarApi.gotoDate(monday);
@@ -454,7 +402,7 @@ export function PlannerView() {
       return formatDateLong(start);
     } else {
       // Calculate the actual end date (FullCalendar's end is exclusive)
-      const endDate = new Date(end.getTime() - 24 * 60 * 60 * 1000);
+      const endDate = addDaysToDate(end, -1);
       return formatDateRangeUtil(start, endDate);
     }
   }, [currentView]);  // Keyboard shortcuts
@@ -551,18 +499,15 @@ export function PlannerView() {
     layerMode, 
     setLayerMode
   ]);
-
   // Custom event content renderer
   const renderEventContent = useCallback((eventInfo: any) => {
     const event = eventInfo.event;
     const extendedProps = event.extendedProps;
-    
     // Render work hours with italic label
     if (extendedProps.isWorkHour) {
       const workHour = extendedProps.originalWorkHour;
       const start = moment(event.start).format('HH:mm');
       const end = moment(event.end).format('HH:mm');
-      
       return {
         html: `
           <div style="height: 100%; display: flex; flex-direction: column; padding: 4px 6px; overflow: hidden;">
@@ -576,19 +521,15 @@ export function PlannerView() {
         `
       };
     }
-
     // Render habits with croissant icon (no completion checkbox)
     if (extendedProps.category === 'habit') {
       const start = moment(event.start).format('HH:mm');
       const end = moment(event.end).format('HH:mm');
-      
       // Calculate height for layout
       const durationInMs = event.end ? event.end.getTime() - event.start.getTime() : 0;
       const durationInMinutes = durationInMs / (1000 * 60);
       const approximateHeight = (durationInMinutes / 15) * 21;
-      
       const showTwoLines = approximateHeight >= 32;
-      
       return {
         html: `
           <div style="height: 100%; display: flex; flex-direction: column; gap: 2px; padding: 2px; overflow: hidden;">
@@ -608,22 +549,18 @@ export function PlannerView() {
         `
       };
     }
-    
     // Render tasks with square icon and no time display
     if (extendedProps.category === 'task') {
       const isCompleted = extendedProps.completed;
-      
       // Checkbox icon HTML for completion status - filled square when completed
       const checkIconSvg = isCompleted 
         ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><path d="m9 11 3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>'
         : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><rect width="18" height="18" x="3" y="3" rx="2"></rect></svg>';
-      
       const iconHtml = `<button type="button" style="cursor: pointer; transition: transform 0.2s; background: none; border: none; color: inherit; padding: 0; margin: 0; display: flex; align-items: center; justify-content: center;" 
                           onmouseover="this.style.transform='scale(1.1)'" 
                           onmouseout="this.style.transform='scale(1)'"
                           onclick="event.stopPropagation(); window.plannerToggleCompletion && window.plannerToggleCompletion('${event.id}')"
                           title="${isCompleted ? 'Mark as not completed' : 'Mark as completed'}">${checkIconSvg}</button>`;
-      
       return {
         html: `
           <div style="height: 100%; display: flex; align-items: center; gap: 6px; padding: 4px 6px; overflow: hidden;">
@@ -635,7 +572,6 @@ export function PlannerView() {
         `
       };
     }
-    
     // Get project info for regular events
     const projectId = extendedProps.projectId;
     const project = projectId ? projects.find(p => p.id === projectId) : null;
@@ -667,23 +603,19 @@ export function PlannerView() {
                     onclick="event.stopPropagation(); window.plannerToggleCompletion && window.plannerToggleCompletion('${event.id}')"
                     title="${isCompleted ? 'Mark as not completed' : 'Mark as completed'}">${checkIconSvg}</button>`;
     }
-    
     // Calculate approximate event height in pixels
     // FullCalendar with slotDuration: '00:15:00' typically renders at ~21px per 15-min slot
     // This means ~84px per hour
     const durationInMs = event.end ? event.end.getTime() - event.start.getTime() : 0;
     const durationInMinutes = durationInMs / (1000 * 60);
     const approximateHeight = (durationInMinutes / 15) * 21; // 21px per 15-minute slot
-    
     // Very tight thresholds - just enough space for each line to render:
     // - 1 line (description only): ~18px (font-size 12px + line-height 1.2 + padding)
     // - 2 lines (time + description): ~32px (two lines + gap + padding)
     // - 3 lines (all): ~45px (three lines + gaps + padding)
-    
     const showOneLine = approximateHeight >= 18;
     const showTwoLines = approximateHeight >= 32;
     const showThreeLines = approximateHeight >= 45;
-    
     return {
       html: `
         <div style="height: 100%; display: flex; flex-direction: column; gap: 2px; padding: 2px; overflow: hidden;">
@@ -731,19 +663,16 @@ export function PlannerView() {
     const result = await plannerOrchestrator.handleCompletionToggle(eventId);
     // No additional handling needed - orchestrator manages everything
   }, [plannerOrchestrator]);
-
   // Handle completion toggle for habits
   const handleHabitCompletionToggle = useCallback(async (habitId: string) => {
     try {
       const habit = habits.find(h => h.id === habitId);
       if (!habit) return;
-      
       await updateHabit(habitId, { completed: !habit.completed }, { silent: true });
     } catch (error) {
       console.error('Failed to toggle habit completion:', error);
     }
   }, [habits, updateHabit]);
-
   // Set up global completion toggle functions for HTML onclick events
   useEffect(() => {
     (window as any).plannerToggleCompletion = handleCompletionToggle;
@@ -753,7 +682,6 @@ export function PlannerView() {
       delete (window as any).plannerToggleHabitCompletion;
     };
   }, [handleCompletionToggle, handleHabitCompletionToggle]);
-
   // Handle compact view toggle while preserving scroll position
   const handleCompactViewToggle = useCallback(() => {
     // Get current scroll position as percentage
@@ -762,12 +690,9 @@ export function PlannerView() {
       updateSettings({ isCompactView: !settings?.isCompactView });
       return;
     }
-
     const scrollPercentage = scroller.scrollTop / scroller.scrollHeight;
-
     // Toggle the setting
     updateSettings({ isCompactView: !settings?.isCompactView });
-
     // After React re-renders, restore scroll position proportionally
     // Use requestAnimationFrame to wait for DOM update
     requestAnimationFrame(() => {
@@ -779,7 +704,6 @@ export function PlannerView() {
       });
     });
   }, [settings?.isCompactView, updateSettings]);
-
   // Convert work hours to FullCalendar businessHours format
   const businessHoursConfig = useMemo(() => {
     if (!settings?.weeklyWorkHours) {
@@ -789,7 +713,6 @@ export function PlannerView() {
         endTime: '17:00'
       };
     }
-
     // Map day names to FullCalendar day numbers (0=Sunday, 1=Monday, etc.)
     const dayMap: Record<string, number> = {
       sunday: 0,
@@ -800,7 +723,6 @@ export function PlannerView() {
       friday: 5,
       saturday: 6
     };
-
     // Convert work slots to FullCalendar businessHours array format
     const businessHours: any[] = [];
     Object.entries(settings.weeklyWorkHours).forEach(([dayName, slots]) => {
@@ -815,14 +737,12 @@ export function PlannerView() {
         });
       }
     });
-
     return businessHours.length > 0 ? businessHours : {
       daysOfWeek: [1, 2, 3, 4, 5],
       startTime: '09:00',
       endTime: '17:00'
     };
   }, [settings?.weeklyWorkHours]);
-
   // Prepare FullCalendar configuration
   const calendarConfig = {
     ...getBaseFullCalendarConfig(settings?.isCompactView || false),
@@ -832,17 +752,14 @@ export function PlannerView() {
     events: (fetchInfo: any, successCallback: any, failureCallback: any) => {
       try {
         const allEvents = getStyledFullCalendarEvents({ selectedEventId, projects });
-        
         // Filter events based on layer visibility
         const filteredEvents = allEvents.filter((event: any) => {
           const category = event.extendedProps?.category;
           const isWorkHour = event.extendedProps?.isWorkHour;
-          
           // Work hours filtering
           if (isWorkHour) {
             return layerVisibility.workHours;
           }
-          
           // Category-based filtering
           if (category === 'habit') {
             return layerVisibility.habits;
@@ -853,7 +770,6 @@ export function PlannerView() {
           // Default to events layer
           return layerVisibility.events;
         });
-        
         successCallback(filteredEvents);
       } catch (error) {
         console.error('Error fetching events:', error);
@@ -867,7 +783,6 @@ export function PlannerView() {
       // Update CSS properties on the container element
       // This runs every time the event is rendered, including when properties change
       const { futureEventBorderColor, selectedEventBorderColor } = arg.event.extendedProps;
-      
       // Schedule CSS property update to happen after DOM is ready
       setTimeout(() => {
         // Find the event element - FullCalendar wraps our content
@@ -881,7 +796,6 @@ export function PlannerView() {
           }
         }
       }, 0);
-      
       // Return custom content
       return renderEventContent(arg);
     },
@@ -909,46 +823,37 @@ export function PlannerView() {
     datesSet: (dateInfo) => {
       setCalendarDate(dateInfo.start);
       setCurrentDate(dateInfo.start);
-      
       // Update visible range for week navigation bar
       setVisibleRange({
         start: new Date(dateInfo.start),
         end: new Date(dateInfo.end)
       });
-      
       // Calculate week start (Monday)
       const weekStartDate = new Date(dateInfo.start);
       const day = weekStartDate.getDay();
       const diff = day === 0 ? -6 : 1 - day; // Adjust to Monday
-      weekStartDate.setDate(weekStartDate.getDate() + diff);
-      weekStartDate.setHours(0, 0, 0, 0);
-      setWeekStart(weekStartDate);
-      
+      const normalizedWeekStart = normalizeToMidnight(addDaysToDate(weekStartDate, diff));
+      setWeekStart(normalizedWeekStart);
       // Compute summary date strings directly from FullCalendar view
-      const viewStart = new Date(dateInfo.start);
-      const viewEnd = new Date(dateInfo.end);
-      viewStart.setHours(0, 0, 0, 0);
-      viewEnd.setHours(0, 0, 0, 0);
-      
+      const viewStart = normalizeToMidnight(new Date(dateInfo.start));
+      const viewEnd = normalizeToMidnight(new Date(dateInfo.end));
       // Calculate the number of days in the view to determine if it's day or week view
       const daysDiff = Math.round((viewEnd.getTime() - viewStart.getTime()) / (1000 * 60 * 60 * 24));
       const isDayView = daysDiff === 1;
-      
       const next: string[] = [];
       if (isDayView) {
         next.push(getDateKey(viewStart));
       } else {
-        const cur = new Date(viewStart);
+        let cur = new Date(viewStart);
         while (cur < viewEnd && next.length < 7) {
           next.push(getDateKey(cur));
-          cur.setDate(cur.getDate() + 1);
+          cur = addDaysToDate(cur, 1);
         }
       }
       setSummaryDateStrings(next);
       setCalendarReady(true);
     }
   };
-  
   // Refresh calendar when work hours change to show updated work slots
   useEffect(() => {
     const calendarApi = calendarRef.current?.getApi();
@@ -956,7 +861,6 @@ export function PlannerView() {
       calendarApi.refetchEvents();
     }
   }, [workHours]);
-  
   // Refresh calendar when layer visibility changes
   useEffect(() => {
     const calendarApi = calendarRef.current?.getApi();
@@ -964,9 +868,7 @@ export function PlannerView() {
       calendarApi.refetchEvents();
     }
   }, [layerVisibility]);
-  
   // Removed early calendarReady timeout to avoid pre-ready fallback flashes
-  
   // Add hoverable functionality to date headers after calendar renders
   useEffect(() => {
     const addHoverableHeaders = () => {
@@ -1108,60 +1010,46 @@ export function PlannerView() {
       });
     };
   }, [calendarDate, currentView, setCurrentDate, setTimelineView]);
-
   // Scroll to show current time + 2 hours at the bottom of viewport
   useEffect(() => {
     const scrollToCurrentTime = () => {
       const calendarApi = calendarRef.current?.getApi();
       if (!calendarApi) return;
-
       const now = new Date();
       const currentHour = now.getHours();
       const currentMinute = now.getMinutes();
-      
       // Calculate target hour: current time + 2 hours
       let targetHour = currentHour + 2;
       let targetMinute = currentMinute;
-      
       // Cap at midnight (00:00)
       if (targetHour >= 24) {
         targetHour = 24;
         targetMinute = 0;
       }
-      
       // Get the scroller element
       const scroller = document.querySelector('.fc-scroller.fc-scroller-liquid-absolute');
       if (!scroller) return;
-      
       // Get the time grid
       const timeGrid = document.querySelector('.fc-timegrid-body');
       if (!timeGrid) return;
-      
       // Calculate scroll position
       // Each hour slot is a portion of the total time grid height
       const totalMinutesInDay = 24 * 60; // 1440 minutes
       const targetMinutes = targetHour * 60 + targetMinute;
       const scrollPercentage = targetMinutes / totalMinutesInDay;
-      
       // Get viewport height to position target at bottom
       const viewportHeight = scroller.clientHeight;
       const totalScrollHeight = scroller.scrollHeight;
-      
       // Calculate scroll position so target time is at the bottom
       const scrollPosition = (scrollPercentage * totalScrollHeight) - viewportHeight;
-      
       // Ensure we don't scroll beyond the top
       const finalScrollPosition = Math.max(0, scrollPosition);
-      
       scroller.scrollTop = finalScrollPosition;
     };
-    
     // Scroll after a short delay to ensure calendar is fully rendered
     const timeoutId = setTimeout(scrollToCurrentTime, 150);
-    
     return () => clearTimeout(timeoutId);
   }, [currentView]); // Re-run when view changes (week/day toggle)
-
   // Handle swipe navigation on mobile/tablet
   const swipeRef = useSwipeNavigation({
     onSwipeLeft: () => {
@@ -1176,42 +1064,33 @@ export function PlannerView() {
     },
     enabled: currentView === 'week' && (viewportSize === 'mobile' || viewportSize === 'tablet')
   });
-
   // Handle clicking on week navigation bar days
   const handleWeekNavDayClick = useCallback((date: Date) => {
     const api = calendarRef.current?.getApi();
     if (!api) return;
-    
     // Navigate to the clicked date
     api.gotoDate(date);
     setCalendarDate(date);
     setCurrentDate(date);
   }, [setCurrentDate]);
-
   // Handle drop from project summary row
   useEffect(() => {
     const calendarEl = document.querySelector('.fc-timegrid-body');
     if (!calendarEl) return;
-
     const handleDragOver = (e: DragEvent) => {
       e.preventDefault();
       e.dataTransfer!.dropEffect = 'copy';
     };
-
     const handleDrop = async (e: DragEvent) => {
       e.preventDefault();
-      
       try {
         const data = JSON.parse(e.dataTransfer!.getData('application/json'));
         if (data.type !== 'project-estimate') return;
-
         const calendarApi = calendarRef.current?.getApi();
         if (!calendarApi) return;
-
         // Get the column (day) from the mouse position
         const timeSlotElements = document.querySelectorAll('.fc-timegrid-col');
         let targetDate: Date | null = null;
-        
         // Find which column was dropped on
         for (const col of Array.from(timeSlotElements)) {
           const rect = col.getBoundingClientRect();
@@ -1219,27 +1098,22 @@ export function PlannerView() {
             const dataDate = col.getAttribute('data-date');
             if (dataDate) {
               targetDate = new Date(dataDate);
-              
               // Calculate time from Y position within the column
               const relativeY = e.clientY - rect.top;
               const totalHeight = rect.height;
               const fractionOfDay = relativeY / totalHeight;
-              
               // Assuming 24-hour day view
               const totalMinutes = 24 * 60;
               const minutesFromMidnight = fractionOfDay * totalMinutes;
-              
               // Round to nearest 15 minutes
               const roundedMinutes = Math.round(minutesFromMidnight / 15) * 15;
               const hours = Math.floor(roundedMinutes / 60);
               const minutes = roundedMinutes % 60;
-              
               targetDate.setHours(hours, minutes, 0, 0);
               break;
             }
           }
         }
-
         if (!targetDate) {
           toast({
             title: "Invalid drop location",
@@ -1249,14 +1123,11 @@ export function PlannerView() {
           });
           return;
         }
-
         const startTime = targetDate;
-
         // Calculate end time based on estimated hours
         const endTime = new Date(startTime);
         endTime.setHours(endTime.getHours() + Math.floor(data.estimatedHours));
         endTime.setMinutes(endTime.getMinutes() + Math.round((data.estimatedHours % 1) * 60));
-
         // Check for overlapping events and compress if needed
         const overlappingEvents = events.filter(event => {
           if (event.projectId !== data.projectId) return false;
@@ -1264,7 +1135,6 @@ export function PlannerView() {
           const eventEnd = new Date(event.endTime);
           return (startTime < eventEnd && endTime > eventStart);
         });
-
         let finalEndTime = endTime;
         if (overlappingEvents.length > 0) {
           // Find the earliest overlapping event
@@ -1272,7 +1142,6 @@ export function PlannerView() {
             const eventStart = new Date(event.startTime);
             return eventStart < earliest ? eventStart : earliest;
           }, new Date(endTime));
-
           // Compress to fit before the overlap
           if (earliestOverlap > startTime) {
             finalEndTime = earliestOverlap;
@@ -1287,28 +1156,23 @@ export function PlannerView() {
             return;
           }
         }
-
         // Create the event - store project ID for modal to use
         (window as any).__pendingEventProjectId = data.projectId;
         setCreatingNewEvent({
           startTime,
           endTime: finalEndTime
         });
-
       } catch (error) {
         console.error('Error handling drop:', error);
       }
     };
-
     calendarEl.addEventListener('dragover', handleDragOver as EventListener);
     calendarEl.addEventListener('drop', handleDrop as EventListener);
-
     return () => {
       calendarEl.removeEventListener('dragover', handleDragOver as EventListener);
       calendarEl.removeEventListener('drop', handleDrop as EventListener);
     };
   }, [events, toast, setCreatingNewEvent]);
-
   // Keep FullCalendar sized to its container (e.g., on sidebar toggle)
   useEffect(() => {
     const el = calendarCardRef.current;
@@ -1330,13 +1194,11 @@ export function PlannerView() {
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-
   // Handle window resize for responsive view changes - force remount on viewport size change
   useEffect(() => {
     const handleResize = () => {
       const width = window.innerWidth;
       let newSize: 'mobile' | 'tablet' | 'desktop';
-      
       if (width < 768) {
         newSize = 'mobile';
       } else if (width < 1024) {
@@ -1344,11 +1206,9 @@ export function PlannerView() {
       } else {
         newSize = 'desktop';
       }
-      
       // Only update if viewport category changed (forces calendar remount)
       if (newSize !== viewportSize) {
         setViewportSize(newSize);
-        
         // When switching to desktop (7-day view) in week mode, ensure we're starting from Monday
         if (newSize === 'desktop' && currentView === 'week') {
           const calendarApi = calendarRef.current?.getApi();
@@ -1358,10 +1218,7 @@ export function PlannerView() {
             // Calculate Monday of the week
             const dayOfWeek = currentDate.getDay();
             const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-            const monday = new Date(currentDate);
-            monday.setDate(currentDate.getDate() + daysToMonday);
-            monday.setHours(0, 0, 0, 0);
-            
+            const monday = normalizeToMidnight(addDaysToDate(currentDate, daysToMonday));
             // Navigate to Monday to ensure week starts correctly
             setTimeout(() => {
               calendarApi.gotoDate(monday);
@@ -1370,21 +1227,18 @@ export function PlannerView() {
         }
       }
     };
-
     // Debounce resize handler
     let resizeTimeout: NodeJS.Timeout;
     const debouncedResize = () => {
       clearTimeout(resizeTimeout);
       resizeTimeout = setTimeout(handleResize, 150);
     };
-
     window.addEventListener('resize', debouncedResize);
     return () => {
       window.removeEventListener('resize', debouncedResize);
       clearTimeout(resizeTimeout);
     };
   }, [viewportSize, currentView]);
-
   // Track the vertical scrollbar width of the FullCalendar scroller to align the summary row
   useEffect(() => {
     if (!calendarReady) return;
@@ -1415,11 +1269,9 @@ export function PlannerView() {
       window.removeEventListener('resize', measure);
     };
   }, [calendarReady, calendarScrollbarWidth]);
-
   // Measure the time axis width for AvailabilityCard alignment
   useEffect(() => {
     if (!calendarReady) return;
-    
     const selectAxis = () => {
       const el =
         document.querySelector('.fc-timegrid-axis') ||
@@ -1427,7 +1279,6 @@ export function PlannerView() {
         document.querySelector('.fc-col-header .fc-timegrid-axis');
       return el as HTMLElement | null;
     };
-
     const measure = () => {
       const el = selectAxis();
       if (!el) return;
@@ -1436,23 +1287,19 @@ export function PlannerView() {
         setTimeAxisWidth(width);
       }
     };
-
     // First measure after two animation frames (FullCalendar finalizes layout after mount)
     const rafId = window.requestAnimationFrame(() => {
       window.requestAnimationFrame(measure);
     });
-
     // Observe future size changes
     const el = selectAxis();
     const ro = new ResizeObserver(measure);
     if (el) ro.observe(el);
-    
     return () => {
       cancelAnimationFrame(rafId);
       ro.disconnect();
     };
   }, [calendarReady, timeAxisWidth]);
-
   return (
     <div className="h-full flex flex-col overflow-hidden">
       {/* Calendar Controls */}
@@ -1520,7 +1367,6 @@ export function PlannerView() {
                       <EyeOff className="w-4 h-4 text-muted-foreground" />
                     )}
                   </div>
-                  
                   {/* Habits Layer */}
                   <div 
                     className="flex items-center justify-between px-3 py-2 rounded-md hover:bg-accent cursor-pointer"
@@ -1536,7 +1382,6 @@ export function PlannerView() {
                       <EyeOff className="w-4 h-4 text-muted-foreground" />
                     )}
                   </div>
-                  
                   {/* Tasks Layer */}
                   <div 
                     className="flex items-center justify-between px-3 py-2 rounded-md hover:bg-accent cursor-pointer"
@@ -1552,7 +1397,6 @@ export function PlannerView() {
                       <EyeOff className="w-4 h-4 text-muted-foreground" />
                     )}
                   </div>
-                  
                   {/* Work Hours Layer */}
                   <div 
                     className="flex items-center justify-between px-3 py-2 rounded-md hover:bg-accent cursor-pointer"
@@ -1599,7 +1443,6 @@ export function PlannerView() {
           </div>
         </div>
       </div>
-
       {/* Week Navigation Bar - Mobile/Tablet Only */}
       <WeekNavigationBar
         visibleStartDate={visibleRange.start}
@@ -1609,7 +1452,6 @@ export function PlannerView() {
         onDayClick={handleWeekNavDayClick}
         show={currentView === 'week' && (viewportSize === 'mobile' || viewportSize === 'tablet')}
       />
-
       {/* Estimated Time Card */}
       {false && calendarReady && summaryDateStrings.length > 0 && !isEventsLoading && !isHolidaysLoading && (
         <div className="px-6 pb-[21px]">
@@ -1629,7 +1471,6 @@ export function PlannerView() {
           </div>
         </div>
       )}
-
       {/* Calendar Content */}
       <div className="flex-1 px-6 pb-[21px] min-h-0">
         <div
@@ -1658,13 +1499,10 @@ export function PlannerView() {
               return [calendarDate];
             } else {
               // Get the week containing calendarDate
-              const startOfWeek = new Date(calendarDate);
-              startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay() + 1); // Monday
+              const startOfWeek = addDaysToDate(calendarDate, -calendarDate.getDay() + 1); // Monday
               const dates = [];
               for (let i = 0; i < 7; i++) {
-                const date = new Date(startOfWeek.getTime());
-                date.setDate(date.getDate() + i);
-                dates.push(date);
+                dates.push(addDaysToDate(startOfWeek, i));
               }
               return dates;
             }

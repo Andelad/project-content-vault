@@ -13,13 +13,11 @@
  * 
  * @module ProjectOrchestrator
  */
-
 import { Project, Milestone } from '@/types/core';
 import { ProjectRules } from '@/domain/rules/ProjectRules';
 import { MilestoneRules } from '@/domain/rules/MilestoneRules';
 import { getDateKey } from '@/utils/dateFormatUtils';
 import { calculateBudgetAdjustment } from '@/services/calculations';
-
 export interface ProjectBudgetAnalysis {
   totalAllocation: number;
   suggestedBudget: number;
@@ -27,13 +25,11 @@ export interface ProjectBudgetAnalysis {
   overageHours: number;
   utilizationPercentage: number;
 }
-
 export interface ProjectValidationResult {
   isValid: boolean;
   errors: string[];
   warnings: string[];
 }
-
 export interface ProjectMilestoneAnalysis {
   projectBudget: ProjectBudgetAnalysis;
   milestoneCount: number;
@@ -43,7 +39,6 @@ export interface ProjectMilestoneAnalysis {
   hasDateConflicts: boolean;
   suggestions: string[];
 }
-
 export interface ProjectCreationRequest {
   name: string;
   client: string;
@@ -66,14 +61,12 @@ export interface ProjectCreationRequest {
     sunday: boolean;
   };
 }
-
 export interface ProjectCreationResult {
   success: boolean;
   project?: Project;
   errors?: string[];
   warnings?: string[];
 }
-
 export interface ProjectMilestone {
   name: string;
   dueDate: Date;
@@ -81,11 +74,9 @@ export interface ProjectMilestone {
   timeAllocation: number;
   timeAllocationHours: number;
 }
-
 export interface ProjectCreationWithMilestonesRequest extends ProjectCreationRequest {
   milestones?: ProjectMilestone[];
 }
-
 export interface ProjectUpdateRequest {
   id: string;
   name?: string;
@@ -98,15 +89,35 @@ export interface ProjectUpdateRequest {
   notes?: string;
   icon?: string;
 }
-
 /**
  * Project Orchestrator
  * Handles project business workflows and project-milestone coordination
  */
 export class ProjectOrchestrator {
-
   /**
-   * Validate project creation - calls domain rules directly
+   * Validate project creation request
+   * 
+   * Validates all project fields against domain rules before creation.
+   * Calls domain rules directly (no validator layer).
+   * 
+   * @param request - Project creation request data
+   * @param existingMilestones - Optional existing milestones to validate against
+   * @returns Validation result with errors and warnings
+   * 
+   * @example
+   * ```typescript
+   * const result = ProjectOrchestrator.validateProjectCreation({
+   *   name: 'New Project',
+   *   client: 'Acme Corp',
+   *   startDate: new Date(),
+   *   estimatedHours: 100,
+   *   color: '#3b82f6',
+   *   groupId: 'group-123'
+   * });
+   * if (!result.isValid) {
+   *   console.error('Validation errors:', result.errors);
+   * }
+   * ```
    */
   static validateProjectCreation(
     request: ProjectCreationRequest,
@@ -114,27 +125,22 @@ export class ProjectOrchestrator {
   ): ProjectValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
-
     // Name validation
     if (!request.name || request.name.trim().length === 0) {
       errors.push('Project name is required');
     }
-
     // Client validation (required for database constraint)
     if (!request.client || request.client.trim().length === 0) {
       errors.push('Client is required');
     }
-
     // Call domain rule for estimated hours
     if (!ProjectRules.validateEstimatedHours(request.estimatedHours)) {
       errors.push('Estimated hours cannot be negative');
     }
-
     // Large hours warning
     if (request.estimatedHours > 10000) {
       warnings.push('Project estimated hours is very large (>10,000 hours)');
     }
-
     // Call domain rule for dates
     const dateValidation = ProjectRules.validateProjectDates(
       request.startDate,
@@ -144,7 +150,6 @@ export class ProjectOrchestrator {
     if (!dateValidation.isValid) {
       errors.push(...dateValidation.errors);
     }
-
     // NEW: Validate project not fully in past (Phase Time Domain Rules)
     if (request.estimatedHours > 0) {
       const tempProject: Project = {
@@ -168,24 +173,20 @@ export class ProjectOrchestrator {
         status: 'current',
         milestones: []
       };
-      
       const pastValidation = ProjectRules.validateProjectNotFullyInPast(
         tempProject,
         existingMilestones
       );
-      
       if (!pastValidation.isValid) {
         errors.push(...pastValidation.errors);
       }
     }
-
     return {
       isValid: errors.length === 0,
       errors,
       warnings
     };
   }
-
   /**
    * Validate project updates with impact analysis
    */
@@ -196,13 +197,11 @@ export class ProjectOrchestrator {
   ): ProjectValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
-
     // Create updated project for validation
     const updatedProject: Project = {
       ...currentProject,
       ...request
     };
-
     // Validate updated dates if changed using domain rules
     if (request.startDate !== undefined || request.endDate !== undefined || request.continuous !== undefined) {
       const dateValidation = ProjectRules.validateProjectDates(
@@ -213,7 +212,6 @@ export class ProjectOrchestrator {
       if (!dateValidation.isValid) {
         errors.push(...dateValidation.errors);
       }
-
       // Check milestone date compatibility using domain rules
       const incompatibleMilestones = currentMilestones.filter(m => {
         const validation = MilestoneRules.validateMilestoneDateWithinProject(
@@ -223,32 +221,26 @@ export class ProjectOrchestrator {
         );
         return !validation.isValid;
       });
-
       if (incompatibleMilestones.length > 0) {
         errors.push(`${incompatibleMilestones.length} milestone(s) would fall outside the updated project timeframe`);
       }
     }
-
     // Validate budget changes using domain rules
     if (request.estimatedHours !== undefined) {
       const budgetCheck = MilestoneRules.checkBudgetConstraint(currentMilestones, updatedProject.estimatedHours);
-      
       if (!budgetCheck.isValid) {
         errors.push(`Reducing budget would result in ${budgetCheck.overage}h over-allocation`);
       }
-
       if (request.estimatedHours < currentProject.estimatedHours) {
         warnings.push(`Reducing project budget from ${currentProject.estimatedHours}h to ${request.estimatedHours}h`);
       }
     }
-
     return {
       isValid: errors.length === 0,
       errors,
       warnings
     };
   }
-
   /**
    * Analyze project-milestone relationship health
    */
@@ -265,38 +257,29 @@ export class ProjectOrchestrator {
       overageHours: budgetCheck.overage,
       utilizationPercentage: budgetCheck.utilizationPercentage
     };
-
     // Simple milestone type counting (recurring detection can be enhanced later)
     const regularMilestones = milestones.filter(m => !('isRecurring' in m && (m as any).isRecurring)).length;
     const recurringMilestones = milestones.filter(m => 'isRecurring' in m && (m as any).isRecurring).length;
-    
     // Check for over-budget milestones
     const hasOverBudgetMilestones = milestones.some(m => 
       m.timeAllocation > project.estimatedHours
     );
-
     // Check for date conflicts
     const hasDateConflicts = this.checkMilestoneDateConflicts(milestones);
-
     // Generate suggestions
     const suggestions: string[] = [];
-    
     if (projectBudget.isOverBudget) {
       suggestions.push(`Consider increasing project budget by ${projectBudget.overageHours}h or reducing milestone allocations`);
     }
-
     if (milestones.length === 0) {
       suggestions.push('Consider adding milestones to track project progress');
     }
-
     if (projectBudget.utilizationPercentage < 50) {
       suggestions.push('Project has significant unallocated budget - consider adding more milestones');
     }
-
     if (hasDateConflicts) {
       suggestions.push('Resolve milestone date conflicts');
     }
-
     return {
       projectBudget,
       milestoneCount: milestones.length,
@@ -307,7 +290,6 @@ export class ProjectOrchestrator {
       suggestions
     };
   }
-
   /**
    * Calculate project budget adjustments needed for milestone compatibility
    */
@@ -324,30 +306,24 @@ export class ProjectOrchestrator {
     // Use domain rules to calculate total allocation
     const budgetCheck = MilestoneRules.checkBudgetConstraint(milestones, project.estimatedHours);
     const totalAllocated = budgetCheck.totalAllocated;
-    
     // Delegate to calculation function
     return calculateBudgetAdjustment(project.estimatedHours, totalAllocated, targetUtilization);
   }
-
   /**
    * Check for milestone date conflicts
    */
   private static checkMilestoneDateConflicts(milestones: Milestone[]): boolean {
     const dateMap = new Map<string, number>();
-    
     for (const milestone of milestones) {
       const dateKey = getDateKey(milestone.dueDate);
       const count = dateMap.get(dateKey) || 0;
       dateMap.set(dateKey, count + 1);
-      
       if (count > 0) {
         return true; // Found a conflict
       }
     }
-    
     return false;
   }
-
   /**
    * Generate project status summary
    */
@@ -361,30 +337,24 @@ export class ProjectOrchestrator {
   } {
     const analysis = this.analyzeProjectMilestones(project, milestones);
     const details: string[] = [];
-    
     // Determine overall status
     let status: 'healthy' | 'warning' | 'critical' = 'healthy';
-    
     if (analysis.projectBudget.isOverBudget) {
       status = 'critical';
       details.push(`Over budget by ${analysis.projectBudget.overageHours}h`);
     }
-    
     if (analysis.hasDateConflicts) {
       status = status === 'critical' ? 'critical' : 'warning';
       details.push('Milestone date conflicts detected');
     }
-    
     if (analysis.projectBudget.utilizationPercentage > 95) {
       status = status === 'critical' ? 'critical' : 'warning';
       details.push('Very high budget utilization (>95%)');
     }
-    
     if (analysis.milestoneCount === 0) {
       status = status === 'critical' ? 'critical' : 'warning';
       details.push('No milestones defined');
     }
-
     // Generate summary
     let summary = '';
     switch (status) {
@@ -398,14 +368,12 @@ export class ProjectOrchestrator {
         summary = `Project has critical issues requiring immediate attention`;
         break;
     }
-
     return {
       status,
       summary,
       details
     };
   }
-
   /**
    * Prepare project for creation (business logic preparation)
    */
@@ -419,7 +387,6 @@ export class ProjectOrchestrator {
       icon: request.icon || 'folder'
     };
   }
-
   /**
    * Execute complete project creation workflow with milestones
    * EXTRACTED from ProjectModal handleCreateProject complex logic
@@ -429,6 +396,33 @@ export class ProjectOrchestrator {
    * - Project creation via context
    * - Milestone batch creation
    * - Error handling and coordination
+   * 
+   * @param request - Complete project creation request including optional milestones
+   * @param projectContext - Context providing addProject and addMilestone functions
+   * @returns Promise resolving to creation result with project or errors
+   * 
+   * @example
+   * ```typescript
+   * const result = await ProjectOrchestrator.executeProjectCreationWorkflow(
+   *   {
+   *     name: 'Website Redesign',
+   *     client: 'Acme Corp',
+   *     startDate: new Date('2025-01-01'),
+   *     endDate: new Date('2025-03-31'),
+   *     estimatedHours: 240,
+   *     color: '#3b82f6',
+   *     groupId: 'active-projects',
+   *     milestones: [
+   *       { name: 'Design', dueDate: new Date('2025-01-15'), timeAllocationHours: 80 },
+   *       { name: 'Development', dueDate: new Date('2025-02-28'), timeAllocationHours: 120 }
+   *     ]
+   *   },
+   *   { addProject, addMilestone }
+   * );
+   * if (result.success) {
+   *   console.log('Project created:', result.project);
+   * }
+   * ```
    */
   static async executeProjectCreationWorkflow(
     request: ProjectCreationWithMilestonesRequest,
@@ -447,7 +441,6 @@ export class ProjectOrchestrator {
           client: request.client
         }
       });
-
       // Step 1: Validate inputs
       const validation = this.validateProjectCreation(request);
       if (!validation.isValid) {
@@ -458,7 +451,6 @@ export class ProjectOrchestrator {
           warnings: validation.warnings
         };
       }
-
       if (!request.groupId || request.groupId === '') {
         console.error('❌ ProjectOrchestrator: Missing groupId');
         return {
@@ -466,13 +458,10 @@ export class ProjectOrchestrator {
           errors: ['Group ID is required for project creation']
         };
       }
-
       // Note: rowId is optional (deprecated in Phase 5B)
       // Projects can be created without a specific row assignment
-
       // Step 2: Prepare project data following AI Development Rules
       const preparedProject = this.prepareProjectForCreation(request);
-
       // Provide defaults following the component logic
       const projectData = {
         name: preparedProject.name || 'New Project',
@@ -488,19 +477,15 @@ export class ProjectOrchestrator {
         continuous: preparedProject.continuous,
         autoEstimateDays: preparedProject.autoEstimateDays
       };
-
       // Step 3: Create project via context (delegates to existing project creation logic)
-      console.log('🔄 ProjectOrchestrator: Calling addProject with data:', projectData);
       let createdProject: Project;
       try {
         createdProject = await projectContext.addProject(projectData);
-        console.log('✅ ProjectOrchestrator: Project created successfully:', createdProject);
       } catch (addProjectError) {
         console.error('❌ ProjectOrchestrator: addProject threw error:', addProjectError);
         console.error('❌ ProjectOrchestrator: Error type:', typeof addProjectError);
         console.error('❌ ProjectOrchestrator: Error constructor:', addProjectError?.constructor?.name);
         console.error('❌ ProjectOrchestrator: Full error:', JSON.stringify(addProjectError, null, 2));
-        
         let errorMessage = 'Unknown error';
         if (addProjectError instanceof Error) {
           errorMessage = addProjectError.message;
@@ -509,13 +494,11 @@ export class ProjectOrchestrator {
         } else if (addProjectError && typeof addProjectError === 'object') {
           errorMessage = JSON.stringify(addProjectError);
         }
-        
         return {
           success: false,
           errors: [`Project creation failed: ${errorMessage}`]
         };
       }
-
       if (!createdProject) {
         console.error('❌ ProjectOrchestrator: addProject returned null/undefined');
         return {
@@ -523,17 +506,14 @@ export class ProjectOrchestrator {
           errors: ['Project creation failed - no project returned']
         };
       }
-
       // Step 4: Apply Phase Time Domain Rules auto-adjustments
       const warnings: string[] = validation.warnings || [];
       if (request.milestones && request.milestones.length > 0) {
         const phases = request.milestones.filter(m => m.endDate !== undefined);
-        
         if (phases.length > 0) {
           // Convert to Milestone objects for domain rule processing
           const today = new Date();
           today.setHours(0, 0, 0, 0);
-          
           let phaseObjects: Milestone[] = phases.map((p, index) => ({
             id: `temp-${index}`, // Temporary ID for processing
             projectId: createdProject.id,
@@ -546,25 +526,21 @@ export class ProjectOrchestrator {
             createdAt: new Date(),
             updatedAt: new Date()
           }));
-          
           // Auto-adjust phases with estimated time that end in the past
           let needsCascade = false;
           phaseObjects = phaseObjects.map((phase) => {
             if ((phase.timeAllocation ?? 0) > 0 && phase.endDate && phase.endDate < today) {
               const minimumEndDate = MilestoneRules.calculateMinimumPhaseEndDate(phase, today);
-              
               if (minimumEndDate > phase.endDate) {
                 warnings.push(
                   `Phase "${phase.name}" end date auto-adjusted from ${phase.endDate.toLocaleDateString()} to ${minimumEndDate.toLocaleDateString()} (cannot end in past with estimated time)`
                 );
-                
                 needsCascade = true;
                 return { ...phase, endDate: minimumEndDate };
               }
             }
             return phase;
           });
-          
           // Cascade adjustments to subsequent phases if any phase was adjusted
           if (needsCascade) {
             // Find first adjusted phase and cascade from there
@@ -572,7 +548,6 @@ export class ProjectOrchestrator {
               const original = phases[idx];
               return p.endDate?.getTime() !== original.endDate?.getTime();
             });
-            
             if (firstAdjustedIndex >= 0) {
               const adjustedPhase = phaseObjects[firstAdjustedIndex];
               phaseObjects = MilestoneRules.cascadePhaseAdjustments(
@@ -581,7 +556,6 @@ export class ProjectOrchestrator {
                 adjustedPhase.endDate!
               );
             }
-            
             // Check if project end date needs adjustment
             const lastPhase = phaseObjects[phaseObjects.length - 1];
             if (lastPhase.endDate && createdProject.endDate && lastPhase.endDate > createdProject.endDate) {
@@ -589,7 +563,6 @@ export class ProjectOrchestrator {
                 createdProject,
                 phaseObjects
               );
-              
               if (adjustedEndDate > createdProject.endDate) {
                 warnings.push(
                   `Project end date auto-extended from ${createdProject.endDate.toLocaleDateString()} to ${adjustedEndDate.toLocaleDateString()} to accommodate phases`
@@ -597,7 +570,6 @@ export class ProjectOrchestrator {
                 createdProject.endDate = adjustedEndDate;
               }
             }
-            
             // Update request milestones with adjusted values
             request.milestones = request.milestones.map((m, idx) => {
               const adjusted = phaseObjects.find(p => p.id === `temp-${idx}`);
@@ -609,7 +581,6 @@ export class ProjectOrchestrator {
           }
         }
       }
-
       // Step 5: Handle milestone creation if provided
       if (request.milestones && request.milestones.length > 0) {
         await this.createProjectMilestones(
@@ -618,13 +589,11 @@ export class ProjectOrchestrator {
           projectContext.addMilestone
         );
       }
-
       return {
         success: true,
         project: createdProject,
         warnings: warnings.length > 0 ? warnings : undefined
       };
-
     } catch (error) {
       console.error('Project creation workflow error:', error);
       return {
@@ -633,7 +602,6 @@ export class ProjectOrchestrator {
       };
     }
   }
-
   /**
    * Create milestones for a project
    * PRIVATE helper extracted from complex component logic
@@ -659,8 +627,6 @@ export class ProjectOrchestrator {
       }
     }
   }
-
   // Note: Repository-integrated query methods were removed as they were never used
   // Hooks (useProjects, etc.) handle data fetching directly via Supabase
-
 }

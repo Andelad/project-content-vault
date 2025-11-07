@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { CalendarEvent } from '../../types';
-import { calculateDurationHours, formatDuration } from '@/services';
+import { calculateDurationHours, formatDuration, addHoursToDate } from '@/services';
 import { eventModalOrchestrator, type EventFormData, type EventFormErrors } from '@/services/orchestrators/EventModalOrchestrator';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -226,7 +226,7 @@ export function EventModal({
       } else {
         // Reset for new event
         const startDate = defaultStartTime || new Date();
-        const endDate = defaultEndTime || new Date(startDate.getTime() + 60 * 60 * 1000);
+        const endDate = defaultEndTime || addHoursToDate(startDate, 1);
         
         // Check for pending project ID from drag-and-drop
         const pendingProjectId = (window as any).__pendingEventProjectId;

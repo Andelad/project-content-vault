@@ -4,6 +4,7 @@
  * Migrated from legacy/timeline/timelineViewportService.ts
  */
 import { formatDateRange } from '@/utils/dateFormatUtils';
+import { normalizeToMidnight, addDaysToDate } from '@/services/calculations/general/dateCalculations';
 // Types for viewport operations
 export interface ViewportPosition {
   start: Date;
@@ -64,7 +65,6 @@ export const TIMELINE_COLUMN_WIDTHS = {
     BUFFER_WIDTH: 0        // No buffer needed for weeks mode
   }
 } as const;
-
 /**
  * Timeline Viewport Management Service
  * Provides viewport calculations, navigation, and animation utilities
@@ -161,19 +161,16 @@ export class TimelineViewport {
       const weekStart = new Date(viewportStart);
       const day = weekStart.getDay();
       const daysToSubtract = day === 0 ? 6 : day - 1;
-      weekStart.setDate(weekStart.getDate() - daysToSubtract);
+      const normalizedWeekStart = addDaysToDate(weekStart, -daysToSubtract);
       // Generate array of week start dates for visible weeks only
       const dates = [];
       for (let w = 0; w < actualWeeks; w++) {
-        const weekDate = new Date(weekStart);
-        weekDate.setDate(weekStart.getDate() + (w * 7));
-        weekDate.setHours(0, 0, 0, 0);
+        const weekDate = normalizeToMidnight(addDaysToDate(normalizedWeekStart, w * 7));
         dates.push(weekDate);
       }
       // Calculate viewport end based on the last visible week
       const lastWeekStart = dates[dates.length - 1];
-      const viewportEnd = new Date(lastWeekStart);
-      viewportEnd.setDate(lastWeekStart.getDate() + 6);
+      const viewportEnd = addDaysToDate(lastWeekStart, 6);
       // Filter projects that intersect with viewport
       const filteredProjects = (projects || []).filter(project => {
         const projectStart = new Date(project.startDate);
@@ -212,13 +209,9 @@ export class TimelineViewport {
       // // });
       // Generate array of dates for visible days only
       const dates = [];
-      const actualViewportStart = new Date(viewportStart);
-      actualViewportStart.setHours(0, 0, 0, 0);
+      const actualViewportStart = normalizeToMidnight(new Date(viewportStart));
       for (let d = 0; d < actualDays; d++) {
-        const date = new Date(actualViewportStart);
-        date.setDate(actualViewportStart.getDate() + d);
-        date.setHours(0, 0, 0, 0);
-        dates.push(date);
+        dates.push(addDaysToDate(actualViewportStart, d));
       }
       // // console.log('🔍 Generated dates:', {
       //   count: dates.length,
@@ -226,8 +219,7 @@ export class TimelineViewport {
       //   last: dates[dates.length - 1]?.toDateString()
       // // });
       // Calculate viewport end
-      const viewportEnd = new Date(actualViewportStart);
-      viewportEnd.setDate(actualViewportStart.getDate() + actualDays - 1);
+      const viewportEnd = addDaysToDate(actualViewportStart, actualDays - 1);
       // Filter projects that intersect with viewport
       const filteredProjects = (projects || []).filter(project => {
         const projectStart = new Date(project.startDate);
@@ -274,21 +266,20 @@ export class TimelineViewport {
       const weeksToMove = Math.ceil(viewportDays / 7);
       newStart = new Date(currentViewportStart);
       if (direction === 'next') {
-        newStart.setDate(newStart.getDate() + (weeksToMove * 7));
+        newStart = addDaysToDate(newStart, weeksToMove * 7);
       } else {
-        newStart.setDate(newStart.getDate() - (weeksToMove * 7));
+        newStart = addDaysToDate(newStart, -(weeksToMove * 7));
       }
     } else {
       // Navigate by days
       newStart = new Date(currentViewportStart);
       if (direction === 'next') {
-        newStart.setDate(newStart.getDate() + viewportDays);
+        newStart = addDaysToDate(newStart, viewportDays);
       } else {
-        newStart.setDate(newStart.getDate() - viewportDays);
+        newStart = addDaysToDate(newStart, -viewportDays);
       }
     }
-    const newEnd = new Date(newStart);
-    newEnd.setDate(newStart.getDate() + viewportDays - 1);
+    const newEnd = addDaysToDate(newStart, viewportDays - 1);
     return { start: newStart, end: newEnd };
   }
   /**
@@ -322,25 +313,17 @@ export class TimelineViewport {
     mainSidebarCollapsed?: boolean;
   }): { start: Date; end: Date } {
     const { currentDate, viewportDays, timelineMode, timelineSidebarCollapsed = true, mainSidebarCollapsed = false } = params;
-    
     // Calculate the actual visible columns (not including buffer)
     const visibleColumns = this.calculateVisibleColumns({
       timelineSidebarCollapsed,
       mainSidebarCollapsed,
       mode: timelineMode
     });
-    
     // Calculate visible days based on mode
     const visibleDays = timelineMode === 'weeks' ? visibleColumns * 7 : visibleColumns;
-    
     // Center today in the VISIBLE viewport by going back half the visible days
-    const start = new Date(currentDate);
-    start.setDate(start.getDate() - Math.floor(visibleDays / 2));
-    start.setHours(0, 0, 0, 0);
-    
-    const end = new Date(start);
-    end.setDate(start.getDate() + viewportDays - 1);
-    
+    const start = normalizeToMidnight(addDaysToDate(currentDate, -Math.floor(visibleDays / 2)));
+    const end = addDaysToDate(start, viewportDays - 1);
     return { start, end };
   }
   /**
@@ -358,15 +341,14 @@ export class TimelineViewport {
       start = new Date(projectStartDate);
       const day = start.getDay();
       const daysToSubtract = day === 0 ? 6 : day - 1;
-      start.setDate(start.getDate() - daysToSubtract);
+      start = addDaysToDate(start, -daysToSubtract);
     } else {
       // Start from project start date
       start = new Date(projectStartDate);
     }
-    start.setHours(0, 0, 0, 0);
+    start = normalizeToMidnight(start);
     // End is not critical for this calculation but we'll provide a reasonable default
-    const end = new Date(start);
-    end.setDate(start.getDate() + 30); // 30 day window
+    const end = addDaysToDate(start, 30); // 30 day window
     return { start, end };
   }
   /**
@@ -417,14 +399,9 @@ export class TimelineViewport {
     timelineMode: 'days' | 'weeks';
   }): Date {
     const { currentStart, direction, scrollAmount, timelineMode } = params;
-    const newStart = new Date(currentStart);
     const actualScrollAmount = timelineMode === 'weeks' ? scrollAmount * 7 : scrollAmount;
-    if (direction === 'left') {
-      newStart.setDate(newStart.getDate() - actualScrollAmount);
-    } else {
-      newStart.setDate(newStart.getDate() + actualScrollAmount);
-    }
-    return newStart;
+    const offset = direction === 'left' ? -actualScrollAmount : actualScrollAmount;
+    return addDaysToDate(currentStart, offset);
   }
   /**
    * Check if viewport operations should be blocked
@@ -436,7 +413,6 @@ export class TimelineViewport {
     // Can add blocking logic here if needed (e.g., during heavy operations)
     return { isBlocked: false };
   }
-
   /**
    * Create smooth animation for viewport operations
    * Used for drag operations, navigation, and scrolling
@@ -454,27 +430,21 @@ export class TimelineViewport {
     const startTime = performance.now();
     const { currentStart, targetStart, duration } = config;
     const totalChange = targetStart - currentStart;
-    
     // Default easing function (ease-out cubic)
     const easing = config.easingFunction || ((t: number) => 1 - Math.pow(1 - t, 3));
-    
     function animate(currentTime: number) {
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / duration, 1);
       const easedProgress = easing(progress);
-      
       const currentValue = currentStart + (totalChange * easedProgress);
       const intermediateDate = new Date(currentValue);
-      
       onUpdate(intermediateDate);
-      
       if (progress < 1) {
         requestAnimationFrame(animate);
       } else if (onComplete) {
         onComplete();
       }
     }
-    
     requestAnimationFrame(animate);
   }
   /**

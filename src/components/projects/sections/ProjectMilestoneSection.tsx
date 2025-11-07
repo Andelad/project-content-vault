@@ -18,6 +18,8 @@ import {
   calculateRecurringMilestoneCount, 
   calculateRecurringTotalAllocation, 
   detectRecurringPattern, 
+  normalizeToMidnight,
+  addDaysToDate,
   // NEW: Unified service imports (replacing legacy MilestoneManagementService)
   UnifiedMilestoneService,
   UnifiedMilestoneEntity,
@@ -28,7 +30,6 @@ import {
 import { MilestoneRules } from '@/domain/rules/MilestoneRules';
 import { supabase } from '@/integrations/supabase/client';
 import { getDayName, getOrdinalNumber, getWeekOfMonthName } from '@/utils/dateFormatUtils';
-
 interface ProjectMilestoneSectionProps {
   projectId?: string; // Made optional to support new projects
   projectEstimatedHours: number;
@@ -72,12 +73,10 @@ interface ProjectMilestoneSectionProps {
     totalAllocation: number;
   };
 }
-
 interface LocalMilestone extends Omit<Milestone, 'id'> {
   id?: string;
   isNew?: boolean;
 }
-
 interface RecurringMilestone {
   id: string;
   name: string;
@@ -92,7 +91,6 @@ interface RecurringMilestone {
   monthlyWeekOfMonth?: number; // 1-6 (1st, 2nd, 3rd, 4th, 2nd last=5, last=6)
   monthlyDayOfWeek?: number; // 0-6 for day of week in monthly pattern
 }
-
 interface RecurringMilestoneConfig {
   name: string;
   timeAllocation: number;
@@ -104,7 +102,6 @@ interface RecurringMilestoneConfig {
   monthlyWeekOfMonth?: number; // 1-6 (1st, 2nd, 3rd, 4th, 2nd last=5, last=6)
   monthlyDayOfWeek?: number; // 0-6 for day of week in monthly pattern
 }
-
 export function ProjectMilestoneSection({ 
   projectId, 
   projectEstimatedHours, 
@@ -125,7 +122,6 @@ export function ProjectMilestoneSection({
   recurringMilestoneInfo
 }: ProjectMilestoneSectionProps) {
   const { milestones: contextMilestones, addMilestone: contextAddMilestone, updateMilestone, deleteMilestone, showMilestoneSuccessToast, refetchMilestones } = useProjectContext();
-  
   // Use tracked version if provided (for rollback support), otherwise use context version
   const addMilestone = trackedAddMilestone || contextAddMilestone;
   const milestones = Array.isArray(contextMilestones) ? contextMilestones : [];
@@ -133,7 +129,6 @@ export function ProjectMilestoneSection({
   const [isExpanded, setIsExpanded] = useState(false);
   const [localMilestones, setLocalMilestones] = useState<LocalMilestone[]>([]);
   const [editingProperty, setEditingProperty] = useState<string | null>(null);
-  
   // Recurring milestone state
   const [recurringMilestone, setRecurringMilestone] = useState<RecurringMilestone | null>(null);
   const [showRecurringConfig, setShowRecurringConfig] = useState(false);
@@ -152,29 +147,24 @@ export function ProjectMilestoneSection({
     monthlyWeekOfMonth: 1,
     monthlyDayOfWeek: projectStartDate ? projectStartDate.getDay() : 1
   });
-  
   const [editingRecurringPattern, setEditingRecurringPattern] = useState(false);
   const [editingRecurringType, setEditingRecurringType] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
   const [editingRecurringInterval, setEditingRecurringInterval] = useState(1);
   const [editingRecurringLoad, setEditingRecurringLoad] = useState(false);
   const [editingLoadValue, setEditingLoadValue] = useState(0);
-
   // Additional editing state for the new pattern options
   const [editingWeeklyDayOfWeek, setEditingWeeklyDayOfWeek] = useState<number>(1);
   const [editingMonthlyPattern, setEditingMonthlyPattern] = useState<'date' | 'dayOfWeek'>('date');
   const [editingMonthlyDate, setEditingMonthlyDate] = useState<number>(1);
   const [editingMonthlyWeekOfMonth, setEditingMonthlyWeekOfMonth] = useState<number>(1);
   const [editingMonthlyDayOfWeek, setEditingMonthlyDayOfWeek] = useState<number>(1);
-
   // Split milestone (phases) state
   const [isSplitMode, setIsSplitMode] = useState(false);
   const [showSplitWarning, setShowSplitWarning] = useState(false);
   const [showRecurringFromSplitWarning, setShowRecurringFromSplitWarning] = useState(false);
-
   // Handle updating recurring milestone load
   const handleUpdateRecurringLoad = async (direction: 'forward' | 'both') => {
     if (!recurringMilestone || !projectId) return;
-
     // Delegate to ProjectMilestoneOrchestrator (AI Rule: use existing orchestrator)
     const result = await ProjectMilestoneOrchestrator.updateRecurringMilestoneLoad(
       projectId,
@@ -188,7 +178,6 @@ export function ProjectMilestoneSection({
         setRecurringMilestone
       }
     );
-
     if (!result.success) {
       toast({
         title: "Error",
@@ -197,21 +186,14 @@ export function ProjectMilestoneSection({
       });
       return;
     }
-    
     setEditingRecurringLoad(false);
   };
-
   // Handle splitting estimate into phases
   const handleSplitEstimate = async () => {
-    console.log('[Split] Starting split estimate');
-    console.log('[Split] isCreatingProject:', isCreatingProject);
-    console.log('[Split] projectId:', projectId);
-    
     // Calculate midpoint date
     const projectDuration = projectEndDate.getTime() - projectStartDate.getTime();
     const midpointTime = projectStartDate.getTime() + (projectDuration / 2);
     const midpointDate = new Date(midpointTime);
-
     // Create two initial phases
     const phase1: LocalMilestone = {
       id: isCreatingProject ? `phase-1-${Date.now()}` : undefined,
@@ -228,7 +210,6 @@ export function ProjectMilestoneSection({
       updatedAt: new Date(),
       isNew: true
     };
-
     const phase2: LocalMilestone = {
       id: isCreatingProject ? `phase-2-${Date.now() + 1}` : undefined,
       name: 'Phase 2',
@@ -244,56 +225,38 @@ export function ProjectMilestoneSection({
       updatedAt: new Date(),
       isNew: true
     };
-
-    console.log('[Split] Phase 1:', phase1);
-    console.log('[Split] Phase 2:', phase2);
-
     if (isCreatingProject && localMilestonesState) {
       // For new projects, add to local state
-      console.log('[Split] Adding to local state for new project');
       localMilestonesState.setMilestones([phase1, phase2]);
     } else if (projectId) {
       // For existing projects, save to database
-      console.log('[Split] Saving to database for existing project');
-      console.log('[Split] About to save phase 1:', JSON.stringify(phase1, null, 2));
       try {
         const result1 = await addMilestone(phase1);
-        console.log('[Split] Phase 1 saved, result:', result1);
       } catch (error) {
         console.error('[Split] Failed to save phase 1:', error);
         throw error; // Re-throw to stop execution
       }
-      
-      console.log('[Split] About to save phase 2:', JSON.stringify(phase2, null, 2));
       try {
         const result2 = await addMilestone(phase2);
-        console.log('[Split] Phase 2 saved, result:', result2);
       } catch (error) {
         console.error('[Split] Failed to save phase 2:', error);
         throw error; // Re-throw to stop execution
       }
     } else {
-      console.log('[Split] Adding to local milestones');
       setLocalMilestones([phase1, phase2]);
     }
-
     setIsSplitMode(true);
     setShowSplitWarning(false);
-    console.log('[Split] Split complete, isSplitMode set to true');
   };
-
   // Handle adding a new phase
   const handleAddPhase = async () => {
     const existingPhases = projectMilestones.filter(m => m.startDate !== undefined);
     const nextPhaseNumber = existingPhases.length + 1;
-
     // Find the last phase to determine start date
     const lastPhase = existingPhases.sort((a, b) => 
       new Date(b.endDate || b.dueDate).getTime() - new Date(a.endDate || a.dueDate).getTime()
     )[0];
-
     const phaseStartDate = lastPhase ? new Date(lastPhase.endDate || lastPhase.dueDate) : projectStartDate;
-
     const newPhase: LocalMilestone = {
       id: isCreatingProject ? `phase-${nextPhaseNumber}-${Date.now()}` : undefined,
       name: `Phase ${nextPhaseNumber}`,
@@ -309,7 +272,6 @@ export function ProjectMilestoneSection({
       updatedAt: new Date(),
       isNew: true
     };
-
     if (isCreatingProject && localMilestonesState) {
       localMilestonesState.setMilestones([...localMilestonesState.milestones, newPhase]);
     } else if (projectId) {
@@ -318,7 +280,6 @@ export function ProjectMilestoneSection({
       setLocalMilestones([...localMilestones, newPhase]);
     }
   };
-
   // Handle initiating split (with warning if milestones exist)
   const handleInitiateSplit = () => {
     const hasExistingMilestones = projectMilestones.length > 0;
@@ -328,7 +289,6 @@ export function ProjectMilestoneSection({
       handleSplitEstimate();
     }
   };
-
   // Handle deleting existing milestones before split
   const handleDeleteAndSplit = async () => {
     // Delete all existing milestones
@@ -342,15 +302,12 @@ export function ProjectMilestoneSection({
       }
       setLocalMilestones([]);
     }
-
     // Clear recurring state
     setRecurringMilestone(null);
     setIsDeletingRecurringMilestone(false);
-
     // Now create split phases
     await handleSplitEstimate();
   };
-
   // Helper function to handle property saving for milestones
   const handleSaveMilestoneProperty = async (milestoneId: string, property: string, value: any) => {
     // Delegate to ProjectMilestoneOrchestrator (AI Rule: use existing orchestrator)
@@ -375,7 +332,6 @@ export function ProjectMilestoneSection({
         setLocalMilestones
       }
     );
-
     if (!result.success) {
       toast({
         title: "Error",
@@ -385,10 +341,8 @@ export function ProjectMilestoneSection({
       setEditingProperty(null);
       return;
     }
-
     setEditingProperty(null);
   };
-
   // Inline editing components similar to ProjectModal
   const MilestoneNameField = ({ 
     milestone, 
@@ -399,7 +353,6 @@ export function ProjectMilestoneSection({
   }) => {
     const isEditing = editingProperty === `${milestone.id}-${property}`;
     const displayValue = milestone.name || 'Milestone name';
-    
     return (
       <div className="min-w-[120px]">
         <Label className="text-xs text-muted-foreground mb-1 block">Name</Label>
@@ -437,7 +390,6 @@ export function ProjectMilestoneSection({
       </div>
     );
   };
-
   const MilestoneBudgetField = ({ 
     milestone, 
     property = 'timeAllocation' 
@@ -447,7 +399,6 @@ export function ProjectMilestoneSection({
   }) => {
     const isEditing = editingProperty === `${milestone.id}-${property}`;
     const displayValue = `${milestone.timeAllocation}h`;
-    
     return (
       <div className="min-w-[80px]">
         <Label className="text-xs text-muted-foreground mb-1 block">Time Budget</Label>
@@ -489,7 +440,6 @@ export function ProjectMilestoneSection({
       </div>
     );
   };
-
   const MilestoneDateField = ({ 
     milestone, 
     property = 'dueDate' 
@@ -498,13 +448,11 @@ export function ProjectMilestoneSection({
     property?: string;
   }) => {
     const [isOpen, setIsOpen] = useState(false);
-    
     const formatDate = (date: Date) => {
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
                      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       return `${months[date.getMonth()]} ${date.getDate()}`;
     };
-
     // Calculate the valid date range for this milestone using unified service
     const getValidDateRange = () => {
       const result = UnifiedMilestoneService.calculateMilestoneDateRange({
@@ -513,42 +461,33 @@ export function ProjectMilestoneSection({
         existingMilestones: projectMilestones,
         currentMilestone: milestone
       });
-      
       return {
         minDate: result.minDate,
         maxDate: result.maxDate
       };
     };
-
     const { minDate, maxDate } = getValidDateRange();
-
     // Check if current date is valid
     const isCurrentDateValid = milestone.dueDate >= minDate && milestone.dueDate <= maxDate;
-
     // Determine the appropriate month to display in the calendar
     const getCalendarDefaultMonth = () => {
       if (isCurrentDateValid) {
         return milestone.dueDate;
       }
-      
       // If current date is before valid range, show the first valid month
       if (milestone.dueDate < minDate) {
         return minDate;
       }
-      
       // If current date is after valid range, show the last valid month
       if (milestone.dueDate > maxDate) {
         return maxDate;
       }
-      
       // Fallback to minDate
       return minDate;
     };
-
     return (
       <div className="min-w-[140px]">
         <Label className="text-xs text-muted-foreground mb-1 block">Due Date</Label>
-        
         <Popover open={isOpen} onOpenChange={setIsOpen}>
           <PopoverTrigger asChild>
             <Button
@@ -613,7 +552,6 @@ export function ProjectMilestoneSection({
       </div>
     );
   };
-
   // Phase date field component (shows both start and end dates)
   const PhaseDateField = ({ 
     milestone, 
@@ -629,13 +567,11 @@ export function ProjectMilestoneSection({
     const isEditing = editingProperty === `${milestone.id}-${property}`;
     const dateValue = property === 'startDate' ? milestone.startDate : (milestone.endDate || milestone.dueDate);
     const displayValue = dateValue ? format(new Date(dateValue), 'MMM dd') : 'Select date';
-    
     // Determine if this field is editable
     const isFixed = (property === 'startDate' && isFirst) || (property === 'endDate' && isLast);
     const promptText = property === 'startDate' 
       ? 'Edit project start date' 
       : 'Edit project end date';
-    
     return (
       <div className="min-w-[100px]">
         <Label className={`text-xs mb-1 block ${isFixed ? 'text-muted-foreground/50' : 'text-muted-foreground'}`}>
@@ -672,14 +608,11 @@ export function ProjectMilestoneSection({
                   const phases = projectMilestones
                     .filter(m => m.startDate !== undefined)
                     .sort((a, b) => new Date(a.startDate!).getTime() - new Date(b.startDate!).getTime());
-                  
                   const currentIndex = phases.findIndex(p => p.id === milestone.id);
-                  
                   if (property === 'startDate') {
                     // Start date must be after previous phase end and before current phase end
                     const prevPhase = currentIndex > 0 ? phases[currentIndex - 1] : null;
                     const currentEnd = new Date(milestone.endDate || milestone.dueDate);
-                    
                     if (prevPhase) {
                       const prevEnd = new Date(prevPhase.endDate || prevPhase.dueDate);
                       return date < prevEnd || date >= currentEnd;
@@ -689,7 +622,6 @@ export function ProjectMilestoneSection({
                     // End date must be after current phase start and before next phase start
                     const nextPhase = currentIndex < phases.length - 1 ? phases[currentIndex + 1] : null;
                     const currentStart = new Date(milestone.startDate!);
-                    
                     if (nextPhase) {
                       const nextStart = new Date(nextPhase.startDate!);
                       return date <= currentStart || date >= nextStart;
@@ -705,7 +637,6 @@ export function ProjectMilestoneSection({
       </div>
     );
   };
-
   // Get milestones for this project - handle both new and existing projects
   const projectMilestones = useMemo(() => {
     if (isCreatingProject && localMilestonesState) {
@@ -725,7 +656,6 @@ export function ProjectMilestoneSection({
       return localMilestones || [];
     }
   }, [milestones, projectId, localMilestones, isCreatingProject, localMilestonesState, projectStartDate, projectEndDate]);
-
   // Check if project has recurring milestones and reconstruct config
   // NEW SYSTEM: Look for template milestone with isRecurring=true
   // OLD SYSTEM: Fall back to numbered pattern detection for backward compatibility
@@ -733,28 +663,17 @@ export function ProjectMilestoneSection({
   React.useEffect(() => {
     const phaseMilestones = projectMilestones.filter(m => m.startDate !== undefined);
     const shouldBeSplitMode = phaseMilestones.length > 0;
-    console.log('[Split Mode Detection] Phase milestones found:', phaseMilestones.length);
-    console.log('[Split Mode Detection] Should be split mode:', shouldBeSplitMode);
     setIsSplitMode(shouldBeSplitMode);
   }, [projectMilestones]);
-
   React.useEffect(() => {
     // Check if any milestones have startDate (phases) - if so, don't detect recurring
     const hasPhases = projectMilestones.some(m => m.startDate !== undefined);
-    
     if (recurringMilestone || !projectId || isDeletingRecurringMilestone || hasPhases) return;
-    
-    console.log('[Recurring Detection] Checking for recurring milestones');
-    console.log('[Recurring Detection] projectMilestones:', projectMilestones);
-    
     // NEW SYSTEM: First check for template milestone with isRecurring=true
     const templateMilestone = projectMilestones.find(m => m.isRecurring === true);
-    console.log('[Recurring Detection] Template milestone:', templateMilestone);
-    
     if (templateMilestone && templateMilestone.recurringConfig) {
       // Found new-style template milestone - use its configuration
       const config = templateMilestone.recurringConfig;
-      
       setRecurringMilestone({
         id: templateMilestone.id || 'recurring-milestone',
         name: templateMilestone.name,
@@ -771,38 +690,28 @@ export function ProjectMilestoneSection({
       });
       return;
     }
-    
     // OLD SYSTEM: Fall back to pattern detection from numbered milestones
     // Exclude phases (milestones with startDate) from recurring detection
     const recurringPattern = projectMilestones.filter(m => 
       m.name && /\s\d+$/.test(m.name) && m.startDate === undefined // Ends with space and number, but not a phase
     );
-    
-    console.log('[Recurring Detection] Recurring pattern matches:', recurringPattern);
-    
     if (recurringPattern.length >= 1) {
-      console.log('[Recurring Detection] Found recurring pattern, setting recurring milestone');
       // Detect recurring pattern from existing milestones
       const sortedMilestones = recurringPattern.sort((a, b) => 
         new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
       );
-      
       let recurringType: 'daily' | 'weekly' | 'monthly' = 'weekly';
       let interval = 1;
-      
       if (recurringPattern.length > 1) {
         // Calculate interval between milestones using service
         const firstDate = new Date(sortedMilestones[0].dueDate);
         const secondDate = new Date(sortedMilestones[1].dueDate);
         const intervalResult = UnifiedMilestoneService.calculateMilestoneInterval(firstDate, secondDate);
-        
         recurringType = intervalResult.type === 'custom' ? 'daily' : intervalResult.type;
         interval = intervalResult.interval;
       }
-      
       // Extract base name (remove the number at the end)
       const baseName = sortedMilestones[0].name.replace(/\s\d+$/, '') || 'Recurring Milestone';
-      
       // Reconstruct the recurring milestone config (this will hide individual milestone cards)
       setRecurringMilestone({
         id: 'recurring-milestone',
@@ -815,7 +724,6 @@ export function ProjectMilestoneSection({
       });
     }
   }, [projectMilestones, recurringMilestone, projectId, isDeletingRecurringMilestone]);
-
   // Calculate total time allocation including recurring milestone
   const totalRecurringAllocation = useMemo(() => {
     if (recurringMilestone) {
@@ -832,7 +740,6 @@ export function ProjectMilestoneSection({
     }
     return 0;
   }, [recurringMilestone, projectStartDate, projectEndDate, projectContinuous]);
-
   // Calculate budget analysis inline (MilestoneOrchestrator is deprecated)
   const budgetAnalysis = useMemo(() => {
     // Filter out template milestone and old numbered instances to avoid double-counting
@@ -841,18 +748,15 @@ export function ProjectMilestoneSection({
       // Exclude temporary/unsaved milestones (these haven't been saved to DB yet)
       if ('isNew' in m && (m as LocalMilestone).isNew) return false;
       if (typeof m.id === 'string' && m.id.startsWith('temp-')) return false;
-      
       // Exclude NEW template milestones
       if (m.isRecurring) return false;
       // Exclude OLD numbered instances (but not phases)
       if (m.name && /\s\d+$/.test(m.name) && m.startDate === undefined) return false;
       return true;
     });
-    
     const totalAllocated = nonRecurringMilestones.reduce((sum, m) => sum + m.timeAllocation, 0) + totalRecurringAllocation;
     const remainingBudget = projectEstimatedHours - totalAllocated;
     const isOverBudget = totalAllocated > projectEstimatedHours;
-    
     return {
       totalAllocated,
       remainingBudget,
@@ -860,7 +764,6 @@ export function ProjectMilestoneSection({
       utilizationPercent: projectEstimatedHours > 0 ? (totalAllocated / projectEstimatedHours) * 100 : 0
     };
   }, [projectMilestones, projectEstimatedHours, totalRecurringAllocation]);
-
   // NEW: Enhanced project analysis using domain entities
   const projectHealthAnalysis = useMemo(() => {
     const validMilestones = projectMilestones.filter(m => m.id) as Milestone[];
@@ -880,16 +783,12 @@ export function ProjectMilestoneSection({
       createdAt: new Date(),
       updatedAt: new Date()
     };
-
     return ProjectOrchestrator.analyzeProjectMilestones(project, validMilestones);
   }, [projectMilestones, projectEstimatedHours, projectStartDate, projectEndDate, projectContinuous, projectId]);
-
   // Calculate total time allocation in hours (for backward compatibility)
   const totalTimeAllocation = budgetAnalysis.totalAllocated;
-
   // Calculate suggested budget based on milestones (for backward compatibility)
   const suggestedBudgetFromMilestones = Math.max(projectEstimatedHours, budgetAnalysis.totalAllocated);
-
   const addNewMilestone = () => {
     // Calculate the appropriate default date for the new milestone using unified service
     const getDefaultMilestoneDate = () => {
@@ -899,7 +798,6 @@ export function ProjectMilestoneSection({
         existingMilestones: projectMilestones
       });
     };
-
     // Calculate default time allocation based on remaining budget
     const getDefaultTimeAllocation = () => {
       const validMilestones = projectMilestones.filter(m => m.id) as Milestone[];
@@ -907,14 +805,11 @@ export function ProjectMilestoneSection({
         validMilestones,
         projectEstimatedHours
       );
-      
       // Use remaining budget, but at least 1 hour and at most 8 hours
       const defaultHours = Math.min(8, Math.max(1, Math.floor(budgetCheck.remaining)));
       return defaultHours;
     };
-
     const defaultHours = getDefaultTimeAllocation();
-
     const newMilestone: LocalMilestone = {
       id: `temp-${Date.now()}`, // Generate temporary ID for editing
       name: 'New Milestone',
@@ -928,7 +823,6 @@ export function ProjectMilestoneSection({
       updatedAt: new Date(),
       isNew: true
     };
-    
     if (isCreatingProject && localMilestonesState) {
       // For new projects, update the provided state
       localMilestonesState.setMilestones([...localMilestonesState.milestones, newMilestone]);
@@ -937,7 +831,6 @@ export function ProjectMilestoneSection({
       setLocalMilestones(prev => [...prev, newMilestone]);
     }
   };
-
   const updateLocalMilestone = (index: number, updates: Partial<LocalMilestone>) => {
     if (isCreatingProject && localMilestonesState) {
       // For new projects, update the provided state
@@ -952,21 +845,17 @@ export function ProjectMilestoneSection({
       ));
     }
   };
-
   const saveNewMilestone = async (index: number) => {
     const milestone = isCreatingProject && localMilestonesState 
       ? localMilestonesState.milestones[index]
       : localMilestones[index];
-    
     if (!milestone || !milestone.name.trim()) return;
-
     // For new projects, handle locally without database operations
     if (isCreatingProject) {
       const updatedMilestone = { ...milestone, isNew: false };
       updateLocalMilestone(index, updatedMilestone);
       return;
     }
-
     // For existing projects, delegate to orchestrator (AI Rule: use existing orchestrator)
     if (projectId) {
       const result = await ProjectMilestoneOrchestrator.saveNewMilestone(
@@ -983,7 +872,6 @@ export function ProjectMilestoneSection({
           setLocalMilestones
         }
       );
-
       if (!result.success) {
         toast({
           title: "Error",
@@ -992,12 +880,10 @@ export function ProjectMilestoneSection({
         });
         return;
       }
-      
       // Refetch milestones to ensure UI is in sync
       await refetchMilestones();
     }
   };
-
   const deleteLocalMilestone = (index: number) => {
     if (isCreatingProject && localMilestonesState) {
       // For new projects, update the provided state
@@ -1008,7 +894,6 @@ export function ProjectMilestoneSection({
       setLocalMilestones(prev => prev.filter((_, i) => i !== index));
     }
   };
-
   const handleDeleteMilestone = async (milestoneId: string) => {
     try {
       await deleteMilestone(milestoneId, { silent: true });
@@ -1023,7 +908,6 @@ export function ProjectMilestoneSection({
       });
     }
   };
-
   const handleUpdateMilestone = async (milestoneId: string, updates: Partial<Milestone>) => {
     // Check if this update would exceed budget using service
     if (updates.timeAllocation !== undefined) {
@@ -1034,7 +918,6 @@ export function ProjectMilestoneSection({
         updates.timeAllocation,
         projectEstimatedHours
       );
-      
       if (!budgetCheck.isValid) {
         toast({
           title: "Error",
@@ -1044,7 +927,6 @@ export function ProjectMilestoneSection({
         return;
       }
     }
-
     try {
       await updateMilestone(milestoneId, updates, { silent: true });
       // No success toast - will be handled by modal confirmation
@@ -1057,30 +939,24 @@ export function ProjectMilestoneSection({
       });
     }
   };
-
   const isOverBudget = budgetAnalysis.isOverBudget;
-
   // Generate recurring milestones based on configuration using enhanced logic
   const generateRecurringMilestones = (config: RecurringMilestoneConfig, maxCount?: number) => {
     const milestones: any[] = [];
-    let currentDate = new Date(projectStartDate);
-    currentDate.setHours(0, 0, 0, 0);
+    let currentDate = normalizeToMidnight(new Date(projectStartDate));
     let order = 0;
-
     const endDate = projectContinuous ? 
-      new Date(currentDate.getTime() + 365 * 24 * 60 * 60 * 1000) : // 1 year for continuous
+      addDaysToDate(currentDate, 365) : // 1 year for continuous
       new Date(projectEndDate);
     endDate.setHours(23, 59, 59, 999);
-
     // Safety limits to prevent runaway generation
     const defaultLimit = projectContinuous ? 10 : 100; // Much smaller defaults
     const limit = Math.min(maxCount || defaultLimit, 1000); // Hard cap at 1000
-
     // Initialize first occurrence based on pattern
     switch (config.recurringType) {
       case 'daily':
         // First occurrence is project start date + interval
-        currentDate.setDate(currentDate.getDate() + config.recurringInterval);
+        currentDate = addDaysToDate(currentDate, config.recurringInterval);
         break;
       case 'weekly':
         // Find the first occurrence of the target day on or after project start
@@ -1089,7 +965,7 @@ export function ProjectMilestoneSection({
         const daysUntilFirstOccurrence = targetDayOfWeek >= projectStartDay
           ? targetDayOfWeek - projectStartDay
           : 7 - projectStartDay + targetDayOfWeek;
-        currentDate.setDate(currentDate.getDate() + daysUntilFirstOccurrence);
+        currentDate = addDaysToDate(currentDate, daysUntilFirstOccurrence);
         break;
       case 'monthly':
         if (config.monthlyPattern === 'date') {
@@ -1105,16 +981,13 @@ export function ProjectMilestoneSection({
           // Find first occurrence of day of week pattern
           const targetWeekOfMonth = config.monthlyWeekOfMonth ?? 1;
           const targetDayOfWeek = config.monthlyDayOfWeek ?? 1;
-          
           // Calculate the target date in the current month
           const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
           const firstDayWeekday = firstDayOfMonth.getDay();
           const daysToAdd = (targetDayOfWeek - firstDayWeekday + 7) % 7;
           const firstOccurrence = 1 + daysToAdd;
           const targetDateInMonth = firstOccurrence + ((targetWeekOfMonth - 1) * 7);
-          
           currentDate.setDate(targetDateInMonth);
-          
           // If we've passed this date, move to next month
           if (currentDate < projectStartDate) {
             currentDate.setMonth(currentDate.getMonth() + 1);
@@ -1123,7 +996,6 @@ export function ProjectMilestoneSection({
         }
         break;
     }
-
     while (currentDate <= endDate && order < limit) {
       milestones.push({
         id: `recurring-${order}`,
@@ -1135,15 +1007,14 @@ export function ProjectMilestoneSection({
         isRecurring: true,
         isNew: true
       });
-
       // Calculate next occurrence based on pattern
       switch (config.recurringType) {
         case 'daily':
-          currentDate.setDate(currentDate.getDate() + config.recurringInterval);
+          currentDate = addDaysToDate(currentDate, config.recurringInterval);
           break;
         case 'weekly':
           // Simply add the interval weeks
-          currentDate.setDate(currentDate.getDate() + (7 * config.recurringInterval));
+          currentDate = addDaysToDate(currentDate, 7 * config.recurringInterval);
           break;
         case 'monthly':
           if (config.monthlyPattern === 'date') {
@@ -1155,9 +1026,7 @@ export function ProjectMilestoneSection({
             // Day of week pattern (e.g., 3rd Tuesday, last Friday, 2nd last Monday)
             const targetWeekOfMonth = config.monthlyWeekOfMonth ?? 1;
             const targetDayOfWeek = config.monthlyDayOfWeek ?? 1;
-            
             currentDate.setMonth(currentDate.getMonth() + config.recurringInterval);
-            
             if (targetWeekOfMonth === 6) {
               // "Last" occurrence - find the last occurrence of the target day in the month
               const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
@@ -1171,7 +1040,6 @@ export function ProjectMilestoneSection({
               const daysToSubtract = (lastDayWeekday - targetDayOfWeek + 7) % 7;
               const lastOccurrence = lastDayOfMonth.getDate() - daysToSubtract;
               const secondLastOccurrence = lastOccurrence - 7;
-              
               // Use second last if it's valid (positive), otherwise use last
               currentDate.setDate(secondLastOccurrence > 0 ? secondLastOccurrence : lastOccurrence);
             } else {
@@ -1181,7 +1049,6 @@ export function ProjectMilestoneSection({
               const daysToAdd = (targetDayOfWeek - firstDayWeekday + 7) % 7;
               const firstOccurrence = 1 + daysToAdd;
               const targetDateCalc = firstOccurrence + ((targetWeekOfMonth - 1) * 7);
-              
               // Check if the calculated date exists in the month
               const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
               if (targetDateCalc <= daysInMonth) {
@@ -1195,13 +1062,10 @@ export function ProjectMilestoneSection({
           }
           break;
       }
-      
       order++;
     }
-
     return milestones;
   };
-
   // Handle creating recurring milestone
   const handleCreateRecurringMilestone = () => {
     if (projectMilestones.length > 0) {
@@ -1210,29 +1074,23 @@ export function ProjectMilestoneSection({
     }
     setShowRecurringConfig(true);
   };
-
   // Auto-generate recurring milestones as needed (transparent to user)
   const ensureRecurringMilestonesAvailable = React.useCallback(async (targetDate?: Date) => {
     if (!recurringMilestone || !projectId) return;
-    
     // Get current milestone count (exclude phases)
     const currentMilestones = projectMilestones.filter(m => 
       m.name && /\s\d+$/.test(m.name) && m.startDate === undefined
     );
-    
     // Safety check: if we already have too many, don't generate more
     if (currentMilestones.length >= 1000) {
       console.warn('Milestone limit reached (1000), skipping generation');
       return;
     }
-    
     // Calculate total milestones needed for the project duration
     const projectDurationMs = projectContinuous ? 
       365 * 24 * 60 * 60 * 1000 : // 1 year for continuous
       new Date(projectEndDate).getTime() - new Date(projectStartDate).getTime();
-    
     const projectDurationDays = Math.ceil(projectDurationMs / (24 * 60 * 60 * 1000));
-    
     // Estimate total milestones needed based on recurrence pattern
     let estimatedTotalMilestones = 0;
     switch (recurringMilestone.recurringType) {
@@ -1246,18 +1104,14 @@ export function ProjectMilestoneSection({
         estimatedTotalMilestones = Math.floor(projectDurationDays / (30 * recurringMilestone.recurringInterval));
         break;
     }
-    
     // Cap estimates at reasonable values
     estimatedTotalMilestones = Math.min(estimatedTotalMilestones, 500);
-    
     // For continuous projects, ensure we have at least 6 months worth
     // For time-bounded projects, only generate what's actually needed
     const targetMilestoneCount = projectContinuous ? 
       Math.min(26, estimatedTotalMilestones) : // At least 6 months, max 26 for continuous
       Math.min(estimatedTotalMilestones, 100); // Max 100 for time-bounded
-    
     const needsMoreMilestones = currentMilestones.length < targetMilestoneCount;
-    
     // Or if a specific target date is provided, ensure we have milestones up to that date
     let needsCoverageToDate = false;
     if (targetDate && currentMilestones.length > 0) {
@@ -1266,9 +1120,7 @@ export function ProjectMilestoneSection({
       )[0];
       needsCoverageToDate = new Date(lastMilestone.dueDate) < targetDate;
     }
-    
     if (!needsMoreMilestones && !needsCoverageToDate) return;
-    
     // No generation feedback - everything should be instant and silent
     try {
       const recurringConfig: RecurringMilestoneConfig = {
@@ -1282,14 +1134,12 @@ export function ProjectMilestoneSection({
         monthlyWeekOfMonth: recurringMilestone.monthlyWeekOfMonth,
         monthlyDayOfWeek: recurringMilestone.monthlyDayOfWeek
       };
-      
       // Calculate how many milestones to generate
       const milestonesToGenerate = targetMilestoneCount - currentMilestones.length;
       const batchSize = Math.min(milestonesToGenerate, 20); // Don't generate more than 20 at once
       const startFromIndex = currentMilestones.length;
       const allMilestones = generateRecurringMilestones(recurringConfig, startFromIndex + batchSize);
       const newMilestones = allMilestones.slice(startFromIndex, startFromIndex + batchSize);
-      
       // Save new milestones to database in background
       const savePromises = newMilestones.map(milestone =>
         addMilestone({
@@ -1299,21 +1149,17 @@ export function ProjectMilestoneSection({
           projectId,
         }, { silent: true })
       );
-      
       await Promise.all(savePromises);
-      
     } catch (error) {
       console.error('Error auto-generating recurring milestones:', error);
     }
   }, [recurringMilestone, projectId, projectMilestones, generateRecurringMilestones, addMilestone, projectContinuous, projectStartDate, projectEndDate]);
-
   // Auto-trigger milestone generation when needed
   React.useEffect(() => {
     if (recurringMilestone && projectContinuous) {
       ensureRecurringMilestonesAvailable();
     }
   }, [recurringMilestone, projectContinuous, ensureRecurringMilestonesAvailable]);
-
   // Load recurring milestone configuration from local storage on mount
   React.useEffect(() => {
     if (projectId && !recurringMilestone && !isDeletingRecurringMilestone) {
@@ -1329,11 +1175,9 @@ export function ProjectMilestoneSection({
       }
     }
   }, [projectId, recurringMilestone, isDeletingRecurringMilestone]);
-
   // Handle confirming recurring milestone creation
   const handleConfirmRecurringMilestone = async () => {
     if (!projectId) return;
-    
     try {
       // Create project object for orchestrator (with minimal required fields)
       const project: Project = {
@@ -1352,7 +1196,6 @@ export function ProjectMilestoneSection({
         createdAt: new Date(),
         updatedAt: new Date()
       };
-
       // Convert component config to orchestrator config
       const orchestratorConfig = {
         name: recurringConfig.name,
@@ -1365,7 +1208,6 @@ export function ProjectMilestoneSection({
         monthlyWeekOfMonth: recurringConfig.monthlyWeekOfMonth,
         monthlyDayOfWeek: recurringConfig.monthlyDayOfWeek
       };
-
       // Use ProjectMilestoneOrchestrator for complex workflow
       const result = await ProjectMilestoneOrchestrator.createRecurringMilestones(
         projectId,
@@ -1375,22 +1217,18 @@ export function ProjectMilestoneSection({
           refetchMilestones
         }
       );
-
       if (result.success && result.recurringMilestone) {
         // Update UI state with successful result
         setRecurringMilestone(result.recurringMilestone);
-        
         // Show success message
         toast({
           title: "Recurring milestones created",
           description: `Generated ${result.generatedCount} of estimated ${result.estimatedTotalCount} milestones`,
         });
-
         // Trigger auto-generation for continuous projects
         if (projectContinuous) {
           await ensureRecurringMilestonesAvailable();
         }
-        
         // Update UI state on success
         setShowRecurringConfig(false);
         setShowRecurringWarning(false);
@@ -1406,23 +1244,17 @@ export function ProjectMilestoneSection({
       });
     }
   };
-
   // Handle deleting recurring milestones
   const handleDeleteRecurringMilestones = async () => {
-    console.log('[ProjectMilestoneSection] Starting deletion of recurring milestones');
-    
     // Set deletion flag to prevent restoration
     setIsDeletingRecurringMilestone(true);
-    
     // Clear local storage FIRST to prevent restoration
     if (projectId) {
       localStorage.removeItem(`recurring-milestone-${projectId}`);
     }
-    
     // Instantly clear the UI state for better UX
     setRecurringMilestone(null);
     setLocalMilestones([]);
-    
     try {
       if (isCreatingProject && localMilestonesState) {
         localMilestonesState.setMilestones([]);
@@ -1433,13 +1265,9 @@ export function ProjectMilestoneSection({
         const recurringMilestones = projectMilestones.filter(m => 
           m.isRecurring || (m.name && /\s\d+$/.test(m.name) && m.startDate === undefined)
         );
-        
-        console.log('[ProjectMilestoneSection] Found', recurringMilestones.length, 'recurring milestones to delete');
-        
         // If there's a template (isRecurring=true), delete it first (cascade will handle instances)
         const template = recurringMilestones.find(m => m.isRecurring);
         if (template && template.id && !template.id.startsWith('temp-')) {
-          console.log('[ProjectMilestoneSection] Deleting template milestone:', template.name);
           await deleteMilestone(template.id, { silent: true });
           toast({
             title: "Success",
@@ -1448,26 +1276,18 @@ export function ProjectMilestoneSection({
         } else {
           // No template found - these are orphaned instances
           // Use batch deletion for better performance
-          console.log('[ProjectMilestoneSection] No template found, deleting orphaned instances');
-          
           const orphanedIds = recurringMilestones
             .filter(milestone => milestone.id && !milestone.id.startsWith('temp-'))
             .map(m => m.id!);
-          
           if (orphanedIds.length > 0) {
-            console.log('[ProjectMilestoneSection] Batch deleting', orphanedIds.length, 'orphaned milestones');
-            
             // Use Supabase batch delete for better performance
             const { error } = await supabase
               .from('milestones')
               .delete()
               .in('id', orphanedIds);
-            
             if (error) throw error;
-            
             // Refetch milestones to update UI
             await refetchMilestones();
-            
             toast({
               title: "Success",
               description: `Deleted ${orphanedIds.length} orphaned milestones`,
@@ -1487,7 +1307,6 @@ export function ProjectMilestoneSection({
       setIsDeletingRecurringMilestone(false);
     }
   };
-
   // Handle adding regular milestone when recurring exists
   const handleAddMilestoneWithWarning = () => {
     if (recurringMilestone || projectMilestones.some(m => m.id?.startsWith('recurring-'))) {
@@ -1496,7 +1315,6 @@ export function ProjectMilestoneSection({
     }
     addNewMilestone();
   };
-
   // Expose milestone generation function for external components (timeline, calendar, etc.)
   React.useEffect(() => {
     if (onRecurringMilestoneChange) {
@@ -1507,7 +1325,6 @@ export function ProjectMilestoneSection({
       });
     }
   }, [totalRecurringAllocation, recurringMilestone, onRecurringMilestoneChange, ensureRecurringMilestonesAvailable]);
-
   return (
     <div>
       <div className="pb-6">
@@ -1518,7 +1335,6 @@ export function ProjectMilestoneSection({
                     const isEditing = externalEditingProperty === 'estimatedHours';
                     const isContinuousWithRecurring = projectContinuous && recurringMilestoneInfo.hasRecurring;
                     const displayValue = isContinuousWithRecurring ? 'N/A' : `${projectEstimatedHours}h`;
-                    
                     return (
                       <div>
                         <Label className="text-xs text-muted-foreground mb-1 block">Time Budget</Label>
@@ -1553,7 +1369,6 @@ export function ProjectMilestoneSection({
                               <span className="truncate">{displayValue}</span>
                             </div>
                           )}
-                          
                           {/* Split Estimate and Recurring Estimate Buttons */}
                           <Button
                             variant="outline"
@@ -1564,7 +1379,6 @@ export function ProjectMilestoneSection({
                             <SquareSplitHorizontal className="w-4 h-4" />
                             Split Estimate
                           </Button>
-
                           <Button
                             variant="outline"
                             size="sm"
@@ -1588,7 +1402,6 @@ export function ProjectMilestoneSection({
                   })()}
                 </div>
               )}
-              
               {isOverBudget && !projectContinuous && (
                 <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
                   <div className="flex items-center justify-between">
@@ -1616,19 +1429,16 @@ export function ProjectMilestoneSection({
                   </p>
                 </div>
               )}
-
               {/* All Milestones with Inline Editing */}
               {projectMilestones.filter(milestone => {
                 // NEW SYSTEM: Filter out template milestones with isRecurring=true
                 if (milestone.isRecurring) {
                   return false; // Template milestone is shown in recurring panel below
                 }
-                
                 // OLD SYSTEM: Filter out numbered recurring instances (but not phases)
                 if ((recurringMilestone || isDeletingRecurringMilestone) && milestone.name && /\s\d+$/.test(milestone.name) && milestone.startDate === undefined) {
                   return false; // Don't show individual recurring milestones as cards, but keep phases
                 }
-                
                 return true; // Show regular milestones and phases
               }).map((milestone, index) => {
                 const isPhase = milestone.startDate !== undefined;
@@ -1638,7 +1448,6 @@ export function ProjectMilestoneSection({
                 const phaseIndex = phases.findIndex(p => p.id === milestone.id);
                 const isFirst = phaseIndex === 0;
                 const isLast = phaseIndex === phases.length - 1;
-                
                 return (
                   <div key={milestone.id || `milestone-${index}`} className="border border-gray-200 rounded-lg p-4 mb-3">
                     <div className="flex items-end justify-between">
@@ -1647,7 +1456,6 @@ export function ProjectMilestoneSection({
                         <MilestoneNameField milestone={milestone} />
                         <MilestoneBudgetField milestone={milestone} />
                       </div>
-                      
                       {/* Right side: Date(s) and Delete Button */}
                       <div className="flex items-end gap-3">
                         {isPhase ? (
@@ -1703,7 +1511,6 @@ export function ProjectMilestoneSection({
                   </div>
                 );
               })}
-
               {/* Recurring Milestone Card */}
               {recurringMilestone && (
                 <div className="border border-gray-200 rounded-lg p-4 mb-3">
@@ -1763,7 +1570,6 @@ export function ProjectMilestoneSection({
                         </div>
                       </div>
                     </div>
-                    
                     {/* Right side: Pattern and Delete Button */}
                     <div className="flex items-end gap-3">
                       <div className="min-w-[180px]">
@@ -1783,7 +1589,6 @@ export function ProjectMilestoneSection({
                                 <SelectItem value="monthly">Monthly</SelectItem>
                               </SelectContent>
                             </Select>
-                            
                             {/* Weekly day selection for editing */}
                             {editingRecurringType === 'weekly' && (
                               <Select 
@@ -1804,7 +1609,6 @@ export function ProjectMilestoneSection({
                                 </SelectContent>
                               </Select>
                             )}
-
                             {/* Monthly pattern selection for editing */}
                             {editingRecurringType === 'monthly' && (
                               <div className="space-y-2">
@@ -1820,7 +1624,6 @@ export function ProjectMilestoneSection({
                                     <SelectItem value="dayOfWeek">Day of week pattern</SelectItem>
                                   </SelectContent>
                                 </Select>
-
                                 {editingMonthlyPattern === 'date' ? (
                                   <Select 
                                     value={editingMonthlyDate.toString()} 
@@ -1876,7 +1679,6 @@ export function ProjectMilestoneSection({
                                 )}
                               </div>
                             )}
-                            
                             <div className="flex gap-2">
                               <Button 
                                 size="sm" 
@@ -1894,10 +1696,8 @@ export function ProjectMilestoneSection({
                                       monthlyDayOfWeek: editingMonthlyDayOfWeek
                                     };
                                     setRecurringMilestone(updatedMilestone);
-                                    
                                     // Delete existing recurring milestones and recreate with new pattern
                                     await handleDeleteRecurringMilestones();
-                                    
                                     // Recreate with new pattern
                                     const newConfig = {
                                       name: recurringMilestone.name,
@@ -1910,9 +1710,7 @@ export function ProjectMilestoneSection({
                                       monthlyWeekOfMonth: editingMonthlyWeekOfMonth,
                                       monthlyDayOfWeek: editingMonthlyDayOfWeek
                                     };
-                                    
                                     const generatedMilestones = generateRecurringMilestones(newConfig);
-                                    
                                     for (const milestone of generatedMilestones) {
                                       await addMilestone({
                                         name: milestone.name,
@@ -1921,7 +1719,6 @@ export function ProjectMilestoneSection({
                                         projectId: projectId!,
                                       }, { silent: true });
                                     }
-                                    
                                     setRecurringMilestone(updatedMilestone);
                                     // No toast - will be handled by modal confirmation
                                   }
@@ -1997,7 +1794,6 @@ export function ProjectMilestoneSection({
                       </AlertDialog>
                     </div>
                   </div>
-                  
                   {editingRecurringLoad && (
                     <div className="mt-4 pt-4 border-t border-gray-200">
                       <p className="text-sm text-gray-700 mb-3">
@@ -2023,7 +1819,6 @@ export function ProjectMilestoneSection({
                       </div>
                     </div>
                   )}
-                  
                   {/* Transparent status for continuous projects */}
                   {projectContinuous && (
                     <div className="mt-4 pt-4 border-t border-gray-200">
@@ -2036,7 +1831,6 @@ export function ProjectMilestoneSection({
                       </div>
                     </div>
                   )}
-                  
                   {/* Status for time-bounded projects */}
                   {!projectContinuous && (
                     <div className="mt-4 pt-4 border-t border-gray-200">
@@ -2051,7 +1845,6 @@ export function ProjectMilestoneSection({
                   )}
                 </div>
               )}
-
               {/* Add Milestone/Phase Button - Only show when in split mode */}
               {isSplitMode && (
                 <div className="mt-4">
@@ -2065,7 +1858,6 @@ export function ProjectMilestoneSection({
                   </Button>
                 </div>
               )}
-
               {/* Warning: Regular milestone when recurring exists */}
               <AlertDialog open={showRegularMilestoneWarning} onOpenChange={setShowRegularMilestoneWarning}>
                 <AlertDialogContent>
@@ -2090,7 +1882,6 @@ export function ProjectMilestoneSection({
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
-
               {/* Warning: Recurring milestone when regular exists */}
               <AlertDialog open={showRecurringWarning} onOpenChange={setShowRecurringWarning}>
                 <AlertDialogContent>
@@ -2115,7 +1906,6 @@ export function ProjectMilestoneSection({
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
-
               {/* Warning: Split estimate when milestones exist */}
               <AlertDialog open={showSplitWarning} onOpenChange={setShowSplitWarning}>
                 <AlertDialogContent>
@@ -2138,7 +1928,6 @@ export function ProjectMilestoneSection({
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
-
               {/* Warning: Recurring estimate when in split mode */}
               <AlertDialog open={showRecurringFromSplitWarning} onOpenChange={setShowRecurringFromSplitWarning}>
                 <AlertDialogContent>
@@ -2164,7 +1953,6 @@ export function ProjectMilestoneSection({
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
-
               {/* Recurring Milestone Configuration Dialog */}
               <AlertDialog open={showRecurringConfig} onOpenChange={setShowRecurringConfig}>
                 <AlertDialogContent className="max-w-md">
@@ -2174,7 +1962,6 @@ export function ProjectMilestoneSection({
                       Set up milestones that repeat at regular intervals throughout your project timeline.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
-                  
                   <div className="space-y-4">
                     <div>
                       <Label htmlFor="milestone-name">Milestone Name</Label>
@@ -2185,7 +1972,6 @@ export function ProjectMilestoneSection({
                         placeholder="e.g., Weekly Review"
                       />
                     </div>
-
                     <div>
                       <Label htmlFor="time-allocation">Time Allocation (hours)</Label>
                       <Input
@@ -2196,7 +1982,6 @@ export function ProjectMilestoneSection({
                         onChange={(e) => setRecurringConfig(prev => ({ ...prev, timeAllocation: parseInt(e.target.value) || 1 }))}
                       />
                     </div>
-
                     <div>
                       <Label htmlFor="recurring-type">Repeat</Label>
                       <Select value={recurringConfig.recurringType} onValueChange={(value: any) => setRecurringConfig(prev => ({ ...prev, recurringType: value }))}>
@@ -2210,7 +1995,6 @@ export function ProjectMilestoneSection({
                         </SelectContent>
                       </Select>
                     </div>
-
                     <div>
                       <Label htmlFor="recurring-interval">Every</Label>
                       <div className="flex items-center gap-2">
@@ -2227,7 +2011,6 @@ export function ProjectMilestoneSection({
                         </span>
                       </div>
                     </div>
-
                     {/* Weekly day selection */}
                     {recurringConfig.recurringType === 'weekly' && (
                       <div>
@@ -2251,7 +2034,6 @@ export function ProjectMilestoneSection({
                         </Select>
                       </div>
                     )}
-
                     {/* Monthly pattern selection */}
                     {recurringConfig.recurringType === 'monthly' && (
                       <div className="space-y-3">
@@ -2270,7 +2052,6 @@ export function ProjectMilestoneSection({
                             </SelectContent>
                           </Select>
                         </div>
-
                         {/* Date-based monthly pattern */}
                         {recurringConfig.monthlyPattern === 'date' && (
                           <div>
@@ -2292,7 +2073,6 @@ export function ProjectMilestoneSection({
                             </Select>
                           </div>
                         )}
-
                         {/* Day-of-week based monthly pattern */}
                         {recurringConfig.monthlyPattern === 'dayOfWeek' && (
                           <div className="space-y-2">
@@ -2339,7 +2119,6 @@ export function ProjectMilestoneSection({
                         )}
                       </div>
                     )}
-
                     <div className="text-sm text-muted-foreground p-3 bg-muted rounded">
                       <strong>Preview:</strong> {recurringConfig.name} milestones will be created{' '}
                       {recurringConfig.recurringType === 'daily' ? 
@@ -2352,7 +2131,6 @@ export function ProjectMilestoneSection({
                       } from the project start date{projectContinuous ? ' (continues indefinitely for continuous projects)' : ' until the project end date'}.
                     </div>
                   </div>
-
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
                     <AlertDialogAction onClick={handleConfirmRecurringMilestone}>
@@ -2361,7 +2139,6 @@ export function ProjectMilestoneSection({
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
-
               {/* Auto-Estimate Days Section */}
               {localValues && setLocalValues && (
                 <div className="mt-6 pt-6 border-t border-gray-200">
@@ -2370,7 +2147,6 @@ export function ProjectMilestoneSection({
                     Select which days of the week to include when auto-estimating project time. 
                     Unchecked days will be excluded from receiving auto-estimated time, similar to weekends or holidays.
                   </div>
-                  
                   {(() => {
                     const autoEstimateDays = localValues.autoEstimateDays || {
                       monday: true,
@@ -2381,7 +2157,6 @@ export function ProjectMilestoneSection({
                       saturday: true,
                       sunday: true,
                     };
-
                     const DAYS = [
                       { key: 'monday', label: 'Mon' },
                       { key: 'tuesday', label: 'Tue' },
@@ -2391,25 +2166,20 @@ export function ProjectMilestoneSection({
                       { key: 'saturday', label: 'Sat' },
                       { key: 'sunday', label: 'Sun' },
                     ] as const;
-
                     const handleDayToggle = (day: keyof typeof autoEstimateDays) => {
                       const newAutoEstimateDays = {
                         ...autoEstimateDays,
                         [day]: !autoEstimateDays[day],
                       };
-                      
                       setLocalValues(prev => ({
                         ...prev,
                         autoEstimateDays: newAutoEstimateDays,
                       }));
-                      
                       if (onAutoEstimateDaysChange) {
                         onAutoEstimateDaysChange(newAutoEstimateDays);
                       }
                     };
-
                     const enabledDaysCount = Object.values(autoEstimateDays).filter(Boolean).length;
-
                     return (
                       <>
                         <div className="grid grid-cols-7 gap-4">
@@ -2426,7 +2196,6 @@ export function ProjectMilestoneSection({
                             </div>
                           ))}
                         </div>
-
                         {enabledDaysCount === 0 && (
                           <div className="bg-orange-50 border border-orange-200 rounded-md p-3 mt-4">
                             <p className="text-sm text-orange-700">
@@ -2434,7 +2203,6 @@ export function ProjectMilestoneSection({
                             </p>
                           </div>
                         )}
-
                         <div className="text-xs text-muted-foreground mt-4">
                           {enabledDaysCount} day{enabledDaysCount !== 1 ? 's' : ''} enabled for auto-estimation
                         </div>
@@ -2443,7 +2211,6 @@ export function ProjectMilestoneSection({
                   })()}
                 </div>
               )}
-
               {/* Progress Summary */}
               {(projectMilestones.length > 0 || recurringMilestone) && (
                 <div className="mt-4 p-3 bg-gray-50 rounded-lg">

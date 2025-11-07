@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { CalendarEvent, Group, Project } from '../../types';
 import { FilterModal } from './FilterModal';
-import { formatDuration } from '@/services';
+import { formatDuration, normalizeToMidnight, addDaysToDate } from '@/services';
 import { ResponsiveLine } from '@nivo/line';
 import { BRAND_COLORS } from '@/constants/colors';
 
@@ -57,16 +57,18 @@ export const AverageDayHeatmapCard: React.FC<AverageDayHeatmapCardProps> = ({
   // Calculate date range based on selected period
   const dateRange = useMemo(() => {
     const endDate = new Date();
-    const startDate = new Date();
+    let startDate = new Date();
     
     switch (averagePeriod) {
       case 'week':
-        startDate.setDate(endDate.getDate() - 7);
+        startDate = addDaysToDate(endDate, -7);
         break;
       case 'month':
+        startDate = new Date(endDate);
         startDate.setMonth(endDate.getMonth() - 1);
         break;
       case '6months':
+        startDate = new Date(endDate);
         startDate.setMonth(endDate.getMonth() - 6);
         break;
     }
@@ -99,7 +101,7 @@ export const AverageDayHeatmapCard: React.FC<AverageDayHeatmapCardProps> = ({
   // Calculate valid days count
   const validDaysCount = useMemo(() => {
     let count = 0;
-    const current = new Date(dateRange.startDate);
+    let current = new Date(dateRange.startDate);
     
     while (current <= dateRange.endDate) {
       const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
@@ -109,7 +111,7 @@ export const AverageDayHeatmapCard: React.FC<AverageDayHeatmapCardProps> = ({
         count++;
       }
       
-      current.setDate(current.getDate() + 1);
+      current = addDaysToDate(current, 1);
     }
     
     return count;
@@ -164,8 +166,7 @@ export const AverageDayHeatmapCard: React.FC<AverageDayHeatmapCardProps> = ({
         const endTime = new Date(event.endTime);
         
         // Handle events that span multiple days by processing each day separately
-        const eventStartOfDay = new Date(startTime);
-        eventStartOfDay.setHours(0, 0, 0, 0);
+        const eventStartOfDay = normalizeToMidnight(new Date(startTime));
         
         const eventEndOfDay = new Date(startTime);
         eventEndOfDay.setHours(23, 59, 59, 999);
@@ -275,8 +276,7 @@ export const AverageDayHeatmapCard: React.FC<AverageDayHeatmapCardProps> = ({
         try {
           const startTime = new Date(event.startTime);
           const endTime = new Date(event.endTime);
-          const eventStartOfDay = new Date(startTime);
-          eventStartOfDay.setHours(0, 0, 0, 0);
+          const eventStartOfDay = normalizeToMidnight(new Date(startTime));
           const eventEndOfDay = new Date(startTime);
           eventEndOfDay.setHours(23, 59, 59, 999);
           const effectiveStart = new Date(Math.max(startTime.getTime(), eventStartOfDay.getTime()));

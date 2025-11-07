@@ -19,6 +19,8 @@
   }nterface for timeline components
  */
 import { ProjectMilestoneOrchestrator } from '../orchestrators/ProjectMilestoneOrchestrator';
+import { normalizeToMidnight } from '../calculations/general/dateCalculations';
+
 import { UnifiedDayEstimateService } from './UnifiedDayEstimateService';
 import { 
   calculateProjectDuration,
@@ -345,8 +347,7 @@ export class UnifiedTimelineService {
     }>();
     try {
       const getMidnightTime = (d: Date) => {
-        const n = new Date(d);
-        n.setHours(0, 0, 0, 0);
+        const n = normalizeToMidnight(new Date(d));
         return n.getTime();
       };
       // Group estimates by date
@@ -396,8 +397,7 @@ export class UnifiedTimelineService {
     
     // Helper accessor for components: get summary for a date without re-filtering arrays
     const getPerDateSummary = (date: Date) => {
-      const keyDate = new Date(date);
-      keyDate.setHours(0, 0, 0, 0);
+      const keyDate = normalizeToMidnight(new Date(date));
       const key = keyDate.getTime();
       return (
         summariesByDate.get(key) || {

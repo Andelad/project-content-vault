@@ -12,7 +12,6 @@ import {
   expandHolidayDates, 
   normalizeToMidnight, 
   addDaysToDate,
-  validateAndAutoFix,
   createSmoothDragAnimation,
   workingDayStats,
   milestoneStats,
@@ -21,6 +20,7 @@ import {
   type SmoothAnimationConfig,
   type DragState as ServiceDragState
 } from '@/services';
+import { RelationshipRules } from '@/domain/rules';
 import { useTimelineData } from '../../hooks/useTimelineData';
 import { useDynamicViewportDays } from '../../hooks/useDynamicViewportDays';
 import { useHolidayDrag } from '../../hooks/useHolidayDrag';
@@ -101,16 +101,23 @@ export function TimelineView() {
   const { 
     settings 
   } = useSettingsContext();
-  // Validate and auto-fix project relationships using data integrity utility
+  
+  // Validate project relationships
   React.useEffect(() => {
-    validateAndAutoFix(
-      projects,
-      groups,
-      rows,
-      updateProject,
-      { logResults: true }
-    );
-  }, [projects, groups, rows, updateProject]);
+    if (process.env.NODE_ENV === 'development') {
+      const validation = RelationshipRules.validateSystemIntegrity({
+        projects,
+        milestones: [],
+        clients: [],
+        groups
+      });
+      
+      if (!validation.isValid) {
+        console.warn('⚠️ Timeline validation issues:', validation.errors);
+      }
+    }
+  }, [projects, groups]);
+  
   // Monitor working day cache performance
   useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
@@ -169,10 +176,9 @@ export function TimelineView() {
   // Scrollbar range - centered on today with 6 months buffer, auto-extends near edges
   const [scrollbarRange, setScrollbarRange] = useState<{ start: Date; end: Date }>(() => {
     const today = normalizeToMidnight(new Date());
-    const MS_PER_DAY = 24 * 60 * 60 * 1000;
     return {
-      start: new Date(today.getTime() - 182 * MS_PER_DAY), // 6 months before
-      end: new Date(today.getTime() + 182 * MS_PER_DAY)    // 6 months after
+      start: addDaysToDate(today, -182), // 6 months before
+      end: addDaysToDate(today, 182)     // 6 months after
     };
   });
   
@@ -182,7 +188,7 @@ export function TimelineView() {
     const THRESHOLD_DAYS = 90;
     
     const totalDays = Math.floor((scrollbarRange.end.getTime() - scrollbarRange.start.getTime()) / MS_PER_DAY);
-    const viewportEnd = new Date(viewportStart.getTime() + VIEWPORT_DAYS * MS_PER_DAY);
+    const viewportEnd = addDaysToDate(viewportStart, VIEWPORT_DAYS);
     const startOffset = Math.floor((viewportStart.getTime() - scrollbarRange.start.getTime()) / MS_PER_DAY);
     const endOffset = Math.floor((viewportEnd.getTime() - scrollbarRange.start.getTime()) / MS_PER_DAY);
     
@@ -190,14 +196,14 @@ export function TimelineView() {
     if (startOffset < THRESHOLD_DAYS && startOffset >= 0) {
       setScrollbarRange(prev => ({
         ...prev,
-        start: new Date(prev.start.getTime() - THRESHOLD_DAYS * MS_PER_DAY)
+        start: addDaysToDate(prev.start, -THRESHOLD_DAYS)
       }));
     } 
     // Extend forward if approaching end
     else if ((totalDays - endOffset) < THRESHOLD_DAYS && (totalDays - endOffset) >= 0) {
       setScrollbarRange(prev => ({
         ...prev,
-        end: new Date(prev.end.getTime() + THRESHOLD_DAYS * MS_PER_DAY)
+        end: addDaysToDate(prev.end, THRESHOLD_DAYS)
       }));
     }
   }, [viewportStart, VIEWPORT_DAYS, scrollbarRange]);
@@ -679,7 +685,7 @@ export function TimelineView() {
                             const percentMoved = (deltaX / scrollbarEl.clientWidth) * 100;
                             const newPos = Math.max(0, Math.min(100 - thumbWidth, startPos + percentMoved));
                             const newDayOffset = Math.round((newPos / 100) * totalDays);
-                            const newStart = new Date(start.getTime() + newDayOffset * 24 * 60 * 60 * 1000);
+                            const newStart = addDaysToDate(start, newDayOffset);
                             
                             protectedSetViewportStart(newStart);
                             setCurrentDate(newStart);

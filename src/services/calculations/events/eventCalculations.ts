@@ -7,6 +7,8 @@
  */
 
 import type { CalendarEvent } from '@/types';
+import { normalizeToMidnight, addDaysToDate } from '../../../services/calculations/general/dateCalculations';
+
 import { getDateKey } from '@/utils/dateFormatUtils';
 
 export interface EventDurationParams {
@@ -44,8 +46,7 @@ export function calculateEventDurationOnDate(params: EventDurationParams): numbe
   const eventEnd = event.endTime ? new Date(event.endTime) : currentTime;
   
   // Get the start and end of the target date
-  const dayStart = new Date(targetDate);
-  dayStart.setHours(0, 0, 0, 0);
+  const dayStart = normalizeToMidnight(new Date(targetDate));
   
   const dayEnd = new Date(targetDate);
   dayEnd.setHours(23, 59, 59, 999);
@@ -105,8 +106,7 @@ export function calculateLiveTrackingDuration(params: {
   const totalMinutes = Math.max(0, totalElapsedMs / (1000 * 60));
   
   // Calculate how much of the elapsed time is on the target date
-  const dayStart = new Date(targetDate);
-  dayStart.setHours(0, 0, 0, 0);
+  const dayStart = normalizeToMidnight(new Date(targetDate));
   
   const dayEnd = new Date(targetDate);
   dayEnd.setHours(23, 59, 59, 999);
@@ -182,12 +182,8 @@ export function isMultiDayEvent(event: EventDurationParams['event']): boolean {
     return false;
   }
   
-  const startDate = new Date(event.startTime);
-  const endDate = new Date(event.endTime);
-  
-  // Reset time portions for date comparison
-  startDate.setHours(0, 0, 0, 0);
-  endDate.setHours(0, 0, 0, 0);
+  const startDate = normalizeToMidnight(new Date(event.startTime));
+  const endDate = normalizeToMidnight(new Date(event.endTime));
   
   return startDate.getTime() !== endDate.getTime();
 }
@@ -209,12 +205,11 @@ export function getEventDateSpan(event: EventDurationParams['event']): Date[] {
   const endDate = new Date(endTime);
   
   const dates: Date[] = [];
-  const currentDate = new Date(startDate);
-  currentDate.setHours(0, 0, 0, 0);
+  let currentDate = normalizeToMidnight(new Date(startDate));
   
   while (currentDate <= endDate) {
     dates.push(new Date(currentDate));
-    currentDate.setDate(currentDate.getDate() + 1);
+    currentDate = addDaysToDate(currentDate, 1);
   }
   
   return dates;
@@ -275,9 +270,7 @@ export function generateRecurringEvents(
     switch (type) {
       case 'daily':
         // Use setDate to preserve local time across DST boundaries
-        const nextDay = new Date(currentDate);
-        nextDay.setDate(nextDay.getDate() + interval);
-        currentDate = nextDay;
+        currentDate = addDaysToDate(new Date(currentDate), interval);
         break;
       case 'weekly':
         // Use setDate to preserve local time across DST boundaries

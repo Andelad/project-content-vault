@@ -11,6 +11,7 @@
  */
 
 import type { Project, Milestone } from '@/types/core';
+import { normalizeToMidnight } from '@/services';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -407,8 +408,7 @@ export class ProjectRules {
     const errors: string[] = [];
     
     // Normalize today to midnight for comparison
-    const todayMidnight = new Date(today);
-    todayMidnight.setHours(0, 0, 0, 0);
+    const todayMidnight = normalizeToMidnight(new Date(today));
     
     // Only validate if project has estimated time
     if (project.estimatedHours <= 0) {
@@ -419,8 +419,7 @@ export class ProjectRules {
     if (phases.length > 0) {
       // For projects with phases, check if any phase end date is today or future
       const hasFuturePhase = phases.some(phase => {
-        const phaseEnd = new Date(phase.endDate || phase.dueDate);
-        phaseEnd.setHours(0, 0, 0, 0);
+        const phaseEnd = normalizeToMidnight(new Date(phase.endDate || phase.dueDate));
         return phaseEnd >= todayMidnight;
       });
       
@@ -430,8 +429,7 @@ export class ProjectRules {
     } else {
       // For projects without phases, check project end date
       if (!project.continuous) {
-        const projectEnd = new Date(project.endDate);
-        projectEnd.setHours(0, 0, 0, 0);
+        const projectEnd = normalizeToMidnight(new Date(project.endDate));
         
         if (projectEnd < todayMidnight) {
           errors.push('Project with estimated time cannot end in the past');

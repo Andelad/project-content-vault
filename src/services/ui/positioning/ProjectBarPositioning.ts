@@ -15,6 +15,7 @@
 
 import { 
   normalizeToMidnight,
+  addDaysToDate,
   isToday,
   isTodayInWeek,
   isWeekendDate,
@@ -295,22 +296,22 @@ export function calculateVisualProjectDates(
     if (action === 'move') {
       // Move both start and end (for continuous projects, only start matters)
       visualProjectStart = new Date(project.startDate);
-      visualProjectStart.setDate(visualProjectStart.getDate() + daysOffset);
+      visualProjectStart = addDaysToDate(visualProjectStart, daysOffset);
       
       if (!project.continuous) {
         visualProjectEnd = new Date(project.endDate);
-        visualProjectEnd.setDate(visualProjectEnd.getDate() + daysOffset);
+        visualProjectEnd = addDaysToDate(visualProjectEnd, daysOffset);
       }
     } else if (action === 'resize-start-date') {
       // Only move start date
       visualProjectStart = new Date(project.startDate);
-      visualProjectStart.setDate(visualProjectStart.getDate() + daysOffset);
+      visualProjectStart = addDaysToDate(visualProjectStart, daysOffset);
       // End date stays the same
     } else if (action === 'resize-end-date') {
       // Only move end date (not applicable for continuous projects)
       if (!project.continuous) {
         visualProjectEnd = new Date(project.endDate);
-        visualProjectEnd.setDate(visualProjectEnd.getDate() + daysOffset);
+        visualProjectEnd = addDaysToDate(visualProjectEnd, daysOffset);
       }
       // Start date stays the same
     }
@@ -426,8 +427,8 @@ export function calculateTimelineColumnMarkerData(
       
       // Calculate weekend day positions within week
       const weekendDays = Array.from({ length: 7 }).map((_, dayOffset) => {
-        const dayDate = new Date(date);
-        dayDate.setDate(date.getDate() + dayOffset);
+        let dayDate = new Date(date);
+        dayDate = addDaysToDate(date, dayOffset);
         const isWeekendDay = isWeekendDate(dayDate);
         
         if (!isWeekendDay) return null;

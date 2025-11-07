@@ -5,7 +5,8 @@
  */
 
 import { 
-  calculateDurationHours as coreCalculateDurationHours
+  calculateDurationHours as coreCalculateDurationHours,
+  normalizeToMidnight
 } from '@/services/calculations/general/dateCalculations';
 import { 
   snapToTimeSlot as coreSnapToTimeSlot
@@ -130,11 +131,11 @@ export class CalendarPositioningService {
     time: Date, 
     config: TimeSlotConfig = this.DEFAULT_SLOT_CONFIG
   ): Date {
-    const snapped = this.snapToTimeSlot(time, config);
+    let snapped = this.snapToTimeSlot(time, config);
     
     // Ensure within valid bounds
     if (snapped.getHours() < 0) {
-      snapped.setHours(0, 0, 0, 0);
+      snapped = normalizeToMidnight(snapped);
     } else if (snapped.getHours() > 23) {
       snapped.setHours(23, 59, 0, 0);
     }

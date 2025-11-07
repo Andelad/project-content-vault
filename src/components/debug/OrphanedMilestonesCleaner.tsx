@@ -5,28 +5,23 @@ import { supabase } from '@/integrations/supabase/client';
 import { AlertTriangle, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useProjectContext } from '@/contexts/ProjectContext';
-
 export function OrphanedMilestonesCleaner() {
   const [isScanning, setIsScanning] = useState(false);
   const [isCleaning, setIsCleaning] = useState(false);
   const [orphanedCount, setOrphanedCount] = useState<number | null>(null);
   const { toast } = useToast();
   const { refetchMilestones } = useProjectContext();
-
   const scanForOrphans = async () => {
     setIsScanning(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
-
       // Get all user's milestones
       const { data: allMilestones, error } = await supabase
         .from('milestones')
         .select('id, name, is_recurring, project_id')
         .eq('user_id', user.id);
-
       if (error) throw error;
-
       // Group by project
       const projectMilestones = new Map<string, typeof allMilestones>();
       allMilestones?.forEach(m => {
@@ -35,31 +30,25 @@ export function OrphanedMilestonesCleaner() {
         }
         projectMilestones.get(m.project_id)!.push(m);
       });
-
       // Find orphaned instances
       let totalOrphans = 0;
       projectMilestones.forEach(milestones => {
         const templates = milestones.filter(m => m.is_recurring === true);
         const templateNames = new Set(templates.map(t => t.name));
-
         const numberedInstances = milestones.filter(m => {
           if (m.is_recurring === true) return false;
           const match = m.name?.match(/^(.+) \d+$/);
           return match !== null;
         });
-
         const orphaned = numberedInstances.filter(instance => {
           const match = instance.name?.match(/^(.+) \d+$/);
           if (!match) return false;
           const baseName = match[1];
           return !templateNames.has(baseName);
         });
-
         totalOrphans += orphaned.length;
       });
-
       setOrphanedCount(totalOrphans);
-      
       if (totalOrphans === 0) {
         toast({
           title: "All Clean!",
@@ -83,21 +72,17 @@ export function OrphanedMilestonesCleaner() {
       setIsScanning(false);
     }
   };
-
   const cleanupOrphans = async () => {
     setIsCleaning(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
-
       // Get all user's milestones
       const { data: allMilestones, error: fetchError } = await supabase
         .from('milestones')
         .select('id, name, is_recurring, project_id')
         .eq('user_id', user.id);
-
       if (fetchError) throw fetchError;
-
       // Group by project
       const projectMilestones = new Map<string, typeof allMilestones>();
       allMilestones?.forEach(m => {
@@ -106,29 +91,24 @@ export function OrphanedMilestonesCleaner() {
         }
         projectMilestones.get(m.project_id)!.push(m);
       });
-
       // Find and delete orphaned instances
       const orphanedIds: string[] = [];
       projectMilestones.forEach(milestones => {
         const templates = milestones.filter(m => m.is_recurring === true);
         const templateNames = new Set(templates.map(t => t.name));
-
         const numberedInstances = milestones.filter(m => {
           if (m.is_recurring === true) return false;
           const match = m.name?.match(/^(.+) \d+$/);
           return match !== null;
         });
-
         const orphaned = numberedInstances.filter(instance => {
           const match = instance.name?.match(/^(.+) \d+$/);
           if (!match) return false;
           const baseName = match[1];
           return !templateNames.has(baseName);
         });
-
         orphanedIds.push(...orphaned.map(m => m.id));
       });
-
       if (orphanedIds.length === 0) {
         toast({
           title: "Nothing to Clean",
@@ -137,9 +117,6 @@ export function OrphanedMilestonesCleaner() {
         setOrphanedCount(0);
         return;
       }
-
-      console.log(`Deleting ${orphanedIds.length} orphaned milestones`);
-
       // Delete in batches of 100 to avoid timeout
       const batchSize = 100;
       for (let i = 0; i < orphanedIds.length; i += batchSize) {
@@ -148,18 +125,14 @@ export function OrphanedMilestonesCleaner() {
           .from('milestones')
           .delete()
           .in('id', batch);
-
         if (deleteError) throw deleteError;
       }
-
       // Refetch milestones
       await refetchMilestones();
-
       toast({
         title: "Success",
         description: `Deleted ${orphanedIds.length} orphaned milestones`,
       });
-
       setOrphanedCount(0);
     } catch (error) {
       console.error('Error cleaning up orphans:', error);
@@ -172,7 +145,6 @@ export function OrphanedMilestonesCleaner() {
       setIsCleaning(false);
     }
   };
-
   return (
     <Card className="border-orange-200 bg-orange-50">
       <CardHeader>
@@ -196,7 +168,6 @@ export function OrphanedMilestonesCleaner() {
             </p>
           </div>
         )}
-        
         <div className="flex gap-2">
           <Button
             onClick={scanForOrphans}
@@ -205,7 +176,6 @@ export function OrphanedMilestonesCleaner() {
           >
             {isScanning ? 'Scanning...' : 'Scan for Orphans'}
           </Button>
-          
           {orphanedCount !== null && orphanedCount > 0 && (
             <Button
               onClick={cleanupOrphans}

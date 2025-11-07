@@ -25,7 +25,8 @@ ls src/services/unified/ | grep -i "relevant-domain"
 ## ALWAYS USE
 ✅ Import from `@/services` only  
 ✅ Types from `/types/core.ts`  
-✅ Dates from `dateCalculations.ts`  
+✅ Dates from `dateCalculations.ts` (normalizeToMidnight, addDaysToDate, etc.)  
+✅ **ErrorHandlingService for all errors** - structured logging with context  
 ✅ **Find existing unified services** - look for `Unified*Service` pattern  
 ✅ Delegation pattern in unified services  
 
@@ -37,7 +38,8 @@ ls src/services/unified/ | grep -i "relevant-domain"
 | Complex Workflows | `/services/orchestrators/*Orchestrator` | CREATE/UPDATE/DELETE with validation | `ProjectOrchestrator.executeProjectCreationWorkflow()` |
 | Calculations | `/services/unified/Unified*Service` | READ/TRANSFORM operations | `UnifiedProjectService.calculateDuration()` |
 | Business Rules | `/domain/rules/*Rules` | Single source of truth | `ProjectRules.validateProjectDates()` |
-| Date/Time Math | `/services/calculations/general/dateCalculations` | Pure calculations | `calculateDurationHours()` |
+| Date/Time Math | `/services/calculations/general/dateCalculations` | Pure calculations | `calculateDurationHours()`, `normalizeToMidnight()` |
+| **Error Handling** | **`ErrorHandlingService`** | **Structured logging + toast** | `ErrorHandlingService.handle(error, context, { showToast: true })` |
 | **Validation** | **Inline in orchestrators** | **Call domain rules directly** | `ProjectRules.validate()` (NO validator layer) |
 | **Data Access** | **Inline in orchestrators OR hooks** | **Direct Supabase calls** | `supabase.from('projects').insert()` (NO repository layer) |
 | **React Coordination** | **`/hooks/use*.ts`** | **State + service calls** | `useProjectDrag()` (manages state, calls services) |
@@ -153,17 +155,49 @@ interface Project { id: string; } // NEVER redefine!
 ### Dates - ONLY use dateCalculations
 ```typescript
 // ✅ RIGHT
-import { calculateDurationHours, normalizeToMidnight } from '@/services';
+import { calculateDurationHours, normalizeToMidnight, addDaysToDate } from '@/services';
+const midnight = normalizeToMidnight(new Date());
+const future = addDaysToDate(today, 7);
 
 // ❌ WRONG  
 date.setHours(0, 0, 0, 0); // NEVER manual date ops
+const future = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000); // NEVER manual arithmetic
+```
+
+### Error Handling - ALWAYS use ErrorHandlingService
+```typescript
+// ✅ RIGHT - Structured error handling
+import { ErrorHandlingService, ErrorSeverity } from '@/services';
+
+try {
+  await saveProject(project);
+} catch (error) {
+  ErrorHandlingService.handle(error, {
+    source: 'ProjectModal',
+    action: 'saveProject',
+    metadata: { projectId: project.id }
+  }, {
+    showToast: true,
+    severity: ErrorSeverity.ERROR,
+    userMessage: 'Failed to save project. Please try again.'
+  });
+}
+
+// ❌ WRONG - Inconsistent error handling
+try {
+  await saveProject(project);
+} catch (error) {
+  console.error('Error:', error); // NO!
+  toast({ title: 'Error', description: 'Something went wrong' }); // NO!
+}
 ```
 
 ## CHECKLIST (Updated November 2025)
 - [ ] Did I check if this exists? (`grep -r`)
 - [ ] Am I importing from `@/services`?
 - [ ] Am I using core.ts types?
-- [ ] Am I using dateCalculations for dates?
+- [ ] Am I using dateCalculations for dates (NO manual .setHours or arithmetic)?
+- [ ] Am I using ErrorHandlingService for all errors?
 - [ ] Are unified services delegating to domain layers?
 - [ ] Is business logic in services, not components?
 - [ ] Am I calling domain rules directly (not creating validator wrappers)?

@@ -3,11 +3,9 @@ import { timeTrackingCalculations } from '../calculations/tracking/timeTrackingC
 import type { TimeTrackingState } from '../../types/timeTracking';
 import type { CalendarEvent } from '../../types/core';
 import { supabase } from '../../integrations/supabase/client';
-
 // =====================================================================================
 // CALENDAR EVENT DATABASE HELPERS (inline - no repository layer)
 // =====================================================================================
-
 function transformCalendarEventFromDatabase(dbRecord: any): CalendarEvent {
   return {
     id: dbRecord.id,
@@ -21,7 +19,6 @@ function transformCalendarEventFromDatabase(dbRecord: any): CalendarEvent {
     type: dbRecord.event_type || 'planned'
   };
 }
-
 function transformCalendarEventToDatabase(event: Partial<CalendarEvent>): any {
   const dbRecord: any = {};
   if (event.title !== undefined) dbRecord.title = event.title;
@@ -67,71 +64,58 @@ class TimeTrackingOrchestrator {
   private broadcastChannel?: BroadcastChannel;
   private realtimeSubscription?: any;
   private windowId: string;
-
   constructor() {
     // Generate unique window ID to prevent processing our own broadcasts
     this.windowId = `window_${Date.now()}_${Math.random()}`;
     this.initializeCrossWindowSync();
   }
-
   // =====================================================================================
   // INLINE VALIDATION METHODS (previously in timeTrackingValidator)
   // =====================================================================================
-
   /**
    * Validates if tracking can be started
    */
   private canStartTracking(currentState: TimeTrackingState | null): boolean {
     return !currentState?.isTracking;
   }
-
   /**
    * Validates if tracking can be stopped
    */
   private canStopTracking(currentState: TimeTrackingState | null): boolean {
     return currentState?.isTracking === true;
   }
-
   /**
    * Validates if tracking can be paused
    */
   private canPauseTracking(currentState: TimeTrackingState | null): boolean {
     return currentState?.isTracking === true && currentState?.isPaused === false;
   }
-
   /**
    * Validates if tracking can be resumed
    */
   private canResumeTracking(currentState: TimeTrackingState | null): boolean {
     return currentState?.isTracking === true && currentState?.isPaused === true;
   }
-
   /**
    * Validates and normalizes state object
    */
   private validateState(state: Partial<TimeTrackingState>): TimeTrackingState {
     const errors: string[] = [];
-
     if (typeof state.isTracking !== 'boolean') {
       errors.push('isTracking must be a boolean');
     }
-
     if (state.isTracking === false && state.isPaused === true) {
       errors.push('Cannot be paused when not tracking');
     }
-
     if (state.startTime && state.pausedAt && state.startTime > state.pausedAt) {
       errors.push('pausedAt cannot be before startTime');
     }
-
     if (state.totalPausedDuration && state.totalPausedDuration < 0) {
       errors.push('totalPausedDuration cannot be negative');
     }
-
     if (errors.length > 0) {
       throw new Error(`Time tracking state validation failed: ${errors.join(', ')}`);
     }
-
     return {
       isTracking: state.isTracking ?? false,
       isPaused: state.isPaused ?? false,
@@ -148,7 +132,6 @@ class TimeTrackingOrchestrator {
       lastUpdated: state.lastUpdated ?? state.lastUpdateTime ?? new Date()
     };
   }
-
   /**
    * Check for active tracking session in database
    */
@@ -158,13 +141,10 @@ class TimeTrackingOrchestrator {
       .select('time_tracking_state')
       .eq('user_id', userId)
       .single();
-
     if (error || !data?.time_tracking_state) {
       return null;
     }
-
     const state = data.time_tracking_state as any;
-    
     if (state.isTracking && state.eventId && state.startTime) {
       return {
         isTracking: state.isTracking,
@@ -181,7 +161,6 @@ class TimeTrackingOrchestrator {
         currentSeconds: state.currentSeconds ?? 0
       };
     }
-
     return null;
   }
   private initializeCrossWindowSync(): void {
@@ -529,13 +508,11 @@ class TimeTrackingOrchestrator {
     try {
       const currentState = currentStateRef.current;
       const currentEventId = currentState?.eventId; // Fixed: was currentEventId, should be eventId
-      
       // CRITICAL: Clear DB sync interval FIRST to prevent race conditions
       if (dbSyncIntervalRef?.current) {
         clearInterval(dbSyncIntervalRef.current);
         dbSyncIntervalRef.current = null;
       }
-      
       if (!currentEventId) {
         // Even if no event ID, we should still reset the state
         console.warn('No active tracking session found, but resetting state anyway');
@@ -578,11 +555,9 @@ class TimeTrackingOrchestrator {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
-      
       // CRITICAL: Update event with stop time BEFORE resetting state
       // Use the captured stopTime to ensure accuracy
       const actualStopTime = stopTime || new Date();
-      
       if (updateEvent && startTimeRef.current) {
         try {
           const duration = (actualStopTime.getTime() - startTimeRef.current.getTime()) / (1000 * 60 * 60);
@@ -592,20 +567,16 @@ class TimeTrackingOrchestrator {
             stopTime: actualStopTime.toISOString(),
             duration
           });
-          
           await updateEvent(currentEventId, {
             endTime: actualStopTime,
             duration,
             completed: true,
             type: 'completed'
           }, { silent: true });
-          
-          console.log('✅ STOP TRACKING WORKFLOW - Event updated successfully');
         } catch (error) {
           console.error('❌ STOP TRACKING WORKFLOW - Failed to update event:', error);
         }
       }
-      
       // Reset tracking state AFTER event update
       setCurrentEventId(null);
       setIsTimeTracking(false);
@@ -687,9 +658,7 @@ class TimeTrackingOrchestrator {
           .select('*')
           .eq('id', currentEventId)
           .single();
-
         if (fetchError && fetchError.code !== 'PGRST116') throw fetchError;
-        
         if (!eventData) {
           // Event doesn't exist anymore, clean up the tracking state
           console.warn(`Tracking event ${currentEventId} no longer exists, cleaning up state`);
@@ -782,26 +751,20 @@ class TimeTrackingOrchestrator {
         type: 'tracked' as const,
         color: eventData.color || '#10b981' // Green for tracking events
       };
-      
       // Create event (direct database call)
       const { data: { user } } = await supabase.auth.getUser();
       if (!user?.id) throw new Error('User not authenticated');
-
       const dbRecord = {
         ...transformCalendarEventToDatabase(trackingEventData),
         user_id: user.id
       };
-
       const { data, error } = await supabase
         .from('calendar_events')
         .insert(dbRecord)
         .select()
         .single();
-
       if (error) throw new Error(`Failed to create calendar event: ${error.message}`);
-      
       const event = transformCalendarEventFromDatabase(data);
-      
       return {
         success: true,
         event
@@ -835,11 +798,8 @@ class TimeTrackingOrchestrator {
         .eq('id', id)
         .select()
         .single();
-
       if (error) throw new Error(`Failed to update calendar event: ${error.message}`);
-      
       const event = transformCalendarEventFromDatabase(data);
-      
       return {
         success: true,
         event
@@ -881,11 +841,8 @@ class TimeTrackingOrchestrator {
         .eq('id', eventId)
         .select()
         .single();
-
       if (error) throw new Error(`Failed to update calendar event: ${error.message}`);
-      
       const event = transformCalendarEventFromDatabase(data);
-      
       return {
         success: true,
         event
@@ -911,18 +868,14 @@ class TimeTrackingOrchestrator {
       // Get tracking events (direct database call)
       const { data: { user } } = await supabase.auth.getUser();
       if (!user?.id) throw new Error('User not authenticated');
-
       const { data, error } = await supabase
         .from('calendar_events')
         .select('*')
         .eq('user_id', user.id)
         .eq('event_type', 'tracked')
         .order('start_time', { ascending: true });
-
       if (error) throw new Error(`Failed to get tracking events: ${error.message}`);
-      
       const sessions = data.map(transformCalendarEventFromDatabase);
-      
       return {
         success: true,
         sessions
@@ -948,16 +901,13 @@ class TimeTrackingOrchestrator {
       // Get all tracking events, then filter by project (direct database call)
       const { data: { user } } = await supabase.auth.getUser();
       if (!user?.id) throw new Error('User not authenticated');
-
       const { data, error } = await supabase
         .from('calendar_events')
         .select('*')
         .eq('user_id', user.id)
         .eq('event_type', 'tracked')
         .order('start_time', { ascending: true });
-
       if (error) throw new Error(`Failed to get tracking events: ${error.message}`);
-      
       const allSessions = data.map(transformCalendarEventFromDatabase);
       const projectSessions = allSessions.filter(session => session.projectId === projectId);
       return {
@@ -986,9 +936,7 @@ class TimeTrackingOrchestrator {
         .from('calendar_events')
         .delete()
         .eq('id', eventId);
-
       if (error) throw new Error(`Failed to delete calendar event: ${error.message}`);
-      
       return {
         success: true
       };

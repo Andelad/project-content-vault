@@ -45,7 +45,6 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
   const startTimeRef = useRef<Date | null>(null);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const currentStateRef = useRef<any>(null); // Track current state for sync
-  
   // Storage keys - inline to avoid circular dependency issues
   const STORAGE_KEYS = {
     isTracking: 'timeTracker_isTracking',
@@ -55,7 +54,6 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
     searchQuery: 'timeTracker_searchQuery',
     affectedEvents: 'timeTracker_affectedEvents'
   };
-  
   // Load tracking state from database on mount - REVERTED TO WORKING PRE-ORCHESTRATION APPROACH
   useEffect(() => {
     // // console.log('🔍 TIMETRACKER - Mount: Loading state from Supabase only');
@@ -236,9 +234,7 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
         }
         return;
       }
-
       const { duration } = UnifiedTimeTrackerService.calculateElapsedTime(startTime);
-      console.log('💾 DB sync - updating event:', eventId, 'duration:', duration);
       try {
         // First verify the event still exists
         const { data: eventExists } = await supabase
@@ -267,7 +263,6 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
           duration,
           completed: true
         }, { silent: true });
-        console.log('💾 DB sync - success, duration:', duration);
       } catch (error: any) {
         console.error('💾 DB sync - failed:', error);
       }
@@ -290,13 +285,11 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
       .map(event => event.projectId)
       .filter((id, index, self) => self.indexOf(id) === index) // Remove duplicates
       .slice(0, 3); // Take top 3
-
     // Map project IDs to full project objects
     return projectIds
       .map(id => projects.find(p => p.id === id))
       .filter(Boolean); // Remove undefined values
   }, [events, projects]);
-
   // Filter projects and clients based on search query
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) {
@@ -396,10 +389,8 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
         return;
       }
     }
-    
     // CRITICAL: Capture stop time BEFORE workflow to ensure accuracy
     const stopTime = isTimeTracking ? new Date() : undefined;
-    
     const context: TimeTrackerWorkflowContext = {
       selectedProject,
       searchQuery,
@@ -458,19 +449,16 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
     if (!result.eventId && isTimeTracking) {
       // Clear global tracking event ID
       setGlobalTrackingEventId(null);
-      
       // Handle planned event overlaps if we have the necessary data
       if (currentEventId && startTimeRef.current && stopTime) {
         try {
           // Small delay to ensure database transaction completes
           await new Promise(resolve => setTimeout(resolve, 300));
-          
           handlePlannedEventOverlaps(startTimeRef.current, stopTime);
         } catch (error) {
           console.error('❌ STOP TRACKING - Failed to handle overlaps:', error);
         }
       }
-      
       // Reset UI state
       setSelectedProject(null);
       setSearchQuery('');
@@ -682,7 +670,6 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
           )}
         </CardContent>
       </Card>
-      
       {/* Project Modal for adding new projects */}
       <ProjectModal
         isOpen={isProjectModalOpen}

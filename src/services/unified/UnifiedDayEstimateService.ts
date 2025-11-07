@@ -8,6 +8,8 @@
  */
 
 import { Project, Milestone, DayEstimate, Settings, Holiday } from '@/types/core';
+import { normalizeToMidnight } from '../calculations/general/dateCalculations';
+
 import * as DayEstimateCalcs from '@/services/calculations/projects/dayEstimateCalculations';
 import { getDateKey } from '@/utils/dateFormatUtils';
 
@@ -66,15 +68,13 @@ export class UnifiedDayEstimateService {
     startDate: Date,
     endDate: Date
   ): DayEstimate[] {
-    const start = new Date(startDate);
-    start.setHours(0, 0, 0, 0);
+    const start = normalizeToMidnight(new Date(startDate));
     
     const end = new Date(endDate);
     end.setHours(23, 59, 59, 999);
 
     return allEstimates.filter(estimate => {
-      const estDate = new Date(estimate.date);
-      estDate.setHours(0, 0, 0, 0);
+      const estDate = normalizeToMidnight(new Date(estimate.date));
       return estDate >= start && estDate <= end;
     });
   }
@@ -86,12 +86,10 @@ export class UnifiedDayEstimateService {
     allEstimates: DayEstimate[],
     date: Date
   ): DayEstimate[] {
-    const targetDate = new Date(date);
-    targetDate.setHours(0, 0, 0, 0);
+    const targetDate = normalizeToMidnight(new Date(date));
 
     return allEstimates.filter(estimate => {
-      const estDate = new Date(estimate.date);
-      estDate.setHours(0, 0, 0, 0);
+      const estDate = normalizeToMidnight(new Date(estimate.date));
       return estDate.getTime() === targetDate.getTime();
     });
   }

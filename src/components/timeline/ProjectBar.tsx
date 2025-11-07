@@ -1,4 +1,5 @@
 import React, { memo, useMemo } from 'react';
+
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
@@ -314,8 +315,7 @@ export const ProjectBar = memo(function ProjectBar({
                   return Array.from({ length: 7 }, (_, dayOffset) => {
                     const day = new Date(weekStart);
                     day.setDate(weekStart.getDate() + dayOffset);
-                    day.setHours(0, 0, 0, 0);
-                    return day;
+                    return normalizeToMidnight(day);
                   });
                 })
               : dates;

@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Client } from '@/types/core';
 import { ClientModal } from '@/components/modals/ClientModal';
+import { normalizeToMidnight } from '@/services';
 
 type ViewType = 'grid' | 'list';
 type ClientStatusFilter = 'all' | 'active' | 'archived';
@@ -71,16 +72,13 @@ export function ClientsListView({
 
     // Filter by date - show clients that have a project on the selected date
     if (filterByDate) {
-      const targetDate = new Date(filterByDate);
-      targetDate.setHours(0, 0, 0, 0);
+      const targetDate = normalizeToMidnight(new Date(filterByDate));
       
       // Get client IDs that have projects on this date
       const clientIdsWithProjectsOnDate = new Set(
         projects.filter(p => {
-          const start = new Date(p.startDate);
-          const end = new Date(p.endDate);
-          start.setHours(0, 0, 0, 0);
-          end.setHours(0, 0, 0, 0);
+          const start = normalizeToMidnight(new Date(p.startDate));
+          const end = normalizeToMidnight(new Date(p.endDate));
           return start <= targetDate && targetDate <= end;
         }).map(p => p.clientId)
       );
@@ -100,15 +98,12 @@ export function ClientsListView({
 
   // Get active project count for each client
   const getActiveProjectCount = (clientId: string) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = normalizeToMidnight(new Date());
     
     return projects.filter(p => {
       if (p.clientId !== clientId) return false;
-      const start = new Date(p.startDate);
-      const end = new Date(p.endDate);
-      start.setHours(0, 0, 0, 0);
-      end.setHours(0, 0, 0, 0);
+      const start = normalizeToMidnight(new Date(p.startDate));
+      const end = normalizeToMidnight(new Date(p.endDate));
       return start <= today && today <= end;
     }).length;
   };

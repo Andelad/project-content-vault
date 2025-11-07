@@ -33,6 +33,7 @@ export * from './orchestrators/recurringEventsOrchestrator';
 export * from './calculations';      // Pure data calculations - projectCalculations, timeCalculations
 export * from './ui';               // View positioning & UI math - ProjectBarPositioning, DragPositioning, TimelineViewportService, ColorCalculations
 export * from './performance';      // Performance optimization - dragPerformanceService, cachePerformanceService, calculationCache, dateCache
+export * from './infrastructure/ErrorHandlingService';  // Centralized error handling
 
 // 🚧 Legacy Services (Temporary - During Migration)
 // These will be removed once migration to new architecture is complete
@@ -100,8 +101,8 @@ export {
 
 // New architecture services - maintain backward compatibility
 export { TimelineViewport, TimelineViewport as TimelineViewportService } from './ui/positioning/TimelineViewportService';
-// Project data integrity utilities (formerly ProjectValidator)
-export * from './utilities/projectDataIntegrity';
+
+// ================================================================================
 
 // Legacy calculation functions (to be migrated)
 export { calculateTimeFromPosition } from './calculations/availability/workHourCalculations';
@@ -115,6 +116,7 @@ export {
   isBusinessHour,
   isWorkingDay,
   addDaysToDate,
+  addHoursToDate,
   // New pure date calculation functions
   isToday,
   isTodayInWeek,

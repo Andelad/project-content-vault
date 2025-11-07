@@ -14,7 +14,7 @@
  * - TimelineViewportService: Animation functions
  */
 
-import { calculateDaysDeltaFromPixels, addDaysToDatePure } from '@/services/calculations/general/dateCalculations';
+import { calculateDaysDeltaFromPixels, addDaysToDatePure, normalizeToMidnight, addDaysToDate } from '@/services/calculations/general/dateCalculations';
 import { debounce, throttle, cleanupPerformanceTimers } from '@/utils/performance';
 import { TimelineViewport } from './TimelineViewportService';
 
@@ -223,24 +223,20 @@ export function validateDragDateRange(
     case 'move-project':
     case 'move-holiday':
     case 'move-milestone':
-      newStartDate = new Date(originalStartDate);
-      newStartDate.setDate(newStartDate.getDate() + daysDelta);
-      newEndDate = new Date(originalEndDate);
-      newEndDate.setDate(newEndDate.getDate() + daysDelta);
+      newStartDate = addDaysToDate(originalStartDate, daysDelta);
+      newEndDate = addDaysToDate(originalEndDate, daysDelta);
       break;
       
     case 'resize-project-start':
     case 'resize-holiday-start':
-      newStartDate = new Date(originalStartDate);
-      newStartDate.setDate(newStartDate.getDate() + daysDelta);
+      newStartDate = addDaysToDate(originalStartDate, daysDelta);
       newEndDate = new Date(originalEndDate);
       break;
       
     case 'resize-project-end':
     case 'resize-holiday-end':
       newStartDate = new Date(originalStartDate);
-      newEndDate = new Date(originalEndDate);
-      newEndDate.setDate(newEndDate.getDate() + daysDelta);
+      newEndDate = addDaysToDate(originalEndDate, daysDelta);
       break;
       
     default:
@@ -539,33 +535,17 @@ export function validateMilestoneBounds(
   originalMilestoneDate?: Date
 ): MilestoneBoundsValidation {
   // Normalize all dates to midnight
-  const candidate = new Date(newDate);
-  candidate.setHours(0, 0, 0, 0);
-  
-  const projectStart = new Date(projectStartDate);
-  projectStart.setHours(0, 0, 0, 0);
-  
-  const projectEnd = new Date(projectEndDate);
-  projectEnd.setHours(0, 0, 0, 0);
-  
-  const original = originalMilestoneDate ? new Date(originalMilestoneDate) : null;
-  if (original) {
-    original.setHours(0, 0, 0, 0);
-  }
+  const candidate = normalizeToMidnight(new Date(newDate));
+  const projectStart = normalizeToMidnight(new Date(projectStartDate));
+  const projectEnd = normalizeToMidnight(new Date(projectEndDate));
+  const original = originalMilestoneDate ? normalizeToMidnight(new Date(originalMilestoneDate)) : null;
   
   // Calculate min/max allowed dates
-  let minAllowedDate = new Date(projectStart);
-  minAllowedDate.setDate(projectStart.getDate() + 1); // 1 day after start
-  
-  let maxAllowedDate = new Date(projectEnd);
-  maxAllowedDate.setDate(projectEnd.getDate() - 1); // 1 day before end
+  let minAllowedDate = addDaysToDate(projectStart, 1); // 1 day after start
+  let maxAllowedDate = addDaysToDate(projectEnd, -1); // 1 day before end
   
   // Narrow down based on other milestones (prevent overlaps)
-  const blockingDates = otherMilestoneDates.map(d => {
-    const normalized = new Date(d);
-    normalized.setHours(0, 0, 0, 0);
-    return normalized;
-  });
+  const blockingDates = otherMilestoneDates.map(d => normalizeToMidnight(new Date(d)));
   
   // For each blocking date, adjust the allowed range
   blockingDates.forEach(blockingDate => {
@@ -576,15 +556,13 @@ export function validateMilestoneBounds(
     
     if (original && blockingDate < original && blockingDate >= minAllowedDate) {
       // Blocking date is before our original position, update minimum
-      const dayAfter = new Date(blockingDate);
-      dayAfter.setDate(blockingDate.getDate() + 1);
+      const dayAfter = addDaysToDate(blockingDate, 1);
       if (dayAfter > minAllowedDate) {
         minAllowedDate = dayAfter;
       }
     } else if (original && blockingDate > original && blockingDate <= maxAllowedDate) {
       // Blocking date is after our original position, update maximum
-      const dayBefore = new Date(blockingDate);
-      dayBefore.setDate(blockingDate.getDate() - 1);
+      const dayBefore = addDaysToDate(blockingDate, -1);
       if (dayBefore < maxAllowedDate) {
         maxAllowedDate = dayBefore;
       }
@@ -694,11 +672,8 @@ export function validateHolidayBounds(
   action: 'move' | 'resize-start-date' | 'resize-end-date'
 ): HolidayBoundsValidation {
   // Normalize dates to midnight
-  const start = new Date(newStartDate);
-  start.setHours(0, 0, 0, 0);
-  
-  const end = new Date(newEndDate);
-  end.setHours(0, 0, 0, 0);
+  const start = normalizeToMidnight(new Date(newStartDate));
+  const end = normalizeToMidnight(new Date(newEndDate));
   
   let constrainedStartDate = new Date(start);
   let constrainedEndDate = new Date(end);
@@ -852,8 +827,7 @@ export function validateDragBounds(
     // Minimum duration check
     const duration = Math.ceil((newEndDate.getTime() - newStartDate.getTime()) / (24 * 60 * 60 * 1000));
     if (duration < DRAG_CONSTANTS.MIN_PROJECT_DURATION_DAYS) {
-      const adjustedEndDate = new Date(newStartDate);
-      adjustedEndDate.setDate(adjustedEndDate.getDate() + DRAG_CONSTANTS.MIN_PROJECT_DURATION_DAYS - 1);
+      const adjustedEndDate = addDaysToDate(newStartDate, DRAG_CONSTANTS.MIN_PROJECT_DURATION_DAYS - 1);
 
       return {
         isValid: false,
