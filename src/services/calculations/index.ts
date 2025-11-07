@@ -17,9 +17,7 @@ export * from './events/holidayCalculations';
 
 // ===== INSIGHTS =====
 export * from './insights/analyticsCalculations';
-// Note: plannerInsights and plannerInsightCalculations have overlapping exports
-// Using plannerInsightCalculations as the primary source
-export * from './insights/plannerInsightCalculations';
+// Note: Old planner insights files removed - event preparation moved to UnifiedEventTransformService
 
 // ===== PROJECTS =====
 export * from './projects/dayEstimateCalculations';
@@ -62,11 +60,15 @@ export * from './general/dateCalculations';  // Primary source for datesOverlap
 export * from './general/timeCalculations';  // Primary source for getWeekStart, getCurrentWeekStart
 export * from './general/settingsCalculations';
 
+// ===== TIMELINE =====
+export * from './timeline/timelineRowCalculations';  // Timeline row arrangement algorithm
+
 // ===== GROUPS =====
 export * from './groups/groupCalculations';
 
 // ===== AVAILABILITY =====
 export * from './availability/availabilityCalculations';
+export * from './availability/dailyAvailabilityCalculations';  // Daily work hours and availability
 // Note: capacityCalculations has calculateOtherTime, calculateOvertimePlannedHours, calculateTotalPlannedHours
 // which are also in UnifiedEventWorkHourService (unified layer is primary source)
 export {

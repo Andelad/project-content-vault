@@ -78,6 +78,8 @@ export function useMilestones(projectId?: string) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
+      console.log('[useMilestones] addMilestone called with:', milestoneData);
+
       // Transform camelCase to snake_case for database insertion
       const dbMilestoneData: any = {
         user_id: user.id,
@@ -88,13 +90,39 @@ export function useMilestones(projectId?: string) {
         time_allocation_hours: (milestoneData as any).timeAllocationHours || (milestoneData as any).timeAllocation || milestoneData.time_allocation,
       };
 
+      // Add optional fields if provided
+      if ((milestoneData as any).startDate || milestoneData.start_date) {
+        const startDateValue = (milestoneData as any).startDate || milestoneData.start_date;
+        console.log('[useMilestones] startDate found:', startDateValue, 'type:', typeof startDateValue);
+        dbMilestoneData.start_date = startDateValue instanceof Date ? startDateValue.toISOString() : startDateValue;
+        console.log('[useMilestones] Converted start_date:', dbMilestoneData.start_date);
+      } else {
+        console.log('[useMilestones] NO startDate provided in milestoneData');
+      }
+
+      if ((milestoneData as any).isRecurring !== undefined || milestoneData.is_recurring !== undefined) {
+        dbMilestoneData.is_recurring = (milestoneData as any).isRecurring ?? milestoneData.is_recurring;
+      }
+
+      if ((milestoneData as any).recurringConfig || milestoneData.recurring_config) {
+        dbMilestoneData.recurring_config = (milestoneData as any).recurringConfig || milestoneData.recurring_config;
+      }
+
+      console.log('[useMilestones] Final dbMilestoneData being sent to database:', dbMilestoneData);
+
       const { data, error } = await supabase
         .from('milestones')
         .insert(dbMilestoneData)
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('[useMilestones] Database error:', error);
+        throw error;
+      }
+      
+      console.log('[useMilestones] Database returned:', data);
+      
       // Insert locally and sort by due_date
       setMilestones(prev => [...prev, data].sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime()));
       

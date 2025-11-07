@@ -6,8 +6,8 @@ import { useHolidays } from '@/hooks/useHolidays';
 import { useWorkHours } from '@/hooks/useWorkHours';
 import { EventInput } from '@fullcalendar/core';
 import { normalizeProjectColor } from '@/utils/normalizeProjectColor';
-// Try direct import from the specific file instead of barrel export
-import { PlannerV2CalculationService } from '@/services/calculations/insights/plannerInsights';
+import { prepareEventsForFullCalendar } from '@/services/unified/UnifiedEventTransformService';
+import { getDateKey } from '@/utils/dateFormatUtils';
 import { supabase } from '@/integrations/supabase/client';
 import { generateRecurringEvents } from '@/services';
 import { ensureRecurringEventsExist } from '@/services';
@@ -293,12 +293,23 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
     await dbDeleteEvent(id, options);
   }, [dbDeleteEvent, isTimeTracking, currentTrackingEventId, setIsTimeTracking, setCurrentTrackingEventId]);
   
-  // Utility functions
+  // Utility functions - simple inline implementations
   const getEventsForDate = useCallback((date: Date): CalendarEvent[] => {
-    return PlannerV2CalculationService.getEventsForDate(processedEvents, date);
+    const dateStr = getDateKey(date);
+    return processedEvents.filter(event => {
+      const eventStartDate = getDateKey(event.startTime);
+      const eventEndDate = getDateKey(event.endTime);
+      return dateStr >= eventStartDate && dateStr <= eventEndDate;
+    });
   }, [processedEvents]);
+
   const getEventsInDateRange = useCallback((startDate: Date, endDate: Date): CalendarEvent[] => {
-    return PlannerV2CalculationService.filterEventsByDateRange(processedEvents, startDate, endDate);
+    return processedEvents.filter(event => {
+      const eventStart = new Date(event.startTime);
+      const eventEnd = new Date(event.endTime);
+      // Check if event overlaps with the date range
+      return eventStart <= endDate && eventEnd >= startDate;
+    });
   }, [processedEvents]);
   // Undo functionality
   const undoLastAction = useCallback(async (): Promise<void> => {
@@ -571,21 +582,17 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
   }, [refetchEvents]);
   // Prepare FullCalendar events
   const fullCalendarEvents = useMemo(() => {
-    // // console.log('🔍 PLANNER - Preparing events for calendar:', {
-      // totalEvents: processedEvents.length,
-      // trackedEvents: processedEvents.filter(e => e.type === 'tracked').length,
-      // layerMode
-    // });
-    return PlannerV2CalculationService.prepareEventsForFullCalendar(
+    return prepareEventsForFullCalendar(
       processedEvents,
       workHours || [],
       layerMode,
       { habits: dbHabits }
     );
   }, [processedEvents, workHours, layerMode, dbHabits]);
+
   // Method to get styled events with project context
   const getStyledFullCalendarEvents = useCallback((options: { selectedEventId?: string | null; projects?: any[] } = {}) => {
-    return PlannerV2CalculationService.prepareEventsForFullCalendar(
+    return prepareEventsForFullCalendar(
       processedEvents,
       workHours || [],
       layerMode,

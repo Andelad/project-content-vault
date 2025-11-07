@@ -82,8 +82,9 @@ export const TimelineBackground = memo(function TimelineBackground({ dates, mode
                     left: `${dateIndex * 153 + i * 22}px`,
                     width: '22px',
                     height: '100%',
-                    backgroundColor: 'rgba(229, 229, 229, 0.15)',
-                    pointerEvents: 'none'
+                    backgroundColor: 'rgba(229, 229, 229, 0.35)',
+                    pointerEvents: 'none',
+                    zIndex: 3
                   }}
                 />
               );
@@ -103,8 +104,9 @@ export const TimelineBackground = memo(function TimelineBackground({ dates, mode
                 left: `${dateIndex * 52}px`,
                 width: '52px',
                 height: '100%',
-                backgroundColor: 'rgba(163, 163, 163, 0.15)',
-                pointerEvents: 'none'
+                backgroundColor: 'rgba(163, 163, 163, 0.35)',
+                pointerEvents: 'none',
+                zIndex: 3
               }}
             />
           );

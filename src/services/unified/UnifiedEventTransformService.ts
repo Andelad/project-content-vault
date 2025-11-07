@@ -6,6 +6,53 @@ import { type EventStyleConfig } from './UnifiedEventWorkHourService';
 import { calculateDurationHours } from '@/services/calculations/general/dateCalculations';
 
 /**
+ * Unified Event Transform Service
+ * 
+ * Centralizes all event transformation logic for FullCalendar integration.
+ * Handles color calculations, styling, and format conversions.
+ */
+
+/**
+ * Prepare events and work hours for FullCalendar display
+ * Combines calendar events, habits, tasks, and work hours into FullCalendar format
+ */
+export function prepareEventsForFullCalendar(
+  events: CalendarEvent[], 
+  workHours: WorkHour[],
+  layerMode: 'events' | 'work-hours' | 'both' = 'both',
+  options: { selectedEventId?: string | null; projects?: any[]; habits?: any[] } = {}
+): EventInput[] {
+  const { selectedEventId, projects = [] } = options;
+  const fcEvents: EventInput[] = [];
+
+  // Add calendar events (all categories: events, habits, tasks)
+  if (layerMode === 'events' || layerMode === 'both') {
+    events.forEach(event => {
+      const fcEvent = transformCalendarEventToFullCalendar(event, { projects });
+      if (fcEvent) {
+        // Highlight selected event
+        if (selectedEventId === event.id) {
+          fcEvent.className = `${fcEvent.className || ''} selected-event`.trim();
+        }
+        fcEvents.push(fcEvent);
+      }
+    });
+  }
+
+  // Add work hours
+  if (layerMode === 'work-hours' || layerMode === 'both') {
+    workHours.forEach(workHour => {
+      const fcEvent = transformWorkHourToFullCalendar(workHour);
+      if (fcEvent) {
+        fcEvents.push(fcEvent);
+      }
+    });
+  }
+
+  return fcEvents;
+}
+
+/**
  * Transform CalendarEvent to FullCalendar EventInput format
  */
 export function transformCalendarEventToFullCalendar(event: CalendarEvent, options: { isSelected?: boolean; projects?: any[] } = {}): EventInput {

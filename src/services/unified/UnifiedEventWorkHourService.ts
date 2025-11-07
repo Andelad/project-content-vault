@@ -174,12 +174,30 @@ export function calculateAvailabilityReduction(
  * 
  * @param date - Date to generate work hours for
  * @param settings - User settings containing weekly work schedule
- * @returns Array of work hour objects for the date
+ * @param holidays - Array of holiday definitions (optional)
+ * @returns Array of work hour objects for the date (empty if date is a holiday)
  */
 export function generateWorkHoursForDate(
   date: Date,
-  settings: any
+  settings: any,
+  holidays: any[] = []
 ): WorkHour[] {
+  // Check if the date is a holiday - holidays override work hours
+  const isHolidayDate = holidays.some(holiday => {
+    const holidayStart = new Date(holiday.startDate);
+    const holidayEnd = new Date(holiday.endDate);
+    holidayStart.setHours(0, 0, 0, 0);
+    holidayEnd.setHours(23, 59, 59, 999);
+    const checkDate = new Date(date);
+    checkDate.setHours(0, 0, 0, 0);
+    return checkDate >= holidayStart && checkDate <= holidayEnd;
+  });
+
+  // If it's a holiday, return no work hours
+  if (isHolidayDate) {
+    return [];
+  }
+
   const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   const dayName = dayNames[date.getDay()] as keyof typeof settings.weeklyWorkHours;
   const workSlots = settings.weeklyWorkHours[dayName] || [];

@@ -658,4 +658,208 @@ export class MilestoneRules {
   static isRecurringMilestone(milestone: Milestone): boolean {
     return milestone.name ? /\s\d+$/.test(milestone.name) : false;
   }
+
+  // ==========================================================================
+  // PHASE TIME DOMAIN RULES - NEW (November 2025)
+  // ==========================================================================
+  
+  /**
+   * RULE: Phase with estimated time must have end date >= today
+   * 
+   * Phases (milestones with startDate/endDate) that have estimated time
+   * cannot end in the past. The end date must be at least today to allow
+   * the estimated time to be placed on at least one working day.
+   * 
+   * @param phase - The phase to validate
+   * @param today - Reference date (defaults to now)
+   * @returns Validation result with errors
+   */
+  static validatePhaseEndDateNotInPast(
+    phase: Milestone,
+    today: Date = new Date()
+  ): { isValid: boolean; errors: string[] } {
+    const errors: string[] = [];
+    
+    // Only validate phases (must have startDate and endDate)
+    if (!phase.startDate || (!phase.endDate && !phase.dueDate)) {
+      return { isValid: true, errors };
+    }
+    
+    // Only validate if phase has estimated time
+    const timeAllocation = phase.timeAllocationHours ?? phase.timeAllocation ?? 0;
+    if (timeAllocation <= 0) {
+      return { isValid: true, errors };
+    }
+    
+    // Normalize dates to midnight for comparison
+    const todayMidnight = new Date(today);
+    todayMidnight.setHours(0, 0, 0, 0);
+    
+    const phaseEnd = new Date(phase.endDate || phase.dueDate);
+    phaseEnd.setHours(0, 0, 0, 0);
+    
+    if (phaseEnd < todayMidnight) {
+      errors.push(`Phase "${phase.name}" with estimated time cannot end in the past`);
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
+  }
+  
+  /**
+   * Calculate minimum phase end date to accommodate estimated time
+   * 
+   * If a phase has estimated time, it must end at least today to allow
+   * at least one day for that time to be allocated.
+   * 
+   * @param phase - The phase to calculate for
+   * @param today - Reference date (defaults to now)
+   * @returns Minimum required end date
+   */
+  static calculateMinimumPhaseEndDate(
+    phase: Milestone,
+    today: Date = new Date()
+  ): Date {
+    const timeAllocation = phase.timeAllocationHours ?? phase.timeAllocation ?? 0;
+    
+    // If no estimated time, use phase's current end date
+    if (timeAllocation <= 0) {
+      return new Date(phase.endDate || phase.dueDate);
+    }
+    
+    // Normalize today to midnight
+    const todayMidnight = new Date(today);
+    todayMidnight.setHours(0, 0, 0, 0);
+    
+    const currentEndDate = new Date(phase.endDate || phase.dueDate);
+    currentEndDate.setHours(0, 0, 0, 0);
+    
+    // Return the later of today or current end date
+    return currentEndDate >= todayMidnight ? currentEndDate : todayMidnight;
+  }
+  
+  /**
+   * Validate spacing between phases (minimum 1 day gap for non-final phases)
+   * 
+   * There must be at least 1 day between a phase end date and the next phase's
+   * start date, unless it's the last phase.
+   * 
+   * @param phases - Array of phases sorted by end date
+   * @returns Validation result with errors
+   */
+  static validatePhaseSpacing(
+    phases: Milestone[]
+  ): { isValid: boolean; errors: string[] } {
+    const errors: string[] = [];
+    
+    // Sort phases by end date
+    const sortedPhases = [...phases].sort((a, b) => {
+      const aEnd = new Date(a.endDate || a.dueDate).getTime();
+      const bEnd = new Date(b.endDate || b.dueDate).getTime();
+      return aEnd - bEnd;
+    });
+    
+    // Check spacing between consecutive phases
+    for (let i = 0; i < sortedPhases.length - 1; i++) {
+      const currentPhase = sortedPhases[i];
+      const nextPhase = sortedPhases[i + 1];
+      
+      const currentEnd = new Date(currentPhase.endDate || currentPhase.dueDate);
+      currentEnd.setHours(0, 0, 0, 0);
+      
+      const nextStart = new Date(nextPhase.startDate || currentEnd);
+      nextStart.setHours(0, 0, 0, 0);
+      
+      // Next phase must start at least 1 day after current phase ends
+      const minNextStart = new Date(currentEnd);
+      minNextStart.setDate(minNextStart.getDate() + 1);
+      
+      if (nextStart < minNextStart) {
+        errors.push(
+          `Phase "${nextPhase.name}" must start at least 1 day after "${currentPhase.name}" ends`
+        );
+      }
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
+  }
+  
+  /**
+   * Cascade phase date adjustments when one phase moves forward
+   * 
+   * When a phase's end date moves forward and comes within 1 day of the next
+   * phase's start date, the next phase must also move forward to maintain
+   * the required spacing.
+   * 
+   * @param phases - Array of phases
+   * @param adjustedPhaseId - ID of the phase that was adjusted
+   * @param newEndDate - New end date for the adjusted phase
+   * @returns Updated array of phases with cascaded adjustments
+   */
+  static cascadePhaseAdjustments(
+    phases: Milestone[],
+    adjustedPhaseId: string,
+    newEndDate: Date
+  ): Milestone[] {
+    // Sort phases by end date
+    const sortedPhases = [...phases].sort((a, b) => {
+      const aEnd = new Date(a.endDate || a.dueDate).getTime();
+      const bEnd = new Date(b.endDate || b.dueDate).getTime();
+      return aEnd - bEnd;
+    });
+    
+    // Find the adjusted phase index
+    const adjustedIndex = sortedPhases.findIndex(p => p.id === adjustedPhaseId);
+    if (adjustedIndex === -1 || adjustedIndex === sortedPhases.length - 1) {
+      // No cascading needed if not found or if it's the last phase
+      return phases;
+    }
+    
+    const result = [...sortedPhases];
+    let previousEnd = new Date(newEndDate);
+    previousEnd.setHours(0, 0, 0, 0);
+    
+    // Cascade forward from the adjusted phase
+    for (let i = adjustedIndex + 1; i < result.length; i++) {
+      const phase = result[i];
+      const phaseStart = new Date(phase.startDate || previousEnd);
+      phaseStart.setHours(0, 0, 0, 0);
+      
+      // Check if we need to move this phase forward
+      const minStart = new Date(previousEnd);
+      minStart.setDate(minStart.getDate() + 1);
+      
+      if (phaseStart < minStart) {
+        // Calculate how many days to shift
+        const daysToShift = Math.ceil((minStart.getTime() - phaseStart.getTime()) / (1000 * 60 * 60 * 24));
+        
+        // Shift both start and end dates
+        const newStart = new Date(phaseStart);
+        newStart.setDate(newStart.getDate() + daysToShift);
+        
+        const currentEnd = new Date(phase.endDate || phase.dueDate);
+        const newEnd = new Date(currentEnd);
+        newEnd.setDate(newEnd.getDate() + daysToShift);
+        
+        result[i] = {
+          ...phase,
+          startDate: newStart,
+          endDate: newEnd,
+          dueDate: newEnd // Keep dueDate in sync
+        };
+        
+        previousEnd = newEnd;
+      } else {
+        // No more cascading needed
+        break;
+      }
+    }
+    
+    return result;
+  }
 }

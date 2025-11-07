@@ -689,7 +689,7 @@ export function ProjectsView() {
           <div 
             className="flex items-end border-b border-gray-200 px-6"
             style={{
-              backgroundColor: 'rgb(249, 250, 251)', // bg-gray-50
+              backgroundColor: NEUTRAL_COLORS.gray25,
               paddingTop: '21px',
             }}
           >
@@ -946,8 +946,21 @@ export function ProjectsView() {
                 </ToggleGroup>
               </div>
 
-              {/* Right side - empty to maintain layout */}
-              <div />
+              {/* Right side - View toggle */}
+              <ToggleGroup
+                type="single"
+                value={viewType}
+                onValueChange={(value) => value && setViewType(value as ViewType)}
+                variant="outline"
+                className="border border-gray-200 rounded-lg h-9 p-1"
+              >
+                <ToggleGroupItem value="list" aria-label="List view" className="px-3 py-1 h-7">
+                  <List className="w-4 h-4" />
+                </ToggleGroupItem>
+                <ToggleGroupItem value="grid" aria-label="Grid view" className="px-3 py-1 h-7">
+                  <Grid3X3 className="w-4 h-4" />
+                </ToggleGroupItem>
+              </ToggleGroup>
             </div>
           </TabsContent>
           </div>

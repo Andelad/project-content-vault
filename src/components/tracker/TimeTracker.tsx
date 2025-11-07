@@ -281,12 +281,12 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
       // // console.log('🔍 Initial overlap check - complete, affected events:', affected.length);
     }, 1000); // Wait 1 second after start
   };
-  // Get the 3 most recently used projects based on events
+  // Get the 3 most recently tracked projects based on tracked/completed events
   const recentProjects = useMemo(() => {
-    // Get unique project IDs from events, sorted by most recent
+    // Get unique project IDs from tracked/completed events, sorted by most recently tracked (endTime)
     const projectIds = events
-      .filter(event => event.projectId)
-      .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
+      .filter(event => event.projectId && (event.type === 'tracked' || event.type === 'completed'))
+      .sort((a, b) => new Date(b.endTime).getTime() - new Date(a.endTime).getTime())
       .map(event => event.projectId)
       .filter((id, index, self) => self.indexOf(id) === index) // Remove duplicates
       .slice(0, 3); // Take top 3

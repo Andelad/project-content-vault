@@ -1,12 +1,13 @@
 /**
- * Timeline Auto-Row Service
+ * Timeline Row Arrangement Calculations
  * 
- * Automatically arranges projects into visual rows within groups based on date overlaps.
- * - Projects sorted by start date (primary) or alphabetically (secondary)
- * - Minimum 2-day gap enforced between projects on the same visual row
- * - Dynamic row count based on concurrent projects in visible date range
+ * Pure algorithmic logic for arranging projects into visual rows based on date overlaps.
+ * Uses greedy algorithm with minimum gap enforcement between projects on the same row.
  * 
- * Renamed from TimelineAutoLayoutService (Nov 2025) for clarity - specifically handles row arrangement
+ * Following AI Development Rules:
+ * - Pure calculations (no side effects, no state, no database access)
+ * - No business context - just date overlap math
+ * - Could run on server with zero business knowledge
  */
 
 import type { Project, Group } from '@/types/core';
@@ -32,7 +33,7 @@ export interface TimelineLayout {
   dateRange: { start: Date; end: Date };
 }
 
-export interface LayoutInput {
+export interface TimelineAutoRowInput {
   projects: Project[];
   groups: Group[];
   dateRange: { start: Date; end: Date };
@@ -76,27 +77,16 @@ function projectsOverlap(p1: Project, p2: Project, minGap: number): boolean {
  */
 function isProjectVisible(project: Project, dateRange: { start: Date; end: Date }): boolean {
   const projectStart = new Date(project.startDate);
-  const rangeStart = dateRange.start;
   const rangeEnd = dateRange.end;
 
   // For continuous projects, they're visible as long as they've started
   if (project.continuous) {
-    const isVisible = projectStart <= rangeEnd;
-    if (project.name === 'Budgi') {
-      console.log('[TimelineAutoLayoutService] Budgi continuous project visibility check:', {
-        projectStart: projectStart.toDateString(),
-        rangeStart: rangeStart.toDateString(),
-        rangeEnd: rangeEnd.toDateString(),
-        isVisible,
-        continuous: project.continuous
-      });
-    }
-    return isVisible;
+    return projectStart <= rangeEnd;
   }
 
   // For non-continuous projects, check both start and end dates
   const projectEnd = new Date(project.endDate);
-  return projectStart <= rangeEnd && projectEnd >= rangeStart;
+  return projectStart <= rangeEnd && projectEnd >= dateRange.start;
 }
 
 /**
@@ -199,8 +189,13 @@ function calculateGroupLayout(
 
 /**
  * Main function: Calculate complete timeline row arrangement
+ * 
+ * Automatically arranges projects into visual rows within groups based on date overlaps.
+ * - Projects sorted by start date (primary) or alphabetically (secondary)
+ * - Minimum 2-day gap enforced between projects on the same visual row
+ * - Dynamic row count based on concurrent projects in visible date range
  */
-export function calculateTimelineRows(input: LayoutInput): TimelineLayout {
+export function calculateTimelineRows(input: TimelineAutoRowInput): TimelineLayout {
   const {
     projects,
     groups,

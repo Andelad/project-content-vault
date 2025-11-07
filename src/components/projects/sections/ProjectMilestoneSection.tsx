@@ -47,6 +47,8 @@ interface ProjectMilestoneSectionProps {
     setMilestones: (milestones: LocalMilestone[]) => void;
   };
   isCreatingProject?: boolean;
+  // Override addMilestone for tracking (e.g., rollback on cancel)
+  trackedAddMilestone?: (milestone: any, options?: { silent?: boolean }) => Promise<any>;
   // Auto-estimate days
   localValues?: {
     autoEstimateDays?: {
@@ -113,6 +115,7 @@ export function ProjectMilestoneSection({
   onRecurringMilestoneChange,
   localMilestonesState,
   isCreatingProject = false,
+  trackedAddMilestone,
   localValues,
   setLocalValues,
   onAutoEstimateDaysChange,
@@ -121,7 +124,10 @@ export function ProjectMilestoneSection({
   handleSaveProperty: externalHandleSaveProperty,
   recurringMilestoneInfo
 }: ProjectMilestoneSectionProps) {
-  const { milestones: contextMilestones, addMilestone, updateMilestone, deleteMilestone, showMilestoneSuccessToast, refetchMilestones } = useProjectContext();
+  const { milestones: contextMilestones, addMilestone: contextAddMilestone, updateMilestone, deleteMilestone, showMilestoneSuccessToast, refetchMilestones } = useProjectContext();
+  
+  // Use tracked version if provided (for rollback support), otherwise use context version
+  const addMilestone = trackedAddMilestone || contextAddMilestone;
   const milestones = Array.isArray(contextMilestones) ? contextMilestones : [];
   const { toast } = useToast();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -216,6 +222,7 @@ export function ProjectMilestoneSection({
       dueDate: midpointDate, // For backward compatibility
       timeAllocation: projectEstimatedHours, // First phase gets full budget
       timeAllocationHours: projectEstimatedHours,
+      isRecurring: false, // Explicitly mark as non-recurring
       userId: '',
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -231,6 +238,7 @@ export function ProjectMilestoneSection({
       dueDate: projectEndDate, // For backward compatibility
       timeAllocation: 0, // Second phase starts at 0
       timeAllocationHours: 0,
+      isRecurring: false, // Explicitly mark as non-recurring
       userId: '',
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -247,10 +255,23 @@ export function ProjectMilestoneSection({
     } else if (projectId) {
       // For existing projects, save to database
       console.log('[Split] Saving to database for existing project');
-      const result1 = await addMilestone(phase1);
-      console.log('[Split] Phase 1 saved, result:', result1);
-      const result2 = await addMilestone(phase2);
-      console.log('[Split] Phase 2 saved, result:', result2);
+      console.log('[Split] About to save phase 1:', JSON.stringify(phase1, null, 2));
+      try {
+        const result1 = await addMilestone(phase1);
+        console.log('[Split] Phase 1 saved, result:', result1);
+      } catch (error) {
+        console.error('[Split] Failed to save phase 1:', error);
+        throw error; // Re-throw to stop execution
+      }
+      
+      console.log('[Split] About to save phase 2:', JSON.stringify(phase2, null, 2));
+      try {
+        const result2 = await addMilestone(phase2);
+        console.log('[Split] Phase 2 saved, result:', result2);
+      } catch (error) {
+        console.error('[Split] Failed to save phase 2:', error);
+        throw error; // Re-throw to stop execution
+      }
     } else {
       console.log('[Split] Adding to local milestones');
       setLocalMilestones([phase1, phase2]);
@@ -282,6 +303,7 @@ export function ProjectMilestoneSection({
       dueDate: projectEndDate, // For backward compatibility
       timeAllocation: 0,
       timeAllocationHours: 0,
+      isRecurring: false, // Explicitly mark as non-recurring
       userId: '',
       createdAt: new Date(),
       updatedAt: new Date(),

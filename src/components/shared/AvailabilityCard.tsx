@@ -177,8 +177,8 @@ export const AvailabilityCard = memo(function AvailabilityCard({
       let totalEstimatedHours = 0;
       
       datesToProcess.forEach(d => {
-        // Generate work hours for this date
-        const workHoursForDate = UnifiedTimelineService.generateWorkHoursForDate(d, settings);
+        // Generate work hours for this date (holidays override work hours)
+        const workHoursForDate = UnifiedTimelineService.generateWorkHoursForDate(d, settings, holidays);
         totalWorkHours += UnifiedTimelineService.calculateWorkHoursTotal(workHoursForDate);
         
         // Calculate habit time within work slots (excluding portion covered by planned events)

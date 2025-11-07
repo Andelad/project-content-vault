@@ -57,6 +57,9 @@ export function isWorkingDayForEstimates(
 
 /**
  * Get working days between two dates
+ * 
+ * NEW (Nov 2025): Only includes today and future days to comply with
+ * Phase Time Domain Rules (no estimated time in the past)
  */
 export function getWorkingDaysBetween(
   startDate: Date,
@@ -66,8 +69,19 @@ export function getWorkingDaysBetween(
   project?: Project
 ): Date[] {
   const workingDays: Date[] = [];
+  
+  // Normalize today to midnight for comparison
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  // Start from the later of startDate or today
   const current = new Date(startDate);
   current.setHours(0, 0, 0, 0);
+  
+  // If start date is in the past, begin from today instead
+  if (current < today) {
+    current.setTime(today.getTime());
+  }
   
   const end = new Date(endDate);
   end.setHours(0, 0, 0, 0);

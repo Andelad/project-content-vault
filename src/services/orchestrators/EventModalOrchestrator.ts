@@ -94,17 +94,16 @@ export class EventModalOrchestrator {
     const endDateTime = this.parseDateTime(formData.endDate, formData.endTime);
     const duration = this.calculateDurationHours(startDateTime, endDateTime);
     
-    // Determine the title: Description always takes precedence, fallback to 'Tracked Time' only if no description
+    // Determine the title: Manual entry in description always takes precedence
+    // If the user has entered any text in the description field, use it as the title
+    // This ensures that manual edits override any auto-applied labels like 'Tracked Time'
     let title: string;
     if (formData.description.trim()) {
-      // If user provided a description, always use it (overrides 'Tracked Time')
+      // User provided a description - always use it, even if it was previously 'Tracked Time'
       title = formData.description.trim();
-    } else if (existingEvent?.title === 'Tracked Time' || existingEvent?.title?.includes('Tracked Time')) {
-      // Only use 'Tracked Time' if no description provided and this was originally a tracked time event
-      title = 'Tracked Time';
     } else {
-      // Fallback for other cases
-      title = formData.description.trim() || 'Untitled Event';
+      // No description provided - use 'Untitled Event' as fallback
+      title = 'Untitled Event';
     }
     
     const eventData: Omit<CalendarEvent, 'id'> = {

@@ -14,6 +14,7 @@ export const BRAND_COLORS = {
 // Neutral gray colors - centralized for consistency
 // Using true neutral grays (no color temperature)
 export const NEUTRAL_COLORS = {
+  gray25: '#fcfcfc',      // Even lighter than neutral-50, for very light backgrounds
   gray50: '#fafafa',      // neutral-50
   gray100: '#f5f5f5',     // neutral-100
   gray200: '#e5e5e5',     // neutral-200

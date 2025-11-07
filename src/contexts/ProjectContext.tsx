@@ -103,7 +103,7 @@ interface ProjectContextType {
 
   // Milestones
   milestones: Milestone[];
-  addMilestone: (milestone: MilestoneCreateInput, options?: { silent?: boolean }) => Promise<void>;
+  addMilestone: (milestone: MilestoneCreateInput, options?: { silent?: boolean }) => Promise<Milestone | undefined>;
   updateMilestone: (id: string, updates: MilestoneUpdateInput, options?: { silent?: boolean }) => Promise<void>;
   deleteMilestone: (id: string, options?: { silent?: boolean }) => Promise<void>;
   getMilestonesForProject: (projectId: string) => Milestone[];
@@ -366,8 +366,29 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       payload.recurring_config = milestone.recurringConfig as unknown as SupabaseMilestoneInsert['recurring_config'];
     }
 
-    await dbAddMilestone(payload, options);
+    const result = await dbAddMilestone(payload, options);
     await refetchMilestones();
+    
+    // Convert database result to Milestone type
+    if (result) {
+      return {
+        id: result.id,
+        name: result.name,
+        projectId: result.project_id,
+        endDate: new Date(result.due_date),
+        dueDate: new Date(result.due_date),
+        timeAllocation: result.time_allocation,
+        timeAllocationHours: result.time_allocation_hours,
+        startDate: result.start_date ? new Date(result.start_date) : undefined,
+        isRecurring: result.is_recurring ?? undefined,
+        recurringConfig: result.recurring_config as any,
+        userId: result.user_id,
+        createdAt: new Date(result.created_at),
+        updatedAt: new Date(result.updated_at)
+      };
+    }
+    
+    return undefined;
   }, [dbAddMilestone, refetchMilestones]);
 
   const updateMilestone = useCallback(async (id: string, updates: MilestoneUpdateInput, options?: { silent?: boolean }) => {

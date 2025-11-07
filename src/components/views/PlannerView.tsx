@@ -642,11 +642,9 @@ export function PlannerView() {
     // Format time
     const start = moment(event.start).format('HH:mm');
     const end = moment(event.end).format('HH:mm');
-    // Get event description or title
+    // Get event title - manual entry always takes precedence
     const eventType = extendedProps.type;
-    const description = (eventType === 'tracked' || eventType === 'completed') 
-      ? 'Tracked Time' 
-      : (extendedProps.description || event.title);
+    const description = event.title;
     // Create project/client line
     const projectLine = project 
       ? `${project.name}${project.client ? ` • ${project.client}` : ''}`

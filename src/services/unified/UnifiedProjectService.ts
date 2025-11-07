@@ -230,19 +230,21 @@ export class UnifiedProjectService {
   
   /**
    * Analyze project budget vs milestone allocation
+   * Delegates to domain rules (no wrapper layer)
    */
   static analyzeBudget(project: Project, milestones: Milestone[]): ProjectBudgetAnalysis {
-    return UnifiedProjectEntity.analyzeBudget(project, milestones);
+    return ProjectRules.analyzeBudget(project, milestones);
   }
   
   /**
    * Validate project time constraints
+   * Delegates to domain rules (no wrapper layer)
    */
   static validateTimeConstraints(
     estimatedHours: number,
     milestones: Milestone[]
   ): ProjectTimeValidation {
-    return UnifiedProjectEntity.validateProjectTime(estimatedHours, milestones);
+    return ProjectRules.validateProjectTime(estimatedHours, milestones);
   }
 }
 

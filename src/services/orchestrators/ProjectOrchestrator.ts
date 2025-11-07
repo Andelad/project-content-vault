@@ -106,7 +106,7 @@ export interface ProjectUpdateRequest {
 export class ProjectOrchestrator {
 
   /**
-   * Validate project creation with milestone considerations
+   * Validate project creation - calls domain rules directly
    */
   static validateProjectCreation(
     request: ProjectCreationRequest,
@@ -115,12 +115,27 @@ export class ProjectOrchestrator {
     const errors: string[] = [];
     const warnings: string[] = [];
 
-    // Validate project time constraints using domain rules
-    if (!ProjectRules.validateEstimatedHours(request.estimatedHours)) {
-      errors.push('Estimated hours must be greater than 0');
+    // Name validation
+    if (!request.name || request.name.trim().length === 0) {
+      errors.push('Project name is required');
     }
 
-    // Validate project dates using domain rules
+    // Client validation (required for database constraint)
+    if (!request.client || request.client.trim().length === 0) {
+      errors.push('Client is required');
+    }
+
+    // Call domain rule for estimated hours
+    if (!ProjectRules.validateEstimatedHours(request.estimatedHours)) {
+      errors.push('Estimated hours cannot be negative');
+    }
+
+    // Large hours warning
+    if (request.estimatedHours > 10000) {
+      warnings.push('Project estimated hours is very large (>10,000 hours)');
+    }
+
+    // Call domain rule for dates
     const dateValidation = ProjectRules.validateProjectDates(
       request.startDate,
       request.endDate,
@@ -130,23 +145,38 @@ export class ProjectOrchestrator {
       errors.push(...dateValidation.errors);
     }
 
-    // Business rule: Validate name requirements
-    if (!request.name || request.name.trim().length === 0) {
-      errors.push('Project name is required');
-    }
-
-    // Business rule: Validate client (required for database constraint)
-    if (!request.client || request.client.trim().length === 0) {
-      errors.push('Client is required');
-    }
-
-    // Business rule: Validate estimated hours range
-    if (request.estimatedHours <= 0) {
-      errors.push('Estimated hours must be greater than 0');
-    }
-
-    if (request.estimatedHours > 10000) {
-      warnings.push('Project estimated hours is very large (>10,000 hours)');
+    // NEW: Validate project not fully in past (Phase Time Domain Rules)
+    if (request.estimatedHours > 0) {
+      const tempProject: Project = {
+        id: 'temp',
+        name: request.name,
+        client: request.client,
+        clientId: '',
+        startDate: request.startDate,
+        endDate: request.endDate || new Date(),
+        estimatedHours: request.estimatedHours,
+        color: request.color,
+        groupId: request.groupId,
+        rowId: request.rowId,
+        notes: request.notes,
+        icon: request.icon,
+        continuous: request.continuous,
+        autoEstimateDays: request.autoEstimateDays,
+        userId: '',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        status: 'current',
+        milestones: []
+      };
+      
+      const pastValidation = ProjectRules.validateProjectNotFullyInPast(
+        tempProject,
+        existingMilestones
+      );
+      
+      if (!pastValidation.isValid) {
+        errors.push(...pastValidation.errors);
+      }
     }
 
     return {
@@ -494,7 +524,93 @@ export class ProjectOrchestrator {
         };
       }
 
-      // Step 4: Handle milestone creation if provided
+      // Step 4: Apply Phase Time Domain Rules auto-adjustments
+      const warnings: string[] = validation.warnings || [];
+      if (request.milestones && request.milestones.length > 0) {
+        const phases = request.milestones.filter(m => m.endDate !== undefined);
+        
+        if (phases.length > 0) {
+          // Convert to Milestone objects for domain rule processing
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          
+          let phaseObjects: Milestone[] = phases.map((p, index) => ({
+            id: `temp-${index}`, // Temporary ID for processing
+            projectId: createdProject.id,
+            userId: '', // Will be set on actual save
+            name: p.name,
+            dueDate: p.dueDate,
+            endDate: p.endDate,
+            timeAllocation: p.timeAllocation,
+            timeAllocationHours: p.timeAllocationHours,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          }));
+          
+          // Auto-adjust phases with estimated time that end in the past
+          let needsCascade = false;
+          phaseObjects = phaseObjects.map((phase) => {
+            if ((phase.timeAllocation ?? 0) > 0 && phase.endDate && phase.endDate < today) {
+              const minimumEndDate = MilestoneRules.calculateMinimumPhaseEndDate(phase, today);
+              
+              if (minimumEndDate > phase.endDate) {
+                warnings.push(
+                  `Phase "${phase.name}" end date auto-adjusted from ${phase.endDate.toLocaleDateString()} to ${minimumEndDate.toLocaleDateString()} (cannot end in past with estimated time)`
+                );
+                
+                needsCascade = true;
+                return { ...phase, endDate: minimumEndDate };
+              }
+            }
+            return phase;
+          });
+          
+          // Cascade adjustments to subsequent phases if any phase was adjusted
+          if (needsCascade) {
+            // Find first adjusted phase and cascade from there
+            const firstAdjustedIndex = phaseObjects.findIndex((p, idx) => {
+              const original = phases[idx];
+              return p.endDate?.getTime() !== original.endDate?.getTime();
+            });
+            
+            if (firstAdjustedIndex >= 0) {
+              const adjustedPhase = phaseObjects[firstAdjustedIndex];
+              phaseObjects = MilestoneRules.cascadePhaseAdjustments(
+                phaseObjects,
+                adjustedPhase.id,
+                adjustedPhase.endDate!
+              );
+            }
+            
+            // Check if project end date needs adjustment
+            const lastPhase = phaseObjects[phaseObjects.length - 1];
+            if (lastPhase.endDate && createdProject.endDate && lastPhase.endDate > createdProject.endDate) {
+              const adjustedEndDate = ProjectRules.adjustProjectEndDateForPhases(
+                createdProject,
+                phaseObjects
+              );
+              
+              if (adjustedEndDate > createdProject.endDate) {
+                warnings.push(
+                  `Project end date auto-extended from ${createdProject.endDate.toLocaleDateString()} to ${adjustedEndDate.toLocaleDateString()} to accommodate phases`
+                );
+                createdProject.endDate = adjustedEndDate;
+              }
+            }
+            
+            // Update request milestones with adjusted values
+            request.milestones = request.milestones.map((m, idx) => {
+              const adjusted = phaseObjects.find(p => p.id === `temp-${idx}`);
+              if (adjusted && adjusted.endDate && m.endDate) {
+                return { ...m, endDate: adjusted.endDate };
+              }
+              return m;
+            });
+          }
+        }
+      }
+
+      // Step 5: Handle milestone creation if provided
       if (request.milestones && request.milestones.length > 0) {
         await this.createProjectMilestones(
           createdProject.id,
@@ -505,7 +621,8 @@ export class ProjectOrchestrator {
 
       return {
         success: true,
-        project: createdProject
+        project: createdProject,
+        warnings: warnings.length > 0 ? warnings : undefined
       };
 
     } catch (error) {

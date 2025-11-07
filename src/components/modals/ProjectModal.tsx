@@ -74,7 +74,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
   // Debug: Identify which modal instance this is
   const modalType = projectId ? 'EDIT' : 'CREATE';
   dlog(`🔍 ${modalType} Modal render:`, { isOpen, projectId, groupId, rowId });
-  const { projects, groups, rows, updateProject, addProject, deleteProject, creatingNewProject, milestones, addMilestone } = useProjectContext();
+  const { projects, groups, rows, updateProject, addProject, deleteProject, creatingNewProject, milestones, addMilestone, deleteMilestone } = useProjectContext();
   const { setCurrentView } = useTimelineContext();
   const { events, holidays } = usePlannerContext();
   const { settings } = useSettingsContext();
@@ -148,6 +148,39 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
     totalAllocation: number;
     hasRecurring: boolean;
   }>({ totalAllocation: 0, hasRecurring: false });
+  
+  // Track milestones added during this edit session (for rollback on cancel)
+  const [milestonesAddedDuringSession, setMilestonesAddedDuringSession] = useState<string[]>([]);
+  
+  // Track if we're saving (to prevent rollback on save) - start as false, set true when saving
+  const shouldRollbackRef = React.useRef(true); // Default to rollback unless explicitly saving
+  
+  // Reset tracking when modal opens
+  useEffect(() => {
+    if (isOpen && !isCreating) {
+      setMilestonesAddedDuringSession([]);
+      shouldRollbackRef.current = true; // Reset to rollback by default
+    }
+  }, [isOpen, isCreating]);
+  
+  // Wrapper for addMilestone that tracks new milestone IDs for rollback
+  const trackedAddMilestone = useCallback(async (milestone: any, options?: { silent?: boolean }) => {
+    console.log('[ProjectModal] trackedAddMilestone called for:', milestone.name);
+    const result = await addMilestone(milestone, options);
+    console.log('[ProjectModal] addMilestone result:', result);
+    
+    // Track the new milestone ID if we're editing (not creating)
+    if (!isCreating && result?.id) {
+      console.log('[ProjectModal] Tracking milestone ID for rollback:', result.id);
+      setMilestonesAddedDuringSession(prev => {
+        const updated = [...prev, result.id];
+        console.log('[ProjectModal] Updated tracked milestones:', updated);
+        return updated;
+      });
+    }
+    
+    return result;
+  }, [addMilestone, isCreating]);
   const [localValues, setLocalValues] = useState({
     name: '',
     client: '',
@@ -269,9 +302,32 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
     }
   }, [project, isCreating, creatingNewProject]);
   // Handle smooth modal closing - just call onClose, AnimatePresence will handle the animation
-  const handleClose = useCallback(() => {
+  const handleClose = useCallback(async () => {
+    console.log('[ProjectModal] handleClose called');
+    console.log('[ProjectModal] isCreating:', isCreating);
+    console.log('[ProjectModal] shouldRollback:', shouldRollbackRef.current);
+    console.log('[ProjectModal] milestonesAddedDuringSession:', milestonesAddedDuringSession);
+    
+    // If editing (not creating) and should rollback, delete milestones added during this session
+    if (!isCreating && shouldRollbackRef.current && milestonesAddedDuringSession.length > 0) {
+      console.log('[ProjectModal] Rolling back milestones added during session:', milestonesAddedDuringSession);
+      for (const milestoneId of milestonesAddedDuringSession) {
+        try {
+          console.log('[ProjectModal] Deleting milestone:', milestoneId);
+          await deleteMilestone(milestoneId, { silent: true });
+          console.log('[ProjectModal] Successfully deleted milestone:', milestoneId);
+        } catch (error) {
+          console.error('[ProjectModal] Failed to rollback milestone:', milestoneId, error);
+        }
+      }
+      setMilestonesAddedDuringSession([]);
+    }
+    
+    // Reset rollback flag for next open
+    shouldRollbackRef.current = true;
+    
     onClose();
-  }, [onClose]);
+  }, [onClose, isCreating, milestonesAddedDuringSession, deleteMilestone]);
   // Handle creating the new project
   const handleCreateProject = useCallback(async () => {
     // Prevent double submission
@@ -314,7 +370,9 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
           },
           {
             addProject,
-            addMilestone
+            addMilestone: async (data: any, options?: { silent?: boolean }) => {
+              await addMilestone(data, options);
+            }
           }
         );
         if (result.success) {
@@ -323,6 +381,20 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
             title: "Success",
             description: "Project created successfully",
           });
+          
+          // Show warnings if any dates were auto-adjusted
+          if (result.warnings && result.warnings.length > 0) {
+            result.warnings.forEach(warning => {
+              toast({
+                title: "Auto-adjustment",
+                description: warning,
+                variant: "default",
+              });
+            });
+          }
+          
+          // Don't rollback on successful save
+          shouldRollbackRef.current = false;
           handleClose();
         } else {
           // Handle orchestrator errors
@@ -400,7 +472,8 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
         description: "Project updated successfully",
       });
     }
-    // Close modal
+    // Close modal - don't rollback on successful save
+    shouldRollbackRef.current = false;
   dlog('🎯 Closing modal after save');
     handleClose();
   }, [isCreating, handleCreateProject, handleClose, projectId, groupId, rowId, resolvedGroupId, resolvedRowId, dlog, toast, localValues, originalValues, updateProject]);
@@ -1223,6 +1296,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
                 onRecurringMilestoneChange={handleRecurringMilestoneChange}
                 localMilestonesState={localMilestonesStateMemo}
                 isCreatingProject={isCreating}
+                trackedAddMilestone={!isCreating ? trackedAddMilestone : undefined}
                 localValues={localValues}
                 setLocalValues={setLocalValues}
                 onAutoEstimateDaysChange={handleAutoEstimateDaysChange}

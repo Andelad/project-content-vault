@@ -676,9 +676,10 @@ export function calculateNetAvailability(
  */
 export function generateWorkHoursForDate(
   date: Date,
-  settings: any
+  settings: any,
+  holidays: any[] = []
 ): WorkHour[] {
-  return unifiedGenerateWorkHoursForDate(date, settings);
+  return unifiedGenerateWorkHoursForDate(date, settings, holidays);
 }
 
 /**

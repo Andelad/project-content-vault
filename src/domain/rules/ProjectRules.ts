@@ -58,16 +58,16 @@ export class ProjectRules {
   // ==========================================================================
   
   /**
-   * RULE 1: Project estimated hours must be positive
+   * RULE 1: Project estimated hours must be non-negative
    * 
    * Business Logic Reference: Rule 4
-   * Formula: project.estimatedHours > 0
+   * Formula: project.estimatedHours >= 0
    * 
    * @param hours - The estimated hours to validate
-   * @returns true if hours are positive, false otherwise
+   * @returns true if hours are non-negative, false otherwise
    */
   static validateEstimatedHours(hours: number): boolean {
-    return hours > 0;
+    return hours >= 0;
   }
 
   // ==========================================================================
@@ -212,7 +212,7 @@ export class ProjectRules {
     const warnings: string[] = [];
 
     if (!this.validateEstimatedHours(estimatedHours)) {
-      errors.push('Project estimated hours must be greater than 0');
+      errors.push('Project estimated hours must be greater than or equal to 0');
     }
 
     const totalAllocated = this.calculateTotalMilestoneAllocation(milestones);
@@ -383,4 +383,121 @@ export class ProjectRules {
     if (!status) return true; // Status is optional
     return ['current', 'future', 'archived'].includes(status);
   }
+
+  // ==========================================================================
+  // PHASE TIME DOMAIN RULES - NEW (November 2025)
+  // ==========================================================================
+  
+  /**
+   * RULE: Projects with estimated time cannot be fully in the past
+   * 
+   * If a project has estimated hours > 0, at least one working day must be
+   * today or in the future to accommodate that estimated time.
+   * 
+   * @param project - The project to validate
+   * @param phases - The project's phases (milestones with startDate/endDate)
+   * @param today - Reference date (defaults to now)
+   * @returns Validation result with errors
+   */
+  static validateProjectNotFullyInPast(
+    project: Project,
+    phases: Milestone[],
+    today: Date = new Date()
+  ): { isValid: boolean; errors: string[] } {
+    const errors: string[] = [];
+    
+    // Normalize today to midnight for comparison
+    const todayMidnight = new Date(today);
+    todayMidnight.setHours(0, 0, 0, 0);
+    
+    // Only validate if project has estimated time
+    if (project.estimatedHours <= 0) {
+      return { isValid: true, errors };
+    }
+    
+    // Check if project has phases
+    if (phases.length > 0) {
+      // For projects with phases, check if any phase end date is today or future
+      const hasFuturePhase = phases.some(phase => {
+        const phaseEnd = new Date(phase.endDate || phase.dueDate);
+        phaseEnd.setHours(0, 0, 0, 0);
+        return phaseEnd >= todayMidnight;
+      });
+      
+      if (!hasFuturePhase) {
+        errors.push('Project with estimated time must have at least one phase ending today or in the future');
+      }
+    } else {
+      // For projects without phases, check project end date
+      if (!project.continuous) {
+        const projectEnd = new Date(project.endDate);
+        projectEnd.setHours(0, 0, 0, 0);
+        
+        if (projectEnd < todayMidnight) {
+          errors.push('Project with estimated time cannot end in the past');
+        }
+      }
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
+  }
+  
+  /**
+   * Calculate minimum required project end date based on phases
+   * 
+   * The project end date must be at least the last phase end date to accommodate
+   * all phase durations and estimated time.
+   * 
+   * @param phases - The project's phases
+   * @param today - Reference date (defaults to now)
+   * @returns Minimum required project end date
+   */
+  static calculateMinimumProjectEndDate(
+    phases: Milestone[],
+    today: Date = new Date()
+  ): Date {
+    if (phases.length === 0) {
+      return new Date(today);
+    }
+    
+    // Find the latest phase end date
+    const latestPhaseEnd = phases.reduce((latest, phase) => {
+      const phaseEnd = new Date(phase.endDate || phase.dueDate);
+      return phaseEnd > latest ? phaseEnd : latest;
+    }, new Date(today));
+    
+    return latestPhaseEnd;
+  }
+  
+  /**
+   * Adjust project end date to accommodate phases with estimated time
+   * 
+   * If phases extend beyond the current project end date, the project end date
+   * is automatically extended to match.
+   * 
+   * @param project - The project to adjust
+   * @param phases - The project's phases
+   * @param today - Reference date (defaults to now)
+   * @returns Adjusted project end date
+   */
+  static adjustProjectEndDateForPhases(
+    project: Project,
+    phases: Milestone[],
+    today: Date = new Date()
+  ): Date {
+    // Don't adjust continuous projects
+    if (project.continuous) {
+      return project.endDate;
+    }
+    
+    const minEndDate = this.calculateMinimumProjectEndDate(phases, today);
+    const currentEndDate = new Date(project.endDate);
+    
+    // Return the later of the two dates
+    return minEndDate > currentEndDate ? minEndDate : currentEndDate;
+  }
 }
+
