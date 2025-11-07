@@ -10,16 +10,14 @@
  */
 
 import { getDayName, isWorkingDay } from '../general/dateCalculations';
-import { isHolidayDateCapacity, calculateAvailabilityReduction } from './capacityCalculations';
+import { 
+  isHolidayDateCapacity, 
+  calculateAvailabilityReduction,
+  generateWorkHoursForDate 
+} from './capacityCalculations';
 import { calculateWorkHoursTotal } from '../../ui/positioning/ProjectBarPositioning';
 import { calculateProjectDayEstimates } from '../projects/dayEstimateCalculations';
 import type { Project, CalendarEvent, Milestone, Settings, Holiday } from '@/types/core';
-
-/**
- * Generate work hours for a date based on settings
- * Note: This is imported from capacityCalculations
- */
-const { generateWorkHoursForDate } = require('./capacityCalculations');
 
 /**
  * Get total work hours for a specific day
