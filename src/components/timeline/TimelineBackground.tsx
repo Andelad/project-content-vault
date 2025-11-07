@@ -104,7 +104,7 @@ export const TimelineBackground = memo(function TimelineBackground({ dates, mode
                 left: `${dateIndex * 52}px`,
                 width: '52px',
                 height: '100%',
-                backgroundColor: 'rgba(163, 163, 163, 0.35)',
+                backgroundColor: 'rgba(163, 163, 163, 0.15)',
                 pointerEvents: 'none',
                 zIndex: 3
               }}
