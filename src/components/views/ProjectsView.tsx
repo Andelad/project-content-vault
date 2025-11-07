@@ -26,6 +26,7 @@ import { getEffectiveProjectStatus, DurationFormattingService } from '@/services
 import { GroupOrchestrator } from '@/services/orchestrators/GroupOrchestrator';
 import { ClientsListView } from './ClientsListView';
 import { NEUTRAL_COLORS } from '@/constants/colors';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 type ViewType = 'grid' | 'list';
 type FilterByStatus = 'all' | 'active' | 'future' | 'past';
 type OrganizeBy = 'group' | 'tag' | 'client';
@@ -296,7 +297,7 @@ export function ProjectsView() {
       setIsGroupDialogOpen(false);
       resetGroupForm();
     } catch (error) {
-      console.error('Group operation failed:', error);
+      ErrorHandlingService.handle(error, { source: 'ProjectsView', action: 'Group operation failed:' });
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Operation failed",

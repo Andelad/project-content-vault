@@ -46,7 +46,7 @@ async function processQueue(): Promise<void> {
   try {
     await latestUpdate();
   } catch (error) {
-    console.error('Drag update error:', error);
+    ErrorHandlingService.handle(error, { source: 'dragPerformanceService', action: 'Drag update error:' });
   } finally {
     isProcessingQueue = false;
 

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 type Row = Database['public']['Tables']['rows']['Row'];
 type RowInsert = Database['public']['Tables']['rows']['Insert'];
@@ -26,7 +27,7 @@ export function useRows() {
       if (error) throw error;
       setRows(data || []);
     } catch (error) {
-      console.error('Error fetching rows:', error);
+      ErrorHandlingService.handle(error, { source: 'useRows', action: 'Error fetching rows:' });
       toast({
         title: "Error",
         description: "Failed to load rows",
@@ -56,7 +57,7 @@ export function useRows() {
       });
       return data;
     } catch (error) {
-      console.error('Error adding row:', error);
+      ErrorHandlingService.handle(error, { source: 'useRows', action: 'Error adding row:' });
       toast({
         title: "Error",
         description: "Failed to create row",
@@ -83,7 +84,7 @@ export function useRows() {
       });
       return data;
     } catch (error) {
-      console.error('Error updating row:', error);
+      ErrorHandlingService.handle(error, { source: 'useRows', action: 'Error updating row:' });
       toast({
         title: "Error",
         description: "Failed to update row",
@@ -107,7 +108,7 @@ export function useRows() {
         description: "Row deleted successfully",
       });
     } catch (error) {
-      console.error('Error deleting row:', error);
+      ErrorHandlingService.handle(error, { source: 'useRows', action: 'Error deleting row:' });
       toast({
         title: "Error",
         description: "Failed to delete row",

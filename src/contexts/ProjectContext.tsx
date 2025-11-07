@@ -7,6 +7,7 @@ import { useMilestones } from '@/hooks/useMilestones';
 import { getProjectColor, getGroupColor } from '@/constants';
 import type { Database } from '@/integrations/supabase/types';
 import { Milestone } from '@/types/core';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 type SupabaseGroupRow = Database['public']['Tables']['groups']['Row'];
 type SupabaseRowRow = Database['public']['Tables']['rows']['Row'];
 type SupabaseMilestoneRow = Database['public']['Tables']['milestones']['Row'];
@@ -478,7 +479,7 @@ export function useProjectContext() {
   const context = useContext(ProjectContext);
   if (context === undefined) {
     // Add more debugging information
-    console.error('useProjectContext was called outside of ProjectProvider. Current context:', context);
+    ErrorHandlingService.handle(context, { source: 'ProjectContext', action: 'useProjectContext was called outside of ProjectProvider. Current context:' });
     console.error('Stack trace:', new Error().stack);
     throw new Error('useProjectContext must be used within a ProjectProvider');
   }

@@ -9,6 +9,7 @@
 import { CalendarEvent } from '@/types/core';
 import { useToast } from '@/hooks/use-toast';
 import { transformFullCalendarToCalendarEvent } from '../unified/UnifiedEventTransformService';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 export interface EventUpdateData {
   startTime?: Date;
@@ -74,7 +75,7 @@ export class PlannerViewOrchestrator {
 
       return { success: true };
     } catch (error) {
-      console.error('PlannerViewOrchestrator: Failed to update event via drag:', error);
+      ErrorHandlingService.handle(error, { source: 'PlannerViewOrchestrator', action: 'PlannerViewOrchestrator: Failed to update event via drag:' });
       
       // Revert the visual change
       revertCallback();
@@ -130,7 +131,7 @@ export class PlannerViewOrchestrator {
 
       return { success: true };
     } catch (error) {
-      console.error('PlannerViewOrchestrator: Failed to resize event:', error);
+      ErrorHandlingService.handle(error, { source: 'PlannerViewOrchestrator', action: 'PlannerViewOrchestrator: Failed to resize event:' });
       
       // Revert the visual change
       revertCallback();
@@ -177,7 +178,7 @@ export class PlannerViewOrchestrator {
       // Success feedback is handled by the updateEventWithUndo function
       return { success: true };
     } catch (error) {
-      console.error('PlannerViewOrchestrator: Failed to toggle completion:', error);
+      ErrorHandlingService.handle(error, { source: 'PlannerViewOrchestrator', action: 'PlannerViewOrchestrator: Failed to toggle completion:' });
       
       // Show error feedback
       this.context.toast({

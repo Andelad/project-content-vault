@@ -18,6 +18,7 @@ import { ProjectRules } from '@/domain/rules/ProjectRules';
 import { MilestoneRules } from '@/domain/rules/MilestoneRules';
 import { getDateKey } from '@/utils/dateFormatUtils';
 import { calculateBudgetAdjustment } from '@/services/calculations';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 export interface ProjectBudgetAnalysis {
   totalAllocation: number;
   suggestedBudget: number;
@@ -452,7 +453,7 @@ export class ProjectOrchestrator {
         };
       }
       if (!request.groupId || request.groupId === '') {
-        console.error('❌ ProjectOrchestrator: Missing groupId');
+        ErrorHandlingService.handle('❌ ProjectOrchestrator: Missing groupId', { source: 'ProjectOrchestrator' });
         return {
           success: false,
           errors: ['Group ID is required for project creation']
@@ -482,7 +483,7 @@ export class ProjectOrchestrator {
       try {
         createdProject = await projectContext.addProject(projectData);
       } catch (addProjectError) {
-        console.error('❌ ProjectOrchestrator: addProject threw error:', addProjectError);
+        ErrorHandlingService.handle(addProjectError, { source: 'ProjectOrchestrator', action: '❌ ProjectOrchestrator: addProject threw error:' });
         console.error('❌ ProjectOrchestrator: Error type:', typeof addProjectError);
         console.error('❌ ProjectOrchestrator: Error constructor:', addProjectError?.constructor?.name);
         console.error('❌ ProjectOrchestrator: Full error:', JSON.stringify(addProjectError, null, 2));
@@ -500,7 +501,7 @@ export class ProjectOrchestrator {
         };
       }
       if (!createdProject) {
-        console.error('❌ ProjectOrchestrator: addProject returned null/undefined');
+        ErrorHandlingService.handle('❌ ProjectOrchestrator: addProject returned null/undefined', { source: 'ProjectOrchestrator' });
         return {
           success: false,
           errors: ['Project creation failed - no project returned']
@@ -595,7 +596,7 @@ export class ProjectOrchestrator {
         warnings: warnings.length > 0 ? warnings : undefined
       };
     } catch (error) {
-      console.error('Project creation workflow error:', error);
+      ErrorHandlingService.handle(error, { source: 'ProjectOrchestrator', action: 'Project creation workflow error:' });
       return {
         success: false,
         errors: [error instanceof Error ? error.message : 'Project creation failed']
@@ -621,7 +622,7 @@ export class ProjectOrchestrator {
             projectId: projectId
           }, { silent: true }); // Silent mode to prevent individual milestone toasts
         } catch (error) {
-          console.error('Failed to save milestone:', error);
+          ErrorHandlingService.handle(error, { source: 'ProjectOrchestrator', action: 'Failed to save milestone:' });
           // Continue with other milestones even if one fails
         }
       }

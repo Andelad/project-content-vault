@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { CardSidebarLayout } from '../shared/CardSidebarLayout';
 import { OrphanedMilestonesCleaner } from '../debug';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 import { 
   CreditCard, 
   Crown, 
@@ -77,12 +78,12 @@ export function ProfileView() {
         .maybeSingle();
       
       if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching profile:', error);
+        ErrorHandlingService.handle(error, { source: 'ProfileView', action: 'Error fetching profile:' });
       } else {
         setProfile(data);
       }
     } catch (error) {
-      console.error('Error:', error);
+      ErrorHandlingService.handle(error, { source: 'ProfileView', action: 'Error:' });
     }
   }, [user?.id]);
 
@@ -202,7 +203,7 @@ export function ProfileView() {
         });
 
       if (error) {
-        console.error('Profile update error:', error);
+        ErrorHandlingService.handle(error, { source: 'ProfileView', action: 'Profile update error:' });
         toast({
           title: "Error",
           description: error.message,
@@ -217,7 +218,7 @@ export function ProfileView() {
         await fetchProfile();
       }
     } catch (error: any) {
-      console.error('Profile update catch error:', error);
+      ErrorHandlingService.handle(error, { source: 'ProfileView', action: 'Profile update catch error:' });
       toast({
         title: "Error",
         description: error.message,
@@ -467,7 +468,7 @@ export function ProfileView() {
       // Sign out and redirect
       await signOut();
     } catch (error: any) {
-      console.error('Account deletion error:', error);
+      ErrorHandlingService.handle(error, { source: 'ProfileView', action: 'Account deletion error:' });
       toast({
         title: "Error",
         description: error.message || "Failed to delete account. Please contact support.",

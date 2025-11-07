@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 type CalendarEvent = Database['public']['Tables']['calendar_events']['Row'];
 type CalendarEventInsert = Database['public']['Tables']['calendar_events']['Insert'];
 type CalendarEventUpdate = Database['public']['Tables']['calendar_events']['Update'];
@@ -82,7 +83,7 @@ export function useEvents() {
       if (error) throw error;
       setEvents(data || []);
     } catch (error) {
-      console.error('Error fetching events:', error);
+      ErrorHandlingService.handle(error, { source: 'useEvents', action: 'Error fetching events:' });
       toast({
         title: "Error",
         description: "Failed to load events",
@@ -96,7 +97,7 @@ export function useEvents() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        console.error('❌ addEvent: User not authenticated');
+        ErrorHandlingService.handle('❌ addEvent: User not authenticated', { source: 'useEvents' });
         throw new Error('User not authenticated');
       }
       // // console.log('🔍 addEvent: Creating event in database:', {
@@ -110,11 +111,11 @@ export function useEvents() {
         .select()
         .single();
       if (error) {
-        console.error('❌ addEvent: Database insert error:', error);
+        ErrorHandlingService.handle(error, { source: 'useEvents', action: '❌ addEvent: Database insert error:' });
         throw error;
       }
       if (!data) {
-        console.error('❌ addEvent: No data returned from insert');
+        ErrorHandlingService.handle('❌ addEvent: No data returned from insert', { source: 'useEvents' });
         throw new Error('No data returned from event creation');
       }
       // // console.log('✅ addEvent: Event created successfully:', {
@@ -132,7 +133,7 @@ export function useEvents() {
       }
       return data;
     } catch (error) {
-      console.error('❌ addEvent: Fatal error:', error);
+      ErrorHandlingService.handle(error, { source: 'useEvents', action: '❌ addEvent: Fatal error:' });
       if (!options?.silent) {
         toast({
           title: "Error",
@@ -162,7 +163,7 @@ export function useEvents() {
       }
       return data;
     } catch (error) {
-      console.error('Error updating event:', error);
+      ErrorHandlingService.handle(error, { source: 'useEvents', action: 'Error updating event:' });
       if (!options?.silent) {
         toast({
           title: "Error",
@@ -188,7 +189,7 @@ export function useEvents() {
         });
       }
     } catch (error) {
-      console.error('Error deleting event:', error);
+      ErrorHandlingService.handle(error, { source: 'useEvents', action: 'Error deleting event:' });
       if (!options?.silent) {
         toast({
           title: "Error",

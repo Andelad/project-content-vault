@@ -1,6 +1,7 @@
 import ICAL from 'ical.js';
 import { CalendarImportOrchestrator } from '../orchestrators/CalendarImportOrchestrator';
 import { getDateKey } from '@/utils/dateFormatUtils';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 export interface ExternalEvent {
   title: string;
@@ -49,7 +50,7 @@ export class CalendarIntegrationService {
         };
       });
     } catch (error) {
-      console.error('Error parsing iCal file:', error);
+      ErrorHandlingService.handle(error, { source: 'UnifiedCalendarService', action: 'Error parsing iCal file:' });
       throw new Error(`Failed to parse iCal file: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }

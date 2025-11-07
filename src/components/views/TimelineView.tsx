@@ -32,6 +32,7 @@ import { AvailabilityCard } from '../shared/AvailabilityCard';
 import { HolidayBar } from '../timeline/HolidayBar';
 import { AppPageLayout } from '../layout/AppPageLayout';
 import { TimelineToolbar } from '../timeline/TimelineToolbar';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 // Lazy load heavy modals
 const ProjectModal = React.lazy(() => import('../modals/ProjectModal').then(module => ({ default: module.ProjectModal })));
 const HolidayModal = React.lazy(() => import('../modals/HolidayModal').then(module => ({ default: module.HolidayModal })));
@@ -145,7 +146,7 @@ export function TimelineView() {
   const protectedSetViewportStart = useCallback((date: Date) => {
     // Safety check: ensure date is valid
     if (!date || isNaN(date.getTime())) {
-      console.error('⚠️ Attempted to set invalid viewportStart:', date);
+      ErrorHandlingService.handle(`Invalid viewportStart date: ${date}`, { source: 'TimelineView' });
       return;
     }
     const blockingState = TimelineViewportService.checkViewportBlocking();

@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { useToast } from '@/hooks/use-toast';
 import { Paperclip, X, Send } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 interface FeedbackModalProps {
   open: boolean;
@@ -144,7 +145,7 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
       setAttachments([]);
       onOpenChange(false);
     } catch (error: any) {
-      console.error('Error submitting feedback:', error);
+      ErrorHandlingService.handle(error, { source: 'FeedbackModal', action: 'Error submitting feedback:' });
       
       let errorMessage = "Failed to submit feedback. Please try again.";
       

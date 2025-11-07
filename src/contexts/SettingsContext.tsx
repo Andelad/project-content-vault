@@ -3,6 +3,7 @@ import { Settings } from '@/types/core';
 import { useSettings as useSettingsHook } from '@/hooks/useSettings';
 import { UnifiedTimeTrackerService } from '@/services';
 import { supabase } from '@/integrations/supabase/client';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 // Individual work hour override for specific dates
 export interface WorkHourOverride {
@@ -103,7 +104,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
             });
             // Clean up the incomplete state
             await UnifiedTimeTrackerService.stopTracking().catch(err => {
-              console.error('Failed to clean up incomplete tracking state:', err);
+              ErrorHandlingService.handle(err, { source: 'SettingsContext', action: 'Failed to clean up incomplete tracking state:' });
             });
             setIsTimeTracking(false);
             setCurrentTrackingEventId(null);

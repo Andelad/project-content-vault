@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 type Group = Database['public']['Tables']['groups']['Row'];
 type GroupInsert = Database['public']['Tables']['groups']['Insert'];
@@ -31,7 +32,7 @@ export function useGroups() {
         await initializeDefaultGroups();
       }
     } catch (error) {
-      console.error('Error fetching groups:', error);
+      ErrorHandlingService.handle(error, { source: 'useGroups', action: 'Error fetching groups:' });
       toast({
         title: "Error",
         description: "Failed to load groups",
@@ -63,7 +64,7 @@ export function useGroups() {
         setGroups(data);
       }
     } catch (error) {
-      console.error('Error initializing default groups:', error);
+      ErrorHandlingService.handle(error, { source: 'useGroups', action: 'Error initializing default groups:' });
     }
   };
 
@@ -86,7 +87,7 @@ export function useGroups() {
       });
       return data;
     } catch (error) {
-      console.error('Error adding group:', error);
+      ErrorHandlingService.handle(error, { source: 'useGroups', action: 'Error adding group:' });
       toast({
         title: "Error",
         description: "Failed to create group",
@@ -113,7 +114,7 @@ export function useGroups() {
       });
       return data;
     } catch (error) {
-      console.error('Error updating group:', error);
+      ErrorHandlingService.handle(error, { source: 'useGroups', action: 'Error updating group:' });
       toast({
         title: "Error",
         description: "Failed to update group",
@@ -137,7 +138,7 @@ export function useGroups() {
         description: "Group deleted successfully",
       });
     } catch (error) {
-      console.error('Error deleting group:', error);
+      ErrorHandlingService.handle(error, { source: 'useGroups', action: 'Error deleting group:' });
       toast({
         title: "Error",
         description: "Failed to delete group",

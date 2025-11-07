@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 /**
  * Removes orphaned milestone instances that no longer have a recurring template.
  * These are milestones with:
@@ -43,7 +44,7 @@ export async function cleanupOrphanedMilestones(projectId: string) {
     if (deleteError) throw deleteError;
     return { deleted: orphanedIds.length };
   } catch (error) {
-    console.error('Error cleaning up orphaned milestones:', error);
+    ErrorHandlingService.handle(error, { source: 'cleanupOrphanedMilestones', action: 'Error cleaning up orphaned milestones:' });
     throw error;
   }
 }
@@ -67,7 +68,7 @@ export async function cleanupAllOrphanedMilestones() {
     }
     return { deleted: totalDeleted };
   } catch (error) {
-    console.error('Error cleaning up all orphaned milestones:', error);
+    ErrorHandlingService.handle(error, { source: 'cleanupOrphanedMilestones', action: 'Error cleaning up all orphaned milestones:' });
     throw error;
   }
 }

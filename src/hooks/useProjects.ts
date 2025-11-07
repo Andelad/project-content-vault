@@ -4,6 +4,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
 import { Project } from '@/types/core';
 import { normalizeProjectColor } from '@/utils/normalizeProjectColor';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 type DatabaseProject = Database['public']['Tables']['projects']['Row'];
 type ProjectInsert = Database['public']['Tables']['projects']['Insert'];
 type ProjectUpdate = Database['public']['Tables']['projects']['Update'];
@@ -134,7 +135,7 @@ export function useProjects() {
         .eq('user_id', user.id)
         .order('created_at', { ascending: true });
       if (error) {
-        console.error('❌ Supabase query error:', error);
+        ErrorHandlingService.handle(error, { source: 'useProjects', action: '❌ Supabase query error:' });
         throw error;
       }
       // Transform database projects to frontend format
@@ -160,7 +161,7 @@ export function useProjects() {
       });
       setProjects(transformedProjects);
     } catch (error) {
-      console.error('❌ Error fetching projects:', error);
+      ErrorHandlingService.handle(error, { source: 'useProjects', action: '❌ Error fetching projects:' });
       toast({
         title: "Error",
         description: "Failed to load projects",
@@ -199,7 +200,7 @@ export function useProjects() {
             .select('id')
             .single();
           if (createError) {
-            console.error('❌ Failed to create client:', createError);
+            ErrorHandlingService.handle(createError, { source: 'useProjects', action: '❌ Failed to create client:' });
             throw new Error(`Failed to create client: ${createError.message}`);
           }
           dbData.client_id = newClient.id;
@@ -212,7 +213,7 @@ export function useProjects() {
         .select()
         .single();
       if (error) {
-        console.error('❌ Supabase error details:', error);
+        ErrorHandlingService.handle(error, { source: 'useProjects', action: '❌ Supabase error details:' });
         console.error('❌ Supabase error message:', error.message);
         console.error('❌ Supabase error code:', error.code);
         console.error('❌ Full error object:', JSON.stringify(error, null, 2));
@@ -230,7 +231,7 @@ export function useProjects() {
       }
       return transformedProject;
     } catch (error) {
-      console.error('❌ Error adding project:', error);
+      ErrorHandlingService.handle(error, { source: 'useProjects', action: '❌ Error adding project:' });
       console.error('❌ Error message:', error.message);
       console.error('❌ Error details:', JSON.stringify(error, null, 2));
       toast({
@@ -272,7 +273,7 @@ export function useProjects() {
       }
       return transformedProject;
     } catch (error) {
-      console.error('❌ Error updating project:', error);
+      ErrorHandlingService.handle(error, { source: 'useProjects', action: '❌ Error updating project:' });
       // Always show error toasts immediately
       toast({
         title: "Error",
@@ -301,7 +302,7 @@ export function useProjects() {
         description: "Project deleted successfully",
       });
     } catch (error) {
-      console.error('Error deleting project:', error);
+      ErrorHandlingService.handle(error, { source: 'useProjects', action: 'Error deleting project:' });
       toast({
         title: "Error",
         description: "Failed to delete project",

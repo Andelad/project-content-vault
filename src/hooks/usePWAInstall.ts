@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -63,7 +64,7 @@ export function usePWAInstall() {
       
       return { success: false, outcome: 'dismissed' };
     } catch (error) {
-      console.error('Error during PWA installation:', error);
+      ErrorHandlingService.handle(error, { source: 'usePWAInstall', action: 'Error during PWA installation:' });
       return { success: false };
     }
   };

@@ -10,6 +10,7 @@ import { CalendarEvent } from '@/types/core';
 import { supabase } from '@/integrations/supabase/client';
 import { generateRecurringEvents } from '../calculations/events/eventCalculations';
 import { addDaysToDate } from '../calculations/general/dateCalculations';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 /**
  * Checks if a recurring series needs more events generated and creates them if necessary
@@ -147,7 +148,7 @@ export async function ensureRecurringEventsExist(
 
     return createdCount;
   } catch (error) {
-    console.error('Error ensuring recurring events exist:', error);
+    ErrorHandlingService.handle(error, { source: 'recurringEventsOrchestrator', action: 'Error ensuring recurring events exist:' });
     return 0;
   }
 }
@@ -247,6 +248,6 @@ export async function ensureAllRecurringSeriesHaveEvents(): Promise<void> {
       }
     }
   } catch (error) {
-    console.error('Error ensuring all recurring series have events:', error);
+    ErrorHandlingService.handle(error, { source: 'recurringEventsOrchestrator', action: 'Error ensuring all recurring series have events:' });
   }
 }

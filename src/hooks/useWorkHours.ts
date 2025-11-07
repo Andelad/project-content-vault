@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { WorkHour, WorkSlot, CalendarEvent } from '@/types';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import { WorkHourCalculationService } from '@/services/calculations/availability/workHourCalculations';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 interface UseWorkHoursReturn {
   workHours: WorkHour[];
@@ -118,7 +119,7 @@ export const useWorkHours = (): UseWorkHoursReturn => {
       finalWorkHours.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
       setWorkHours(finalWorkHours);
     } catch (err) {
-      console.error('Error fetching work hours:', err);
+      ErrorHandlingService.handle(err, { source: 'useWorkHours', action: 'Error fetching work hours:' });
       setError(err instanceof Error ? err.message : 'Failed to fetch work hours');
       setWorkHours([]);
     } finally {
@@ -159,7 +160,7 @@ export const useWorkHours = (): UseWorkHoursReturn => {
         return newWorkHour;
       }
     } catch (err) {
-      console.error('Error adding work hour:', err);
+      ErrorHandlingService.handle(err, { source: 'useWorkHours', action: 'Error adding work hour:' });
       const errorMessage = err instanceof Error ? err.message : 'Failed to add work hour';
       setError(errorMessage);
       throw new Error(errorMessage);
@@ -215,7 +216,7 @@ export const useWorkHours = (): UseWorkHoursReturn => {
             
             updateWeekOverride(currentWeekStart, overrideWorkHour.id, overrideWorkHour);
           } else {
-            console.error('Original work hour not found for ID:', id);
+            ErrorHandlingService.handle(id, { source: 'useWorkHours', action: 'Original work hour not found for ID:' });
           }
         } else {
           // Update custom work hour or existing override
@@ -235,7 +236,7 @@ export const useWorkHours = (): UseWorkHoursReturn => {
       
       await fetchWorkHours(new Date()); // Force refresh of current date/week
     } catch (err) {
-      console.error('Error updating work hour:', err);
+      ErrorHandlingService.handle(err, { source: 'useWorkHours', action: 'Error updating work hour:' });
       const errorMessage = err instanceof Error ? err.message : 'Failed to update work hour';
       setError(errorMessage);
       throw new Error(errorMessage);
@@ -285,7 +286,7 @@ export const useWorkHours = (): UseWorkHoursReturn => {
       
       await fetchWorkHours();
     } catch (err) {
-      console.error('Error deleting work hour:', err);
+      ErrorHandlingService.handle(err, { source: 'useWorkHours', action: 'Error deleting work hour:' });
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete work hour';
       setError(errorMessage);
       throw new Error(errorMessage);
@@ -337,7 +338,7 @@ export const useWorkHours = (): UseWorkHoursReturn => {
         weeklyWorkHours: newWeeklyWorkHours
       });
     } catch (error) {
-      console.error('Error in updateSettingsWorkHour:', error);
+      ErrorHandlingService.handle(error, { source: 'useWorkHours', action: 'Error in updateSettingsWorkHour:' });
       throw error;
     }
   };
@@ -414,7 +415,7 @@ export const useWorkHours = (): UseWorkHoursReturn => {
         await deleteWorkHour(workHourId, scope);
       }
     } catch (error) {
-      console.error('Error in confirmWorkHourChange:', error);
+      ErrorHandlingService.handle(error, { source: 'useWorkHours', action: 'Error in confirmWorkHourChange:' });
     }
     
     setPendingWorkHourChange(null);

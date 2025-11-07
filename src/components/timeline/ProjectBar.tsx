@@ -20,6 +20,7 @@ import {
   normalizeToMidnight
 } from '@/services';
 import { ProjectIconIndicator } from '@/components';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 interface ProjectBarProps {
   project: Project;
   dates: Date[];
@@ -39,7 +40,7 @@ function calculateBaselineVisualOffsets(positions: any, isDragging: boolean, dra
   try {
     return UnifiedTimelineService.calculateBaselineVisualOffsets(positions, isDragging, dragState, projectId, mode);
   } catch (error) {
-    console.error('Error in calculateBaselineVisualOffsets:', error);
+    ErrorHandlingService.handle(error, { source: 'ProjectBar', action: 'Error in calculateBaselineVisualOffsets:' });
     return positions; // fallback to original positions
   }
 }
@@ -48,7 +49,7 @@ function calculateVisualProjectDates(project: any, isDragging: boolean, dragStat
   try {
     return UnifiedTimelineService.calculateVisualProjectDates(project, isDragging, dragState);
   } catch (error) {
-    console.error('Error in calculateVisualProjectDates:', error);
+    ErrorHandlingService.handle(error, { source: 'ProjectBar', action: 'Error in calculateVisualProjectDates:' });
     return { visualProjectStart: new Date(project.startDate), visualProjectEnd: new Date(project.endDate) }; // fallback
   }
 }
@@ -223,7 +224,7 @@ export const ProjectBar = memo(function ProjectBar({
               );
               return result;
             } catch (error) {
-              console.error('Error getting timeline positions:', error);
+              ErrorHandlingService.handle(error, { source: 'ProjectBar', action: 'Error getting timeline positions:' });
               return null;
             }
           })();
@@ -626,7 +627,7 @@ export const ProjectBar = memo(function ProjectBar({
               );
               return result;
             } catch (error) {
-              console.error('Error getting timeline positions:', error);
+              ErrorHandlingService.handle(error, { source: 'ProjectBar', action: 'Error getting timeline positions:' });
               return null;
             }
           })();
@@ -671,7 +672,7 @@ export const ProjectBar = memo(function ProjectBar({
               );
               return result;
             } catch (error) {
-              console.error('Error getting timeline positions:', error);
+              ErrorHandlingService.handle(error, { source: 'ProjectBar', action: 'Error getting timeline positions:' });
               return null;
             }
           })();

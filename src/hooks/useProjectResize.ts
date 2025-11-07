@@ -18,6 +18,7 @@ import {
   addDaysToDate
 } from '@/services';
 import type { DragState } from '@/services/ui/positioning/DragPositioning';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 interface UseProjectResizeProps {
   projects: any[];
   dates: Date[];
@@ -140,7 +141,7 @@ export function useProjectResize({
         }
         // Note: We do NOT update the database during drag (only on mouse release)
       } catch (error) {
-        console.error('🚨 PROJECT RESIZE ERROR:', error);
+        ErrorHandlingService.handle(error, { source: 'useProjectResize', action: '🚨 PROJECT RESIZE ERROR:' });
       }
     };
     const handleMouseUp = () => {
@@ -177,7 +178,7 @@ export function useProjectResize({
             });
           })
           .catch((error: Error) => {
-            console.error('Failed to update project:', error);
+            ErrorHandlingService.handle(error, { source: 'useProjectResize', action: 'Failed to update project:' });
             // Clear drag state even on error
             setIsDragging(false);
             setDragState(null);

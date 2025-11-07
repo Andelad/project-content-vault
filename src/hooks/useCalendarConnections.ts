@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 type CalendarConnection = Database['public']['Tables']['calendar_connections']['Row'];
 type CalendarConnectionInsert = Database['public']['Tables']['calendar_connections']['Insert'];
@@ -30,7 +31,7 @@ export function useCalendarConnections() {
       if (error) throw error;
       setConnections(data || []);
     } catch (error) {
-      console.error('Error fetching calendar connections:', error);
+      ErrorHandlingService.handle(error, { source: 'useCalendarConnections', action: 'Error fetching calendar connections:' });
       toast({
         title: "Error",
         description: "Failed to load calendar connections",
@@ -52,7 +53,7 @@ export function useCalendarConnections() {
       if (error) throw error;
       setImportHistory(data || []);
     } catch (error) {
-      console.error('Error fetching import history:', error);
+      ErrorHandlingService.handle(error, { source: 'useCalendarConnections', action: 'Error fetching import history:' });
     }
   };
 
@@ -82,7 +83,7 @@ export function useCalendarConnections() {
       });
       return data;
     } catch (error) {
-      console.error('Error adding calendar connection:', error);
+      ErrorHandlingService.handle(error, { source: 'useCalendarConnections', action: 'Error adding calendar connection:' });
       toast({
         title: "Error",
         description: "Failed to add calendar connection",
@@ -109,7 +110,7 @@ export function useCalendarConnections() {
       });
       return data;
     } catch (error) {
-      console.error('Error updating calendar connection:', error);
+      ErrorHandlingService.handle(error, { source: 'useCalendarConnections', action: 'Error updating calendar connection:' });
       toast({
         title: "Error",
         description: "Failed to update calendar connection",
@@ -133,7 +134,7 @@ export function useCalendarConnections() {
         description: "Calendar connection deleted successfully",
       });
     } catch (error) {
-      console.error('Error deleting calendar connection:', error);
+      ErrorHandlingService.handle(error, { source: 'useCalendarConnections', action: 'Error deleting calendar connection:' });
       toast({
         title: "Error",
         description: "Failed to delete calendar connection",
@@ -164,7 +165,7 @@ export function useCalendarConnections() {
         description: "Calendar connection authenticated successfully",
       });
     } catch (error) {
-      console.error('Error authenticating connection:', error);
+      ErrorHandlingService.handle(error, { source: 'useCalendarConnections', action: 'Error authenticating connection:' });
       toast({
         title: "Error",
         description: "Failed to authenticate calendar connection",
@@ -196,7 +197,7 @@ export function useCalendarConnections() {
         description: "Calendar connection revoked successfully",
       });
     } catch (error) {
-      console.error('Error revoking connection:', error);
+      ErrorHandlingService.handle(error, { source: 'useCalendarConnections', action: 'Error revoking connection:' });
       toast({
         title: "Error",
         description: "Failed to revoke calendar connection",

@@ -21,6 +21,7 @@ import { ConflictDialog } from './ConflictDialog';
 import type { TimeTrackingState } from '@/types/timeTracking';
 import { toast } from '@/hooks/use-toast';
 import { ProjectModal } from '../modals/ProjectModal';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 interface TimeTrackerProps {
   className?: string;
   isExpanded?: boolean;
@@ -247,7 +248,7 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
             eventId,
             currentSeconds: seconds
           });
-          console.error('💾 DB sync - Stopping intervals and resetting state');
+          ErrorHandlingService.handle('💾 DB sync - Stopping intervals and resetting state', { source: 'TimeTracker' });
           // Clear all intervals
           if (intervalRef.current) clearInterval(intervalRef.current);
           if (dbSyncIntervalRef.current) clearInterval(dbSyncIntervalRef.current);
@@ -264,7 +265,7 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
           completed: true
         }, { silent: true });
       } catch (error: any) {
-        console.error('💾 DB sync - failed:', error);
+        ErrorHandlingService.handle(error, { source: 'TimeTracker', action: '💾 DB sync - failed:' });
       }
     }, 30000); // 30 seconds
     // Overlap Check: Run ONLY ONCE when tracking starts
@@ -433,7 +434,7 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
         setAffectedPlannedEvents([]);
         // Clear storage
         await UnifiedTimeTrackerService.stopTracking().catch(err => {
-          console.error('Failed to clear storage:', err);
+          ErrorHandlingService.handle(err, { source: 'TimeTracker', action: 'Failed to clear storage:' });
         });
       }
       return;
@@ -456,7 +457,7 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
           await new Promise(resolve => setTimeout(resolve, 300));
           handlePlannedEventOverlaps(startTimeRef.current, stopTime);
         } catch (error) {
-          console.error('❌ STOP TRACKING - Failed to handle overlaps:', error);
+          ErrorHandlingService.handle(error, { source: 'TimeTracker', action: '❌ STOP TRACKING - Failed to handle overlaps:' });
         }
       }
       // Reset UI state
@@ -518,7 +519,7 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
         await handleToggleTracking();
       }
     } catch (error) {
-      console.error('Error stopping and starting new session:', error);
+      ErrorHandlingService.handle(error, { source: 'TimeTracker', action: 'Error stopping and starting new session:' });
       toast({
         title: "Error",
         description: "Failed to switch tracking sessions. Please try again.",

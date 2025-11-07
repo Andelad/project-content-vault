@@ -8,6 +8,7 @@
 
 import { Holiday } from '@/types/core';
 import { addDaysToDate } from '../calculations/general/dateCalculations';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 export interface HolidayFormData {
   title: string;
@@ -144,7 +145,7 @@ export class HolidayModalOrchestrator {
 
       return { success: true };
     } catch (error) {
-      console.error('HolidayModalOrchestrator: Failed to create holiday:', error);
+      ErrorHandlingService.handle(error, { source: 'HolidayModalOrchestrator', action: 'HolidayModalOrchestrator: Failed to create holiday:' });
       return {
         success: false,
         error: 'Failed to create holiday. Please try again.'
@@ -195,7 +196,7 @@ export class HolidayModalOrchestrator {
 
       return { success: true };
     } catch (error) {
-      console.error('HolidayModalOrchestrator: Failed to update holiday:', error);
+      ErrorHandlingService.handle(error, { source: 'HolidayModalOrchestrator', action: 'HolidayModalOrchestrator: Failed to update holiday:' });
       return {
         success: false,
         error: 'Failed to update holiday. Please try again.'

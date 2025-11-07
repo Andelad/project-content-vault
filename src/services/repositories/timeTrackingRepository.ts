@@ -1,5 +1,6 @@
 import { supabase } from '../../integrations/supabase/client';
 import type { TimeTrackingState, SerializedTimeTrackingState } from '../../types/timeTracking';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 /**
  * Time Tracking Repository
  * 
@@ -74,7 +75,7 @@ class TimeTrackingRepository {
       this.saveToLocalStorage(serializedState);
       // // console.log('✅ State saved to both DB and localStorage');
     } catch (error) {
-      console.error('❌ Failed to save time tracking state:', error);
+      ErrorHandlingService.handle(error, { source: 'timeTrackingRepository', action: '❌ Failed to save time tracking state:' });
       throw error;
     }
   }
@@ -126,7 +127,7 @@ class TimeTrackingRepository {
         state = this.loadFromLocalStorage();
       }
     } catch (error) {
-      console.error('❌ Error loading state from DB, trying localStorage:', error);
+      ErrorHandlingService.handle(error, { source: 'timeTrackingRepository', action: '❌ Error loading state from DB, trying localStorage:' });
       state = this.loadFromLocalStorage();
     }
     // Validate state completeness before returning
@@ -195,7 +196,7 @@ class TimeTrackingRepository {
       localStorage.removeItem(this.BACKUP_STORAGE_KEY);
       // // console.log('✅ Cleared legacy localStorage time tracking data');
     } catch (error) {
-      console.error('❌ Failed to clear localStorage:', error);
+      ErrorHandlingService.handle(error, { source: 'timeTrackingRepository', action: '❌ Failed to clear localStorage:' });
     }
   }
   async setupRealtimeSubscription(onStateChange: (state: TimeTrackingState) => void): Promise<any> {
@@ -240,7 +241,7 @@ class TimeTrackingRepository {
         .subscribe();
       return subscription;
     } catch (error) {
-      console.error('❌ Failed to setup time tracking realtime subscription:', error);
+      ErrorHandlingService.handle(error, { source: 'timeTrackingRepository', action: '❌ Failed to setup time tracking realtime subscription:' });
       throw error;
     }
   }

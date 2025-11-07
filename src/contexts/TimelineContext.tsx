@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 interface TimelineContextType {
   // Timeline View State
@@ -44,7 +45,7 @@ export function TimelineProvider({ children }: { children: React.ReactNode }) {
       const savedView = localStorage.getItem('currentView');
       return savedView || 'timeline';
     } catch (error) {
-      console.error('Failed to load currentView from localStorage:', error);
+      ErrorHandlingService.handle(error, { source: 'TimelineContext', action: 'Failed to load currentView from localStorage:' });
       return 'timeline';
     }
   });
@@ -60,7 +61,7 @@ export function TimelineProvider({ children }: { children: React.ReactNode }) {
     try {
       localStorage.setItem('currentView', currentView);
     } catch (error) {
-      console.error('Failed to save currentView to localStorage:', error);
+      ErrorHandlingService.handle(error, { source: 'TimelineContext', action: 'Failed to save currentView to localStorage:' });
     }
   }, [currentView]);
 

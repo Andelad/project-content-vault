@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { toast } from './use-toast';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 import { 
   TimelineDragCoordinatorService,
   initializeHolidayDragState,
@@ -136,7 +137,7 @@ export function useHolidayDrag({
         // Note: We do NOT update the database during drag (only on mouse release)
         // This matches project bar behavior for smooth, responsive dragging
       } catch (error) {
-        console.error('🚨 HOLIDAY DRAG ERROR:', error);
+        ErrorHandlingService.handle(error, { source: 'useHolidayDrag', action: '🚨 HOLIDAY DRAG ERROR:' });
       }
     };
     
@@ -201,7 +202,7 @@ export function useHolidayDrag({
             });
           }
         } catch (error) {
-          console.error('Error in final holiday update:', error);
+          ErrorHandlingService.handle(error, { source: 'useHolidayDrag', action: 'Error in final holiday update:' });
         }
       }
       

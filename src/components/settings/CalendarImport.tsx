@@ -11,6 +11,7 @@ import { Upload, Calendar, CheckCircle, XCircle, Clock, FileText } from 'lucide-
 import { CalendarIntegrationService, type ImportResult } from '@/services';
 import { useCalendarConnections } from '@/hooks/useCalendarConnections';
 import { useToast } from '@/hooks/use-toast';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 export function CalendarImport() {
   const [importing, setImporting] = useState(false);
@@ -102,7 +103,7 @@ export function CalendarImport() {
       });
 
     } catch (error) {
-      console.error('Import error:', error);
+      ErrorHandlingService.handle(error, { source: 'CalendarImport', action: 'Import error:' });
       const errorResult: ImportResult = {
         success: false,
         imported: 0,

@@ -64,7 +64,7 @@ export class SettingsOrchestrator {
 
       return { success: true };
     } catch (error) {
-      console.error('Failed to update setting:', error);
+      ErrorHandlingService.handle(error, { source: 'SettingsOrchestrator', action: 'Failed to update setting:' });
       return {
         success: false,
         error: `Failed to save ${key} setting`
@@ -94,7 +94,7 @@ export class SettingsOrchestrator {
         message: "Your preferences have been updated successfully."
       };
     } catch (error) {
-      console.error('Failed to save settings:', error);
+      ErrorHandlingService.handle(error, { source: 'SettingsOrchestrator', action: 'Failed to save settings:' });
       return {
         success: false,
         error: "Changes applied in current session (database save pending).",

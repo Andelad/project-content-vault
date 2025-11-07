@@ -3,6 +3,7 @@ import { timeTrackingCalculations } from '../calculations/tracking/timeTrackingC
 import type { TimeTrackingState } from '../../types/timeTracking';
 import type { CalendarEvent } from '../../types/core';
 import { supabase } from '../../integrations/supabase/client';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 // =====================================================================================
 // CALENDAR EVENT DATABASE HELPERS (inline - no repository layer)
 // =====================================================================================
@@ -376,7 +377,7 @@ class TimeTrackingOrchestrator {
         return await this.startTrackingWorkflow(context);
       }
     } catch (error) {
-      console.error('Time tracking toggle failed:', error);
+      ErrorHandlingService.handle(error, { source: 'timeTrackingOrchestrator', action: 'Time tracking toggle failed:' });
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error occurred'
@@ -412,7 +413,7 @@ class TimeTrackingOrchestrator {
       const newEvent = await addEvent(eventData);
       // // console.log('🔍 WORKFLOW - Event created with ID:', newEvent?.id);
       if (!newEvent?.id) {
-        console.error('🔍 WORKFLOW - Event creation failed: no ID returned');
+        ErrorHandlingService.handle('🔍 WORKFLOW - Event creation failed: no ID returned', { source: 'timeTrackingOrchestrator' });
         throw new Error('Failed to create tracking event - no ID returned');
       }
       // Add a small delay to ensure DB write completes
@@ -425,11 +426,11 @@ class TimeTrackingOrchestrator {
         .eq('id', newEvent.id)
         .maybeSingle(); // Use maybeSingle instead of single to avoid error on 0 rows
       if (verifyError) {
-        console.error('🔍 WORKFLOW - Event verification query error:', verifyError);
+        ErrorHandlingService.handle(verifyError, { source: 'timeTrackingOrchestrator', action: '🔍 WORKFLOW - Event verification query error:' });
         throw new Error(`Event verification query failed: ${verifyError.message}`);
       }
       if (!verifyData) {
-        console.error('🔍 WORKFLOW - Event NOT FOUND in database after creation!');
+        ErrorHandlingService.handle('🔍 WORKFLOW - Event NOT FOUND in database after creation!', { source: 'timeTrackingOrchestrator' });
         console.error('🔍 WORKFLOW - Attempted to create event:', {
           id: newEvent.id,
           title: eventData.title,
@@ -494,7 +495,7 @@ class TimeTrackingOrchestrator {
         eventId: newEvent.id
       };
     } catch (error) {
-      console.error('Start tracking workflow failed:', error);
+      ErrorHandlingService.handle(error, { source: 'timeTrackingOrchestrator', action: 'Start tracking workflow failed:' });
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to start tracking'
@@ -574,7 +575,7 @@ class TimeTrackingOrchestrator {
             type: 'completed'
           }, { silent: true });
         } catch (error) {
-          console.error('❌ STOP TRACKING WORKFLOW - Failed to update event:', error);
+          ErrorHandlingService.handle(error, { source: 'timeTrackingOrchestrator', action: '❌ STOP TRACKING WORKFLOW - Failed to update event:' });
         }
       }
       // Reset tracking state AFTER event update
@@ -608,7 +609,7 @@ class TimeTrackingOrchestrator {
         eventId: currentEventId
       };
     } catch (error) {
-      console.error('Stop tracking workflow failed:', error);
+      ErrorHandlingService.handle(error, { source: 'timeTrackingOrchestrator', action: 'Stop tracking workflow failed:' });
       // Even on error, try to reset the UI state
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
@@ -672,7 +673,7 @@ class TimeTrackingOrchestrator {
         }
       } catch (error) {
         // Error checking event, assume it doesn't exist and clean up
-        console.error('Error validating tracking event:', error);
+        ErrorHandlingService.handle(error, { source: 'timeTrackingOrchestrator', action: 'Error validating tracking event:' });
         await this.stopTracking();
         setCurrentEventId(null);
         setIsTimeTracking(false);
@@ -719,7 +720,7 @@ class TimeTrackingOrchestrator {
         eventId: currentEventId
       };
     } catch (error) {
-      console.error('Load tracking state workflow failed:', error);
+      ErrorHandlingService.handle(error, { source: 'timeTrackingOrchestrator', action: 'Load tracking state workflow failed:' });
       // On any error, ensure UI is in a clean state
       setCurrentEventId(null);
       setIsTimeTracking(false);
@@ -770,7 +771,7 @@ class TimeTrackingOrchestrator {
         event
       };
     } catch (error) {
-      console.error('TimeTrackingOrchestrator.createTrackingEvent failed:', error);
+      ErrorHandlingService.handle(error, { source: 'timeTrackingOrchestrator', action: 'TimeTrackingOrchestrator.createTrackingEvent failed:' });
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error occurred'
@@ -805,7 +806,7 @@ class TimeTrackingOrchestrator {
         event
       };
     } catch (error) {
-      console.error('TimeTrackingOrchestrator.updateTrackingEvent failed:', error);
+      ErrorHandlingService.handle(error, { source: 'timeTrackingOrchestrator', action: 'TimeTrackingOrchestrator.updateTrackingEvent failed:' });
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error occurred'
@@ -848,7 +849,7 @@ class TimeTrackingOrchestrator {
         event
       };
     } catch (error) {
-      console.error('TimeTrackingOrchestrator.completeTrackingSession failed:', error);
+      ErrorHandlingService.handle(error, { source: 'timeTrackingOrchestrator', action: 'TimeTrackingOrchestrator.completeTrackingSession failed:' });
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error occurred'
@@ -881,7 +882,7 @@ class TimeTrackingOrchestrator {
         sessions
       };
     } catch (error) {
-      console.error('TimeTrackingOrchestrator.getTrackingSessions failed:', error);
+      ErrorHandlingService.handle(error, { source: 'timeTrackingOrchestrator', action: 'TimeTrackingOrchestrator.getTrackingSessions failed:' });
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error occurred'
@@ -915,7 +916,7 @@ class TimeTrackingOrchestrator {
         sessions: projectSessions
       };
     } catch (error) {
-      console.error('TimeTrackingOrchestrator.getTrackingSessionsByProject failed:', error);
+      ErrorHandlingService.handle(error, { source: 'timeTrackingOrchestrator', action: 'TimeTrackingOrchestrator.getTrackingSessionsByProject failed:' });
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error occurred'
@@ -941,7 +942,7 @@ class TimeTrackingOrchestrator {
         success: true
       };
     } catch (error) {
-      console.error('TimeTrackingOrchestrator.deleteTrackingSession failed:', error);
+      ErrorHandlingService.handle(error, { source: 'timeTrackingOrchestrator', action: 'TimeTrackingOrchestrator.deleteTrackingSession failed:' });
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error occurred'

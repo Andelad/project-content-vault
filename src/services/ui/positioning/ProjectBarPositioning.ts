@@ -25,6 +25,7 @@ import {
 } from '../../calculations/general/dateCalculations';
 import { formatDateShort, formatWeekdayDate } from '@/utils/dateFormatUtils';
 import type { Holiday } from '../../../types';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 // Re-export date calculation functions for backwards compatibility
 export { convertIndicesToDates, calculateOccupiedHolidayIndices };
@@ -92,7 +93,7 @@ export function calculateTimelinePositions(
       );
     }
   } catch (error) {
-    console.error('Error in calculateTimelinePositions:', error);
+    ErrorHandlingService.handle(error, { source: 'ProjectBarPositioning', action: 'Error in calculateTimelinePositions:' });
     return { baselineStartPx: 0, baselineWidthPx: 0 };
   }
 }

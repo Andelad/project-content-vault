@@ -13,6 +13,7 @@ import { generateRecurringEvents } from '@/services';
 import { ensureRecurringEventsExist } from '@/services';
 import { UnifiedTimeTrackerService } from '@/services';
 import { useSettingsContext } from './SettingsContext';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 interface PlannerContextType {
   // Calendar Events
   events: CalendarEvent[];
@@ -169,7 +170,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
             // Refresh events after all are created
             await refetchEvents();
           } catch (error) {
-            console.error('Error creating additional recurring events:', error);
+            ErrorHandlingService.handle(error, { source: 'PlannerContext', action: 'Error creating additional recurring events:' });
           }
         }, 100); // Small delay to allow UI to update
       }
@@ -333,7 +334,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
       }
       setLastAction(null);
     } catch (error) {
-      console.error('Failed to undo action:', error);
+      ErrorHandlingService.handle(error, { source: 'PlannerContext', action: 'Failed to undo action:' });
     }
   }, [lastAction, updateEvent, deleteEvent, addEvent]);
   const updateEventWithUndo = useCallback(async (id: string, updates: Partial<CalendarEvent>): Promise<void> => {
@@ -410,7 +411,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
         } : undefined
       }));
     } catch (error) {
-      console.error('Error getting recurring group events:', error);
+      ErrorHandlingService.handle(error, { source: 'PlannerContext', action: 'Error getting recurring group events:' });
       return [];
     }
   }, [processedEvents]);
@@ -443,7 +444,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
       // Refresh the events list to reflect the changes
       await refetchEvents();
     } catch (error) {
-      console.error('Error deleting future recurring events:', error);
+      ErrorHandlingService.handle(error, { source: 'PlannerContext', action: 'Error deleting future recurring events:' });
       throw error;
     }
   }, [refetchEvents]);
@@ -475,7 +476,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
       // Refresh the events list to reflect the changes
       await refetchEvents();
     } catch (error) {
-      console.error('Error deleting all recurring events:', error);
+      ErrorHandlingService.handle(error, { source: 'PlannerContext', action: 'Error deleting all recurring events:' });
       throw error;
     }
   }, [refetchEvents]);
@@ -526,7 +527,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
       // Refresh the events list to reflect the changes
       await refetchEvents();
     } catch (error) {
-      console.error('Error updating future recurring events:', error);
+      ErrorHandlingService.handle(error, { source: 'PlannerContext', action: 'Error updating future recurring events:' });
       throw error;
     }
   }, [refetchEvents]);
@@ -576,7 +577,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
       // Refresh the events list to reflect the changes
       await refetchEvents();
     } catch (error) {
-      console.error('Error updating all recurring events:', error);
+      ErrorHandlingService.handle(error, { source: 'PlannerContext', action: 'Error updating all recurring events:' });
       throw error;
     }
   }, [refetchEvents]);

@@ -16,6 +16,7 @@ import { UnifiedMilestoneService } from '../unified/UnifiedMilestoneService';
 import { ProjectOrchestrator } from './ProjectOrchestrator';
 import { calculateDurationDays, addDaysToDate } from '../calculations/general/dateCalculations';
 import { RecurringMilestoneConfig as BaseRecurringMilestoneConfig } from '../calculations/projects/milestoneCalculations';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 export interface ProjectRecurringMilestoneConfig extends BaseRecurringMilestoneConfig {
   name: string;
@@ -286,7 +287,7 @@ export class ProjectMilestoneOrchestrator {
       };
 
     } catch (error) {
-      console.error('Error in createRecurringMilestones:', error);
+      ErrorHandlingService.handle(error, { source: 'ProjectMilestoneOrchestrator', action: 'Error in createRecurringMilestones:' });
       return {
         success: false,
         generatedCount: 0,
@@ -329,7 +330,7 @@ export class ProjectMilestoneOrchestrator {
       };
 
     } catch (error) {
-      console.error('Error in deleteRecurringMilestones:', error);
+      ErrorHandlingService.handle(error, { source: 'ProjectMilestoneOrchestrator', action: 'Error in deleteRecurringMilestones:' });
       return {
         success: false,
         deletedCount: 0,
@@ -557,7 +558,7 @@ export class ProjectMilestoneOrchestrator {
       if (error) throw error;
     } catch (error) {
       if (!options.silent) {
-        console.error('Error deleting milestone:', error);
+        ErrorHandlingService.handle(error, { source: 'ProjectMilestoneOrchestrator', action: 'Error deleting milestone:' });
       }
     }
   }
@@ -656,7 +657,7 @@ export class ProjectMilestoneOrchestrator {
 
       return { success: true };
     } catch (error) {
-      console.error('ProjectMilestoneOrchestrator: Failed to update milestone property:', error);
+      ErrorHandlingService.handle(error, { source: 'ProjectMilestoneOrchestrator', action: 'ProjectMilestoneOrchestrator: Failed to update milestone property:' });
       return {
         success: false,
         error: 'Failed to update milestone. Please try again.'
@@ -703,7 +704,7 @@ export class ProjectMilestoneOrchestrator {
 
       return { success: true };
     } catch (error) {
-      console.error('ProjectMilestoneOrchestrator: Failed to update recurring milestone load:', error);
+      ErrorHandlingService.handle(error, { source: 'ProjectMilestoneOrchestrator', action: 'ProjectMilestoneOrchestrator: Failed to update recurring milestone load:' });
       return {
         success: false,
         error: 'Failed to update recurring milestones'
@@ -775,7 +776,7 @@ export class ProjectMilestoneOrchestrator {
 
       return { success: true };
     } catch (error) {
-      console.error('ProjectMilestoneOrchestrator: Failed to save new milestone:', error);
+      ErrorHandlingService.handle(error, { source: 'ProjectMilestoneOrchestrator', action: 'ProjectMilestoneOrchestrator: Failed to save new milestone:' });
       return {
         success: false,
         error: 'Failed to save milestone. Please try again.'

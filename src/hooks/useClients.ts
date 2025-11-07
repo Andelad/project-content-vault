@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Client, ClientStatus } from '@/types/core';
 import { useToast } from '@/hooks/use-toast';
 import { ClientRules } from '@/domain/rules/ClientRules';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 export interface UseClientsReturn {
   clients: Client[];
@@ -71,7 +72,7 @@ export function useClients(): UseClientsReturn {
     } catch (err) {
       const error = err as Error;
       setError(error);
-      console.error('Error fetching clients:', error);
+      ErrorHandlingService.handle(error, { source: 'useClients', action: 'Error fetching clients:' });
       toast({
         title: 'Error loading clients',
         description: error.message,
@@ -142,7 +143,7 @@ export function useClients(): UseClientsReturn {
       return newClient;
     } catch (err) {
       const error = err as Error;
-      console.error('Error adding client:', error);
+      ErrorHandlingService.handle(error, { source: 'useClients', action: 'Error adding client:' });
       toast({
         title: 'Error creating client',
         description: error.message,
@@ -196,7 +197,7 @@ export function useClients(): UseClientsReturn {
       });
     } catch (err) {
       const error = err as Error;
-      console.error('Error updating client:', error);
+      ErrorHandlingService.handle(error, { source: 'useClients', action: 'Error updating client:' });
       toast({
         title: 'Error updating client',
         description: error.message,
@@ -233,7 +234,7 @@ export function useClients(): UseClientsReturn {
       });
     } catch (err) {
       const error = err as Error;
-      console.error('Error deleting client:', error);
+      ErrorHandlingService.handle(error, { source: 'useClients', action: 'Error deleting client:' });
       toast({
         title: 'Error deleting client',
         description: error.message,

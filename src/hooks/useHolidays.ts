@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 type HolidayRow = Database['public']['Tables']['holidays']['Row'];
 type HolidayInsert = Database['public']['Tables']['holidays']['Insert'];
@@ -79,7 +80,7 @@ export function useHolidays() {
       
       setHolidays(transformedData);
     } catch (error) {
-      console.error('Error fetching holidays:', error);
+      ErrorHandlingService.handle(error, { source: 'useHolidays', action: 'Error fetching holidays:' });
       toast({
         title: "Error",
         description: "Failed to load holidays",
@@ -136,7 +137,7 @@ export function useHolidays() {
       });
       return data;
     } catch (error) {
-      console.error('Error adding holiday:', error);
+      ErrorHandlingService.handle(error, { source: 'useHolidays', action: 'Error adding holiday:' });
       toast({
         title: "Error",
         description: "Failed to create holiday",
@@ -212,7 +213,7 @@ export function useHolidays() {
       
       return data;
     } catch (error) {
-      console.error('Error updating holiday:', error);
+      ErrorHandlingService.handle(error, { source: 'useHolidays', action: 'Error updating holiday:' });
       // Clear any pending success toast when there's an error
       if (updateToastTimeoutRef.current) {
         clearTimeout(updateToastTimeoutRef.current);
@@ -242,7 +243,7 @@ export function useHolidays() {
         description: "Holiday deleted successfully",
       });
     } catch (error) {
-      console.error('Error deleting holiday:', error);
+      ErrorHandlingService.handle(error, { source: 'useHolidays', action: 'Error deleting holiday:' });
       toast({
         title: "Error",
         description: "Failed to delete holiday",

@@ -6,6 +6,7 @@ import { supabase } from '../../integrations/supabase/client';
 import { Sheet, SheetContent } from '../ui/sheet';
 import { HelpModal } from '../modals/HelpModal';
 import { FeedbackModal } from '../modals/FeedbackModal';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 const isBrowser = typeof window !== 'undefined';
 
@@ -40,12 +41,12 @@ export function Sidebar() {
         .maybeSingle();
       
       if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching profile:', error);
+        ErrorHandlingService.handle(error, { source: 'Sidebar', action: 'Error fetching profile:' });
       } else {
         setProfile(data);
       }
     } catch (error) {
-      console.error('Error:', error);
+      ErrorHandlingService.handle(error, { source: 'Sidebar', action: 'Error:' });
     }
   }, [user?.id]);
 

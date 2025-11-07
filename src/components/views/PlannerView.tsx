@@ -24,6 +24,7 @@ import { transformFullCalendarToCalendarEvent } from '@/services';
 import { createPlannerViewOrchestrator, type PlannerInteractionContext } from '@/services/orchestrators/PlannerViewOrchestrator';
 import { useToast } from '@/hooks/use-toast';
 import { useSwipeNavigation } from '@/hooks/useSwipeNavigation';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 import '../planner/fullcalendar-overrides.css';
 // Modal imports
 const EventModal = React.lazy(() => import('../modals/EventModal').then(module => ({ default: module.EventModal })));
@@ -179,7 +180,7 @@ export function PlannerView() {
           end_time: newEnd.toISOString()
         }, { silent: true });
       } catch (error) {
-        console.error('Failed to update habit:', error);
+        ErrorHandlingService.handle(error, { source: 'PlannerView', action: 'Failed to update habit:' });
         dropInfo.revert();
       }
       return;
@@ -259,7 +260,7 @@ export function PlannerView() {
           end_time: newEnd.toISOString()
         }, { silent: true });
       } catch (error) {
-        console.error('Failed to resize habit:', error);
+        ErrorHandlingService.handle(error, { source: 'PlannerView', action: 'Failed to resize habit:' });
         resizeInfo.revert();
       }
       return;
@@ -670,7 +671,7 @@ export function PlannerView() {
       if (!habit) return;
       await updateHabit(habitId, { completed: !habit.completed }, { silent: true });
     } catch (error) {
-      console.error('Failed to toggle habit completion:', error);
+      ErrorHandlingService.handle(error, { source: 'PlannerView', action: 'Failed to toggle habit completion:' });
     }
   }, [habits, updateHabit]);
   // Set up global completion toggle functions for HTML onclick events
@@ -772,7 +773,7 @@ export function PlannerView() {
         });
         successCallback(filteredEvents);
       } catch (error) {
-        console.error('Error fetching events:', error);
+        ErrorHandlingService.handle(error, { source: 'PlannerView', action: 'Error fetching events:' });
         failureCallback(error);
       }
     },
@@ -1163,7 +1164,7 @@ export function PlannerView() {
           endTime: finalEndTime
         });
       } catch (error) {
-        console.error('Error handling drop:', error);
+        ErrorHandlingService.handle(error, { source: 'PlannerView', action: 'Error handling drop:' });
       }
     };
     calendarEl.addEventListener('dragover', handleDragOver as EventListener);

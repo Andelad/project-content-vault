@@ -23,6 +23,7 @@ import { StandardModal } from './StandardModal';
 import { OKLCH_PROJECT_COLORS, PROJECT_ICONS } from '@/constants';
 import { NEUTRAL_COLORS } from '@/constants/colors';
 import type { Project } from '@/types/core';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 interface ProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -377,7 +378,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
           });
         }
       } catch (error) {
-        console.error('Failed to create project:', error);
+        ErrorHandlingService.handle(error, { source: 'ProjectModal', action: 'Failed to create project:' });
         toast({
           title: "Error", 
           description: "An unexpected error occurred",

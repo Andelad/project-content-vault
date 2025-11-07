@@ -30,6 +30,7 @@ import {
 import { MilestoneRules } from '@/domain/rules/MilestoneRules';
 import { supabase } from '@/integrations/supabase/client';
 import { getDayName, getOrdinalNumber, getWeekOfMonthName } from '@/utils/dateFormatUtils';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 interface ProjectMilestoneSectionProps {
   projectId?: string; // Made optional to support new projects
   projectEstimatedHours: number;
@@ -233,13 +234,13 @@ export function ProjectMilestoneSection({
       try {
         const result1 = await addMilestone(phase1);
       } catch (error) {
-        console.error('[Split] Failed to save phase 1:', error);
+        ErrorHandlingService.handle(error, { source: 'ProjectMilestoneSection', action: '[Split] Failed to save phase 1:' });
         throw error; // Re-throw to stop execution
       }
       try {
         const result2 = await addMilestone(phase2);
       } catch (error) {
-        console.error('[Split] Failed to save phase 2:', error);
+        ErrorHandlingService.handle(error, { source: 'ProjectMilestoneSection', action: '[Split] Failed to save phase 2:' });
         throw error; // Re-throw to stop execution
       }
     } else {
@@ -899,7 +900,7 @@ export function ProjectMilestoneSection({
       await deleteMilestone(milestoneId, { silent: true });
       // No toast - will be handled by modal confirmation
     } catch (error) {
-      console.error('Failed to delete milestone:', error);
+      ErrorHandlingService.handle(error, { source: 'ProjectMilestoneSection', action: 'Failed to delete milestone:' });
       // Only show error toasts
       toast({
         title: "Error",
@@ -931,7 +932,7 @@ export function ProjectMilestoneSection({
       await updateMilestone(milestoneId, updates, { silent: true });
       // No success toast - will be handled by modal confirmation
     } catch (error) {
-      console.error('Failed to update milestone:', error);
+      ErrorHandlingService.handle(error, { source: 'ProjectMilestoneSection', action: 'Failed to update milestone:' });
       toast({
         title: "Error",
         description: "Failed to update milestone. Please try again.",
@@ -1151,7 +1152,7 @@ export function ProjectMilestoneSection({
       );
       await Promise.all(savePromises);
     } catch (error) {
-      console.error('Error auto-generating recurring milestones:', error);
+      ErrorHandlingService.handle(error, { source: 'ProjectMilestoneSection', action: 'Error auto-generating recurring milestones:' });
     }
   }, [recurringMilestone, projectId, projectMilestones, generateRecurringMilestones, addMilestone, projectContinuous, projectStartDate, projectEndDate]);
   // Auto-trigger milestone generation when needed
@@ -1169,7 +1170,7 @@ export function ProjectMilestoneSection({
           const storedData = JSON.parse(stored);
           setRecurringMilestone(storedData);
         } catch (error) {
-          console.error('Error loading stored recurring milestone:', error);
+          ErrorHandlingService.handle(error, { source: 'ProjectMilestoneSection', action: 'Error loading stored recurring milestone:' });
           localStorage.removeItem(`recurring-milestone-${projectId}`);
         }
       }
@@ -1236,7 +1237,7 @@ export function ProjectMilestoneSection({
         throw new Error(result.error || 'Failed to create recurring milestones');
       }
     } catch (error) {
-      console.error('Error creating recurring milestones:', error);
+      ErrorHandlingService.handle(error, { source: 'ProjectMilestoneSection', action: 'Error creating recurring milestones:' });
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to create recurring milestones",
@@ -1296,7 +1297,7 @@ export function ProjectMilestoneSection({
         }
       }
     } catch (error) {
-      console.error('[ProjectMilestoneSection] Error deleting milestones:', error);
+      ErrorHandlingService.handle(error, { source: 'ProjectMilestoneSection', action: '[ProjectMilestoneSection] Error deleting milestones:' });
       toast({
         title: "Error",
         description: "Failed to delete some milestones. Please try again.",

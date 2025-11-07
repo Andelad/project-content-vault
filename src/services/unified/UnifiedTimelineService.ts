@@ -78,6 +78,7 @@ import {
   calculateDailyAvailableHours as calculateDailyAvailableHoursCalc
 } from '../calculations/availability/dailyAvailabilityCalculations';
 import type { Project, Milestone, DayEstimate, Settings, Holiday } from '@/types/core';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 export interface TimelineProjectData {
   project: Project;
   duration: number;
@@ -259,7 +260,7 @@ export class UnifiedTimelineService {
     try {
       return calculateBaselineVisualOffsets(positions, isDragging, dragState, projectId, mode);
     } catch (error) {
-      console.error('Error in calculateBaselineVisualOffsets:', error);
+      ErrorHandlingService.handle(error, { source: 'UnifiedTimelineService', action: 'Error in calculateBaselineVisualOffsets:' });
       return positions; // fallback to original positions
     }
   }
@@ -275,7 +276,7 @@ export class UnifiedTimelineService {
     try {
       return calculateVisualProjectDates(project, isDragging, dragState);
     } catch (error) {
-      console.error('Error in calculateVisualProjectDates:', error);
+      ErrorHandlingService.handle(error, { source: 'UnifiedTimelineService', action: 'Error in calculateVisualProjectDates:' });
       return { 
         visualProjectStart: new Date(project.startDate), 
         visualProjectEnd: new Date(project.endDate) 
@@ -392,7 +393,7 @@ export class UnifiedTimelineService {
       }
     } catch (e) {
       // Fail-safe: if aggregation fails, leave summaries empty; component should handle gracefully
-      console.error('[UnifiedTimelineService] Failed to aggregate per-date summaries:', e);
+      ErrorHandlingService.handle(e, { source: 'UnifiedTimelineService', action: '[UnifiedTimelineService] Failed to aggregate per-date summaries:' });
     }
     
     // Helper accessor for components: get summary for a date without re-filtering arrays

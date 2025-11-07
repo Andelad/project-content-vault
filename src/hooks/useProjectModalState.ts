@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useProjectContext } from '../contexts/ProjectContext';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 interface UseProjectModalStateProps {
   projectId: string;
@@ -26,7 +27,7 @@ export function useProjectModalState({
     try {
       await updateProject(projectId, { notes });
     } catch (error) {
-      console.error('Failed to save notes:', error);
+      ErrorHandlingService.handle(error, { source: 'useProjectModalState', action: 'Failed to save notes:' });
     }
   }, [projectId, notes, updateProject, project]);
 
@@ -36,7 +37,7 @@ export function useProjectModalState({
       await deleteProject(projectId);
       onClose();
     } catch (error) {
-      console.error('Failed to delete project:', error);
+      ErrorHandlingService.handle(error, { source: 'useProjectModalState', action: 'Failed to delete project:' });
     }
   }, [projectId, deleteProject, onClose]);
 

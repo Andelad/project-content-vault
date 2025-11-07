@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 type Settings = Database['public']['Tables']['settings']['Row'];
 type SettingsUpdate = Database['public']['Tables']['settings']['Update'];
@@ -33,7 +34,7 @@ export function useSettings() {
         setSettings(data);
       }
     } catch (error) {
-      console.error('Error fetching settings:', error);
+      ErrorHandlingService.handle(error, { source: 'useSettings', action: 'Error fetching settings:' });
       toast({
         title: "Error",
         description: "Failed to load settings",
@@ -71,7 +72,7 @@ export function useSettings() {
       if (error) throw error;
       setSettings(data);
     } catch (error) {
-      console.error('Error creating default settings:', error);
+      ErrorHandlingService.handle(error, { source: 'useSettings', action: 'Error creating default settings:' });
       throw error;
     }
   };
@@ -98,7 +99,7 @@ export function useSettings() {
       });
       return data;
     } catch (error) {
-      console.error('Error updating settings:', error);
+      ErrorHandlingService.handle(error, { source: 'useSettings', action: 'Error updating settings:' });
       toast({
         title: "Error",
         description: "Failed to update settings",

@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Label } from '@/types/core';
 import { useToast } from '@/hooks/use-toast';
 import { LabelRules } from '@/domain/rules/LabelRules';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 export interface UseLabelsReturn {
   labels: Label[];
@@ -70,7 +71,7 @@ export function useLabels(): UseLabelsReturn {
     } catch (err) {
       const error = err as Error;
       setError(error);
-      console.error('Error fetching labels:', error);
+      ErrorHandlingService.handle(error, { source: 'useLabels', action: 'Error fetching labels:' });
       toast({
         title: 'Error loading labels',
         description: error.message,
@@ -133,7 +134,7 @@ export function useLabels(): UseLabelsReturn {
       return newLabel;
     } catch (err) {
       const error = err as Error;
-      console.error('Error adding label:', error);
+      ErrorHandlingService.handle(error, { source: 'useLabels', action: 'Error adding label:' });
       toast({
         title: 'Error creating label',
         description: error.message,
@@ -183,7 +184,7 @@ export function useLabels(): UseLabelsReturn {
       });
     } catch (err) {
       const error = err as Error;
-      console.error('Error updating label:', error);
+      ErrorHandlingService.handle(error, { source: 'useLabels', action: 'Error updating label:' });
       toast({
         title: 'Error updating label',
         description: error.message,
@@ -214,7 +215,7 @@ export function useLabels(): UseLabelsReturn {
       });
     } catch (err) {
       const error = err as Error;
-      console.error('Error deleting label:', error);
+      ErrorHandlingService.handle(error, { source: 'useLabels', action: 'Error deleting label:' });
       toast({
         title: 'Error deleting label',
         description: error.message,
@@ -249,7 +250,7 @@ export function useLabels(): UseLabelsReturn {
       });
     } catch (err) {
       const error = err as Error;
-      console.error('Error adding label to project:', error);
+      ErrorHandlingService.handle(error, { source: 'useLabels', action: 'Error adding label to project:' });
       toast({
         title: 'Error adding label',
         description: error.message,
@@ -278,7 +279,7 @@ export function useLabels(): UseLabelsReturn {
       });
     } catch (err) {
       const error = err as Error;
-      console.error('Error removing label from project:', error);
+      ErrorHandlingService.handle(error, { source: 'useLabels', action: 'Error removing label from project:' });
       toast({
         title: 'Error removing label',
         description: error.message,
@@ -321,7 +322,7 @@ export function useLabels(): UseLabelsReturn {
       return projectLabels;
     } catch (err) {
       const error = err as Error;
-      console.error('Error fetching project labels:', error);
+      ErrorHandlingService.handle(error, { source: 'useLabels', action: 'Error fetching project labels:' });
       return [];
     }
   };

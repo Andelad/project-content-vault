@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 type Milestone = Database['public']['Tables']['milestones']['Row'];
 type MilestoneInsert = Database['public']['Tables']['milestones']['Insert'];
 type MilestoneUpdate = Database['public']['Tables']['milestones']['Update'];
@@ -34,7 +35,7 @@ export function useMilestones(projectId?: string) {
       if (error) throw error;
       setMilestones(data || []);
     } catch (error) {
-      console.error('Error fetching milestones:', error);
+      ErrorHandlingService.handle(error, { source: 'useMilestones', action: 'Error fetching milestones:' });
       toast({
         title: "Error",
         description: "Failed to load milestones",
@@ -53,7 +54,7 @@ export function useMilestones(projectId?: string) {
       if (error) throw error;
       setMilestones(data || []);
     } catch (error) {
-      console.error('Error fetching all milestones:', error);
+      ErrorHandlingService.handle(error, { source: 'useMilestones', action: 'Error fetching all milestones:' });
       toast({
         title: "Error",
         description: "Failed to load milestones",
@@ -94,7 +95,7 @@ export function useMilestones(projectId?: string) {
         .select()
         .single();
       if (error) {
-        console.error('[useMilestones] Database error:', error);
+        ErrorHandlingService.handle(error, { source: 'useMilestones', action: '[useMilestones] Database error:' });
         throw error;
       }
       // Insert locally and sort by due_date
@@ -108,7 +109,7 @@ export function useMilestones(projectId?: string) {
       }
       return data;
     } catch (error) {
-      console.error('Error adding milestone:', error);
+      ErrorHandlingService.handle(error, { source: 'useMilestones', action: 'Error adding milestone:' });
       // Always show error toasts immediately
       toast({
         title: "Error",
@@ -145,7 +146,7 @@ export function useMilestones(projectId?: string) {
       }
       return data;
     } catch (error) {
-      console.error('Error updating milestone:', error);
+      ErrorHandlingService.handle(error, { source: 'useMilestones', action: 'Error updating milestone:' });
       // Always show error toasts immediately
       toast({
         title: "Error",
@@ -178,7 +179,7 @@ export function useMilestones(projectId?: string) {
           .eq('is_recurring', false)
           .like('name', `${numberedPattern}%`);
         if (instancesError) {
-          console.error('[useMilestones] Error deleting milestone instances:', instancesError);
+          ErrorHandlingService.handle(instancesError, { source: 'useMilestones', action: '[useMilestones] Error deleting milestone instances:' });
           throw instancesError;
         }
         // Update local state to remove numbered instances
@@ -194,7 +195,7 @@ export function useMilestones(projectId?: string) {
         .delete()
         .eq('id', id);
       if (error) {
-        console.error('[useMilestones] Error deleting milestone:', error);
+        ErrorHandlingService.handle(error, { source: 'useMilestones', action: '[useMilestones] Error deleting milestone:' });
         throw error;
       }
       setMilestones(prev => prev.filter(m => m.id !== id));
@@ -206,7 +207,7 @@ export function useMilestones(projectId?: string) {
         });
       }
     } catch (error) {
-      console.error('[useMilestones] Error deleting milestone:', error);
+      ErrorHandlingService.handle(error, { source: 'useMilestones', action: '[useMilestones] Error deleting milestone:' });
       // Always show error toasts
       toast({
         title: "Error",

@@ -7,6 +7,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { calculateDurationHours } from '@/services/calculations';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 export interface ExternalEvent {
   title: string;
@@ -122,7 +123,7 @@ export class CalendarImportOrchestrator {
       await this.logImportHistory(result, user.id);
 
     } catch (error) {
-      console.error('Error during import:', error);
+      ErrorHandlingService.handle(error, { source: 'CalendarImportOrchestrator', action: 'Error during import:' });
       result.success = false;
       result.errors.push(`Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }

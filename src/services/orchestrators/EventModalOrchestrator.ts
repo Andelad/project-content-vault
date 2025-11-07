@@ -7,6 +7,7 @@
  */
 
 import { CalendarEvent } from '@/types/core';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 export interface EventFormData {
   description: string;
@@ -179,7 +180,7 @@ export class EventModalOrchestrator {
         return { success: true };
       }
     } catch (error) {
-      console.error('EventModalOrchestrator: Failed to create event:', error);
+      ErrorHandlingService.handle(error, { source: 'EventModalOrchestrator', action: 'EventModalOrchestrator: Failed to create event:' });
       return { 
         success: false, 
         errors: { submit: 'Failed to create event. Please try again.' }
@@ -227,7 +228,7 @@ export class EventModalOrchestrator {
         return { success: true };
       }
     } catch (error) {
-      console.error('EventModalOrchestrator: Failed to update event:', error);
+      ErrorHandlingService.handle(error, { source: 'EventModalOrchestrator', action: 'EventModalOrchestrator: Failed to update event:' });
       return { 
         success: false, 
         errors: { submit: 'Failed to update event. Please try again.' }
@@ -252,7 +253,7 @@ export class EventModalOrchestrator {
       await deleteEvent(originalEventId);
       return { success: true };
     } catch (error) {
-      console.error('EventModalOrchestrator: Failed to delete event:', error);
+      ErrorHandlingService.handle(error, { source: 'EventModalOrchestrator', action: 'EventModalOrchestrator: Failed to delete event:' });
       return { 
         success: false, 
         errors: { submit: 'Failed to delete event. Please try again.' }
@@ -293,7 +294,7 @@ export class EventModalOrchestrator {
 
       return { success: true };
     } catch (error) {
-      console.error(`EventModalOrchestrator: Failed to update ${updateType} recurring events:`, error);
+      ErrorHandlingService.handle(error, { source: 'EventModalOrchestrator', action: 'EventModalOrchestrator: Failed to update ${updateType} recurring events:' });
       return { 
         success: false, 
         errors: { submit: `Failed to update ${updateType} recurring events. Please try again.` }
@@ -332,7 +333,7 @@ export class EventModalOrchestrator {
 
       return { success: true };
     } catch (error) {
-      console.error(`EventModalOrchestrator: Failed to delete ${deleteType} recurring events:`, error);
+      ErrorHandlingService.handle(error, { source: 'EventModalOrchestrator', action: 'EventModalOrchestrator: Failed to delete ${deleteType} recurring events:' });
       return { 
         success: false, 
         errors: { submit: `Failed to delete ${deleteType} recurring events. Please try again.` }

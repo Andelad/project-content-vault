@@ -21,6 +21,7 @@ import { RecurringUpdateDialog } from '../dialog/RecurringUpdateDialog';
 import { StandardModal } from './StandardModal';
 import { ProjectSearchInput } from '../shared/ProjectSearchInput';
 import { ProjectModal } from './ProjectModal';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 // Habit color constant
 const HABIT_BROWN_COLOR = OKLCH_HABIT_BROWN;
@@ -293,7 +294,7 @@ export function EventModal({
           const groupEvents = await getRecurringGroupEvents(originalEventId);
           setIsRecurringEvent(groupEvents.length > 1);
         } catch (error) {
-          console.error('Failed to check recurring status:', error);
+          ErrorHandlingService.handle(error, { source: 'EventModal', action: 'Failed to check recurring status:' });
           setIsRecurringEvent(false);
         }
       } else {
@@ -369,7 +370,7 @@ export function EventModal({
         }
       }
     } catch (error) {
-      console.error('Failed to save event:', error);
+      ErrorHandlingService.handle(error, { source: 'EventModal', action: 'Failed to save event:' });
       setErrors({ submit: 'Failed to save event. Please try again.' });
     } finally {
       setIsSubmitting(false);

@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
 import { OKLCH_HABIT_BROWN } from '@/constants/colors';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 type CalendarEvent = Database['public']['Tables']['calendar_events']['Row'];
 type CalendarEventInsert = Database['public']['Tables']['calendar_events']['Insert'];
@@ -107,7 +108,7 @@ export function useHabits() {
       if (error) throw error;
       setHabits(data || []);
     } catch (error) {
-      console.error('Error fetching habits:', error);
+      ErrorHandlingService.handle(error, { source: 'useHabits', action: 'Error fetching habits:' });
       toast({
         title: "Error",
         description: "Failed to load habits",
@@ -142,7 +143,7 @@ export function useHabits() {
         .single();
 
       if (error) {
-        console.error('❌ addHabit: Database insert error:', error);
+        ErrorHandlingService.handle(error, { source: 'useHabits', action: '❌ addHabit: Database insert error:' });
         throw error;
       }
 
@@ -161,7 +162,7 @@ export function useHabits() {
 
       return data;
     } catch (error) {
-      console.error('❌ addHabit: Fatal error:', error);
+      ErrorHandlingService.handle(error, { source: 'useHabits', action: '❌ addHabit: Fatal error:' });
       if (!options?.silent) {
         toast({
           title: "Error",
@@ -205,7 +206,7 @@ export function useHabits() {
 
       return data;
     } catch (error) {
-      console.error('Error updating habit:', error);
+      ErrorHandlingService.handle(error, { source: 'useHabits', action: 'Error updating habit:' });
       if (!options?.silent) {
         toast({
           title: "Error",
@@ -236,7 +237,7 @@ export function useHabits() {
         });
       }
     } catch (error) {
-      console.error('Error deleting habit:', error);
+      ErrorHandlingService.handle(error, { source: 'useHabits', action: 'Error deleting habit:' });
       if (!options?.silent) {
         toast({
           title: "Error",

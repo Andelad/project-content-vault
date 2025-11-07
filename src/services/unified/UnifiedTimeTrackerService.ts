@@ -51,6 +51,7 @@ export interface TrackingEventData {
 
 import { timeTrackingOrchestrator } from '../orchestrators/timeTrackingOrchestrator';
 import type { TimeTrackingState } from '../../types/timeTracking';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 /**
  * Unified Time Tracker Service
@@ -369,7 +370,7 @@ export class UnifiedTimeTrackerService {
       try {
         trackingState.selectedProject = JSON.parse(savedProject);
       } catch (e) {
-        console.error('Failed to parse saved project:', e);
+        ErrorHandlingService.handle(e, { source: 'UnifiedTimeTrackerService', action: 'Failed to parse saved project:' });
       }
     }
 
@@ -377,7 +378,7 @@ export class UnifiedTimeTrackerService {
       try {
         trackingState.affectedEvents = JSON.parse(savedAffectedEvents);
       } catch (e) {
-        console.error('Failed to parse saved affected events:', e);
+        ErrorHandlingService.handle(e, { source: 'UnifiedTimeTrackerService', action: 'Failed to parse saved affected events:' });
       }
     }
 

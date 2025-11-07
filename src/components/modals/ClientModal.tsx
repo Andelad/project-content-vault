@@ -10,6 +10,7 @@ import { Card, CardContent } from '../ui/card';
 import { Building2, Folder, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { Client } from '@/types/core';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 interface ClientModalProps {
   isOpen: boolean;
@@ -61,7 +62,7 @@ export function ClientModal({ isOpen, onClose, clientId }: ClientModalProps) {
       });
       onClose();
     } catch (error) {
-      console.error('Failed to update client:', error);
+      ErrorHandlingService.handle(error, { source: 'ClientModal', action: 'Failed to update client:' });
       toast({
         title: "Error",
         description: "Failed to update client",
@@ -96,7 +97,7 @@ export function ClientModal({ isOpen, onClose, clientId }: ClientModalProps) {
       });
       onClose();
     } catch (error) {
-      console.error('Failed to delete client:', error);
+      ErrorHandlingService.handle(error, { source: 'ClientModal', action: 'Failed to delete client:' });
       toast({
         title: "Error",
         description: "Failed to delete client",

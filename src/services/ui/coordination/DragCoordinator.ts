@@ -17,6 +17,7 @@ import * as ProjectBarResizeService from '../positioning/ProjectBarResizeService
 import { normalizeToMidnight, addDaysToDate } from '../../calculations/general/dateCalculations';
 import type { Project } from '@/types/core';
 import type { DayEstimate } from '@/types/core';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 export interface TimelineContext {
   projects: Project[];
@@ -490,7 +491,7 @@ export class TimelineDragCoordinatorService {
       };
 
     } catch (error) {
-      console.error('🚨 DRAG COMPLETION ERROR:', error);
+      ErrorHandlingService.handle(error, { source: 'DragCoordinator', action: '🚨 DRAG COMPLETION ERROR:' });
       return {
         success: false,
         finalDates,

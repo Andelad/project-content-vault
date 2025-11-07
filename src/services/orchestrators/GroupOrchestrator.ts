@@ -14,6 +14,7 @@ import { Group } from '@/types/core';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 import { calculateGroupStatistics } from '@/services/calculations';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 type GroupRow = Database['public']['Tables']['groups']['Row'];
 type GroupInsert = Database['public']['Tables']['groups']['Insert'];
@@ -245,7 +246,7 @@ export class GroupOrchestrator {
       };
 
     } catch (error) {
-      console.error('Group creation workflow error:', error);
+      ErrorHandlingService.handle(error, { source: 'GroupOrchestrator', action: 'Group creation workflow error:' });
       return {
         success: false,
         errors: [error instanceof Error ? error.message : 'Group creation failed']
@@ -346,7 +347,7 @@ export class GroupOrchestrator {
       };
 
     } catch (error) {
-      console.error('Group update workflow error:', error);
+      ErrorHandlingService.handle(error, { source: 'GroupOrchestrator', action: 'Group update workflow error:' });
       return {
         success: false,
         errors: [error instanceof Error ? error.message : 'Group update failed']
@@ -381,7 +382,7 @@ export class GroupOrchestrator {
       };
 
     } catch (error) {
-      console.error('Get user groups workflow error:', error);
+      ErrorHandlingService.handle(error, { source: 'GroupOrchestrator', action: 'Get user groups workflow error:' });
       return {
         success: false,
         errors: [error instanceof Error ? error.message : 'Failed to load groups']
@@ -445,7 +446,7 @@ export class GroupOrchestrator {
       };
 
     } catch (error) {
-      console.error('Group deletion workflow error:', error);
+      ErrorHandlingService.handle(error, { source: 'GroupOrchestrator', action: 'Group deletion workflow error:' });
       return {
         success: false,
         errors: [error instanceof Error ? error.message : 'Group deletion failed']
