@@ -438,27 +438,25 @@ export function ProfileView() {
 
     setLoading(true);
     try {
-      // Delete user data first (projects, calendar_events, profile)
-      await supabase.from('projects').delete().eq('user_id', user?.id);
-      await supabase.from('calendar_events').delete().eq('user_id', user?.id);
-      await supabase.from('profiles').delete().eq('user_id', user?.id);
-
-      // Delete avatar from storage if it exists
-      if (profile?.avatar_url) {
-        const existingPath = profile.avatar_url.split('/').slice(-2).join('/');
-        await supabase.storage.from('avatars').remove([existingPath]);
+      // Call edge function to delete account (requires service role key)
+      const { data: session } = await supabase.auth.getSession();
+      
+      if (!session?.session?.access_token) {
+        throw new Error('No active session');
       }
 
-      // Delete the auth user (this will cascade to other tables with foreign keys)
-      const { error } = await supabase.auth.admin.deleteUser(user?.id || '');
+      const { data, error } = await supabase.functions.invoke('delete-account', {
+        headers: {
+          Authorization: `Bearer ${session.session.access_token}`,
+        },
+      });
 
       if (error) {
-        // If admin delete fails (requires service role), try regular delete
-        const { error: deleteError } = await supabase.auth.updateUser({
-          data: { deleted: true }
-        });
-        
-        if (deleteError) throw deleteError;
+        throw error;
+      }
+
+      if (!data?.success) {
+        throw new Error(data?.error || 'Failed to delete account');
       }
 
       toast({
@@ -469,6 +467,7 @@ export function ProfileView() {
       // Sign out and redirect
       await signOut();
     } catch (error: any) {
+      console.error('Account deletion error:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to delete account. Please contact support.",
