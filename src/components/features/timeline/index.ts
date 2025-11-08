@@ -5,6 +5,7 @@
 // Timeline sub-components
 export { HolidayBar } from './HolidayBar';
 export { ProjectBar } from './ProjectBar';
+export { ProjectIconIndicator } from './ProjectIconIndicator';
 export { TimelineDateHeader } from './TimelineDateHeader';
 export { TimelineCard } from './TimelineCard';
 export { TimelineBackground } from './TimelineBackground';

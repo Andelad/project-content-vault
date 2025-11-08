@@ -19,7 +19,7 @@ import {
   calculateRectangleHeight,
   normalizeToMidnight
 } from '@/services';
-import { ProjectIconIndicator } from '@/components/features/projects';
+import { ProjectIconIndicator } from './ProjectIconIndicator';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 interface ProjectBarProps {
   project: Project;

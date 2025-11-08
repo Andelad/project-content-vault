@@ -8,6 +8,6 @@ export * from './planner';
 export * from './timeline';
 export * from './overview';
 export * from './insights';
-export * from './projects';
+export * from './project';
 export * from './settings';
 export * from './tracker';
