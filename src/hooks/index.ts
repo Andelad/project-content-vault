@@ -1,6 +1,7 @@
 export * from './use-mobile';
 export * from './use-toast';
 export * from './useCalendarConnections';
+export * from './useCalendarKeyboardShortcuts';
 export * from './useDynamicViewportDays';
 export * from './useEvents';
 export * from './useFavicon';

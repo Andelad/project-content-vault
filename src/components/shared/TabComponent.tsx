@@ -1,14 +1,14 @@
 import React from 'react';
 import { NEUTRAL_COLORS } from '@/constants/colors';
 
-interface ChromeTabProps {
+interface TabComponentProps {
   label: string;
-  value: string;
+  value?: string;
   isActive: boolean;
   onClick: () => void;
 }
 
-export function ChromeTab({ label, isActive, onClick }: ChromeTabProps) {
+export function TabComponent({ label, isActive, onClick }: TabComponentProps) {
   return (
     <button
       onClick={onClick}

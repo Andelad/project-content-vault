@@ -1,9 +1,8 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { Button } from '../ui/button';
 import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group';
-import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
-import { Calendar } from '../ui/calendar';
-import { ChevronLeft, ChevronRight, MapPin, CalendarSearch, Plus } from 'lucide-react';
+import { DatePickerButton } from '../shared/DatePickerButton';
+import { ChevronLeft, ChevronRight, MapPin, Plus } from 'lucide-react';
 import { 
   createSmoothDragAnimation, 
   TimelineViewportService,
@@ -225,21 +224,12 @@ export function TimelineToolbar({
             <MapPin className="w-4 h-4" />
             Today
           </Button>
-          <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="icon" className="h-9 w-9">
-                <CalendarSearch className="w-4 h-4" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={currentDate}
-                onSelect={handleDateSelect}
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
+          <DatePickerButton
+            selected={currentDate}
+            onSelect={handleDateSelect}
+            isOpen={isDatePickerOpen}
+            onOpenChange={setIsDatePickerOpen}
+          />
         </div>
         {/* Navigation Controls */}
         <div className="flex items-center gap-0.5">

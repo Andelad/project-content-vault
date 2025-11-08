@@ -1,13 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { DndProvider, useDrag, useDrop } from 'react-dnd';
-import { HTML5Backend } from 'react-dnd-html5-backend';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { useGroups } from '../../hooks/useGroups';
 import { useHolidays } from '../../hooks/useHolidays';
 import { useToast } from '../../hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Edit, Trash2, Calendar, Clock, Users, FolderPlus, Grid3X3, List, GripVertical, Archive, PlayCircle, Clock4, ChevronDown, ChevronRight, Search, Tag, Building2, Mail, Phone, MapPin, FileText } from 'lucide-react';
+import { Plus, Edit, Trash2, Calendar, Clock, Users, Folder, Grid3X3, List, GripVertical, Archive, PlayCircle, Clock4, ChevronDown, ChevronRight, Search, Tag, Building2, Mail, Phone, MapPin, FileText } from 'lucide-react';
 import { Button } from '../ui/button';
+import { DatePickerButton } from '../shared/DatePickerButton';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -27,142 +26,16 @@ import { getEffectiveProjectStatus, DurationFormattingService, normalizeToMidnig
 import { GroupOrchestrator } from '@/services/orchestrators/GroupOrchestrator';
 import { NEUTRAL_COLORS } from '@/constants/colors';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
-import { useClients } from '@/hooks/useClients';
+import { TabComponent } from '../shared';
+import { ClientsTab, HolidaysTab, ProjectsTab } from './overview';
 type ViewType = 'grid' | 'list';
 type FilterByStatus = 'all' | 'active' | 'future' | 'past';
 type OrganizeBy = 'group' | 'tag' | 'client';
 type MainTab = 'projects' | 'clients' | 'holidays';
 type ClientStatusFilter = 'all' | 'active' | 'archived';
-// Chrome-style tab component
-interface TabProps {
-  label: string;
-  value: string;
-  isActive: boolean;
-  onClick: () => void;
-}
-const ChromeTab = ({ label, isActive, onClick }: TabProps) => {
-  return (
-    <button
-      onClick={onClick}
-      className={`
-        relative px-6 text-sm font-medium transition-all duration-200 flex items-center justify-center
-        text-gray-800
-        ${isActive ? 'z-10' : 'z-0'}
-      `}
-      style={{
-        height: isActive ? '40px' : '39px',
-        backgroundColor: isActive ? 'white' : NEUTRAL_COLORS.gray200,
-        borderTopLeftRadius: '8px',
-        borderTopRightRadius: '8px',
-        marginRight: '-2px',
-        borderTop: `1px solid ${isActive ? NEUTRAL_COLORS.gray200 : 'transparent'}`,
-        borderLeft: `1px solid ${isActive ? NEUTRAL_COLORS.gray200 : 'transparent'}`,
-        borderRight: `1px solid ${isActive ? NEUTRAL_COLORS.gray200 : 'transparent'}`,
-        borderBottom: isActive ? '1px solid white' : '1px solid transparent',
-        marginBottom: '-1px',
-        boxSizing: 'border-box',
-      }}
-    >
-      {label}
-    </button>
-  );
-};
-// Drag and drop item types
-const ItemTypes = {
-  GROUP: 'group',
-  PROJECT: 'project'
-};
-// Draggable Group Component
-function DraggableGroup({ 
-  group, 
-  index, 
-  onMoveGroup, 
-  children 
-}: { 
-  group: Group; 
-  index: number; 
-  onMoveGroup: (fromIndex: number, toIndex: number) => void;
-  children: React.ReactNode;
-}) {
-  const [{ isDragging }, drag, preview] = useDrag({
-    type: ItemTypes.GROUP,
-    item: { type: ItemTypes.GROUP, id: group.id, index },
-    collect: (monitor) => ({
-      isDragging: monitor.isDragging(),
-    }),
-  });
-  const [, drop] = useDrop({
-    accept: ItemTypes.GROUP,
-    hover: (item: { type: string; id: string; index: number }) => {
-      if (!item || item.type !== ItemTypes.GROUP) return;
-      const dragIndex = item.index;
-      const hoverIndex = index;
-      if (dragIndex === hoverIndex) return;
-      onMoveGroup(dragIndex, hoverIndex);
-      item.index = hoverIndex;
-    },
-  });
-  return (
-    <div ref={(node) => preview(drop(node))} style={{ opacity: isDragging ? 0.5 : 1 }}>
-      <div className="flex items-start gap-3">
-        <div ref={drag} className="cursor-move pt-6 text-gray-400 hover:text-gray-600">
-          <GripVertical className="w-4 h-4" />
-        </div>
-        <div className="flex-1">
-          {children}
-        </div>
-      </div>
-    </div>
-  );
-}
-// Draggable Project Component
-function DraggableProject({ 
-  project, 
-  index, 
-  groupId,
-  onMoveProject, 
-  children 
-}: { 
-  project: Project; 
-  index: number; 
-  groupId: string;
-  onMoveProject: (groupId: string, fromIndex: number, toIndex: number) => void;
-  children: React.ReactNode;
-}) {
-  const [{ isDragging }, drag, preview] = useDrag({
-    type: ItemTypes.PROJECT,
-    item: { type: ItemTypes.PROJECT, id: project.id, index, groupId },
-    collect: (monitor) => ({
-      isDragging: monitor.isDragging(),
-    }),
-  });
-  const [, drop] = useDrop({
-    accept: ItemTypes.PROJECT,
-    hover: (item: { type: string; id: string; index: number; groupId: string }) => {
-      if (!item || item.type !== ItemTypes.PROJECT) return;
-      if (item.groupId !== groupId) return; // Only allow reordering within the same group
-      const dragIndex = item.index;
-      const hoverIndex = index;
-      if (dragIndex === hoverIndex) return;
-      onMoveProject(groupId, dragIndex, hoverIndex);
-      item.index = hoverIndex;
-    },
-  });
-  return (
-    <div ref={(node) => preview(drop(node))} style={{ opacity: isDragging ? 0.5 : 1 }}>
-      <div className="flex items-center gap-2">
-        <div ref={drag} className="cursor-move text-gray-400 hover:text-gray-600 p-1">
-          <GripVertical className="w-3 h-3" />
-        </div>
-        <div className="flex-1">
-          {children}
-        </div>
-      </div>
-    </div>
-  );
-}
+
 export function OverviewView() {
-  const { groups, projects, deleteGroup, addProject, updateProject, deleteProject, reorderGroups, reorderProjects, selectedProjectId, setSelectedProjectId } = useProjectContext();
+  const { groups, projects, deleteGroup, addProject, updateProject, deleteProject, selectedProjectId, setSelectedProjectId } = useProjectContext();
   const { addGroup, updateGroup, refetch: fetchGroups } = useGroups();
   const { holidays, addHoliday, updateHoliday, deleteHoliday } = useHolidays();
   const { toast } = useToast();
@@ -174,7 +47,7 @@ export function OverviewView() {
   const [organizeBy, setOrganizeBy] = useState<OrganizeBy>('group');
   const [filterByStatus, setFilterByStatus] = useState<FilterByStatus>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterByDate, setFilterByDate] = useState('');
+  const [filterByDate, setFilterByDate] = useState<Date | undefined>(undefined);
   // Client-specific filter state
   const [clientStatusFilter, setClientStatusFilter] = useState<ClientStatusFilter>('active');
   // Holiday-specific state
@@ -367,242 +240,9 @@ export function OverviewView() {
     setProjectEstimatedHours('');
     setProjectColor('#6366f1');
   };
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
-  };
-  // Duration formatting is now handled by DurationFormattingService
-  const getProjectsByGroup = (groupId: string) => {
-    return projects.filter(project => project.groupId === groupId);
-  };
-  const getProjectsByGroupAndStatus = (groupId: string, status: ProjectStatus) => {
-    return projects.filter(project => project.groupId === groupId && getEffectiveProjectStatus(project) === status);
-  };
-  const getProjectCountByStatus = (status: ProjectStatus) => {
-    return projects.filter(project => getEffectiveProjectStatus(project) === status).length;
-  };
-  // Filter and organize projects
-  const filteredProjects = useMemo(() => {
-    let filtered = [...projects];
-    // Filter by status
-    if (filterByStatus === 'active') {
-      filtered = filtered.filter(p => getEffectiveProjectStatus(p) === 'current');
-    } else if (filterByStatus === 'future') {
-      filtered = filtered.filter(p => getEffectiveProjectStatus(p) === 'future');
-    } else if (filterByStatus === 'past') {
-      filtered = filtered.filter(p => getEffectiveProjectStatus(p) === 'archived');
-    }
-    // Filter by search query
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(p => 
-        p.name.toLowerCase().includes(query) ||
-        (p.clientData?.name && p.clientData.name.toLowerCase().includes(query)) ||
-        (p.client && p.client.toLowerCase().includes(query))
-      );
-    }
-    // Filter by date
-    if (filterByDate) {
-      const targetDate = new Date(filterByDate);
-      targetDate.setHours(0, 0, 0, 0);
-      filtered = filtered.filter(p => {
-        const start = new Date(p.startDate);
-        const end = new Date(p.endDate);
-        start.setHours(0, 0, 0, 0);
-        end.setHours(0, 0, 0, 0);
-        return start <= targetDate && targetDate <= end;
-      });
-    }
-    return filtered;
-  }, [projects, filterByStatus, searchQuery, filterByDate]);
-  // Organize filtered projects
-  const organizedProjects = useMemo(() => {
-    if (organizeBy === 'group') {
-      // Group by group
-      const byGroup: { [key: string]: { group: Group; projects: Project[] } } = {};
-      groups.forEach(group => {
-        byGroup[group.id] = { group, projects: [] };
-      });
-      filteredProjects.forEach(project => {
-        if (byGroup[project.groupId]) {
-          byGroup[project.groupId].projects.push(project);
-        }
-      });
-      return Object.values(byGroup).filter(g => g.projects.length > 0);
-    } else if (organizeBy === 'client') {
-      // Group by client
-      const byClient: { [key: string]: Project[] } = {};
-      filteredProjects.forEach(project => {
-        const clientName = project.clientData?.name || project.client || 'No Client';
-        if (!byClient[clientName]) {
-          byClient[clientName] = [];
-        }
-        byClient[clientName].push(project);
-      });
-      return Object.entries(byClient).map(([clientName, projects]) => ({
-        key: clientName,
-        label: clientName,
-        projects
-      }));
-    } else {
-      // Group by tag (placeholder - would need tag implementation)
-      return [{
-        key: 'all',
-        label: 'All Projects',
-        projects: filteredProjects
-      }];
-    }
-  }, [organizeBy, filteredProjects, groups]);
-  // Collapsible toggle functions
-  const toggleSection = (section: string) => {
-    setCollapsedSections(prev => ({
-      ...prev,
-      [section]: !prev[section]
-    }));
-  };
-  const toggleGroup = (groupId: string, section: string) => {
-    const key = `${section}-${groupId}`;
-    setCollapsedGroups(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
-  };
-  const isSectionCollapsed = (section: string) => {
-    return collapsedSections[section] || false;
-  };
-  const isGroupCollapsed = (groupId: string, section: string) => {
-    const key = `${section}-${groupId}`;
-    return collapsedGroups[key] !== false; // Default to collapsed (true) unless explicitly set to false
-  };
-  // Handle drag and drop
-  const handleMoveGroup = (fromIndex: number, toIndex: number) => {
-    reorderGroups(fromIndex, toIndex);
-  };
-  const handleMoveProject = (groupId: string, fromIndex: number, toIndex: number) => {
-    reorderProjects(groupId, fromIndex, toIndex);
-  };
-  // Render project in grid format
-  const renderGridProject = (project: Project, index: number, groupId: string) => (
-    <DraggableProject
-      key={project.id}
-      project={project}
-      index={index}
-      groupId={groupId}
-      onMoveProject={handleMoveProject}
-    >
-      <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setSelectedProjectId(project.id)}>
-        <CardHeader className="pb-2 pt-3 px-4">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-2 min-w-0 flex-1">
-              <div 
-                className="w-2 h-2 rounded-full flex-shrink-0" 
-                style={{ backgroundColor: project.color }}
-              />
-              <div className="min-w-0 flex-1">
-                <CardTitle className="text-sm font-medium truncate">{project.name}</CardTitle>
-                <CardDescription className="text-xs truncate">
-                  {project.clientData?.name || project.client || 'No client'}
-                </CardDescription>
-              </div>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                deleteProject(project.id);
-              }}
-              className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1 h-6 w-6"
-            >
-              <Trash2 className="w-3 h-3" />
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-2 pt-0 px-4 pb-3">
-          <div className="flex items-center gap-1 text-xs text-gray-600">
-            <Calendar className="w-3 h-3" />
-            <span className="truncate">
-              {formatDate(project.startDate)} - {formatDate(project.endDate)}
-            </span>
-          </div>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1 text-xs">
-              <Clock className="w-3 h-3 text-gray-600" />
-              <span className="font-medium text-gray-900">{project.estimatedHours}h</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </DraggableProject>
-  );
-  // Render project in list format
-  const renderListProject = (project: Project, index: number, groupId: string) => (
-    <DraggableProject
-      key={project.id}
-      project={project}
-      index={index}
-      groupId={groupId}
-      onMoveProject={handleMoveProject}
-    >
-      <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setSelectedProjectId(project.id)}>
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            {/* Left section - Project info */}
-            <div className="flex items-center gap-3 flex-1 min-w-0">
-              <div 
-                className="w-3 h-3 rounded-full flex-shrink-0" 
-                style={{ backgroundColor: project.color }}
-              />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-medium text-gray-900 truncate text-sm">{project.name}</h3>
-                  <span className="text-xs text-gray-600 whitespace-nowrap">
-                    {project.clientData?.name || project.client || 'No client'}
-                  </span>
-                </div>
-              </div>
-            </div>
-            {/* Middle section - Timeline info */}
-            <div className="flex items-center gap-4 flex-1 justify-center">
-              <div className="flex items-center gap-1 text-xs text-gray-600">
-                <Calendar className="w-3 h-3" />
-                <span className="whitespace-nowrap">
-                  {formatDate(project.startDate)} - {formatDate(project.endDate)}
-                </span>
-              </div>
-              <div className="flex items-center gap-1 text-xs">
-                <Clock className="w-3 h-3 text-gray-600" />
-                <span className="whitespace-nowrap font-medium text-gray-900">{project.estimatedHours}h</span>
-              </div>
-              <div className="text-xs text-gray-500">
-                <span>{DurationFormattingService.formatDuration(project.startDate, project.endDate)}</span>
-              </div>
-            </div>
-            {/* Right section - Actions */}
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  deleteProject(project.id);
-                }}
-                className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1 h-6 w-6"
-              >
-                <Trash2 className="w-3 h-3" />
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </DraggableProject>
-  );
+  
   return (
-    <DndProvider backend={HTML5Backend}>
-      <AppPageLayout>
+    <AppPageLayout>
         {/* Header content moved to AppHeader in MainAppLayout */}
         <AppPageLayout.Header className="h-0 overflow-hidden">
           <div />
@@ -618,19 +258,19 @@ export function OverviewView() {
               paddingTop: '21px',
             }}
           >
-            <ChromeTab
+            <TabComponent
               label="Projects"
               value="projects"
               isActive={activeTab === 'projects'}
               onClick={() => setActiveTab('projects')}
             />
-            <ChromeTab
+            <TabComponent
               label="Clients"
               value="clients"
               isActive={activeTab === 'clients'}
               onClick={() => setActiveTab('clients')}
             />
-            <ChromeTab
+            <TabComponent
               label="Holidays"
               value="holidays"
               isActive={activeTab === 'holidays'}
@@ -673,7 +313,7 @@ export function OverviewView() {
                   className="border border-gray-200 rounded-lg h-9 p-1"
                 >
                   <ToggleGroupItem value="group" aria-label="Organize by group" className="px-3 py-1 h-7 gap-1.5">
-                    <FolderPlus className="w-3 h-3" />
+                    <Folder className="w-3 h-3" />
                     Group
                   </ToggleGroupItem>
                   <ToggleGroupItem value="client" aria-label="Organize by client" className="px-3 py-1 h-7 gap-1.5">
@@ -709,24 +349,22 @@ export function OverviewView() {
                     Past
                   </ToggleGroupItem>
                 </ToggleGroup>
-                {/* Search */}
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <Input
-                    placeholder="Search projects..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="h-9 pl-8 pr-3 w-[200px]"
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+                    <Input
+                      placeholder="Search projects..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="h-9 pl-8 pr-3 w-[200px]"
+                    />
+                  </div>
+                  {/* Date Filter */}
+                  <DatePickerButton
+                    selected={filterByDate}
+                    onSelect={setFilterByDate}
                   />
                 </div>
-                {/* Date Filter */}
-                <Input
-                  type="date"
-                  value={filterByDate}
-                  onChange={(e) => setFilterByDate(e.target.value)}
-                  className="h-9 w-[160px]"
-                  placeholder="Filter by date"
-                />
               </div>
               {/* Right side - View toggle */}
               <ToggleGroup
@@ -779,24 +417,22 @@ export function OverviewView() {
                     Archived
                   </ToggleGroupItem>
                 </ToggleGroup>
-                {/* Search */}
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <Input
-                    placeholder="Search clients..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="h-9 pl-8 pr-3 w-[200px]"
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+                    <Input
+                      placeholder="Search clients..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="h-9 pl-8 pr-3 w-[200px]"
+                    />
+                  </div>
+                  {/* Date Filter */}
+                  <DatePickerButton
+                    selected={filterByDate}
+                    onSelect={setFilterByDate}
                   />
                 </div>
-                {/* Date Filter */}
-                <Input
-                  type="date"
-                  value={filterByDate}
-                  onChange={(e) => setFilterByDate(e.target.value)}
-                  className="h-9 w-[160px]"
-                  placeholder="Filter by date"
-                />
               </div>
               {/* Right side - View toggle */}
               <ToggleGroup
@@ -880,556 +516,68 @@ export function OverviewView() {
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as MainTab)} className="h-full">
           {/* Projects Tab Content */}
           <TabsContent value="projects" className="h-full mt-0">
-            <div className="px-[21px] pb-[21px] pt-[35px] space-y-8">
-              {/* Results count */}
-              {filteredProjects.length > 0 && (
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary">
-                    {filteredProjects.length} {filteredProjects.length === 1 ? 'project' : 'projects'}
-                  </Badge>
-                  {(searchQuery || filterByDate || filterByStatus !== 'all') && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setSearchQuery('');
-                        setFilterByDate('');
-                        setFilterByStatus('all');
-                      }}
-                      className="h-7 text-xs"
-                    >
-                      Clear filters
-                    </Button>
-                  )}
-                </div>
-              )}
-              {/* Organized Projects Display */}
-              {organizedProjects.length > 0 ? (
-                <div className="space-y-6">
-                  {organizedProjects.map((section, index) => {
-                    // Handle group organization
-                    if ('group' in section) {
-                      const groupData = section as { group: Group; projects: Project[] };
-                      return (
-                        <DraggableGroup
-                          key={`group-${groupData.group.id}`}
-                          group={groupData.group}
-                          index={index}
-                          onMoveGroup={handleMoveGroup}
-                        >
-                          <div className="space-y-3">
-                            {/* Group Header */}
-                            <div className="flex items-center gap-3">
-                              <FolderPlus className="w-4 h-4 text-gray-500" />
-                              <h3 className="text-lg font-medium text-gray-900">{groupData.group.name}</h3>
-                              <Badge variant="outline" className="text-xs">
-                                {groupData.projects.length}
-                              </Badge>
-                            </div>
-                            {/* Projects Display */}
-                            <div className={viewType === 'grid' 
-                              ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" 
-                              : "space-y-2"
-                            }>
-                              {groupData.projects.map((project, projectIndex) => 
-                                viewType === 'grid' 
-                                  ? renderGridProject(project, projectIndex, groupData.group.id)
-                                  : renderListProject(project, projectIndex, groupData.group.id)
-                              )}
-                            </div>
-                          </div>
-                        </DraggableGroup>
-                      );
-                    } else {
-                      // Handle client or tag organization
-                      const sectionData = section as { key: string; label: string; projects: Project[] };
-                      return (
-                        <div key={`section-${sectionData.key}`} className="space-y-3">
-                          {/* Section Header */}
-                          <div className="flex items-center gap-3">
-                            {organizeBy === 'client' ? (
-                              <Building2 className="w-4 h-4 text-gray-500" />
-                            ) : (
-                              <Tag className="w-4 h-4 text-gray-500" />
-                            )}
-                            <h3 className="text-lg font-medium text-gray-900">{sectionData.label}</h3>
-                            <Badge variant="outline" className="text-xs">
-                              {sectionData.projects.length}
-                            </Badge>
-                          </div>
-                          {/* Projects Display */}
-                          <div className={viewType === 'grid' 
-                            ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" 
-                            : "space-y-2"
-                          }>
-                            {sectionData.projects.map((project, projectIndex) => 
-                              viewType === 'grid' 
-                                ? renderGridProject(project, projectIndex, project.groupId)
-                                : renderListProject(project, projectIndex, project.groupId)
-                            )}
-                          </div>
-                        </div>
-                      );
-                    }
-                  })}
-                </div>
-              ) : (
-                /* No results message */
-                <Card className="border-dashed">
-                  <CardContent className="flex flex-col items-center justify-center py-16">
-                    <div className="text-gray-400 mb-4">
-                      {searchQuery || filterByDate || filterByStatus !== 'all' ? (
-                        <Search className="w-16 h-16" />
-                      ) : (
-                        <Users className="w-16 h-16" />
-                      )}
-                    </div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                      {searchQuery || filterByDate || filterByStatus !== 'all' 
-                        ? 'No projects found'
-                        : 'No projects yet'
-                      }
-                    </h3>
-                    <p className="text-gray-600 text-center mb-6 max-w-md">
-                      {searchQuery || filterByDate || filterByStatus !== 'all'
-                        ? 'Try adjusting your filters or search query'
-                        : 'Start by going to the Timeline view to create your first group and projects.'
-                      }
-                    </p>
-                    {(searchQuery || filterByDate || filterByStatus !== 'all') && (
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          setSearchQuery('');
-                          setFilterByDate('');
-                          setFilterByStatus('all');
-                        }}
-                      >
-                        Clear filters
-                      </Button>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
+            <div className="px-[21px] pb-[21px] pt-[35px]">
+              <ProjectsTab
+                projects={projects}
+                groups={groups}
+                organizeBy={organizeBy}
+                filterByStatus={filterByStatus}
+                searchQuery={searchQuery}
+                filterByDate={filterByDate}
+                viewType={viewType}
+                onProjectClick={(projectId) => setSelectedProjectId(projectId)}
+                onDeleteProject={deleteProject}
+                onClearFilters={() => {
+                  setSearchQuery('');
+                  setFilterByDate(undefined);
+                  setFilterByStatus('all');
+                }}
+              />
             </div>
           </TabsContent>
           {/* Clients Tab Content */}
           <TabsContent value="clients" className="h-full mt-0">
             <div className="px-[21px] pb-[21px] pt-[35px]">
-              {(() => {
-                const { clients, loading } = useClients();
-                const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
-                const [isClientModalOpen, setIsClientModalOpen] = useState(false);
-
-                // Filter clients
-                const filteredClients = useMemo(() => {
-                  let filtered = [...clients];
-
-                  // Filter by status
-                  if (clientStatusFilter === 'active') {
-                    filtered = filtered.filter(client => client.status === 'active');
-                  } else if (clientStatusFilter === 'archived') {
-                    filtered = filtered.filter(client => client.status === 'archived');
-                  }
-
-                  // Filter by search query
-                  if (searchQuery.trim()) {
-                    const query = searchQuery.toLowerCase();
-                    filtered = filtered.filter(client =>
-                      client.name.toLowerCase().includes(query) ||
-                      client.contactEmail?.toLowerCase().includes(query) ||
-                      client.contactPhone?.toLowerCase().includes(query)
-                    );
-                  }
-
-                  // Filter by date - show clients that have a project on the selected date
-                  if (filterByDate) {
-                    const targetDate = normalizeToMidnight(new Date(filterByDate));
-                    
-                    // Get client IDs that have projects on this date
-                    const clientIdsWithProjectsOnDate = new Set(
-                      projects.filter(p => {
-                        const start = normalizeToMidnight(new Date(p.startDate));
-                        const end = normalizeToMidnight(new Date(p.endDate));
-                        return start <= targetDate && targetDate <= end;
-                      }).map(p => p.clientId)
-                    );
-                    
-                    filtered = filtered.filter(client => 
-                      clientIdsWithProjectsOnDate.has(client.id)
-                    );
-                  }
-
-                  return filtered;
-                }, [clients, clientStatusFilter, searchQuery, filterByDate, projects]);
-
-                // Get project count for each client
-                const getProjectCount = (clientId: string) => {
-                  return projects.filter(p => p.clientId === clientId).length;
-                };
-
-                // Get active project count for each client
-                const getActiveProjectCount = (clientId: string) => {
-                  const today = normalizeToMidnight(new Date());
-                  
-                  return projects.filter(p => {
-                    if (p.clientId !== clientId) return false;
-                    const start = normalizeToMidnight(new Date(p.startDate));
-                    const end = normalizeToMidnight(new Date(p.endDate));
-                    return start <= today && today <= end;
-                  }).length;
-                };
-
-                if (loading) {
-                  return (
-                    <div className="flex items-center justify-center py-16">
-                      <div className="text-gray-500">Loading clients...</div>
-                    </div>
-                  );
-                }
-
-                return (
-                  <div className="space-y-6">
-                    {/* Results count */}
-                    {filteredClients.length > 0 && (
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary">
-                          {filteredClients.length} {filteredClients.length === 1 ? 'client' : 'clients'}
-                        </Badge>
-                      </div>
-                    )}
-
-                    {/* Clients list */}
-                    {filteredClients.length > 0 ? (
-                      <div className={viewType === 'grid' 
-                        ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" 
-                        : "space-y-2"
-                      }>
-                        {filteredClients.map(client => {
-                          const projectCount = getProjectCount(client.id);
-                          const activeProjectCount = getActiveProjectCount(client.id);
-                          
-                          return viewType === 'grid' ? (
-                            // Grid view
-                            <Card 
-                              key={client.id} 
-                              className="hover:shadow-lg transition-shadow cursor-pointer"
-                              onClick={() => {
-                                setSelectedClientId(client.id);
-                                setIsClientModalOpen(true);
-                              }}
-                            >
-                              <CardHeader className="pb-3">
-                                <div className="flex items-start justify-between">
-                                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                                    <Building2 className="w-4 h-4 text-gray-500 flex-shrink-0" />
-                                    <div className="min-w-0 flex-1">
-                                      <CardTitle className="text-base font-semibold truncate">
-                                        {client.name}
-                                      </CardTitle>
-                                    </div>
-                                  </div>
-                                  <Badge 
-                                    variant={client.status === 'active' ? 'default' : 'secondary'}
-                                    className="ml-2 flex-shrink-0"
-                                  >
-                                    {client.status}
-                                  </Badge>
-                                </div>
-                              </CardHeader>
-                              
-                              <CardContent className="space-y-3">
-                                {/* Contact Information */}
-                                {(client.contactEmail || client.contactPhone || client.billingAddress) && (
-                                  <div className="space-y-2 text-xs text-gray-600">
-                                    {client.contactEmail && (
-                                      <div className="flex items-center gap-2">
-                                        <Mail className="w-3 h-3 flex-shrink-0" />
-                                        <span className="truncate">{client.contactEmail}</span>
-                                      </div>
-                                    )}
-                                    {client.contactPhone && (
-                                      <div className="flex items-center gap-2">
-                                        <Phone className="w-3 h-3 flex-shrink-0" />
-                                        <span className="truncate">{client.contactPhone}</span>
-                                      </div>
-                                    )}
-                                    {client.billingAddress && (
-                                      <div className="flex items-center gap-2">
-                                        <MapPin className="w-3 h-3 flex-shrink-0" />
-                                        <span className="truncate">{client.billingAddress}</span>
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-
-                                {/* Project Stats */}
-                                <div className="pt-2 border-t border-gray-100">
-                                  <div className="flex items-center justify-between text-xs">
-                                    <div className="flex items-center gap-1 text-gray-600">
-                                      <FileText className="w-3 h-3" />
-                                      <span>{projectCount} {projectCount === 1 ? 'project' : 'projects'}</span>
-                                    </div>
-                                    {activeProjectCount > 0 && (
-                                      <Badge variant="outline" className="text-xs">
-                                        {activeProjectCount} active
-                                      </Badge>
-                                    )}
-                                  </div>
-                                </div>
-
-                                {/* Notes */}
-                                {client.notes && (
-                                  <div className="pt-2 border-t border-gray-100">
-                                    <p className="text-xs text-gray-500 line-clamp-2">{client.notes}</p>
-                                  </div>
-                                )}
-                              </CardContent>
-                            </Card>
-                          ) : (
-                            // List view
-                            <Card 
-                              key={client.id} 
-                              className="hover:shadow-lg transition-shadow cursor-pointer"
-                              onClick={() => {
-                                setSelectedClientId(client.id);
-                                setIsClientModalOpen(true);
-                              }}
-                            >
-                              <CardContent className="p-4">
-                                <div className="flex items-center justify-between">
-                                  {/* Left section - Client info */}
-                                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                                    <Building2 className="w-4 h-4 text-gray-500 flex-shrink-0" />
-                                    <div className="min-w-0 flex-1">
-                                      <div className="flex items-center gap-2">
-                                        <h3 className="font-medium text-gray-900 truncate text-sm">{client.name}</h3>
-                                        <Badge 
-                                          variant={client.status === 'active' ? 'default' : 'secondary'}
-                                          className="flex-shrink-0 text-xs"
-                                        >
-                                          {client.status}
-                                        </Badge>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  {/* Middle section - Contact info */}
-                                  <div className="flex items-center gap-4 flex-1 justify-center">
-                                    {client.contactEmail && (
-                                      <div className="flex items-center gap-1 text-xs text-gray-600">
-                                        <Mail className="w-3 h-3" />
-                                        <span className="truncate max-w-[200px]">{client.contactEmail}</span>
-                                      </div>
-                                    )}
-                                    {client.contactPhone && (
-                                      <div className="flex items-center gap-1 text-xs text-gray-600">
-                                        <Phone className="w-3 h-3" />
-                                        <span className="whitespace-nowrap">{client.contactPhone}</span>
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  {/* Right section - Project stats */}
-                                  <div className="flex items-center gap-3 flex-shrink-0">
-                                    <div className="flex items-center gap-1 text-xs text-gray-600">
-                                      <FileText className="w-3 h-3" />
-                                      <span>{projectCount} {projectCount === 1 ? 'project' : 'projects'}</span>
-                                    </div>
-                                    {activeProjectCount > 0 && (
-                                      <Badge variant="outline" className="text-xs">
-                                        {activeProjectCount} active
-                                      </Badge>
-                                    )}
-                                  </div>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      /* No results message */
-                      <Card className="border-dashed">
-                        <CardContent className="flex flex-col items-center justify-center py-16">
-                          <div className="text-gray-400 mb-4">
-                            {searchQuery || filterByDate ? (
-                              <Search className="w-16 h-16" />
-                            ) : (
-                              <Building2 className="w-16 h-16" />
-                            )}
-                          </div>
-                          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                            {searchQuery || filterByDate 
-                              ? 'No clients found'
-                              : 'No clients yet'
-                            }
-                          </h3>
-                          <p className="text-gray-600 text-center mb-6 max-w-md">
-                            {searchQuery || filterByDate
-                              ? 'Try adjusting your filters or search query'
-                              : 'Clients are automatically created when you add projects with client information.'
-                            }
-                          </p>
-                        </CardContent>
-                      </Card>
-                    )}
-
-                    {/* Client Modal */}
-                    <ClientModal
-                      isOpen={isClientModalOpen}
-                      onClose={() => {
-                        setIsClientModalOpen(false);
-                        setSelectedClientId(null);
-                      }}
-                      clientId={selectedClientId}
-                    />
-                  </div>
-                );
-              })()}
+              <ClientsTab
+                searchQuery={searchQuery}
+                filterByDate={filterByDate}
+                viewType={viewType}
+                clientStatusFilter={clientStatusFilter}
+              />
             </div>
           </TabsContent>
           {/* Holidays Tab Content */}
           <TabsContent value="holidays" className="h-full mt-0">
             <div className="px-[21px] pb-[21px] pt-[35px]">
-              {/* Filtered holidays list */}
-              {(() => {
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                const filteredHolidays = holidays.filter(holiday => {
-                  const startDate = new Date(holiday.startDate);
-                  const endDate = new Date(holiday.endDate);
-                  startDate.setHours(0, 0, 0, 0);
-                  endDate.setHours(0, 0, 0, 0);
-                  if (holidayStatusFilter === 'all') return true;
-                  if (holidayStatusFilter === 'active') {
-                    // Active: ongoing now (today is between start and end)
-                    return today >= startDate && today <= endDate;
-                  }
-                  if (holidayStatusFilter === 'future') {
-                    // Future: starts after today
-                    return startDate > today;
-                  }
-                  if (holidayStatusFilter === 'past') {
-                    // Past: ended before today
-                    return endDate < today;
-                  }
-                  return true;
-                });
-                return (
-                  <div className="space-y-2">
-                    {filteredHolidays.length === 0 ? (
-                      <Card className="border-dashed">
-                        <CardContent className="flex flex-col items-center justify-center py-16">
-                          <div className="text-gray-400 mb-4">
-                            <Calendar className="w-16 h-16" />
-                          </div>
-                          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                            No holidays found
-                          </h3>
-                          <p className="text-gray-600 text-center mb-6 max-w-md">
-                            {holidayStatusFilter !== 'all'
-                              ? 'Try adjusting your filter to see more holidays'
-                              : 'Add your first holiday to get started.'
-                            }
-                          </p>
-                        </CardContent>
-                      </Card>
-                    ) : (
-                      filteredHolidays.map((holiday) => {
-                        const startDate = new Date(holiday.startDate);
-                        const endDate = new Date(holiday.endDate);
-                        const today = new Date();
-                        today.setHours(0, 0, 0, 0);
-                        let statusBadge = null;
-                        let statusVariant: "default" | "secondary" | "outline" = "secondary";
-                        if (today >= startDate && today <= endDate) {
-                          statusBadge = 'Active';
-                          statusVariant = "default";
-                        } else if (startDate > today) {
-                          statusBadge = 'Future';
-                          statusVariant = "outline";
-                        } else {
-                          statusBadge = 'Past';
-                          statusVariant = "secondary";
-                        }
-                        // Calculate duration
-                        const durationMs = endDate.getTime() - startDate.getTime();
-                        const durationDays = Math.ceil(durationMs / (1000 * 60 * 60 * 24)) + 1;
-                        return (
-                          <Card
-                            key={holiday.id}
-                            onClick={() => {
-                              setEditingHoliday(holiday);
-                              setIsHolidayModalOpen(true);
-                            }}
-                            className="hover:shadow-lg transition-shadow cursor-pointer"
-                          >
-                            <CardContent className="p-4">
-                              <div className="flex items-center justify-between">
-                                {/* Left section - Holiday info */}
-                                <div className="flex items-center gap-3 flex-1 min-w-0">
-                                  <Calendar className="w-4 h-4 text-gray-500 flex-shrink-0" />
-                                  <div className="min-w-0 flex-1">
-                                    <div className="flex items-center gap-2">
-                                      <h3 className="font-medium text-gray-900 truncate text-sm">{holiday.title}</h3>
-                                      <Badge 
-                                        variant={statusVariant}
-                                        className="flex-shrink-0 text-xs"
-                                      >
-                                        {statusBadge}
-                                      </Badge>
-                                    </div>
-                                  </div>
-                                </div>
-                                {/* Middle section - Date range */}
-                                <div className="flex items-center gap-4 flex-1 justify-center">
-                                  <div className="text-xs text-gray-600">
-                                    <span className="whitespace-nowrap">
-                                      {startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                    </span>
-                                    <span className="mx-2 text-gray-400">→</span>
-                                    <span className="whitespace-nowrap">
-                                      {endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                    </span>
-                                  </div>
-                                </div>
-                                {/* Right section - Duration */}
-                                <div className="flex items-center gap-3 flex-shrink-0">
-                                  <div className="flex items-center gap-1 text-xs text-gray-600">
-                                    <Clock className="w-3 h-3" />
-                                    <span>{durationDays} {durationDays === 1 ? 'day' : 'days'}</span>
-                                  </div>
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        );
-                      })
-                    )}
-                  </div>
-                );
-              })()}
+              <HolidaysTab
+                holidays={holidays}
+                holidayStatusFilter={holidayStatusFilter}
+                onHolidayClick={(holiday) => {
+                  setEditingHoliday(holiday);
+                  setIsHolidayModalOpen(true);
+                }}
+              />
             </div>
           </TabsContent>
         </Tabs>
       </AppPageLayout.Content>
+      
+      {/* Project Edit Modal */}
+      <ProjectModal
+        isOpen={!!selectedProjectId}
+        onClose={() => setSelectedProjectId(null)}
+        projectId={selectedProjectId || undefined}
+      />
+      
+      {/* Holiday Modal */}
+      <HolidayModal
+        isOpen={isHolidayModalOpen}
+        onClose={() => {
+          setIsHolidayModalOpen(false);
+          setEditingHoliday(null);
+        }}
+        holidayId={editingHoliday?.id}
+      />
     </AppPageLayout>
-    {/* Project Edit Modal */}
-    <ProjectModal
-      isOpen={!!selectedProjectId}
-      onClose={() => setSelectedProjectId(null)}
-      projectId={selectedProjectId || undefined}
-    />
-    {/* Holiday Modal */}
-    <HolidayModal
-      isOpen={isHolidayModalOpen}
-      onClose={() => {
-        setIsHolidayModalOpen(false);
-        setEditingHoliday(null);
-      }}
-      holidayId={editingHoliday?.id}
-    />
-    </DndProvider>
   );
 }

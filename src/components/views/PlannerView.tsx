@@ -8,15 +8,11 @@ import { useTimelineContext } from '@/contexts/TimelineContext';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import { formatDateLong, formatDateRange as formatDateRangeUtil } from '@/utils/dateFormatUtils';
 import { addDaysToDate, normalizeToMidnight } from '@/services';
-import { Button } from '@/components/ui/button';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { ChevronLeft, ChevronRight, MapPin, CalendarSearch, Layers2, Eye, EyeOff, CalendarDays, Clock, ChevronsDownUp, ChevronsUpDown } from 'lucide-react';
-import { HABIT_ICON, TASK_ICON, HABIT_ICON_SVG, TASK_ICON_SVG } from '@/constants/icons';
-import { NEUTRAL_COLORS } from '@/constants/colors';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar as DatePicker } from '@/components/ui/calendar';
 import { EstimatedTimeCard, WeekNavigationBar } from '@/components/planner';
 import { AvailabilityCard } from '@/components/shared';
+import { PlannerControlBar } from './planner';
+import { HABIT_ICON_SVG, TASK_ICON_SVG } from '@/constants/icons';
+import { NEUTRAL_COLORS } from '@/constants/colors';
 import { getBaseFullCalendarConfig, getEventStylingConfig, getResponsiveDayCount } from '@/services';
 // Holidays now sourced from PlannerContext to avoid duplicate fetch/state
 import { getDateKey } from '@/utils/dateFormatUtils';
@@ -24,6 +20,7 @@ import { transformFullCalendarToCalendarEvent } from '@/services';
 import { createPlannerViewOrchestrator, type PlannerInteractionContext } from '@/services/orchestrators/PlannerViewOrchestrator';
 import { useToast } from '@/hooks/use-toast';
 import { useSwipeNavigation } from '@/hooks/useSwipeNavigation';
+import { useCalendarKeyboardShortcuts } from '@/hooks/useCalendarKeyboardShortcuts';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 import '../planner/fullcalendar-overrides.css';
 // Modal imports
@@ -406,100 +403,21 @@ export function PlannerView() {
       const endDate = addDaysToDate(end, -1);
       return formatDateRangeUtil(start, endDate);
     }
-  }, [currentView]);  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't trigger shortcuts if user is typing in an input/textarea
-      if (e.target instanceof HTMLInputElement || 
-          e.target instanceof HTMLTextAreaElement || 
-          (e.target as HTMLElement).contentEditable === 'true') {
-        return;
-      }
-      // Handle modifier key combinations
-      if (e.metaKey || e.ctrlKey) {
-        switch (e.key.toLowerCase()) {
-          case 'z':
-            e.preventDefault();
-            if (lastAction) {
-              undoLastAction();
-              toast({
-                title: "Action undone",
-                description: "Last change has been reverted",
-                duration: 2000,
-              });
-            }
-            break;
-        }
-        return;
-      }
-      // Handle regular keys
-      switch (e.key) {
-        case 'Escape':
-          e.preventDefault();
-          e.stopPropagation();
-          setSelectedEventId(null);
-          break;
-        case 'ArrowLeft':
-          e.preventDefault();
-          handleNavigate('prev');
-          break;
-        case 'ArrowRight':
-          e.preventDefault();
-          handleNavigate('next');
-          break;
-        case 'ArrowUp':
-          e.preventDefault();
-          if (currentView === 'day') {
-            handleViewChange('week');
-          }
-          break;
-        case 'ArrowDown':
-          e.preventDefault();
-          if (currentView === 'week') {
-            handleViewChange('day');
-          }
-          break;
-        case 't':
-        case 'T':
-          e.preventDefault();
-          handleNavigate('today');
-          break;
-        case 'l':
-        case 'L':
-          e.preventDefault();
-          setIsLayersPopoverOpen(prev => !prev);
-          break;
-        case 'Delete':
-        case 'Backspace':
-          e.preventDefault();
-          e.stopPropagation();
-          if (selectedEventId && !selectedEventId.startsWith('work-')) {
-            deleteEventWithUndo(selectedEventId);
-            setSelectedEventId(null);
-            toast({
-              title: "Event deleted",
-              description: "Press Cmd+Z to undo",
-              duration: 3000,
-            });
-          }
-          break;
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [
-    lastAction, 
-    undoLastAction, 
-    toast,
-    setSelectedEventId, 
-    selectedEventId, 
+  }, [currentView]);
+
+  // Keyboard shortcuts
+  useCalendarKeyboardShortcuts({
+    setSelectedEventId,
+    setIsLayersPopoverOpen,
+    selectedEventId,
+    currentView,
+    lastAction,
+    undoLastAction,
     deleteEventWithUndo,
-    handleNavigate, 
-    handleViewChange, 
-    currentView, 
-    layerMode, 
-    setLayerMode
-  ]);
+    handleNavigate,
+    handleViewChange,
+  });
+
   // Custom event content renderer
   const renderEventContent = useCallback((eventInfo: any) => {
     const event = eventInfo.event;
@@ -1304,146 +1222,22 @@ export function PlannerView() {
   return (
     <div className="h-full flex flex-col overflow-hidden">
       {/* Calendar Controls */}
-      <div className="px-6 p-[21px]">
-        <div className="flex items-center justify-between">
-          {/* Left side controls */}
-          <div className="flex items-center" style={{ gap: '21px' }}>
-            <ToggleGroup
-              type="single"
-              value={currentView}
-              onValueChange={(value) => {
-                if (value) {
-                  handleViewChange(value as 'week' | 'day');
-                }
-              }}
-              variant="outline"
-              className="border border-gray-200 rounded-lg h-9 p-1"
-            >
-              <ToggleGroupItem value="week" aria-label="Week mode" className="px-3 py-1 h-7">
-                Week
-              </ToggleGroupItem>
-              <ToggleGroupItem value="day" aria-label="Day mode" className="px-3 py-1 h-7">
-                Day
-              </ToggleGroupItem>
-            </ToggleGroup>
-            <Button variant="outline" onClick={() => handleNavigate('today')} className="h-9 gap-2">
-              <MapPin className="w-4 h-4" />
-              Today
-            </Button>
-            <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="icon" className="h-9 w-9">
-                  <CalendarSearch className="w-4 h-4" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <DatePicker
-                  mode="single"
-                  selected={calendarDate}
-                  onSelect={handleDatePickerSelect}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-            <Popover open={isLayersPopoverOpen} onOpenChange={setIsLayersPopoverOpen}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="icon" className="h-9 w-9">
-                  <Layers2 className="w-4 h-4" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-56 p-2" align="start">
-                <div className="space-y-1">
-                  {/* Events Layer */}
-                  <div 
-                    className="flex items-center justify-between px-3 py-2 rounded-md hover:bg-accent cursor-pointer"
-                    onClick={() => setLayerVisibility(prev => ({ ...prev, events: !prev.events }))}
-                  >
-                    <div className="flex items-center gap-2">
-                      <CalendarDays className="w-4 h-4" />
-                      <span className="text-sm font-medium">Events</span>
-                    </div>
-                    {layerVisibility.events ? (
-                      <Eye className="w-4 h-4 text-muted-foreground" />
-                    ) : (
-                      <EyeOff className="w-4 h-4 text-muted-foreground" />
-                    )}
-                  </div>
-                  {/* Habits Layer */}
-                  <div 
-                    className="flex items-center justify-between px-3 py-2 rounded-md hover:bg-accent cursor-pointer"
-                    onClick={() => setLayerVisibility(prev => ({ ...prev, habits: !prev.habits }))}
-                  >
-                    <div className="flex items-center gap-2">
-                      <HABIT_ICON className="w-4 h-4" />
-                      <span className="text-sm font-medium">Habits</span>
-                    </div>
-                    {layerVisibility.habits ? (
-                      <Eye className="w-4 h-4 text-muted-foreground" />
-                    ) : (
-                      <EyeOff className="w-4 h-4 text-muted-foreground" />
-                    )}
-                  </div>
-                  {/* Tasks Layer */}
-                  <div 
-                    className="flex items-center justify-between px-3 py-2 rounded-md hover:bg-accent cursor-pointer"
-                    onClick={() => setLayerVisibility(prev => ({ ...prev, tasks: !prev.tasks }))}
-                  >
-                    <div className="flex items-center gap-2">
-                      <TASK_ICON className="w-4 h-4" />
-                      <span className="text-sm font-medium">Quick Tasks</span>
-                    </div>
-                    {layerVisibility.tasks ? (
-                      <Eye className="w-4 h-4 text-muted-foreground" />
-                    ) : (
-                      <EyeOff className="w-4 h-4 text-muted-foreground" />
-                    )}
-                  </div>
-                  {/* Work Hours Layer */}
-                  <div 
-                    className="flex items-center justify-between px-3 py-2 rounded-md hover:bg-accent cursor-pointer"
-                    onClick={() => setLayerVisibility(prev => ({ ...prev, workHours: !prev.workHours }))}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4" />
-                      <span className="text-sm font-medium">Work Hours</span>
-                    </div>
-                    {layerVisibility.workHours ? (
-                      <Eye className="w-4 h-4 text-muted-foreground" />
-                    ) : (
-                      <EyeOff className="w-4 h-4 text-muted-foreground" />
-                    )}
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
-            <Button 
-              variant="outline" 
-              size="icon" 
-              className="h-9 w-9"
-              onClick={handleCompactViewToggle}
-              title={settings?.isCompactView ? "Expand view" : "Compact view"}
-            >
-              {settings?.isCompactView ? (
-                <ChevronsUpDown className="w-4 h-4" />
-              ) : (
-                <ChevronsDownUp className="w-4 h-4" />
-              )}
-            </Button>
-          </div>
-          {/* Right side navigation */}
-          <div className="flex items-center gap-0.5">
-            <Button variant="ghost" className="h-9 w-9 px-0" onClick={() => handleNavigate('prev')}>
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <h2 className="text-sm font-semibold text-gray-900 text-center px-2">
-              {formatDateRange()}
-            </h2>
-            <Button variant="ghost" className="h-9 w-9 px-0" onClick={() => handleNavigate('next')}>
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
-      </div>
+      <PlannerControlBar
+        currentView={currentView}
+        onViewChange={handleViewChange}
+        onNavigate={handleNavigate}
+        formatDateRange={formatDateRange}
+        calendarDate={calendarDate}
+        isDatePickerOpen={isDatePickerOpen}
+        onDatePickerOpenChange={setIsDatePickerOpen}
+        onDateSelect={handleDatePickerSelect}
+        isLayersPopoverOpen={isLayersPopoverOpen}
+        onLayersPopoverOpenChange={setIsLayersPopoverOpen}
+        layerVisibility={layerVisibility}
+        onToggleLayer={(layer) => setLayerVisibility(prev => ({ ...prev, [layer]: !prev[layer] }))}
+        isCompactView={settings?.isCompactView || false}
+        onToggleCompactView={handleCompactViewToggle}
+      />
       {/* Week Navigation Bar - Mobile/Tablet Only */}
       <WeekNavigationBar
         visibleStartDate={visibleRange.start}
