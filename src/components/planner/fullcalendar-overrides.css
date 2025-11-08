@@ -51,7 +51,7 @@
   /* Opacity values */
   --opacity-work-slot: 0.6;
   --opacity-work-slot-hover: 0.8;
-  --opacity-planned: 0.6; /* Planned/future events are muted */
+  --opacity-planned: 0.8; /* Planned/future events are muted */
   --opacity-completed: 1.0; /* Completed events are fully prominent */
   --opacity-hover: 0.85;
   --opacity-dragging: 0.75;

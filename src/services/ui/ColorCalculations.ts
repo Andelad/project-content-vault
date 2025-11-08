@@ -181,10 +181,10 @@ export class ColorCalculationService {
   ): string {
     if (state === 'default') {
       const styleConfig = CALENDAR_EVENT_STYLES.default;
-      return this.getLighterColor(baseColor, styleConfig.background.lightnessIncrease);
+      return this.applyColorTransform(baseColor, styleConfig.background);
     } else if (state === 'selected') {
       // First get the light background, then darken it
-      const lightBg = this.getLighterColor(baseColor, CALENDAR_EVENT_STYLES.default.background.lightnessIncrease);
+      const lightBg = this.applyColorTransform(baseColor, CALENDAR_EVENT_STYLES.default.background);
       return this.applyColorTransform(lightBg, CALENDAR_EVENT_STYLES.selected.background);
     } else if (state === 'future') {
       return this.applyColorTransform(baseColor, CALENDAR_EVENT_STYLES.future.background);

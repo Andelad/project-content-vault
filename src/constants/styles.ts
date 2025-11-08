@@ -51,7 +51,7 @@ export const CALENDAR_EVENT_STYLES = {
     description: 'Normal event appearance',
     background: {
       lightnessIncrease: 0.12, // From base to 0.92
-      chromaMultiplier: 1,
+      chromaMultiplier: 0.8, // Reduce chroma: 0.15 → 0.12
     },
     text: {
       targetLightness: 0.35,
