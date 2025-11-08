@@ -21,18 +21,13 @@ export function TimeTrackerBookmark({ isTracking, onClick, isExpanded }: TimeTra
       }}
       aria-label="Toggle time tracker"
     >
-      <div className="relative flex items-center justify-center h-full pt-2">
-        <Timer className="h-6 w-6 text-[#595956] stroke-[1.5]" />
-        {isTracking && (
-          <div className="absolute top-2 right-4">
-            <div className="relative w-3 h-3">
-              {/* Pulsing animation circle */}
-              <div className="absolute inset-0 bg-red-500 rounded-full animate-ping opacity-75" />
-              {/* Solid circle */}
-              <div className="relative w-3 h-3 bg-red-500 rounded-full" />
-            </div>
-          </div>
-        )}
+      <div className="w-[52px] h-[52px] bg-white rounded-full flex items-center justify-center cursor-pointer hover:shadow-md transition-shadow border-2 border-white shadow-lg">
+        <div className="relative">
+          <Timer className="h-6 w-6 text-foreground stroke-[1.5]" />
+          {isTracking && (
+            <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+          )}
+        </div>
       </div>
     </button>
   );

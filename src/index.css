@@ -9,29 +9,37 @@
 @layer base {
   :root {
     --background: 0 0% 98%;
-    /* Typography Colors - Single Source of Truth */
-    --foreground: 0 0% 35%;          /* Primary text - dark grey (like #595956) */
-    --foreground-secondary: 0 0% 45%; /* Secondary text - medium grey */
-    --foreground-tertiary: 0 0% 60%; /* Tertiary/muted text - light grey */
-    --foreground-disabled: 0 0% 70%; /* Disabled/placeholder text */
+    
+    /* Typography Colors - Single Source of Truth
+       All text colors derive from these base values */
+    --foreground: 0 0% 20%;           /* Primary text - sharp dark grey */
+    --foreground-secondary: 0 0% 35%; /* Secondary text - medium grey */
+    --foreground-tertiary: 0 0% 55%;  /* Tertiary/muted text - light grey */
+    --foreground-disabled: 0 0% 70%;  /* Disabled/placeholder text */
 
+    /* Card component colors */
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 35%;     /* Card text - matches primary foreground */
+    --card-foreground: 0 0% 20%;      /* References primary foreground */
 
+    /* Popover/Dropdown/Menu colors */
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 0 0% 20%;   /* References primary foreground */
 
+    /* Primary brand color (buttons, links) */
     --primary: 199 68% 56%;
-    --primary-foreground: 0 0% 100%;
+    --primary-foreground: 0 0% 100%;  /* White text on primary */
 
-    --secondary: 0 0% 94%; /* NEUTRAL_COLORS.gray150 (#f0f0f0) */
-    --secondary-foreground: 0 0% 10%;
+    /* Secondary backgrounds (badges, subtle elements) */
+    --secondary: 0 0% 94%;            /* NEUTRAL_COLORS.gray150 (#f0f0f0) */
+    --secondary-foreground: 0 0% 20%; /* References primary foreground */
 
-    --muted: 0 0% 94%; /* NEUTRAL_COLORS.gray150 (#f0f0f0) */
-    --muted-foreground: 0 0% 45%;
+    /* Muted backgrounds and text */
+    --muted: 0 0% 94%;                /* NEUTRAL_COLORS.gray150 (#f0f0f0) */
+    --muted-foreground: 0 0% 35%;     /* References secondary foreground */
 
-    --accent: 0 0% 94%; /* NEUTRAL_COLORS.gray150 (#f0f0f0) */
-    --accent-foreground: 0 0% 10%;
+    /* Accent/hover states */
+    --accent: 0 0% 94%;               /* NEUTRAL_COLORS.gray150 (#f0f0f0) */
+    --accent-foreground: 0 0% 20%;    /* References primary foreground */
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;

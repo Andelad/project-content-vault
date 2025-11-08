@@ -92,7 +92,7 @@ export function AppHeader({
             <img src="/lovable-uploads/b7b3f5f1-d45e-4fc7-9113-f39c988b4951.png" alt="Budgi Logo" className="w-5 h-5" />
           )}
           
-          <h1 className="text-lg font-semibold text-[#595956]">{viewTitle}</h1>
+          <h1 className="text-lg font-semibold text-foreground">{viewTitle}</h1>
         </div>
         
         {/* Desktop TimeTracker */}

@@ -130,7 +130,7 @@ export function Sidebar() {
         ) : (
           <div className="flex items-center gap-3">
             <img src="/lovable-uploads/b7b3f5f1-d45e-4fc7-9113-f39c988b4951.png" alt="Budgi Logo" className="w-5 h-5" />
-            <h1 className="text-lg font-medium text-[#595956]">Budgi</h1>
+            <h1 className="text-lg font-semibold text-muted-foreground">Budgi</h1>
           </div>
         )}
         

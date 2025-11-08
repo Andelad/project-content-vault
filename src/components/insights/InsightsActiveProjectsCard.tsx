@@ -25,7 +25,7 @@ export const InsightsActiveProjectsCard: React.FC<InsightsActiveProjectsCardProp
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Target className="h-5 w-5 text-[#02c0b7]" />
+            <Target className="h-5 w-5 text-primary" />
             <CardTitle>
               {showActiveProjects ? 'Active Projects' : 'Future Projects'}
             </CardTitle>

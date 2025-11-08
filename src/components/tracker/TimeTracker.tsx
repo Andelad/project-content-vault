@@ -639,7 +639,7 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
               )}
             </div>
             {/* Timer Display */}
-            <div className="text-lg font-semibold tabular-nums text-[#595956] min-w-[5.5rem] text-center">
+            <div className="text-lg font-semibold tabular-nums text-foreground min-w-[5.5rem] text-center">
               {formatTime(seconds)}
             </div>
             {/* Play/Stop Button */}
