@@ -18,14 +18,14 @@ export function TabComponent({ label, isActive, onClick }: TabComponentProps) {
         ${isActive ? 'z-10' : 'z-0'}
       `}
       style={{
-        height: isActive ? '40px' : '39px',
-        backgroundColor: isActive ? 'white' : NEUTRAL_COLORS.gray200,
+        height: isActive ? '36px' : '35px',
+        backgroundColor: isActive ? 'white' : NEUTRAL_COLORS.gray150,
         borderTopLeftRadius: '8px',
         borderTopRightRadius: '8px',
         marginRight: '-2px',
-        borderTop: `1px solid ${isActive ? NEUTRAL_COLORS.gray200 : 'transparent'}`,
-        borderLeft: `1px solid ${isActive ? NEUTRAL_COLORS.gray200 : 'transparent'}`,
-        borderRight: `1px solid ${isActive ? NEUTRAL_COLORS.gray200 : 'transparent'}`,
+        borderTop: `1px solid ${NEUTRAL_COLORS.gray200}`,
+        borderLeft: `1px solid ${NEUTRAL_COLORS.gray200}`,
+        borderRight: `1px solid ${NEUTRAL_COLORS.gray200}`,
         borderBottom: isActive ? '1px solid white' : '1px solid transparent',
         marginBottom: '-1px',
         boxSizing: 'border-box',

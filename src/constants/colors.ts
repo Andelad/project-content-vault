@@ -17,6 +17,7 @@ export const NEUTRAL_COLORS = {
   gray25: '#fcfcfc',      // Even lighter than neutral-50, for very light backgrounds
   gray50: '#fafafa',      // neutral-50
   gray100: '#f5f5f5',     // neutral-100
+  gray150: '#ededec',     // Custom gray between 100 and 200
   gray200: '#e5e5e5',     // neutral-200
   gray300: '#d4d4d4',     // neutral-300
   gray400: '#a3a3a3',     // neutral-400

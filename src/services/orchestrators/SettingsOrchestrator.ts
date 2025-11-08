@@ -10,6 +10,8 @@
  * ✅ Provides clean API for UI components
  */
 
+import { ErrorHandlingService } from '../infrastructure/ErrorHandlingService';
+
 export interface SettingsUpdateResult {
   success: boolean;
   error?: string;

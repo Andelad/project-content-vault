@@ -5,6 +5,8 @@
  * and improve user experience during timeline interactions.
  */
 
+import { ErrorHandlingService } from '../infrastructure/ErrorHandlingService';
+
 let lastDragUpdateTime = 0;
 let dragUpdateQueue: (() => Promise<void>)[] = [];
 let isProcessingQueue = false;

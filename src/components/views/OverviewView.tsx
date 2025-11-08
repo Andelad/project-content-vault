@@ -4,7 +4,7 @@ import { useGroups } from '../../hooks/useGroups';
 import { useHolidays } from '../../hooks/useHolidays';
 import { useToast } from '../../hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Edit, Trash2, Calendar, Clock, Users, Folder, Grid3X3, List, GripVertical, Archive, PlayCircle, Clock4, ChevronDown, ChevronRight, Search, Tag, Building2, Mail, Phone, MapPin, FileText } from 'lucide-react';
+import { Plus, Edit, Trash2, Calendar, Clock, Users, Folder, GripVertical, Archive, PlayCircle, Clock4, ChevronDown, ChevronRight, Search, Tag, Building2, Mail, Phone, MapPin, FileText } from 'lucide-react';
 import { Button } from '../ui/button';
 import { DatePickerButton } from '../shared/DatePickerButton';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
@@ -28,7 +28,6 @@ import { NEUTRAL_COLORS } from '@/constants/colors';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 import { TabComponent } from '../shared';
 import { ClientsTab, HolidaysTab, ProjectsTab } from './overview';
-type ViewType = 'grid' | 'list';
 type FilterByStatus = 'all' | 'active' | 'future' | 'past';
 type OrganizeBy = 'group' | 'tag' | 'client';
 type MainTab = 'projects' | 'clients' | 'holidays';
@@ -41,8 +40,6 @@ export function OverviewView() {
   const { toast } = useToast();
   // Main tab state
   const [activeTab, setActiveTab] = useState<MainTab>('projects');
-  // View toggle state
-  const [viewType, setViewType] = useState<ViewType>('list');
   // Filter and organize state
   const [organizeBy, setOrganizeBy] = useState<OrganizeBy>('group');
   const [filterByStatus, setFilterByStatus] = useState<FilterByStatus>('all');
@@ -366,21 +363,6 @@ export function OverviewView() {
                   />
                 </div>
               </div>
-              {/* Right side - View toggle */}
-              <ToggleGroup
-                type="single"
-                value={viewType}
-                onValueChange={(value) => value && setViewType(value as ViewType)}
-                variant="outline"
-                className="border border-gray-200 rounded-lg h-9 p-1"
-              >
-                <ToggleGroupItem value="list" aria-label="List view" className="px-3 py-1 h-7">
-                  <List className="w-4 h-4" />
-                </ToggleGroupItem>
-                <ToggleGroupItem value="grid" aria-label="Grid view" className="px-3 py-1 h-7">
-                  <Grid3X3 className="w-4 h-4" />
-                </ToggleGroupItem>
-              </ToggleGroup>
             </div>
           </TabsContent>
           {/* Clients Tab Content - Filters */}
@@ -434,21 +416,6 @@ export function OverviewView() {
                   />
                 </div>
               </div>
-              {/* Right side - View toggle */}
-              <ToggleGroup
-                type="single"
-                value={viewType}
-                onValueChange={(value) => value && setViewType(value as ViewType)}
-                variant="outline"
-                className="border border-gray-200 rounded-lg h-9 p-1"
-              >
-                <ToggleGroupItem value="list" aria-label="List view" className="px-3 py-1 h-7">
-                  <List className="w-4 h-4" />
-                </ToggleGroupItem>
-                <ToggleGroupItem value="grid" aria-label="Grid view" className="px-3 py-1 h-7">
-                  <Grid3X3 className="w-4 h-4" />
-                </ToggleGroupItem>
-              </ToggleGroup>
             </div>
           </TabsContent>
           {/* Holidays Tab Content - Filters */}
@@ -491,21 +458,6 @@ export function OverviewView() {
                   </ToggleGroupItem>
                 </ToggleGroup>
               </div>
-              {/* Right side - View toggle */}
-              <ToggleGroup
-                type="single"
-                value={viewType}
-                onValueChange={(value) => value && setViewType(value as ViewType)}
-                variant="outline"
-                className="border border-gray-200 rounded-lg h-9 p-1"
-              >
-                <ToggleGroupItem value="list" aria-label="List view" className="px-3 py-1 h-7">
-                  <List className="w-4 h-4" />
-                </ToggleGroupItem>
-                <ToggleGroupItem value="grid" aria-label="Grid view" className="px-3 py-1 h-7">
-                  <Grid3X3 className="w-4 h-4" />
-                </ToggleGroupItem>
-              </ToggleGroup>
             </div>
           </TabsContent>
           </div>
@@ -524,7 +476,7 @@ export function OverviewView() {
                 filterByStatus={filterByStatus}
                 searchQuery={searchQuery}
                 filterByDate={filterByDate}
-                viewType={viewType}
+                
                 onProjectClick={(projectId) => setSelectedProjectId(projectId)}
                 onDeleteProject={deleteProject}
                 onClearFilters={() => {
@@ -541,7 +493,7 @@ export function OverviewView() {
               <ClientsTab
                 searchQuery={searchQuery}
                 filterByDate={filterByDate}
-                viewType={viewType}
+                
                 clientStatusFilter={clientStatusFilter}
               />
             </div>

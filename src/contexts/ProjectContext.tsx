@@ -479,9 +479,10 @@ export function useProjectContext() {
   const context = useContext(ProjectContext);
   if (context === undefined) {
     // Add more debugging information
-    ErrorHandlingService.handle(context, { source: 'ProjectContext', action: 'useProjectContext was called outside of ProjectProvider. Current context:' });
-    console.error('Stack trace:', new Error().stack);
-    throw new Error('useProjectContext must be used within a ProjectProvider');
+    const error = new Error('useProjectContext must be used within a ProjectProvider');
+    ErrorHandlingService.handle(error, { source: 'ProjectContext', action: 'useProjectContext was called outside of ProjectProvider' });
+    console.error('Stack trace:', error.stack);
+    throw error;
   }
   return context;
 }

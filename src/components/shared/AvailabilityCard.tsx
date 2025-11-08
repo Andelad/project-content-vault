@@ -439,7 +439,7 @@ export const AvailabilityCard = memo(function AvailabilityCard({
     <div className="relative">
       {/* Tabs Container */}
       <div 
-        className="flex items-end border-b border-gray-200"
+        className="flex items-end"
         style={{
           backgroundColor: 'rgb(249, 250, 251)', // bg-gray-50 to match page background
           paddingTop: '4px',
@@ -456,11 +456,11 @@ export const AvailabilityCard = memo(function AvailabilityCard({
           onClick={() => setActiveTab('time-spent')}
         />
         {/* Fill remaining space with background */}
-        <div className="flex-1 border-b border-gray-200" style={{ marginBottom: '-1px' }} />
+        <div className="flex-1" style={{ marginBottom: '-1px' }} />
       </div>
 
       {/* Card Content */}
-      <Card className="overflow-hidden shadow-sm border-x border-b border-t-0 border-gray-200 rounded-t-none relative bg-gray-50">
+      <Card className="overflow-hidden shadow-sm border-x border-b border-t border-gray-200 rounded-t-none relative bg-gray-50">
         {/* Column Markers Overlay - positioned inside card */}
         {columnMarkersOverlay && (
           <div 

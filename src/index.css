@@ -44,8 +44,8 @@
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
+    --border: 0 0% 89.8%;              /* NEUTRAL_COLORS.gray200 (#e5e5e5) - neutral gray border */
+    --input: 0 0% 89.8%;               /* NEUTRAL_COLORS.gray200 - matches border */
     --input-background: 210 40% 96%;
     --switch-background: 210 40% 85%;
     --ring: 222.2 84% 4.9%;
@@ -121,8 +121,8 @@
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
+    --border: 0 0% 17.5%;              /* Neutral gray for dark mode borders */
+    --input: 0 0% 17.5%;               /* Matches border */
     --ring: 212.7 26.8% 83.9%;
 
     --font-weight-medium: 500;

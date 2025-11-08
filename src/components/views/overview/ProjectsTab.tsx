@@ -6,7 +6,6 @@ import { Calendar, Clock, Trash2, Users, Search, Folder, Building2, Tag } from '
 import { Project, Group } from '@/types';
 import { getEffectiveProjectStatus, DurationFormattingService } from '@/services';
 
-type ViewType = 'grid' | 'list';
 type FilterByStatus = 'all' | 'active' | 'future' | 'past';
 type OrganizeBy = 'group' | 'tag' | 'client';
 
@@ -17,7 +16,6 @@ interface ProjectsTabProps {
   filterByStatus: FilterByStatus;
   searchQuery: string;
   filterByDate: Date | undefined;
-  viewType: ViewType;
   onProjectClick: (projectId: string) => void;
   onDeleteProject: (projectId: string) => void;
   onClearFilters: () => void;
@@ -30,7 +28,6 @@ export const ProjectsTab = ({
   filterByStatus,
   searchQuery,
   filterByDate,
-  viewType,
   onProjectClick,
   onDeleteProject,
   onClearFilters
@@ -121,53 +118,6 @@ export const ProjectsTab = ({
       }];
     }
   }, [organizeBy, filteredProjects, groups]);
-
-  // Render project in grid format
-  const renderGridProject = (project: Project) => (
-    <Card key={project.id} className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => onProjectClick(project.id)}>
-      <CardHeader className="pb-2 pt-3 px-4">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            <div
-              className="w-2 h-2 rounded-full flex-shrink-0"
-              style={{ backgroundColor: project.color }}
-            />
-            <div className="min-w-0 flex-1">
-              <CardTitle className="text-sm font-medium truncate">{project.name}</CardTitle>
-              <CardDescription className="text-xs truncate">
-                {project.clientData?.name || project.client || 'No client'}
-              </CardDescription>
-            </div>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDeleteProject(project.id);
-            }}
-            className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1 h-6 w-6"
-          >
-            <Trash2 className="w-3 h-3" />
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-2 pt-0 px-4 pb-3">
-        <div className="flex items-center gap-1 text-xs text-gray-600">
-          <Calendar className="w-3 h-3" />
-          <span className="truncate">
-            {formatDate(project.startDate)} - {formatDate(project.endDate)}
-          </span>
-        </div>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1 text-xs">
-            <Clock className="w-3 h-3 text-gray-600" />
-            <span className="font-medium text-gray-900">{project.estimatedHours}h</span>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
 
   // Render project in list format
   const renderListProject = (project: Project) => (
@@ -260,14 +210,9 @@ export const ProjectsTab = ({
                     </Badge>
                   </div>
                   {/* Projects Display */}
-                  <div className={viewType === 'grid'
-                    ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-                    : "space-y-2"
-                  }>
+                  <div className="space-y-2">
                     {groupData.projects.map((project) =>
-                      viewType === 'grid'
-                        ? renderGridProject(project)
-                        : renderListProject(project)
+                      renderListProject(project)
                     )}
                   </div>
                 </div>
@@ -290,14 +235,9 @@ export const ProjectsTab = ({
                     </Badge>
                   </div>
                   {/* Projects Display */}
-                  <div className={viewType === 'grid'
-                    ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-                    : "space-y-2"
-                  }>
-                    {sectionData.projects.map((project) =>
-                      viewType === 'grid'
-                        ? renderGridProject(project)
-                        : renderListProject(project)
+                  <div className="space-y-2">
+                    {section.projects.map((project) =>
+                      renderListProject(project)
                     )}
                   </div>
                 </div>

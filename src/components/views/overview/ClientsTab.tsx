@@ -7,20 +7,17 @@ import { useClients } from '@/hooks/useClients';
 import { useProjectContext } from '@/contexts/ProjectContext';
 import { normalizeToMidnight } from '@/services';
 
-type ViewType = 'grid' | 'list';
 type ClientStatusFilter = 'all' | 'active' | 'archived';
 
 interface ClientsTabProps {
   searchQuery: string;
   filterByDate: Date | undefined;
-  viewType: ViewType;
   clientStatusFilter: ClientStatusFilter;
 }
 
 export function ClientsTab({
   searchQuery,
   filterByDate,
-  viewType,
   clientStatusFilter,
 }: ClientsTabProps) {
   const { clients, loading } = useClients();
@@ -134,93 +131,16 @@ export function ClientsTab({
         </div>
 
         {/* Clients list */}
-        <div
-          className={
-            viewType === 'grid'
-              ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'
-              : 'space-y-2'
-          }
-        >
-          {filteredClients.map(client => {
-            const projectCount = getProjectCount(client.id);
-            const activeProjectCount = getActiveProjectCount(client.id);
+        <div className="space-y-2">
+          {filteredClients.map((client) => {
+            // Count projects for this client
+            const clientProjects = projects.filter((p) => p.client === client.name);
+            const projectCount = clientProjects.length;
+            const activeProjectCount = clientProjects.filter(
+              (p) => new Date(p.startDate) <= new Date() && new Date(p.endDate) >= new Date()
+            ).length;
 
-            return viewType === 'grid' ? (
-              <Card
-                key={client.id}
-                className="hover:shadow-lg transition-shadow cursor-pointer"
-                onClick={() => {
-                  setSelectedClientId(client.id);
-                  setIsClientModalOpen(true);
-                }}
-              >
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <Building2 className="w-4 h-4 text-gray-500 flex-shrink-0" />
-                      <div className="min-w-0 flex-1">
-                        <CardTitle className="text-base font-semibold truncate">
-                          {client.name}
-                        </CardTitle>
-                      </div>
-                    </div>
-                    <Badge
-                      variant={client.status === 'active' ? 'default' : 'secondary'}
-                      className="ml-2 flex-shrink-0"
-                    >
-                      {client.status}
-                    </Badge>
-                  </div>
-                </CardHeader>
-
-                <CardContent className="space-y-3">
-                  {(client.contactEmail || client.contactPhone || client.billingAddress) && (
-                    <div className="space-y-2 text-xs text-gray-600">
-                      {client.contactEmail && (
-                        <div className="flex items-center gap-2">
-                          <Mail className="w-3 h-3 flex-shrink-0" />
-                          <span className="truncate">{client.contactEmail}</span>
-                        </div>
-                      )}
-                      {client.contactPhone && (
-                        <div className="flex items-center gap-2">
-                          <Phone className="w-3 h-3 flex-shrink-0" />
-                          <span className="truncate">{client.contactPhone}</span>
-                        </div>
-                      )}
-                      {client.billingAddress && (
-                        <div className="flex items-center gap-2">
-                          <MapPin className="w-3 h-3 flex-shrink-0" />
-                          <span className="truncate">{client.billingAddress}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="pt-2 border-t border-gray-100">
-                    <div className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-1 text-gray-600">
-                        <FileText className="w-3 h-3" />
-                        <span>
-                          {projectCount} {projectCount === 1 ? 'project' : 'projects'}
-                        </span>
-                      </div>
-                      {activeProjectCount > 0 && (
-                        <Badge variant="outline" className="text-xs">
-                          {activeProjectCount} active
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-
-                  {client.notes && (
-                    <div className="pt-2 border-t border-gray-100">
-                      <p className="text-xs text-gray-500 line-clamp-2">{client.notes}</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            ) : (
+            return (
               <Card
                 key={client.id}
                 className="hover:shadow-lg transition-shadow cursor-pointer"
