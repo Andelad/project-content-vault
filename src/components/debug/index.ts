@@ -1,12 +1,4 @@
-// Debug feature components
-export { DevTools, DevToolsWrapper } from './DevTools';
-export { DatabaseTestComponent } from './DatabaseTestComponent';
+// Debug feature components (only actively used components)
 export { ErrorBoundary } from './ErrorBoundary';
 export { OrphanedMilestonesCleaner } from './OrphanedMilestonesCleaner';
-export { ViewErrorFallback } from './ViewErrorFallback';
-export { PerformanceStatus } from './PerformanceStatus';
-
-// Default exports (need special handling)
-export { default as DebugView } from './DebugView';
-export { default as TestContexts } from './TestContexts';
-export { default as TestProjectContext } from './TestProjectContext';
+export { SupabaseConfigError } from './SupabaseConfigError';

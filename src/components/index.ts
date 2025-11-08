@@ -6,9 +6,6 @@
 // View components (page-level components only)
 export * from './views';
 
-// Feature modules (feature-specific components)
-export * from './features';
-
 // Shared components
 export * from './modals';
 export * from './debug';
