@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured, supabaseConfigError } from '../integrations/supabase/client';
+import { SupabaseConfigError } from '../components/debug/SupabaseConfigError';
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
@@ -9,7 +11,9 @@ interface AuthContextType {
   signUp: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
 }
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
@@ -17,23 +21,10 @@ export const useAuth = () => {
   }
   return context;
 };
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   if (!isSupabaseConfigured) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-muted/20 px-6 text-center">
-        <h1 className="text-2xl font-semibold text-foreground">Supabase configuration required</h1>
-        <p className="text-muted-foreground max-w-md">
-          {supabaseConfigError} You can set these values in a local <code>.env</code> file at the project root or export them in your shell before running <code>npm run dev</code>.
-        </p>
-        <div className="rounded-md bg-background border px-4 py-3 text-sm font-mono text-left shadow-sm">
-{`VITE_SUPABASE_URL=your-project-url
-VITE_SUPABASE_ANON_KEY=your-anon-key`}
-        </div>
-        <p className="text-sm text-muted-foreground max-w-md">
-          After updating your environment variables, restart the development server.
-        </p>
-      </div>
-    );
+    return <SupabaseConfigError errorMessage={supabaseConfigError} />;
   }
 
   const [user, setUser] = useState<User | null>(null);

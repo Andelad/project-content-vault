@@ -4,15 +4,15 @@ import { PlannerProvider } from './PlannerContext';
 import { TimelineProvider } from './TimelineContext';
 import { SettingsProvider } from './SettingsContext';
 
-interface AppProvidersProps {
+interface ContextProvidersProps {
   children: React.ReactNode;
 }
 
 /**
- * Composition component that wraps the app with all new context providers.
- * This replaces the monolithic AppProvider for better separation of concerns.
+ * Composition component that wraps the app with all context providers.
+ * Provides a single wrapper for all application state management contexts.
  */
-export function AppProviders({ children }: AppProvidersProps) {
+export function ContextProviders({ children }: ContextProvidersProps) {
   return (
     <SettingsProvider>
       <TimelineProvider>
@@ -26,6 +26,9 @@ export function AppProviders({ children }: AppProvidersProps) {
   );
 }
 
+// Legacy export for backward compatibility
+export const AppProviders = ContextProviders;
+
 import { useProjectContext } from './ProjectContext';
 import { usePlannerContext } from './PlannerContext';
 import { useTimelineContext } from './TimelineContext';
@@ -36,7 +39,6 @@ import { useSettingsContext } from './SettingsContext';
  * This is a convenience hook for components that need multiple contexts.
  */
 export function useAppContexts() {
-
   return {
     project: useProjectContext(),
     planner: usePlannerContext(),

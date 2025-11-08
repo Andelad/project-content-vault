@@ -1,4 +1,4 @@
 // Shared components barrel exports
 export { ProjectSearchInput } from './ProjectSearchInput';
-export { CardSidebarLayout } from './CardSidebarLayout';
+export { SidebarLayout } from './SidebarLayout';
 export { AvailabilityCard } from './AvailabilityCard';

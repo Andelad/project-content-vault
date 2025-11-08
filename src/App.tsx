@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { AppProviders } from './contexts/AppProviders';
+import { ContextProviders } from './contexts/ContextProviders';
 import { Toaster } from './components/ui/toaster';
 import { ErrorBoundary } from './components/debug/ErrorBoundary';
 
@@ -42,9 +42,9 @@ function AppContent() {
         path="/app"
         element={
           user ? (
-            <AppProviders>
+            <ContextProviders>
               <MainAppLayout />
-            </AppProviders>
+            </ContextProviders>
           ) : (
             <Navigate to="/auth" replace />
           )

@@ -1,19 +1,9 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { Settings } from '@/types/core';
+import { Settings, WorkHourOverride } from '@/types/core';
 import { useSettings as useSettingsHook } from '@/hooks/useSettings';
 import { UnifiedTimeTrackerService } from '@/services';
 import { supabase } from '@/integrations/supabase/client';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
-
-// Individual work hour override for specific dates
-export interface WorkHourOverride {
-  date: string; // ISO date string (YYYY-MM-DD)
-  dayName: 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
-  slotIndex: number; // Index in the day's slots array
-  startTime: string;
-  endTime: string;
-  duration: number;
-}
 
 interface SettingsContextType {
   // Settings

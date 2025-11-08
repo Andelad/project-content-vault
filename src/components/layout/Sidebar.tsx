@@ -10,8 +10,20 @@ import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingSer
 
 const isBrowser = typeof window !== 'undefined';
 
-export function Sidebar() {
-  const { currentView, setCurrentView, mainSidebarCollapsed, setMainSidebarCollapsed, mobileMenuOpen, setMobileMenuOpen } = useTimelineContext();
+interface SidebarProps {
+  mainSidebarCollapsed: boolean;
+  setMainSidebarCollapsed: (collapsed: boolean) => void;
+  mobileMenuOpen: boolean;
+  setMobileMenuOpen: (open: boolean) => void;
+}
+
+export function Sidebar({ 
+  mainSidebarCollapsed, 
+  setMainSidebarCollapsed, 
+  mobileMenuOpen, 
+  setMobileMenuOpen 
+}: SidebarProps) {
+  const { currentView, setCurrentView } = useTimelineContext();
   const { user } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [isMobile, setIsMobile] = useState(() => (isBrowser ? window.innerWidth < 768 : false));

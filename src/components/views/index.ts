@@ -1,7 +1,7 @@
 // Views feature components (page containers)
 export { InsightsView } from './InsightsView';
-export { ProfileView } from './ProfileView';
+export { OverviewView } from './OverviewView';
 export { PlannerView } from './PlannerView';
+export { ProfileView } from './ProfileView';
+export { SettingsView } from './SettingsView';
 export { TimelineView } from './TimelineView';
-export { ProjectsView } from './ProjectsView';
-export { ClientsListView } from './ClientsListView';

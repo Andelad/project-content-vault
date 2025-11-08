@@ -11,14 +11,14 @@ import { cn } from '@/lib/utils';
 import { Bell, Palette, Clock, Globe, Shield, Trash2, User, Plus, X, Calendar, FolderKanban, Download } from 'lucide-react';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 import { WorkSlot } from '@/types/core';
-import { CalendarImport } from './CalendarImport';
-import { PWASettings } from './PWASettings';
+import { CalendarImport } from '../settings/CalendarImport';
+import { PWASettings } from '../settings/PWASettings';
 import { useToast } from '../../hooks/use-toast';
 import { formatDuration } from '@/services';
 import { AppPageLayout } from '../layout/AppPageLayout';
 import { formatWorkSlotDurationDisplay } from '@/services';
 import { SettingsOrchestrator } from '@/services/orchestrators/SettingsOrchestrator';
-import { CardSidebarLayout } from '../shared/CardSidebarLayout';
+import { SidebarLayout } from '../shared/SidebarLayout';
 import { useGroups } from '@/hooks/useGroups';
 import {
   generateTimeOptions,
@@ -821,7 +821,7 @@ export function SettingsView() {
 
       {/* Content - Card with sidebar and content area */}
       <AppPageLayout.Content className="flex-1 overflow-hidden p-8">
-        <CardSidebarLayout
+        <SidebarLayout
           tabs={tabs}
           activeTab={activeTab}
           onTabChange={setActiveTab}

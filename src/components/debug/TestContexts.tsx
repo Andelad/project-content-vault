@@ -1,12 +1,12 @@
 import React from 'react';
-import { AppProviders } from '../../contexts/AppProviders';
+import { ContextProviders } from '../../contexts/ContextProviders';
 
 function TestContexts() {
   try {
     return (
-      <AppProviders>
+      <ContextProviders>
         <div>Contexts loaded successfully!</div>
-      </AppProviders>
+      </ContextProviders>
     );
   } catch (error) {
     return <div>Error loading contexts: {error.message}</div>;

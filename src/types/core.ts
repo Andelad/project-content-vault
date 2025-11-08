@@ -235,3 +235,13 @@ export interface DayEstimate {
   isPlannedEvent?: boolean; // true if event is planned (not completed)
   isCompletedEvent?: boolean; // true if event is completed/tracked
 }
+
+// Individual work hour override for specific dates
+export interface WorkHourOverride {
+  date: string; // ISO date string (YYYY-MM-DD)
+  dayName: 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
+  slotIndex: number; // Index in the day's slots array
+  startTime: string;
+  endTime: string;
+  duration: number;
+}

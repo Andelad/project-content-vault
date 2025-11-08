@@ -6,7 +6,7 @@ import { useGroups } from '../../hooks/useGroups';
 import { useHolidays } from '../../hooks/useHolidays';
 import { useToast } from '../../hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Edit, Trash2, Calendar, Clock, Users, FolderPlus, Grid3X3, List, GripVertical, Archive, PlayCircle, Clock4, ChevronDown, ChevronRight, Search, Tag, Building2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Calendar, Clock, Users, FolderPlus, Grid3X3, List, GripVertical, Archive, PlayCircle, Clock4, ChevronDown, ChevronRight, Search, Tag, Building2, Mail, Phone, MapPin, FileText } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Input } from '../ui/input';
@@ -20,13 +20,14 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
 import { StandardModal } from '../modals/StandardModal';
 import { ProjectModal } from '../modals/ProjectModal';
 import { HolidayModal } from '../modals/HolidayModal';
+import { ClientModal } from '../modals/ClientModal';
 import { Group, Project, ProjectStatus } from '../../types';
 import { AppPageLayout } from '../layout/AppPageLayout';
-import { getEffectiveProjectStatus, DurationFormattingService } from '@/services';
+import { getEffectiveProjectStatus, DurationFormattingService, normalizeToMidnight } from '@/services';
 import { GroupOrchestrator } from '@/services/orchestrators/GroupOrchestrator';
-import { ClientsListView } from './ClientsListView';
 import { NEUTRAL_COLORS } from '@/constants/colors';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import { useClients } from '@/hooks/useClients';
 type ViewType = 'grid' | 'list';
 type FilterByStatus = 'all' | 'active' | 'future' | 'past';
 type OrganizeBy = 'group' | 'tag' | 'client';
@@ -160,7 +161,7 @@ function DraggableProject({
     </div>
   );
 }
-export function ProjectsView() {
+export function OverviewView() {
   const { groups, projects, deleteGroup, addProject, updateProject, deleteProject, reorderGroups, reorderProjects, selectedProjectId, setSelectedProjectId } = useProjectContext();
   const { addGroup, updateGroup, refetch: fetchGroups } = useGroups();
   const { holidays, addHoliday, updateHoliday, deleteHoliday } = useHolidays();
@@ -297,7 +298,7 @@ export function ProjectsView() {
       setIsGroupDialogOpen(false);
       resetGroupForm();
     } catch (error) {
-      ErrorHandlingService.handle(error, { source: 'ProjectsView', action: 'Group operation failed:' });
+      ErrorHandlingService.handle(error, { source: 'OverviewView', action: 'Group operation failed:' });
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Operation failed",
@@ -1015,14 +1016,277 @@ export function ProjectsView() {
           {/* Clients Tab Content */}
           <TabsContent value="clients" className="h-full mt-0">
             <div className="px-[21px] pb-[21px] pt-[35px]">
-              <ClientsListView 
-                searchQuery={searchQuery}
-                onSearchChange={setSearchQuery}
-                filterByDate={filterByDate}
-                onDateChange={setFilterByDate}
-                viewType={viewType}
-                statusFilter={clientStatusFilter}
-              />
+              {(() => {
+                const { clients, loading } = useClients();
+                const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+                const [isClientModalOpen, setIsClientModalOpen] = useState(false);
+
+                // Filter clients
+                const filteredClients = useMemo(() => {
+                  let filtered = [...clients];
+
+                  // Filter by status
+                  if (clientStatusFilter === 'active') {
+                    filtered = filtered.filter(client => client.status === 'active');
+                  } else if (clientStatusFilter === 'archived') {
+                    filtered = filtered.filter(client => client.status === 'archived');
+                  }
+
+                  // Filter by search query
+                  if (searchQuery.trim()) {
+                    const query = searchQuery.toLowerCase();
+                    filtered = filtered.filter(client =>
+                      client.name.toLowerCase().includes(query) ||
+                      client.contactEmail?.toLowerCase().includes(query) ||
+                      client.contactPhone?.toLowerCase().includes(query)
+                    );
+                  }
+
+                  // Filter by date - show clients that have a project on the selected date
+                  if (filterByDate) {
+                    const targetDate = normalizeToMidnight(new Date(filterByDate));
+                    
+                    // Get client IDs that have projects on this date
+                    const clientIdsWithProjectsOnDate = new Set(
+                      projects.filter(p => {
+                        const start = normalizeToMidnight(new Date(p.startDate));
+                        const end = normalizeToMidnight(new Date(p.endDate));
+                        return start <= targetDate && targetDate <= end;
+                      }).map(p => p.clientId)
+                    );
+                    
+                    filtered = filtered.filter(client => 
+                      clientIdsWithProjectsOnDate.has(client.id)
+                    );
+                  }
+
+                  return filtered;
+                }, [clients, clientStatusFilter, searchQuery, filterByDate, projects]);
+
+                // Get project count for each client
+                const getProjectCount = (clientId: string) => {
+                  return projects.filter(p => p.clientId === clientId).length;
+                };
+
+                // Get active project count for each client
+                const getActiveProjectCount = (clientId: string) => {
+                  const today = normalizeToMidnight(new Date());
+                  
+                  return projects.filter(p => {
+                    if (p.clientId !== clientId) return false;
+                    const start = normalizeToMidnight(new Date(p.startDate));
+                    const end = normalizeToMidnight(new Date(p.endDate));
+                    return start <= today && today <= end;
+                  }).length;
+                };
+
+                if (loading) {
+                  return (
+                    <div className="flex items-center justify-center py-16">
+                      <div className="text-gray-500">Loading clients...</div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-6">
+                    {/* Results count */}
+                    {filteredClients.length > 0 && (
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary">
+                          {filteredClients.length} {filteredClients.length === 1 ? 'client' : 'clients'}
+                        </Badge>
+                      </div>
+                    )}
+
+                    {/* Clients list */}
+                    {filteredClients.length > 0 ? (
+                      <div className={viewType === 'grid' 
+                        ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" 
+                        : "space-y-2"
+                      }>
+                        {filteredClients.map(client => {
+                          const projectCount = getProjectCount(client.id);
+                          const activeProjectCount = getActiveProjectCount(client.id);
+                          
+                          return viewType === 'grid' ? (
+                            // Grid view
+                            <Card 
+                              key={client.id} 
+                              className="hover:shadow-lg transition-shadow cursor-pointer"
+                              onClick={() => {
+                                setSelectedClientId(client.id);
+                                setIsClientModalOpen(true);
+                              }}
+                            >
+                              <CardHeader className="pb-3">
+                                <div className="flex items-start justify-between">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <Building2 className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                                    <div className="min-w-0 flex-1">
+                                      <CardTitle className="text-base font-semibold truncate">
+                                        {client.name}
+                                      </CardTitle>
+                                    </div>
+                                  </div>
+                                  <Badge 
+                                    variant={client.status === 'active' ? 'default' : 'secondary'}
+                                    className="ml-2 flex-shrink-0"
+                                  >
+                                    {client.status}
+                                  </Badge>
+                                </div>
+                              </CardHeader>
+                              
+                              <CardContent className="space-y-3">
+                                {/* Contact Information */}
+                                {(client.contactEmail || client.contactPhone || client.billingAddress) && (
+                                  <div className="space-y-2 text-xs text-gray-600">
+                                    {client.contactEmail && (
+                                      <div className="flex items-center gap-2">
+                                        <Mail className="w-3 h-3 flex-shrink-0" />
+                                        <span className="truncate">{client.contactEmail}</span>
+                                      </div>
+                                    )}
+                                    {client.contactPhone && (
+                                      <div className="flex items-center gap-2">
+                                        <Phone className="w-3 h-3 flex-shrink-0" />
+                                        <span className="truncate">{client.contactPhone}</span>
+                                      </div>
+                                    )}
+                                    {client.billingAddress && (
+                                      <div className="flex items-center gap-2">
+                                        <MapPin className="w-3 h-3 flex-shrink-0" />
+                                        <span className="truncate">{client.billingAddress}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* Project Stats */}
+                                <div className="pt-2 border-t border-gray-100">
+                                  <div className="flex items-center justify-between text-xs">
+                                    <div className="flex items-center gap-1 text-gray-600">
+                                      <FileText className="w-3 h-3" />
+                                      <span>{projectCount} {projectCount === 1 ? 'project' : 'projects'}</span>
+                                    </div>
+                                    {activeProjectCount > 0 && (
+                                      <Badge variant="outline" className="text-xs">
+                                        {activeProjectCount} active
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Notes */}
+                                {client.notes && (
+                                  <div className="pt-2 border-t border-gray-100">
+                                    <p className="text-xs text-gray-500 line-clamp-2">{client.notes}</p>
+                                  </div>
+                                )}
+                              </CardContent>
+                            </Card>
+                          ) : (
+                            // List view
+                            <Card 
+                              key={client.id} 
+                              className="hover:shadow-lg transition-shadow cursor-pointer"
+                              onClick={() => {
+                                setSelectedClientId(client.id);
+                                setIsClientModalOpen(true);
+                              }}
+                            >
+                              <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                  {/* Left section - Client info */}
+                                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                                    <Building2 className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex items-center gap-2">
+                                        <h3 className="font-medium text-gray-900 truncate text-sm">{client.name}</h3>
+                                        <Badge 
+                                          variant={client.status === 'active' ? 'default' : 'secondary'}
+                                          className="flex-shrink-0 text-xs"
+                                        >
+                                          {client.status}
+                                        </Badge>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Middle section - Contact info */}
+                                  <div className="flex items-center gap-4 flex-1 justify-center">
+                                    {client.contactEmail && (
+                                      <div className="flex items-center gap-1 text-xs text-gray-600">
+                                        <Mail className="w-3 h-3" />
+                                        <span className="truncate max-w-[200px]">{client.contactEmail}</span>
+                                      </div>
+                                    )}
+                                    {client.contactPhone && (
+                                      <div className="flex items-center gap-1 text-xs text-gray-600">
+                                        <Phone className="w-3 h-3" />
+                                        <span className="whitespace-nowrap">{client.contactPhone}</span>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Right section - Project stats */}
+                                  <div className="flex items-center gap-3 flex-shrink-0">
+                                    <div className="flex items-center gap-1 text-xs text-gray-600">
+                                      <FileText className="w-3 h-3" />
+                                      <span>{projectCount} {projectCount === 1 ? 'project' : 'projects'}</span>
+                                    </div>
+                                    {activeProjectCount > 0 && (
+                                      <Badge variant="outline" className="text-xs">
+                                        {activeProjectCount} active
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      /* No results message */
+                      <Card className="border-dashed">
+                        <CardContent className="flex flex-col items-center justify-center py-16">
+                          <div className="text-gray-400 mb-4">
+                            {searchQuery || filterByDate ? (
+                              <Search className="w-16 h-16" />
+                            ) : (
+                              <Building2 className="w-16 h-16" />
+                            )}
+                          </div>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                            {searchQuery || filterByDate 
+                              ? 'No clients found'
+                              : 'No clients yet'
+                            }
+                          </h3>
+                          <p className="text-gray-600 text-center mb-6 max-w-md">
+                            {searchQuery || filterByDate
+                              ? 'Try adjusting your filters or search query'
+                              : 'Clients are automatically created when you add projects with client information.'
+                            }
+                          </p>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Client Modal */}
+                    <ClientModal
+                      isOpen={isClientModalOpen}
+                      onClose={() => {
+                        setIsClientModalOpen(false);
+                        setSelectedClientId(null);
+                      }}
+                      clientId={selectedClientId}
+                    />
+                  </div>
+                );
+              })()}
             </div>
           </TabsContent>
           {/* Holidays Tab Content */}

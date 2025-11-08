@@ -1,5 +1,5 @@
 import React from 'react';
-import { AppProviders } from '../../contexts/AppProviders';
+import { ContextProviders } from '../../contexts/ContextProviders';
 import { useProjectContext } from '../../contexts/ProjectContext';
 
 function TestComponent() {
@@ -10,12 +10,12 @@ function TestComponent() {
 
 function DebugView() {
   return (
-    <AppProviders>
+    <ContextProviders>
       <div style={{ padding: '20px' }}>
         <h1>Debug Context Loading</h1>
         <TestComponent />
       </div>
-    </AppProviders>
+    </ContextProviders>
   );
 }
 

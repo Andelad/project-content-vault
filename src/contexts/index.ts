@@ -7,5 +7,8 @@ export { SettingsProvider, useSettingsContext } from './SettingsContext';
 // Auth context
 export { AuthProvider, useAuth } from './AuthContext';
 
+// Composition provider - wraps all contexts
+export { ContextProviders, AppProviders, useAppContexts } from './ContextProviders';
+
 // Type exports
 export type { Project, Group, Row, Milestone } from '@/types/core';

@@ -64,7 +64,11 @@ const HolidayModal = React.lazy(() => import('../modals/HolidayModal').then(modu
  * @see useHolidayDrag - Holiday drag state management
  * @see calculateTimelineRows - Auto-row arrangement algorithm
  */
-export function TimelineView() {
+interface TimelineViewProps {
+  mainSidebarCollapsed: boolean;
+}
+
+export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
   // Get data from specific contexts
   const { 
     projects, 
@@ -85,7 +89,6 @@ export function TimelineView() {
     currentDate, 
     timelineMode,
     collapsedGroups,
-    mainSidebarCollapsed,
     toggleGroupCollapse,
     setTimelineMode,
     setCurrentDate 

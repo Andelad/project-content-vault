@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
-import { CardSidebarLayout } from '../shared/CardSidebarLayout';
+import { SidebarLayout } from '../shared/SidebarLayout';
 import { OrphanedMilestonesCleaner } from '../debug';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 import { 
@@ -828,7 +828,7 @@ export function ProfileView() {
 
   return (
     <div className="h-full flex flex-col p-8">
-      <CardSidebarLayout
+      <SidebarLayout
         tabs={tabs}
         activeTab={activeTab}
         onTabChange={setActiveTab}

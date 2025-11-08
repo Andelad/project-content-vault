@@ -79,7 +79,7 @@ src/components/
 
 **Examples**:
 - `TimelineView.tsx` - Timeline page
-- `ProjectsView.tsx` - Projects page
+- `OverviewView.tsx` - Overview page (Projects, Clients, Holidays)
 - `InsightsView.tsx` - Analytics page
 
 **Naming convention**: `*View.tsx`

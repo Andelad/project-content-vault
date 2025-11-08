@@ -10,14 +10,6 @@ interface TimelineContextType {
   currentDate: Date;
   setCurrentDate: (date: Date) => void;
   
-  // Main App Sidebar State
-  mainSidebarCollapsed: boolean;
-  setMainSidebarCollapsed: (collapsed: boolean) => void;
-  
-  // Mobile Menu State
-  mobileMenuOpen: boolean;
-  setMobileMenuOpen: (open: boolean) => void;
-  
   // Timeline Entries (legacy - to be refactored)
   timelineEntries: any[];
   updateTimelineEntry: (entry: any) => void;
@@ -53,8 +45,6 @@ export function TimelineProvider({ children }: { children: React.ReactNode }) {
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [timelineEntries, setTimelineEntries] = useState<any[]>([]);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
-  const [mainSidebarCollapsed, setMainSidebarCollapsed] = useState<boolean>(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
 
   // Persist currentView to localStorage whenever it changes
   useEffect(() => {
@@ -143,14 +133,6 @@ export function TimelineProvider({ children }: { children: React.ReactNode }) {
     setTimelineMode,
     currentDate,
     setCurrentDate,
-    
-    // Main App Sidebar State
-    mainSidebarCollapsed,
-    setMainSidebarCollapsed,
-    
-    // Mobile Menu State
-    mobileMenuOpen,
-    setMobileMenuOpen,
     
     // Timeline Entries (legacy)
     timelineEntries,

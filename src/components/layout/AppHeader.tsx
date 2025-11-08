@@ -12,6 +12,7 @@ interface AppHeaderProps {
   lastAction?: any;
   isTrackerExpanded?: boolean;
   onToggleTracker?: () => void;
+  setMobileMenuOpen: (open: boolean) => void;
 }
 
 export function AppHeader({ 
@@ -19,10 +20,10 @@ export function AppHeader({
   viewTitle, 
   lastAction,
   isTrackerExpanded = false,
-  onToggleTracker
+  onToggleTracker,
+  setMobileMenuOpen
 }: AppHeaderProps) {
   const { isTimeTracking } = useSettingsContext();
-  const { setMobileMenuOpen } = useTimelineContext();
   const [isTablet, setIsTablet] = useState(false);
 
   // Detect tablet size (< 768px)

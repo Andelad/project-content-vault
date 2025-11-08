@@ -9,10 +9,10 @@ import { usePlannerContext } from '../../contexts/PlannerContext';
 // Lazy load views for better performance
 const PlannerView = React.lazy(() => import('../views/PlannerView').then(module => ({ default: module.PlannerView })));
 const TimelineView = React.lazy(() => import('../views/TimelineView').then(module => ({ default: module.TimelineView })));
-const ProjectsView = React.lazy(() => import('../views/ProjectsView').then(module => ({ default: module.ProjectsView })));
+const OverviewView = React.lazy(() => import('../views/OverviewView').then(module => ({ default: module.OverviewView })));
 const InsightsView = React.lazy(() => import('../views/InsightsView').then(module => ({ default: module.InsightsView })));
 const ProfileView = React.lazy(() => import('../views/ProfileView').then(module => ({ default: module.ProfileView })));
-const SettingsView = React.lazy(() => import('../settings/SettingsView').then(module => ({ default: module.SettingsView })));
+const SettingsView = React.lazy(() => import('../views/SettingsView').then(module => ({ default: module.SettingsView })));
 
 // Loading component for lazy-loaded views - modern circle segments spinner
 const ViewLoader = () => (
@@ -39,12 +39,16 @@ const ViewLoader = () => (
 );
 
 export function MainAppLayout() {
-  const { currentView, mainSidebarCollapsed } = useTimelineContext();
+  const { currentView } = useTimelineContext();
   const { isTimeTracking } = useSettingsContext();
   const { lastAction } = usePlannerContext();
   const [isTrackerExpanded, setIsTrackerExpanded] = useState(false);
   const [isTablet, setIsTablet] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  
+  // UI State - Sidebar and Mobile Menu
+  const [mainSidebarCollapsed, setMainSidebarCollapsed] = useState<boolean>(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   
   // Use favicon hook to monitor global time tracking state
   useFavicon(isTimeTracking);
@@ -82,13 +86,13 @@ export function MainAppLayout() {
   const renderCurrentView = () => {
     switch (currentView) {
       case 'timeline':
-        return <TimelineView />;
+        return <TimelineView mainSidebarCollapsed={mainSidebarCollapsed} />;
       case 'calendar':
         return <PlannerView />;
       case 'insights':
         return <InsightsView />;
       case 'projects':
-        return <ProjectsView />;
+        return <OverviewView />;
       case 'profile':
         return <ProfileView />;
       case 'settings':
@@ -106,7 +110,12 @@ export function MainAppLayout() {
           top: isTablet && isTrackerExpanded ? '84px' : '0',
         }}
       >
-        <Sidebar />
+        <Sidebar 
+          mainSidebarCollapsed={mainSidebarCollapsed}
+          setMainSidebarCollapsed={setMainSidebarCollapsed}
+          mobileMenuOpen={mobileMenuOpen}
+          setMobileMenuOpen={setMobileMenuOpen}
+        />
       </div>
       <div 
         className="flex-1 overflow-hidden flex flex-col transition-all duration-300"
@@ -126,6 +135,7 @@ export function MainAppLayout() {
             lastAction={lastAction}
             isTrackerExpanded={isTrackerExpanded}
             onToggleTracker={() => setIsTrackerExpanded(!isTrackerExpanded)}
+            setMobileMenuOpen={setMobileMenuOpen}
           />
           <div className="overflow-hidden" style={{ height: 'calc(100vh - 80px)' }}>
             <Suspense fallback={<ViewLoader />}>
