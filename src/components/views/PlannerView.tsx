@@ -10,7 +10,7 @@ import { formatDateLong, formatDateRange as formatDateRangeUtil } from '@/utils/
 import { addDaysToDate, normalizeToMidnight } from '@/services';
 import { EstimatedTimeCard, WeekNavigationBar } from '@/components/planner';
 import { AvailabilityCard } from '@/components/shared';
-import { PlannerControlBar } from './planner';
+import { PlannerToolbar } from './planner';
 import { HABIT_ICON_SVG, TASK_ICON_SVG } from '@/constants/icons';
 import { NEUTRAL_COLORS } from '@/constants/colors';
 import { getBaseFullCalendarConfig, getEventStylingConfig, getResponsiveDayCount } from '@/services';
@@ -25,6 +25,7 @@ import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingSer
 import '../planner/fullcalendar-overrides.css';
 // Modal imports
 const EventModal = React.lazy(() => import('../modals/EventModal').then(module => ({ default: module.EventModal })));
+const HelpModal = React.lazy(() => import('../modals/HelpModal').then(module => ({ default: module.HelpModal })));
 /**
  * PlannerView - FullCalendar-based planner with keyboard shortcuts
  * 
@@ -96,6 +97,7 @@ export function PlannerView() {
   const [summaryDateStrings, setSummaryDateStrings] = useState<string[]>([]);
   const [calendarScrollbarWidth, setCalendarScrollbarWidth] = useState(0);
   const [timeAxisWidth, setTimeAxisWidth] = useState(0);
+  const [helpModalOpen, setHelpModalOpen] = useState(false);
   // Layer visibility state
   const [layerVisibility, setLayerVisibility] = useState({
     events: true,
@@ -1222,7 +1224,7 @@ export function PlannerView() {
   return (
     <div className="h-full flex flex-col overflow-hidden">
       {/* Calendar Controls */}
-      <PlannerControlBar
+      <PlannerToolbar
         currentView={currentView}
         onViewChange={handleViewChange}
         onNavigate={handleNavigate}
@@ -1237,6 +1239,7 @@ export function PlannerView() {
         onToggleLayer={(layer) => setLayerVisibility(prev => ({ ...prev, [layer]: !prev[layer] }))}
         isCompactView={settings?.isCompactView || false}
         onToggleCompactView={handleCompactViewToggle}
+        onHelpClick={() => setHelpModalOpen(true)}
       />
       {/* Week Navigation Bar - Mobile/Tablet Only */}
       <WeekNavigationBar
@@ -1324,6 +1327,11 @@ export function PlannerView() {
           isOpen={!!selectedEventId}
           onClose={() => setSelectedEventId(null)}
           eventId={selectedEventId || undefined}
+        />
+        <HelpModal
+          open={helpModalOpen}
+          onOpenChange={setHelpModalOpen}
+          initialTopicId="planner"
         />
       </React.Suspense>
     </div>

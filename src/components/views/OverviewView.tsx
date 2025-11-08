@@ -296,7 +296,7 @@ export function OverviewView() {
                     setProjectColor('#6366f1');
                     setIsProjectDialogOpen(true);
                   }}
-                  className="h-9 gap-2"
+                  className="h-9 gap-2 shadow"
                 >
                   <Plus className="w-4 h-4" />
                   Add Project
@@ -374,7 +374,7 @@ export function OverviewView() {
                   onClick={() => {
                     // TODO: Implement client creation
                   }}
-                  className="h-9 gap-2"
+                  className="h-9 gap-2 shadow"
                 >
                   <Plus className="w-4 h-4" />
                   Add Client
@@ -428,7 +428,7 @@ export function OverviewView() {
                     setEditingHoliday(null);
                     setIsHolidayModalOpen(true);
                   }}
-                  className="h-9 gap-2"
+                  className="h-9 gap-2 shadow"
                 >
                   <Plus className="w-4 h-4" />
                   Add Holiday

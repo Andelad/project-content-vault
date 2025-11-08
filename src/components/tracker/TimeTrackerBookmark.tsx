@@ -21,7 +21,7 @@ export function TimeTrackerBookmark({ isTracking, onClick, isExpanded }: TimeTra
       }}
       aria-label="Toggle time tracker"
     >
-      <div className="w-[52px] h-[52px] bg-white rounded-full flex items-center justify-center cursor-pointer hover:shadow-md transition-shadow border-2 border-white shadow-lg">
+      <div className="w-full h-full flex items-center justify-center">
         <div className="relative">
           <Timer className="h-6 w-6 text-foreground stroke-[1.5]" />
           {isTracking && (

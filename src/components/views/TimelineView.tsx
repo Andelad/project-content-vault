@@ -36,6 +36,7 @@ import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingSer
 // Lazy load heavy modals
 const ProjectModal = React.lazy(() => import('../modals/ProjectModal').then(module => ({ default: module.ProjectModal })));
 const HolidayModal = React.lazy(() => import('../modals/HolidayModal').then(module => ({ default: module.HolidayModal })));
+const HelpModal = React.lazy(() => import('../modals/HelpModal').then(module => ({ default: module.HelpModal })));
 
 /**
  * TimelineView - Main coordinator component for the timeline page
@@ -145,6 +146,9 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
     start.setDate(1); // Start at beginning of month
     return normalizeToMidnight(start); // Normalize time component
   });
+  
+  // Help modal state
+  const [helpModalOpen, setHelpModalOpen] = useState(false);
   // Protected viewport setter that respects scrollbar blocking using service
   const protectedSetViewportStart = useCallback((date: Date) => {
     // Safety check: ensure date is valid
@@ -564,12 +568,13 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
             onViewportStartChange={setViewportStart}
             onAnimatingChange={setIsAnimating}
             onCreateNewProject={setCreatingNewProject}
+            onHelpClick={() => setHelpModalOpen(true)}
           />
           {/* Main Content Area with Card */}
-          <AppPageLayout.Content>
-            <div className="flex-1 flex flex-col min-h-0">
+          <AppPageLayout.Content className="px-6 pb-6">
+            <div className="flex flex-col min-h-0 flex-1">
               {/* Timeline Card */}
-              <Card className="flex-1 flex flex-col overflow-hidden relative timeline-card-container">
+              <Card className="flex-shrink flex flex-col overflow-hidden relative timeline-card-container" style={{ flexGrow: 1, flexBasis: 0 }}>
                 {/* Column Markers removed from here - will be added per-row */}
                 <div className="flex flex-col min-h-full bg-white">
                   {/* Fixed Headers Row */}
@@ -629,7 +634,7 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
                 </div>
               </Card>
               {/* Availability Timeline Card */}
-              <div className="relative mt-4">
+              <div className="relative mt-[21px]">
                 <AvailabilityCard
                   collapsed={collapsed}
                   dates={dates}
@@ -637,6 +642,7 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
                   settings={settings}
                   mode={mode}
                   milestones={milestones}
+                  context="timeline"
                   columnMarkersOverlay={
                     /* All timeline overlays: borders, today, weekends, holidays */
                     <TimelineBackground dates={dates} mode={mode} holidays={holidays} />
@@ -644,7 +650,7 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
                 />
               </div>
               {/* Holiday Card */}
-              <Card className="mt-4 overflow-hidden shadow-sm border border-gray-200 relative">
+              <Card className="mt-[21px] overflow-hidden shadow-sm border border-gray-200 relative">
                 <div className="bg-yellow-200">
                   <HolidayBar 
                     dates={dates} 
@@ -665,7 +671,7 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
                 const thumbWidth = (VIEWPORT_DAYS / totalDays) * 100;
                 
                 return (
-                  <div className="w-full mt-4 mb-0 px-0">
+                  <div className="w-full mt-[21px] mb-0 px-0">
                     <div className="w-full h-2 bg-gray-150 relative overflow-hidden" style={{ backgroundColor: '#e8e8e8' }}>
                       <div 
                         className="absolute top-0 h-full cursor-grab active:cursor-grabbing transition-colors rounded-sm hover:bg-gray-600"
@@ -733,6 +739,11 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
             isOpen={!!editingHolidayId}
             onClose={() => setEditingHolidayId(null)}
             holidayId={editingHolidayId || undefined}
+          />
+          <HelpModal
+            open={helpModalOpen}
+            onOpenChange={setHelpModalOpen}
+            initialTopicId="timeline"
           />
         </React.Suspense>
       </TooltipProvider>

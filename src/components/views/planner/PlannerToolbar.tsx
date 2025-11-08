@@ -2,6 +2,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { DatePickerButton } from '@/components/shared/DatePickerButton';
+import { HelpButton } from '@/components/shared/HelpButton';
 import { ChevronLeft, ChevronRight, MapPin, ChevronsDownUp, ChevronsUpDown } from 'lucide-react';
 import { LayersPopover } from './LayersPopover';
 
@@ -12,7 +13,7 @@ interface LayerVisibility {
   workHours: boolean;
 }
 
-interface PlannerControlBarProps {
+interface PlannerToolbarProps {
   currentView: 'week' | 'day';
   onViewChange: (view: 'week' | 'day') => void;
   onNavigate: (direction: 'prev' | 'next' | 'today') => void;
@@ -27,9 +28,10 @@ interface PlannerControlBarProps {
   onToggleLayer: (layer: keyof LayerVisibility) => void;
   isCompactView: boolean;
   onToggleCompactView: () => void;
+  onHelpClick: () => void;
 }
 
-export function PlannerControlBar({
+export function PlannerToolbar({
   currentView,
   onViewChange,
   onNavigate,
@@ -44,7 +46,8 @@ export function PlannerControlBar({
   onToggleLayer,
   isCompactView,
   onToggleCompactView,
-}: PlannerControlBarProps) {
+  onHelpClick,
+}: PlannerToolbarProps) {
   return (
     <div className="px-6 p-[21px]">
       <div className="flex items-center justify-between">
@@ -109,16 +112,19 @@ export function PlannerControlBar({
         </div>
         
         {/* Right side navigation */}
-        <div className="flex items-center gap-0.5">
-          <Button variant="ghost" className="h-9 w-9 px-0" onClick={() => onNavigate('prev')}>
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
-          <h2 className="text-sm font-semibold text-gray-900 text-center px-2">
-            {formatDateRange()}
-          </h2>
-          <Button variant="ghost" className="h-9 w-9 px-0" onClick={() => onNavigate('next')}>
-            <ChevronRight className="w-4 h-4" />
-          </Button>
+        <div className="flex items-center gap-3">
+          <HelpButton onClick={onHelpClick} />
+          <div className="flex items-center gap-0.5">
+            <Button variant="ghost" className="h-9 w-9 px-0" onClick={() => onNavigate('prev')}>
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <h2 className="text-sm font-semibold text-gray-900 text-center px-2">
+              {formatDateRange()}
+            </h2>
+            <Button variant="ghost" className="h-9 w-9 px-0" onClick={() => onNavigate('next')}>
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
       </div>
     </div>

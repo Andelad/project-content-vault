@@ -10,6 +10,8 @@ import { formatWeekdayDate, formatDateShort, formatWeekRange } from '@/utils/dat
 import { NEUTRAL_COLORS } from '@/constants/colors';
 import type { Project, Settings } from '@/types/core';
 import { TabComponent } from './TabComponent';
+import { AvailabilityCardSettingsButton } from './AvailabilityCardSettingsButton';
+import { AvailabilityCardModal } from '../modals/AvailabilityCardModal';
 
 interface InfoButtonProps {
   title: string;
@@ -64,6 +66,7 @@ export const AvailabilityCard = memo(function AvailabilityCard({
 }: AvailabilityCardProps) {
   const [activeTab, setActiveTab] = useState<'time-spent' | 'availability-graph'>('availability-graph');
   const [hoveredColumnIndex, setHoveredColumnIndex] = useState<number | null>(null);
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   
   const { holidays, events } = usePlannerContext();
 
@@ -438,13 +441,7 @@ export const AvailabilityCard = memo(function AvailabilityCard({
   return (
     <div className="relative">
       {/* Tabs Container */}
-      <div 
-        className="flex items-end"
-        style={{
-          backgroundColor: 'rgb(249, 250, 251)', // bg-gray-50 to match page background
-          paddingTop: '4px',
-        }}
-      >
+      <div className="flex items-end">
         <TabComponent
           label="Availability"
           isActive={activeTab === 'availability-graph'}
@@ -455,12 +452,14 @@ export const AvailabilityCard = memo(function AvailabilityCard({
           isActive={activeTab === 'time-spent'}
           onClick={() => setActiveTab('time-spent')}
         />
-        {/* Fill remaining space with background */}
-        <div className="flex-1" style={{ marginBottom: '-1px' }} />
+        {/* Fill remaining space with no background */}
+        <div className="flex-1 flex items-center justify-end" style={{ marginBottom: '8px', marginTop: '-4px' }}>
+          <AvailabilityCardSettingsButton onClick={() => setSettingsModalOpen(true)} />
+        </div>
       </div>
 
       {/* Card Content */}
-      <Card className="overflow-hidden shadow-sm border-x border-b border-t border-gray-200 rounded-t-none relative bg-gray-50">
+      <Card className="overflow-hidden shadow-sm border-x border-b border-t border-gray-200 relative bg-gray-50" style={{ borderTopLeftRadius: 0, borderTopRightRadius: '0.5rem' }}>
         {/* Column Markers Overlay - positioned inside card */}
         {columnMarkersOverlay && (
           <div 
@@ -509,6 +508,13 @@ export const AvailabilityCard = memo(function AvailabilityCard({
           </div>
         )}
       </Card>
+
+      {/* Settings Modal */}
+      <AvailabilityCardModal
+        open={settingsModalOpen}
+        onOpenChange={setSettingsModalOpen}
+        initialTab={context}
+      />
     </div>
   );
 });

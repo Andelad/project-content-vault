@@ -184,8 +184,8 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
           </div>
 
           {/* Content - Scrollable */}
-          <div className="flex-1 overflow-y-auto light-scrollbar p-6">
-            <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto light-scrollbar flex flex-col">
+            <div className="flex-1 p-6 space-y-6">
               {/* Usage Context Dropdown */}
               <div className="space-y-2">
                 <Label htmlFor="usage-context">I mainly use Budgi for...</Label>
@@ -312,35 +312,36 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
                 </div>
               </div>
 
-              {/* Submit Button */}
-              <div className="flex justify-end gap-3 pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => onOpenChange(false)}
-                  disabled={loading}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <>
-                      <span className="animate-spin mr-2">⏳</span>
-                      Sending...
-                    </>
-                  ) : (
-                    <>
-                      <Send className="w-4 h-4 mr-2" />
-                      Submit Feedback
-                    </>
-                  )}
-                </Button>
-              </div>
-            </form>
-          </div>
+            </div>
+
+            {/* Submit Buttons - Fixed Footer */}
+            <div className="border-t border-gray-200 p-6 flex justify-end gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <span className="animate-spin mr-2">⏳</span>
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4 mr-2" />
+                    Submit Feedback
+                  </>
+                )}
+              </Button>
+            </div>
+          </form>
         </div>
       </DialogContent>
     </Dialog>

@@ -11,11 +11,11 @@ import {
   AlertTriangle, 
   Target,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  GraduationCap
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
-import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
-import { Info } from 'lucide-react';
+import { HelpModal } from '../modals/HelpModal';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { NEUTRAL_COLORS } from '@/constants/colors';
@@ -53,6 +53,8 @@ export function InsightsView() {
   const [projectDistributionTimeFrame, setProjectDistributionTimeFrame] = useState<'last-week' | 'last-month' | 'custom'>('last-week');
   const [customStartDate, setCustomStartDate] = useState<string>('');
   const [customEndDate, setCustomEndDate] = useState<string>('');
+  const [helpModalOpen, setHelpModalOpen] = useState(false);
+  const [helpModalInitialTopic, setHelpModalInitialTopic] = useState<string | undefined>();
 
   const [animationKey, setAnimationKey] = useState(0);
   const [timeOffset, setTimeOffset] = useState(0); // For navigating through time
@@ -394,7 +396,7 @@ export function InsightsView() {
                     <CardTitle className="text-base">Time Distribution</CardTitle>
                   </div>
                   <Select value={projectDistributionTimeFrame} onValueChange={(value) => setProjectDistributionTimeFrame(value as any)}>
-                    <SelectTrigger className="w-32">
+                    <SelectTrigger className="h-9 w-32">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -484,37 +486,20 @@ export function InsightsView() {
                 )}
               </CardContent>
 
-              {/* Info popover bottom-right of the card */}
+              {/* Info button bottom-right of the card */}
               <div className="absolute bottom-6 right-6">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      aria-label="About Time Distribution"
-                      className="rounded-full"
-                    >
-                      <Info className="w-4 h-4" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-80" side="top" align="end">
-                    <div className="space-y-2">
-                      <div className="font-medium text-sm">About Time Distribution</div>
-                      <p className="text-xs text-gray-600">
-                        Donut showing percentage of total time spent per project for the selected period.
-                      </p>
-                      <div className="text-xs text-gray-700 space-y-1">
-                        <div className="font-medium">Keys</div>
-                        <ul className="list-disc pl-4 space-y-1">
-                          <li>Each slice = a project, sized by hours</li>
-                          <li>Hover to see project, client, hours, and %</li>
-                          <li>Period: Last Week / Last Month / Custom range</li>
-                          <li>Includes only completed events with a project</li>
-                        </ul>
-                      </div>
-                    </div>
-                  </PopoverContent>
-                </Popover>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  aria-label="About Time Distribution"
+                  className="h-9 w-9 rounded-full"
+                  onClick={() => {
+                    setHelpModalInitialTopic('insights-time-distribution');
+                    setHelpModalOpen(true);
+                  }}
+                >
+                  <GraduationCap className="w-4 h-4" />
+                </Button>
               </div>
             </Card>
 
@@ -526,20 +511,6 @@ export function InsightsView() {
                     <CardTitle className="text-base">Availability Used</CardTitle>
                   </div>
                   <div className="flex items-center gap-4">
-                    <Select value={timeAnalysisTimeFrame} onValueChange={(value: TimeFrame) => {
-                      setTimeAnalysisTimeFrame(value);
-                      setTimeOffset(0); // Reset offset when changing timeframe
-                    }}>
-                      <SelectTrigger className="w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="week">Weekly</SelectItem>
-                        <SelectItem value="month">Monthly</SelectItem>
-                        <SelectItem value="year">Yearly</SelectItem>
-                      </SelectContent>
-                    </Select>
-
                     <div className="flex items-center gap-2">
                       <Button
                         variant="outline"
@@ -549,20 +520,25 @@ export function InsightsView() {
                           const maxBackward = timeAnalysisTimeFrame === 'week' ? -260 : timeAnalysisTimeFrame === 'month' ? -60 : -5;
                           setTimeOffset(prev => Math.max(maxBackward, prev - 1));
                         }}
-                        className="p-2"
+                        className="h-9 w-9 p-0"
                         disabled={timeOffset <= (timeAnalysisTimeFrame === 'week' ? -260 : timeAnalysisTimeFrame === 'month' ? -60 : -5)}
                       >
                         <ChevronLeft className="h-4 w-4" />
                       </Button>
                       
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setTimeOffset(0)}
-                        className="px-3"
-                      >
-                        Today
-                      </Button>
+                      <Select value={timeAnalysisTimeFrame} onValueChange={(value: TimeFrame) => {
+                        setTimeAnalysisTimeFrame(value);
+                        setTimeOffset(0); // Reset offset when changing timeframe
+                      }}>
+                        <SelectTrigger className="h-9 w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="week">Weekly</SelectItem>
+                          <SelectItem value="month">Monthly</SelectItem>
+                          <SelectItem value="year">Yearly</SelectItem>
+                        </SelectContent>
+                      </Select>
                       
                       <Button
                         variant="outline"
@@ -572,7 +548,7 @@ export function InsightsView() {
                           const maxForward = timeAnalysisTimeFrame === 'week' ? 260 : timeAnalysisTimeFrame === 'month' ? 60 : 5;
                           setTimeOffset(prev => Math.min(maxForward, prev + 1));
                         }}
-                        className="p-2"
+                        className="h-9 w-9 p-0"
                         disabled={timeOffset >= (timeAnalysisTimeFrame === 'week' ? 260 : timeAnalysisTimeFrame === 'month' ? 60 : 5)}
                       >
                         <ChevronRight className="h-4 w-4" />
@@ -710,37 +686,20 @@ export function InsightsView() {
                 </div>
               </CardContent>
 
-              {/* Info popover bottom-right of the card */}
+              {/* Info button bottom-right of the card */}
               <div className="absolute bottom-6 right-6">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      aria-label="About Availability Used"
-                      className="rounded-full"
-                    >
-                      <Info className="w-4 h-4" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-80" side="top" align="end">
-                    <div className="space-y-2">
-                      <div className="font-medium text-sm">About Availability Used</div>
-                      <p className="text-xs text-gray-600">
-                        Grouped bars comparing available, utilized, and overbooked hours per period.
-                      </p>
-                      <div className="text-xs text-gray-700 space-y-1">
-                        <div className="font-medium">Keys</div>
-                        <ul className="list-disc pl-4 space-y-1">
-                          <li><span className="inline-block w-2 h-2 rounded-full align-middle mr-1" style={{background:'#e7e5e4'}}></span>Available (capacity)</li>
-                          <li><span className="inline-block w-2 h-2 rounded-full align-middle mr-1" style={{background:'#02c0b7'}}></span>Utilized (booked)</li>
-                          <li><span className="inline-block w-2 h-2 rounded-full align-middle mr-1" style={{background:'#dc2626'}}></span>Overbooked (excess)</li>
-                          <li>Timeframes: Weekly / Monthly / Yearly with navigation</li>
-                        </ul>
-                      </div>
-                    </div>
-                  </PopoverContent>
-                </Popover>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  aria-label="About Availability Used"
+                  className="h-9 w-9 rounded-full"
+                  onClick={() => {
+                    setHelpModalInitialTopic('insights-availability-used');
+                    setHelpModalOpen(true);
+                  }}
+                >
+                  <GraduationCap className="w-4 h-4" />
+                </Button>
               </div>
             </Card>
           </div>
@@ -753,6 +712,10 @@ export function InsightsView() {
                 events={events}
                 groups={groups || []}
                 projects={projects || []}
+                onHelpClick={() => {
+                  setHelpModalInitialTopic('insights-average-day');
+                  setHelpModalOpen(true);
+                }}
               />
             </div>
 
@@ -801,36 +764,20 @@ export function InsightsView() {
                 </div>
               </CardContent>
 
-              {/* Info popover bottom-right of the card */}
+              {/* Info button bottom-right of the card */}
               <div className="absolute bottom-6 right-6">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      aria-label="About Future Commitments"
-                      className="rounded-full"
-                    >
-                      <Info className="w-4 h-4" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-80" side="top" align="end">
-                    <div className="space-y-2">
-                      <div className="font-medium text-sm">About Future Commitments</div>
-                      <p className="text-xs text-gray-600">
-                        Summary of upcoming project workload based on estimated hours and start dates.
-                      </p>
-                      <div className="text-xs text-gray-700 space-y-1">
-                        <div className="font-medium">Includes</div>
-                        <ul className="list-disc pl-4 space-y-1">
-                          <li>Total estimated hours for future projects</li>
-                          <li>Upcoming projects count and next start in days</li>
-                          <li>Average project size (hours)</li>
-                        </ul>
-                      </div>
-                    </div>
-                  </PopoverContent>
-                </Popover>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  aria-label="About Future Commitments"
+                  className="h-9 w-9 rounded-full"
+                  onClick={() => {
+                    setHelpModalInitialTopic('insights-future-commitments');
+                    setHelpModalOpen(true);
+                  }}
+                >
+                  <GraduationCap className="w-4 h-4" />
+                </Button>
               </div>
             </Card>
           </div>
@@ -838,6 +785,12 @@ export function InsightsView() {
 
         </div>
       </div>
+      
+      <HelpModal 
+        open={helpModalOpen} 
+        onOpenChange={setHelpModalOpen} 
+        initialTopicId={helpModalInitialTopic}
+      />
     </div>
   );
 }

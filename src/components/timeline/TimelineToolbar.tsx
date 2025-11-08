@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { Button } from '../ui/button';
 import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group';
 import { DatePickerButton } from '../shared/DatePickerButton';
+import { HelpButton } from '../shared/HelpButton';
 import { ChevronLeft, ChevronRight, MapPin, Plus } from 'lucide-react';
 import { 
   createSmoothDragAnimation, 
@@ -29,6 +30,7 @@ interface TimelineToolbarProps {
   onViewportStartChange: (date: Date) => void;
   onAnimatingChange: (isAnimating: boolean) => void;
   onCreateNewProject: (groupId: string | null) => void;
+  onHelpClick: () => void;
 }
 
 export function TimelineToolbar({
@@ -46,7 +48,8 @@ export function TimelineToolbar({
   onCurrentDateChange,
   onViewportStartChange,
   onAnimatingChange,
-  onCreateNewProject
+  onCreateNewProject,
+  onHelpClick
 }: TimelineToolbarProps) {
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
@@ -232,16 +235,19 @@ export function TimelineToolbar({
           />
         </div>
         {/* Navigation Controls */}
-        <div className="flex items-center gap-0.5">
-          <Button variant="ghost" className="h-9 w-9 px-0" onClick={() => handleNavigate('prev')}>
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
-          <h2 className="text-sm font-semibold text-gray-900 text-center px-2">
-            {dateRangeText}
-          </h2>
-          <Button variant="ghost" className="h-9 w-9 px-0" onClick={() => handleNavigate('next')}>
-            <ChevronRight className="w-4 h-4" />
-          </Button>
+        <div className="flex items-center gap-3">
+          <HelpButton onClick={onHelpClick} />
+          <div className="flex items-center gap-0.5">
+            <Button variant="ghost" className="h-9 w-9 px-0" onClick={() => handleNavigate('prev')}>
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <h2 className="text-sm font-semibold text-gray-900 text-center px-2">
+              {dateRangeText}
+            </h2>
+            <Button variant="ghost" className="h-9 w-9 px-0" onClick={() => handleNavigate('next')}>
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
       </div>
     </AppPageLayout.SubHeader>

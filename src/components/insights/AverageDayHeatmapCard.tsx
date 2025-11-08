@@ -1,9 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
-import { Filter, Calendar, Info, Layers } from 'lucide-react';
+import { Filter, Calendar, GraduationCap, Layers } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { CalendarEvent, Group, Project } from '../../types';
 import { FilterModal } from './FilterModal';
 import { formatDuration, normalizeToMidnight, addDaysToDate } from '@/services';
@@ -33,12 +32,14 @@ interface AverageDayHeatmapCardProps {
   events: CalendarEvent[];
   groups: Group[];
   projects: Project[];
+  onHelpClick?: () => void;
 }
 
 export const AverageDayHeatmapCard: React.FC<AverageDayHeatmapCardProps> = ({
   events,
   groups,
-  projects
+  projects,
+  onHelpClick
 }) => {
   const [averagePeriod, setAveragePeriod] = useState<AveragePeriod>('month');
   const [layerMode, setLayerMode] = useState<LayerMode>('single');
@@ -487,7 +488,7 @@ export const AverageDayHeatmapCard: React.FC<AverageDayHeatmapCardProps> = ({
             </div>
             <div className="flex items-center gap-3">
               <Select value={averagePeriod} onValueChange={(value: AveragePeriod) => setAveragePeriod(value)}>
-                <SelectTrigger className="w-32">
+                <SelectTrigger className="h-9 w-32">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -498,7 +499,7 @@ export const AverageDayHeatmapCard: React.FC<AverageDayHeatmapCardProps> = ({
               </Select>
               
               <Select value={layerMode} onValueChange={(value: LayerMode) => setLayerMode(value)}>
-                <SelectTrigger className="w-32">
+                <SelectTrigger className="h-9 w-32">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -527,7 +528,7 @@ export const AverageDayHeatmapCard: React.FC<AverageDayHeatmapCardProps> = ({
                 variant="outline"
                 size="sm"
                 onClick={() => setIsFilterModalOpen(true)}
-                className="flex items-center gap-2"
+                className="h-9 flex items-center gap-2"
               >
                 <Filter className="h-4 w-4" />
                 Filters
@@ -679,48 +680,17 @@ export const AverageDayHeatmapCard: React.FC<AverageDayHeatmapCardProps> = ({
           </div>
         </CardContent>
 
-        {/* Info popover bottom-right of the card */}
+        {/* Info button bottom-right of the card */}
         <div className="absolute bottom-6 right-6">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                aria-label="About My Average Day"
-                className="rounded-full"
-              >
-                <Info className="w-4 h-4" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-80" side="top" align="end">
-              <div className="space-y-2">
-                <div className="font-medium text-sm">About My Average Day</div>
-                <p className="text-xs text-gray-600">
-                  Stream chart showing average work hours throughout the day based on your completed events.
-                </p>
-                <div className="text-xs text-gray-700 space-y-2">
-                  <div className="font-medium">How to Read</div>
-                  <ul className="list-disc pl-4 space-y-1">
-                    <li>X-axis: Time of day (00:00 to 23:30 in 30-min intervals)</li>
-                    <li>Y-axis: Hours worked (0 to 1.0 hour per time slot)</li>
-                    <li>Area shows average work duration for each time slot</li>
-                    <li>Higher peaks = more work during that time</li>
-                  </ul>
-                  <div className="font-medium">Layer Modes</div>
-                  <ul className="list-disc pl-4 space-y-1">
-                    <li><strong>Single:</strong> Total work time across all projects</li>
-                    <li><strong>By Group:</strong> Separate layers for each group</li>
-                    <li><strong>By Project:</strong> Separate layers for each project</li>
-                  </ul>
-                  <div className="font-medium">Settings</div>
-                  <ul className="list-disc pl-4 space-y-1">
-                    <li>Period: Last Week / Last Month / Last 6 Months</li>
-                    <li>Filters: Select specific groups/projects and days</li>
-                  </ul>
-                </div>
-              </div>
-            </PopoverContent>
-          </Popover>
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label="About My Average Day"
+            className="h-9 w-9 rounded-full"
+            onClick={onHelpClick}
+          >
+            <GraduationCap className="w-4 h-4" />
+          </Button>
         </div>
   </Card>
 

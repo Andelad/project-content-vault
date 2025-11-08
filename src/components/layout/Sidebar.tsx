@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTimelineContext } from '../../contexts/TimelineContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { Calendar, AlignLeft, Folders, Settings, ChevronLeft, ChevronRight, PieChart, MessageCircle, HelpCircle } from 'lucide-react';
+import { Calendar, AlignLeft, Folders, Settings, ChevronLeft, ChevronRight, PieChart, MessageSquare, GraduationCap } from 'lucide-react';
 import { supabase } from '../../integrations/supabase/client';
 import { Sheet, SheetContent } from '../ui/sheet';
 import { HelpModal } from '../modals/HelpModal';
@@ -112,13 +112,13 @@ export function Sidebar({
     {
       id: 'help' as const,
       label: 'Help',
-      icon: HelpCircle,
+      icon: GraduationCap,
       onClick: () => setHelpModalOpen(true),
     },
     {
       id: 'feedback' as const,
       label: 'Feedback',
-      icon: MessageCircle,
+      icon: MessageSquare,
       onClick: () => setFeedbackModalOpen(true),
     },
   ];

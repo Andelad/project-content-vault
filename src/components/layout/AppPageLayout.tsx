@@ -52,7 +52,7 @@ export function AppPageSubHeader({ children, className }: AppPageSubHeaderProps)
 
 export function AppPageContent({ children, className }: AppPageContentProps) {
   return (
-    <div className={cn("flex-1 flex flex-col px-6 pb-6 min-h-0", className)}>
+    <div className={cn("flex-1 flex flex-col min-h-0", className)}>
       {children}
     </div>
   );
