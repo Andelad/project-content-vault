@@ -8,9 +8,9 @@ import { useTimelineContext } from '@/contexts/TimelineContext';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import { formatDateLong, formatDateRange as formatDateRangeUtil } from '@/utils/dateFormatUtils';
 import { addDaysToDate, normalizeToMidnight } from '@/services';
-import { EstimatedTimeCard, WeekNavigationBar } from '@/components/planner';
+import { EstimatedTimeCard, WeekNavigationBar } from '@/components/features/planner';
 import { AvailabilityCard } from '@/components/shared';
-import { PlannerToolbar } from './planner';
+import { PlannerToolbar } from '@/components/features/planner';
 import { HABIT_ICON_SVG, TASK_ICON_SVG } from '@/constants/icons';
 import { NEUTRAL_COLORS } from '@/constants/colors';
 import { getBaseFullCalendarConfig, getEventStylingConfig, getResponsiveDayCount } from '@/services';
@@ -22,7 +22,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useSwipeNavigation } from '@/hooks/useSwipeNavigation';
 import { useCalendarKeyboardShortcuts } from '@/hooks/useCalendarKeyboardShortcuts';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
-import '../planner/fullcalendar-overrides.css';
+import '@/components/features/planner/fullcalendar-overrides.css';
 // Modal imports
 const EventModal = React.lazy(() => import('../modals/EventModal').then(module => ({ default: module.EventModal })));
 const HelpModal = React.lazy(() => import('../modals/HelpModal').then(module => ({ default: module.HelpModal })));
@@ -449,7 +449,9 @@ export function PlannerView() {
       // Calculate height for layout
       const durationInMs = event.end ? event.end.getTime() - event.start.getTime() : 0;
       const durationInMinutes = durationInMs / (1000 * 60);
-      const approximateHeight = (durationInMinutes / 15) * 21;
+      const approximateHeight = settings?.isCompactView 
+        ? (durationInMinutes / 30) * 15  // Compact: 15px per 30-minute slot
+        : (durationInMinutes / 15) * 21; // Expanded: 21px per 15-minute slot
       const showTwoLines = approximateHeight >= 32;
       return {
         html: `
@@ -525,11 +527,13 @@ export function PlannerView() {
                     title="${isCompleted ? 'Mark as not completed' : 'Mark as completed'}">${checkIconSvg}</button>`;
     }
     // Calculate approximate event height in pixels
-    // FullCalendar with slotDuration: '00:15:00' typically renders at ~21px per 15-min slot
-    // This means ~84px per hour
+    // Expanded view: slotDuration '00:15:00' renders at ~21px per 15-min slot (~84px per hour)
+    // Compact view: 30-min slots at 15px each (30px per hour)
     const durationInMs = event.end ? event.end.getTime() - event.start.getTime() : 0;
     const durationInMinutes = durationInMs / (1000 * 60);
-    const approximateHeight = (durationInMinutes / 15) * 21; // 21px per 15-minute slot
+    const approximateHeight = settings?.isCompactView 
+      ? (durationInMinutes / 30) * 15  // Compact: 15px per 30-minute slot
+      : (durationInMinutes / 15) * 21; // Expanded: 21px per 15-minute slot
     // Very tight thresholds - just enough space for each line to render:
     // - 1 line (description only): ~18px (font-size 12px + line-height 1.2 + padding)
     // - 2 lines (time + description): ~32px (two lines + gap + padding)
@@ -578,7 +582,7 @@ export function PlannerView() {
         </div>
       `
     };
-  }, [projects, isTimeTracking, currentTrackingEventId]);
+  }, [projects, isTimeTracking, currentTrackingEventId, settings?.isCompactView]);
   // Handle completion toggle for events
   const handleCompletionToggle = useCallback(async (eventId: string) => {
     const result = await plannerOrchestrator.handleCompletionToggle(eventId);

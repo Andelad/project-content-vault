@@ -25,13 +25,13 @@ import { useTimelineData } from '../../hooks/useTimelineData';
 import { useDynamicViewportDays } from '../../hooks/useDynamicViewportDays';
 import { useHolidayDrag } from '../../hooks/useHolidayDrag';
 import { useProjectResize } from '../../hooks/useProjectResize';
-import { TimelineDateHeader } from '../timeline/TimelineDateHeader';
-import { TimelineBackground } from '../timeline/TimelineBackground';
-import { TimelineCard } from '../timeline/TimelineCard';
+import { TimelineDateHeader } from '@/components/features/timeline/TimelineDateHeader';
+import { TimelineBackground } from '@/components/features/timeline/TimelineBackground';
+import { TimelineCard } from '@/components/features/timeline/TimelineCard';
 import { AvailabilityCard } from '../shared/AvailabilityCard';
-import { HolidayBar } from '../timeline/HolidayBar';
+import { HolidayBar } from '@/components/features/timeline/HolidayBar';
 import { AppPageLayout } from '../layout/AppPageLayout';
-import { TimelineToolbar } from '../timeline/TimelineToolbar';
+import { TimelineToolbar } from '@/components/features/timeline/TimelineToolbar';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 // Lazy load heavy modals
 const ProjectModal = React.lazy(() => import('../modals/ProjectModal').then(module => ({ default: module.ProjectModal })));

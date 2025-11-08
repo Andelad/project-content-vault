@@ -21,7 +21,7 @@ import { Badge } from '../ui/badge';
 import { NEUTRAL_COLORS } from '@/constants/colors';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Checkbox } from '../ui/checkbox';
-import { AverageDayHeatmapCard } from '../insights/AverageDayHeatmapCard';
+import { AverageDayHeatmapCard } from '@/components/features/insights/AverageDayHeatmapCard';
 import { formatMonthYear, formatMonthLongYear, formatMonth, formatDateShort, APP_LOCALE } from '@/utils/dateFormatUtils';
 import { 
   calculateFutureCommitments,

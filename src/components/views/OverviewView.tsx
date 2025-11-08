@@ -27,7 +27,7 @@ import { GroupOrchestrator } from '@/services/orchestrators/GroupOrchestrator';
 import { NEUTRAL_COLORS } from '@/constants/colors';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 import { TabComponent } from '../shared';
-import { ClientsTab, HolidaysTab, ProjectsTab } from './overview';
+import { ClientsTab, HolidaysTab, ProjectsTab } from '@/components/features/overview';
 type FilterByStatus = 'all' | 'active' | 'future' | 'past';
 type OrganizeBy = 'group' | 'tag' | 'client';
 type MainTab = 'projects' | 'clients' | 'holidays';

@@ -3,17 +3,15 @@
  * Feature-based component organization
  */
 
-// Feature-specific components
-export * from './settings';
-export * from './timeline';
-export * from './projects';
-export * from './insights';
-export * from './tracker';
-export * from './planner';
-export * from './modals';
-export * from './dialog';
-export * from './debug';
+// View components (page-level components only)
 export * from './views';
+
+// Feature modules (feature-specific components)
+export * from './features';
+
+// Shared components
+export * from './modals';
+export * from './debug';
 export * from './layout';
 export * from './shared';
 
