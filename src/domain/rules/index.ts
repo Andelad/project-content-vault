@@ -7,6 +7,7 @@
 
 export * from './ProjectRules';
 export * from './MilestoneRules';
+export * from './PhaseRules';
 export * from './RelationshipRules';
 export * from './TimelineRules';
 export * from './ClientRules';

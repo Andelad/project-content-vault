@@ -2,16 +2,15 @@
  * useClients Hook - Phase 5B
  * 
  * React hook for managing client entities.
- * Provides CRUD operations and real-time synchronization via Supabase.
+ * Coordinates ClientOrchestrator for CRUD operations.
  * 
  * @module useClients
  */
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { Client, ClientStatus } from '@/types/core';
+import { Client } from '@/types/core';
 import { useToast } from '@/hooks/use-toast';
-import { ClientRules } from '@/domain/rules/ClientRules';
+import { ClientOrchestrator } from '@/services/orchestrators/ClientOrchestrator';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 export interface UseClientsReturn {
@@ -41,38 +40,15 @@ export function useClients(): UseClientsReturn {
       setLoading(true);
       setError(null);
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('User not authenticated');
-      }
-
-      const { data, error: fetchError } = await supabase
-        .from('clients')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('name', { ascending: true });
-
-      if (fetchError) throw fetchError;
-
-      // Map snake_case to camelCase
-      const mappedClients: Client[] = (data || []).map(row => ({
-        id: row.id,
-        userId: row.user_id,
-        name: row.name,
-        status: row.status as ClientStatus,
-        contactEmail: row.contact_email,
-        contactPhone: row.contact_phone,
-        billingAddress: row.billing_address,
-        notes: row.notes,
-        createdAt: new Date(row.created_at),
-        updatedAt: new Date(row.updated_at),
-      }));
-
-      setClients(mappedClients);
+      const fetchedClients = await ClientOrchestrator.getAllClients();
+      setClients(fetchedClients);
     } catch (err) {
       const error = err as Error;
       setError(error);
-      ErrorHandlingService.handle(error, { source: 'useClients', action: 'Error fetching clients:' });
+      ErrorHandlingService.handle(error, { 
+        source: 'useClients', 
+        action: 'Error fetching clients' 
+      });
       toast({
         title: 'Error loading clients',
         description: error.message,
@@ -88,62 +64,32 @@ export function useClients(): UseClientsReturn {
    */
   const addClient = async (clientData: Partial<Client>): Promise<Client | null> => {
     try {
-      // Validate client data before submission
-      const validation = ClientRules.validateClient(clientData);
-      if (!validation.isValid) {
+      const result = await ClientOrchestrator.createClientWorkflow(clientData);
+      
+      if (!result.success) {
         toast({
           title: 'Validation Error',
-          description: validation.errors.join(', '),
+          description: result.errors?.join(', '),
           variant: 'destructive',
         });
         return null;
       }
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('User not authenticated');
-      }
-
-      const { data, error: insertError } = await supabase
-        .from('clients')
-        .insert([{
-          user_id: user.id,
-          name: clientData.name,
-          status: clientData.status || 'active',
-          contact_email: clientData.contactEmail,
-          contact_phone: clientData.contactPhone,
-          billing_address: clientData.billingAddress,
-          notes: clientData.notes,
-        }])
-        .select()
-        .single();
-
-      if (insertError) throw insertError;
-
-      const newClient: Client = {
-        id: data.id,
-        userId: data.user_id,
-        name: data.name,
-        status: data.status as ClientStatus,
-        contactEmail: data.contact_email,
-        contactPhone: data.contact_phone,
-        billingAddress: data.billing_address,
-        notes: data.notes,
-        createdAt: new Date(data.created_at),
-        updatedAt: new Date(data.updated_at),
-      };
-
-      setClients(prev => [...prev, newClient]);
+      // Refresh clients list
+      await fetchClients();
 
       toast({
         title: 'Client created',
-        description: `${newClient.name} has been added successfully.`,
+        description: `${result.client?.name} has been added successfully.`,
       });
 
-      return newClient;
+      return result.client || null;
     } catch (err) {
       const error = err as Error;
-      ErrorHandlingService.handle(error, { source: 'useClients', action: 'Error adding client:' });
+      ErrorHandlingService.handle(error, { 
+        source: 'useClients', 
+        action: 'Error adding client' 
+      });
       toast({
         title: 'Error creating client',
         description: error.message,
@@ -158,38 +104,19 @@ export function useClients(): UseClientsReturn {
    */
   const updateClient = async (id: string, updates: Partial<Client>): Promise<void> => {
     try {
-      // Validate updates before submission
-      const validation = ClientRules.validateClient(updates);
-      if (!validation.isValid) {
+      const result = await ClientOrchestrator.updateClientWorkflow(id, updates);
+      
+      if (!result.success) {
         toast({
           title: 'Validation Error',
-          description: validation.errors.join(', '),
+          description: result.errors?.join(', '),
           variant: 'destructive',
         });
-        throw new Error(validation.errors.join(', '));
+        throw new Error(result.errors?.join(', '));
       }
 
-      const { error: updateError } = await supabase
-        .from('clients')
-        .update({
-          name: updates.name,
-          status: updates.status,
-          contact_email: updates.contactEmail,
-          contact_phone: updates.contactPhone,
-          billing_address: updates.billingAddress,
-          notes: updates.notes,
-        })
-        .eq('id', id);
-
-      if (updateError) throw updateError;
-
-      setClients(prev =>
-        prev.map(client =>
-          client.id === id
-            ? { ...client, ...updates, updatedAt: new Date() }
-            : client
-        )
-      );
+      // Refresh clients list
+      await fetchClients();
 
       toast({
         title: 'Client updated',
@@ -197,7 +124,10 @@ export function useClients(): UseClientsReturn {
       });
     } catch (err) {
       const error = err as Error;
-      ErrorHandlingService.handle(error, { source: 'useClients', action: 'Error updating client:' });
+      ErrorHandlingService.handle(error, { 
+        source: 'useClients', 
+        action: 'Error updating client' 
+      });
       toast({
         title: 'Error updating client',
         description: error.message,
@@ -213,17 +143,10 @@ export function useClients(): UseClientsReturn {
    */
   const deleteClient = async (id: string): Promise<void> => {
     try {
-      const { error: deleteError } = await supabase
-        .from('clients')
-        .delete()
-        .eq('id', id);
-
-      if (deleteError) {
-        // Check if it's a foreign key constraint error
-        if (deleteError.code === '23503') {
-          throw new Error('Cannot delete client with associated projects. Delete projects first or use cascade delete.');
-        }
-        throw deleteError;
+      const result = await ClientOrchestrator.deleteClientWorkflow(id);
+      
+      if (!result.success) {
+        throw new Error(result.errors?.join(', ') || 'Delete failed');
       }
 
       setClients(prev => prev.filter(client => client.id !== id));
@@ -234,7 +157,10 @@ export function useClients(): UseClientsReturn {
       });
     } catch (err) {
       const error = err as Error;
-      ErrorHandlingService.handle(error, { source: 'useClients', action: 'Error deleting client:' });
+      ErrorHandlingService.handle(error, { 
+        source: 'useClients', 
+        action: 'Error deleting client' 
+      });
       toast({
         title: 'Error deleting client',
         description: error.message,

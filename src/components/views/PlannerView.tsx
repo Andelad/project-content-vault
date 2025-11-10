@@ -1,27 +1,42 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import { Calendar, EventClickArg, EventDropArg, DateSelectArg } from '@fullcalendar/core';
-import moment from 'moment';
 import { usePlannerContext } from '@/contexts/PlannerContext';
 import { useProjectContext } from '@/contexts/ProjectContext';
 import { useTimelineContext } from '@/contexts/TimelineContext';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import { formatDateLong, formatDateRange as formatDateRangeUtil } from '@/utils/dateFormatUtils';
-import { addDaysToDate, normalizeToMidnight } from '@/services';
-import { EstimatedTimeCard, WeekNavigationBar } from '@/components/features/planner';
+import { 
+  addDaysToDate, 
+  normalizeToMidnight,
+  formatTimeForValidation,
+  getBaseFullCalendarConfig, 
+  getEventStylingConfig,
+  transformFullCalendarToCalendarEvent,
+  UnifiedWorkHoursService,
+  UnifiedCalendarService,
+  ErrorHandlingService,
+  type LayerVisibility
+} from '@/services';
+import { 
+  EstimatedTimeCard, 
+  WeekNavigationBar, 
+  PlannerToolbar,
+  WorkHourEventContent,
+  HabitEventContent,
+  TaskEventContent,
+  RegularEventContent
+} from '@/components/features/planner';
 import { AvailabilityCard } from '@/components/shared';
-import { PlannerToolbar } from '@/components/features/planner';
-import { HABIT_ICON_SVG, TASK_ICON_SVG } from '@/constants/icons';
+import { HABIT_ICON_SVG } from '@/constants/icons';
 import { NEUTRAL_COLORS } from '@/constants/colors';
-import { getBaseFullCalendarConfig, getEventStylingConfig, getResponsiveDayCount } from '@/services';
-// Holidays now sourced from PlannerContext to avoid duplicate fetch/state
 import { getDateKey } from '@/utils/dateFormatUtils';
-import { transformFullCalendarToCalendarEvent } from '@/services';
 import { createPlannerViewOrchestrator, type PlannerInteractionContext } from '@/services/orchestrators/PlannerViewOrchestrator';
 import { useToast } from '@/hooks/use-toast';
 import { useSwipeNavigation } from '@/hooks/useSwipeNavigation';
 import { useCalendarKeyboardShortcuts } from '@/hooks/useCalendarKeyboardShortcuts';
-import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import { useCalendarDragDrop } from '@/hooks/useCalendarDragDrop';
+import { useHoverableDateHeaders } from '@/hooks/useHoverableDateHeaders';
 import '@/components/features/planner/fullcalendar-overrides.css';
 // Modal imports
 const EventModal = React.lazy(() => import('../modals/EventModal').then(module => ({ default: module.EventModal })));
@@ -193,10 +208,13 @@ export function PlannerView() {
         dropInfo.revert();
         return;
       }
-      // Parse the work hour ID to get day and slot info
-      // Format: settings-{dayName}-{slotId}
-      const match = workHour.id.match(/^settings-(\w+)-([^-]+)$/);
-      if (!match || !settings?.weeklyWorkHours) {
+      const settingsUpdate = UnifiedWorkHoursService.prepareWorkHoursUpdate(
+        settings,
+        workHour.id,
+        newStart,
+        newEnd
+      );
+      if (!settingsUpdate) {
         toast({
           title: "Cannot update work slot",
           description: "Work slot configuration error",
@@ -205,31 +223,7 @@ export function PlannerView() {
         dropInfo.revert();
         return;
       }
-      const [, dayName, slotId] = match;
-      const weeklyWorkHours = settings.weeklyWorkHours;
-      const daySlots = weeklyWorkHours[dayName as keyof typeof weeklyWorkHours] || [];
-      // Update the slot with new times
-      const updatedSlots = daySlots.map(slot => {
-        if (slot.id === slotId) {
-          const startHours = newStart.getHours().toString().padStart(2, '0');
-          const startMins = newStart.getMinutes().toString().padStart(2, '0');
-          const endHours = newEnd.getHours().toString().padStart(2, '0');
-          const endMins = newEnd.getMinutes().toString().padStart(2, '0');
-          return {
-            ...slot,
-            startTime: `${startHours}:${startMins}`,
-            endTime: `${endHours}:${endMins}`,
-            duration: (newEnd.getTime() - newStart.getTime()) / (1000 * 60 * 60)
-          };
-        }
-        return slot;
-      });
-      await updateSettings({
-        weeklyWorkHours: {
-          ...weeklyWorkHours,
-          [dayName]: updatedSlots
-        }
-      });
+      await updateSettings(settingsUpdate);
       // Settings updated successfully, useEffect will trigger calendar refetch
       return;
     }
@@ -273,9 +267,13 @@ export function PlannerView() {
         resizeInfo.revert();
         return;
       }
-      // Parse the work hour ID to get day and slot info
-      const match = workHour.id.match(/^settings-(\w+)-([^-]+)$/);
-      if (!match || !settings?.weeklyWorkHours) {
+      const settingsUpdate = UnifiedWorkHoursService.prepareWorkHoursUpdate(
+        settings,
+        workHour.id,
+        newStart,
+        newEnd
+      );
+      if (!settingsUpdate) {
         toast({
           title: "Cannot update work slot",
           description: "Work slot configuration error",
@@ -284,31 +282,7 @@ export function PlannerView() {
         resizeInfo.revert();
         return;
       }
-      const [, dayName, slotId] = match;
-      const weeklyWorkHours = settings.weeklyWorkHours;
-      const daySlots = weeklyWorkHours[dayName as keyof typeof weeklyWorkHours] || [];
-      // Update the slot with new times
-      const updatedSlots = daySlots.map(slot => {
-        if (slot.id === slotId) {
-          const startHours = newStart.getHours().toString().padStart(2, '0');
-          const startMins = newStart.getMinutes().toString().padStart(2, '0');
-          const endHours = newEnd.getHours().toString().padStart(2, '0');
-          const endMins = newEnd.getMinutes().toString().padStart(2, '0');
-          return {
-            ...slot,
-            startTime: `${startHours}:${startMins}`,
-            endTime: `${endHours}:${endMins}`,
-            duration: (newEnd.getTime() - newStart.getTime()) / (1000 * 60 * 60)
-          };
-        }
-        return slot;
-      });
-      await updateSettings({
-        weeklyWorkHours: {
-          ...weeklyWorkHours,
-          [dayName]: updatedSlots
-        }
-      });
+      await updateSettings(settingsUpdate);
       // Settings updated successfully, useEffect will trigger calendar refetch
       toast({
         title: "Work slot updated",
@@ -427,8 +401,8 @@ export function PlannerView() {
     // Render work hours with italic label
     if (extendedProps.isWorkHour) {
       const workHour = extendedProps.originalWorkHour;
-      const start = moment(event.start).format('HH:mm');
-      const end = moment(event.end).format('HH:mm');
+      const start = formatTimeForValidation(event.start);
+      const end = formatTimeForValidation(event.end);
       return {
         html: `
           <div style="height: 100%; display: flex; flex-direction: column; padding: 4px 6px; overflow: hidden;">
@@ -444,8 +418,8 @@ export function PlannerView() {
     }
     // Render habits with croissant icon (no completion checkbox)
     if (extendedProps.category === 'habit') {
-      const start = moment(event.start).format('HH:mm');
-      const end = moment(event.end).format('HH:mm');
+      const start = formatTimeForValidation(event.start);
+      const end = formatTimeForValidation(event.end);
       // Calculate height for layout
       const durationInMs = event.end ? event.end.getTime() - event.start.getTime() : 0;
       const durationInMinutes = durationInMs / (1000 * 60);
@@ -499,8 +473,8 @@ export function PlannerView() {
     const projectId = extendedProps.projectId;
     const project = projectId ? projects.find(p => p.id === projectId) : null;
     // Format time
-    const start = moment(event.start).format('HH:mm');
-    const end = moment(event.end).format('HH:mm');
+    const start = formatTimeForValidation(event.start);
+    const end = formatTimeForValidation(event.end);
     // Get event title - manual entry always takes precedence
     const eventType = extendedProps.type;
     const description = event.title;
@@ -629,45 +603,11 @@ export function PlannerView() {
       });
     });
   }, [settings?.isCompactView, updateSettings]);
-  // Convert work hours to FullCalendar businessHours format
-  const businessHoursConfig = useMemo(() => {
-    if (!settings?.weeklyWorkHours) {
-      return {
-        daysOfWeek: [1, 2, 3, 4, 5], // Default: Monday - Friday
-        startTime: '09:00',
-        endTime: '17:00'
-      };
-    }
-    // Map day names to FullCalendar day numbers (0=Sunday, 1=Monday, etc.)
-    const dayMap: Record<string, number> = {
-      sunday: 0,
-      monday: 1,
-      tuesday: 2,
-      wednesday: 3,
-      thursday: 4,
-      friday: 5,
-      saturday: 6
-    };
-    // Convert work slots to FullCalendar businessHours array format
-    const businessHours: any[] = [];
-    Object.entries(settings.weeklyWorkHours).forEach(([dayName, slots]) => {
-      const dayNumber = dayMap[dayName.toLowerCase()];
-      if (slots && slots.length > 0) {
-        slots.forEach(slot => {
-          businessHours.push({
-            daysOfWeek: [dayNumber],
-            startTime: slot.startTime,
-            endTime: slot.endTime
-          });
-        });
-      }
-    });
-    return businessHours.length > 0 ? businessHours : {
-      daysOfWeek: [1, 2, 3, 4, 5],
-      startTime: '09:00',
-      endTime: '17:00'
-    };
-  }, [settings?.weeklyWorkHours]);
+  // Convert work hours to FullCalendar businessHours format using UnifiedCalendarService
+  const businessHoursConfig = useMemo(() => 
+    UnifiedCalendarService.getBusinessHoursConfig(settings),
+    [settings]
+  );
   // Prepare FullCalendar configuration
   const calendarConfig = {
     ...getBaseFullCalendarConfig(settings?.isCompactView || false),
@@ -677,24 +617,11 @@ export function PlannerView() {
     events: (fetchInfo: any, successCallback: any, failureCallback: any) => {
       try {
         const allEvents = getStyledFullCalendarEvents({ selectedEventId, projects });
-        // Filter events based on layer visibility
-        const filteredEvents = allEvents.filter((event: any) => {
-          const category = event.extendedProps?.category;
-          const isWorkHour = event.extendedProps?.isWorkHour;
-          // Work hours filtering
-          if (isWorkHour) {
-            return layerVisibility.workHours;
-          }
-          // Category-based filtering
-          if (category === 'habit') {
-            return layerVisibility.habits;
-          }
-          if (category === 'task') {
-            return layerVisibility.tasks;
-          }
-          // Default to events layer
-          return layerVisibility.events;
-        });
+        // Filter events based on layer visibility using UnifiedCalendarService
+        const filteredEvents = UnifiedCalendarService.filterEventsByLayerVisibility(
+          allEvents,
+          layerVisibility
+        );
         successCallback(filteredEvents);
       } catch (error) {
         ErrorHandlingService.handle(error, { source: 'PlannerView', action: 'Error fetching events:' });
@@ -793,148 +720,13 @@ export function PlannerView() {
       calendarApi.refetchEvents();
     }
   }, [layerVisibility]);
-  // Removed early calendarReady timeout to avoid pre-ready fallback flashes
-  // Add hoverable functionality to date headers after calendar renders
-  useEffect(() => {
-    const addHoverableHeaders = () => {
-      const calendar = calendarRef.current?.getApi();
-      if (!calendar) return;
-      // Find all column header cells
-      const headerCells = document.querySelectorAll('.fc-col-header-cell');
-      headerCells.forEach((cell) => {
-        // Skip if already processed
-        if (cell.hasAttribute('data-hoverable-processed')) return;
-        // Mark as processed
-        cell.setAttribute('data-hoverable-processed', 'true');
-        // Get the date for this cell
-        const dateAttr = cell.getAttribute('data-date');
-        if (!dateAttr) return;
-        const cellDate = new Date(dateAttr);
-        // Add hover and click functionality
-        let isHovered = false;
-        let hoverOverlay: HTMLElement | null = null;
-        let tooltip: HTMLElement | null = null;
-        let hoverTimeout: NodeJS.Timeout | null = null;
-        const handleMouseEnter = () => {
-          if (isHovered) return;
-          isHovered = true;
-          // Add 300ms delay to match React tooltip
-          hoverTimeout = setTimeout(() => {
-            if (!isHovered) return; // Check if still hovered after delay
-            // Create and append hover overlay
-            hoverOverlay = document.createElement('div');
-            hoverOverlay.className = 'absolute inset-0 flex items-center justify-center pointer-events-none z-50';
-            hoverOverlay.innerHTML = `
-              <div class="bg-white bg-opacity-90 rounded-full p-1 shadow-sm border">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <line x1="21" y1="6" x2="3" y2="6"></line>
-                  <line x1="15" y1="12" x2="3" y2="12"></line>
-                  <line x1="17" y1="18" x2="3" y2="18"></line>
-                </svg>
-              </div>
-            `;
-            // Create tooltip that matches React component styling
-            tooltip = document.createElement('div');
-            // Get cell position relative to viewport for fixed positioning
-            const cellRect = cell.getBoundingClientRect();
-            tooltip.style.cssText = `
-              position: fixed;
-              top: ${cellRect.top - 40}px;
-              left: ${cellRect.left + cellRect.width / 2}px;
-              transform: translateX(-50%) scale(0.95);
-              background: ${NEUTRAL_COLORS.gray50};
-              color: ${NEUTRAL_COLORS.gray800};
-              border: 1px solid ${NEUTRAL_COLORS.gray200};
-              border-radius: 6px;
-              padding: 6px 12px;
-              font-size: 14px;
-              white-space: nowrap;
-              pointer-events: none;
-              z-index: 99999;
-              box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-              opacity: 0;
-              transition: opacity 150ms ease-in-out, transform 150ms ease-in-out;
-            `;
-            tooltip.innerHTML = 'Go to Timeline';
-            // Make cell content semi-transparent
-            const cellContent = cell.querySelector('.fc-col-header-cell-cushion');
-            if (cellContent) {
-              (cellContent as HTMLElement).style.opacity = '0.3';
-            }
-            // Make cell position relative for overlay positioning
-            (cell as HTMLElement).style.position = 'relative';
-            (cell as HTMLElement).style.cursor = 'pointer';
-            cell.appendChild(hoverOverlay);
-            // Append tooltip to document body instead of cell to avoid clipping
-            document.body.appendChild(tooltip);
-            // Trigger animation after a frame to ensure DOM is updated
-            requestAnimationFrame(() => {
-              if (tooltip) {
-                tooltip.style.opacity = '1';
-                tooltip.style.transform = 'translateX(-50%) scale(1)';
-              }
-            });
-          }, 300);
-        };
-        const handleMouseLeave = () => {
-          if (!isHovered) return;
-          isHovered = false;
-          // Clear timeout if still pending
-          if (hoverTimeout) {
-            clearTimeout(hoverTimeout);
-            hoverTimeout = null;
-          }
-          // Remove hover overlay
-          if (hoverOverlay) {
-            hoverOverlay.remove();
-            hoverOverlay = null;
-          }
-          // Remove tooltip with fade out animation
-          if (tooltip) {
-            tooltip.style.opacity = '0';
-            tooltip.style.transform = 'translateX(-50%) scale(0.95)';
-            // Remove from DOM after animation
-            setTimeout(() => {
-              if (tooltip) {
-                tooltip.remove();
-                tooltip = null;
-              }
-            }, 150);
-          }
-          // Restore cell content opacity
-          const cellContent = cell.querySelector('.fc-col-header-cell-cushion');
-          if (cellContent) {
-            (cellContent as HTMLElement).style.opacity = '1';
-          }
-        };
-        const handleClick = () => {
-          // Navigate to timeline at the specified date
-          setCurrentDate(new Date(cellDate));
-          setTimelineView('timeline');
-        };
-        // Add event listeners
-        cell.addEventListener('mouseenter', handleMouseEnter);
-        cell.addEventListener('mouseleave', handleMouseLeave);
-        cell.addEventListener('click', handleClick);
-      });
-    };
-    // Add headers after a short delay to ensure calendar is rendered
-    const timeoutId = setTimeout(addHoverableHeaders, 100);
-    return () => {
-      clearTimeout(timeoutId);
-      // Clean up any processed headers
-      const headerCells = document.querySelectorAll('.fc-col-header-cell[data-hoverable-processed]');
-      headerCells.forEach((cell) => {
-        cell.removeAttribute('data-hoverable-processed');
-        (cell as HTMLElement).style.position = '';
-        (cell as HTMLElement).style.cursor = '';
-        const cellContent = cell.querySelector('.fc-col-header-cell-cushion');
-        if (cellContent) {
-          (cellContent as HTMLElement).style.opacity = '';
-        }
-      });
-    };
-  }, [calendarDate, currentView, setCurrentDate, setTimelineView]);
+  // Add hoverable functionality to date headers using custom hook
+  useHoverableDateHeaders({
+    calendarDate,
+    currentView,
+    setCurrentDate,
+    setTimelineView
+  });
   // Scroll to show current time + 2 hours at the bottom of viewport
   useEffect(() => {
     const scrollToCurrentTime = () => {
@@ -998,106 +790,14 @@ export function PlannerView() {
     setCalendarDate(date);
     setCurrentDate(date);
   }, [setCurrentDate]);
-  // Handle drop from project summary row
-  useEffect(() => {
-    const calendarEl = document.querySelector('.fc-timegrid-body');
-    if (!calendarEl) return;
-    const handleDragOver = (e: DragEvent) => {
-      e.preventDefault();
-      e.dataTransfer!.dropEffect = 'copy';
-    };
-    const handleDrop = async (e: DragEvent) => {
-      e.preventDefault();
-      try {
-        const data = JSON.parse(e.dataTransfer!.getData('application/json'));
-        if (data.type !== 'project-estimate') return;
-        const calendarApi = calendarRef.current?.getApi();
-        if (!calendarApi) return;
-        // Get the column (day) from the mouse position
-        const timeSlotElements = document.querySelectorAll('.fc-timegrid-col');
-        let targetDate: Date | null = null;
-        // Find which column was dropped on
-        for (const col of Array.from(timeSlotElements)) {
-          const rect = col.getBoundingClientRect();
-          if (e.clientX >= rect.left && e.clientX <= rect.right) {
-            const dataDate = col.getAttribute('data-date');
-            if (dataDate) {
-              targetDate = new Date(dataDate);
-              // Calculate time from Y position within the column
-              const relativeY = e.clientY - rect.top;
-              const totalHeight = rect.height;
-              const fractionOfDay = relativeY / totalHeight;
-              // Assuming 24-hour day view
-              const totalMinutes = 24 * 60;
-              const minutesFromMidnight = fractionOfDay * totalMinutes;
-              // Round to nearest 15 minutes
-              const roundedMinutes = Math.round(minutesFromMidnight / 15) * 15;
-              const hours = Math.floor(roundedMinutes / 60);
-              const minutes = roundedMinutes % 60;
-              targetDate.setHours(hours, minutes, 0, 0);
-              break;
-            }
-          }
-        }
-        if (!targetDate) {
-          toast({
-            title: "Invalid drop location",
-            description: "Please drop on the calendar grid",
-            variant: "destructive",
-            duration: 3000,
-          });
-          return;
-        }
-        const startTime = targetDate;
-        // Calculate end time based on estimated hours
-        const endTime = new Date(startTime);
-        endTime.setHours(endTime.getHours() + Math.floor(data.estimatedHours));
-        endTime.setMinutes(endTime.getMinutes() + Math.round((data.estimatedHours % 1) * 60));
-        // Check for overlapping events and compress if needed
-        const overlappingEvents = events.filter(event => {
-          if (event.projectId !== data.projectId) return false;
-          const eventStart = new Date(event.startTime);
-          const eventEnd = new Date(event.endTime);
-          return (startTime < eventEnd && endTime > eventStart);
-        });
-        let finalEndTime = endTime;
-        if (overlappingEvents.length > 0) {
-          // Find the earliest overlapping event
-          const earliestOverlap = overlappingEvents.reduce((earliest, event) => {
-            const eventStart = new Date(event.startTime);
-            return eventStart < earliest ? eventStart : earliest;
-          }, new Date(endTime));
-          // Compress to fit before the overlap
-          if (earliestOverlap > startTime) {
-            finalEndTime = earliestOverlap;
-          } else {
-            // Can't fit, show toast
-            toast({
-              title: "Cannot create event",
-              description: "No space available at this time",
-              variant: "destructive",
-              duration: 3000,
-            });
-            return;
-          }
-        }
-        // Create the event - store project ID for modal to use
-        (window as any).__pendingEventProjectId = data.projectId;
-        setCreatingNewEvent({
-          startTime,
-          endTime: finalEndTime
-        });
-      } catch (error) {
-        ErrorHandlingService.handle(error, { source: 'PlannerView', action: 'Error handling drop:' });
-      }
-    };
-    calendarEl.addEventListener('dragover', handleDragOver as EventListener);
-    calendarEl.addEventListener('drop', handleDrop as EventListener);
-    return () => {
-      calendarEl.removeEventListener('dragover', handleDragOver as EventListener);
-      calendarEl.removeEventListener('drop', handleDrop as EventListener);
-    };
-  }, [events, toast, setCreatingNewEvent]);
+  
+  // Handle drop from project summary row using custom hook
+  useCalendarDragDrop({
+    calendarRef,
+    events,
+    setCreatingNewEvent,
+    toast
+  });
   // Keep FullCalendar sized to its container (e.g., on sidebar toggle)
   useEffect(() => {
     const el = calendarCardRef.current;
@@ -1250,7 +950,7 @@ export function PlannerView() {
         visibleStartDate={visibleRange.start}
         visibleEndDate={visibleRange.end}
         weekStartDate={weekStart}
-        visibleDayCount={getResponsiveDayCount()}
+        visibleDayCount={UnifiedCalendarService.getResponsiveDayCount()}
         onDayClick={handleWeekNavDayClick}
         show={currentView === 'week' && (viewportSize === 'mobile' || viewportSize === 'tablet')}
       />

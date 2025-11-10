@@ -1,106 +1,20 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import type { Database } from '@/integrations/supabase/types';
 import { Project } from '@/types/core';
-import { normalizeProjectColor } from '@/utils/normalizeProjectColor';
+import { ProjectOrchestrator } from '@/services/orchestrators/ProjectOrchestrator';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
-type DatabaseProject = Database['public']['Tables']['projects']['Row'];
-type ProjectInsert = Database['public']['Tables']['projects']['Insert'];
-type ProjectUpdate = Database['public']['Tables']['projects']['Update'];
-//Transform database project to frontend project
-function transformDatabaseProject(dbProject: DatabaseProject): Project {
-  return {
-    id: dbProject.id,
-    name: dbProject.name,
-    client: dbProject.client, // Deprecated string field
-    clientId: dbProject.client_id || '', // New client reference (Phase 5B)
-    startDate: new Date(dbProject.start_date),
-    endDate: new Date(dbProject.end_date),
-    estimatedHours: dbProject.estimated_hours,
-    color: normalizeProjectColor(dbProject.color), // Automatically normalize old colors
-    groupId: dbProject.group_id || undefined,
-    rowId: dbProject.row_id || undefined,
-    notes: dbProject.notes || undefined,
-    icon: dbProject.icon || undefined,
-    continuous: dbProject.continuous ?? false,
-    status: 'current', // Default until database schema is updated
-    autoEstimateDays: (dbProject.auto_estimate_days && typeof dbProject.auto_estimate_days === 'object') ? 
-      dbProject.auto_estimate_days as {
-        monday: boolean;
-        tuesday: boolean;
-        wednesday: boolean;
-        thursday: boolean;
-        friday: boolean;
-        saturday: boolean;
-        sunday: boolean;
-      } : {
-        monday: true,
-        tuesday: true,
-        wednesday: true,
-        thursday: true,
-        friday: true,
-        saturday: true,
-        sunday: true,
-      },
-    userId: dbProject.user_id || '',
-    createdAt: dbProject.created_at ? new Date(dbProject.created_at) : new Date(),
-    updatedAt: dbProject.updated_at ? new Date(dbProject.updated_at) : new Date()
-  };
-}
-// Transform frontend project data to database format
-function transformToDatabase(projectData: any): any {
-  const dbData: any = {};
-  if (projectData.name !== undefined) dbData.name = projectData.name;
-  // Handle client and client_id
-  if (projectData.clientId !== undefined && projectData.clientId !== '') {
-    dbData.client_id = projectData.clientId;
-    // Also set client field if not explicitly provided
-    if (projectData.client === undefined) {
-      dbData.client = projectData.clientId;
-    }
-  } else if (projectData.client !== undefined && projectData.client !== '') {
-    // Legacy: use client string as both fields
-    dbData.client_id = projectData.client;
-    dbData.client = projectData.client;
-  }
-  // Note: If neither is provided, validation should catch this before we get here
-  if (projectData.client !== undefined) dbData.client = projectData.client;
-  if (projectData.startDate !== undefined) {
-    dbData.start_date = projectData.startDate instanceof Date 
-      ? projectData.startDate.toISOString().split('T')[0] 
-      : projectData.startDate;
-  }
-  // Handle end_date (required in database, even for continuous projects)
-  if (projectData.endDate !== undefined) {
-    dbData.end_date = projectData.endDate instanceof Date 
-      ? projectData.endDate.toISOString().split('T')[0] 
-      : projectData.endDate;
-  } else if (projectData.continuous) {
-    // For continuous projects, set a far future date as placeholder
-    const farFuture = new Date();
-    farFuture.setFullYear(farFuture.getFullYear() + 100);
-    dbData.end_date = farFuture.toISOString().split('T')[0];
-  }
-  if (projectData.estimatedHours !== undefined) dbData.estimated_hours = projectData.estimatedHours;
-  if (projectData.color !== undefined) dbData.color = projectData.color;
-  if (projectData.groupId !== undefined) dbData.group_id = projectData.groupId;
-  if (projectData.rowId !== undefined) dbData.row_id = projectData.rowId;
-  if (projectData.notes !== undefined) dbData.notes = projectData.notes;
-  if (projectData.icon !== undefined) dbData.icon = projectData.icon;
-  if (projectData.continuous !== undefined) dbData.continuous = projectData.continuous;
-  if (projectData.autoEstimateDays !== undefined) dbData.auto_estimate_days = projectData.autoEstimateDays;
-  return dbData;
-}
 export function useProjects() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  
   // Debouncing for update success toasts
   const updateToastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const lastUpdatedProjectRef = useRef<string | null>(null);
+  
   useEffect(() => {
     fetchProjects();
+    
     // Cleanup timeout on unmount
     return () => {
       if (updateToastTimeoutRef.current) {
@@ -108,60 +22,16 @@ export function useProjects() {
       }
     };
   }, []);
+  
   const fetchProjects = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setProjects([]);
-        return;
-      }
-      // Fetch projects with client data joined
-      const { data, error } = await supabase
-        .from('projects')
-        .select(`
-          *,
-          clients (
-            id,
-            name,
-            status,
-            contact_email,
-            contact_phone,
-            billing_address,
-            notes,
-            created_at,
-            updated_at
-          )
-        `)
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: true });
-      if (error) {
-        ErrorHandlingService.handle(error, { source: 'useProjects', action: '❌ Supabase query error:' });
-        throw error;
-      }
-      // Transform database projects to frontend format
-      const transformedProjects = (data || []).map((dbProject, index) => {
-        const transformed = transformDatabaseProject(dbProject);
-        // Add client data if available
-        if (dbProject.clients && typeof dbProject.clients === 'object' && !Array.isArray(dbProject.clients)) {
-          const clientData = dbProject.clients as any;
-          transformed.clientData = {
-            id: clientData.id,
-            name: clientData.name,
-            status: clientData.status,
-            contactEmail: clientData.contact_email,
-            contactPhone: clientData.contact_phone,
-            billingAddress: clientData.billing_address,
-            notes: clientData.notes,
-            userId: dbProject.user_id || '',
-            createdAt: new Date(clientData.created_at),
-            updatedAt: new Date(clientData.updated_at),
-          };
-        }
-        return transformed;
-      });
-      setProjects(transformedProjects);
+      const fetchedProjects = await ProjectOrchestrator.getAllProjects();
+      setProjects(fetchedProjects);
     } catch (error) {
-      ErrorHandlingService.handle(error, { source: 'useProjects', action: '❌ Error fetching projects:' });
+      ErrorHandlingService.handle(error, { 
+        source: 'useProjects', 
+        action: 'Error fetching projects' 
+      });
       toast({
         title: "Error",
         description: "Failed to load projects",
@@ -175,53 +45,52 @@ export function useProjects() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
-      // Transform frontend data to database format
-      const dbData = transformToDatabase(projectData);
-      // Ensure we have a valid client_id UUID (required in database)
-      // Check if client_id is a valid UUID format (if it's just a string name, we need to convert it)
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      const hasValidClientId = dbData.client_id && uuidRegex.test(dbData.client_id);
-      if (!hasValidClientId) {
-        const clientName = dbData.client || 'N/A';
-        // Try to find existing client with this name
-        const { data: existingClient } = await supabase
-          .from('clients')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('name', clientName)
-          .maybeSingle();
-        if (existingClient) {
-          dbData.client_id = existingClient.id;
-        } else {
-          // Create new client
-          const { data: newClient, error: createError } = await supabase
-            .from('clients')
-            .insert([{ user_id: user.id, name: clientName, status: 'active' }])
-            .select('id')
-            .single();
-          if (createError) {
-            ErrorHandlingService.handle(createError, { source: 'useProjects', action: '❌ Failed to create client:' });
-            throw new Error(`Failed to create client: ${createError.message}`);
-          }
-          dbData.client_id = newClient.id;
-        }
-      }
-      const finalData = { ...dbData, user_id: user.id };
+      
+      // Ensure client exists and get client_id
+      const clientIdentifier = projectData.clientId || projectData.client || 'N/A';
+      const clientId = await ProjectOrchestrator.ensureClientExists(clientIdentifier, user.id);
+      
+      // Prepare project data with ensured client_id
+      const preparedData = {
+        ...projectData,
+        clientId,
+        user_id: user.id
+      };
+      
+      // Transform and insert via orchestrator's transformation logic
+      const dbData = {
+        ...preparedData,
+        client_id: clientId,
+        client: projectData.client || clientIdentifier,
+        start_date: preparedData.startDate instanceof Date 
+          ? preparedData.startDate.toISOString().split('T')[0] 
+          : preparedData.startDate,
+        end_date: preparedData.endDate instanceof Date 
+          ? preparedData.endDate.toISOString().split('T')[0] 
+          : preparedData.endDate,
+        estimated_hours: preparedData.estimatedHours,
+        group_id: preparedData.groupId,
+        row_id: preparedData.rowId,
+        auto_estimate_days: preparedData.autoEstimateDays
+      };
+      
       const { data, error } = await supabase
         .from('projects')
-        .insert([finalData as any])
+        .insert([dbData as any])
         .select()
         .single();
+      
       if (error) {
-        ErrorHandlingService.handle(error, { source: 'useProjects', action: '❌ Supabase error details:' });
-        console.error('❌ Supabase error message:', error.message);
-        console.error('❌ Supabase error code:', error.code);
-        console.error('❌ Full error object:', JSON.stringify(error, null, 2));
+        ErrorHandlingService.handle(error, { 
+          source: 'useProjects', 
+          action: 'Database insert error' 
+        });
         throw error;
       }
-      // Transform the returned data to frontend format
-      const transformedProject = transformDatabaseProject(data);
-      setProjects(prev => [...prev, transformedProject]);
+      
+      // Refresh projects list to get properly transformed data
+      await fetchProjects();
+      
       // Only show toast if not in silent mode
       if (!options.silent) {
         toast({
@@ -229,14 +98,16 @@ export function useProjects() {
           description: "Project created successfully",
         });
       }
-      return transformedProject;
+      
+      return data as any; // Will be properly typed after fetchProjects
     } catch (error) {
-      ErrorHandlingService.handle(error, { source: 'useProjects', action: '❌ Error adding project:' });
-      console.error('❌ Error message:', error.message);
-      console.error('❌ Error details:', JSON.stringify(error, null, 2));
+      ErrorHandlingService.handle(error, { 
+        source: 'useProjects', 
+        action: 'Error adding project' 
+      });
       toast({
         title: "Error",
-        description: `Failed to create project: ${error.message}`,
+        description: `Failed to create project: ${error instanceof Error ? error.message : 'Unknown error'}`,
         variant: "destructive",
       });
       throw error;
@@ -244,20 +115,26 @@ export function useProjects() {
   };
   const updateProject = async (id: string, updates: any, options: { silent?: boolean } = {}) => {
     try {
-      // Transform frontend data to database format
-      const dbUpdates = transformToDatabase(updates);
-      const { data, error } = await supabase
-        .from('projects')
-        .update(dbUpdates)
-        .eq('id', id)
-        .select()
-        .single();
-      if (error) throw error;
-      // Transform the returned data to frontend format
-      const transformedProject = transformDatabaseProject(data);
-      setProjects(prev => 
-        prev.map(p => p.id === id ? transformedProject : p)
+      const currentProject = projects.find(p => p.id === id);
+      if (!currentProject) {
+        throw new Error('Project not found');
+      }
+      
+      const result = await ProjectOrchestrator.updateProjectWorkflow(
+        id,
+        updates,
+        currentProject,
+        [], // milestones - can be enhanced later if needed
+        options
       );
+      
+      if (!result.success) {
+        throw new Error(result.errors?.join(', ') || 'Update failed');
+      }
+      
+      // Refresh projects list
+      await fetchProjects();
+      
       // Only show toast if not in silent mode
       if (!options.silent) {
         // Debounce success toast
@@ -271,9 +148,13 @@ export function useProjects() {
           });
         }, 500);
       }
-      return transformedProject;
+      
+      return result.project;
     } catch (error) {
-      ErrorHandlingService.handle(error, { source: 'useProjects', action: '❌ Error updating project:' });
+      ErrorHandlingService.handle(error, { 
+        source: 'useProjects', 
+        action: 'Error updating project' 
+      });
       // Always show error toasts immediately
       toast({
         title: "Error",
@@ -291,18 +172,23 @@ export function useProjects() {
   };
   const deleteProject = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('projects')
-        .delete()
-        .eq('id', id);
-      if (error) throw error;
+      const result = await ProjectOrchestrator.deleteProjectWorkflow(id);
+      
+      if (!result.success) {
+        throw new Error(result.errors?.join(', ') || 'Delete failed');
+      }
+      
       setProjects(prev => prev.filter(project => project.id !== id));
+      
       toast({
         title: "Success",
         description: "Project deleted successfully",
       });
     } catch (error) {
-      ErrorHandlingService.handle(error, { source: 'useProjects', action: 'Error deleting project:' });
+      ErrorHandlingService.handle(error, { 
+        source: 'useProjects', 
+        action: 'Error deleting project' 
+      });
       toast({
         title: "Error",
         description: "Failed to delete project",

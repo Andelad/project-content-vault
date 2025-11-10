@@ -48,7 +48,9 @@ export { WorkHourCalculationService } from './calculations/availability/workHour
 // 🎯 Unified Services (Main API Layer)
 export { UnifiedTimeTrackerService } from './unified/UnifiedTimeTrackerService';
 export { UnifiedMilestoneService } from './unified/UnifiedMilestoneService';
-export { CalendarIntegrationService, type ImportResult } from './unified/UnifiedCalendarService';
+export { UnifiedWorkHoursService } from './unified/UnifiedWorkHoursService';
+export { UnifiedCalendarService, type LayerVisibility, type BusinessHoursConfig, type CalendarView, type ViewportSize, type ExternalEvent, type ImportResult } from './unified/UnifiedCalendarService';
+export { CalendarImportService } from './unified/CalendarImportService';
 export { transformFullCalendarToCalendarEvent } from './unified/UnifiedEventTransformService';
 export { clearTimelineCache, generateWorkHoursForDate, calculateAvailabilityReduction, calculateProjectWorkingDays } from './unified/UnifiedEventWorkHourService';
 // Project progress analysis (legacy compatibility)
@@ -67,7 +69,14 @@ export {
   getHolidaysInRangeDetailed,
   countHolidayDaysInRange
 } from './calculations/events/holidayCalculations';
-export { getBaseFullCalendarConfig, getEventStylingConfig, getResponsiveDayCount, isMobileViewport, isTabletViewport } from './ui/FullCalendarConfig';
+// FullCalendar configuration now handled by UnifiedCalendarService
+// Legacy function exports for backward compatibility - delegate to UnifiedCalendarService
+import { UnifiedCalendarService as UCS } from './unified/UnifiedCalendarService';
+export const getBaseFullCalendarConfig = UCS.getBaseFullCalendarConfig.bind(UCS);
+export const getEventStylingConfig = UCS.getEventStylingConfig.bind(UCS);
+export const getResponsiveDayCount = UCS.getResponsiveDayCount.bind(UCS);
+export const isMobileViewport = UCS.isMobileViewport.bind(UCS);
+export const isTabletViewport = UCS.isTabletViewport.bind(UCS);
 export { throttledDragUpdate as throttleDragUpdate } from './performance/dragPerformanceService';
 
 // 📊 Calculation Functions (Business Logic)

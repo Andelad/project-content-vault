@@ -19,6 +19,8 @@ import { MilestoneRules } from '@/domain/rules/MilestoneRules';
 import { getDateKey } from '@/utils/dateFormatUtils';
 import { calculateBudgetAdjustment } from '@/services/calculations';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import { supabase } from '@/integrations/supabase/client';
+import { normalizeProjectColor } from '@/utils/normalizeProjectColor';
 export interface ProjectBudgetAnalysis {
   totalAllocation: number;
   suggestedBudget: number;
@@ -628,6 +630,311 @@ export class ProjectOrchestrator {
       }
     }
   }
+  /**
+   * Get all projects for current user
+   * Handles database fetching and transformation
+   */
+  static async getAllProjects(): Promise<Project[]> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        return [];
+      }
+
+      // Fetch projects with client data joined
+      const { data, error } = await supabase
+        .from('projects')
+        .select(`
+          *,
+          clients (
+            id,
+            name,
+            status,
+            contact_email,
+            contact_phone,
+            billing_address,
+            notes,
+            created_at,
+            updated_at
+          )
+        `)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        ErrorHandlingService.handle(error, { 
+          source: 'ProjectOrchestrator', 
+          action: 'getAllProjects' 
+        });
+        throw error;
+      }
+
+      // Transform database projects to frontend format
+      return (data || []).map((dbProject) => {
+        const transformed = this.transformDatabaseProject(dbProject);
+        
+        // Add client data if available
+        if (dbProject.clients && typeof dbProject.clients === 'object' && !Array.isArray(dbProject.clients)) {
+          const clientData = dbProject.clients as any;
+          transformed.clientData = {
+            id: clientData.id,
+            name: clientData.name,
+            status: clientData.status,
+            contactEmail: clientData.contact_email,
+            contactPhone: clientData.contact_phone,
+            billingAddress: clientData.billing_address,
+            notes: clientData.notes,
+            userId: dbProject.user_id || '',
+            createdAt: new Date(clientData.created_at),
+            updatedAt: new Date(clientData.updated_at),
+          };
+        }
+        
+        return transformed;
+      });
+    } catch (error) {
+      ErrorHandlingService.handle(error, { 
+        source: 'ProjectOrchestrator', 
+        action: 'getAllProjects error' 
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Update existing project
+   * Handles validation, transformation, and database update
+   */
+  static async updateProjectWorkflow(
+    projectId: string,
+    updates: Partial<Project>,
+    currentProject: Project,
+    currentMilestones: Milestone[] = [],
+    options: { silent?: boolean } = {}
+  ): Promise<{ success: boolean; project?: Project; errors?: string[]; warnings?: string[] }> {
+    try {
+      // Validate update
+      const validation = this.validateProjectUpdate(
+        { id: projectId, ...updates },
+        currentProject,
+        currentMilestones
+      );
+
+      if (!validation.isValid) {
+        return {
+          success: false,
+          errors: validation.errors,
+          warnings: validation.warnings
+        };
+      }
+
+      // Transform frontend data to database format
+      const dbUpdates = this.transformToDatabase(updates);
+
+      const { data, error } = await supabase
+        .from('projects')
+        .update(dbUpdates)
+        .eq('id', projectId)
+        .select()
+        .single();
+
+      if (error) {
+        ErrorHandlingService.handle(error, { 
+          source: 'ProjectOrchestrator', 
+          action: 'updateProjectWorkflow' 
+        });
+        throw error;
+      }
+
+      // Transform the returned data to frontend format
+      const transformedProject = this.transformDatabaseProject(data);
+
+      return {
+        success: true,
+        project: transformedProject,
+        warnings: validation.warnings
+      };
+    } catch (error) {
+      ErrorHandlingService.handle(error, { 
+        source: 'ProjectOrchestrator', 
+        action: 'updateProjectWorkflow error' 
+      });
+      return {
+        success: false,
+        errors: [error instanceof Error ? error.message : 'Update failed']
+      };
+    }
+  }
+
+  /**
+   * Delete project
+   */
+  static async deleteProjectWorkflow(
+    projectId: string
+  ): Promise<{ success: boolean; errors?: string[] }> {
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', projectId);
+
+      if (error) {
+        ErrorHandlingService.handle(error, { 
+          source: 'ProjectOrchestrator', 
+          action: 'deleteProjectWorkflow' 
+        });
+        throw error;
+      }
+
+      return { success: true };
+    } catch (error) {
+      ErrorHandlingService.handle(error, { 
+        source: 'ProjectOrchestrator', 
+        action: 'deleteProjectWorkflow error' 
+      });
+      return {
+        success: false,
+        errors: [error instanceof Error ? error.message : 'Delete failed']
+      };
+    }
+  }
+
+  /**
+   * Transform database project to frontend project
+   */
+  private static transformDatabaseProject(dbProject: any): Project {
+    return {
+      id: dbProject.id,
+      name: dbProject.name,
+      client: dbProject.client,
+      clientId: dbProject.client_id || '',
+      startDate: new Date(dbProject.start_date),
+      endDate: new Date(dbProject.end_date),
+      estimatedHours: dbProject.estimated_hours,
+      color: normalizeProjectColor(dbProject.color),
+      groupId: dbProject.group_id || undefined,
+      rowId: dbProject.row_id || undefined,
+      notes: dbProject.notes || undefined,
+      icon: dbProject.icon || undefined,
+      continuous: dbProject.continuous ?? false,
+      status: 'current',
+      autoEstimateDays: (dbProject.auto_estimate_days && typeof dbProject.auto_estimate_days === 'object') ? 
+        dbProject.auto_estimate_days as {
+          monday: boolean;
+          tuesday: boolean;
+          wednesday: boolean;
+          thursday: boolean;
+          friday: boolean;
+          saturday: boolean;
+          sunday: boolean;
+        } : {
+          monday: true,
+          tuesday: true,
+          wednesday: true,
+          thursday: true,
+          friday: true,
+          saturday: true,
+          sunday: true,
+        },
+      userId: dbProject.user_id || '',
+      createdAt: dbProject.created_at ? new Date(dbProject.created_at) : new Date(),
+      updatedAt: dbProject.updated_at ? new Date(dbProject.updated_at) : new Date()
+    };
+  }
+
+  /**
+   * Transform frontend project data to database format
+   */
+  private static transformToDatabase(projectData: any): any {
+    const dbData: any = {};
+    
+    if (projectData.name !== undefined) dbData.name = projectData.name;
+    
+    // Handle client and client_id
+    if (projectData.clientId !== undefined && projectData.clientId !== '') {
+      dbData.client_id = projectData.clientId;
+      if (projectData.client === undefined) {
+        dbData.client = projectData.clientId;
+      }
+    } else if (projectData.client !== undefined && projectData.client !== '') {
+      dbData.client_id = projectData.client;
+      dbData.client = projectData.client;
+    }
+    
+    if (projectData.client !== undefined) dbData.client = projectData.client;
+    
+    if (projectData.startDate !== undefined) {
+      dbData.start_date = projectData.startDate instanceof Date 
+        ? projectData.startDate.toISOString().split('T')[0] 
+        : projectData.startDate;
+    }
+    
+    if (projectData.endDate !== undefined) {
+      dbData.end_date = projectData.endDate instanceof Date 
+        ? projectData.endDate.toISOString().split('T')[0] 
+        : projectData.endDate;
+    } else if (projectData.continuous) {
+      const farFuture = new Date();
+      farFuture.setFullYear(farFuture.getFullYear() + 100);
+      dbData.end_date = farFuture.toISOString().split('T')[0];
+    }
+    
+    if (projectData.estimatedHours !== undefined) dbData.estimated_hours = projectData.estimatedHours;
+    if (projectData.color !== undefined) dbData.color = projectData.color;
+    if (projectData.groupId !== undefined) dbData.group_id = projectData.groupId;
+    if (projectData.rowId !== undefined) dbData.row_id = projectData.rowId;
+    if (projectData.notes !== undefined) dbData.notes = projectData.notes;
+    if (projectData.icon !== undefined) dbData.icon = projectData.icon;
+    if (projectData.continuous !== undefined) dbData.continuous = projectData.continuous;
+    if (projectData.autoEstimateDays !== undefined) dbData.auto_estimate_days = projectData.autoEstimateDays;
+    
+    return dbData;
+  }
+
+  /**
+   * Ensure client exists and return client_id
+   */
+  static async ensureClientExists(
+    clientIdentifier: string,
+    userId: string
+  ): Promise<string> {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    
+    // If already a valid UUID, return it
+    if (uuidRegex.test(clientIdentifier)) {
+      return clientIdentifier;
+    }
+    
+    // Try to find existing client with this name
+    const { data: existingClient } = await supabase
+      .from('clients')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('name', clientIdentifier)
+      .maybeSingle();
+    
+    if (existingClient) {
+      return existingClient.id;
+    }
+    
+    // Create new client
+    const { data: newClient, error: createError } = await supabase
+      .from('clients')
+      .insert([{ user_id: userId, name: clientIdentifier, status: 'active' }])
+      .select('id')
+      .single();
+    
+    if (createError) {
+      ErrorHandlingService.handle(createError, { 
+        source: 'ProjectOrchestrator', 
+        action: 'ensureClientExists' 
+      });
+      throw new Error(`Failed to create client: ${createError.message}`);
+    }
+    
+    return newClient.id;
+  }
+
   // Note: Repository-integrated query methods were removed as they were never used
-  // Hooks (useProjects, etc.) handle data fetching directly via Supabase
+  // Orchestrator now provides all data access methods
 }

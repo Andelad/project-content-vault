@@ -9,3 +9,6 @@ export * from './coordination/DragCoordinator';
 
 // UI Styling - Color calculations and style utilities
 export * from './ColorCalculations';
+
+// Calendar Layout - Calendar-specific layout utilities
+export * from './CalendarLayout';

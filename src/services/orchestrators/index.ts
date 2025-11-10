@@ -1,5 +1,6 @@
 // Orchestrators - Workflow coordination (centralized)
 export * from './ProjectOrchestrator';
+export * from './ClientOrchestrator';
 export * from './ProjectMilestoneOrchestrator';
 export * from './EventModalOrchestrator';
 export * from './SettingsOrchestrator';
