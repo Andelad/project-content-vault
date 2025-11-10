@@ -19,7 +19,7 @@ interface ClientModalProps {
 }
 
 export function ClientModal({ isOpen, onClose, clientId }: ClientModalProps) {
-  const { clients, updateClient, deleteClient } = useClients();
+  const { clients, updateClient, deleteClient, addClient } = useClients();
   const { projects } = useProjectContext();
   const { toast } = useToast();
 
@@ -31,6 +31,7 @@ export function ClientModal({ isOpen, onClose, clientId }: ClientModalProps) {
 
   // Find the client
   const client = clients.find(c => c.id === clientId);
+  const isCreating = !clientId;
 
   // Find projects for this client
   const clientProjects = client ? projects.filter(p => p.clientId === client.id) : [];
@@ -39,12 +40,14 @@ export function ClientModal({ isOpen, onClose, clientId }: ClientModalProps) {
   useEffect(() => {
     if (client) {
       setLocalName(client.name);
+    } else if (isOpen && isCreating) {
+      setLocalName('');
     }
-  }, [client]);
+  }, [client, isOpen, isCreating]);
 
   // Handle save
   const handleSave = async () => {
-    if (!client || !localName.trim()) {
+    if (!localName.trim()) {
       toast({
         title: "Error",
         description: "Client name is required",
@@ -55,17 +58,25 @@ export function ClientModal({ isOpen, onClose, clientId }: ClientModalProps) {
 
     setIsSubmitting(true);
     try {
-      await updateClient(client.id, { name: localName.trim() });
-      toast({
-        title: "Success",
-        description: "Client updated successfully"
-      });
+      if (isCreating) {
+        await addClient({ name: localName.trim() });
+        toast({
+          title: "Success",
+          description: "Client created successfully"
+        });
+      } else if (client) {
+        await updateClient(client.id, { name: localName.trim() });
+        toast({
+          title: "Success",
+          description: "Client updated successfully"
+        });
+      }
       onClose();
     } catch (error) {
-      ErrorHandlingService.handle(error, { source: 'ClientModal', action: 'Failed to update client:' });
+      ErrorHandlingService.handle(error, { source: 'ClientModal', action: `Failed to ${isCreating ? 'create' : 'update'} client:` });
       toast({
         title: "Error",
-        description: "Failed to update client",
+        description: `Failed to ${isCreating ? 'create' : 'update'} client`,
         variant: "destructive"
       });
     } finally {
@@ -121,21 +132,16 @@ export function ClientModal({ isOpen, onClose, clientId }: ClientModalProps) {
     setSelectedProjectId(null);
   };
 
-  // If no client, don't render
-  if (!client) {
-    return null;
-  }
-
   return (
     <>
       <StandardModal
         isOpen={isOpen}
         onClose={onClose}
-        title="Client Details"
-        description={`Edit client information and view associated projects`}
+        title={isCreating ? "Create Client" : "Client Details"}
+        description={isCreating ? "Add a new client" : "Edit client information and view associated projects"}
         size="md"
         primaryAction={{
-          label: MODAL_BUTTON_LABELS.UPDATE,
+          label: isCreating ? MODAL_BUTTON_LABELS.CREATE : MODAL_BUTTON_LABELS.UPDATE,
           onClick: handleSave,
           disabled: !localName.trim() || isSubmitting,
           loading: isSubmitting && !showDeleteConfirm
@@ -144,10 +150,10 @@ export function ClientModal({ isOpen, onClose, clientId }: ClientModalProps) {
           label: MODAL_BUTTON_LABELS.CANCEL,
           onClick: onClose
         }}
-        destructiveAction={{
+        destructiveAction={!isCreating && client ? {
           label: MODAL_BUTTON_LABELS.DELETE,
           onClick: () => setShowDeleteConfirm(true)
-        }}
+        } : undefined}
       >
         <div className="space-y-6">
           {/* Client Name Section */}
@@ -167,18 +173,19 @@ export function ClientModal({ isOpen, onClose, clientId }: ClientModalProps) {
             </div>
           </div>
 
-          {/* Associated Projects Section */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium">
-                Associated Projects
-              </Label>
-              <Badge variant="secondary">
-                {clientProjects.length} {clientProjects.length === 1 ? 'project' : 'projects'}
-              </Badge>
-            </div>
+          {/* Associated Projects Section - only show when editing */}
+          {!isCreating && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">
+                  Associated Projects
+                </Label>
+                <Badge variant="secondary">
+                  {clientProjects.length} {clientProjects.length === 1 ? 'project' : 'projects'}
+                </Badge>
+              </div>
 
-            {clientProjects.length > 0 ? (
+              {clientProjects.length > 0 ? (
               <div className="space-y-2 max-h-[300px] overflow-y-auto light-scrollbar">
                 {clientProjects.map((project) => (
                   <Card 
@@ -218,10 +225,11 @@ export function ClientModal({ isOpen, onClose, clientId }: ClientModalProps) {
                 </CardContent>
               </Card>
             )}
-          </div>
+            </div>
+          )}
 
           {/* Delete Warning */}
-          {clientProjects.length > 0 && (
+          {!isCreating && clientProjects.length > 0 && (
             <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
               <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
               <div className="text-xs text-amber-800">

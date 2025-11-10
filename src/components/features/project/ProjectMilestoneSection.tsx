@@ -408,12 +408,12 @@ export function ProjectMilestoneSection({
         {externalEditingProperty !== undefined && externalSetEditingProperty && externalHandleSaveProperty && recurringMilestoneInfo && (
           <div className="mb-6 pb-4 border-b border-gray-200">
             <Label className="text-xs text-muted-foreground mb-1 block">Time Budget</Label>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-4">
               {externalEditingProperty === 'estimatedHours' ? (
                 <Input
                   type="number"
                   defaultValue={projectEstimatedHours}
-                  className="h-10 text-sm border-border bg-background w-full max-w-[200px]"
+                  className="h-10 text-sm border-border !bg-white w-full max-w-[200px]"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       const newValue = parseInt((e.target as HTMLInputElement).value) || 0;
@@ -430,7 +430,7 @@ export function ProjectMilestoneSection({
                 />
               ) : (
                 <div
-                  className="h-10 text-sm justify-start text-left font-normal px-3 border border-input rounded-md bg-background hover:bg-accent hover:text-accent-foreground cursor-pointer flex items-center w-full max-w-[200px]"
+                  className="h-10 text-sm justify-start text-left font-normal px-3 border border-input rounded-md !bg-white hover:bg-accent hover:text-accent-foreground cursor-pointer flex items-center w-full max-w-[200px]"
                   role="button"
                   tabIndex={0}
                   onClick={() => {
@@ -454,16 +454,14 @@ export function ProjectMilestoneSection({
               {/* Action Buttons */}
               <Button
                 variant="outline"
-                size="sm"
                 onClick={handleInitiateSplit}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 h-10 shadow-sm"
               >
                 <SquareSplitHorizontal className="w-4 h-4" />
-                Split Estimate
+                Create Phases
               </Button>
               <Button
                 variant="outline"
-                size="sm"
                 onClick={() => {
                   if (isSplitMode) {
                     setShowRecurringFromSplitWarning(true);
@@ -473,7 +471,7 @@ export function ProjectMilestoneSection({
                     setShowRecurringConfig(true);
                   }
                 }}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 h-10 shadow-sm"
               >
                 <RefreshCw className="w-4 h-4" />
                 Recurring Estimate

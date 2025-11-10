@@ -50,7 +50,12 @@ export function OverviewView() {
   // Holiday-specific state
   const [holidayStatusFilter, setHolidayStatusFilter] = useState<FilterByStatus>('all');
   const [isHolidayModalOpen, setIsHolidayModalOpen] = useState(false);
-  const [editingHoliday, setEditingHoliday] = useState<any>(null);
+  const [editingHoliday, setEditingHoliday] = useState<Holiday | null>(null);
+  // Modal state for creating new items
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
+  const [createProjectGroupId, setCreateProjectGroupId] = useState<string | undefined>(undefined);
+  const [isClientModalOpen, setIsClientModalOpen] = useState(false);
+  const [editingClientId, setEditingClientId] = useState<string | null>(null);
   // Group dialog state
   const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<Group | null>(null);
@@ -286,15 +291,12 @@ export function OverviewView() {
                 {/* Add Project Button */}
                 <Button
                   onClick={() => {
-                    setEditingProject(null);
-                    setProjectName('');
-                    setProjectClient('');
-                    setProjectGroupId('work-group');
-                    setProjectStartDate('');
-                    setProjectEndDate('');
-                    setProjectEstimatedHours('');
-                    setProjectColor('#6366f1');
-                    setIsProjectDialogOpen(true);
+                    console.log('Add Project clicked');
+                    setSelectedProjectId(null);
+                    // Use first group as default, or create a default group id
+                    const defaultGroupId = groups[0]?.id || 'default-group';
+                    setCreateProjectGroupId(defaultGroupId);
+                    setIsCreatingProject(true);
                   }}
                   className="h-9 gap-2 shadow"
                 >
@@ -372,7 +374,9 @@ export function OverviewView() {
                 {/* Add Client Button */}
                 <Button
                   onClick={() => {
-                    // TODO: Implement client creation
+                    console.log('Add Client clicked');
+                    setEditingClientId(null);
+                    setIsClientModalOpen(true);
                   }}
                   className="h-9 gap-2 shadow"
                 >
@@ -514,11 +518,27 @@ export function OverviewView() {
         </Tabs>
       </AppPageLayout.Content>
       
-      {/* Project Edit Modal */}
+      {/* Project Modal */}
       <ProjectModal
-        isOpen={!!selectedProjectId}
-        onClose={() => setSelectedProjectId(null)}
+        isOpen={!!selectedProjectId || isCreatingProject}
+        onClose={() => {
+          console.log('ProjectModal closing');
+          setSelectedProjectId(null);
+          setIsCreatingProject(false);
+          setCreateProjectGroupId(undefined);
+        }}
         projectId={selectedProjectId || undefined}
+        groupId={createProjectGroupId}
+      />
+      
+      {/* Client Modal */}
+      <ClientModal
+        isOpen={isClientModalOpen}
+        onClose={() => {
+          setIsClientModalOpen(false);
+          setEditingClientId(null);
+        }}
+        clientId={editingClientId}
       />
       
       {/* Holiday Modal */}

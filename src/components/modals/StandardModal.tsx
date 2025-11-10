@@ -88,7 +88,7 @@ const sizeClasses = {
   md: 'sm:max-w-lg',
   lg: 'sm:max-w-xl',
   xl: 'sm:max-w-2xl',
-  project: 'sm:max-w-5xl w-[95vw] max-h-[90vh] min-h-[800px]'
+  project: 'sm:max-w-5xl w-[95vw] h-[800px] max-h-[90vh]'
 };
 
 export const StandardModal: React.FC<StandardModalProps> = ({
@@ -241,7 +241,7 @@ export const StandardModal: React.FC<StandardModalProps> = ({
         </div>
 
         {/* 3. Footer Section - with increased padding and actions */}
-        <div className="flex-shrink-0 px-6 py-6 border-t-[1px] border-border bg-muted/30">
+        <div className="flex-shrink-0 px-6 py-6 border-t-[1px] border-border bg-stone-100">
           {renderFooter()}
         </div>
       </DialogContent>

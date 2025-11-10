@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar as CalendarIcon, Clock, User, Palette, Trash2, Info, ChevronDown, ChevronRight, Folder, Infinity } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, User, Palette, Trash2, Info, ChevronDown, ChevronRight, Folder, Infinity, LineChart, StickyNote } from 'lucide-react';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { Label } from '../ui/label';
@@ -721,7 +721,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
           <PopoverTrigger asChild>
             <Button
               variant="outline"
-              className="h-10 text-sm justify-start text-left font-normal px-3"
+              className="h-10 text-sm justify-start text-left font-normal px-3 !bg-white"
             >
               <CalendarIcon className="mr-2 h-3 w-3" />
               {formatDate(value)}
@@ -794,16 +794,13 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
     const isEmpty = !value || value.trim() === '';
     const displayValue = value || placeholder;
     return (
-      <div className="min-w-[80px]">
-        <Label className="text-xs text-muted-foreground mb-1 block">
-          Client <span className="text-destructive">*</span>
-        </Label>
+      <div>
   {isEditing ? (
           <Input
             type="text"
             defaultValue={value}
             placeholder={placeholder}
-            className={`h-10 text-sm bg-background min-w-[80px] max-w-[200px] ${isEmpty ? 'border-destructive' : 'border-border'}`}
+            className="h-10 text-sm !bg-white"
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 const newValue = (e.target as HTMLInputElement).value;
@@ -820,7 +817,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
           />
         ) : (
           <div
-            className={`h-10 text-sm justify-start text-left font-normal px-3 border rounded-md bg-background hover:bg-accent hover:text-accent-foreground cursor-pointer flex items-center min-w-[80px] max-w-[200px] relative z-20 pointer-events-auto ${isEmpty ? 'border-destructive text-muted-foreground italic' : 'border-input'}`}
+            className={`h-10 text-sm justify-start text-left font-normal px-3 border border-input rounded-md bg-white hover:bg-accent hover:text-accent-foreground cursor-pointer flex items-center relative z-20 pointer-events-auto ${isEmpty ? 'text-muted-foreground' : ''}`}
             role="button"
             tabIndex={0}
             onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setEditingProperty(property); }}
@@ -852,7 +849,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
           <Input
             type="number"
             defaultValue={value}
-            className="h-10 text-sm border-border bg-background min-w-[100px] max-w-[200px]"
+            className="h-10 text-sm border-border !bg-white min-w-[100px] max-w-[200px]"
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 const newValue = parseInt((e.target as HTMLInputElement).value) || 0;
@@ -869,7 +866,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
           />
         ) : (
           <div
-            className="h-10 text-sm justify-start text-left font-normal px-3 border border-input rounded-md bg-background hover:bg-accent hover:text-accent-foreground cursor-pointer flex items-center min-w-[100px] max-w-[200px] relative z-20 pointer-events-auto"
+            className="h-10 text-sm justify-start text-left font-normal px-3 border border-input rounded-md !bg-white hover:bg-accent hover:text-accent-foreground cursor-pointer flex items-center min-w-[100px] max-w-[200px] relative z-20 pointer-events-auto"
             role="button"
             tabIndex={0}
             onMouseDown={(e) => { if (!isContinuousWithRecurring) { e.preventDefault(); e.stopPropagation(); setEditingProperty(property); } }}
@@ -891,19 +888,14 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
     onGroupChange: (groupId: string) => void;
     disabled?: boolean;
   }) => {
-    const currentGroup = groups.find(g => g.id === currentGroupId);
-    const displayValue = currentGroup ? currentGroup.name : 'Select group';
     return (
-      <div className="min-w-[100px]">
-        <Label className="text-xs text-muted-foreground mb-1 block">Group</Label>
-        <Select value={currentGroupId || ''} onValueChange={onGroupChange} disabled={disabled}>
+      <div style={{ width: '250px' }}>
+        <Select value={currentGroupId || undefined} onValueChange={onGroupChange} disabled={disabled}>
           <SelectTrigger 
-            className="h-10 text-sm min-w-[100px] max-w-[200px] relative z-10 pointer-events-auto"
+            className="h-10 text-sm relative z-10 pointer-events-auto !bg-white"
             onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
           >
-            <SelectValue placeholder="Select group">
-              {displayValue}
-            </SelectValue>
+            <SelectValue placeholder="Select Group" />
           </SelectTrigger>
           <SelectContent>
             {groups.map((group) => (
@@ -1027,30 +1019,27 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
         } : undefined}
       >
         {/* Project Details Section */}
-        <div className="px-8 py-6 border-b border-gray-200">
+        <div className="px-8 py-6 bg-stone-100">
           <div className="space-y-4">
-            {/* Group and Dates Row */}
-            <div className="flex items-end justify-between gap-4">
+            {/* First Row: Group and Date Range with Continuous Toggle */}
+            <div className="flex items-center gap-4">
               {/* Group Field */}
               <HeaderGroupField
-                currentGroupId={project?.groupId || resolvedGroupId || groupId}
+                currentGroupId={project?.groupId || resolvedGroupId}
                 onGroupChange={handleGroupChange}
                 disabled={false}
               />
-              {/* Date Range on the Right */}
-              <div className="flex items-end gap-2">
+              {/* Date Range - same width as client field */}
+              <div style={{ width: '250px' }} className="flex items-center gap-2">
                 <HeaderDateField
                   value={localValues.startDate}
                   property="startDate"
                 />
-                <span className="text-muted-foreground mb-2">→</span>
+                <span className="text-muted-foreground">→</span>
                 {localValues.continuous ? (
-                  <div className="flex-1">
-                    <Label className="text-xs text-muted-foreground mb-1 block">End</Label>
-                    <div className="flex items-center gap-1 px-3 py-2 h-10 rounded border border-input bg-background text-muted-foreground">
-                      <Infinity className="w-3 h-3" />
-                      <span className="text-sm">Continuous</span>
-                    </div>
+                  <div className="flex items-center gap-1 px-3 py-2 h-10 rounded border border-input bg-white text-muted-foreground">
+                    <Infinity className="w-3 h-3" />
+                    <span className="text-sm">Continuous</span>
                   </div>
                 ) : (
                   <HeaderDateField
@@ -1058,97 +1047,35 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
                     property="endDate"
                   />
                 )}
-                <TooltipProvider>
-                  <Tooltip delayDuration={300}>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-10 w-10 p-0 mb-0"
-                        onClick={handleContinuousToggle}
-                      >
-                        <Infinity className="w-4 h-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Make continuous</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
               </div>
-            </div>
-            {/* Icon, Project Name, and Client Row */}
-            <div className="flex items-end gap-4">
-              {/* Project Icon Field */}
-              <div>
-                <Label className="text-xs text-muted-foreground mb-1 block">Icon</Label>
-                <Popover open={stylePickerOpen} onOpenChange={setStylePickerOpen}>
-                  <PopoverTrigger asChild>
-                    <div 
-                      className="w-10 h-10 rounded-full flex-shrink-0 cursor-pointer relative group transition-all duration-200 hover:scale-105 hover:shadow-md ring-2 ring-transparent hover:ring-primary/20"
-                      style={{ backgroundColor: localValues.color || OKLCH_PROJECT_COLORS[0] }}
+              {/* Continuous Toggle */}
+              <TooltipProvider>
+                <Tooltip delayDuration={300}>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-10 w-10 p-0"
+                      onClick={handleContinuousToggle}
                     >
-                      {(() => {
-                        const currentIcon = PROJECT_ICONS.find(icon => icon.name === (localValues.icon || 'folder'));
-                        const IconComponent = currentIcon?.component || Folder;
-                        return <IconComponent className="w-5 h-5 text-foreground absolute inset-0 m-auto" />;
-                      })()}
-                      <div className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/20 transition-all duration-200 flex items-center justify-center pointer-events-none">
-                        <Palette className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-                      </div>
-                    </div>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-64 p-4">
-                    <h4 className="text-sm font-medium mb-3">Choose color & icon</h4>
-                    <div className="mb-4">
-                      <p className="text-xs text-muted-foreground mb-2">Colors</p>
-                      <div className="grid grid-cols-6 gap-2">
-                        {OKLCH_PROJECT_COLORS.map((color) => (
-                          <button
-                            key={color}
-                            className={`w-8 h-8 rounded border-2 transition-all duration-200 hover:scale-110 ${
-                              localValues.color === color 
-                                ? 'border-primary ring-2 ring-primary/20' 
-                                : 'border-border hover:border-primary/50'
-                            }`}
-                            style={{ backgroundColor: color }}
-                            onClick={() => handleColorChange(color)}
-                            title={color}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                    <div className="mb-4">
-                      <p className="text-xs text-muted-foreground mb-2">Icons</p>
-                      <div className="grid grid-cols-6 gap-2">
-                        {PROJECT_ICONS.map((icon) => (
-                          <button
-                            key={icon.name}
-                            className={`w-8 h-8 rounded border-2 transition-all duration-200 hover:scale-110 flex items-center justify-center ${
-                              localValues.icon === icon.name 
-                                ? 'border-primary ring-2 ring-primary/20' 
-                                : 'border-border hover:border-primary/50'
-                            }`}
-                            style={{ backgroundColor: localValues.color || OKLCH_PROJECT_COLORS[0] }}
-                            onClick={() => handleIconChange(icon.name)}
-                            title={icon.label}
-                          >
-                            <icon.component className="w-4 h-4 text-foreground" />
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              </div>
+                      <Infinity className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Make continuous</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            {/* Second Row: Project Name, Client, and Icon */}
+            <div className="flex items-center gap-4">
               {/* Project Name Field */}
-              <div className="flex-1">
-                <Label className="text-xs text-muted-foreground mb-1 block">Project Name <span className="text-destructive">*</span></Label>
+              <div style={{ width: '250px' }}>
                 {editingTitle ? (
                   <Input
                     defaultValue={localValues.name}
-                    placeholder="Enter project name"
-                    className="h-10"
+                    placeholder="Add Project Name *"
+                    className="h-10 text-sm !bg-white"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         handleTitleSave((e.target as HTMLInputElement).value);
@@ -1163,21 +1090,80 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
                   />
                 ) : (
                   <div 
-                    className="cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors px-3 py-2 h-10 border border-input rounded-md flex items-center"
+                    className="cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors px-3 py-2 h-10 border border-input rounded-md flex items-center text-sm text-muted-foreground bg-white"
                     onClick={() => setEditingTitle(true)}
                   >
-                    {localValues.name || 'Click to add project name...'}
+                    {localValues.name || 'Add Project Name *'}
                   </div>
                 )}
               </div>
               {/* Client Field */}
-              <div className="flex-1">
+              <div style={{ width: '250px' }}>
                 <HeaderClientField
                   value={localValues.client}
                   property="client"
-                  placeholder="Client"
+                  placeholder="Add Client *"
                 />
               </div>
+              {/* Project Icon Field */}
+              <Popover open={stylePickerOpen} onOpenChange={setStylePickerOpen}>
+                <PopoverTrigger asChild>
+                  <div 
+                    className="w-10 h-10 rounded-full flex-shrink-0 cursor-pointer relative group transition-all duration-200 hover:scale-105 hover:shadow-md ring-2 ring-transparent hover:ring-primary/20"
+                    style={{ backgroundColor: localValues.color || OKLCH_PROJECT_COLORS[0] }}
+                  >
+                    {(() => {
+                      const currentIcon = PROJECT_ICONS.find(icon => icon.name === (localValues.icon || 'folder'));
+                      const IconComponent = currentIcon?.component || Folder;
+                      return <IconComponent className="w-5 h-5 text-foreground absolute inset-0 m-auto" />;
+                    })()}
+                    <div className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/20 transition-all duration-200 flex items-center justify-center pointer-events-none">
+                      <Palette className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                    </div>
+                  </div>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-4">
+                  <h4 className="text-sm font-medium mb-3">Choose color & icon</h4>
+                  <div className="mb-4">
+                    <p className="text-xs text-muted-foreground mb-2">Colors</p>
+                    <div className="grid grid-cols-6 gap-2">
+                      {OKLCH_PROJECT_COLORS.map((color) => (
+                        <button
+                          key={color}
+                          className={`w-8 h-8 rounded border-2 transition-all duration-200 hover:scale-110 ${
+                            localValues.color === color 
+                              ? 'border-primary ring-2 ring-primary/20' 
+                              : 'border-border hover:border-primary/50'
+                          }`}
+                          style={{ backgroundColor: color }}
+                          onClick={() => handleColorChange(color)}
+                          title={color}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <div className="mb-4">
+                    <p className="text-xs text-muted-foreground mb-2">Icons</p>
+                    <div className="grid grid-cols-6 gap-2">
+                      {PROJECT_ICONS.map((icon) => (
+                        <button
+                          key={icon.name}
+                          className={`w-8 h-8 rounded border-2 transition-all duration-200 hover:scale-110 flex items-center justify-center ${
+                            localValues.icon === icon.name 
+                              ? 'border-primary ring-2 ring-primary/20' 
+                              : 'border-border hover:border-primary/50'
+                          }`}
+                          style={{ backgroundColor: localValues.color || OKLCH_PROJECT_COLORS[0] }}
+                          onClick={() => handleIconChange(icon.name)}
+                          title={icon.label}
+                        >
+                          <icon.component className="w-4 h-4 text-foreground" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         </div>
@@ -1185,35 +1171,40 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
         <div>
           {/* Tab Headers */}
           <div 
-            className="flex items-end border-b border-gray-200 px-8"
+            className="flex items-end border-b border-gray-200 px-8 bg-stone-100"
             style={{
-              backgroundColor: 'rgb(249, 250, 251)', // bg-gray-50
               paddingTop: '4px',
             }}
           >
             <TabComponent
-              label="Estimate Hours"
+              label="Add Time Est"
               value="estimate"
               isActive={activeTab === 'estimate'}
               onClick={() => setActiveTab('estimate')}
+              icon={<Clock className="w-4 h-4" />}
+              height={40}
             />
             <TabComponent
-              label="Track Progress"
+              label="See Progress"
               value="progress"
               isActive={activeTab === 'progress'}
               onClick={() => setActiveTab('progress')}
+              icon={<LineChart className="w-4 h-4" />}
+              height={40}
             />
             <TabComponent
-              label="Notes"
+              label="Add Notes"
               value="notes"
               isActive={activeTab === 'notes'}
               onClick={() => setActiveTab('notes')}
+              icon={<StickyNote className="w-4 h-4" />}
+              height={40}
             />
             {/* Fill remaining space with background */}
             <div className="flex-1 border-b border-gray-200" style={{ marginBottom: '-1px' }} />
           </div>
           {/* Tab Content */}
-          <div className="px-8 py-6">
+          <div className="px-8 py-6" style={{ backgroundColor: NEUTRAL_COLORS.gray25 }}>
             {/* Estimate Hours Tab */}
             {activeTab === 'estimate' && (
               <ProjectMilestoneSection
