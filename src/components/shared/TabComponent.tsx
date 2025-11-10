@@ -27,7 +27,7 @@ export function TabComponent({ label, isActive, onClick, icon, height = 36 }: Ta
         backgroundColor: isActive ? 'white' : NEUTRAL_COLORS.gray150,
         borderTopLeftRadius: '8px',
         borderTopRightRadius: '8px',
-        marginRight: '-2px',
+        marginRight: '2px',
         borderTop: `1px solid ${NEUTRAL_COLORS.gray200}`,
         borderLeft: `1px solid ${NEUTRAL_COLORS.gray200}`,
         borderRight: `1px solid ${NEUTRAL_COLORS.gray200}`,

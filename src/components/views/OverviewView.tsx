@@ -291,7 +291,6 @@ export function OverviewView() {
                 {/* Add Project Button */}
                 <Button
                   onClick={() => {
-                    console.log('Add Project clicked');
                     setSelectedProjectId(null);
                     // Use first group as default, or create a default group id
                     const defaultGroupId = groups[0]?.id || 'default-group';
@@ -374,7 +373,6 @@ export function OverviewView() {
                 {/* Add Client Button */}
                 <Button
                   onClick={() => {
-                    console.log('Add Client clicked');
                     setEditingClientId(null);
                     setIsClientModalOpen(true);
                   }}
@@ -522,7 +520,6 @@ export function OverviewView() {
       <ProjectModal
         isOpen={!!selectedProjectId || isCreatingProject}
         onClose={() => {
-          console.log('ProjectModal closing');
           setSelectedProjectId(null);
           setIsCreatingProject(false);
           setCreateProjectGroupId(undefined);

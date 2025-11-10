@@ -147,8 +147,24 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
     box-sizing: border-box;
+  }
+  
+  /* Remove all focus rings globally */
+  *:focus,
+  *:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+  
+  /* Custom focus styles - stone-200 border overlay (no layout shift) */
+  input:focus,
+  textarea:focus,
+  select:focus,
+  button:focus-visible {
+    box-shadow: 0 0 0 2px rgb(231 229 228) !important;
+    border-color: rgb(231 229 228);
   }
 
   html, body {
