@@ -32,6 +32,7 @@ import { AvailabilityCard } from '../shared/AvailabilityCard';
 import { HolidayBar } from '@/components/features/timeline/HolidayBar';
 import { AppPageLayout } from '../layout/AppPageLayout';
 import { TimelineToolbar } from '@/components/features/timeline/TimelineToolbar';
+import { ResizableSplitter } from '../shared/ResizableSplitter';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 // Lazy load heavy modals
 const ProjectModal = React.lazy(() => import('../modals/ProjectModal').then(module => ({ default: module.ProjectModal })));
@@ -149,6 +150,11 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
   
   // Help modal state
   const [helpModalOpen, setHelpModalOpen] = useState(false);
+  
+  // Split ratio state for resizable timeline/availability sections
+  // 0 = all timeline, 1 = all availability/holiday, 0.7 = 70% timeline, 30% availability/holiday
+  const [splitRatio, setSplitRatio] = useState(0.7);
+  
   // Protected viewport setter that respects scrollbar blocking using service
   const protectedSetViewportStart = useCallback((date: Date) => {
     // Safety check: ensure date is valid
@@ -573,8 +579,16 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
           {/* Main Content Area with Card */}
           <AppPageLayout.Content className="px-6 pb-6">
             <div className="flex flex-col min-h-0 flex-1">
-              {/* Timeline Card */}
-              <Card className="flex-shrink flex flex-col overflow-hidden relative timeline-card-container" style={{ flexGrow: 1, flexBasis: 0 }}>
+              {/* Timeline Card - now with dynamic height based on split ratio */}
+              <Card 
+                className="flex-shrink flex flex-col overflow-hidden relative timeline-card-container" 
+                style={{ 
+                  flexGrow: 0, 
+                  flexBasis: 'auto',
+                  height: `calc(${splitRatio * 100}% - 10.5px)`, // Subtract half the splitter height
+                  minHeight: '300px'
+                }}
+              >
                 {/* Column Markers removed from here - will be added per-row */}
                 <div className="flex flex-col min-h-full bg-white">
                   {/* Fixed Headers Row */}
@@ -633,35 +647,58 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
                   </div> {/* End of Scrollable Content Area */}
                 </div>
               </Card>
-              {/* Availability Timeline Card */}
-              <div className="relative mt-[21px]">
-                <AvailabilityCard
-                  collapsed={collapsed}
-                  dates={dates}
-                  projects={projects}
-                  settings={settings}
-                  mode={mode}
-                  milestones={milestones}
-                  context="timeline"
-                  columnMarkersOverlay={
-                    /* All timeline overlays: borders, today, weekends, holidays */
-                    <TimelineBackground dates={dates} mode={mode} holidays={holidays} />
-                  }
-                />
+              
+              {/* Resizable Splitter */}
+              <ResizableSplitter
+                splitRatio={splitRatio}
+                onSplitRatioChange={setSplitRatio}
+                minBottomHeight={150}
+                maxBottomHeight={600}
+              />
+              
+              {/* Availability and Holiday Section - with dynamic height and overflow */}
+              <div 
+                className="flex flex-col overflow-hidden transition-all duration-200"
+                style={{ 
+                  height: `calc(${(1 - splitRatio) * 100}% - 10.5px)`, // Subtract half the splitter height
+                  minHeight: '0px'
+                }}
+              >
+                {/* Only show content if there's enough space */}
+                {(1 - splitRatio) > 0.15 && (
+                  <>
+                    {/* Availability Timeline Card */}
+                    <div className="relative flex-shrink-0">
+                      <AvailabilityCard
+                        collapsed={collapsed}
+                        dates={dates}
+                        projects={projects}
+                        settings={settings}
+                        mode={mode}
+                        milestones={milestones}
+                        context="timeline"
+                        columnMarkersOverlay={
+                          /* All timeline overlays: borders, today, weekends, holidays */
+                          <TimelineBackground dates={dates} mode={mode} holidays={holidays} />
+                        }
+                      />
+                    </div>
+                    {/* Holiday Card */}
+                    <Card className="mt-[21px] overflow-hidden shadow-sm border border-gray-200 relative flex-shrink-0">
+                      <div className="bg-yellow-200">
+                        <HolidayBar 
+                          dates={dates} 
+                          collapsed={collapsed} 
+                          isDragging={isDragging}
+                          dragState={dragState}
+                          handleHolidayMouseDown={handleHolidayMouseDown}
+                          mode={timelineMode}
+                        />
+                      </div>
+                    </Card>
+                  </>
+                )}
               </div>
-              {/* Holiday Card */}
-              <Card className="mt-[21px] overflow-hidden shadow-sm border border-gray-200 relative">
-                <div className="bg-yellow-200">
-                  <HolidayBar 
-                    dates={dates} 
-                    collapsed={collapsed} 
-                    isDragging={isDragging}
-                    dragState={dragState}
-                    handleHolidayMouseDown={handleHolidayMouseDown}
-                    mode={timelineMode}
-                  />
-                </div>
-              </Card>
               {/* Unified Timeline Scrollbar */}
               {(() => {
                 const { start, end } = scrollbarRange;

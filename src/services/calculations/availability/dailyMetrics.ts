@@ -1,10 +1,23 @@
 /**
- * Daily Availability Calculations
+ * Daily Metrics Service
  * 
- * Pure calculation functions for work hours and daily availability.
+ * KEYWORDS: daily availability, daily hours, available hours, daily project hours,
+ *           work hours for day, daily capacity, day availability, daily metrics,
+ *           get daily hours
+ * 
+ * Calculates work hours and availability metrics for specific days.
  * Following AI Development Rules:
  * - Pure calculations (no side effects, no state, no database access)
  * - No business context - just date and settings math
+ * 
+ * USE WHEN:
+ * - Calculating work hours for a specific day
+ * - Getting daily project allocation
+ * - Calculating available hours after project allocation
+ * 
+ * RELATED FILES:
+ * - workHourGeneration.ts - For work hour generation and totals
+ * - capacityAnalysis.ts - For multi-day capacity analysis
  * 
  * Note: isWorkingDay is already in dateCalculations.ts and is authoritative
  */
@@ -14,8 +27,8 @@ import {
   isHolidayDateCapacity, 
   calculateAvailabilityReduction,
   generateWorkHoursForDate 
-} from './capacityCalculations';
-import { calculateWorkHoursTotal } from '../../ui/positioning/ProjectBarPositioning';
+} from './capacityAnalysis';
+import { calculateWorkHoursTotal } from './workHourGeneration';
 import { calculateProjectDayEstimates } from '../projects/dayEstimateCalculations';
 import type { Project, CalendarEvent, Milestone, Settings, Holiday } from '@/types/core';
 

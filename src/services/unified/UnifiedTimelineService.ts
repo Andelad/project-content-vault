@@ -44,8 +44,6 @@ import {
   calculateHabitTimeWithinWorkSlots,
   calculatePlannedTimeNotOverlappingHabits,
   calculateNetAvailability,
-  calculateAvailabilityCircleSize,
-  getMinimumCircleDimensions,
   calculateAutoEstimateHoursPerDay,
   calculateAutoEstimateWorkingDays,
   isHolidayDateCapacity,
@@ -76,7 +74,7 @@ import {
   getWorkHoursForDay as getWorkHoursForDayCalc,
   calculateDailyProjectHours as calculateDailyProjectHoursCalc,
   calculateDailyAvailableHours as calculateDailyAvailableHoursCalc
-} from '../calculations/availability/dailyAvailabilityCalculations';
+} from '../calculations/availability/dailyMetrics';
 import type { Project, Milestone, DayEstimate, Settings, Holiday } from '@/types/core';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 export interface TimelineProjectData {
@@ -487,18 +485,6 @@ export class UnifiedTimelineService {
    * Delegates to existing service
    */
   static calculateWorkHoursTotal = calculateWorkHoursTotal;
-  
-  /**
-   * Calculate availability circle size
-   * Delegates to existing service
-   */
-  static calculateAvailabilityCircleSize = calculateAvailabilityCircleSize;
-  
-  /**
-   * Get minimum circle dimensions
-   * Delegates to existing service
-   */
-  static getMinimumCircleDimensions = getMinimumCircleDimensions;
   
   /**
    * Check if date is holiday

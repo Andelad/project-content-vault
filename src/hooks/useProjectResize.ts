@@ -17,7 +17,7 @@ import {
   TimelineDragCoordinatorService,
   addDaysToDate
 } from '@/services';
-import type { DragState } from '@/services/ui/positioning/DragPositioning';
+import type { DragState } from '@/services/ui/DragPositioning';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 interface UseProjectResizeProps {
   projects: any[];

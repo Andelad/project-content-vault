@@ -204,6 +204,8 @@ export type ViewType = 'timeline' | 'calendar' | 'projects' | 'reports' | 'setti
 export interface DragState {
   projectId?: string;
   holidayId?: string;
+  // Projects: only resize actions (start/end dates)
+  // Holidays: resize actions + 'move' (can drag entire holiday)
   action: 'move' | 'resize-start-date' | 'resize-end-date' | 'resize-left' | 'resize-right';
   startX: number;
   startY: number;

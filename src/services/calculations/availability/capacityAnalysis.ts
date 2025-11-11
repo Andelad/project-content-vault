@@ -1,15 +1,29 @@
 /**
- * Capacity Calculations Service
+ * Capacity Analysis Service
  * 
- * Pure calculation functions for work hour capacity analysis and utilization metrics.
+ * KEYWORDS: capacity, utilization, overbooking, overbooked, capacity planning, work capacity,
+ *           allocated hours, available hours, holiday overlap, efficiency, capacity analysis,
+ *           analyze capacity, capacity metrics
+ * 
+ * Analyzes work hour capacity, utilization, and overbooking situations.
  * Moved from legacy workHourCapacityService to follow new architecture patterns.
  * Uses single source of truth for all basic calculations.
+ * 
+ * USE WHEN:
+ * - Analyzing work hour capacity and utilization
+ * - Detecting overbooking situations
+ * - Checking holiday overlaps with events
+ * - Calculating efficiency metrics
+ * - Performing capacity planning across multiple days
+ * 
+ * RELATED FILES:
+ * - workHourGeneration.ts - For work hour generation and totals
+ * - dailyMetrics.ts - For daily metrics
  */
 
 import { calculateTimeOverlapMinutes, addDaysToDate, normalizeToMidnight } from '../general/dateCalculations';
-
 import { calculateEventDurationOnDate } from '../events/eventCalculations';
-import { calculateWorkHoursTotal, calculateDayWorkHours } from '../../ui/positioning/ProjectBarPositioning';
+import { calculateWorkHoursTotal, calculateDayWorkHours } from './workHourGeneration';
 import { getDateKey } from '@/utils/dateFormatUtils';
 
 // Import unified functions - these are the single source of truth

@@ -7,14 +7,15 @@
  * 🚨 ARCHITECTURAL RULE: Services calculate, Components coordinate
  */
 
-import * as DragCalculationsService from '../positioning/DragPositioning';
-import { DragState, DragPositionResult } from '../positioning/DragPositioning';
-import * as ProjectOverlapService from '../../calculations/projects/projectEntityCalculations';
-import { ConflictDetectionResult, DateAdjustmentResult } from '../../calculations/projects/projectEntityCalculations';
-import { calculateProjectDays, calculateWorkHoursTotal, calculateDayWorkHours } from '../positioning/ProjectBarPositioning';
-import { TimelineViewport as TimelineViewportService } from '../positioning/TimelineViewportService';
-import * as ProjectBarResizeService from '../positioning/ProjectBarResizeService';
-import { normalizeToMidnight, addDaysToDate } from '../../calculations/general/dateCalculations';
+import * as DragCalculationsService from './DragPositioning';
+import { DragState, DragPositionResult } from './DragPositioning';
+import * as ProjectOverlapService from '../calculations/projects/projectEntityCalculations';
+import { ConflictDetectionResult, DateAdjustmentResult } from '../calculations/projects/projectEntityCalculations';
+import { calculateProjectDays } from './ProjectBarPositioning';
+import { calculateWorkHoursTotal, calculateDayWorkHours } from '../calculations/availability/workHourGeneration';
+import { TimelineViewport as TimelineViewportService } from './TimelineViewportService';
+import * as ProjectBarResizeService from './ProjectBarResizeService';
+import { normalizeToMidnight, addDaysToDate } from '../calculations/general/dateCalculations';
 import type { Project } from '@/types/core';
 import type { DayEstimate } from '@/types/core';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
@@ -148,21 +149,6 @@ export class TimelineDragCoordinatorService {
           targetProject,
           projects
         );
-      } else if (dragState.action === 'move') {
-        conflictResult = ProjectOverlapService.detectLiveDragConflicts(
-          dragState.projectId,
-          newDates,
-          targetProject.rowId,
-          projects
-        );
-
-        if (conflictResult.hasConflicts) {
-          adjustmentResult = ProjectOverlapService.resolveDragConflicts(
-            newDates,
-            conflictResult.conflictingProjects,
-            'adjust'
-          );
-        }
       }
     }
 
@@ -262,10 +248,6 @@ export class TimelineDragCoordinatorService {
     } else if (dragState.action === 'resize-end-date') {
       snappedDaysDelta = Math.round(
         (finalDates.endDate.getTime() - dragState.originalEndDate.getTime()) / dayInMs
-      );
-    } else if (dragState.action === 'move') {
-      snappedDaysDelta = Math.round(
-        (finalDates.startDate.getTime() - dragState.originalStartDate.getTime()) / dayInMs
       );
     }
 
@@ -459,17 +441,8 @@ export class TimelineDragCoordinatorService {
         };
       }
 
-      // Handle project drag completion
-      if (dragState.action === 'move' && dragState.projectId && onProjectUpdate) {
-        onProjectUpdate(dragState.projectId, {
-          startDate: finalDates.startDate,
-          endDate: finalDates.endDate
-        }, { silent: true });
-
-        // TODO: Update milestones if needed
-        // This would require access to milestones data
-
-      } else if (dragState.action === 'resize-start-date' && dragState.projectId && onProjectUpdate) {
+      // Handle project resize completion
+      if (dragState.action === 'resize-start-date' && dragState.projectId && onProjectUpdate) {
         onProjectUpdate(dragState.projectId, {
           startDate: finalDates.startDate
         }, { silent: true });
@@ -525,12 +498,6 @@ export class TimelineDragCoordinatorService {
     const { daysDelta } = positionResult;
 
     switch (dragState.action) {
-      case 'move':
-        return {
-          startDate: new Date(dragState.originalStartDate.getTime() + daysDelta * 24 * 60 * 60 * 1000),
-          endDate: new Date(dragState.originalEndDate.getTime() + daysDelta * 24 * 60 * 60 * 1000)
-        };
-
       case 'resize-start-date':
         return {
           startDate: new Date(dragState.originalStartDate.getTime() + daysDelta * 24 * 60 * 60 * 1000),

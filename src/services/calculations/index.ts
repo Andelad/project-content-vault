@@ -67,8 +67,7 @@ export * from './timeline/timelineRowCalculations';  // Timeline row arrangement
 export * from './groups/groupCalculations';
 
 // ===== AVAILABILITY =====
-export * from './availability/availabilityCalculations';
-export * from './availability/dailyAvailabilityCalculations';  // Daily work hours and availability
+export * from './availability/dailyMetrics';  // Daily work hours and availability metrics
 // Note: capacityCalculations has calculateOtherTime, calculateOvertimePlannedHours, calculateTotalPlannedHours
 // which are also in UnifiedEventWorkHourService (unified layer is primary source)
 export {
@@ -101,11 +100,14 @@ export {
   calculateHabitTimeWithinWorkSlots,
   calculatePlannedTimeNotOverlappingHabits,
   calculateNetAvailability
-} from './availability/capacityCalculations';
+} from './availability/capacityAnalysis';
 // Note: workHourCalculations re-exports getWeekStart/getCurrentWeekStart from timeCalculations
 export {
   WorkHourCalculationService,
   calculateWorkHourDuration,
+  calculateWorkHoursTotal,
+  calculateDayWorkHours,
+  calculateTotalDayWorkHours,
   createWorkHour,
   updateWorkHourWithDuration,
   generateWorkHoursFromSettings,
@@ -116,22 +118,10 @@ export {
   createDeletionOverride,
   createUpdateOverride,
   resetWorkHourState,
-  WORK_HOUR_CONSTANTS,
-  calculateTimeFromPosition,
-  handleWorkHourCreationStart,
-  handleWorkHourCreationMove,
-  handleWorkHourCreationComplete,
-  getWorkHourOverlapInfo,
-  generateWorkHourPreviewStyle,
-  getWorkHourCreationCursor,
-  shouldAllowWorkHourCreation,
-  formatWorkSlotDurationDisplay,
   type WeekOverrideManager,
   type WorkHourGenerationParams,
-  type WorkHourMergeParams,
-  type TimeCalculationParams,
-  type WorkHourCreateState
-} from './availability/workHourCalculations';
+  type WorkHourMergeParams
+} from './availability/workHourGeneration';
 
 // ===== TRACKING =====
 export * from './tracking/timeTrackingCalculations';

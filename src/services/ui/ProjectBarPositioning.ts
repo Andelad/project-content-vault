@@ -22,13 +22,21 @@ import {
   calculateProjectDaysInViewport,
   convertIndicesToDates,
   calculateOccupiedHolidayIndices
-} from '../../calculations/general/dateCalculations';
+} from '../calculations/general/dateCalculations';
+import {
+  calculateWorkHoursTotal,
+  calculateDayWorkHours,
+  calculateTotalDayWorkHours
+} from '../calculations/availability/workHourGeneration';
 import { formatDateShort, formatWeekdayDate } from '@/utils/dateFormatUtils';
-import type { Holiday } from '../../../types';
+import type { Holiday } from '../../types';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 // Re-export date calculation functions for backwards compatibility
-export { convertIndicesToDates, calculateOccupiedHolidayIndices };
+export { 
+  convertIndicesToDates, 
+  calculateOccupiedHolidayIndices
+};
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -243,14 +251,7 @@ export function calculateBaselineVisualOffsets(
 
     const action = dragState?.action;
 
-    if (action === 'move') {
-      // Move everything together
-      adjustedPositions = {
-        ...positions,
-        baselineStartPx: positions.baselineStartPx + dragOffsetPx,
-        baselineWidthPx: positions.baselineWidthPx // width unchanged when moving
-      };
-    } else if (action === 'resize-start-date') {
+    if (action === 'resize-start-date') {
       // Only start date (and baseline left edge) should move visually
       adjustedPositions = {
         ...positions,
@@ -294,16 +295,7 @@ export function calculateVisualProjectDates(
     const daysOffset = dragState.lastDaysDelta || 0;
     const action = dragState.action;
 
-    if (action === 'move') {
-      // Move both start and end (for continuous projects, only start matters)
-      visualProjectStart = new Date(project.startDate);
-      visualProjectStart = addDaysToDate(visualProjectStart, daysOffset);
-      
-      if (!project.continuous) {
-        visualProjectEnd = new Date(project.endDate);
-        visualProjectEnd = addDaysToDate(visualProjectEnd, daysOffset);
-      }
-    } else if (action === 'resize-start-date') {
+    if (action === 'resize-start-date') {
       // Only move start date
       visualProjectStart = new Date(project.startDate);
       visualProjectStart = addDaysToDate(visualProjectStart, daysOffset);
@@ -360,40 +352,6 @@ export function calculateProjectDays(
     viewportStart,
     viewportEnd
   );
-}
-
-// ============================================================================
-// WORK HOURS CALCULATIONS
-// ============================================================================
-
-/**
- * Calculate total work hours for a day
- * Used for capacity calculations
- */
-export function calculateWorkHoursTotal(workHours: any[]): number {
-  if (!Array.isArray(workHours)) {
-    return 0;
-  }
-  return workHours.reduce((sum, workHour) => sum + (workHour.duration || 0), 0);
-}
-
-/**
- * Calculate work hours for a specific day from settings
- */
-export function calculateDayWorkHours(date: Date, settings: any): any[] {
-  if (!settings?.weeklyWorkHours) return [];
-
-  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-  const dayName = dayNames[date.getDay()] as keyof typeof settings.weeklyWorkHours;
-  return settings.weeklyWorkHours[dayName] || [];
-}
-
-/**
- * Calculate total work hours for a specific day
- */
-export function calculateTotalDayWorkHours(date: Date, settings: any): number {
-  const dayWorkHours = calculateDayWorkHours(date, settings);
-  return calculateWorkHoursTotal(dayWorkHours);
 }
 
 // ============================================================================

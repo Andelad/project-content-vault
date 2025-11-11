@@ -318,6 +318,15 @@ export const AvailabilityCard = memo(function AvailabilityCard({
                   }}
                 >
                   <svg width="22" height="22" viewBox="0 0 22 22" className="overflow-visible">
+                    {/* Default grey dot - always visible */}
+                    <circle
+                      cx="11"
+                      cy="11"
+                      r="3"
+                      fill={NEUTRAL_COLORS.gray400}
+                      className={`transition-opacity duration-200 ${hoveredColumnIndex === dateIndex ? 'opacity-0' : 'opacity-100'}`}
+                    />
+                    {/* Hover effects */}
                     <circle
                       cx="11"
                       cy="11"

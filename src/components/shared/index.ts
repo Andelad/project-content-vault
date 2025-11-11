@@ -6,3 +6,4 @@ export { TabComponent } from './TabComponent';
 export { DatePickerButton } from './DatePickerButton';
 export { HelpButton } from './HelpButton';
 export { AvailabilityCardSettingsButton } from './AvailabilityCardSettingsButton';
+export { ResizableSplitter } from './ResizableSplitter';

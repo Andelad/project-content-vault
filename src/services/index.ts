@@ -39,7 +39,7 @@ export * from './infrastructure/ErrorHandlingService';  // Centralized error han
 // These will be removed once migration to new architecture is complete
 // TimelinePositioningService migrated to ui/TimelinePositioning.ts
 // ProjectCalculationService migrated to UnifiedProjectService
-export { WorkHourCalculationService } from './calculations/availability/workHourCalculations';
+export { WorkHourCalculationService } from './calculations/availability/workHourGeneration';
 
 // 🔧 Additional Temporary Exports (Remove after migration)
 // Timeline positioning functions (frequently used)
@@ -109,12 +109,12 @@ export {
 // TimelineCalculationService migrated to calculations/timelineCalculations.ts
 
 // New architecture services - maintain backward compatibility
-export { TimelineViewport, TimelineViewport as TimelineViewportService } from './ui/positioning/TimelineViewportService';
+export { TimelineViewport, TimelineViewport as TimelineViewportService } from './ui/TimelineViewportService';
 
 // ================================================================================
 
 // Legacy calculation functions (to be migrated)
-export { calculateTimeFromPosition } from './calculations/availability/workHourCalculations';
+export { calculateTimeFromPosition } from './ui/workHourInteraction';
 export { 
   calculateDurationMinutes,
   normalizeToMidnight,
@@ -200,7 +200,7 @@ import { calculateEventDurationOnDate as calculateEventDurationOnDateNew } from 
 export function calculateEventDurationOnDateLegacy(event: any, targetDate: Date): number {
   return calculateEventDurationOnDateNew({ event, targetDate });
 }
-export { calculateWorkHourCapacity, getWorkHoursCapacityForPeriod } from './calculations/availability/capacityCalculations';
+export { calculateWorkHourCapacity, getWorkHoursCapacityForPeriod } from './calculations/availability/capacityAnalysis';
 export { calculateProjectDuration, calculateProjectTimeMetrics, buildPlannedTimeMap, getPlannedTimeUpToDate, generateProgressDataPoints, calculateProjectVelocity, estimateProjectCompletionDate } from './calculations/projects/projectEntityCalculations';
 export { isProjectFullyCompletedOnDate, calculatePlannedTimeCompletionStats } from './calculations/insights/analyticsCalculations';
 export { memoizedGetProjectTimeAllocation, calculateEventStyle, getProjectTimeAllocation } from './unified/UnifiedEventWorkHourService';
@@ -234,8 +234,9 @@ export {
   type MilestoneSegment
 } from './calculations/projects/milestoneCalculations';
 // Legacy project progress analysis - migrated to unified service with compatibility wrapper
-export { wouldOverlapHolidays, isHolidayDateCapacity, calculateCommittedHoursForDate, hasWorkHoursConfigured, dayHasWorkHoursConfigured } from './calculations/availability/capacityCalculations';
-export { calculateProjectDays, calculateWorkHoursTotal, calculateDayWorkHours, calculateTotalDayWorkHours } from './ui/positioning/ProjectBarPositioning';
+export { wouldOverlapHolidays, isHolidayDateCapacity, calculateCommittedHoursForDate, hasWorkHoursConfigured, dayHasWorkHoursConfigured } from './calculations/availability/capacityAnalysis';
+export { calculateProjectDays } from './ui/ProjectBarPositioning';
+export { calculateWorkHoursTotal, calculateDayWorkHours, calculateTotalDayWorkHours } from './calculations/availability/workHourGeneration';
 export { calculateDailyCapacity } from './calculations/insights/analyticsCalculations';
 export { calculateProjectTimeMetrics as calculateLegacyProjectMetrics } from './calculations/projects/projectEntityCalculations';
 // CoreProjectCalculationService migrated to UnifiedProjectService
@@ -253,15 +254,15 @@ export {
   debounceDragUpdate, 
   initializeHolidayDragState,
   type SmoothAnimationConfig 
-} from './ui/positioning/DragPositioning';
-export { formatTimeForDisplay } from './calculations/availability/workHourCalculations';
-export { handleWorkHourCreationStart, handleWorkHourCreationMove, handleWorkHourCreationComplete } from './calculations/availability/workHourCalculations';
-export { getWorkHourOverlapInfo, generateWorkHourPreviewStyle, getWorkHourCreationCursor, shouldAllowWorkHourCreation, type WorkHourCreateState } from './calculations/availability/workHourCalculations';
+} from './ui/DragPositioning';
+export { formatTimeForDisplay } from './ui/workHourInteraction';
+export { handleWorkHourCreationStart, handleWorkHourCreationMove, handleWorkHourCreationComplete } from './ui/workHourInteraction';
+export { getWorkHourOverlapInfo, generateWorkHourPreviewStyle, getWorkHourCreationCursor, shouldAllowWorkHourCreation, type WorkHourCreateState } from './ui/workHourInteraction';
 // PositionCalculation type migrated to ui/TimelinePositioning.ts
 export { type ComprehensiveProjectTimeMetrics, type ProjectEvent as ProgressProjectEvent } from './calculations/projects/projectEntityCalculations';
 // Timeline positioning now handled by ui/TimelinePositioning.ts
 // All UI positioning functions consolidated there
-export { formatWorkSlotDurationDisplay } from './calculations/availability/workHourCalculations';
+export { formatWorkSlotDurationDisplay } from './ui/workHourInteraction';
 export { checkProjectOverlap, adjustProjectDatesForDrag, detectLiveDragConflicts, resolveDragConflicts, datesOverlap, calculateOverlapPercentage, type ConflictDetectionResult, type DateAdjustmentResult, type Project } from './calculations/projects/projectEntityCalculations';
 
 /**
