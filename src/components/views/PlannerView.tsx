@@ -42,6 +42,7 @@ import '@/components/features/planner/fullcalendar-overrides.css';
 // Modal imports
 const EventModal = React.lazy(() => import('../modals/EventModal').then(module => ({ default: module.EventModal })));
 const HelpModal = React.lazy(() => import('../modals/HelpModal').then(module => ({ default: module.HelpModal })));
+import { WorkHourScopeDialog } from '@/components/modals';
 /**
  * PlannerView - FullCalendar-based planner with keyboard shortcuts
  * 
@@ -80,7 +81,13 @@ export function PlannerView() {
     currentView,
     setCurrentView,
     getEventsInDateRange,
-    workHours
+    workHours,
+    updateWorkHour,
+    deleteWorkHour,
+    showWorkHourScopeDialog,
+    pendingWorkHourChange,
+    confirmWorkHourChange,
+    cancelWorkHourChange
   } = usePlannerContext();
   const { projects, milestones: projectMilestones } = useProjectContext();
   const { 
@@ -200,7 +207,7 @@ export function PlannerView() {
       }
       return;
     }
-    // Handle work hour drag/drop - update settings
+    // Handle work hour drag/drop - trigger scope dialog
     if (extendedProps.isWorkHour) {
       const workHour = extendedProps.originalWorkHour;
       const newStart = dropInfo.event.start;
@@ -209,23 +216,15 @@ export function PlannerView() {
         dropInfo.revert();
         return;
       }
-      const settingsUpdate = UnifiedWorkHoursService.prepareWorkHoursUpdate(
-        settings,
-        workHour.id,
-        newStart,
-        newEnd
-      );
-      if (!settingsUpdate) {
-        toast({
-          title: "Cannot update work slot",
-          description: "Work slot configuration error",
-          variant: "destructive",
-        });
-        dropInfo.revert();
-        return;
-      }
-      await updateSettings(settingsUpdate);
-      // Settings updated successfully, useEffect will trigger calendar refetch
+      
+      // Trigger the scope dialog from useWorkHours hook
+      await updateWorkHour(workHour.id, {
+        startTime: newStart,
+        endTime: newEnd
+      });
+      
+      // If there was an error or the dialog is showing, revert might happen automatically
+      // The hook will handle showing the scope dialog
       return;
     }
     // Handle regular event drop
@@ -259,7 +258,7 @@ export function PlannerView() {
       }
       return;
     }
-    // Handle work hour resize - update settings
+    // Handle work hour resize - trigger scope dialog
     if (extendedProps.isWorkHour) {
       const workHour = extendedProps.originalWorkHour;
       const newStart = resizeInfo.event.start;
@@ -268,27 +267,14 @@ export function PlannerView() {
         resizeInfo.revert();
         return;
       }
-      const settingsUpdate = UnifiedWorkHoursService.prepareWorkHoursUpdate(
-        settings,
-        workHour.id,
-        newStart,
-        newEnd
-      );
-      if (!settingsUpdate) {
-        toast({
-          title: "Cannot update work slot",
-          description: "Work slot configuration error",
-          variant: "destructive",
-        });
-        resizeInfo.revert();
-        return;
-      }
-      await updateSettings(settingsUpdate);
-      // Settings updated successfully, useEffect will trigger calendar refetch
-      toast({
-        title: "Work slot updated",
-        description: "Your work schedule has been updated",
+      
+      // Trigger the scope dialog from useWorkHours hook
+      await updateWorkHour(workHour.id, {
+        startTime: newStart,
+        endTime: newEnd
       });
+      
+      // The hook will handle showing the scope dialog
       return;
     }
     // Handle regular event resize
@@ -1093,6 +1079,16 @@ export function PlannerView() {
           initialTopicId="planner"
         />
       </React.Suspense>
+      
+      {/* Work Hour Scope Dialog */}
+      <WorkHourScopeDialog
+        isOpen={showWorkHourScopeDialog}
+        onClose={cancelWorkHourChange}
+        onThisDay={() => confirmWorkHourChange('this-day')}
+        onAllFuture={() => confirmWorkHourChange('all-future')}
+        action={pendingWorkHourChange?.type || 'update'}
+        workHourDate={pendingWorkHourChange ? formatDateLong(new Date()) : undefined}
+      />
     </div>
   );
 }

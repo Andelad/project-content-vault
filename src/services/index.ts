@@ -50,6 +50,7 @@ export { WorkHourCalculationService } from './calculations/availability/workHour
 export { UnifiedTimeTrackerService } from './unified/UnifiedTimeTrackerService';
 export { UnifiedMilestoneService } from './unified/UnifiedMilestoneService';
 export { UnifiedWorkHoursService } from './unified/UnifiedWorkHoursService';
+export { UnifiedWorkHourRecurrenceService } from './unified/UnifiedWorkHourRecurrenceService';
 export { UnifiedCalendarService, type LayerVisibility, type BusinessHoursConfig, type CalendarView, type ViewportSize, type ExternalEvent, type ImportResult } from './unified/UnifiedCalendarService';
 export { CalendarImportService } from './unified/CalendarImportService';
 export { transformFullCalendarToCalendarEvent } from './unified/UnifiedEventTransformService';

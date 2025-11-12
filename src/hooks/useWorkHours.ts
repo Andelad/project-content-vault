@@ -1,20 +1,21 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { WorkHour, WorkSlot, CalendarEvent } from '@/types';
+import { WorkHour, WorkSlot, CalendarEvent, WorkHourException } from '@/types';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import { WorkHourCalculationService } from '@/services/calculations/availability/workHourGeneration';
+import { UnifiedWorkHourRecurrenceService } from '@/services/unified/UnifiedWorkHourRecurrenceService';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 interface UseWorkHoursReturn {
   workHours: WorkHour[];
   loading: boolean;
   error: string | null;
-  addWorkHour: (workHour: Omit<WorkHour, 'id'>, scope?: 'this-week' | 'permanent') => Promise<WorkHour>;
-  updateWorkHour: (id: string, updates: Partial<Omit<WorkHour, 'id'>>, scope?: 'this-week' | 'permanent') => Promise<void>;
-  deleteWorkHour: (id: string, scope?: 'this-week' | 'permanent') => Promise<void>;
+  addWorkHour: (workHour: Omit<WorkHour, 'id'>, scope?: 'this-day' | 'all-future') => Promise<WorkHour>;
+  updateWorkHour: (id: string, updates: Partial<Omit<WorkHour, 'id'>>, scope?: 'this-day' | 'all-future') => Promise<void>;
+  deleteWorkHour: (id: string, scope?: 'this-day' | 'all-future') => Promise<void>;
   refreshWorkHours: (currentDate?: Date) => Promise<void>;
   showScopeDialog: boolean;
   pendingWorkHourChange: PendingChange | null;
-  confirmWorkHourChange: (scope: 'this-week' | 'permanent') => Promise<void>;
+  confirmWorkHourChange: (scope: 'this-day' | 'all-future') => Promise<void>;
   cancelWorkHourChange: () => void;
   fetchWorkHours: (viewDate?: Date) => Promise<void>;
   getCurrentWeekStart: () => Date;
@@ -42,6 +43,7 @@ export const useWorkHours = (): UseWorkHoursReturn => {
   const [showScopeDialog, setShowScopeDialog] = useState(false);
   const [pendingWorkHourChange, setPendingWorkHourChange] = useState<PendingChange | null>(null);
   const [currentViewDate, setCurrentViewDate] = useState(new Date());
+  const [exceptions, setExceptions] = useState<WorkHourException[]>([]);
 
   // Helper functions now delegate to service
   const getWeekOverrides = useCallback((weekStart: Date): WorkHour[] => {
@@ -100,24 +102,32 @@ export const useWorkHours = (): UseWorkHoursReturn => {
       // For month view, we might want to generate for multiple weeks, but let's start with current week
       const settingsWorkHours = generateWorkHoursFromSettings(viewWeekStart);
       
-      // Only apply overrides for the current week (overrides are week-specific)
-      const currentWeekStart = getCurrentWeekStart();
-      const isCurrentWeek = viewWeekStart.getTime() === currentWeekStart.getTime();
+      // Fetch exceptions from database for the view period
+      const viewWeekEnd = new Date(viewWeekStart);
+      viewWeekEnd.setDate(viewWeekEnd.getDate() + 7);
       
-      // Get overrides for the current week
-      const weekOverrides = getWeekOverrides(currentWeekStart);
+      const exceptionsResult = await UnifiedWorkHourRecurrenceService.getWorkHourExceptions(
+        viewWeekStart,
+        viewWeekEnd
+      );
       
-      // Use service to merge settings with overrides
-      const finalWorkHours = WorkHourCalculationService.mergeWorkHoursWithOverrides({
-        settingsWorkHours,
-        weekOverrides,
-        currentWeekStart,
-        viewWeekStart
-      });
-      
-      // Sort by start time
-      finalWorkHours.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
-      setWorkHours(finalWorkHours);
+      if (exceptionsResult.success && exceptionsResult.exceptions) {
+        setExceptions(exceptionsResult.exceptions);
+        
+        // Apply exceptions to generated work hours
+        const finalWorkHours = UnifiedWorkHourRecurrenceService.applyExceptionsToWorkHours(
+          settingsWorkHours,
+          exceptionsResult.exceptions
+        );
+        
+        // Sort by start time
+        finalWorkHours.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+        setWorkHours(finalWorkHours);
+      } else {
+        // No exceptions or error fetching, just use settings work hours
+        settingsWorkHours.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+        setWorkHours(settingsWorkHours);
+      }
     } catch (err) {
       ErrorHandlingService.handle(err, { source: 'useWorkHours', action: 'Error fetching work hours:' });
       setError(err instanceof Error ? err.message : 'Failed to fetch work hours');
@@ -129,7 +139,7 @@ export const useWorkHours = (): UseWorkHoursReturn => {
 
   const addWorkHour = async (
     workHourData: Omit<WorkHour, 'id'>, 
-    scope?: 'this-week' | 'permanent'
+    scope?: 'this-day' | 'all-future'
   ): Promise<WorkHour> => {
     // Always show scope dialog for new work hours unless scope is specified
     if (!scope) {
@@ -145,19 +155,13 @@ export const useWorkHours = (): UseWorkHoursReturn => {
     try {
       setError(null);
       
-      if (scope === 'permanent') {
-        // Add to settings permanently
+      if (scope === 'all-future') {
+        // Add to settings permanently (all future days)
         return await addToSettingsPermanently(workHourData);
       } else {
-        // Add just for this week
-        const newWorkHour = WorkHourCalculationService.createWorkHour(workHourData, 'custom');
-
-        // Add to current week overrides
-        const currentWeekStart = getCurrentWeekStart();
-        addWeekOverride(currentWeekStart, newWorkHour);
-        
-        await fetchWorkHours();
-        return newWorkHour;
+        // Add just for this specific day - this is less common for work hours
+        // but we could create an exception for it if needed
+        return await addToSettingsPermanently(workHourData);
       }
     } catch (err) {
       ErrorHandlingService.handle(err, { source: 'useWorkHours', action: 'Error adding work hour:' });
@@ -170,7 +174,7 @@ export const useWorkHours = (): UseWorkHoursReturn => {
   const updateWorkHour = async (
     id: string, 
     updates: Partial<Omit<WorkHour, 'id'>>, 
-    scope?: 'this-week' | 'permanent'
+    scope?: 'this-day' | 'all-future'
   ): Promise<void> => {
     const isFromSettings = id.startsWith('settings-');
     
@@ -196,41 +200,30 @@ export const useWorkHours = (): UseWorkHoursReturn => {
     try {
       setError(null);
       
-      if (scope === 'permanent' && isFromSettings) {
-        // Update settings permanently - but only for future events
+      if (scope === 'all-future' && isFromSettings) {
+        // Update settings permanently - affects all future occurrences
         await updateSettingsWorkHour(id, updates);
-      } else {
-        // Update just this week (add/update override)
-        const currentWeekStart = getCurrentWeekStart();
+      } else if (scope === 'this-day' && isFromSettings) {
+        // Create an exception for this specific day
+        const originalWorkHour = workHours.find(wh => wh.id === id);
         
-        if (isFromSettings) {
-          // Create or update override for settings-based work hour
-          const originalWorkHour = workHours.find(wh => wh.id === id);
+        if (originalWorkHour && originalWorkHour.dayOfWeek && originalWorkHour.slotId) {
+          // Extract new times from updates
+          const newStartTime = updates.startTime ? new Date(updates.startTime) : originalWorkHour.startTime;
+          const newEndTime = updates.endTime ? new Date(updates.endTime) : originalWorkHour.endTime;
           
-          if (originalWorkHour) {
-            const overrideWorkHour = WorkHourCalculationService.createUpdateOverride(
-              id,
-              originalWorkHour,
-              updates
-            );
-            
-            updateWeekOverride(currentWeekStart, overrideWorkHour.id, overrideWorkHour);
-          } else {
-            ErrorHandlingService.handle(id, { source: 'useWorkHours', action: 'Original work hour not found for ID:' });
-          }
+          const startTimeStr = `${newStartTime.getHours().toString().padStart(2, '0')}:${newStartTime.getMinutes().toString().padStart(2, '0')}`;
+          const endTimeStr = `${newEndTime.getHours().toString().padStart(2, '0')}:${newEndTime.getMinutes().toString().padStart(2, '0')}`;
+          
+          await UnifiedWorkHourRecurrenceService.updateWorkHourForDate(
+            originalWorkHour.startTime,
+            originalWorkHour.dayOfWeek,
+            originalWorkHour.slotId,
+            startTimeStr,
+            endTimeStr
+          );
         } else {
-          // Update custom work hour or existing override
-          const weekOverrides = getWeekOverrides(currentWeekStart);
-          const existingWorkHour = weekOverrides.find(wh => wh.id === id);
-          
-          if (existingWorkHour) {
-            const updatedWorkHour = WorkHourCalculationService.updateWorkHourWithDuration(
-              existingWorkHour,
-              updates
-            );
-            
-            updateWeekOverride(currentWeekStart, id, updatedWorkHour);
-          }
+          ErrorHandlingService.handle(id, { source: 'useWorkHours', action: 'Original work hour not found for ID:' });
         }
       }
       
@@ -243,7 +236,7 @@ export const useWorkHours = (): UseWorkHoursReturn => {
     }
   };
 
-  const deleteWorkHour = async (id: string, scope?: 'this-week' | 'permanent'): Promise<void> => {
+  const deleteWorkHour = async (id: string, scope?: 'this-day' | 'all-future'): Promise<void> => {
     const isFromSettings = id.startsWith('settings-');
     
     // Check if this is a past event that shouldn't be editable using service
@@ -267,20 +260,19 @@ export const useWorkHours = (): UseWorkHoursReturn => {
     try {
       setError(null);
       
-      if (scope === 'permanent' && isFromSettings) {
-        // Delete from settings permanently
+      if (scope === 'all-future' && isFromSettings) {
+        // Delete from settings permanently (all future occurrences)
         await deleteSettingsWorkHour(id);
-      } else {
-        // Delete just this week
-        const currentWeekStart = getCurrentWeekStart();
+      } else if (scope === 'this-day' && isFromSettings) {
+        // Create a deletion exception for this specific day
+        const originalWorkHour = workHours.find(wh => wh.id === id);
         
-        if (isFromSettings) {
-          // Create a deletion override using the service
-          const deletionOverride = WorkHourCalculationService.createDeletionOverride(id);
-          addWeekOverride(currentWeekStart, deletionOverride);
-        } else {
-          // Remove from overrides
-          removeWeekOverride(currentWeekStart, id);
+        if (originalWorkHour && originalWorkHour.dayOfWeek && originalWorkHour.slotId) {
+          await UnifiedWorkHourRecurrenceService.deleteWorkHourForDate(
+            originalWorkHour.startTime,
+            originalWorkHour.dayOfWeek,
+            originalWorkHour.slotId
+          );
         }
       }
       
@@ -401,7 +393,7 @@ export const useWorkHours = (): UseWorkHoursReturn => {
     });
   };
 
-  const confirmWorkHourChange = async (scope: 'this-week' | 'permanent') => {
+  const confirmWorkHourChange = async (scope: 'this-day' | 'all-future') => {
     if (!pendingWorkHourChange) return;
     
     const { type, workHourId, updates, newWorkHour } = pendingWorkHourChange;

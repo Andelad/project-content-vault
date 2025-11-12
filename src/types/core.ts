@@ -178,6 +178,22 @@ export interface WorkHour {
   endTime: Date; // Date object for consistency with how it's used in the app  
   duration: number; // Duration in hours
   type?: 'work' | 'meeting' | 'break'; // Optional type for different work hour categories
+  dayOfWeek?: string; // Day pattern (monday, tuesday, etc.) for recurring work hours
+  slotId?: string; // Reference to WorkSlot ID in settings for recurring work hours
+  isException?: boolean; // True if this work hour is an exception to the pattern
+}
+
+export interface WorkHourException {
+  id: string;
+  userId: string;
+  exceptionDate: Date;
+  dayOfWeek: string; // monday, tuesday, etc.
+  slotId: string; // WorkSlot ID from settings.weekly_work_hours
+  exceptionType: 'deleted' | 'modified';
+  modifiedStartTime?: string; // HH:MM format if modified
+  modifiedEndTime?: string; // HH:MM format if modified
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface TimeEntry {

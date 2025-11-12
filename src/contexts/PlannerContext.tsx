@@ -48,6 +48,12 @@ interface PlannerContextType {
   // Work Hours
   workHours: any[];
   isWorkHoursLoading: boolean;
+  updateWorkHour: (id: string, updates: Partial<any>, scope?: 'this-day' | 'all-future') => Promise<void>;
+  deleteWorkHour: (id: string, scope?: 'this-day' | 'all-future') => Promise<void>;
+  showWorkHourScopeDialog: boolean;
+  pendingWorkHourChange: any;
+  confirmWorkHourChange: (scope: 'this-day' | 'all-future') => Promise<void>;
+  cancelWorkHourChange: () => void;
   // UI State
   selectedEventId: string | null;
   setSelectedEventId: (eventId: string | null) => void;
@@ -108,7 +114,13 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
   } = useHolidays();
   const { 
     workHours, 
-    loading: workHoursLoading 
+    loading: workHoursLoading,
+    updateWorkHour,
+    deleteWorkHour,
+    showScopeDialog: showWorkHourScopeDialog,
+    pendingWorkHourChange,
+    confirmWorkHourChange,
+    cancelWorkHourChange
   } = useWorkHours();
   // UI state
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
@@ -682,6 +694,12 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
     // Work Hours
     workHours: workHours || [],
     isWorkHoursLoading: workHoursLoading,
+    updateWorkHour,
+    deleteWorkHour,
+    showWorkHourScopeDialog,
+    pendingWorkHourChange,
+    confirmWorkHourChange,
+    cancelWorkHourChange,
     // UI State
     selectedEventId,
     setSelectedEventId,

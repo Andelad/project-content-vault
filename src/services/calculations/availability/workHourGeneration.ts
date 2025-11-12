@@ -161,7 +161,10 @@ export function generateWorkHoursFromSettings(params: WorkHourGenerationParams):
         startTime: startDateTime,
         endTime: endDateTime,
         duration: slot.duration,
-        type: 'work'
+        type: 'work',
+        dayOfWeek: dayName,
+        slotId: slot.id,
+        isException: false
       });
     });
   });

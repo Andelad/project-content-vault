@@ -11,3 +11,4 @@ export { WorkSlotModal } from './WorkSlotModal';
 // Confirmation/alert dialogs (moved from /dialog folder)
 export { RecurringDeleteDialog } from './RecurringDeleteDialog';
 export { RecurringUpdateDialog } from './RecurringUpdateDialog';
+export { WorkHourScopeDialog } from './WorkHourScopeDialog';
