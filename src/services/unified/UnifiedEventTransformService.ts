@@ -127,7 +127,8 @@ export function transformCalendarEventToFullCalendar(event: CalendarEvent, optio
   const baseEvent = {
     id: event.id,
     title: event.title,
-    start: event.startTime,
+    // RRULE plugin needs start as ISO string, not Date object
+    start: event.rrule ? new Date(event.startTime).toISOString() : event.startTime,
     backgroundColor: finalBackgroundColor,
     // Don't set borderColor - let CSS classes handle borders completely
     textColor: finalTextColor,
