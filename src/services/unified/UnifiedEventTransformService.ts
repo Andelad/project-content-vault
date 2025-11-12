@@ -141,9 +141,16 @@ export function transformCalendarEventToFullCalendar(event: CalendarEvent, optio
     // When using RRULE, provide only rrule and duration (NOT end time)
     // When NOT using RRULE, provide end time (NOT rrule or duration)
     ...(event.rrule ? { 
-      // FullCalendar RRULE plugin: just pass the RRULE string
-      // The event's start time is automatically used as dtstart
-      rrule: event.rrule,
+      // FullCalendar RRULE plugin: provide RRULE with dtstart parameter
+      // Format: DTSTART:20251027T070000Z\nRRULE:FREQ=DAILY...
+      rrule: {
+        dtstart: new Date(event.startTime).toISOString(),
+        freq: event.rrule.includes('FREQ=DAILY') ? 'daily' : 
+              event.rrule.includes('FREQ=WEEKLY') ? 'weekly' :
+              event.rrule.includes('FREQ=MONTHLY') ? 'monthly' : 'yearly',
+        interval: parseInt(event.rrule.match(/INTERVAL=(\d+)/)?.[1] || '1'),
+        count: parseInt(event.rrule.match(/COUNT=(\d+)/)?.[1] || '52')
+      },
       duration: (() => {
         // FullCalendar expects duration as object like { hours: 1, minutes: 30 }
         const durationHours = calculateDurationHours(new Date(event.startTime), new Date(event.endTime));
