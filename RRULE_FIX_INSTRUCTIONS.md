@@ -30,23 +30,39 @@ This includes migration `20251112120000_cleanup_legacy_recurring_instances.sql` 
 
 **Step 2: Apply the migration to Supabase**
 
-In Lovable's Supabase SQL Editor, run:
-```sql
--- Cleanup Legacy Recurring Event Instances
--- This removes old pre-generated instances that are no longer needed
+The first cleanup migration (`20251112111617`) may not have caught all legacy instances.
+Apply the additional cleanup in Lovable's Supabase SQL Editor:
 
--- First, check what will be deleted (for safety)
-SELECT id, title, start_time, recurring_group_id, rrule
+```sql
+-- Additional Cleanup for Legacy Recurring Events
+-- Delete events that have recurring_type but NO rrule
+-- These are from the old system and should be replaced by RRULE expansion
+
+-- First, audit what we have
+SELECT 
+  COUNT(*) FILTER (WHERE recurring_type IS NOT NULL AND rrule IS NULL) as old_recurring,
+  COUNT(*) FILTER (WHERE rrule IS NOT NULL) as rrule_events,
+  COUNT(*) as total_events
+FROM public.calendar_events;
+
+-- Check a sample of what will be deleted
+SELECT id, title, start_time, recurring_type, recurring_group_id, rrule
 FROM public.calendar_events
-WHERE recurring_group_id IS NOT NULL 
+WHERE recurring_type IS NOT NULL 
   AND rrule IS NULL
 ORDER BY title, start_time
-LIMIT 50;
+LIMIT 20;
 
--- Then delete them
+-- Delete old recurring instances (events with recurring_type but no rrule)
 DELETE FROM public.calendar_events
-WHERE recurring_group_id IS NOT NULL 
+WHERE recurring_type IS NOT NULL 
   AND rrule IS NULL;
+
+-- Verify the cleanup
+SELECT 
+  COUNT(*) FILTER (WHERE rrule IS NOT NULL) as rrule_events,
+  COUNT(*) as total_events
+FROM public.calendar_events;
 ```
 
 **Step 3: Verify the fix**
