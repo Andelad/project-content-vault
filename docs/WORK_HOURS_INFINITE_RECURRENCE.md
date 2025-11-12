@@ -2,7 +2,7 @@
 
 ## Overview
 
-Work hours now function similarly to RRULE-based recurring events. They are generated infinitely from a weekly pattern stored in settings, with support for individual day exceptions.
+Work hours use **RRULE-based recurring events** to display infinitely on the calendar. They are generated from a weekly pattern stored in settings, with support for individual day exceptions. This approach keeps the database light (no individual work hour rows) while providing infinite display through client-side RRULE expansion.
 
 ## Architecture
 
@@ -10,42 +10,54 @@ Work hours now function similarly to RRULE-based recurring events. They are gene
 - **Location**: `settings.weekly_work_hours` (JSONB in Supabase)
 - **Structure**: Day-based slots (e.g., Monday: [09:00-17:00, 18:00-20:00])
 - **Scope**: Defines the recurring pattern for all future days
+- **Database Impact**: Lightweight - only pattern data, no individual occurrences
 
 ### Exception Storage (Individual Day Overrides)
 - **Table**: `work_hour_exceptions`
-- **Purpose**: Store modifications or deletions for specific dates
+- **Purpose**: Store modifications or deletions for specific dates only
 - **Types**:
-  - `deleted`: Work hour removed for a specific day
-  - `modified`: Work hour times changed for a specific day
+  - `deleted`: Work hour removed for a specific day (applied as EXDATE to RRULE)
+  - `modified`: Work hour times changed for a specific day (rendered as overlay event)
+- **Database Impact**: Only exceptions stored, not regular occurrences
+
+### RRULE Generation (Client-Side)
+- **Process**: Generate one RRULE master event per work slot (e.g., "Every Monday 9am-5pm")
+- **Format**: `FREQ=WEEKLY;BYDAY=MO` (repeats weekly on specific day)
+- **Expansion**: FullCalendar expands RRULE client-side for infinite display
+- **Performance**: Zero database queries for regular occurrences
 
 ## Data Flow
 
 ### Generating Work Hours for Display
 
 ```typescript
-1. Fetch settings.weekly_work_hours (pattern)
-2. Generate work hours for visible date range based on pattern
-3. Fetch exceptions from database for date range
-4. Apply exceptions to generated work hours
-   - Filter out deleted exceptions
-   - Replace times for modified exceptions
-5. Display final work hours in calendar
+1. Fetch settings.weekly_work_hours (pattern from JSONB)
+2. Generate RRULE master events (one per work slot, e.g., 7 events for Mon-Sun 9-5)
+3. Fetch exceptions from database (deleted/modified dates only)
+4. Apply deleted exceptions as EXDATE to RRULE
+5. Add modified exceptions as overlay single-instance events
+6. Pass to FullCalendar → expands RRULE infinitely on client
 ```
 
 ### Editing Work Hours
 
 #### From Planner (Individual Days)
-1. User drags/resizes work hour
+1. User drags/resizes work hour on calendar
 2. System shows `WorkHourScopeDialog`:
-   - **"Just this day"**: Creates exception in database
-   - **"All future days"**: Updates pattern in settings
-3. Calendar refreshes with new data
+   - **"Just this day"**: Creates exception in `work_hour_exceptions` table
+     - Deleted exception → added as EXDATE to RRULE
+     - Modified exception → rendered as single-instance overlay
+   - **"All future days"**: Updates pattern in `settings.weekly_work_hours`
+     - Regenerates RRULE master events
+     - Existing exceptions preserved
+3. Calendar refreshes → FullCalendar re-expands RRULE with new data
 
 #### From Settings (Pattern Updates)
 1. User modifies work hours in Settings → Work Hours
-2. Changes update `settings.weekly_work_hours` directly
-3. Affects all future occurrences (except where exceptions exist)
-4. Existing exceptions are preserved
+2. Changes update `settings.weekly_work_hours` JSONB directly
+3. Hook regenerates RRULE master events from new pattern
+4. Affects all future occurrences (except where exceptions exist)
+5. Existing exceptions are preserved and continue to apply
 
 ## Database Schema
 
@@ -75,23 +87,34 @@ CREATE TABLE work_hour_exceptions (
 - `getWorkHourExceptions()`: Fetch exceptions for date range
 - `updateWorkHourForDate()`: Create modified exception
 - `deleteWorkHourForDate()`: Create deleted exception
-- `applyExceptionsToWorkHours()`: Apply exceptions to generated work hours
 
 ### useWorkHours Hook
-- Manages work hours state and exceptions
+- Generates RRULE master events from `settings.weekly_work_hours` pattern
+- Fetches exceptions from database
+- Converts exceptions to EXDATE (deleted) or overlay events (modified)
 - Shows scope dialog for edit/delete operations
 - Scope options: `'this-day'` | `'all-future'`
 
 ### WorkHourCalculationService
-- `generateWorkHoursFromSettings()`: Generate work hours from weekly pattern
+- `generateWorkHoursFromSettings()`: Generate RRULE master events from weekly pattern
+  - Creates one RRULE event per work slot (e.g., "Every Monday 9am-5pm")
+  - Format: `FREQ=WEEKLY;BYDAY=MO/TU/WE/etc`
 - `canModifyWorkHour()`: Check if work hour can be edited (not in past)
+
+### UnifiedEventTransformService
+- `transformWorkHourToFullCalendar()`: Convert WorkHour to FullCalendar format
+  - Adds RRULE string with DTSTART
+  - Adds EXDATE for deleted exceptions
+  - Uses duration object for RRULE events
 
 ## User Experience
 
 ### Viewing Work Hours
-- Work hours display infinitely based on weekly pattern
-- Exceptions automatically applied per day
-- Visual indicator: Italic text for work hour events
+- Work hours display **infinitely** on the calendar (past and future)
+- RRULE expansion happens client-side via FullCalendar
+- Deleted exceptions automatically hidden (EXDATE)
+- Modified exceptions shown as overlays with custom times
+- Visual indicator: Background events (don't block regular events)
 
 ### Editing Individual Days
 1. Drag or resize work hour in planner
@@ -197,11 +220,12 @@ interface WorkHourException {
 - ✅ Flexible: Both routine and exception handling
 
 ### For System
-- ✅ Minimal database storage (pattern + exceptions only)
-- ✅ Scales infinitely without performance issues
-- ✅ Follows proven RRULE pattern architecture
+- ✅ **Minimal database storage** (pattern JSONB + exceptions only, no individual rows)
+- ✅ **Zero queries for regular occurrences** (RRULE expansion is client-side)
+- ✅ **Scales infinitely** without performance degradation
+- ✅ **Uses actual RRULE standard** (RFC 5545 compliant)
+- ✅ **Leverages FullCalendar RRULE plugin** for infinite expansion
 - ✅ Consistent with recurring events implementation
-- ✅ Leverages FullCalendar's capabilities
 
 ## Future Enhancements
 

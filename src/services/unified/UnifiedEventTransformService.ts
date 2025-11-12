@@ -20,9 +20,9 @@ export function prepareEventsForFullCalendar(
   events: CalendarEvent[], 
   workHours: WorkHour[],
   layerMode: 'events' | 'work-hours' | 'both' = 'both',
-  options: { selectedEventId?: string | null; projects?: any[]; habits?: any[] } = {}
+  options: { selectedEventId?: string | null; projects?: any[]; habits?: any[]; exceptions?: any[] } = {}
 ): EventInput[] {
-  const { selectedEventId, projects = [] } = options;
+  const { selectedEventId, projects = [], exceptions = [] } = options;
   const fcEvents: EventInput[] = [];
   
   // Debug: Log RRULE events being prepared
@@ -48,11 +48,33 @@ export function prepareEventsForFullCalendar(
     });
   }
 
-  // Add work hours
+  // Add work hours with exception handling
   if (layerMode === 'work-hours' || layerMode === 'both') {
+    // Build a map of deleted exceptions for efficient lookup
+    const deletedExceptions = new Map<string, Set<string>>(); // slotId -> Set of dates (YYYY-MM-DD)
+    exceptions.forEach((exception: any) => {
+      if (exception.exceptionType === 'deleted') {
+        const dateStr = new Date(exception.exceptionDate).toISOString().split('T')[0];
+        if (!deletedExceptions.has(exception.slotId)) {
+          deletedExceptions.set(exception.slotId, new Set());
+        }
+        deletedExceptions.get(exception.slotId)!.add(dateStr);
+      }
+    });
+
     workHours.forEach(workHour => {
       const fcEvent = transformWorkHourToFullCalendar(workHour);
       if (fcEvent) {
+        // If this is an RRULE work hour, add EXDATE for deleted exceptions
+        if (workHour.rrule && workHour.slotId && deletedExceptions.has(workHour.slotId)) {
+          const exdates = Array.from(deletedExceptions.get(workHour.slotId)!);
+          if (exdates.length > 0) {
+            // Add EXDATE to the RRULE string
+            // Format: DTSTART:...\nRRULE:...\nEXDATE:20251115,20251116
+            const exdateStr = exdates.map(d => d.replace(/-/g, '')).join(',');
+            fcEvent.rrule = `${fcEvent.rrule}\nEXDATE:${exdateStr}`;
+          }
+        }
         fcEvents.push(fcEvent);
       }
     });
@@ -197,27 +219,54 @@ export function transformCalendarEventToFullCalendar(event: CalendarEvent, optio
 
 /**
  * Transform WorkHour to FullCalendar EventInput format
+ * Supports both single-instance and RRULE-based work hours
  */
 export function transformWorkHourToFullCalendar(workHour: WorkHour): EventInput {
-  return {
+  const baseEvent = {
     id: `work-${workHour.id}`,
     title: workHour.title,
     start: workHour.startTime,
-    end: workHour.endTime,
     backgroundColor: '#ffffff',
     borderColor: NEUTRAL_COLORS.gray200,
     textColor: NEUTRAL_COLORS.gray500,
     extendedProps: {
       isWorkHour: true,
-      originalWorkHour: workHour
+      originalWorkHour: workHour,
+      dayOfWeek: workHour.dayOfWeek,
+      slotId: workHour.slotId
     },
     editable: true,
     startEditable: true,
     durationEditable: true,
     resizable: true,
-    display: 'background', // Background display so they don't interact with regular events
+    // display: 'background', // Removed - background events are not interactive
+    // Use regular display so they're selectable/draggable
     classNames: ['work-slot-event']
   };
+
+  // If work hour has RRULE, use RRULE format for infinite recurrence
+  if (workHour.rrule) {
+    const durationHours = calculateDurationHours(
+      new Date(workHour.startTime),
+      new Date(workHour.endTime)
+    );
+    const hours = Math.floor(durationHours);
+    const minutes = Math.round((durationHours - hours) * 60);
+
+    return {
+      ...baseEvent,
+      // Format RRULE for FullCalendar: DTSTART + RRULE
+      rrule: `DTSTART:${new Date(workHour.startTime).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')}\nRRULE:${workHour.rrule}`,
+      duration: { hours, minutes }
+      // Note: When using RRULE, don't include 'end' property
+    };
+  } else {
+    // Single-instance work hour (for exceptions or non-recurring)
+    return {
+      ...baseEvent,
+      end: workHour.endTime
+    };
+  }
 }
 
 /**

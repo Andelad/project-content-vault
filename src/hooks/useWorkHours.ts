@@ -7,6 +7,7 @@ import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingSer
 
 interface UseWorkHoursReturn {
   workHours: WorkHour[];
+  exceptions: WorkHourException[];
   loading: boolean;
   error: string | null;
   addWorkHour: (workHour: Omit<WorkHour, 'id'>, scope?: 'this-day' | 'all-future') => Promise<WorkHour>;
@@ -95,38 +96,70 @@ export const useWorkHours = (): UseWorkHoursReturn => {
       
       const dateToUse = viewDate || currentViewDate;
       
-      // Generate work hours from settings for the current view week
+      // Generate work hours from settings as RRULE-based recurring events
+      // This creates one master event per work slot that repeats infinitely
       const viewWeekStart = getWeekStart(dateToUse);
+      const baseWorkHours = generateWorkHoursFromSettings(viewWeekStart);
       
-      // For week view, generate work hours for the visible week
-      // For month view, we might want to generate for multiple weeks, but let's start with current week
-      const settingsWorkHours = generateWorkHoursFromSettings(viewWeekStart);
-      
-      // Fetch exceptions from database for the view period
-      const viewWeekEnd = new Date(viewWeekStart);
-      viewWeekEnd.setDate(viewWeekEnd.getDate() + 7);
+      // Fetch exceptions from database
+      // We fetch a wider range to handle visible exceptions
+      // (FullCalendar will only render what's visible anyway)
+      const fetchStart = new Date(viewWeekStart);
+      fetchStart.setMonth(fetchStart.getMonth() - 1); // 1 month before
+      const fetchEnd = new Date(viewWeekStart);
+      fetchEnd.setMonth(fetchEnd.getMonth() + 3); // 3 months after
       
       const exceptionsResult = await UnifiedWorkHourRecurrenceService.getWorkHourExceptions(
-        viewWeekStart,
-        viewWeekEnd
+        fetchStart,
+        fetchEnd
       );
       
       if (exceptionsResult.success && exceptionsResult.exceptions) {
         setExceptions(exceptionsResult.exceptions);
         
-        // Apply exceptions to generated work hours
-        const finalWorkHours = UnifiedWorkHourRecurrenceService.applyExceptionsToWorkHours(
-          settingsWorkHours,
-          exceptionsResult.exceptions
-        );
+        // Convert exceptions to override work hours
+        // Deleted exceptions: create invisible placeholder (FullCalendar will hide via EXDATE)
+        // Modified exceptions: create single-instance work hour with new times
+        const exceptionWorkHours: WorkHour[] = [];
         
-        // Sort by start time
-        finalWorkHours.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
-        setWorkHours(finalWorkHours);
+        exceptionsResult.exceptions.forEach(exception => {
+          const exceptionDate = new Date(exception.exceptionDate);
+          
+          if (exception.exceptionType === 'modified' && exception.modifiedStartTime && exception.modifiedEndTime) {
+            // Create a single-instance work hour for the modified time
+            const [startHour, startMin] = exception.modifiedStartTime.split(':').map(Number);
+            const [endHour, endMin] = exception.modifiedEndTime.split(':').map(Number);
+            
+            const startTime = new Date(exceptionDate);
+            startTime.setHours(startHour, startMin, 0, 0);
+            const endTime = new Date(exceptionDate);
+            endTime.setHours(endHour, endMin, 0, 0);
+            
+            exceptionWorkHours.push({
+              id: `exception-${exception.id}`,
+              title: 'Work Hours (Modified)',
+              description: 'Modified work hours for this day',
+              startTime,
+              endTime,
+              duration: (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60),
+              type: 'work',
+              dayOfWeek: exception.dayOfWeek,
+              slotId: exception.slotId,
+              isException: true
+              // No rrule - this is a single instance
+            });
+          }
+          // For deleted exceptions, we'll filter them out in the transform layer
+          // by checking if an exception exists for that date/slot
+        });
+        
+        // Combine base RRULE work hours with exception overlays
+        const allWorkHours = [...baseWorkHours, ...exceptionWorkHours];
+        allWorkHours.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+        setWorkHours(allWorkHours);
       } else {
-        // No exceptions or error fetching, just use settings work hours
-        settingsWorkHours.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
-        setWorkHours(settingsWorkHours);
+        // No exceptions, just use base RRULE work hours
+        setWorkHours(baseWorkHours);
       }
     } catch (err) {
       ErrorHandlingService.handle(err, { source: 'useWorkHours', action: 'Error fetching work hours:' });
@@ -439,6 +472,7 @@ export const useWorkHours = (): UseWorkHoursReturn => {
 
   return {
     workHours,
+    exceptions,
     loading,
     error,
     addWorkHour,

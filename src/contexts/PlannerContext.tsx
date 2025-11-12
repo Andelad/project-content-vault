@@ -114,6 +114,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
   } = useHolidays();
   const { 
     workHours, 
+    exceptions: workHourExceptions,
     loading: workHoursLoading,
     updateWorkHour,
     deleteWorkHour,
@@ -600,9 +601,9 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
       processedEvents,
       workHours || [],
       layerMode,
-      { habits: dbHabits }
+      { habits: dbHabits, exceptions: workHourExceptions }
     );
-  }, [processedEvents, workHours, layerMode, dbHabits]);
+  }, [processedEvents, workHours, layerMode, dbHabits, workHourExceptions]);
 
   // Method to get styled events with project context
   const getStyledFullCalendarEvents = useCallback((options: { selectedEventId?: string | null; projects?: any[] } = {}) => {
@@ -610,9 +611,9 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
       processedEvents,
       workHours || [],
       layerMode,
-      { ...options, habits: dbHabits }
+      { ...options, habits: dbHabits, exceptions: workHourExceptions }
     );
-  }, [processedEvents, workHours, layerMode, dbHabits]);
+  }, [processedEvents, workHours, layerMode, dbHabits, workHourExceptions]);
   // Method to ensure recurring events exist for future dates
   const ensureEventsForDateRange = useCallback(async (startDate: Date, endDate: Date) => {
     try {

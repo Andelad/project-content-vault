@@ -181,6 +181,7 @@ export interface WorkHour {
   dayOfWeek?: string; // Day pattern (monday, tuesday, etc.) for recurring work hours
   slotId?: string; // Reference to WorkSlot ID in settings for recurring work hours
   isException?: boolean; // True if this work hour is an exception to the pattern
+  rrule?: string; // RRULE string for infinite recurrence (e.g., "FREQ=WEEKLY;BYDAY=MO")
 }
 
 export interface WorkHourException {

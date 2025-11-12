@@ -125,7 +125,8 @@ export function calculateTotalDayWorkHours(date: Date, settings: any): number {
 // ===== WORK HOUR GENERATION & MANAGEMENT =====
 
 /**
- * Generate work hours from settings for a specific week
+ * Generate work hours from settings as RRULE-based recurring events
+ * Creates one master work hour event per slot that repeats infinitely
  */
 export function generateWorkHoursFromSettings(params: WorkHourGenerationParams): WorkHour[] {
   const { weekStartDate, weeklyWorkHours } = params;
@@ -141,6 +142,8 @@ export function generateWorkHoursFromSettings(params: WorkHourGenerationParams):
     const daySlots = weeklyWorkHours[dayName as keyof typeof weeklyWorkHours] || [];
     
     daySlots.forEach((slot: WorkSlot) => {
+      // Create a reference date for this day of the week
+      // Use the week start date as the base
       const workHourDate = new Date(weekStartDate);
       workHourDate.setDate(weekStartDate.getDate() + dayIndex); // Monday + 0 = Monday, etc.
       
@@ -154,6 +157,14 @@ export function generateWorkHoursFromSettings(params: WorkHourGenerationParams):
       const endDateTime = new Date(workHourDate);
       endDateTime.setHours(endHour, endMin, 0, 0);
       
+      // Create RRULE string for weekly recurrence on this day of week
+      // Convert dayIndex (0=Monday) to RRULE day format (MO, TU, WE, etc.)
+      const rruleDays = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
+      const rruleDay = rruleDays[dayIndex];
+      
+      // RRULE: Every week on this specific day (e.g., FREQ=WEEKLY;BYDAY=MO)
+      const rrule = `FREQ=WEEKLY;BYDAY=${rruleDay}`;
+      
       workHours.push({
         id: `settings-${dayName}-${slot.id}`, // Stable ID not based on timestamp
         title: `Work Hours`,
@@ -164,7 +175,8 @@ export function generateWorkHoursFromSettings(params: WorkHourGenerationParams):
         type: 'work',
         dayOfWeek: dayName,
         slotId: slot.id,
-        isException: false
+        isException: false,
+        rrule: rrule // Add RRULE for infinite recurrence
       });
     });
   });
