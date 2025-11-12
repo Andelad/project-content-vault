@@ -400,6 +400,15 @@ export function PlannerView() {
     const event = eventInfo.event;
     const extendedProps = event.extendedProps;
     
+    // Debug ALL events being rendered
+    console.log('🎨 Rendering event:', event.title, {
+      id: event.id,
+      start: event.start,
+      end: event.end,
+      hasRRule: !!extendedProps.rrule,
+      rrule: extendedProps.rrule
+    });
+    
     // Debug RRULE events - log both master and expanded instances
     if (extendedProps.rrule || event.extendedProps.originalEvent?.rrule) {
       console.log('🔁 RRULE Event Render:', {
