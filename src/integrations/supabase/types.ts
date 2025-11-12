@@ -777,6 +777,45 @@ export type Database = {
         }
         Relationships: []
       }
+      work_hour_exceptions: {
+        Row: {
+          created_at: string
+          day_of_week: string
+          exception_date: string
+          exception_type: string
+          id: string
+          modified_end_time: string | null
+          modified_start_time: string | null
+          slot_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          day_of_week: string
+          exception_date: string
+          exception_type: string
+          id?: string
+          modified_end_time?: string | null
+          modified_start_time?: string | null
+          slot_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          day_of_week?: string
+          exception_date?: string
+          exception_type?: string
+          id?: string
+          modified_end_time?: string | null
+          modified_start_time?: string | null
+          slot_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       work_hours: {
         Row: {
           created_at: string | null
