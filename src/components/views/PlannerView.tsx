@@ -647,9 +647,22 @@ export function PlannerView() {
               start: e.start,
               end: e.end,
               rrule: e.rrule,
-              duration: e.duration
+              duration: e.duration,
+              allProps: Object.keys(e)
             });
           });
+          
+          // Try to manually test if RRULE parsing works
+          console.log('🧪 Testing RRULE parsing with rrule library...');
+          import('rrule').then(({ RRule }) => {
+            try {
+              const testRule = RRule.fromString(rruleEventsInFiltered[0].rrule);
+              console.log('✅ RRULE parsing works:', testRule.toString());
+              console.log('  First 3 occurrences:', testRule.all().slice(0, 3));
+            } catch (err) {
+              console.error('❌ RRULE parsing failed:', err);
+            }
+          }).catch(err => console.error('❌ Failed to load rrule library:', err));
         }
         
         successCallback(filteredEvents);

@@ -141,7 +141,15 @@ export function transformCalendarEventToFullCalendar(event: CalendarEvent, optio
     // When NOT using RRULE, provide end time (NOT rrule or duration)
     ...(event.rrule ? { 
       rrule: event.rrule,
-      duration: { milliseconds: calculateDurationHours(new Date(event.startTime), new Date(event.endTime)) * 60 * 60 * 1000 }
+      duration: (() => {
+        // FullCalendar expects duration as a simple string like '01:00:00' or object like { hours: 1, minutes: 30 }
+        const durationHours = calculateDurationHours(new Date(event.startTime), new Date(event.endTime));
+        const hours = Math.floor(durationHours);
+        const minutes = Math.round((durationHours - hours) * 60);
+        
+        // Return as object with hours and minutes for FullCalendar
+        return { hours, minutes };
+      })()
     } : {
       end: event.endTime
     }),
