@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Milestone } from '@/types/core';
 import type { LocalMilestone } from '@/hooks/milestone';
@@ -51,15 +52,28 @@ export function PhaseCard({
     const isFixed = (property === 'startDate' && isFirst) || (property === 'endDate' && isLast);
 
     if (isFixed) {
+      const tooltipText = property === 'startDate' 
+        ? 'Edit project start date' 
+        : 'Edit project end date';
+      
       return (
         <div className="min-w-[100px]">
           <Label className="text-xs mb-1 block text-muted-foreground/50">
             {property === 'startDate' ? 'Start' : 'End'}
           </Label>
-          <div className="h-10 text-sm px-3 border border-input rounded-md bg-muted/30 flex items-center cursor-not-allowed opacity-60">
-            <CalendarIcon className="mr-2 h-3 w-3 text-muted-foreground/50" />
-            <span className="text-muted-foreground/70">{displayValue}</span>
-          </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="h-10 text-sm px-3 border border-input rounded-md bg-muted/30 flex items-center cursor-not-allowed opacity-60">
+                  <CalendarIcon className="mr-2 h-3 w-3 text-muted-foreground/50" />
+                  <span className="text-muted-foreground/70">{displayValue}</span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{tooltipText}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       );
     }

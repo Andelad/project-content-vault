@@ -63,6 +63,17 @@ export function useMilestoneBudget(config: UseMilestoneBudgetConfig) {
 
   // Calculate budget analysis (filters out templates and numbered instances)
   const budgetAnalysis = useMemo(() => {
+    // When recurring milestone exists, budget validation doesn't apply
+    // Recurring milestones operate independently of fixed project budgets
+    if (recurringMilestone || totalRecurringAllocation > 0) {
+      return {
+        totalAllocated: totalRecurringAllocation,
+        remainingBudget: 0,
+        isOverBudget: false, // Never over budget with recurring
+        utilizationPercent: 0
+      };
+    }
+
     const nonRecurringMilestones = projectMilestones.filter(m => {
       // Exclude temporary/unsaved milestones
       if ('isNew' in m && (m as LocalMilestone).isNew) return false;
@@ -74,7 +85,7 @@ export function useMilestoneBudget(config: UseMilestoneBudgetConfig) {
       return true;
     });
 
-    const totalAllocated = nonRecurringMilestones.reduce((sum, m) => sum + m.timeAllocation, 0) + totalRecurringAllocation;
+    const totalAllocated = nonRecurringMilestones.reduce((sum, m) => sum + m.timeAllocation, 0);
     const remainingBudget = projectEstimatedHours - totalAllocated;
     const isOverBudget = totalAllocated > projectEstimatedHours;
 
@@ -84,7 +95,7 @@ export function useMilestoneBudget(config: UseMilestoneBudgetConfig) {
       isOverBudget,
       utilizationPercent: projectEstimatedHours > 0 ? (totalAllocated / projectEstimatedHours) * 100 : 0
     };
-  }, [projectMilestones, projectEstimatedHours, totalRecurringAllocation]);
+  }, [projectMilestones, projectEstimatedHours, totalRecurringAllocation, recurringMilestone]);
 
   // Enhanced project health analysis using domain entities
   const projectHealthAnalysis = useMemo(() => {

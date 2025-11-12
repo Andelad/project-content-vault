@@ -6,7 +6,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { getDayName, getOrdinalNumber, getWeekOfMonthName } from '@/utils/dateFormatUtils';
 import type { RecurringMilestoneConfig } from '@/hooks/milestone';
 
-interface MilestoneConfigDialogProps {
+interface PhaseConfigDialogProps {
   type: 'recurring' | 'split' | 'recurring-warning' | 'split-warning' | 'recurring-from-split-warning';
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -16,13 +16,15 @@ interface MilestoneConfigDialogProps {
   // For recurring config
   config?: RecurringMilestoneConfig;
   onConfigChange?: (config: RecurringMilestoneConfig) => void;
+  // For budget replacement warning
+  projectEstimatedHours?: number;
 }
 
 /**
- * Pure UI component for milestone configuration dialogs
- * Handles recurring configuration and warning dialogs
+ * Pure UI component for phase configuration dialogs
+ * Handles recurring template configuration and warning dialogs
  */
-export function MilestoneConfigDialog({
+export function PhaseConfigDialog({
   type,
   open,
   onOpenChange,
@@ -30,8 +32,9 @@ export function MilestoneConfigDialog({
   projectStartDate,
   projectContinuous,
   config,
-  onConfigChange
-}: MilestoneConfigDialogProps) {
+  onConfigChange,
+  projectEstimatedHours
+}: PhaseConfigDialogProps) {
   // Recurring configuration dialog
   if (type === 'recurring' && config && onConfigChange) {
     return (
@@ -257,12 +260,16 @@ export function MilestoneConfigDialog({
   }
 
   // Warning dialogs
+  const budgetText = projectEstimatedHours 
+    ? ` (${projectEstimatedHours}h)`
+    : '';
+
   const warningConfig = {
     'recurring-warning': {
-      title: 'Delete Existing Phases?',
+      title: 'Replace Budget with Recurring Template?',
       description:
-        'This project has existing phases. Creating a recurring template will delete all existing phases. This action cannot be undone.',
-      confirmText: 'Delete & Continue'
+        `Creating a recurring template will replace your fixed project budget${budgetText} with a recurring allocation. Any existing phases will be deleted.`,
+      confirmText: 'Replace Budget & Continue'
     },
     'split-warning': {
       title: 'Delete Existing Phases?',
@@ -271,10 +278,10 @@ export function MilestoneConfigDialog({
       confirmText: 'Delete & Split'
     },
     'recurring-from-split-warning': {
-      title: 'Delete Split Phases?',
+      title: 'Replace Budget with Recurring Template?',
       description:
-        'This project has split phases. Creating a recurring template will delete all phases. This action cannot be undone.',
-      confirmText: 'Delete Phases & Continue'
+        `Creating a recurring template will delete manual phases and replace your fixed project budget.${budgetText} This action cannot be undone.`,
+      confirmText: 'Replace Budget & Continue'
     }
   };
 

@@ -25,6 +25,7 @@ import { useTimelineData } from '../../hooks/useTimelineData';
 import { useDynamicViewportDays } from '../../hooks/useDynamicViewportDays';
 import { useHolidayDrag } from '../../hooks/useHolidayDrag';
 import { useProjectResize } from '../../hooks/useProjectResize';
+import { usePhaseResize } from '../../hooks/usePhaseResize';
 import { TimelineDateHeader } from '@/components/features/timeline/TimelineDateHeader';
 import { TimelineBackground } from '@/components/features/timeline/TimelineBackground';
 import { TimelineCard } from '@/components/features/timeline/TimelineCard';
@@ -473,10 +474,38 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
   });
   
   // Calculate day estimates for all projects (for resize validation)
+  // Include dragState to recalculate during phase resize
   const allDayEstimates = React.useMemo(() => {
     const estimates: any[] = [];
     projects.forEach(project => {
-      const projectMilestones = milestones.filter(m => m.projectId === project.id);
+      let projectMilestones = milestones.filter(m => m.projectId === project.id);
+      
+      // If a phase is being dragged for this project, apply visual dates
+      if (isDragging && dragState?.projectId === project.id && dragState?.milestoneId &&
+          (dragState?.action === 'resize-phase-start' || dragState?.action === 'resize-phase-end')) {
+        projectMilestones = projectMilestones.map(m => {
+          if (m.id === dragState.milestoneId) {
+            // Apply visual date changes during drag
+            const daysDelta = dragState.lastDaysDelta || 0;
+            const msOffset = daysDelta * 24 * 60 * 60 * 1000;
+            
+            if (dragState.action === 'resize-phase-start' && m.startDate) {
+              return {
+                ...m,
+                startDate: new Date(new Date(m.startDate).getTime() + msOffset)
+              };
+            } else if (dragState.action === 'resize-phase-end' && m.endDate) {
+              return {
+                ...m,
+                endDate: new Date(new Date(m.endDate).getTime() + msOffset),
+                dueDate: new Date(new Date(m.endDate).getTime() + msOffset)
+              };
+            }
+          }
+          return m;
+        });
+      }
+      
       const projectEstimates = UnifiedDayEstimateService.calculateProjectDayEstimates(
         project,
         projectMilestones,
@@ -487,7 +516,7 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
       estimates.push(...projectEstimates);
     });
     return estimates;
-  }, [projects, milestones, settings, holidays, events]);
+  }, [projects, milestones, settings, holidays, events, isDragging, dragState]);
   
   // Project resize handler extracted to custom hook
   const { handleProjectResizeMouseDown } = useProjectResize({
@@ -498,6 +527,22 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
     timelineMode,
     dayEstimates: allDayEstimates,
     updateProject,
+    checkAutoScroll,
+    stopAutoScroll,
+    setIsDragging,
+    setDragState,
+    dragState
+  });
+
+  // Phase boundary resize handler
+  const { handlePhaseResizeMouseDown } = usePhaseResize({
+    projects,
+    milestones,
+    dates,
+    viewportStart,
+    viewportEnd,
+    timelineMode,
+    updateMilestone,
     checkAutoScroll,
     stopAutoScroll,
     setIsDragging,
@@ -638,6 +683,7 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
                           handleMilestoneDrag={handleMilestoneDrag}
                           handleMilestoneDragEnd={handleMilestoneDragEnd}
                           handleProjectResizeMouseDown={handleProjectResizeMouseDown}
+                          handlePhaseResizeMouseDown={handlePhaseResizeMouseDown}
                           mode={mode}
                           collapsed={collapsed}
                           onToggleGroupCollapse={toggleGroupCollapse}

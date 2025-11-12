@@ -65,13 +65,13 @@ export function useMilestoneOperations(config: UseMilestoneOperationsConfig) {
     : localMilestones || [];
 
   // Create a new milestone
-  const createMilestone = useCallback(async (milestone: LocalMilestone) => {
+  const createMilestone = useCallback(async (milestone: LocalMilestone, options?: { silent?: boolean }) => {
     if (isCreatingProject && localMilestonesState) {
       localMilestonesState.setMilestones([...localMilestonesState.milestones, milestone]);
       return milestone;
     } else if (projectId) {
       try {
-        const created = await addMilestoneToContext(milestone);
+        const created = await addMilestoneToContext(milestone, options);
         await refetchMilestones();
         return created;
       } catch (error) {
@@ -81,7 +81,7 @@ export function useMilestoneOperations(config: UseMilestoneOperationsConfig) {
         });
         toast({
           title: "Error",
-          description: "Failed to create milestone. Please try again.",
+          description: "Failed to create phase. Please try again.",
           variant: "destructive",
         });
         throw error;

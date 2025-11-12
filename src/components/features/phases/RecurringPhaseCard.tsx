@@ -8,7 +8,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { getDayName, getOrdinalNumber, getWeekOfMonthName } from '@/utils/dateFormatUtils';
 import type { RecurringMilestone } from '@/hooks/milestone';
 
-interface RecurringMilestoneCardProps {
+interface RecurringPhaseCardProps {
   recurringMilestone: RecurringMilestone;
   projectEstimatedHours: number;
   projectContinuous: boolean;
@@ -19,10 +19,11 @@ interface RecurringMilestoneCardProps {
 }
 
 /**
- * Pure UI component for displaying and editing a recurring milestone
+ * Pure UI component for displaying and editing a recurring phase template
  * Handles pattern editing (daily/weekly/monthly) and load editing
+ * Note: Database still uses RecurringMilestone type for backward compatibility
  */
-export function RecurringMilestoneCard({
+export function RecurringPhaseCard({
   recurringMilestone,
   projectEstimatedHours,
   projectContinuous,
@@ -30,7 +31,7 @@ export function RecurringMilestoneCard({
   onUpdateLoad,
   onUpdatePattern,
   onDelete
-}: RecurringMilestoneCardProps) {
+}: RecurringPhaseCardProps) {
   const [editingRecurringLoad, setEditingRecurringLoad] = useState(false);
   const [editingLoadValue, setEditingLoadValue] = useState(0);
   const [editingRecurringPattern, setEditingRecurringPattern] = useState(false);

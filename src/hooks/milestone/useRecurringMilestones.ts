@@ -42,6 +42,11 @@ interface UseRecurringMilestonesConfig {
   projectEstimatedHours: number;
   isDeletingRecurringMilestone: boolean;
   refetchMilestones: () => Promise<void>;
+  isCreatingProject?: boolean;
+  localMilestonesState?: {
+    milestones: LocalMilestone[];
+    setMilestones: (milestones: LocalMilestone[]) => void;
+  };
 }
 
 /**
@@ -58,7 +63,9 @@ export function useRecurringMilestones(config: UseRecurringMilestonesConfig) {
     projectContinuous,
     projectEstimatedHours,
     isDeletingRecurringMilestone,
-    refetchMilestones
+    refetchMilestones,
+    isCreatingProject,
+    localMilestonesState
   } = config;
 
   const { toast } = useToast();
@@ -90,145 +97,48 @@ export function useRecurringMilestones(config: UseRecurringMilestonesConfig) {
       });
       return;
     }
-
-    // OLD SYSTEM: Fall back to pattern detection from numbered milestones
-    const recurringPattern = projectMilestones.filter(m =>
-      m.name && /\s\d+$/.test(m.name) && m.startDate === undefined
-    );
-
-    if (recurringPattern.length >= 1) {
-      const sortedMilestones = recurringPattern.sort((a, b) =>
-        new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
-      );
-
-      let recurringType: 'daily' | 'weekly' | 'monthly' = 'weekly';
-      let interval = 1;
-
-      if (recurringPattern.length > 1) {
-        const firstDate = new Date(sortedMilestones[0].dueDate);
-        const secondDate = new Date(sortedMilestones[1].dueDate);
-        const intervalResult = UnifiedMilestoneService.calculateMilestoneInterval(firstDate, secondDate);
-        recurringType = intervalResult.type === 'custom' ? 'daily' : intervalResult.type;
-        interval = intervalResult.interval;
-      }
-
-      const baseName = sortedMilestones[0].name.replace(/\s\d+$/, '') || 'Recurring Milestone';
-
-      setRecurringMilestone({
-        id: 'recurring-milestone',
-        name: baseName,
-        timeAllocation: sortedMilestones[0].timeAllocation,
-        recurringType,
-        recurringInterval: interval,
-        projectId,
-        isRecurring: true
-      });
-    }
   }, [projectMilestones, recurringMilestone, projectId, isDeletingRecurringMilestone]);
 
-  // Load from local storage on mount
-  useEffect(() => {
-    if (projectId && !recurringMilestone && !isDeletingRecurringMilestone) {
-      const stored = localStorage.getItem(`recurring-milestone-${projectId}`);
-      if (stored) {
-        try {
-          const storedData = JSON.parse(stored);
-          setRecurringMilestone(storedData);
-        } catch (error) {
-          ErrorHandlingService.handle(error, {
-            source: 'useRecurringMilestones',
-            action: 'loadFromStorage'
-          });
-          localStorage.removeItem(`recurring-milestone-${projectId}`);
-        }
-      }
-    }
-  }, [projectId, recurringMilestone, isDeletingRecurringMilestone]);
-
-  // Auto-generate recurring milestones as needed
+  // Simple placeholder - recurring templates expand at runtime, not stored
   const ensureRecurringMilestonesAvailable = useCallback(async (targetDate?: Date) => {
-    if (!recurringMilestone || !projectId) return;
-
-    const currentMilestones = projectMilestones.filter(m =>
-      m.name && /\s\d+$/.test(m.name) && m.startDate === undefined
-    );
-
-    // Safety check
-    if (currentMilestones.length >= 1000) {
-      console.warn('Milestone limit reached (1000), skipping generation');
-      return;
-    }
-
-    const projectDurationMs = projectContinuous ?
-      365 * 24 * 60 * 60 * 1000 :
-      new Date(projectEndDate).getTime() - new Date(projectStartDate).getTime();
-    const projectDurationDays = Math.ceil(projectDurationMs / (24 * 60 * 60 * 1000));
-
-    let estimatedTotalMilestones = 0;
-    switch (recurringMilestone.recurringType) {
-      case 'daily':
-        estimatedTotalMilestones = Math.floor(projectDurationDays / recurringMilestone.recurringInterval);
-        break;
-      case 'weekly':
-        estimatedTotalMilestones = Math.floor(projectDurationDays / (7 * recurringMilestone.recurringInterval));
-        break;
-      case 'monthly':
-        estimatedTotalMilestones = Math.floor(projectDurationDays / (30 * recurringMilestone.recurringInterval));
-        break;
-    }
-
-    estimatedTotalMilestones = Math.min(estimatedTotalMilestones, 500);
-
-    const targetMilestoneCount = projectContinuous ?
-      Math.min(26, estimatedTotalMilestones) :
-      Math.min(estimatedTotalMilestones, 100);
-
-    const needsMoreMilestones = currentMilestones.length < targetMilestoneCount;
-
-    let needsCoverageToDate = false;
-    if (targetDate && currentMilestones.length > 0) {
-      const lastMilestone = currentMilestones.sort((a, b) =>
-        new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime()
-      )[0];
-      needsCoverageToDate = new Date(lastMilestone.dueDate) < targetDate;
-    }
-
-    if (!needsMoreMilestones && !needsCoverageToDate) return;
-
-    // Auto-generation is silent - no toasts
-    try {
-      const recurringConfig: RecurringMilestoneConfig = {
-        name: recurringMilestone.name,
-        timeAllocation: recurringMilestone.timeAllocation,
-        recurringType: recurringMilestone.recurringType,
-        recurringInterval: recurringMilestone.recurringInterval,
-        weeklyDayOfWeek: recurringMilestone.weeklyDayOfWeek,
-        monthlyPattern: recurringMilestone.monthlyPattern,
-        monthlyDate: recurringMilestone.monthlyDate,
-        monthlyWeekOfMonth: recurringMilestone.monthlyWeekOfMonth,
-        monthlyDayOfWeek: recurringMilestone.monthlyDayOfWeek
-      };
-
-      // Would need to call generation service here - simplified for now
-      // In full implementation, would use ProjectMilestoneOrchestrator
-    } catch (error) {
-      ErrorHandlingService.handle(error, {
-        source: 'useRecurringMilestones',
-        action: 'ensureRecurringMilestonesAvailable'
-      });
-    }
-  }, [recurringMilestone, projectId, projectMilestones, projectContinuous, projectStartDate, projectEndDate]);
-
-  // Auto-trigger for continuous projects
-  useEffect(() => {
-    if (recurringMilestone && projectContinuous) {
-      ensureRecurringMilestonesAvailable();
-    }
-  }, [recurringMilestone, projectContinuous, ensureRecurringMilestonesAvailable]);
+    // No-op: NEW SYSTEM uses single template that expands at runtime
+    // The template milestone (is_recurring=true) is detected above and instances
+    // are generated dynamically when needed by calculation services
+    return Promise.resolve();
+  }, []);
 
   // Create recurring milestones
   const createRecurringMilestones = useCallback(async (config: RecurringMilestoneConfig) => {
-    if (!projectId) return { success: false, error: 'No project ID' };
+    // For new projects being created, store config to create later when project is saved
+    if (!projectId) {
+      // CRITICAL: Clear all local phases first (mutual exclusivity rule)
+      if (isCreatingProject && localMilestonesState) {
+        localMilestonesState.setMilestones([]);
+      }
+      
+      // Create a local recurring milestone object for UI display
+      const localRecurringMilestone: RecurringMilestone = {
+        id: `temp-recurring-${Date.now()}`,
+        name: config.name,
+        timeAllocation: config.timeAllocation,
+        recurringType: config.recurringType,
+        recurringInterval: config.recurringInterval,
+        projectId: 'temp',
+        isRecurring: true as const,
+        weeklyDayOfWeek: config.weeklyDayOfWeek,
+        monthlyPattern: config.monthlyPattern,
+        monthlyDate: config.monthlyDate,
+        monthlyWeekOfMonth: config.monthlyWeekOfMonth,
+        monthlyDayOfWeek: config.monthlyDayOfWeek
+      };
+      
+      setRecurringMilestone(localRecurringMilestone);
+      
+      // No toast needed - the card appearing is sufficient visual feedback
+      // and the modal's Save/Cancel buttons make persistence behavior clear
+      
+      return { success: true };
+    }
 
     try {
       const project: Project = {
@@ -259,17 +169,13 @@ export function useRecurringMilestones(config: UseRecurringMilestonesConfig) {
         setRecurringMilestone(result.recurringMilestone);
 
         toast({
-          title: "Recurring milestones created",
-          description: `Generated ${result.generatedCount} of estimated ${result.estimatedTotalCount} milestones`,
+          title: "Recurring template created",
+          description: `Template will repeat ${result.estimatedTotalCount} times over project duration`,
         });
-
-        if (projectContinuous) {
-          await ensureRecurringMilestonesAvailable();
-        }
 
         return { success: true };
       } else {
-        throw new Error(result.error || 'Failed to create recurring milestones');
+        throw new Error(result.error || 'Failed to create recurring template');
       }
     } catch (error) {
       ErrorHandlingService.handle(error, {
@@ -283,7 +189,7 @@ export function useRecurringMilestones(config: UseRecurringMilestonesConfig) {
       });
       return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
-  }, [projectId, projectStartDate, projectEndDate, projectContinuous, projectEstimatedHours, refetchMilestones, toast, ensureRecurringMilestonesAvailable]);
+  }, [projectId, projectStartDate, projectEndDate, projectContinuous, projectEstimatedHours, refetchMilestones, toast, ensureRecurringMilestonesAvailable, isCreatingProject, localMilestonesState]);
 
   // Delete recurring milestones
   const deleteRecurringMilestones = useCallback(async (

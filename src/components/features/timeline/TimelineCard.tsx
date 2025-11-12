@@ -17,6 +17,7 @@ interface TimelineCardProps {
   handleMilestoneDrag: (milestoneId: string, newDate: Date) => void;
   handleMilestoneDragEnd: () => void;
   handleProjectResizeMouseDown?: (e: React.MouseEvent, projectId: string, action: 'resize-start-date' | 'resize-end-date') => void;
+  handlePhaseResizeMouseDown?: (e: React.MouseEvent, projectId: string, phaseId: string, action: 'resize-phase-start' | 'resize-phase-end') => void;
   mode: 'days' | 'weeks';
   collapsed: boolean;
   onToggleGroupCollapse: (groupId: string) => void;
@@ -37,6 +38,7 @@ export function TimelineCard({
   handleMilestoneDrag,
   handleMilestoneDragEnd,
   handleProjectResizeMouseDown,
+  handlePhaseResizeMouseDown,
   mode,
   collapsed,
   onToggleGroupCollapse
@@ -112,6 +114,7 @@ export function TimelineCard({
                             onMilestoneDrag={handleMilestoneDrag}
                             onMilestoneDragEnd={handleMilestoneDragEnd}
                             onProjectResizeMouseDown={handleProjectResizeMouseDown}
+                            onPhaseResizeMouseDown={handlePhaseResizeMouseDown}
                           />
                         </div>
                       );

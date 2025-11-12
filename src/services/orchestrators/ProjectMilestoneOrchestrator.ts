@@ -299,7 +299,7 @@ export class ProjectMilestoneOrchestrator {
 
   /**
    * Delete all recurring milestones for a project
-   * NEW SYSTEM: Delete template milestone (is_recurring=true) AND old numbered instances
+   * Deletes the single template milestone with is_recurring=true
    */
   static async deleteRecurringMilestones(
     projectId: string,
@@ -307,15 +307,8 @@ export class ProjectMilestoneOrchestrator {
     options: MilestoneOrchestrationOptions = {}
   ): Promise<{ success: boolean; deletedCount: number; error?: string }> {
     try {
-      // Clear recurring configuration from storage (legacy - may not be used anymore)
-      this.clearRecurringConfiguration(projectId);
-
-      // Find recurring milestones:
-      // 1. NEW SYSTEM: Template milestones with is_recurring=true
-      // 2. OLD SYSTEM: Numbered instances (name pattern ending with space and number)
-      const recurringMilestones = projectMilestones.filter(m => 
-        m.isRecurring || (m.name && /\s\d+$/.test(m.name))
-      );
+      // Find template milestone with is_recurring=true
+      const recurringMilestones = projectMilestones.filter(m => m.isRecurring === true);
 
       // Delete milestones from database
       const deletionPromises = recurringMilestones
@@ -359,130 +352,7 @@ export class ProjectMilestoneOrchestrator {
     }
   }
 
-  /**
-   * Generate milestone instances based on recurring configuration
-   * DELEGATES date calculations to core dateCalculations service
-   * Phase 5: Updated to populate new milestone fields
-   */
-  private static generateRecurringMilestones(
-    config: ProjectRecurringMilestoneConfig,
-    count: number
-  ): GeneratedMilestone[] {
-    const milestones: GeneratedMilestone[] = [];
-    const baseDate = new Date();
-
-    for (let i = 0; i < count; i++) {
-      const endDate = this.calculateNextMilestoneDate(config, baseDate, i);
-      
-      // Calculate start date (work backwards by interval)
-      let startDate = new Date(endDate);
-      switch (config.recurringType) {
-        case 'daily':
-          startDate = addDaysToDate(startDate, -config.recurringInterval);
-          break;
-        case 'weekly':
-          startDate = addDaysToDate(startDate, -(7 * config.recurringInterval));
-          break;
-        case 'monthly':
-          startDate.setMonth(startDate.getMonth() - config.recurringInterval);
-          break;
-      }
-      
-      const milestone: GeneratedMilestone = {
-        name: `${config.name} ${i + 1}`,
-        // OLD fields (for backward compatibility)
-        dueDate: endDate,
-        timeAllocation: config.timeAllocation,
-        // NEW fields (Phase 5)
-        endDate,
-        timeAllocationHours: config.timeAllocation,
-        startDate,
-        isRecurring: true
-      };
-      milestones.push(milestone);
-    }
-
-    return milestones;
-  }
-
-  /**
-   * Calculate next milestone date based on recurring pattern
-   * USES core date calculations (following AI rules)
-   */
-  private static calculateNextMilestoneDate(
-    config: ProjectRecurringMilestoneConfig,
-    baseDate: Date,
-    iteration: number
-  ): Date {
-    let result = new Date(baseDate);
-
-    switch (config.recurringType) {
-      case 'daily':
-        result = addDaysToDate(result, iteration * config.recurringInterval);
-        break;
-      case 'weekly':
-        result = addDaysToDate(result, iteration * 7 * config.recurringInterval);
-        if (config.weeklyDayOfWeek !== undefined) {
-          // Adjust to specific day of week
-          const dayDiff = config.weeklyDayOfWeek - result.getDay();
-          result = addDaysToDate(result, dayDiff);
-        }
-        break;
-      case 'monthly':
-        result.setMonth(result.getMonth() + (iteration * config.recurringInterval));
-        if (config.monthlyDate) {
-          result.setDate(config.monthlyDate);
-        }
-        break;
-    }
-
-    return result;
-  }
-
-  /**
-   * Batch insert milestones to database
-   * Handles database operations and coordination with external systems
-   * Phase 5: Updated to DUAL-WRITE to old and new columns
-   */
-  private static async batchInsertMilestones(
-    projectId: string,
-    milestones: GeneratedMilestone[],
-    options: MilestoneOrchestrationOptions
-  ): Promise<void> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated');
-
-    // Prepare milestones for batch insert
-    const milestonesToInsert = milestones.map((milestone) => ({
-      name: milestone.name,
-      project_id: projectId,
-      user_id: user.id,
-      
-      // DUAL-WRITE: Write to BOTH old and new columns
-      due_date: (milestone.endDate || milestone.dueDate).toISOString(),
-      time_allocation: milestone.timeAllocationHours ?? milestone.timeAllocation,
-      time_allocation_hours: milestone.timeAllocationHours ?? milestone.timeAllocation,
-      
-      // NEW columns only
-      start_date: milestone.startDate?.toISOString(),
-      is_recurring: milestone.isRecurring ?? false,
-      recurring_config: milestone.isRecurring ? {
-        type: 'monthly', // Placeholder - actual config comes from parent
-        interval: 1
-      } : null
-    }));
-
-    // Single database operation
-    const { data: insertedMilestones, error } = await supabase
-      .from('milestones')
-      .insert(milestonesToInsert)
-      .select();
-
-    if (error) throw error;
-
-    // Trigger external coordination
-    await this.coordinatePostInsertActions(projectId, insertedMilestones?.length || 0, options);
-  }
+  // OLD SYSTEM methods removed - we now use single template milestone approach
 
   /**
    * Coordinate post-insertion actions (normalization, refresh, etc.)
@@ -519,30 +389,6 @@ export class ProjectMilestoneOrchestrator {
   }
 
   /**
-   * Save recurring configuration to local storage
-   */
-  private static saveRecurringConfiguration(
-    projectId: string,
-    recurringMilestone: RecurringMilestone
-  ): void {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(
-        `recurring-milestone-${projectId}`, 
-        JSON.stringify(recurringMilestone)
-      );
-    }
-  }
-
-  /**
-   * Clear recurring configuration from local storage
-   */
-  private static clearRecurringConfiguration(projectId: string): void {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem(`recurring-milestone-${projectId}`);
-    }
-  }
-
-  /**
    * Delete a single milestone by ID
    */
   private static async deleteMilestoneById(
@@ -560,20 +406,6 @@ export class ProjectMilestoneOrchestrator {
       if (!options.silent) {
         ErrorHandlingService.handle(error, { source: 'ProjectMilestoneOrchestrator', action: 'Error deleting milestone:' });
       }
-    }
-  }
-
-  /**
-   * Get recurring milestone configuration from storage
-   */
-  static getRecurringConfiguration(projectId: string): RecurringMilestone | null {
-    if (typeof window === 'undefined') return null;
-    
-    try {
-      const stored = localStorage.getItem(`recurring-milestone-${projectId}`);
-      return stored ? JSON.parse(stored) : null;
-    } catch {
-      return null;
     }
   }
 

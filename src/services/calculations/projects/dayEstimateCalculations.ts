@@ -341,11 +341,13 @@ export function calculateProjectDayEstimates(
   let totalMilestoneEstimates = 0;
   let previousMilestoneEnd: Date | null = null;
   sortedMilestones.forEach(milestone => {
-    // Calculate the correct segment start for this milestone
-    // Segment = from (previous milestone end) or (project start) to (this milestone end)
-    const segmentStart = previousMilestoneEnd 
-      ? new Date(previousMilestoneEnd.getTime() + 24 * 60 * 60 * 1000) // Day after previous
-      : new Date(project.startDate);
+    // CRITICAL: If milestone already has startDate (it's a phase), use it!
+    // Only calculate segment start for pure milestones (no startDate)
+    const segmentStart = milestone.startDate
+      ? new Date(milestone.startDate) // Phase: Use actual phase start date
+      : previousMilestoneEnd 
+        ? new Date(previousMilestoneEnd.getTime() + 24 * 60 * 60 * 1000) // Day after previous
+        : new Date(project.startDate);
     // Create a milestone with the correct segment startDate
     const milestoneWithSegment = {
       ...milestone,

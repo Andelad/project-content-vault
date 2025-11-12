@@ -20,7 +20,7 @@ import {
   normalizeToMidnight
 } from '@/services';
 import { ProjectIconIndicator } from './ProjectIconIndicator';
-import { PhaseMarkers } from './PhaseMarkers';
+import { DraggablePhaseMarkers } from './DraggablePhaseMarkers';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 interface ProjectBarProps {
@@ -36,6 +36,7 @@ interface ProjectBarProps {
   onMilestoneDrag?: (milestoneId: string, newDate: Date) => void;
   onMilestoneDragEnd?: () => void;
   onProjectResizeMouseDown?: (e: React.MouseEvent, projectId: string, action: 'resize-start-date' | 'resize-end-date') => void;
+  onPhaseResizeMouseDown?: (e: React.MouseEvent, projectId: string, phaseId: string, action: 'resize-phase-start' | 'resize-phase-end') => void;
 }
 // Helper function to calculate baseline visual offsets
 function calculateBaselineVisualOffsets(positions: any, isDragging: boolean, dragState: any, projectId: string, mode: 'days' | 'weeks' = 'days') {
@@ -69,7 +70,8 @@ export const ProjectBar = memo(function ProjectBar({
   collapsed,
   onMilestoneDrag,
   onMilestoneDragEnd,
-  onProjectResizeMouseDown
+  onProjectResizeMouseDown,
+  onPhaseResizeMouseDown
 }: ProjectBarProps) {
   // Always call ALL hooks first, before any early returns (React Rules of Hooks)
   const { milestones } = useProjectContext();
@@ -750,8 +752,8 @@ export const ProjectBar = memo(function ProjectBar({
           );
         })()}
 
-        {/* Phase markers (diamond shapes) */}
-        <PhaseMarkers
+        {/* Phase markers (draggable rectangles at phase boundaries) */}
+        <DraggablePhaseMarkers
           project={project}
           milestones={filteredProjectMilestones}
           viewportStart={viewportStart}
@@ -761,6 +763,7 @@ export const ProjectBar = memo(function ProjectBar({
           isDragging={isDragging}
           dragState={dragState}
           calculateBaselineVisualOffsets={calculateBaselineVisualOffsets}
+          onPhaseResizeMouseDown={onPhaseResizeMouseDown}
         />
       </div>
     );
@@ -771,7 +774,10 @@ export const ProjectBar = memo(function ProjectBar({
 }, (prevProps, nextProps) => {
   // If a resize drag is active for this project, always re-render for live feedback
   if (nextProps.isDragging && nextProps.dragState?.projectId === nextProps.project.id &&
-      (nextProps.dragState?.action === 'resize-start-date' || nextProps.dragState?.action === 'resize-end-date')) {
+      (nextProps.dragState?.action === 'resize-start-date' || 
+       nextProps.dragState?.action === 'resize-end-date' ||
+       nextProps.dragState?.action === 'resize-phase-start' ||
+       nextProps.dragState?.action === 'resize-phase-end')) {
     return false;
   }
 

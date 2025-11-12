@@ -1,0 +1,325 @@
+import React from 'react';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
+import type { Project, Milestone } from '@/types/core';
+import { getTimelinePositions, normalizeToMidnight } from '@/services';
+import { getPhasesSortedByEndDate } from '@/domain/rules/PhaseRules';
+
+interface DraggablePhaseMarkersProps {
+  project: Project;
+  milestones: Milestone[];
+  viewportStart: Date;
+  viewportEnd: Date;
+  dates: Date[];
+  mode: 'days' | 'weeks';
+  isDragging: boolean;
+  dragState: any;
+  calculateBaselineVisualOffsets: (positions: any, isDragging: boolean, dragState: any, projectId: string, mode: 'days' | 'weeks') => any;
+  onPhaseResizeMouseDown?: (e: React.MouseEvent, projectId: string, phaseId: string, action: 'resize-phase-start' | 'resize-phase-end') => void;
+}
+
+/**
+ * Renders draggable triangular markers (half diamonds) at phase boundaries
+ * - Start markers: triangle pointing right → into the phase
+ * - End markers: triangle pointing left ← into the phase
+ * - Height: 21px (2/3rds of icon indicator height)
+ * - Darkens on hover like other drag handles
+ * - Follows non-overlapping phase rules from PhaseRules
+ * 
+ * Following .cursorrules: timeline visualization component
+ * - Pure presentation component - no business logic
+ * - Uses domain rules (PhaseRules) for phase sorting
+ * - Uses services (getTimelinePositions, normalizeToMidnight) for calculations
+ * - Types from @/types/core
+ */
+export function DraggablePhaseMarkers({
+  project,
+  milestones,
+  viewportStart,
+  viewportEnd,
+  dates,
+  mode,
+  isDragging,
+  dragState,
+  calculateBaselineVisualOffsets,
+  onPhaseResizeMouseDown
+}: DraggablePhaseMarkersProps) {
+  // Get phases for this project (milestones with startDate and endDate)
+  const phases = getPhasesSortedByEndDate(milestones);
+
+  if (phases.length === 0) {
+    return null;
+  }
+
+  const projectStartDate = normalizeToMidnight(new Date(project.startDate));
+  const projectEndDate = project.continuous
+    ? normalizeToMidnight(new Date(viewportEnd))
+    : normalizeToMidnight(new Date(project.endDate));
+
+  const MARKER_WIDTH = 8; // 8px wide marker (2px wider than project resize handles)
+  const MARKER_HEIGHT = Math.round(32 * 2 / 3); // 2/3rds of original 32px = ~21px
+  const MARKER_TOP = 8 + Math.round((32 - MARKER_HEIGHT) / 2); // Adjust top to keep centered in bar
+  const MARKER_INSET = 1; // 1px inset on each side for gap when markers are adjacent
+
+  // Check if project has recurring template (markers should not be draggable)
+  const hasRecurringTemplate = milestones.some(m => m.isRecurring);
+
+  return (
+    <TooltipProvider delayDuration={100} skipDelayDuration={0}>
+      {phases.map((phase, index) => {
+        const phaseStartDate = normalizeToMidnight(new Date(phase.startDate!));
+        const phaseEndDate = normalizeToMidnight(new Date(phase.endDate!));
+        const isFirstPhase = index === 0;
+        const isLastPhase = index === phases.length - 1;
+
+        // Don't show start marker for first phase (locked to project start)
+        const showStartMarker = !isFirstPhase && 
+          phaseStartDate >= normalizeToMidnight(viewportStart) && 
+          phaseStartDate <= normalizeToMidnight(viewportEnd);
+
+        // Don't show end marker for last phase (locked to project end)
+        const showEndMarker = !isLastPhase && 
+          phaseEndDate >= normalizeToMidnight(viewportStart) && 
+          phaseEndDate <= normalizeToMidnight(viewportEnd);
+
+        const markers = [];
+
+        // Check if this phase is being dragged
+        const isThisPhaseDragging = isDragging && 
+          dragState?.milestoneId === phase.id && 
+          (dragState?.action === 'resize-phase-start' || dragState?.action === 'resize-phase-end');
+
+        // Calculate visual date during drag
+        const visualStartDate = isThisPhaseDragging && dragState?.action === 'resize-phase-start'
+          ? new Date(new Date(phase.startDate!).getTime() + (dragState.lastDaysDelta * 24 * 60 * 60 * 1000))
+          : phaseStartDate;
+
+        const visualEndDate = isThisPhaseDragging && dragState?.action === 'resize-phase-end'
+          ? new Date(new Date(phase.endDate!).getTime() + (dragState.lastDaysDelta * 24 * 60 * 60 * 1000))
+          : phaseEndDate;
+
+        // START MARKER (rounded corners facing into phase - right side)
+        if (showStartMarker) {
+          const startPositions = getTimelinePositions(
+            visualStartDate,
+            visualStartDate,
+            viewportStart,
+            viewportEnd,
+            dates,
+            mode
+          );
+
+          if (startPositions) {
+            const adjustedStartPositions = calculateBaselineVisualOffsets(
+              startPositions,
+              false, // Don't apply project-level drag offset
+              null,
+              project.id,
+              mode
+            );
+
+            // Position at the left edge of the phase start date column
+            const markerPosition = adjustedStartPositions.baselineStartPx;
+
+            markers.push(
+              <Tooltip key={`${phase.id}-start-marker`} delayDuration={100}>
+                <TooltipTrigger asChild>
+                  <div
+                    className={`absolute pointer-events-auto group shadow-md hover:shadow-lg drop-shadow-sm transition-all duration-200 ${
+                      hasRecurringTemplate ? 'cursor-not-allowed' : 'cursor-ew-resize'
+                    }`}
+                    style={{
+                      left: `${markerPosition + MARKER_INSET}px`,
+                      top: `${MARKER_TOP}px`,
+                      width: `${MARKER_WIDTH}px`,
+                      height: `${MARKER_HEIGHT}px`,
+                      zIndex: 40
+                    }}
+                    title={hasRecurringTemplate ? 'Edit recurring template to change phase dates' : `Drag to change start of ${phase.name}`}
+                    onMouseDown={(e) => {
+                      if (hasRecurringTemplate) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        return;
+                      }
+                      if (onPhaseResizeMouseDown) {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        onPhaseResizeMouseDown(e, project.id, phase.id, 'resize-phase-start');
+                      }
+                    }}
+                  >
+                    {/* Triangle pointing right (into phase) - half diamond */}
+                    <svg 
+                      width={MARKER_WIDTH} 
+                      height={MARKER_HEIGHT} 
+                      viewBox={`0 0 ${MARKER_WIDTH} ${MARKER_HEIGHT}`}
+                      className="absolute inset-0 transition-opacity"
+                      style={{ opacity: hasRecurringTemplate ? 0.3 : 1 }}
+                    >
+                      <polygon 
+                        points={`0,0 ${MARKER_WIDTH},${MARKER_HEIGHT/2} 0,${MARKER_HEIGHT}`}
+                        fill={project.color}
+                      />
+                    </svg>
+                    {/* Hover highlighting - darkened overlay triangle */}
+                    {!hasRecurringTemplate && (
+                      <svg 
+                        width={MARKER_WIDTH} 
+                        height={MARKER_HEIGHT} 
+                        viewBox={`0 0 ${MARKER_WIDTH} ${MARKER_HEIGHT}`}
+                        className="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity"
+                      >
+                        <polygon 
+                          points={`0,0 ${MARKER_WIDTH},${MARKER_HEIGHT/2} 0,${MARKER_HEIGHT}`}
+                          fill="black"
+                        />
+                      </svg>
+                    )}
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <div className="text-xs">
+                    {hasRecurringTemplate ? (
+                      <>
+                        <div className="font-medium text-amber-600">Recurring Template Active</div>
+                        <div className="text-gray-500">Edit the template to change dates</div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="font-medium">Start of {phase.name}</div>
+                        <div className="text-gray-500">
+                          {phaseStartDate.toLocaleDateString('en-US', {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric'
+                          })}
+                        </div>
+                        <div className="text-gray-500 text-[10px] mt-1">
+                          Drag left/right to adjust • Min 1 day
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            );
+          }
+        }
+
+        // END MARKER (rounded corners facing into phase - left side)
+        if (showEndMarker) {
+          const endPositions = getTimelinePositions(
+            visualEndDate,
+            visualEndDate,
+            viewportStart,
+            viewportEnd,
+            dates,
+            mode
+          );
+
+          if (endPositions) {
+            const adjustedEndPositions = calculateBaselineVisualOffsets(
+              endPositions,
+              false, // Don't apply project-level drag offset
+              null,
+              project.id,
+              mode
+            );
+
+            // In weeks mode, each day is 22px wide within the 153px week column
+            // In days mode, each day column is 52px wide
+            const dayWidth = mode === 'weeks' ? 22 : 52;
+            // Position at the right edge of the phase end date column
+            const markerPosition = adjustedEndPositions.baselineStartPx + dayWidth - MARKER_WIDTH;
+
+            markers.push(
+            <Tooltip key={`${phase.id}-end-marker`} delayDuration={100}>
+              <TooltipTrigger asChild>
+                <div
+                  className={`absolute pointer-events-auto group shadow-md hover:shadow-lg drop-shadow-sm transition-all duration-200 ${
+                    hasRecurringTemplate ? 'cursor-not-allowed' : 'cursor-ew-resize'
+                  }`}
+                  style={{
+                    left: `${markerPosition - MARKER_INSET}px`,
+                    top: `${MARKER_TOP}px`,
+                    width: `${MARKER_WIDTH}px`,
+                    height: `${MARKER_HEIGHT}px`,
+                    zIndex: 40
+                  }}
+                  title={hasRecurringTemplate ? 'Edit recurring template to change phase dates' : `Drag to change end of ${phase.name}`}
+                  onMouseDown={(e) => {
+                    if (hasRecurringTemplate) {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      return;
+                    }
+                    if (onPhaseResizeMouseDown) {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      onPhaseResizeMouseDown(e, project.id, phase.id, 'resize-phase-end');
+                    }
+                  }}
+                >
+                  {/* Triangle pointing left (into phase) - half diamond */}
+                  <svg 
+                    width={MARKER_WIDTH} 
+                    height={MARKER_HEIGHT} 
+                    viewBox={`0 0 ${MARKER_WIDTH} ${MARKER_HEIGHT}`}
+                    className="absolute inset-0 transition-opacity"
+                    style={{ opacity: hasRecurringTemplate ? 0.3 : 1 }}
+                  >
+                    <polygon 
+                      points={`${MARKER_WIDTH},0 0,${MARKER_HEIGHT/2} ${MARKER_WIDTH},${MARKER_HEIGHT}`}
+                      fill={project.color}
+                    />
+                  </svg>
+                  {/* Hover highlighting - darkened overlay triangle */}
+                  {!hasRecurringTemplate && (
+                    <svg 
+                      width={MARKER_WIDTH} 
+                      height={MARKER_HEIGHT} 
+                      viewBox={`0 0 ${MARKER_WIDTH} ${MARKER_HEIGHT}`}
+                      className="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity"
+                    >
+                      <polygon 
+                        points={`${MARKER_WIDTH},0 0,${MARKER_HEIGHT/2} ${MARKER_WIDTH},${MARKER_HEIGHT}`}
+                        fill="black"
+                      />
+                    </svg>
+                  )}
+                </div>
+              </TooltipTrigger>
+                <TooltipContent>
+                  <div className="text-xs">
+                    {hasRecurringTemplate ? (
+                      <>
+                        <div className="font-medium text-amber-600">Recurring Template Active</div>
+                        <div className="text-gray-500">Edit the template to change dates</div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="font-medium">End of {phase.name}</div>
+                        <div className="text-gray-500">
+                          {phaseEndDate.toLocaleDateString('en-US', {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric'
+                          })}
+                        </div>
+                        <div className="text-gray-500 text-[10px] mt-1">
+                          Drag left/right to adjust • Min 1 day
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            );
+          }
+        }
+
+        return markers;
+      })}
+    </TooltipProvider>
+  );
+}
