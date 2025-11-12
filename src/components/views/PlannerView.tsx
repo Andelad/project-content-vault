@@ -636,6 +636,22 @@ export function PlannerView() {
           allEvents,
           layerVisibility
         );
+        
+        // Debug: Log RRULE events being passed to FullCalendar
+        const rruleEventsInFiltered = filteredEvents.filter((e: any) => e.rrule);
+        if (rruleEventsInFiltered.length > 0) {
+          console.log('🎯 Passing', rruleEventsInFiltered.length, 'RRULE events to FullCalendar:');
+          rruleEventsInFiltered.forEach((e: any) => {
+            console.log('  📋', e.title, {
+              id: e.id,
+              start: e.start,
+              end: e.end,
+              rrule: e.rrule,
+              duration: e.duration
+            });
+          });
+        }
+        
         successCallback(filteredEvents);
       } catch (error) {
         ErrorHandlingService.handle(error, { source: 'PlannerView', action: 'Error fetching events:' });
