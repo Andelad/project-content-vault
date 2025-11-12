@@ -40,12 +40,14 @@
   --font-md: 14px;
   --font-lg: 18px;
   
-  /* Z-index scale */
+  /* Z-index scale - Layered from bottom to top */
   --z-base: 1;
-  --z-work-slot: 5;
-  --z-habit-task: 5;
-  --z-event-hover: 10;
-  --z-dragging: 9999;
+  --z-work-slot: 5;        /* Layer 1: Work hours (bottom) */
+  --z-habit: 10;           /* Layer 2: Habits (middle) */
+  --z-task: 15;            /* Layer 3: Tasks (top) */
+  --z-event: 15;           /* Layer 3: Events (top, same as tasks) */
+  --z-event-hover: 20;     /* Hover state */
+  --z-dragging: 9999;      /* Dragging state */
   --z-resizer: 99;
   
   /* Opacity values */
@@ -174,6 +176,7 @@
 /* Add drop shadow to regular events (category: event) - not habits or tasks */
 .fc-event:not(.habit-event):not(.task-event):not(.work-slot-event):not(.fc-event-background) {
   box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1) !important;
+  z-index: var(--z-event) !important; /* Layer 3: Top layer, can stack with tasks */
 }
 
 .fc-event:not(.habit-event):not(.task-event):not(.work-slot-event):not(.fc-event-background):hover {
@@ -221,7 +224,7 @@
   border: none !important;
   color: var(--gray-500) !important;
   cursor: move !important;
-  z-index: var(--z-base) !important; /* Base z-index so regular events appear on top */
+  z-index: var(--z-work-slot) !important; /* Layer 1: Bottom layer */
 }
 
 .work-slot-event:hover,
@@ -231,15 +234,24 @@
   border: none !important;
 }
 
-/* FullCalendar background events (work hours) - ensure they're editable */
+/* FullCalendar background events (work hours & habits) - ensure they're editable */
 .fc-timegrid-event.fc-event-background {
   cursor: move !important;
   pointer-events: auto !important; /* Ensure they can be clicked and dragged */
 }
 
-/* Make resize handles ALWAYS visible and functional for background events (work hours) */
+/* Habit background events should maintain their styling */
+.fc-event-background.habit-event {
+  background-color: var(--gray-200) !important;
+  border-left-width: 3px !important;
+  cursor: pointer !important;
+  pointer-events: auto !important;
+}
+
+/* Make resize handles ALWAYS visible and functional for background events (work hours & habits) */
 .fc-event-background .fc-event-resizer,
-.work-slot-event .fc-event-resizer {
+.work-slot-event .fc-event-resizer,
+.habit-event .fc-event-resizer {
   display: block !important;
   position: absolute !important;
   z-index: 9999 !important;
@@ -263,7 +275,8 @@
 }
 
 /* Show visual indicator on hover for resize handles */
-.work-slot-event:hover .fc-event-resizer {
+.work-slot-event:hover .fc-event-resizer,
+.habit-event:hover .fc-event-resizer {
   background: rgba(0, 0, 0, 0.1) !important;
 }
 
@@ -635,7 +648,7 @@
 
 /* Ensure habits render between events and work hours */
 .habit-event {
-  z-index: var(--z-habit-task) !important; /* Below events (10) but above work hours (1) */
+  z-index: var(--z-habit) !important; /* Layer 2: Middle layer, above work hours */
 }
 
 /* Task Event Styles */
@@ -671,9 +684,9 @@
   z-index: var(--z-event-hover) !important;
 }
 
-/* Tasks should render at the same level as habits */
+/* Tasks should render at the top layer with events */
 .task-event {
-  z-index: var(--z-habit-task) !important;
+  z-index: var(--z-task) !important; /* Layer 3: Top layer, can stack with events */
 }
 
 /* Ensure task events never show completion icon on the right */

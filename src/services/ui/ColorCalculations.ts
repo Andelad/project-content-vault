@@ -203,7 +203,12 @@ export class ColorCalculationService {
     if (!match) return baseColor;
     
     const [, lightness, chroma, hue] = match;
-    const textChroma = Math.max(0.12, parseFloat(chroma) * textConfig.chromaMultiplier);
+    const chromaValue = parseFloat(chroma);
+    
+    // If base color is gray (chroma ~0), keep text gray too (don't force chroma up)
+    const textChroma = chromaValue < 0.02 
+      ? 0 // Keep it gray
+      : Math.max(0.12, chromaValue * textConfig.chromaMultiplier);
     
     return `oklch(${textConfig.targetLightness} ${textChroma} ${hue})`;
   }

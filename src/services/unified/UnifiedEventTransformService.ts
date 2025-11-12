@@ -97,6 +97,16 @@ export function transformCalendarEventToFullCalendar(event: CalendarEvent, optio
     ? OKLCH_HABIT_BROWN 
     : (event.color || (project ? project.color : OKLCH_FALLBACK_GRAY));
   
+  // Debug: Log color selection for unallocated events
+  if (!event.projectId && event.category !== 'habit') {
+    console.warn('⚠️ ========= UNALLOCATED EVENT COLOR DEBUG =========');
+    console.warn('Event Title:', event.title);
+    console.warn('Stored Color:', event.color);
+    console.warn('OKLCH_FALLBACK_GRAY constant:', OKLCH_FALLBACK_GRAY);
+    console.warn('Final Base Color:', baseColor);
+    console.warn('=================================================');
+  }
+  
   // Check if event is in the future (non-completed)
   const now = new Date();
   const eventStart = new Date(event.startTime);
@@ -155,6 +165,9 @@ export function transformCalendarEventToFullCalendar(event: CalendarEvent, optio
     // Don't set borderColor - let CSS classes handle borders completely
     textColor: finalTextColor,
     className: cssClasses,
+    // Habits render as background events (like work hours) - never cause stacking
+    // But they're still interactive via CSS
+    display: event.category === 'habit' ? 'background' : 'block',
   };
   
   return {
@@ -239,8 +252,8 @@ export function transformWorkHourToFullCalendar(workHour: WorkHour): EventInput 
     startEditable: true,
     durationEditable: true,
     resizable: true,
-    // display: 'background', // Removed - background events are not interactive
-    // Use regular display so they're selectable/draggable
+    display: 'background', // Render as background - this is KEY for not causing stacking!
+    // Background events can still be interactive with the right CSS
     classNames: ['work-slot-event']
   };
 

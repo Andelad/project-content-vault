@@ -108,14 +108,45 @@ export function createNewWorkSlot(day: string, existingSlots: WorkSlot[]): WorkS
   // Generate unique ID
   const id = `slot-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-  // Default to 9 AM - 5 PM if no existing slots
-  const defaultStartTime = existingSlots.length === 0 ? '09:00' : '09:00';
-  const defaultEndTime = existingSlots.length === 0 ? '17:00' : '17:00';
+  let defaultStartTime: string;
+  let defaultEndTime: string;
+
+  if (existingSlots.length === 0) {
+    // No existing slots - default to 9 AM - 5 PM
+    defaultStartTime = '09:00';
+    defaultEndTime = '17:00';
+  } else {
+    // Find the latest end time among existing slots
+    const latestEndTime = existingSlots.reduce((latest, slot) => {
+      return slot.endTime > latest ? slot.endTime : latest;
+    }, '00:00');
+
+    // Parse the latest end time
+    const [hours, minutes] = latestEndTime.split(':').map(Number);
+    
+    // Add 1 hour gap after the latest slot
+    const startHours = hours + 1;
+    const endHours = startHours + 1; // 1 hour duration by default
+
+    // Check if we're going past midnight
+    if (startHours >= 24) {
+      return {
+        success: false,
+        error: 'Cannot add more work slots - day is full (would exceed 24:00)'
+      };
+    }
+
+    // Format times
+    defaultStartTime = `${String(startHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+    defaultEndTime = endHours >= 24 
+      ? '23:59' 
+      : `${String(endHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  }
 
   // Calculate duration
   const duration = calculateWorkSlotDuration(defaultStartTime, defaultEndTime);
 
-  // Check for overlaps with existing slots
+  // Create new slot
   const newSlot = {
     id,
     startTime: defaultStartTime,
@@ -123,6 +154,7 @@ export function createNewWorkSlot(day: string, existingSlots: WorkSlot[]): WorkS
     duration
   };
 
+  // Double-check for overlaps (shouldn't happen with our logic, but safety check)
   if (hasTimeOverlap(newSlot, existingSlots)) {
     return {
       success: false,

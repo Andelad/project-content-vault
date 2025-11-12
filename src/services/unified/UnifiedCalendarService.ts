@@ -270,7 +270,7 @@ export class UnifiedCalendarService {
       
       // Mobile-specific settings
       eventMinHeight: isMobile ? 20 : 15,
-      slotEventOverlap: isMobile ? false : true,
+      slotEventOverlap: true, // Allow overlapping - eventOverlap callback will control specifics
       
       // Time format
       eventTimeFormat: {
@@ -310,6 +310,52 @@ export class UnifiedCalendarService {
       eventBackgroundColor: undefined, // Will be set per event
       eventBorderColor: undefined, // Will be set per event
       eventTextColor: undefined, // Will be set per event
+      
+      // Control event overlap behavior - which events can render full-width vs stack
+      // This function determines if OTHER events can overlap a given event
+      // Return true = allow overlap (other events stay full width)
+      // Return false = prevent overlap (other events must stack)
+      eventOverlap: function(stillEvent, movingEvent) {
+        const stillCategory = stillEvent.extendedProps?.category;
+        const movingCategory = movingEvent?.extendedProps?.category;
+        const stillIsWorkHour = stillEvent.extendedProps?.isWorkHour;
+        const movingIsWorkHour = movingEvent?.extendedProps?.isWorkHour;
+        
+        console.log('🔍 eventOverlap check:', {
+          still: stillIsWorkHour ? 'work-hour' : stillCategory || 'event',
+          moving: movingIsWorkHour ? 'work-hour' : movingCategory || 'event',
+          stillId: stillEvent.id,
+          movingId: movingEvent?.id
+        });
+        
+        // If the "still" event is a work hour, allow ALL other events to overlap
+        if (stillIsWorkHour) {
+          console.log('  ✅ Allow: still is work hour');
+          return true;
+        }
+        
+        // If the "still" event is a habit, allow ALL other events to overlap
+        if (stillCategory === 'habit') {
+          console.log('  ✅ Allow: still is habit');
+          return true;
+        }
+        
+        // If the "moving" event is a habit, it should overlap others (stay full width)
+        if (movingCategory === 'habit') {
+          console.log('  ✅ Allow: moving is habit');
+          return true;
+        }
+        
+        // If the "moving" event is a work hour, it should overlap (but this is unlikely)
+        if (movingIsWorkHour) {
+          console.log('  ✅ Allow: moving is work hour');
+          return true;
+        }
+        
+        // Both are regular events or tasks - they should stack
+        console.log('  ❌ Stack: both are events/tasks');
+        return false;
+      },
       
       // Custom CSS classes
       eventClassNames: (arg) => {

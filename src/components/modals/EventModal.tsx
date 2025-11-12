@@ -239,6 +239,12 @@ export function EventModal({
         const pendingProject = pendingProjectId ? projects.find(p => p.id === pendingProjectId) : null;
         const groupId = pendingProject?.groupId || '';
         
+        // Debug: Check what's being set initially
+        console.warn('🔵 EVENT MODAL INITIAL STATE:');
+        console.warn('  pendingProjectId:', pendingProjectId);
+        console.warn('  pendingProject:', pendingProject);
+        console.warn('  Setting color to:', pendingProject?.color || OKLCH_FALLBACK_GRAY);
+        
         setFormData({
           description: '',
           notes: '',
@@ -314,6 +320,9 @@ export function EventModal({
       if (selectedProject) {
         setFormData(prev => ({ ...prev, color: selectedProject.color }));
       }
+    } else {
+      // No project selected - use fallback gray
+      setFormData(prev => ({ ...prev, color: OKLCH_FALLBACK_GRAY }));
     }
   }, [formData.projectId, projects]);
 
@@ -325,6 +334,15 @@ export function EventModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Debug: Log form data before submission
+    if (!formData.projectId) {
+      console.warn('⚠️ ========= CREATING UNALLOCATED EVENT =========');
+      console.warn('Form projectId:', formData.projectId);
+      console.warn('Form color:', formData.color);
+      console.warn('OKLCH_FALLBACK_GRAY:', OKLCH_FALLBACK_GRAY);
+      console.warn('=================================================');
+    }
     
     setIsSubmitting(true);
 

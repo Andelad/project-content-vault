@@ -90,8 +90,9 @@ export const getCalendarEventTextColor = (oklchColor: string): string => {
   return `oklch(${targetLightness} ${chroma} ${hue})`;
 };
 
-// OKLCH equivalent of the fallback gray (#6b7280) with equivalent lightness to project colors
-export const OKLCH_FALLBACK_GRAY = 'oklch(0.8 0.02 280)'; // Low chroma gray with same lightness as project colors
+// OKLCH equivalent of the fallback gray - true neutral with no color tint
+// Chroma = 0 for completely neutral gray (no hue), lightness matches project colors
+export const OKLCH_FALLBACK_GRAY = 'oklch(0.76 0 0)'; // True neutral gray with same lightness as project colors
 
 // OKLCH brown color for habits - lower chroma and warmer hue for earthy brown feel
 export const OKLCH_HABIT_BROWN = 'oklch(0.76 0.05 65)'; // Brown hue with reduced chroma for habits
