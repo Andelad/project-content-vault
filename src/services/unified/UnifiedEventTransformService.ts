@@ -140,9 +140,13 @@ export function transformCalendarEventToFullCalendar(event: CalendarEvent, optio
     // When using RRULE, provide only rrule and duration (NOT end time)
     // When NOT using RRULE, provide end time (NOT rrule or duration)
     ...(event.rrule ? { 
-      rrule: event.rrule,
+      // FullCalendar RRULE plugin expects an object with dtstart and rrule string
+      rrule: {
+        dtstart: event.startTime,
+        freq: event.rrule // The RRULE string
+      },
       duration: (() => {
-        // FullCalendar expects duration as a simple string like '01:00:00' or object like { hours: 1, minutes: 30 }
+        // FullCalendar expects duration as object like { hours: 1, minutes: 30 }
         const durationHours = calculateDurationHours(new Date(event.startTime), new Date(event.endTime));
         const hours = Math.floor(durationHours);
         const minutes = Math.round((durationHours - hours) * 60);
