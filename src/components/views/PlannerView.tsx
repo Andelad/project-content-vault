@@ -399,7 +399,19 @@ export function PlannerView() {
   const renderEventContent = useCallback((eventInfo: any) => {
     const event = eventInfo.event;
     const extendedProps = event.extendedProps;
-    console.log('Rendering event:', event.id, event.title, event.start, event.end, extendedProps.rrule);
+    
+    // Debug RRULE events - log both master and expanded instances
+    if (extendedProps.rrule || event.extendedProps.originalEvent?.rrule) {
+      console.log('🔁 RRULE Event Render:', {
+        id: event.id,
+        title: event.title,
+        start: event.start,
+        end: event.end,
+        rrule: extendedProps.rrule,
+        hasRRuleInOriginal: !!event.extendedProps.originalEvent?.rrule,
+        allExtendedProps: Object.keys(extendedProps)
+      });
+    }
     // Render work hours with italic label
     if (extendedProps.isWorkHour) {
       const workHour = extendedProps.originalWorkHour;

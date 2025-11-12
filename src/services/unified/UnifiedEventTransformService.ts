@@ -28,9 +28,9 @@ export function prepareEventsForFullCalendar(
   // Debug: Log RRULE events being prepared
   const rruleEvents = events.filter(e => e.rrule);
   if (rruleEvents.length > 0) {
-    console.log('📅 prepareEventsForFullCalendar: Found RRULE events:', rruleEvents.length);
+    console.log('📅 prepareEventsForFullCalendar: Preparing', rruleEvents.length, 'RRULE master events for FullCalendar');
     rruleEvents.forEach(e => {
-      console.log('  -', e.title, 'RRULE:', e.rrule, 'Start:', e.startTime);
+      console.log('  🔁', e.title, '- RRULE:', e.rrule, '- Start:', new Date(e.startTime).toISOString());
     });
   }
 
@@ -133,10 +133,8 @@ export function transformCalendarEventToFullCalendar(event: CalendarEvent, optio
     className: cssClasses,
     // Add RRULE support for FullCalendar expansion
     ...(event.rrule && { 
-      rrule: (() => {
-        console.log('RRULE event:', event.id, event.title, event.rrule);
-        return event.rrule;
-      })()
+      rrule: event.rrule,
+      duration: calculateDurationHours(new Date(event.startTime), new Date(event.endTime)) * 60 * 60 * 1000 // Duration in milliseconds for RRULE instances
     }),
     extendedProps: {
       description: event.description,
