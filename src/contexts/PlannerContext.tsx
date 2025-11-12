@@ -247,6 +247,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
         duration: event.duration || 0,
         type: (event.event_type as 'planned' | 'tracked' | 'completed') || 'planned',
         category: (event.category as 'event' | 'habit' | 'task') || 'event',
+        rrule: event.rrule, // Add RRULE field for FullCalendar expansion
         recurring: event.recurring_type ? {
           type: event.recurring_type as 'daily' | 'weekly' | 'monthly' | 'yearly',
           interval: event.recurring_interval || 1,

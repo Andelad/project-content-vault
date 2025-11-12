@@ -57,7 +57,7 @@
 - [ ] Wire "Delete all events" to master event deletion
 
 ### Event Transformation
-- [ ] Update `UnifiedEventTransformService` to handle RRULE events
+- [x] Update `UnifiedEventTransformService` to handle RRULE events
 - [ ] Ensure RRULE events are properly transformed for FullCalendar
 - [ ] Handle exceptions when rendering calendar events
 

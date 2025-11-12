@@ -402,8 +402,8 @@ export function PlannerView() {
     // Render work hours with italic label
     if (extendedProps.isWorkHour) {
       const workHour = extendedProps.originalWorkHour;
-      const start = formatTimeForValidation(event.start);
-      const end = formatTimeForValidation(event.end);
+      const start = event.start ? formatTimeForValidation(event.start) : '';
+      const end = event.end ? formatTimeForValidation(event.end) : '';
       return {
         html: `
           <div style="height: 100%; display: flex; flex-direction: column; padding: 4px 6px; overflow: hidden;">
@@ -419,10 +419,10 @@ export function PlannerView() {
     }
     // Render habits with croissant icon (no completion checkbox)
     if (extendedProps.category === 'habit') {
-      const start = formatTimeForValidation(event.start);
-      const end = formatTimeForValidation(event.end);
+      const start = event.start ? formatTimeForValidation(event.start) : '';
+      const end = event.end ? formatTimeForValidation(event.end) : '';
       // Calculate height for layout
-      const durationInMs = event.end ? event.end.getTime() - event.start.getTime() : 0;
+      const durationInMs = event.end && event.start ? event.end.getTime() - event.start.getTime() : 0;
       const durationInMinutes = durationInMs / (1000 * 60);
       const approximateHeight = settings?.isCompactView 
         ? (durationInMinutes / 30) * 15  // Compact: 15px per 30-minute slot
@@ -474,8 +474,8 @@ export function PlannerView() {
     const projectId = extendedProps.projectId;
     const project = projectId ? projects.find(p => p.id === projectId) : null;
     // Format time
-    const start = formatTimeForValidation(event.start);
-    const end = formatTimeForValidation(event.end);
+    const start = event.start ? formatTimeForValidation(event.start) : '';
+    const end = event.end ? formatTimeForValidation(event.end) : '';
     // Get event title - manual entry always takes precedence
     const eventType = extendedProps.type;
     const description = event.title;
@@ -504,7 +504,7 @@ export function PlannerView() {
     // Calculate approximate event height in pixels
     // Expanded view: slotDuration '00:15:00' renders at ~21px per 15-min slot (~84px per hour)
     // Compact view: 30-min slots at 15px each (30px per hour)
-    const durationInMs = event.end ? event.end.getTime() - event.start.getTime() : 0;
+    const durationInMs = event.end && event.start ? event.end.getTime() - event.start.getTime() : 0;
     const durationInMinutes = durationInMs / (1000 * 60);
     const approximateHeight = settings?.isCompactView 
       ? (durationInMinutes / 30) * 15  // Compact: 15px per 30-minute slot

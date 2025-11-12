@@ -122,6 +122,8 @@ export function transformCalendarEventToFullCalendar(event: CalendarEvent, optio
     // Don't set borderColor - let CSS classes handle borders completely
     textColor: finalTextColor,
     className: cssClasses,
+    // Add RRULE support for FullCalendar expansion
+    ...(event.rrule && { rrule: event.rrule }),
     extendedProps: {
       description: event.description,
       projectId: event.projectId,
@@ -130,6 +132,7 @@ export function transformCalendarEventToFullCalendar(event: CalendarEvent, optio
       type: event.type,
       category: event.category,
       recurring: event.recurring,
+      rrule: event.rrule, // Also store in extendedProps for reference
       originalEvent: event,
       // Store colors for CSS custom properties
       futureEventBorderColor: baseColor,
