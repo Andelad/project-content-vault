@@ -122,23 +122,28 @@ export function transformCalendarEventToFullCalendar(event: CalendarEvent, optio
     cssClasses.push('task-event');
   }
   
-  return {
+  // For RRULE events, don't include 'end' - only 'start' and 'duration'
+  // FullCalendar's RRULE plugin will use dtstart from 'start' and calculate each occurrence
+  const baseEvent = {
     id: event.id,
     title: event.title,
     start: event.startTime,
-    end: event.endTime,
     backgroundColor: finalBackgroundColor,
     // Don't set borderColor - let CSS classes handle borders completely
     textColor: finalTextColor,
     className: cssClasses,
+  };
+  
+  return {
+    ...baseEvent,
     // Add RRULE support for FullCalendar expansion
-    // When using RRULE, FullCalendar needs:
-    // 1. rrule: the RRULE string
-    // 2. duration: how long each occurrence lasts (in milliseconds)
-    // 3. start: will be used as dtstart for the rrule
-    ...(event.rrule && { 
+    // When using RRULE, provide only rrule and duration (NOT end time)
+    // When NOT using RRULE, provide end time (NOT rrule or duration)
+    ...(event.rrule ? { 
       rrule: event.rrule,
       duration: { milliseconds: calculateDurationHours(new Date(event.startTime), new Date(event.endTime)) * 60 * 60 * 1000 }
+    } : {
+      end: event.endTime
     }),
     extendedProps: {
       description: event.description,
