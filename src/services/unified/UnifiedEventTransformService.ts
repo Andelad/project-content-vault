@@ -123,7 +123,12 @@ export function transformCalendarEventToFullCalendar(event: CalendarEvent, optio
     textColor: finalTextColor,
     className: cssClasses,
     // Add RRULE support for FullCalendar expansion
-    ...(event.rrule && { rrule: event.rrule }),
+    ...(event.rrule && { 
+      rrule: (() => {
+        console.log('RRULE event:', event.id, event.title, event.rrule);
+        return event.rrule;
+      })()
+    }),
     extendedProps: {
       description: event.description,
       projectId: event.projectId,

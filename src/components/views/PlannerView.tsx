@@ -399,6 +399,7 @@ export function PlannerView() {
   const renderEventContent = useCallback((eventInfo: any) => {
     const event = eventInfo.event;
     const extendedProps = event.extendedProps;
+    console.log('Rendering event:', event.id, event.title, event.start, event.end, extendedProps.rrule);
     // Render work hours with italic label
     if (extendedProps.isWorkHour) {
       const workHour = extendedProps.originalWorkHour;
