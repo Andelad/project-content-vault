@@ -24,6 +24,15 @@ export function prepareEventsForFullCalendar(
 ): EventInput[] {
   const { selectedEventId, projects = [] } = options;
   const fcEvents: EventInput[] = [];
+  
+  // Debug: Log RRULE events being prepared
+  const rruleEvents = events.filter(e => e.rrule);
+  if (rruleEvents.length > 0) {
+    console.log('📅 prepareEventsForFullCalendar: Found RRULE events:', rruleEvents.length);
+    rruleEvents.forEach(e => {
+      console.log('  -', e.title, 'RRULE:', e.rrule, 'Start:', e.startTime);
+    });
+  }
 
   // Add calendar events (all categories: events, habits, tasks)
   if (layerMode === 'events' || layerMode === 'both') {
