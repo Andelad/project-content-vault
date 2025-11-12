@@ -112,12 +112,14 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
 
           if (uploadError) throw uploadError;
 
-          // Get public URL for the uploaded file
-          const { data: { publicUrl } } = supabase.storage
+          // Generate signed URL (expires in 7 days)
+          const { data: signedUrlData, error: signedUrlError } = await supabase.storage
             .from('feedback-attachments')
-            .getPublicUrl(filePath);
+            .createSignedUrl(filePath, 604800); // 7 days in seconds
 
-          // Save attachment metadata with public URL
+          if (signedUrlError) throw signedUrlError;
+
+          // Save attachment metadata with signed URL
           const { error: attachmentError } = await supabase
             .from('feedback_attachments')
             .insert({
@@ -126,7 +128,7 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
               file_path: filePath,
               file_size: file.size,
               mime_type: file.type,
-              storage_url: publicUrl
+              storage_url: signedUrlData.signedUrl
             });
 
           if (attachmentError) throw attachmentError;
