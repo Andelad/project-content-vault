@@ -8,7 +8,7 @@ import { Separator } from '../ui/separator';
 import { Badge } from '../ui/badge';
 import { cn } from '@/lib/utils';
 
-import { Bell, Palette, Clock, Globe, Shield, Trash2, User, Plus, X, Calendar, FolderKanban, Download } from 'lucide-react';
+import { Bell, Palette, Clock, Globe, Shield, Trash2, User, Plus, X, Calendar, FolderKanban, Download, RefreshCw } from 'lucide-react';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 import { WorkSlot } from '@/types/core';
 import { CalendarImport } from '@/components/features/settings/CalendarImport';
@@ -20,6 +20,7 @@ import { formatWorkSlotDurationDisplay } from '@/services';
 import { SettingsOrchestrator } from '@/services/orchestrators/SettingsOrchestrator';
 import { SidebarLayout } from '../shared/SidebarLayout';
 import { useGroups } from '@/hooks/useGroups';
+import { supabase } from '@/integrations/supabase/client';
 import {
   generateTimeOptions,
   calculateDayTotalHours,
@@ -37,6 +38,7 @@ export function SettingsView() {
   const [newGroupName, setNewGroupName] = useState('');
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [editingGroupName, setEditingGroupName] = useState('');
+  const [isMigrating, setIsMigrating] = useState(false);
   const [localSettings, setLocalSettings] = useState({
     notifications: true,
     emailNotifications: false,
@@ -184,6 +186,57 @@ export function SettingsView() {
         description: result.message || result.error,
         variant: result.success ? "default" : "destructive",
       });
+    }
+  };
+
+  const handleMigrateToRRule = async () => {
+    setIsMigrating(true);
+    
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Not authenticated');
+      }
+
+      const response = await fetch(
+        'https://hhzmaadhndtrvgnqujnn.supabase.co/functions/v1/migrate-recurring-to-rrule',
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast({
+          title: "Migration Complete",
+          description: result.message || `Successfully migrated ${result.summary?.migrated || 0} recurring events to RRULE format`,
+        });
+
+        if (result.summary?.failures?.length > 0) {
+          console.warn('Some events failed to migrate:', result.summary.failures);
+          toast({
+            title: "Partial Success",
+            description: `${result.summary.failed} events failed to migrate. Check console for details.`,
+            variant: "destructive",
+          });
+        }
+      } else {
+        throw new Error(result.error || 'Migration failed');
+      }
+    } catch (error) {
+      console.error('Migration error:', error);
+      toast({
+        title: "Migration Failed",
+        description: error instanceof Error ? error.message : "Failed to migrate recurring events",
+        variant: "destructive",
+      });
+    } finally {
+      setIsMigrating(false);
     }
   };
 
@@ -765,6 +818,31 @@ export function SettingsView() {
             </div>
             
             <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 border border-blue-200 rounded-lg bg-blue-50">
+                <div className="space-y-1">
+                  <Label className="text-blue-900">Migrate to RRULE</Label>
+                  <p className="text-sm text-blue-700">
+                    Convert legacy recurring events to the new RRULE standard format
+                  </p>
+                </div>
+                <Button 
+                  variant="outline"
+                  size="sm"
+                  onClick={handleMigrateToRRule}
+                  disabled={isMigrating}
+                  className="border-blue-300 hover:bg-blue-100"
+                >
+                  {isMigrating ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                      Migrating...
+                    </>
+                  ) : (
+                    'Run Migration'
+                  )}
+                </Button>
+              </div>
+
               <div className="flex items-center justify-between p-4 border border-amber-200 rounded-lg bg-amber-50">
                 <div className="space-y-1">
                   <Label className="text-amber-900">Reset All Settings</Label>
