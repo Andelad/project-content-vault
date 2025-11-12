@@ -29,7 +29,6 @@ const helpSections: HelpSection[] = [
     content: (
       <div className="space-y-8">
         <div id="welcome">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-4">Welcome to Budgi</h2>
           <p className="text-gray-700 mb-4">
             Budgi is a time forecasting and project planning tool designed to help you visualize, 
             organize, and manage your projects effectively.
@@ -63,7 +62,6 @@ const helpSections: HelpSection[] = [
     content: (
       <div className="space-y-8">
         <div id="timeline-overview">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-4">Understanding the Timeline</h2>
           <p className="text-gray-700 mb-6">
             The Timeline view is your main workspace for visualizing and managing project schedules. 
             It provides a horizontal, time-based view of all your projects, events, and milestones.
@@ -250,7 +248,6 @@ const helpSections: HelpSection[] = [
     content: (
       <div className="space-y-8">
         <div id="planner-overview">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-4">Planner Overview</h2>
           <p className="text-gray-700 mb-4">
             The Planner provides a calendar-style view of your scheduled tasks and events.
           </p>
@@ -278,7 +275,6 @@ const helpSections: HelpSection[] = [
     content: (
       <div className="space-y-8">
         <div id="insights-overview">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-4">Insights Overview</h2>
           <p className="text-gray-700">
             The Insights view provides analytics and visualizations of your project data, helping you understand time allocation, workload balance, and future commitments.
           </p>
@@ -365,7 +361,6 @@ const helpSections: HelpSection[] = [
     content: (
       <div className="space-y-8">
         <div id="overview-projects">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-4">Managing Projects</h2>
           <p className="text-gray-700 mb-4">
             The Overview section is where you create and manage your projects.
           </p>
@@ -393,7 +388,6 @@ const helpSections: HelpSection[] = [
     content: (
       <div className="space-y-8">
         <div id="settings-work-hours">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-4">Configuring Work Hours</h2>
           <p className="text-gray-700 mb-4">
             Set your weekly work schedule to get accurate workload and capacity calculations.
           </p>
@@ -682,7 +676,7 @@ export function HelpModal({ open, onOpenChange, initialTopicId }: HelpModalProps
                   <Menu className="h-4 w-4" />
                 </Button>
               )}
-              {sidebarOpen && <div className="w-8 h-8 flex-shrink-0" />}
+              {sidebarOpen && <div className="w-0 h-8 flex-shrink-0" />}
               <h2 className="font-semibold text-gray-900">
                 {activeSection?.label || 'Help'}
               </h2>

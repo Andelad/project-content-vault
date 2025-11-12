@@ -147,7 +147,7 @@ export function SidebarLayout({
               <Menu className="h-4 w-4" />
             </Button>
           )}
-          {sidebarOpen && <div className="w-8 h-8 flex-shrink-0" />}
+          {sidebarOpen && <div className="w-0 h-8 flex-shrink-0" />}
           <h2 className="font-semibold text-gray-900">
             {tabs.find(tab => tab.id === activeTab)?.label}
           </h2>

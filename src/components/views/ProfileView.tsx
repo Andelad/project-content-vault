@@ -492,11 +492,6 @@ export function ProfileView() {
       case 'account':
         return (
           <div className="space-y-6">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">Account Status</h2>
-              <p className="text-sm text-gray-600">Current authentication and session information</p>
-            </div>
-            
             <div className="space-y-4">
               <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
                 <div className="space-y-1">
@@ -533,11 +528,6 @@ export function ProfileView() {
       case 'profile':
         return (
           <div className="space-y-6">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">Profile Picture</h2>
-              <p className="text-sm text-gray-600">Upload and manage your profile avatar</p>
-            </div>
-            
             <div className="flex flex-col items-center gap-4">
               <div 
                 className="w-32 h-32 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center font-semibold text-3xl cursor-pointer hover:bg-gray-50 transition-colors overflow-hidden"
@@ -588,11 +578,6 @@ export function ProfileView() {
       case 'personal':
         return (
           <div className="space-y-6">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">Personal Information</h2>
-              <p className="text-sm text-gray-600">Update your personal details and contact information</p>
-            </div>
-            
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
@@ -625,11 +610,6 @@ export function ProfileView() {
       case 'security':
         return (
           <div className="space-y-6">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">Security Settings</h2>
-              <p className="text-sm text-gray-600">Manage your account security and password</p>
-            </div>
-            
             <div className="space-y-6">
               {/* Email Settings */}
               <div className="space-y-4">
@@ -771,11 +751,6 @@ export function ProfileView() {
       case 'data':
         return (
           <div className="space-y-6">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">Data Management</h2>
-              <p className="text-sm text-gray-600">Export or manage your account data</p>
-            </div>
-            
             <div className="space-y-4">
               <div className="flex items-center justify-between p-4 border border-blue-200 rounded-lg bg-blue-50">
                 <div className="space-y-1">

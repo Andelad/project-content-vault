@@ -257,11 +257,6 @@ export function SettingsView() {
       case 'general':
         return (
           <div className="space-y-6">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">General</h2>
-              <p className="text-sm text-gray-600">Basic application preferences and display settings</p>
-            </div>
-            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="default-view">Default View</Label>
@@ -316,11 +311,6 @@ export function SettingsView() {
       case 'work':
         return (
           <div className="space-y-6">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">Work Hours</h2>
-              <p className="text-sm text-gray-600">Configure your daily work schedule and time allocation</p>
-            </div>
-            
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label>Weekly Work Schedule</Label>
@@ -571,13 +561,6 @@ export function SettingsView() {
         
         return (
           <div className="space-y-6">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">Groups</h2>
-              <p className="text-sm text-gray-600">
-                Organize your projects into groups. The first group is the default for new projects.
-              </p>
-            </div>
-            
             <div className="space-y-4">
               {/* Add new group */}
               <div className="flex gap-2">
@@ -696,11 +679,6 @@ export function SettingsView() {
       case 'appearance':
         return (
           <div className="space-y-6">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">Appearance</h2>
-              <p className="text-sm text-gray-600">Customize the look and feel of the application</p>
-            </div>
-            
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <Label>Dark Mode</Label>
@@ -717,11 +695,6 @@ export function SettingsView() {
       case 'time':
         return (
           <div className="space-y-6">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">Time & Date</h2>
-              <p className="text-sm text-gray-600">Configure time format and timezone preferences</p>
-            </div>
-            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="time-format">Time Format</Label>
@@ -765,11 +738,6 @@ export function SettingsView() {
       case 'notifications':
         return (
           <div className="space-y-6">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">Notifications</h2>
-              <p className="text-sm text-gray-600">Manage how and when you receive notifications</p>
-            </div>
-            
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <Label>Push Notifications</Label>
@@ -797,11 +765,6 @@ export function SettingsView() {
       case 'calendar':
         return (
           <div className="space-y-6">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">Calendar Integration</h2>
-              <p className="text-sm text-gray-600">Import events from external calendars and calendar files</p>
-            </div>
-            
             <CalendarImport />
           </div>
         );
@@ -812,11 +775,6 @@ export function SettingsView() {
       case 'privacy':
         return (
           <div className="space-y-6">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">Data & Privacy</h2>
-              <p className="text-sm text-gray-600">Manage your data and privacy settings</p>
-            </div>
-            
             <div className="space-y-4">
               <div className="flex items-center justify-between p-4 border border-blue-200 rounded-lg bg-blue-50">
                 <div className="space-y-1">
