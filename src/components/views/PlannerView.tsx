@@ -632,8 +632,11 @@ export function PlannerView() {
     [settings]
   );
   // Prepare FullCalendar configuration
+  const baseConfig = getBaseFullCalendarConfig(settings?.isCompactView || false);
+  console.log('📦 FullCalendar plugins:', baseConfig.plugins?.map((p: any) => p.name || p));
+  
   const calendarConfig = {
-    ...getBaseFullCalendarConfig(settings?.isCompactView || false),
+    ...baseConfig,
     ...getEventStylingConfig(),
     businessHours: businessHoursConfig, // Use work hours for business hours
     // Use function for events so refetchEvents() will get fresh data
