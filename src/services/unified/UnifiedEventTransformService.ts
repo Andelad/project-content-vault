@@ -143,7 +143,18 @@ export function transformCalendarEventToFullCalendar(event: CalendarEvent, optio
     ...(event.rrule ? { 
       // FullCalendar RRULE plugin expects RRULE string in RFC format
       // Format: "DTSTART:20251114T083000Z\nRRULE:FREQ=DAILY;INTERVAL=1"
-      rrule: `DTSTART:${new Date(event.startTime).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')}\nRRULE:${event.rrule}`,
+      // Add COUNT=365 as safety limit if no COUNT or UNTIL exists (prevents infinite expansion performance issues)
+      rrule: (() => {
+        let rruleStr = event.rrule;
+        
+        // If RRULE has no COUNT or UNTIL, add COUNT=365 as performance safety limit
+        // This gives 1 year of occurrences which is enough for most use cases
+        if (!rruleStr.includes('COUNT=') && !rruleStr.includes('UNTIL=')) {
+          rruleStr = `${rruleStr};COUNT=365`;
+        }
+        
+        return `DTSTART:${new Date(event.startTime).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')}\nRRULE:${rruleStr}`;
+      })(),
       duration: (() => {
         // FullCalendar expects duration as object like { hours: 1, minutes: 30 }
         const durationHours = calculateDurationHours(new Date(event.startTime), new Date(event.endTime));
