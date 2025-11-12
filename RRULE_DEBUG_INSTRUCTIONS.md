@@ -1,6 +1,15 @@
 # RRULE Events Debug Instructions for Lovable
 
-## Problem
+## ⚠️ DEPRECATED - SEE RRULE_FIX_INSTRUCTIONS.md FOR SOLUTION
+
+## Problem (SOLVED)
+RRULE-based recurring events were showing "infinitely" because old pre-generated instances weren't deleted during migration.
+
+**Solution:** Run the cleanup migration in `20251112120000_cleanup_legacy_recurring_instances.sql`
+
+---
+
+## Original Problem Description
 RRULE-based recurring events are not showing into the future, even though the null date crash has been fixed.
 
 ## Step 1: Check Database for RRULE Data
