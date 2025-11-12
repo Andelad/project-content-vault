@@ -20,7 +20,7 @@ import { StandardModal } from '../modals/StandardModal';
 import { ProjectModal } from '../modals/ProjectModal';
 import { HolidayModal } from '../modals/HolidayModal';
 import { ClientModal } from '../modals/ClientModal';
-import { Group, Project, ProjectStatus } from '../../types';
+import { Group, Project, ProjectStatus, Holiday } from '../../types';
 import { AppPageLayout } from '../layout/AppPageLayout';
 import { getEffectiveProjectStatus, DurationFormattingService, normalizeToMidnight } from '@/services';
 import { GroupOrchestrator } from '@/services/orchestrators/GroupOrchestrator';

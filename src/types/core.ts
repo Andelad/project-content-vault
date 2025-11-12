@@ -123,7 +123,8 @@ export interface CalendarEvent {
   duration?: number; // Duration in hours
   type?: 'planned' | 'tracked' | 'completed'; // Type to distinguish between planned, tracked, and completed events
   category?: 'event' | 'habit' | 'task'; // Event category: 'event' (default), 'habit' (separate layer, no project), or 'task' (no duration, checkbox display)
-  recurring?: {
+  rrule?: string; // RFC 5545 RRULE string for recurring events (NEW SYSTEM)
+  recurring?: { // LEGACY: Use rrule instead for new recurring events
     type: 'daily' | 'weekly' | 'monthly' | 'yearly';
     interval: number; // Every X days/weeks/months/years
     endDate?: Date; // When to stop recurring
@@ -134,6 +135,7 @@ export interface CalendarEvent {
     monthlyWeekOfMonth?: number; // 1-5 for which week of the month (1st, 2nd, 3rd, 4th, last)
     monthlyDayOfWeek?: number; // 0-6 for day of week in monthly pattern
   };
+  recurringGroupId?: string; // Group ID for linking recurring event instances
   // Properties for handling midnight-crossing events
   originalEventId?: string; // Reference to original event if this is a split
   isSplitEvent?: boolean; // Whether this event is part of a split midnight-crossing event

@@ -62,6 +62,47 @@ export type Database = {
         }
         Relationships: []
       }
+      calendar_event_exceptions: {
+        Row: {
+          created_at: string
+          exception_date: string
+          exception_type: string
+          id: string
+          master_event_id: string
+          modified_data: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          exception_date: string
+          exception_type: string
+          id?: string
+          master_event_id: string
+          modified_data?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          exception_date?: string
+          exception_type?: string
+          id?: string
+          master_event_id?: string
+          modified_data?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_event_exceptions_master_event_id_fkey"
+            columns: ["master_event_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calendar_events: {
         Row: {
           category: string | null
@@ -84,6 +125,7 @@ export type Database = {
           recurring_group_id: string | null
           recurring_interval: number | null
           recurring_type: string | null
+          rrule: string | null
           start_time: string
           title: string
           updated_at: string
@@ -110,6 +152,7 @@ export type Database = {
           recurring_group_id?: string | null
           recurring_interval?: number | null
           recurring_type?: string | null
+          rrule?: string | null
           start_time: string
           title: string
           updated_at?: string
@@ -136,6 +179,7 @@ export type Database = {
           recurring_group_id?: string | null
           recurring_interval?: number | null
           recurring_type?: string | null
+          rrule?: string | null
           start_time?: string
           title?: string
           updated_at?: string
@@ -682,9 +726,7 @@ export type Database = {
       settings: {
         Row: {
           created_at: string
-          default_view: string | null
           id: string
-          is_compact_view: boolean | null
           time_tracking_state: Json | null
           updated_at: string
           user_id: string
@@ -692,9 +734,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          default_view?: string | null
           id?: string
-          is_compact_view?: boolean | null
           time_tracking_state?: Json | null
           updated_at?: string
           user_id: string
@@ -702,9 +742,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          default_view?: string | null
           id?: string
-          is_compact_view?: boolean | null
           time_tracking_state?: Json | null
           updated_at?: string
           user_id?: string

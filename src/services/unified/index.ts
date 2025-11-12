@@ -7,3 +7,4 @@ export * from './UnifiedCalendarService';
 export * from './UnifiedDayEstimateService';
 export * from './UnifiedMilestoneService';
 export * from './UnifiedTimelineService';
+export * from './UnifiedRRuleService';

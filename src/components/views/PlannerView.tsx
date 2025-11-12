@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import { Calendar, EventClickArg, EventDropArg, DateSelectArg } from '@fullcalendar/core';
+import rrulePlugin from '@fullcalendar/rrule';
 import { usePlannerContext } from '@/contexts/PlannerContext';
 import { useProjectContext } from '@/contexts/ProjectContext';
 import { useTimelineContext } from '@/contexts/TimelineContext';

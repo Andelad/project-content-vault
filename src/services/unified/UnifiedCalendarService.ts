@@ -23,6 +23,7 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import momentPlugin from '@fullcalendar/moment';
+import rrulePlugin from '@fullcalendar/rrule';
 
 /**
  * Layer visibility for calendar events
@@ -199,7 +200,7 @@ export class UnifiedCalendarService {
     const dayCount = this.getResponsiveDayCount();
     
     return {
-      plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin, momentPlugin],
+      plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin, momentPlugin, rrulePlugin],
       
       // Initial view and header
       initialView: isMobile ? 'timeGridDay' : 'timeGridWeek',
