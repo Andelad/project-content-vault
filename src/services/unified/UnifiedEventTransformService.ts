@@ -132,9 +132,13 @@ export function transformCalendarEventToFullCalendar(event: CalendarEvent, optio
     textColor: finalTextColor,
     className: cssClasses,
     // Add RRULE support for FullCalendar expansion
+    // When using RRULE, FullCalendar needs:
+    // 1. rrule: the RRULE string
+    // 2. duration: how long each occurrence lasts (in milliseconds)
+    // 3. start: will be used as dtstart for the rrule
     ...(event.rrule && { 
       rrule: event.rrule,
-      duration: calculateDurationHours(new Date(event.startTime), new Date(event.endTime)) * 60 * 60 * 1000 // Duration in milliseconds for RRULE instances
+      duration: { milliseconds: calculateDurationHours(new Date(event.startTime), new Date(event.endTime)) * 60 * 60 * 1000 }
     }),
     extendedProps: {
       description: event.description,
