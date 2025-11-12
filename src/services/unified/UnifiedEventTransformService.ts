@@ -143,14 +143,21 @@ export function transformCalendarEventToFullCalendar(event: CalendarEvent, optio
     ...(event.rrule ? { 
       // FullCalendar RRULE plugin expects RRULE string in RFC format
       // Format: "DTSTART:20251114T083000Z\nRRULE:FREQ=DAILY;INTERVAL=1"
-      // Add COUNT=365 as safety limit if no COUNT or UNTIL exists (prevents infinite expansion performance issues)
+      // Add UNTIL as safety limit if no COUNT or UNTIL exists (prevents infinite expansion)
       rrule: (() => {
         let rruleStr = event.rrule;
         
-        // If RRULE has no COUNT or UNTIL, add COUNT=365 as performance safety limit
-        // This gives 1 year of occurrences which is enough for most use cases
+        // If RRULE has no COUNT or UNTIL, add UNTIL date (2 years from start)
+        // This matches how Google Calendar/iCal handle recurring events
+        // FullCalendar only expands instances within the visible date range anyway
         if (!rruleStr.includes('COUNT=') && !rruleStr.includes('UNTIL=')) {
-          rruleStr = `${rruleStr};COUNT=365`;
+          const startDate = new Date(event.startTime);
+          const untilDate = new Date(startDate);
+          untilDate.setFullYear(untilDate.getFullYear() + 2); // 2 years from start
+          
+          // Format: YYYYMMDDTHHMMSSZ
+          const untilStr = untilDate.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+          rruleStr = `${rruleStr};UNTIL=${untilStr}`;
         }
         
         return `DTSTART:${new Date(event.startTime).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')}\nRRULE:${rruleStr}`;
