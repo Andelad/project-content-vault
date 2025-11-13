@@ -698,23 +698,22 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
               <ResizableSplitter
                 splitRatio={splitRatio}
                 onSplitRatioChange={setSplitRatio}
-                minBottomHeight={150}
-                maxBottomHeight={600}
+                minBottomHeight={100}
+                maxBottomHeight={250}
               />
               
               {/* Availability and Holiday Section - with dynamic height and overflow */}
               <div 
-                className="flex flex-col overflow-hidden transition-all duration-200"
+                className="flex flex-col overflow-y-auto transition-all duration-200 light-scrollbar"
                 style={{ 
                   height: `calc(${(1 - splitRatio) * 100}% - 10.5px)`, // Subtract half the splitter height
                   minHeight: '0px'
                 }}
               >
-                {/* Only show content if there's enough space */}
-                {(1 - splitRatio) > 0.15 && (
-                  <>
-                    {/* Availability Timeline Card */}
-                    <div className="relative flex-shrink-0">
+                {/* Always show content - it will scroll if needed */}
+                <>
+                  {/* Availability Timeline Card */}
+                  <div className="relative flex-shrink-0">
                       <AvailabilityCard
                         collapsed={collapsed}
                         dates={dates}
@@ -742,8 +741,7 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
                         />
                       </div>
                     </Card>
-                  </>
-                )}
+                </>
               </div>
               {/* Unified Timeline Scrollbar */}
               {(() => {
