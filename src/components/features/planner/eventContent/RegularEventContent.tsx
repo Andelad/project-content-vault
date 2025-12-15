@@ -6,6 +6,7 @@
  */
 
 import { formatTimeForValidation } from '@/services';
+import { Check, Circle, CircleCheck } from 'lucide-react';
 
 interface RegularEventContentProps {
   eventId: string;
@@ -17,6 +18,13 @@ interface RegularEventContentProps {
   completed: boolean;
   isCurrentlyTracking: boolean;
   isCompactView: boolean;
+}
+
+// Extend window type for global handler
+declare global {
+  interface Window {
+    plannerToggleCompletion?: (eventId: string) => void;
+  }
 }
 
 export function RegularEventContent({ 
@@ -38,20 +46,57 @@ export function RegularEventContent({
     ? `${projectName}${clientName ? ` • ${clientName}` : ''}`
     : 'No Project';
 
-  // Create the icon HTML
-  let iconHtml = '';
-  if (isCurrentlyTracking) {
-    iconHtml = '<div style="width: 8px; height: 8px; border-radius: 50%; background-color: #ef4444; animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;" title="Currently recording"></div>';
-  } else {
-    const checkIconSvg = completed 
-      ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><path d="m9 12 2 2 4-4"></path><circle cx="12" cy="12" r="10"></circle></svg>'
-      : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><circle cx="12" cy="12" r="10"></circle></svg>';
-    iconHtml = `<button type="button" style="cursor: pointer; transition: transform 0.2s; background: none; border: none; color: inherit; padding: 0; margin: 0; display: flex; align-items: center; justify-content: center;" 
-                  onmouseover="this.style.transform='scale(1.1)'" 
-                  onmouseout="this.style.transform='scale(1)'"
-                  onclick="event.stopPropagation(); window.plannerToggleCompletion && window.plannerToggleCompletion('${eventId}')"
-                  title="${completed ? 'Mark as not completed' : 'Mark as completed'}">${checkIconSvg}</button>`;
-  }
+  // Handle completion toggle safely
+  const handleToggleCompletion = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    window.plannerToggleCompletion?.(eventId);
+  };
+
+  // Render icon component safely (no dangerouslySetInnerHTML)
+  const renderIcon = () => {
+    if (isCurrentlyTracking) {
+      return (
+        <div 
+          style={{ 
+            width: 8, 
+            height: 8, 
+            borderRadius: '50%', 
+            backgroundColor: '#ef4444', 
+            animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' 
+          }} 
+          title="Currently recording"
+        />
+      );
+    }
+
+    return (
+      <button
+        type="button"
+        onClick={handleToggleCompletion}
+        onMouseOver={(e) => { e.currentTarget.style.transform = 'scale(1.1)'; }}
+        onMouseOut={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+        title={completed ? 'Mark as not completed' : 'Mark as completed'}
+        style={{ 
+          cursor: 'pointer', 
+          transition: 'transform 0.2s', 
+          background: 'none', 
+          border: 'none', 
+          color: 'inherit', 
+          padding: 0, 
+          margin: 0, 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center' 
+        }}
+      >
+        {completed ? (
+          <CircleCheck size={12} />
+        ) : (
+          <Circle size={12} />
+        )}
+      </button>
+    );
+  };
 
   // Calculate approximate event height
   const durationInMs = end.getTime() - start.getTime();
@@ -71,7 +116,9 @@ export function RegularEventContent({
           <div style={{ fontSize: '11px', fontWeight: 500, lineHeight: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {startTime} - {endTime}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', color: 'inherit', flexShrink: 0 }} dangerouslySetInnerHTML={{ __html: iconHtml }} />
+          <div style={{ display: 'flex', alignItems: 'center', color: 'inherit', flexShrink: 0 }}>
+            {renderIcon()}
+          </div>
         </div>
         <div style={{ fontSize: '12px', fontWeight: 600, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {title}
@@ -90,7 +137,9 @@ export function RegularEventContent({
           <div style={{ fontSize: '11px', fontWeight: 500, lineHeight: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {startTime} - {endTime}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', color: 'inherit', flexShrink: 0 }} dangerouslySetInnerHTML={{ __html: iconHtml }} />
+          <div style={{ display: 'flex', alignItems: 'center', color: 'inherit', flexShrink: 0 }}>
+            {renderIcon()}
+          </div>
         </div>
         <div style={{ fontSize: '12px', fontWeight: 600, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {title}
@@ -106,7 +155,9 @@ export function RegularEventContent({
           <div style={{ fontSize: '12px', fontWeight: 600, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
             {title}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', color: 'inherit', flexShrink: 0, marginLeft: '4px' }} dangerouslySetInnerHTML={{ __html: iconHtml }} />
+          <div style={{ display: 'flex', alignItems: 'center', color: 'inherit', flexShrink: 0, marginLeft: '4px' }}>
+            {renderIcon()}
+          </div>
         </div>
       </div>
     );
@@ -116,7 +167,9 @@ export function RegularEventContent({
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: '2px', padding: '2px', overflow: 'hidden' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', color: 'inherit' }} dangerouslySetInnerHTML={{ __html: iconHtml }} />
+        <div style={{ display: 'flex', alignItems: 'center', color: 'inherit' }}>
+          {renderIcon()}
+        </div>
       </div>
     </div>
   );

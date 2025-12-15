@@ -6,7 +6,7 @@
  */
 
 import { formatTimeForValidation } from '@/services';
-import { HABIT_ICON_SVG } from '@/constants/icons';
+import { Croissant } from 'lucide-react';
 
 interface HabitEventContentProps {
   title: string;
@@ -32,7 +32,7 @@ export function HabitEventContent({ title, start, end, isCompactView }: HabitEve
     return (
       <div style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: '2px', padding: '2px', overflow: 'hidden' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-          <div dangerouslySetInnerHTML={{ __html: HABIT_ICON_SVG }} />
+          <Croissant size={14} style={{ flexShrink: 0 }} />
           <div style={{ fontSize: '12px', fontWeight: 600, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
             {title}
           </div>
@@ -47,7 +47,7 @@ export function HabitEventContent({ title, start, end, isCompactView }: HabitEve
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: '2px', padding: '2px', overflow: 'hidden' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-        <div dangerouslySetInnerHTML={{ __html: HABIT_ICON_SVG }} />
+        <Croissant size={14} style={{ flexShrink: 0 }} />
         <div style={{ fontSize: '12px', fontWeight: 600, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
           {title}
         </div>
