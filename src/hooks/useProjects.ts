@@ -57,11 +57,12 @@ export function useProjects() {
         user_id: user.id
       };
       
-      // Transform and insert via orchestrator's transformation logic
-      const dbData = {
-        ...preparedData,
-        client_id: clientId,
+      // Transform to database format - only include snake_case fields
+      const dbData: Record<string, unknown> = {
+        user_id: user.id,
+        name: projectData.name || 'New Project',
         client: projectData.client || clientIdentifier,
+        client_id: clientId,
         start_date: preparedData.startDate instanceof Date 
           ? preparedData.startDate.toISOString().split('T')[0] 
           : preparedData.startDate,
@@ -70,9 +71,15 @@ export function useProjects() {
           : preparedData.endDate,
         estimated_hours: preparedData.estimatedHours,
         group_id: preparedData.groupId,
-        row_id: preparedData.rowId,
-        auto_estimate_days: preparedData.autoEstimateDays
+        color: projectData.color,
+        notes: projectData.notes,
+        icon: projectData.icon,
+        continuous: projectData.continuous,
       };
+      
+      // Only include optional fields if they have values
+      if (preparedData.rowId) dbData.row_id = preparedData.rowId;
+      if (preparedData.autoEstimateDays) dbData.auto_estimate_days = preparedData.autoEstimateDays;
       
       const { data, error } = await supabase
         .from('projects')
