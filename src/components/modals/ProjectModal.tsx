@@ -17,6 +17,7 @@ import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 import { useTimelineContext } from '../../contexts/TimelineContext';
+import { ClientSearchInput } from '../shared';
 import { calculateProjectTimeMetrics, calculateAutoEstimateHoursPerDay, expandHolidayDates, calculateTotalWorkingDays, clearTimelineCache, ProjectOrchestrator, formatDuration, normalizeToMidnight } from '@/services';
 import { formatDate, formatDateForInput } from '@/utils/dateFormatUtils';
 import { useToast } from '@/hooks/use-toast';
@@ -26,6 +27,7 @@ import { NEUTRAL_COLORS } from '@/constants/colors';
 import type { Project } from '@/types/core';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 import { TabComponent } from '../shared';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ProjectModalProps {
   isOpen: boolean;
@@ -292,10 +294,12 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
       });
       return;
     }
+
     if (isCreating && gid) {
       setIsSubmitting(true);
       try {
         // Use ProjectOrchestrator for complex creation workflow
+        // The orchestrator's ensureClientExists will automatically find or create the client
         const result = await ProjectOrchestrator.executeProjectCreationWorkflow(
           {
             name: localValues.name.trim(),
@@ -780,55 +784,6 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
       </div>
     );
   };
-  // Compact client field for header
-  const HeaderClientField = ({ 
-    value, 
-    property, 
-    placeholder = 'Client'
-  }: {
-    value: string;
-    property: string;
-    placeholder?: string;
-  }) => {
-    const isEditing = editingProperty === property;
-    const isEmpty = !value || value.trim() === '';
-    const displayValue = value || placeholder;
-    return (
-      <div>
-  {isEditing ? (
-          <Input
-            type="text"
-            defaultValue={value}
-            placeholder={placeholder}
-            className="h-10 text-sm !bg-white"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                const newValue = (e.target as HTMLInputElement).value;
-                handleSaveProperty(property, newValue);
-              } else if (e.key === 'Escape') {
-                setEditingProperty(null);
-              }
-            }}
-            onBlur={(e) => {
-              const newValue = e.target.value;
-              handleSaveProperty(property, newValue);
-            }}
-            autoFocus
-          />
-        ) : (
-          <div
-            className={`h-10 text-sm justify-start text-left font-normal px-3 border border-input rounded-md bg-white hover:bg-accent hover:text-accent-foreground cursor-pointer flex items-center relative z-20 pointer-events-auto ${isEmpty ? 'text-muted-foreground' : ''}`}
-            role="button"
-            tabIndex={0}
-            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setEditingProperty(property); }}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setEditingProperty(property); } }}
-          >
-            <span className="truncate">{displayValue}</span>
-          </div>
-        )}
-      </div>
-    );
-  };
   // Compact budgeted time field for header
   const HeaderBudgetedTimeField = ({ 
     value, 
@@ -1099,10 +1054,22 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
               </div>
               {/* Client Field */}
               <div style={{ width: '250px' }}>
-                <HeaderClientField
+                <ClientSearchInput
                   value={localValues.client}
-                  property="client"
+                  onChange={(value) => {
+                    setLocalValues(prev => ({ ...prev, client: value }));
+                  }}
+                  onClientSelect={(clientName) => {
+                    setLocalValues(prev => ({ ...prev, client: clientName }));
+                  }}
+                  onAddClient={() => {
+                    // When clicking "Add New Client", just focus stays on the input
+                    // The user can type the new client name
+                  }}
                   placeholder="Add Client *"
+                  label=""
+                  showAddButton={false}
+                  className="[&>div]:h-10 [&_input]:h-10 [&_input]:text-sm [&_input]:!bg-white"
                 />
               </div>
               {/* Project Icon Field */}

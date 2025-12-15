@@ -1,5 +1,6 @@
 // Shared components barrel exports
 export { ProjectSearchInput } from './ProjectSearchInput';
+export { ClientSearchInput } from './ClientSearchInput';
 export { SidebarLayout } from './SidebarLayout';
 export { AvailabilityCard } from './AvailabilityCard';
 export { TabComponent } from './TabComponent';

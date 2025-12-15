@@ -728,8 +728,23 @@ export class ProjectOrchestrator {
         };
       }
 
+      // If client is being updated, ensure the client exists in clients table
+      let clientId = currentProject.clientId;
+      if (updates.client && updates.client !== currentProject.client) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('User not authenticated');
+        
+        // Ensure client exists and get its ID
+        clientId = await this.ensureClientExists(updates.client, user.id);
+      }
+
       // Transform frontend data to database format
       const dbUpdates = this.transformToDatabase(updates);
+      
+      // If we got a new client_id, add it to the updates
+      if (clientId && clientId !== currentProject.clientId) {
+        dbUpdates.client_id = clientId;
+      }
 
       const { data, error } = await supabase
         .from('projects')
@@ -893,6 +908,8 @@ export class ProjectOrchestrator {
 
   /**
    * Ensure client exists and return client_id
+   * If clientIdentifier is a UUID, verify it exists
+   * If it's a name, find or create the client
    */
   static async ensureClientExists(
     clientIdentifier: string,
@@ -900,17 +917,27 @@ export class ProjectOrchestrator {
   ): Promise<string> {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     
-    // If already a valid UUID, return it
+    // If already a valid UUID, verify it exists and return it
     if (uuidRegex.test(clientIdentifier)) {
-      return clientIdentifier;
+      const { data: existingClient } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('id', clientIdentifier)
+        .eq('user_id', userId)
+        .maybeSingle();
+      
+      if (existingClient) {
+        return existingClient.id;
+      }
+      // If UUID doesn't exist, treat it as a name instead
     }
     
-    // Try to find existing client with this name
+    // Try to find existing client with this name (case-insensitive)
     const { data: existingClient } = await supabase
       .from('clients')
       .select('id')
       .eq('user_id', userId)
-      .eq('name', clientIdentifier)
+      .ilike('name', clientIdentifier)
       .maybeSingle();
     
     if (existingClient) {
