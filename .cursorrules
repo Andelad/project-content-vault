@@ -7,6 +7,88 @@ This guide must be followed for ALL code changes in this project.
 
 ---
 
+## 🔄 DEVELOPMENT WORKFLOW (VS Code ↔ Lovable ↔ Supabase)
+
+### Development Environment Split
+
+| Tool | Purpose | Access |
+|------|---------|--------|
+| **VS Code (Copilot/Cursor)** | TypeScript, React, business logic, services | Local files only |
+| **Lovable** | Database migrations, Supabase schema changes | Supabase integration |
+| **GitHub** | Sync point between VS Code and Lovable | Automatic sync |
+
+### Workflow Pattern
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  VS Code (Local Development)                                     │
+│  • Write TypeScript/React code                                   │
+│  • Create services, components, hooks                            │
+│  • Update business logic                                         │
+│  • Create INSTRUCTIONS_FOR_LOVABLE_*.md files for DB changes     │
+└─────────────────────┬───────────────────────────────────────────┘
+                      │ git push
+                      ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  GitHub (Sync Point)                                             │
+│  • Automatic sync to Lovable                                     │
+│  • Code review and history                                       │
+└─────────────────────┬───────────────────────────────────────────┘
+                      │ auto-sync
+                      ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Lovable (Database Changes)                                      │
+│  • Read INSTRUCTIONS_FOR_LOVABLE_*.md files                      │
+│  • Execute database migrations                                   │
+│  • Create/modify Supabase tables, RLS policies, indexes          │
+│  • Has direct Supabase access                                    │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### For AI Agents (VS Code/Copilot/Cursor)
+
+**When you identify database changes needed:**
+1. ❌ **DO NOT** attempt to run SQL migrations directly
+2. ✅ **DO** create an `INSTRUCTIONS_FOR_LOVABLE_[FEATURE].md` file in the project root
+3. ✅ **DO** include exact SQL migration scripts in the instructions
+4. ✅ **DO** explain the purpose, expected outcomes, and verification steps
+5. ✅ **DO** commit and push to GitHub for Lovable to pick up
+
+**Instruction File Template:**
+```markdown
+# Instructions for Lovable: [Feature Name]
+
+## Purpose
+[Explain what this migration accomplishes]
+
+## Prerequisites
+[Any existing state or requirements]
+
+## Migration SQL
+\`\`\`sql
+-- Your migration SQL here
+\`\`\`
+
+## Verification
+[How to verify the migration worked]
+
+## Rollback (if needed)
+\`\`\`sql
+-- Rollback SQL here
+\`\`\`
+```
+
+### For Lovable
+
+When you see `INSTRUCTIONS_FOR_LOVABLE_*.md` files:
+1. Read the instructions carefully
+2. Execute the database migrations via Supabase
+3. Verify the changes using the provided verification steps
+4. Report success/failure
+5. The instruction file can be deleted or archived after completion
+
+---
+
 ## BEFORE WRITING ANY CODE
 ```bash
 # Check if similar functionality exists
