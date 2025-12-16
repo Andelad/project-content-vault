@@ -348,6 +348,14 @@ export interface PerformanceMetrics {
   memoryUsage?: number;
 }
 
+type PerformanceWithMemory = Performance & {
+  memory?: {
+    usedJSHeapSize: number;
+    totalJSHeapSize: number;
+    jsHeapSizeLimit: number;
+  };
+};
+
 const performanceLog: PerformanceMetrics[] = [];
 
 /**
@@ -356,11 +364,11 @@ const performanceLog: PerformanceMetrics[] = [];
 export const performanceMonitor = {
   measureRender: (componentName: string) => {
     const startTime = performance.now();
-    const startMemory = (performance as any).memory?.usedJSHeapSize;
+    const startMemory = (performance as PerformanceWithMemory).memory?.usedJSHeapSize;
     
     return () => {
       const endTime = performance.now();
-      const endMemory = (performance as any).memory?.usedJSHeapSize;
+  const endMemory = (performance as PerformanceWithMemory).memory?.usedJSHeapSize;
       
       const metrics: PerformanceMetrics = {
         renderTime: endTime - startTime,
@@ -405,8 +413,8 @@ export const performanceMonitor = {
  * Memory usage tracking
  */
 export const trackMemoryUsage = () => {
-  if (typeof window !== 'undefined' && (performance as any).memory) {
-    const memory = (performance as any).memory;
+  if (typeof window !== 'undefined' && (performance as PerformanceWithMemory).memory) {
+    const memory = (performance as PerformanceWithMemory).memory;
     return {
       used: Math.round(memory.usedJSHeapSize / 1024 / 1024), // MB
       total: Math.round(memory.totalJSHeapSize / 1024 / 1024), // MB
@@ -419,7 +427,7 @@ export const trackMemoryUsage = () => {
 /**
  * Debounced function execution
  */
-export const debounce = <T extends (...args: any[]) => any>(
+export const debounce = <T extends (...args: unknown[]) => unknown>(
   func: T,
   wait: number
 ): ((...args: Parameters<T>) => void) => {

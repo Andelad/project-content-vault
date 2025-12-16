@@ -5,6 +5,11 @@
 
 import { OKLCH_PROJECT_COLORS } from '@/constants/colors';
 
+type ProjectPaletteColor = (typeof OKLCH_PROJECT_COLORS)[number];
+
+const isProjectPaletteColor = (color: string): color is ProjectPaletteColor =>
+  (OKLCH_PROJECT_COLORS as readonly string[]).includes(color);
+
 // Map old colors to new colors based on hue (includes all previous versions)
 const OLD_TO_NEW_MAP: Record<string, string> = {
   // Old 0.72 lightness colors -> new 0.76 colors
@@ -70,7 +75,7 @@ export function normalizeProjectColor(color: string): string {
   }
 
   // If already a new color, return as-is
-  if (OKLCH_PROJECT_COLORS.includes(color as any)) {
+  if (isProjectPaletteColor(color)) {
     return color;
   }
 
@@ -107,5 +112,5 @@ export function normalizeProjectColor(color: string): string {
  * @returns True if the color is old and needs updating
  */
 export function needsColorNormalization(color: string): boolean {
-  return !OKLCH_PROJECT_COLORS.includes(color as any);
+  return !isProjectPaletteColor(color);
 }

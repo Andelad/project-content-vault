@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React from 'react';
 import { ProjectProvider } from './ProjectContext';
 import { PlannerProvider } from './PlannerContext';

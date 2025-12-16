@@ -146,13 +146,14 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
       setFeedbackText('');
       setAttachments([]);
       onOpenChange(false);
-    } catch (error: any) {
+    } catch (error) {
       ErrorHandlingService.handle(error, { source: 'FeedbackModal', action: 'Error submitting feedback:' });
       
       let errorMessage = "Failed to submit feedback. Please try again.";
+      const message = error instanceof Error ? error.message : undefined;
       
-      if (error.message?.includes('rate limit')) {
-        errorMessage = error.message;
+      if (message?.includes('rate limit')) {
+        errorMessage = message;
       }
       
       toast({

@@ -230,9 +230,9 @@ export function EventModal({
         const endDate = defaultEndTime || addHoursToDate(startDate, 1);
         
         // Check for pending project ID from drag-and-drop
-        const pendingProjectId = (window as any).__pendingEventProjectId;
+        const pendingProjectId = (window as typeof window & { __pendingEventProjectId?: string }).__pendingEventProjectId;
         if (pendingProjectId) {
-          delete (window as any).__pendingEventProjectId;
+          delete (window as typeof window & { __pendingEventProjectId?: string }).__pendingEventProjectId;
         }
         
         // Find project's group ID if project is specified
@@ -628,12 +628,21 @@ export function EventModal({
               onChange={setSearchQuery}
               selectedProjectId={formData.projectId}
               onProjectSelect={(project) => {
-                setFormData(prev => ({ 
-                  ...prev, 
-                  projectId: project.id || '',
-                  groupId: project.groupId || '',
-                  color: project.color || OKLCH_FALLBACK_GRAY
-                }));
+                if ('id' in project) {
+                  setFormData(prev => ({ 
+                    ...prev, 
+                    projectId: project.id || '',
+                    groupId: project.groupId || '',
+                    color: project.color || OKLCH_FALLBACK_GRAY
+                  }));
+                } else {
+                  setFormData(prev => ({
+                    ...prev,
+                    projectId: '',
+                    groupId: '',
+                    color: OKLCH_FALLBACK_GRAY
+                  }));
+                }
               }}
               onAddProject={() => {
                 // Pass the first group's ID to the ProjectModal, or undefined if no groups exist
@@ -758,7 +767,12 @@ export function EventModal({
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label htmlFor="recurringType">Repeat</Label>
-                    <Select value={formData.recurringType} onValueChange={(value: any) => setFormData(prev => ({ ...prev, recurringType: value }))}>
+                    <Select
+                      value={formData.recurringType}
+                      onValueChange={(value: 'daily' | 'weekly' | 'monthly' | 'yearly') =>
+                        setFormData(prev => ({ ...prev, recurringType: value }))
+                      }
+                    >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -888,7 +902,12 @@ export function EventModal({
 
                 <div className="space-y-1.5">
                   <Label>End recurring</Label>
-                  <Select value={formData.recurringEndType} onValueChange={(value: any) => setFormData(prev => ({ ...prev, recurringEndType: value }))}>
+                  <Select
+                    value={formData.recurringEndType}
+                    onValueChange={(value: 'never' | 'date' | 'count') =>
+                      setFormData(prev => ({ ...prev, recurringEndType: value }))
+                    }
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>

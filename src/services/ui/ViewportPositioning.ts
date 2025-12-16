@@ -5,6 +5,7 @@
  */
 import { formatDateRange } from '@/utils/dateFormatUtils';
 import { normalizeToMidnight, addDaysToDate } from '@/services';
+import type { Project } from '@/types/core';
 // Types for viewport operations
 export interface ViewportPosition {
   start: Date;
@@ -133,7 +134,7 @@ export class TimelineViewport {
    * Generate timeline data with optimized viewport calculations
    */
   static generateTimelineData(params: {
-    projects: any[];
+    projects: Project[];
     viewportStart: Date;
     viewportDays: number;
     mode: 'days' | 'weeks';
@@ -143,7 +144,7 @@ export class TimelineViewport {
   }): {
     dates: Date[];
     viewportEnd: Date;
-    filteredProjects: any[];
+    filteredProjects: Project[];
     mode: 'days' | 'weeks';
     actualViewportStart: Date;
   } {

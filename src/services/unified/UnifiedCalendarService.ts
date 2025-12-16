@@ -20,6 +20,7 @@ import type { Settings } from '@/types/core';
 import { CalendarImportService, type ExternalEvent, type ImportResult } from './CalendarImportService';
 import { CalendarOptions } from '@fullcalendar/core';
 import dayGridPlugin from '@fullcalendar/daygrid';
+import type { CalendarEvent } from '@/types/core';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import momentPlugin from '@fullcalendar/moment';
@@ -119,10 +120,10 @@ export class UnifiedCalendarService {
    * Filter calendar events based on layer visibility
    */
   static filterEventsByLayerVisibility(
-    events: any[],
+    events: Array<CalendarEvent & { extendedProps?: Record<string, unknown> }>,
     layerVisibility: LayerVisibility
-  ): any[] {
-    return events.filter((event: any) => {
+  ): CalendarEvent[] {
+    return events.filter((event) => {
       const category = event.extendedProps?.category;
       const isWorkHour = event.extendedProps?.isWorkHour;
       

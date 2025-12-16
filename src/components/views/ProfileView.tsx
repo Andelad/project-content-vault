@@ -40,7 +40,7 @@ export function ProfileView() {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<{ user_id?: string; display_name?: string; avatar_url?: string } | null>(null);
   const [activeTab, setActiveTab] = useState('account');
   
   // Form states
@@ -122,10 +122,11 @@ export function ProfileView() {
         });
         setEmailForm({ newEmail: '', showForm: false });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unexpected error';
       toast({
         title: "Error",
-        description: error.message,
+        description: message,
         variant: "destructive"
       });
     } finally {
@@ -176,10 +177,11 @@ export function ProfileView() {
           showForm: false 
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unexpected error';
       toast({
         title: "Error",
-        description: error.message,
+        description: message,
         variant: "destructive"
       });
     } finally {
@@ -217,11 +219,13 @@ export function ProfileView() {
         // Refresh the profile data
         await fetchProfile();
       }
-    } catch (error: any) {
-      ErrorHandlingService.handle(error, { source: 'ProfileView', action: 'Profile update catch error:' });
+    } catch (error: unknown) {
+      const handledError = error instanceof Error ? error : new Error(String(error ?? 'Unknown error'));
+      const message = handledError.message || 'Unexpected error';
+      ErrorHandlingService.handle(handledError, { source: 'ProfileView', action: 'Profile update catch error:' });
       toast({
         title: "Error",
-        description: error.message,
+        description: message,
         variant: "destructive"
       });
     } finally {
@@ -311,7 +315,7 @@ export function ProfileView() {
         .from('profiles')
         .upsert({
           user_id: user.id,
-          display_name: profile?.display_name || user.email?.split('@')[0],
+          display_name: profile?.display_name || user.email?.split('@')[0] || '',
           avatar_url: data.publicUrl
         }, {
           onConflict: 'user_id'
@@ -340,10 +344,11 @@ export function ProfileView() {
         description: "Avatar uploaded successfully",
       });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to upload avatar';
       toast({
         title: "Error",
-        description: error.message,
+        description: message,
         variant: "destructive"
       });
     } finally {
@@ -404,10 +409,11 @@ export function ProfileView() {
         title: "Success",
         description: "Your data has been exported successfully",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to export data";
       toast({
         title: "Error",
-        description: error.message || "Failed to export data",
+        description: message,
         variant: "destructive"
       });
     } finally {
@@ -467,11 +473,12 @@ export function ProfileView() {
 
       // Sign out and redirect
       await signOut();
-    } catch (error: any) {
-      ErrorHandlingService.handle(error, { source: 'ProfileView', action: 'Account deletion error:' });
+    } catch (error: unknown) {
+      const handledError = error instanceof Error ? error : new Error(String(error ?? 'Failed to delete account'));
+      ErrorHandlingService.handle(handledError, { source: 'ProfileView', action: 'Account deletion error:' });
       toast({
         title: "Error",
-        description: error.message || "Failed to delete account. Please contact support.",
+        description: handledError.message || "Failed to delete account. Please contact support.",
         variant: "destructive"
       });
     } finally {
@@ -505,7 +512,7 @@ export function ProfileView() {
                 <div className={`w-16 h-16 rounded-full flex items-center justify-center font-semibold text-xl overflow-hidden border-2 border-gray-200`}>
                   {profile?.avatar_url ? (
                     <img 
-                      src={profile.avatar_url} 
+                      src={profile.avatar_url ?? ''} 
                       alt="Profile avatar" 
                       className="w-full h-full object-cover"
                     />
@@ -535,7 +542,7 @@ export function ProfileView() {
               >
                 {profile?.avatar_url ? (
                   <img 
-                    src={profile.avatar_url} 
+                    src={profile.avatar_url ?? ''} 
                     alt="Profile avatar" 
                     className="w-full h-full object-cover"
                   />
@@ -584,7 +591,7 @@ export function ProfileView() {
                   <Label htmlFor="username">Username</Label>
                   <Input
                     id="username"
-                    value={profile?.display_name || ''}
+                    value={profile?.display_name ?? ''}
                     onChange={(e) => setProfile(prev => prev ? { ...prev, display_name: e.target.value } : { display_name: e.target.value })}
                     placeholder="Enter your username"
                   />

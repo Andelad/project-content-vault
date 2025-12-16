@@ -6,10 +6,19 @@ import { useTimelineContext } from '../../contexts/TimelineContext';
 import { Button } from '../ui/button';
 import { Menu } from 'lucide-react';
 
+import { CalendarEvent } from '@/types';
+
+type LastAction = {
+  type: 'update' | 'create' | 'delete';
+  eventId: string;
+  previousState?: Partial<CalendarEvent>;
+  event?: CalendarEvent;
+};
+
 interface AppHeaderProps {
   currentView: string;
   viewTitle: string;
-  lastAction?: any;
+  lastAction?: LastAction;
   isTrackerExpanded?: boolean;
   onToggleTracker?: () => void;
   setMobileMenuOpen: (open: boolean) => void;

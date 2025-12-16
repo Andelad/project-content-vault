@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
@@ -13,11 +13,31 @@ export function useGroups() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchGroups();
+  const initializeDefaultGroups = useCallback(async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const defaultGroups = [
+        { name: 'Work', user_id: user.id },
+        { name: 'Personal', user_id: user.id }
+      ];
+
+      const { data, error } = await supabase
+        .from('groups')
+        .insert(defaultGroups)
+        .select();
+
+      if (error) throw error;
+      if (data) {
+        setGroups(data);
+      }
+    } catch (error) {
+      ErrorHandlingService.handle(error, { source: 'useGroups', action: 'Error initializing default groups:' });
+    }
   }, []);
 
-  const fetchGroups = async () => {
+  const fetchGroups = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('groups')
@@ -41,32 +61,11 @@ export function useGroups() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [initializeDefaultGroups, toast]);
 
-  const initializeDefaultGroups = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // Create default groups: Work and Personal
-      const defaultGroups = [
-        { name: 'Work', user_id: user.id },
-        { name: 'Personal', user_id: user.id }
-      ];
-
-      const { data, error } = await supabase
-        .from('groups')
-        .insert(defaultGroups)
-        .select();
-
-      if (error) throw error;
-      if (data) {
-        setGroups(data);
-      }
-    } catch (error) {
-      ErrorHandlingService.handle(error, { source: 'useGroups', action: 'Error initializing default groups:' });
-    }
-  };
+  useEffect(() => {
+    fetchGroups();
+  }, [fetchGroups]);
 
   const addGroup = async (groupData: Omit<GroupInsert, 'user_id'>) => {
     try {

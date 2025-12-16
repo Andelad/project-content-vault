@@ -10,7 +10,7 @@
  * ✅ Optimized for performance and caching
  */
 
-import { Milestone } from '@/types/core';
+import { Milestone, Settings, Holiday, Project } from '@/types/core';
 import { normalizeToMidnight, addDaysToDate } from '../calculations/general/dateCalculations';
 
 import { 
@@ -44,9 +44,9 @@ export interface MilestoneTimeDistributionEntry {
 }
 
 export interface WorkingDayOptions {
-  autoEstimateDays?: any;
-  settings?: any;
-  holidays?: any[];
+  autoEstimateDays?: Project['autoEstimateDays'];
+  settings?: Settings;
+  holidays?: Holiday[];
 }
 
 /**
@@ -178,7 +178,7 @@ export class UnifiedMilestoneService {
         milestoneDate,
         options.autoEstimateDays,
         options.settings,
-        options.holidays.map(h => new Date(h.startDate || h))
+        options.holidays.map(h => new Date(h.startDate))
       );
       } else {
         // Fallback to calendar days

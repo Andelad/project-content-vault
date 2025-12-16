@@ -9,7 +9,7 @@
  * ✅ Mathematical operations only
  */
 
-import { Milestone } from '@/types/core';
+import { Holiday, Milestone, Settings } from '@/types/core';
 import * as DateCalculations from '../general/dateCalculations';
 
 /**
@@ -567,11 +567,11 @@ export function calculateMilestoneSegments(
 export function calculateProjectWorkingDays(
   startDate: Date,
   endDate: Date,
-  settings: any,
-  holidays: any[]
+  settings: Pick<Settings, 'weeklyWorkHours'> | null | undefined,
+  holidays: Holiday[]
 ): Date[] {
   const workingDays: Date[] = [];
-  let currentDate = new Date(startDate);
+  const currentDate = new Date(startDate);
   
   while (currentDate <= endDate) {
     const dayOfWeek = currentDate.getDay();
@@ -609,7 +609,7 @@ export function calculateMilestoneDistribution(
   const distribution: MilestoneDistributionEntry[] = [];
   const segments = calculateMilestoneSegments(milestones, projectStartDate, projectEndDate);
   
-  let currentDate = new Date(projectStartDate);
+  const currentDate = new Date(projectStartDate);
   let dayIndex = 0;
   
   while (currentDate <= projectEndDate) {
@@ -731,7 +731,7 @@ export function findNextAvailableMilestoneDate(
   existingMilestones: Milestone[],
   projectEndDate: Date
 ): Date {
-  let currentDate = new Date(startSearchDate);
+  const currentDate = new Date(startSearchDate);
   
   while (currentDate <= projectEndDate) {
     const hasConflict = existingMilestones.some(m => {

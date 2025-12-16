@@ -2,14 +2,17 @@ import React, { useState } from 'react';
 import { Folder, Edit3, Briefcase, Zap, Target, Lightbulb, Rocket, Star, Heart, Gift, Music, Camera, Code, Book, Gamepad2, Coffee, Home, Building, Car, Plane, Map, Globe } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useProjectContext } from '@/contexts/ProjectContext';
+import { Project } from '@/types/core';
 
 interface ProjectIconIndicatorProps {
-  project: any;
+  project: Project;
   mode?: 'days' | 'weeks';
 }
 
+type IconComponent = React.ComponentType<{ className?: string }>;
+
 // Icon mapping - matches the icons from ProjectModal
-const ICON_MAP: { [key: string]: any } = {
+const ICON_MAP: Record<string, IconComponent> = {
   'folder': Folder,
   'briefcase': Briefcase,
   'target': Target,

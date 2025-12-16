@@ -19,19 +19,26 @@ import {
 } from '@/services';
 import type { DragState } from '@/services/ui/DragPositioning';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import type { DayEstimate, Project } from '@/types/core';
+type UpdateProjectFn = (
+  id: string,
+  updates: Partial<Project>,
+  options?: { silent?: boolean }
+) => Promise<Project>;
+
 interface UseProjectResizeProps {
-  projects: any[];
+  projects: Project[];
   dates: Date[];
   viewportStart: Date;
   viewportEnd: Date;
   timelineMode: 'days' | 'weeks';
-  dayEstimates: any[]; // DayEstimate[] for validation
-  updateProject: (id: string, updates: any, options?: any) => Promise<any>;
+  dayEstimates: DayEstimate[]; // DayEstimate[] for validation
+  updateProject: UpdateProjectFn;
   checkAutoScroll: (clientX: number) => void;
   stopAutoScroll: () => void;
   setIsDragging: (dragging: boolean) => void;
-  setDragState: (state: any) => void;
-  dragState: any;
+  setDragState: (state: DragState | null) => void;
+  dragState: DragState | null;
 }
 /**
  * Initialize drag state for project resize
@@ -72,7 +79,7 @@ export function useProjectResize({
   stopAutoScroll,
   setIsDragging,
   setDragState,
-  dragState
+  dragState: _dragState
 }: UseProjectResizeProps) {
   const handleProjectResizeMouseDown = useCallback((
     e: React.MouseEvent, 
@@ -229,8 +236,7 @@ export function useProjectResize({
     checkAutoScroll,
     stopAutoScroll,
     setIsDragging,
-    setDragState,
-    dragState
+    setDragState
   ]);
   return { handleProjectResizeMouseDown };
 }

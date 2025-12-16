@@ -1,13 +1,62 @@
 import { timeTrackingRepository } from '../repositories/timeTrackingRepository';
 import { timeTrackingCalculations } from '../calculations/tracking/timeTrackingCalculations';
-import type { TimeTrackingState } from '../../types/timeTracking';
+import type { TimeTrackingState, SerializedTimeTrackingState, TimeTrackingSyncMessage } from '../../types/timeTracking';
 import type { CalendarEvent } from '../../types/core';
 import { supabase } from '../../integrations/supabase/client';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+
+type SelectedProject = NonNullable<TimeTrackingState['selectedProject']>;
+
+type CalendarEventDbRow = {
+  id: string;
+  title: string;
+  description?: string | null;
+  start_time: string;
+  end_time: string;
+  project_id?: string | null;
+  color?: string | null;
+  completed?: boolean | null;
+  event_type?: string | null;
+  user_id?: string;
+  duration?: number | null;
+  created_at?: string | null;
+};
+
+type CalendarEventDbPayload = Partial<Omit<CalendarEventDbRow, 'id'>>;
+
+type CalendarEventCreateInput = {
+  title: string;
+  startTime: Date;
+  endTime: Date;
+  description?: string;
+  projectId?: string | null;
+  color?: string;
+  completed?: boolean;
+  type?: CalendarEvent['type'];
+  duration?: number;
+};
+
+type CalendarEventInsertPayload = {
+  title: string;
+  start_time: string;
+  end_time: string;
+  color: string;
+  user_id: string;
+  description?: string | null;
+  project_id?: string | null;
+  completed?: boolean;
+  event_type?: string | null;
+  duration?: number | null;
+};
 // =====================================================================================
 // CALENDAR EVENT DATABASE HELPERS (inline - no repository layer)
 // =====================================================================================
-function transformCalendarEventFromDatabase(dbRecord: any): CalendarEvent {
+function transformCalendarEventFromDatabase(dbRecord: CalendarEventDbRow): CalendarEvent {
+  const rawType = dbRecord.event_type;
+  const type: CalendarEvent['type'] = rawType === 'tracked' || rawType === 'completed' || rawType === 'planned'
+    ? rawType
+    : 'planned';
   return {
     id: dbRecord.id,
     title: dbRecord.title,
@@ -17,11 +66,11 @@ function transformCalendarEventFromDatabase(dbRecord: any): CalendarEvent {
     projectId: dbRecord.project_id || undefined,
     color: dbRecord.color || '#3b82f6',
     completed: dbRecord.completed || false,
-    type: dbRecord.event_type || 'planned'
+    type
   };
 }
-function transformCalendarEventToDatabase(event: Partial<CalendarEvent>): any {
-  const dbRecord: any = {};
+function transformCalendarEventToDatabase(event: Partial<CalendarEvent>): CalendarEventDbPayload {
+  const dbRecord: CalendarEventDbPayload = {};
   if (event.title !== undefined) dbRecord.title = event.title;
   if (event.description !== undefined) dbRecord.description = event.description;
   if (event.startTime !== undefined) dbRecord.start_time = event.startTime.toISOString();
@@ -33,19 +82,19 @@ function transformCalendarEventToDatabase(event: Partial<CalendarEvent>): any {
   return dbRecord;
 }
 export interface TimeTrackerWorkflowContext {
-  selectedProject: any;
+  selectedProject: SelectedProject | null;
   searchQuery: string;
-  addEvent: (eventData: any) => Promise<any>;
+  addEvent: (eventData: CalendarEventCreateInput) => Promise<CalendarEvent | void | undefined>;
   setCurrentEventId: (id: string | null) => void;
   setIsTimeTracking: (tracking: boolean) => void;
   setSeconds: (seconds: number) => void;
-  setSelectedProject: (project: any) => void;
+  setSelectedProject: (project: SelectedProject | null) => void;
   setSearchQuery: (query: string) => void;
   startTimeRef: React.MutableRefObject<Date | null>;
   intervalRef: React.MutableRefObject<NodeJS.Timeout | null>;
   dbSyncIntervalRef?: React.MutableRefObject<NodeJS.Timeout | null>;
-  currentStateRef: React.MutableRefObject<any>;
-  updateEvent?: (id: string, updates: any, options?: { silent?: boolean }) => Promise<any>;
+  currentStateRef: React.MutableRefObject<TimeTrackingState | null>;
+  updateEvent?: (id: string, updates: Partial<CalendarEvent>, options?: { silent?: boolean }) => Promise<CalendarEvent | void | undefined>;
   stopTime?: Date; // Capture the exact stop time
 }
 export interface TimeTrackerWorkflowResult {
@@ -63,7 +112,7 @@ class TimeTrackingOrchestrator {
   private userId: string | null = null;
   private onStateChangeCallback?: (state: TimeTrackingState) => void;
   private broadcastChannel?: BroadcastChannel;
-  private realtimeSubscription?: any;
+  private realtimeSubscription?: RealtimeChannel | null;
   private windowId: string;
   constructor() {
     // Generate unique window ID to prevent processing our own broadcasts
@@ -145,7 +194,7 @@ class TimeTrackingOrchestrator {
     if (error || !data?.time_tracking_state) {
       return null;
     }
-    const state = data.time_tracking_state as any;
+    const state = data.time_tracking_state as unknown as SerializedTimeTrackingState | null;
     if (state.isTracking && state.eventId && state.startTime) {
       return {
         isTracking: state.isTracking,
@@ -182,7 +231,7 @@ class TimeTrackingOrchestrator {
       console.warn('🔧 INIT - BroadcastChannel not supported in this browser');
     }
   }
-  private handleCrossWindowMessage(data: any): void {
+  private handleCrossWindowMessage(data: TimeTrackingSyncMessage & { windowId?: string }): void {
     if (data.type === 'TIME_TRACKING_STATE_UPDATED' && data.state) {
       // Ignore messages from our own window to prevent feedback loops
       if (data.windowId === this.windowId) {
@@ -219,20 +268,37 @@ class TimeTrackingOrchestrator {
       this.broadcastChannel.postMessage(message);
     }
   }
-  private serializeState(state: TimeTrackingState): any {
+  private serializeState(state: TimeTrackingState): SerializedTimeTrackingState {
     return {
-      ...state,
-      startTime: state.startTime?.toISOString(),
-      pausedAt: state.pausedAt?.toISOString(),
-      lastUpdateTime: state.lastUpdateTime?.toISOString()
+      isTracking: state.isTracking,
+      isPaused: state.isPaused ?? false,
+      projectId: state.projectId ?? null,
+      startTime: state.startTime ? state.startTime.toISOString() : null,
+      pausedAt: state.pausedAt ? state.pausedAt.toISOString() : null,
+      totalPausedDuration: state.totalPausedDuration ?? 0,
+      lastUpdateTime: state.lastUpdateTime ? state.lastUpdateTime.toISOString() : null,
+      eventId: state.eventId ?? null,
+      selectedProject: state.selectedProject ?? null,
+      searchQuery: state.searchQuery ?? '',
+      affectedEvents: state.affectedEvents ?? [],
+      currentSeconds: state.currentSeconds ?? 0,
     };
   }
-  private deserializeState(serializedState: any): TimeTrackingState {
+  private deserializeState(serializedState: SerializedTimeTrackingState): TimeTrackingState {
     return {
-      ...serializedState,
+      isTracking: serializedState.isTracking,
+      isPaused: serializedState.isPaused,
+      projectId: serializedState.projectId,
       startTime: serializedState.startTime ? new Date(serializedState.startTime) : null,
       pausedAt: serializedState.pausedAt ? new Date(serializedState.pausedAt) : null,
-      lastUpdateTime: serializedState.lastUpdateTime ? new Date(serializedState.lastUpdateTime) : null
+      totalPausedDuration: serializedState.totalPausedDuration,
+      lastUpdateTime: serializedState.lastUpdateTime ? new Date(serializedState.lastUpdateTime) : null,
+      eventId: serializedState.eventId ?? null,
+      selectedProject: serializedState.selectedProject ?? null,
+      searchQuery: serializedState.searchQuery ?? '',
+      affectedEvents: serializedState.affectedEvents ?? [],
+      currentSeconds: serializedState.currentSeconds ?? 0,
+      lastUpdated: serializedState.lastUpdateTime ? new Date(serializedState.lastUpdateTime) : undefined,
     };
   }
   setUserId(userId: string): void {
@@ -331,11 +397,11 @@ class TimeTrackingOrchestrator {
       this.onStateChangeCallback(validatedState);
     }
   }
-  async setupRealtimeSubscription(): Promise<any> {
+  async setupRealtimeSubscription(): Promise<RealtimeChannel | null> {
     if (!this.userId) {
       throw new Error('User ID must be set before setting up realtime subscription');
     }
-    this.realtimeSubscription = await timeTrackingRepository.setupRealtimeSubscription((state) => {
+      this.realtimeSubscription = await timeTrackingRepository.setupRealtimeSubscription((state) => {
       if (this.onStateChangeCallback) {
         this.onStateChangeCallback(state);
       }
@@ -412,7 +478,7 @@ class TimeTrackingOrchestrator {
       // // console.log('🔍 WORKFLOW - Creating event:', eventData);
       const newEvent = await addEvent(eventData);
       // // console.log('🔍 WORKFLOW - Event created with ID:', newEvent?.id);
-      if (!newEvent?.id) {
+      if (!newEvent || !newEvent.id) {
         ErrorHandlingService.handle('🔍 WORKFLOW - Event creation failed: no ID returned', { source: 'timeTrackingOrchestrator' });
         throw new Error('Failed to create tracking event - no ID returned');
       }
@@ -753,10 +819,19 @@ class TimeTrackingOrchestrator {
         color: eventData.color || '#10b981' // Green for tracking events
       };
       // Create event (direct database call)
-      const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
       if (!user?.id) throw new Error('User not authenticated');
-      const dbRecord = {
-        ...transformCalendarEventToDatabase(trackingEventData),
+      const color = trackingEventData.color || '#10b981';
+      const dbRecord: CalendarEventInsertPayload = {
+        title: trackingEventData.title,
+        start_time: trackingEventData.startTime.toISOString(),
+        end_time: trackingEventData.endTime.toISOString(),
+        project_id: trackingEventData.projectId ?? null,
+        color,
+        completed: trackingEventData.completed ?? false,
+        event_type: trackingEventData.type,
+        description: trackingEventData.description ?? null,
+        duration: trackingEventData.duration ?? null,
         user_id: user.id
       };
       const { data, error } = await supabase

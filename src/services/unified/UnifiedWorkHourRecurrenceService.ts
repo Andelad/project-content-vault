@@ -18,8 +18,9 @@
  * - Editing work hours from settings (updates pattern)
  */
 
-import { WorkHourException, WorkSlot, Settings } from '@/types/core';
+import { WorkHour, WorkHourException, WorkSlot, Settings } from '@/types/core';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 import { ErrorHandlingService } from '../infrastructure/ErrorHandlingService';
 
 export interface CreateWorkHourExceptionParams {
@@ -49,7 +50,7 @@ export async function createWorkHourException(
     // Format date as YYYY-MM-DD for database
     const dateStr = exceptionDate.toISOString().split('T')[0];
 
-    const exceptionData = {
+    const exceptionData: Database['public']['Tables']['work_hour_exceptions']['Insert'] = {
       user_id: user.id,
       exception_date: dateStr,
       day_of_week: dayOfWeek,
@@ -61,7 +62,7 @@ export async function createWorkHourException(
 
     // Upsert to handle updating existing exceptions
     const { data, error } = await supabase
-      .from('work_hour_exceptions' as any)
+      .from('work_hour_exceptions')
       .upsert(exceptionData, {
         onConflict: 'user_id,exception_date,slot_id'
       })
@@ -71,16 +72,16 @@ export async function createWorkHourException(
     if (error) throw error;
 
     const exception: WorkHourException = {
-      id: (data as any).id,
-      userId: (data as any).user_id,
-      exceptionDate: new Date((data as any).exception_date),
-      dayOfWeek: (data as any).day_of_week,
-      slotId: (data as any).slot_id,
-      exceptionType: (data as any).exception_type,
-      modifiedStartTime: (data as any).modified_start_time,
-      modifiedEndTime: (data as any).modified_end_time,
-      createdAt: new Date((data as any).created_at),
-      updatedAt: new Date((data as any).updated_at),
+      id: data.id,
+      userId: data.user_id,
+      exceptionDate: new Date(data.exception_date),
+      dayOfWeek: data.day_of_week,
+      slotId: data.slot_id,
+      exceptionType: data.exception_type as WorkHourException['exceptionType'],
+      modifiedStartTime: data.modified_start_time,
+      modifiedEndTime: data.modified_end_time,
+      createdAt: new Date(data.created_at),
+      updatedAt: new Date(data.updated_at),
     };
 
     return { success: true, exception };
@@ -111,7 +112,7 @@ export async function getWorkHourExceptions(
     }
 
     let query = supabase
-      .from('work_hour_exceptions' as any)
+      .from('work_hour_exceptions')
       .select('*')
       .eq('user_id', user.id);
 
@@ -129,13 +130,13 @@ export async function getWorkHourExceptions(
 
     if (error) throw error;
 
-    const exceptions: WorkHourException[] = (data || []).map((e: any) => ({
+    const exceptions: WorkHourException[] = (data || []).map(e => ({
       id: e.id,
       userId: e.user_id,
       exceptionDate: new Date(e.exception_date),
       dayOfWeek: e.day_of_week,
       slotId: e.slot_id,
-      exceptionType: e.exception_type,
+      exceptionType: e.exception_type as WorkHourException['exceptionType'],
       modifiedStartTime: e.modified_start_time,
       modifiedEndTime: e.modified_end_time,
       createdAt: new Date(e.created_at),
@@ -201,7 +202,7 @@ export async function deleteWorkHourException(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const { error } = await supabase
-      .from('work_hour_exceptions' as any)
+      .from('work_hour_exceptions')
       .delete()
       .eq('id', exceptionId);
 
@@ -235,7 +236,7 @@ export async function deleteAllExceptionsForDate(
     const dateStr = date.toISOString().split('T')[0];
 
     const { error } = await supabase
-      .from('work_hour_exceptions' as any)
+      .from('work_hour_exceptions')
       .delete()
       .eq('user_id', user.id)
       .eq('exception_date', dateStr);
@@ -270,7 +271,7 @@ export async function deleteAllFutureExceptions(
     const dateStr = fromDate.toISOString().split('T')[0];
 
     const { error } = await supabase
-      .from('work_hour_exceptions' as any)
+      .from('work_hour_exceptions')
       .delete()
       .eq('user_id', user.id)
       .gte('exception_date', dateStr);
@@ -310,9 +311,9 @@ export function hasException(
  * Filters deleted exceptions and modifies time for modified exceptions
  */
 export function applyExceptionsToWorkHours(
-  workHours: any[],
+  workHours: WorkHour[],
   exceptions: WorkHourException[]
-): any[] {
+): WorkHour[] {
   if (!exceptions || exceptions.length === 0) {
     return workHours;
   }
@@ -352,7 +353,7 @@ export function applyExceptionsToWorkHours(
 
       return wh;
     })
-    .filter(wh => wh !== null); // Remove deleted work hours
+    .filter((wh): wh is WorkHour => wh !== null); // Remove deleted work hours with type guard
 }
 
 // Export service object

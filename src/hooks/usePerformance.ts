@@ -19,16 +19,26 @@ export const useDateComparison = (dates: Date[], projectDays: Date[]) => {
   }, [dates, projectDays]);
 };
 
+type WeeklyWorkHours = Record<
+  'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday',
+  number
+>;
+
+type WorkingDaySettings = {
+  weeklyWorkHours: WeeklyWorkHours;
+};
+
 /**
  * Memoized working day calculations
  */
-export const useWorkingDayCalculator = (settings: any) => {
+export const useWorkingDayCalculator = (settings: WorkingDaySettings) => {
+  const { weeklyWorkHours } = settings;
   return useMemo(() => {
     const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
     return (date: Date) => {
-      const dayName = dayNames[date.getDay()] as keyof typeof settings.weeklyWorkHours;
-      return settings.weeklyWorkHours[dayName] > 0;
+      const dayName = dayNames[date.getDay()] as keyof typeof weeklyWorkHours;
+      return weeklyWorkHours[dayName] > 0;
     };
-  }, [settings.weeklyWorkHours]);
+  }, [weeklyWorkHours]);
 };

@@ -1,5 +1,7 @@
 import { supabase } from '../../integrations/supabase/client';
 import type { TimeTrackingState, SerializedTimeTrackingState } from '../../types/timeTracking';
+import type { RealtimeChannel } from '@supabase/supabase-js';
+import type { Json } from '@/integrations/supabase/types';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 /**
  * Time Tracking Repository
@@ -61,7 +63,7 @@ class TimeTrackingRepository {
         .from('settings')
         .upsert({
           user_id: this.userId,
-          time_tracking_state: serializedState as any
+          time_tracking_state: serializedState as unknown as Json
         }, {
           onConflict: 'user_id'
         });
@@ -97,7 +99,7 @@ class TimeTrackingRepository {
         // DB failed, try localStorage fallback
         state = this.loadFromLocalStorage();
       } else if (data?.time_tracking_state) {
-        const stateData = data.time_tracking_state as any;
+        const stateData = data.time_tracking_state as unknown as SerializedTimeTrackingState;
         // Check if it's already a full state object or just serialized
         if (stateData.eventId !== undefined || stateData.selectedProject !== undefined) {
           state = {
@@ -199,7 +201,7 @@ class TimeTrackingRepository {
       ErrorHandlingService.handle(error, { source: 'timeTrackingRepository', action: '❌ Failed to clear localStorage:' });
     }
   }
-  async setupRealtimeSubscription(onStateChange: (state: TimeTrackingState) => void): Promise<any> {
+  async setupRealtimeSubscription(onStateChange: (state: TimeTrackingState) => void): Promise<RealtimeChannel> {
     if (!this.userId) {
       throw new Error('User ID must be set before setting up realtime subscription');
     }
@@ -245,7 +247,7 @@ class TimeTrackingRepository {
       throw error;
     }
   }
-  cleanupRealtimeSubscription(subscription: any): void {
+  cleanupRealtimeSubscription(subscription: RealtimeChannel | null | undefined): void {
     if (subscription) {
       supabase.removeChannel(subscription);
     }

@@ -79,8 +79,8 @@ export class ClientRules {
   static validateClientPhone(phone?: string): boolean {
     if (!phone || phone.trim() === '') return true; // Optional field
 
-    // Allow digits, spaces, hyphens, parentheses, plus signs
-    const phoneRegex = /^[\d\s\-\(\)\+]+$/;
+  // Allow digits, spaces, hyphens, parentheses, plus signs
+  const phoneRegex = /^[\d\s()+-]+$/;
     return phoneRegex.test(phone.trim());
   }
 

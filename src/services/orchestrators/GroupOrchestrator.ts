@@ -10,7 +10,7 @@
  * ✅ Workflow coordination
  */
 
-import { Group } from '@/types/core';
+import { Group, Project } from '@/types/core';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 import { calculateGroupStatistics } from '@/services/calculations';
@@ -478,7 +478,7 @@ export class GroupOrchestrator {
    */
   static calculateGroupStatistics(
     group: Group,
-    projects: any[] = []
+    projects: Project[] = []
   ): {
     projectCount: number;
     totalEstimatedHours: number;
@@ -494,7 +494,7 @@ export class GroupOrchestrator {
    */
   static validateGroupDeletion(
     group: Group,
-    projects: any[] = []
+    projects: Project[] = []
   ): GroupValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];

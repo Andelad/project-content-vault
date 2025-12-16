@@ -16,7 +16,7 @@ export interface EventUpdateData {
   endTime?: Date;
   duration?: number;
   completed?: boolean;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface PlannerEventResult {

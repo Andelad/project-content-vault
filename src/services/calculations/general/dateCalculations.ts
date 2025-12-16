@@ -367,7 +367,7 @@ export function normalizeToEndOfDay(date: Date): Date {
  * Check if a date is valid
  * THE authoritative date validation used everywhere
  */
-export function isValidDate(date: any): date is Date {
+export function isValidDate(date: unknown): date is Date {
   return date instanceof Date && !isNaN(date.getTime());
 }
 
@@ -405,7 +405,9 @@ export function isBusinessHour(date: Date, startHour: number = 9, endHour: numbe
  * Check if a date falls within a working day based on settings
  * THE authoritative working day check used everywhere
  */
-export function isWorkingDay(date: Date, settings: any, holidays: Date[] = []): boolean {
+import type { Settings } from '@/types/core';
+
+export function isWorkingDay(date: Date, settings: Pick<Settings, 'weeklyWorkHours'> | null | undefined, holidays: Date[] = []): boolean {
   if (!isValidDate(date) || !settings?.weeklyWorkHours) return false;
   
   // Check if it's a holiday first

@@ -3,6 +3,8 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/comp
 import type { Project, Milestone } from '@/types/core';
 import { getTimelinePositions, normalizeToMidnight } from '@/services';
 import { getPhasesSortedByEndDate } from '@/domain/rules/PhaseRules';
+import type { DragState } from '@/services/ui/DragPositioning';
+import type { TimelinePositionCalculation } from '@/services/ui/ProjectBarPositioning';
 
 interface DraggablePhaseMarkersProps {
   project: Project;
@@ -12,8 +14,14 @@ interface DraggablePhaseMarkersProps {
   dates: Date[];
   mode: 'days' | 'weeks';
   isDragging: boolean;
-  dragState: any;
-  calculateBaselineVisualOffsets: (positions: any, isDragging: boolean, dragState: any, projectId: string, mode: 'days' | 'weeks') => any;
+  dragState: DragState | null;
+  calculateBaselineVisualOffsets: (
+    positions: TimelinePositionCalculation,
+    isDragging: boolean,
+    dragState: DragState | null,
+    projectId: string,
+    mode: 'days' | 'weeks'
+  ) => TimelinePositionCalculation;
   onPhaseResizeMouseDown?: (e: React.MouseEvent, projectId: string, phaseId: string, action: 'resize-phase-start' | 'resize-phase-end') => void;
 }
 

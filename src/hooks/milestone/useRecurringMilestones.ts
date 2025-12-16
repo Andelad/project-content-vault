@@ -189,7 +189,7 @@ export function useRecurringMilestones(config: UseRecurringMilestonesConfig) {
       });
       return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
-  }, [projectId, projectStartDate, projectEndDate, projectContinuous, projectEstimatedHours, refetchMilestones, toast, ensureRecurringMilestonesAvailable, isCreatingProject, localMilestonesState]);
+  }, [projectId, projectStartDate, projectEndDate, projectContinuous, projectEstimatedHours, refetchMilestones, toast, isCreatingProject, localMilestonesState]);
 
   // Delete recurring milestones
   const deleteRecurringMilestones = useCallback(async (

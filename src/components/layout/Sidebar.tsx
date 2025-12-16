@@ -7,6 +7,7 @@ import { Sheet, SheetContent } from '../ui/sheet';
 import { HelpModal } from '../modals/HelpModal';
 import { FeedbackModal } from '../modals/FeedbackModal';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import type { Database } from '@/integrations/supabase/types';
 
 const isBrowser = typeof window !== 'undefined';
 
@@ -23,9 +24,15 @@ export function Sidebar({
   mobileMenuOpen, 
   setMobileMenuOpen 
 }: SidebarProps) {
-  const { currentView, setCurrentView } = useTimelineContext();
+  const { currentView, setCurrentView, setCurrentDate } = useTimelineContext();
   const { user } = useAuth();
-  const [profile, setProfile] = useState<any>(null);
+  type ProfileRow = Database['public']['Tables']['profiles']['Row'];
+  type AvatarProfile = {
+    avatar_url?: string | null;
+    display_name?: string | null;
+    user_id?: string | null;
+  };
+  const [profile, setProfile] = useState<AvatarProfile | null>(null);
   const [isMobile, setIsMobile] = useState(() => (isBrowser ? window.innerWidth < 768 : false));
   const [helpModalOpen, setHelpModalOpen] = useState(false);
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
@@ -48,7 +55,7 @@ export function Sidebar({
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('avatar_url, display_name')
+        .select('avatar_url, display_name, user_id')
         .eq('user_id', user?.id)
         .maybeSingle();
       
@@ -170,6 +177,10 @@ export function Sidebar({
               <li key={item.id}>
                 <button
                   onClick={() => {
+                    // Sidebar navigation: always jump planner to today by default
+                    if (item.id === 'calendar') {
+                      setCurrentDate(new Date());
+                    }
                     setCurrentView(item.id);
                     if (isMobile) setMobileMenuOpen(false);
                   }}

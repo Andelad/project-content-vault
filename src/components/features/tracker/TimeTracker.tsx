@@ -7,7 +7,8 @@ import { useProjectContext } from '@/contexts/ProjectContext';
 import { usePlannerContext } from '@/contexts/PlannerContext';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import { useClients } from '@/hooks/useClients';
-import { CalendarEvent } from '@/types';
+import type { CalendarEvent } from '@/types';
+import type { Project } from '@/types/core';
 import { calculateOverlapActions, findOverlappingEvents } from '@/services';
 import { 
   processEventOverlaps, 
@@ -35,7 +36,15 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
   const { isTimeTracking, setIsTimeTracking, currentTrackingEventId, setCurrentTrackingEventId: setGlobalTrackingEventId } = useSettingsContext();
   const { clients } = useClients();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedProject, setSelectedProject] = useState<any>(null);
+  type SelectedProject = {
+    id?: string;
+    name: string;
+    client?: string;
+    clientId?: string;
+    color?: string;
+  };
+
+  const [selectedProject, setSelectedProject] = useState<SelectedProject | null>(null);
   const [seconds, setSeconds] = useState(0);
   const [currentEventId, setCurrentEventId] = useState<string | null>(null);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
@@ -47,7 +56,16 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
   const dbSyncIntervalRef = useRef<NodeJS.Timeout | null>(null); // DB sync (30s)
   const startTimeRef = useRef<Date | null>(null);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
-  const currentStateRef = useRef<any>(null); // Track current state for sync
+  type TrackingStateRef = {
+    isTracking: boolean;
+    startTime: Date | null;
+    eventId: string | null;
+    selectedProject: SelectedProject | null;
+    searchQuery?: string;
+    affectedEvents: string[];
+  };
+
+  const currentStateRef = useRef<TrackingStateRef | null>(null); // Track current state for sync
 
   const clientNameById = useMemo(() => {
     const map: Record<string, string> = {};
@@ -57,10 +75,10 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
     return map;
   }, [clients]);
 
-  const getClientName = useCallback(
-    (project: any) => clientNameById[project?.clientId] || project?.client || '',
-    [clientNameById]
-  );
+    const getClientName = useCallback(
+      (project?: SelectedProject | null) => clientNameById[project?.clientId ?? ''] || project?.client || '',
+      [clientNameById]
+    );
   // Storage keys - inline to avoid circular dependency issues
   const STORAGE_KEYS = {
     isTracking: 'timeTracker_isTracking',
@@ -131,6 +149,8 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
       }
     };
     loadTrackingState();
+    // Intentionally run only on mount for state restoration
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount
   // React to global state changes - CROSS-WINDOW SYNC
   useEffect(() => {
@@ -210,25 +230,27 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
       }
     };
     syncWithGlobalState();
+  // Dependencies intentionally limited to track global toggles; startOptimizedIntervals is stable via useCallback
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isTimeTracking, currentTrackingEventId]); // React to global state changes
   // Check for overlapping planned events and adjust them
-  const handlePlannedEventOverlaps = (trackingStart: Date, trackingEnd: Date) => {
-    const affectedEvents = UnifiedTimeTrackerService.handlePlannedEventOverlaps(
-      events,
-      trackingStart,
-      trackingEnd,
-      currentEventId,
-      deleteEvent,
-      updateEvent,
-      addEvent
-    );
-    setAffectedPlannedEvents(affectedEvents);
-    return affectedEvents;
-  };
+    const handlePlannedEventOverlaps = useCallback((trackingStart: Date, trackingEnd: Date) => {
+      const affectedEvents = UnifiedTimeTrackerService.handlePlannedEventOverlaps(
+        events,
+        trackingStart,
+        trackingEnd,
+        currentEventId,
+        deleteEvent,
+        updateEvent,
+        addEvent
+      );
+      setAffectedPlannedEvents(affectedEvents);
+      return affectedEvents;
+    }, [addEvent, currentEventId, deleteEvent, events, updateEvent]);
   // Start optimized intervals for tracking event
   // Separate UI updates and DB syncs for efficiency
   // Note: Overlap check runs ONCE at start, not continuously
-  const startOptimizedIntervals = (eventId: string, startTime: Date) => {
+  const startOptimizedIntervals = useCallback((eventId: string, startTime: Date) => {
     // // console.log('🔍 Starting optimized intervals for event:', eventId);
     // Clear any existing intervals
     if (dbSyncIntervalRef.current) {
@@ -239,18 +261,18 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
       // CRITICAL: Check if we're still tracking this event
       // This prevents updating events that have already been stopped
       if (!isTimeTracking || currentEventId !== eventId) {
-        console.log('💾 DB sync - Tracking stopped or different event, clearing interval', {
-          isTimeTracking,
-          currentEventId,
-          eventId
-        });
+          console.log('💾 DB sync - Tracking stopped or different event, clearing interval', {
+            isTimeTracking,
+            currentEventId,
+            eventId
+          });
         if (dbSyncIntervalRef.current) {
           clearInterval(dbSyncIntervalRef.current);
           dbSyncIntervalRef.current = null;
         }
         return;
       }
-      const { duration } = UnifiedTimeTrackerService.calculateElapsedTime(startTime);
+        const { duration } = UnifiedTimeTrackerService.calculateElapsedTime(startTime);
       try {
         // First verify the event still exists
         const { data: eventExists } = await supabase
@@ -259,10 +281,11 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
           .eq('id', eventId)
           .maybeSingle();
         if (!eventExists) {
-          console.error('💾 DB sync - EVENT DOES NOT EXIST IN DATABASE!', {
-            eventId,
-            currentSeconds: seconds
-          });
+            const elapsed = UnifiedTimeTrackerService.calculateElapsedTime(startTime);
+            console.error('💾 DB sync - EVENT DOES NOT EXIST IN DATABASE!', {
+              eventId,
+              currentSeconds: elapsed.totalSeconds
+            });
           ErrorHandlingService.handle('💾 DB sync - Stopping intervals and resetting state', { source: 'TimeTracker' });
           // Clear all intervals
           if (intervalRef.current) clearInterval(intervalRef.current);
@@ -279,19 +302,29 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
           duration,
           completed: true
         }, { silent: true });
-      } catch (error: any) {
-        ErrorHandlingService.handle(error, { source: 'TimeTracker', action: '💾 DB sync - failed:' });
+      } catch (error: unknown) {
+        const normalizedError = error instanceof Error ? error : new Error(String(error));
+        ErrorHandlingService.handle(normalizedError, { source: 'TimeTracker', action: '💾 DB sync - failed:' });
       }
     }, 30000); // 30 seconds
     // Overlap Check: Run ONLY ONCE when tracking starts
     // Running this repeatedly causes events to be re-trimmed with the current time,
     // which makes the "second to last event" keep updating its end time
-    setTimeout(() => {
+      setTimeout(() => {
       const affected = handlePlannedEventOverlaps(startTime, new Date());
       localStorage.setItem(STORAGE_KEYS.affectedEvents, JSON.stringify(affected));
       // // console.log('🔍 Initial overlap check - complete, affected events:', affected.length);
-    }, 1000); // Wait 1 second after start
-  };
+      }, 1000); // Wait 1 second after start
+    }, [
+      STORAGE_KEYS.affectedEvents,
+      currentEventId,
+      handlePlannedEventOverlaps,
+      isTimeTracking,
+      setCurrentEventId,
+      setIsTimeTracking,
+      setSeconds,
+      updateEvent
+    ]);
   // Get the 3 most recently tracked projects based on tracked/completed events
   const recentProjects = useMemo(() => {
     // Get unique project IDs from tracked/completed events, sorted by most recently tracked (endTime)
@@ -327,9 +360,13 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
     return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
   // Handle search selection
-  const handleSelectItem = async (item: any) => {
-    let selectedProjectData;
-    let searchQueryText;
+  type SearchResultItem =
+    | { type: 'project'; id: string; name: string; client?: string }
+    | { type: 'client'; id: string; name: string };
+
+  const handleSelectItem = async (item: SearchResultItem) => {
+    let selectedProjectData: SelectedProject | null = null;
+    let searchQueryText: string;
     if (item.type === 'project') {
       const project = projects.find(p => p.id === item.id);
       setSelectedProject(project);

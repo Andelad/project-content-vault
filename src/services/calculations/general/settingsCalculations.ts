@@ -222,53 +222,59 @@ export function generateDefaultWorkSchedule(type: 'standard' | 'flexible' | 'min
 
   switch (type) {
     case 'standard':
-      // Monday-Friday 9 AM - 5 PM
-      const standardSlot = {
-        id: 'default-work-slot',
-        startTime: '09:00',
-        endTime: '17:00',
-        duration: 8
-      };
-      return {
-        ...emptySchedule,
-        monday: [standardSlot],
-        tuesday: [standardSlot],
-        wednesday: [standardSlot],
-        thursday: [standardSlot],
-        friday: [standardSlot]
-      };
+      {
+        // Monday-Friday 9 AM - 5 PM
+        const standardSlot = {
+          id: 'default-work-slot',
+          startTime: '09:00',
+          endTime: '17:00',
+          duration: 8
+        };
+        return {
+          ...emptySchedule,
+          monday: [standardSlot],
+          tuesday: [standardSlot],
+          wednesday: [standardSlot],
+          thursday: [standardSlot],
+          friday: [standardSlot]
+        };
+      }
 
     case 'flexible':
-      // Monday-Friday 8 AM - 4 PM, flexible timing
-      const flexibleSlot = {
-        id: 'flexible-work-slot',
-        startTime: '08:00',
-        endTime: '16:00',
-        duration: 8
-      };
-      return {
-        ...emptySchedule,
-        monday: [flexibleSlot],
-        tuesday: [flexibleSlot],
-        wednesday: [flexibleSlot],
-        thursday: [flexibleSlot],
-        friday: [flexibleSlot]
-      };
+      {
+        // Monday-Friday 8 AM - 4 PM, flexible timing
+        const flexibleSlot = {
+          id: 'flexible-work-slot',
+          startTime: '08:00',
+          endTime: '16:00',
+          duration: 8
+        };
+        return {
+          ...emptySchedule,
+          monday: [flexibleSlot],
+          tuesday: [flexibleSlot],
+          wednesday: [flexibleSlot],
+          thursday: [flexibleSlot],
+          friday: [flexibleSlot]
+        };
+      }
 
     case 'minimal':
-      // Monday, Wednesday, Friday 10 AM - 2 PM
-      const minimalSlot = {
-        id: 'minimal-work-slot',
-        startTime: '10:00',
-        endTime: '14:00',
-        duration: 4
-      };
-      return {
-        ...emptySchedule,
-        monday: [minimalSlot],
-        wednesday: [minimalSlot],
-        friday: [minimalSlot]
-      };
+      {
+        // Monday, Wednesday, Friday 10 AM - 2 PM
+        const minimalSlot = {
+          id: 'minimal-work-slot',
+          startTime: '10:00',
+          endTime: '14:00',
+          duration: 4
+        };
+        return {
+          ...emptySchedule,
+          monday: [minimalSlot],
+          wednesday: [minimalSlot],
+          friday: [minimalSlot]
+        };
+      }
 
     default:
       return emptySchedule;

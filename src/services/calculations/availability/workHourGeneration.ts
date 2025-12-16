@@ -22,15 +22,16 @@
  */
 
 import { 
-  calculateDurationHours,
-  calculateDurationMinutes
+  calculateDurationHours
 } from '../general/dateCalculations';
 import { 
   getWeekStart as coreGetWeekStart,
   getCurrentWeekStart as coreGetCurrentWeekStart
 } from '../general/timeCalculations';
 
-import { WorkHour, WorkSlot } from '@/types/core';
+import { Settings, WorkHour, WorkSlot } from '@/types/core';
+
+type WorkHourLike = Pick<WorkHour, 'duration'> | Pick<WorkSlot, 'duration'>;
 
 export interface WeekOverrideManager {
   getWeekOverrides: (weekStart: Date) => WorkHour[];
@@ -43,7 +44,7 @@ export interface WeekOverrideManager {
 
 export interface WorkHourGenerationParams {
   weekStartDate: Date;
-  weeklyWorkHours: any;
+  weeklyWorkHours?: Settings['weeklyWorkHours'] | null;
 }
 
 export interface WorkHourMergeParams {
@@ -54,7 +55,7 @@ export interface WorkHourMergeParams {
 }
 
 // Week-specific storage for calendar overrides
-let weeklyOverridesMap: Map<number, WorkHour[]> = new Map();
+const weeklyOverridesMap: Map<number, WorkHour[]> = new Map();
 let nextId = 1;
 
 // ===== CORE CALCULATION FUNCTIONS =====
@@ -94,7 +95,7 @@ export function calculateWorkHourDuration(startTime: Date, endTime: Date): numbe
  * Calculate total work hours from an array of work hour objects
  * THE authoritative work hours total calculation used everywhere
  */
-export function calculateWorkHoursTotal(workHours: any[]): number {
+export function calculateWorkHoursTotal(workHours: WorkHourLike[]): number {
   if (!Array.isArray(workHours)) {
     return 0;
   }
@@ -105,7 +106,7 @@ export function calculateWorkHoursTotal(workHours: any[]): number {
  * Calculate work hours for a specific day from settings
  * Extracts the work hours array for the given day of week
  */
-export function calculateDayWorkHours(date: Date, settings: any): any[] {
+export function calculateDayWorkHours(date: Date, settings?: Pick<Settings, 'weeklyWorkHours'> | null): WorkSlot[] {
   if (!settings?.weeklyWorkHours) return [];
 
   const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
@@ -117,7 +118,7 @@ export function calculateDayWorkHours(date: Date, settings: any): any[] {
  * Calculate total work hours for a specific day
  * Combines calculateDayWorkHours + calculateWorkHoursTotal
  */
-export function calculateTotalDayWorkHours(date: Date, settings: any): number {
+export function calculateTotalDayWorkHours(date: Date, settings?: Pick<Settings, 'weeklyWorkHours'> | null): number {
   const dayWorkHours = calculateDayWorkHours(date, settings);
   return calculateWorkHoursTotal(dayWorkHours);
 }

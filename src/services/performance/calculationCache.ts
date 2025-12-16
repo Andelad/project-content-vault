@@ -3,6 +3,9 @@
  * Prevents expensive recalculations and improves app performance
  */
 
+import type { CalendarEvent, Holiday, Project, WorkHour, WorkSlot } from '@/types/core';
+import type { Milestone } from '@/types/core';
+
 interface CacheEntry<T> {
   value: T;
   timestamp: number;
@@ -21,8 +24,31 @@ interface CacheStats {
   checks: number;
 }
 
+type MilestoneHashInput = Partial<Milestone> & {
+  id?: string;
+  targetDate?: Date | string | null;
+  estimatedHours?: number | null;
+  completionDate?: Date | string | null;
+};
+
+type ProjectHashInput = Pick<Project, 'id' | 'startDate' | 'endDate' | 'estimatedHours'>;
+
+type SettingsHashInput = {
+  weeklyWorkHours?: Record<string, WorkSlot[]>;
+};
+
+type WorkHourHashInput = Partial<WorkHour> & {
+  date?: string | null;
+  duration?: number | null;
+};
+
+type EventHashInput = Partial<CalendarEvent> & {
+  startTime?: Date | string | null;
+  endTime?: Date | string | null;
+};
+
 export class CalculationCacheService {
-  private static caches = new Map<string, Map<string, CacheEntry<any>>>();
+  private static caches = new Map<string, Map<string, CacheEntry<unknown>>>();
   private static configs = new Map<string, CacheConfig>();
 
   /**
@@ -45,7 +71,7 @@ export class CalculationCacheService {
       return null;
     }
 
-    const entry = cache.get(key);
+  const entry = cache.get(key) as CacheEntry<T> | undefined;
     
     if (!entry) {
       return null;
@@ -61,7 +87,7 @@ export class CalculationCacheService {
     // Update hit count
     entry.hits++;
     
-    return entry.value;
+    return entry.value as T;
   }
 
   /**
@@ -91,7 +117,7 @@ export class CalculationCacheService {
   /**
    * Memoized calculation wrapper
    */
-  static memoize<Args extends any[], Return>(
+  static memoize<Args extends unknown[], Return>(
     cacheName: string,
     fn: (...args: Args) => Return,
     keyGenerator?: (...args: Args) => string
@@ -162,7 +188,7 @@ export class CalculationCacheService {
   /**
    * Evict least recently used entries
    */
-  private static evictLeastUsed(cache: Map<string, CacheEntry<any>>, count: number): void {
+  private static evictLeastUsed(cache: Map<string, CacheEntry<unknown>>, count: number): void {
     const entries = Array.from(cache.entries());
     
     // Sort by hits ascending (least used first)
@@ -221,15 +247,15 @@ export class CalculationCacheService {
    * Create hash from milestone-relevant parameters
    */
   static hashMilestoneParams(
-    milestone: any,
-    project: any,
-    settings: any,
-    holidays: any[],
-    workHours: any[],
-    events: any[]
+    milestone: MilestoneHashInput | null,
+    project: ProjectHashInput | null,
+    settings: SettingsHashInput | null,
+    holidays: Holiday[] = [],
+    workHours: WorkHourHashInput[] = [],
+    events: EventHashInput[] = []
   ): string {
     // Create a hash based on parameters that affect milestone calculations
-    const milestoneHash = milestone ? `${milestone.id}-${milestone.targetDate}-${milestone.estimatedHours}-${milestone.completionDate || 'null'}` : 'null';
+    const milestoneHash = milestone ? `${milestone.id ?? 'unknown'}-${milestone.targetDate ?? 'null'}-${milestone.estimatedHours ?? 'null'}-${milestone.completionDate || 'null'}` : 'null';
     const projectHash = project ? `${project.id}-${project.startDate}-${project.endDate}-${project.estimatedHours}` : 'null';
 
     // Settings that might affect milestone calculations
@@ -237,7 +263,7 @@ export class CalculationCacheService {
       Object.keys(settings.weeklyWorkHours).map(day => {
         const slots = settings.weeklyWorkHours[day] || [];
         return Array.isArray(slots)
-          ? slots.reduce((sum: number, slot: any) => sum + (slot.duration || 0), 0)
+          ? slots.reduce((sum: number, slot: WorkSlot) => sum + (slot.duration || 0), 0)
           : 0;
       }).join('-') : 'nosettings';
 
@@ -247,11 +273,11 @@ export class CalculationCacheService {
 
     // Work hours that might affect calculations  
     const workHoursHash = workHours?.length ?
-      workHours.map(wh => `${wh.id}-${wh.date}-${wh.duration}`).sort().join(',') : 'noworkhours';
+      workHours.map(wh => `${wh.id ?? 'unknown'}-${wh.date ?? wh.startTime ?? 'unknown'}-${wh.duration ?? 0}`).sort().join(',') : 'noworkhours';
 
     // Events that might affect calculations
     const eventsHash = events?.length ?
-      events.map(e => `${e.id}-${e.startTime}-${e.endTime}`).sort().join(',') : 'noevents';
+      events.map(e => `${e.id ?? 'unknown'}-${e.startTime ?? 'unknown'}-${e.endTime ?? 'unknown'}`).sort().join(',') : 'noevents';
 
     return `${milestoneHash}|${projectHash}|${settingsHash}|${holidaysHash}|${workHoursHash}|${eventsHash}`;
   }

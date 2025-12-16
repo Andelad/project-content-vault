@@ -9,14 +9,14 @@
  * ✅ Mathematical operations only
  */
 
-import { Group } from '@/types/core';
+import { Group, Project } from '@/types/core';
 
 /**
  * Calculate group statistics from projects
  */
 export function calculateGroupStatistics(
   group: Group,
-  projects: any[] = []
+  projects: Project[] = []
 ): {
   projectCount: number;
   totalEstimatedHours: number;

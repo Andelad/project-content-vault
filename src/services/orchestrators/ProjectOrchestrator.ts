@@ -13,7 +13,7 @@
  * 
  * @module ProjectOrchestrator
  */
-import { Project, Milestone } from '@/types/core';
+import { Project, Milestone, ClientStatus } from '@/types/core';
 import { ProjectRules } from '@/domain/rules/ProjectRules';
 import { MilestoneRules } from '@/domain/rules/MilestoneRules';
 import { getDateKey } from '@/utils/dateFormatUtils';
@@ -80,6 +80,66 @@ export interface ProjectMilestone {
 export interface ProjectCreationWithMilestonesRequest extends ProjectCreationRequest {
   milestones?: ProjectMilestone[];
 }
+
+type ProjectMilestoneCreateInput = {
+  name: string;
+  projectId: string;
+  dueDate: Date | string;
+  timeAllocation: number;
+  timeAllocationHours?: number;
+  startDate?: Date | string;
+  endDate?: Date | string;
+  isRecurring?: boolean;
+  recurringConfig?: Milestone['recurringConfig'];
+  order?: number;
+};
+
+type DatabaseProjectRow = {
+  id: string;
+  name: string;
+  client: string | null;
+  client_id?: string | null;
+  start_date: string;
+  end_date: string;
+  estimated_hours: number;
+  color: string | null;
+  group_id?: string | null;
+  row_id?: string | null;
+  notes?: string | null;
+  icon?: string | null;
+  continuous?: boolean | null;
+  auto_estimate_days?: unknown;
+  user_id?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  clients?: {
+    id?: string;
+    name?: string;
+    status?: ClientStatus | string | null;
+    contact_email?: string | null;
+    contact_phone?: string | null;
+    billing_address?: string | null;
+    notes?: string | null;
+    created_at?: string | null;
+    updated_at?: string | null;
+  } | null;
+};
+
+type DatabaseProjectPayload = Partial<{
+  name: string;
+  client: string;
+  client_id: string;
+  start_date: string;
+  end_date: string;
+  estimated_hours: number;
+  color: string;
+  group_id?: string;
+  row_id?: string;
+  notes?: string;
+  icon?: string;
+  continuous?: boolean;
+  auto_estimate_days?: Project['autoEstimateDays'];
+}>;
 export interface ProjectUpdateRequest {
   id: string;
   name?: string;
@@ -96,6 +156,11 @@ export interface ProjectUpdateRequest {
  * Project Orchestrator
  * Handles project business workflows and project-milestone coordination
  */
+type ProjectTransformInput = Partial<Project> & {
+  clientId?: string;
+  autoEstimateDays?: Project['autoEstimateDays'];
+};
+
 export class ProjectOrchestrator {
   /**
    * Validate project creation request
@@ -261,8 +326,8 @@ export class ProjectOrchestrator {
       utilizationPercentage: budgetCheck.utilizationPercentage
     };
     // Simple milestone type counting (recurring detection can be enhanced later)
-    const regularMilestones = milestones.filter(m => !('isRecurring' in m && (m as any).isRecurring)).length;
-    const recurringMilestones = milestones.filter(m => 'isRecurring' in m && (m as any).isRecurring).length;
+  const regularMilestones = milestones.filter(m => !('isRecurring' in m && m.isRecurring)).length;
+  const recurringMilestones = milestones.filter(m => m.isRecurring === true).length;
     // Check for over-budget milestones
     const hasOverBudgetMilestones = milestones.some(m => 
       m.timeAllocation > project.estimatedHours
@@ -430,8 +495,8 @@ export class ProjectOrchestrator {
   static async executeProjectCreationWorkflow(
     request: ProjectCreationWithMilestonesRequest,
     projectContext: {
-      addProject: (data: any) => Promise<Project>;
-      addMilestone: (data: any, options?: { silent?: boolean }) => Promise<void>;
+      addProject: (data: Partial<Project>) => Promise<Project>;
+      addMilestone: (data: Partial<Milestone>, options?: { silent?: boolean }) => Promise<void>;
     }
   ): Promise<ProjectCreationResult> {
     try {
@@ -612,7 +677,10 @@ export class ProjectOrchestrator {
   private static async createProjectMilestones(
     projectId: string,
     milestones: ProjectMilestone[],
-    addMilestone: (data: any, options?: { silent?: boolean }) => Promise<void>
+    addMilestone: (
+      data: ProjectMilestoneCreateInput | Partial<Milestone>,
+      options?: { silent?: boolean }
+    ) => Promise<Milestone | void | undefined>
   ): Promise<void> {
     for (const milestone of milestones) {
       if (milestone.name.trim()) {
@@ -621,6 +689,7 @@ export class ProjectOrchestrator {
             name: milestone.name,
             dueDate: milestone.dueDate,
             timeAllocation: milestone.timeAllocation,
+            timeAllocationHours: milestone.timeAllocationHours,
             projectId: projectId
           }, { silent: true }); // Silent mode to prevent individual milestone toasts
         } catch (error) {
@@ -675,18 +744,32 @@ export class ProjectOrchestrator {
         
         // Add client data if available
         if (dbProject.clients && typeof dbProject.clients === 'object' && !Array.isArray(dbProject.clients)) {
-          const clientData = dbProject.clients as any;
+          const clientData = dbProject.clients as {
+            id?: string;
+            name?: string;
+            status?: ClientStatus | string | null;
+            contact_email?: string | null;
+            contact_phone?: string | null;
+            billing_address?: string | null;
+            notes?: string | null;
+            created_at?: string;
+            updated_at?: string;
+          } | null;
+          const rawStatus = clientData.status;
+          const normalizedStatus: ClientStatus | undefined = rawStatus === 'active' || rawStatus === 'inactive' || rawStatus === 'archived'
+            ? rawStatus
+            : undefined;
           transformed.clientData = {
             id: clientData.id,
             name: clientData.name,
-            status: clientData.status,
-            contactEmail: clientData.contact_email,
-            contactPhone: clientData.contact_phone,
-            billingAddress: clientData.billing_address,
-            notes: clientData.notes,
+            status: normalizedStatus,
+            contactEmail: clientData.contact_email ?? undefined,
+            contactPhone: clientData.contact_phone ?? undefined,
+            billingAddress: clientData.billing_address ?? undefined,
+            notes: clientData.notes ?? undefined,
             userId: dbProject.user_id || '',
-            createdAt: new Date(clientData.created_at),
-            updatedAt: new Date(clientData.updated_at),
+            createdAt: clientData.created_at ? new Date(clientData.created_at) : new Date(),
+            updatedAt: clientData.updated_at ? new Date(clientData.updated_at) : new Date(),
           };
         }
         
@@ -817,16 +900,16 @@ export class ProjectOrchestrator {
   /**
    * Transform database project to frontend project
    */
-  private static transformDatabaseProject(dbProject: any): Project {
+  private static transformDatabaseProject(dbProject: DatabaseProjectRow): Project {
     return {
       id: dbProject.id,
       name: dbProject.name,
-      client: dbProject.client,
+      client: dbProject.client || '',
       clientId: dbProject.client_id || '',
       startDate: new Date(dbProject.start_date),
       endDate: new Date(dbProject.end_date),
       estimatedHours: dbProject.estimated_hours,
-      color: normalizeProjectColor(dbProject.color),
+      color: normalizeProjectColor(dbProject.color || ''),
       groupId: dbProject.group_id || undefined,
       rowId: dbProject.row_id || undefined,
       notes: dbProject.notes || undefined,
@@ -860,8 +943,8 @@ export class ProjectOrchestrator {
   /**
    * Transform frontend project data to database format
    */
-  private static transformToDatabase(projectData: any): any {
-    const dbData: any = {};
+  private static transformToDatabase(projectData: ProjectTransformInput): DatabaseProjectPayload {
+    const dbData: DatabaseProjectPayload = {};
     
     if (projectData.name !== undefined) dbData.name = projectData.name;
     

@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
 import { TimelineViewportService } from '@/services';
+import type { Project } from '@/types/core';
 
 export function useTimelineData(
-  projects: any[], 
+  projects: Project[], 
   viewportStart: Date, 
   viewportDays: number, 
   mode: 'days' | 'weeks' = 'days', 

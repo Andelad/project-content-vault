@@ -10,6 +10,7 @@
  */
 
 import * as DateCalculations from '../calculations/general/dateCalculations';
+import type { Holiday, Settings, WorkSlot } from '@/types/core';
 
 interface CacheStats {
   hits: number;
@@ -19,7 +20,7 @@ interface CacheStats {
 
 export class DateCache {
   private static dateCache = new Map<string, Date>();
-  private static calculationCache = new Map<string, any>();
+  private static calculationCache = new Map<string, unknown>();
   private static workingDayCache = new Map<string, boolean>();
   private static cacheStats: CacheStats = { hits: 0, misses: 0, checks: 0 };
 
@@ -44,7 +45,7 @@ export class DateCache {
    * Get cached calculation result
    */
   static getCachedCalculation<T>(key: string): T | undefined {
-    return this.calculationCache.get(key);
+    return this.calculationCache.get(key) as T | undefined;
   }
 
   /**
@@ -156,6 +157,14 @@ export class WorkingDayCache {
   private static workingDayCache = new Map<string, boolean>();
   private static cacheStats: CacheStats = { hits: 0, misses: 0, checks: 0 };
 
+  private static ensureWeeklyWorkHours(weeklyWorkHours: Settings['weeklyWorkHours']): Settings['weeklyWorkHours'] {
+    const days: (keyof Settings['weeklyWorkHours'])[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    return days.reduce((acc, day) => {
+      acc[day] = weeklyWorkHours?.[day] ?? [];
+      return acc;
+    }, {} as Settings['weeklyWorkHours']);
+  }
+
   /**
    * Generate cache key for working day calculations
    */
@@ -171,12 +180,13 @@ export class WorkingDayCache {
   /**
    * Create hash from work schedule settings
    */
-  static hashSettings(weeklyWorkHours: any): string {
+  static hashSettings(weeklyWorkHours: Settings['weeklyWorkHours']): string {
+    const weekly = this.ensureWeeklyWorkHours(weeklyWorkHours);
     const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
     return days.map(day => {
-      const slots = weeklyWorkHours[day] || [];
+      const slots = weekly?.[day as keyof Settings['weeklyWorkHours']] || [];
       return Array.isArray(slots)
-        ? slots.reduce((sum: number, slot: any) => sum + (slot.duration || 0), 0)
+        ? slots.reduce((sum: number, slot: WorkSlot) => sum + (slot.duration || 0), 0)
         : 0;
     }).join('-');
   }
@@ -184,7 +194,7 @@ export class WorkingDayCache {
   /**
    * Create hash from holidays list
    */
-  static hashHolidays(holidays: any[]): string {
+  static hashHolidays(holidays: Holiday[]): string {
     return holidays.map(h => h.id).sort().join(',');
   }
 
@@ -193,13 +203,14 @@ export class WorkingDayCache {
    */
   static isWorkingDay(
     date: Date,
-    weeklyWorkHours: any,
-    holidays: any[],
-    originalChecker?: (date: Date, weeklyWorkHours: any, holidays: any[]) => boolean
+    weeklyWorkHours: Settings['weeklyWorkHours'],
+    holidays: Holiday[],
+    originalChecker?: (date: Date, weeklyWorkHours: Settings['weeklyWorkHours'], holidays: Holiday[]) => boolean
   ): boolean {
     this.cacheStats.checks++;
 
-    const settingsHash = this.hashSettings(weeklyWorkHours);
+    const normalizedWeekly = this.ensureWeeklyWorkHours(weeklyWorkHours);
+    const settingsHash = this.hashSettings(normalizedWeekly);
     const holidaysHash = this.hashHolidays(holidays);
     const cacheKey = this.generateWorkingDayKey(date, settingsHash, holidaysHash);
 
@@ -210,10 +221,13 @@ export class WorkingDayCache {
 
     this.cacheStats.misses++;
 
+    const holidayDates = holidays.map(h => h.startDate);
+  const settings = { weeklyWorkHours: normalizedWeekly } as Pick<Settings, 'weeklyWorkHours'>;
+
     // Use provided checker or fall back to DateCalculations
     const isWorking = originalChecker ? 
-      originalChecker(date, weeklyWorkHours, holidays) :
-      DateCalculations.isWorkingDay(date, weeklyWorkHours, holidays);
+      originalChecker(date, normalizedWeekly, holidays) :
+      DateCalculations.isWorkingDay(date, settings, holidayDates);
 
     this.workingDayCache.set(cacheKey, isWorking);
 
@@ -230,9 +244,9 @@ export class WorkingDayCache {
    * Create a hook-compatible cached working day checker
    */
   static createCachedWorkingDayChecker(
-    weeklyWorkHours: any,
-    holidays: any[],
-    originalChecker?: (date: Date, weeklyWorkHours: any, holidays: any[]) => boolean
+    weeklyWorkHours: Settings['weeklyWorkHours'],
+    holidays: Holiday[],
+    originalChecker?: (date: Date, weeklyWorkHours: Settings['weeklyWorkHours'], holidays: Holiday[]) => boolean
   ) {
     return (date: Date) => this.isWorkingDay(date, weeklyWorkHours, holidays, originalChecker);
   }

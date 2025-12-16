@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { WorkHour, WorkSlot, CalendarEvent, WorkHourException } from '@/types';
+import { WorkHour, WorkSlot, CalendarEvent, WorkHourException, Settings } from '@/types';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import { WorkHourCalculationService } from '@/services/calculations/availability/workHourGeneration';
 import { UnifiedWorkHourRecurrenceService } from '@/services/unified/UnifiedWorkHourRecurrenceService';
@@ -90,7 +90,7 @@ export const useWorkHours = (): UseWorkHoursReturn => {
     });
   }, [settings?.weeklyWorkHours]);
 
-  const fetchWorkHours = async (viewDate?: Date) => {
+  const fetchWorkHours = useCallback(async (viewDate?: Date) => {
     try {
       setError(null);
       
@@ -168,7 +168,7 @@ export const useWorkHours = (): UseWorkHoursReturn => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentViewDate, generateWorkHoursFromSettings, getWeekStart]);
 
   const addWorkHour = async (
     workHourData: Omit<WorkHour, 'id'>, 
@@ -327,8 +327,8 @@ export const useWorkHours = (): UseWorkHoursReturn => {
       }
       
       const [, dayName, slotId] = match;
-      const weeklyWorkHours = settings.weeklyWorkHours as any;
-      const daySlots = weeklyWorkHours[dayName as keyof typeof weeklyWorkHours] || [];
+  const weeklyWorkHours = settings.weeklyWorkHours;
+  const daySlots = weeklyWorkHours[dayName as keyof Settings['weeklyWorkHours']] || [];
       
       const updatedSlots = daySlots.map((slot: WorkSlot) => {
         if (slot.id === slotId) {
@@ -386,7 +386,7 @@ export const useWorkHours = (): UseWorkHoursReturn => {
     };
 
     // Update settings
-    const weeklyWorkHours = settings?.weeklyWorkHours as any || {};
+  const weeklyWorkHours = settings?.weeklyWorkHours || ({} as Settings['weeklyWorkHours']);
     const currentDaySlots = weeklyWorkHours[dayName] || [];
     
     await updateSettings({
@@ -413,8 +413,8 @@ export const useWorkHours = (): UseWorkHoursReturn => {
     if (!match || !settings?.weeklyWorkHours) return;
     
     const [, dayName, slotId] = match;
-    const weeklyWorkHours = settings.weeklyWorkHours as any;
-    const daySlots = weeklyWorkHours[dayName as keyof typeof weeklyWorkHours] || [];
+  const weeklyWorkHours = settings.weeklyWorkHours;
+  const daySlots = weeklyWorkHours[dayName as keyof Settings['weeklyWorkHours']] || [];
     
     const updatedSlots = daySlots.filter((slot: WorkSlot) => slot.id !== slotId);
 
@@ -468,7 +468,7 @@ export const useWorkHours = (): UseWorkHoursReturn => {
     if (settings) {
       fetchWorkHours(currentViewDate);
     }
-  }, [settings, generateWorkHoursFromSettings, currentViewDate]);
+  }, [settings, generateWorkHoursFromSettings, currentViewDate, fetchWorkHours]);
 
   return {
     workHours,

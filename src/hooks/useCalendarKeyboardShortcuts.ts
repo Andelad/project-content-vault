@@ -1,5 +1,13 @@
 import { useEffect } from 'react';
 import { useToast } from './use-toast';
+import { CalendarEvent } from '@/types/core';
+
+type LastAction = {
+  type: 'update' | 'create' | 'delete';
+  eventId: string;
+  previousState?: Partial<CalendarEvent>;
+  event?: CalendarEvent;
+} | null;
 
 interface CalendarKeyboardShortcutsConfig {
   // State setters
@@ -9,7 +17,7 @@ interface CalendarKeyboardShortcutsConfig {
   // Current state values
   selectedEventId: string | null;
   currentView: 'week' | 'day';
-  lastAction: any;
+  lastAction: LastAction;
   
   // Service/action callbacks
   undoLastAction: () => void;

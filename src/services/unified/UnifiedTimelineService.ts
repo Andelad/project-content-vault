@@ -31,7 +31,7 @@ import {
   calculateBaselineVisualOffsets,
   calculateVisualProjectDates,
   ColorCalculationService,
-  useCachedWorkingDayChecker,
+  createWorkingDayChecker,
   getTimelinePositions,
   calculateAvailabilityReduction,
   calculateOvertimePlannedHours,
@@ -75,13 +75,19 @@ import {
   calculateDailyProjectHours as calculateDailyProjectHoursCalc,
   calculateDailyAvailableHours as calculateDailyAvailableHoursCalc
 } from '../calculations/availability/dailyMetrics';
-import type { Project, Milestone, DayEstimate, Settings, Holiday } from '@/types/core';
+import type { Project, Milestone, DayEstimate, Settings, Holiday, CalendarEvent, WorkHour } from '@/types/core';
+import type { TimelinePositionCalculation } from '@/services/ui/ProjectBarPositioning';
+import type { DragState } from '@/services/ui/DragPositioning';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 export interface TimelineProjectData {
   project: Project;
   duration: number;
   isActiveOnDate: (date: Date) => boolean;
-  validation: any;
+  validation: {
+    isValid: boolean;
+    errors?: string[];
+    warnings?: string[];
+  } | null;
 }
 /**
  * Unified Timeline Service
@@ -154,7 +160,7 @@ export class UnifiedTimelineService {
     milestones: Milestone[],
     settings: Settings,
     holidays: Holiday[],
-    events: any[] = []
+    events: unknown[] = []
   ): DayEstimate[] {
     return UnifiedDayEstimateService.calculateProjectDayEstimates(
       project,
@@ -181,11 +187,11 @@ export class UnifiedTimelineService {
    */
   static generateProjectWorkHours(
     project: Project,
-    settings: any,
+    settings: Settings,
     viewportEnd: Date,
-    holidays: any[] = []
+    holidays: Holiday[] = []
   ) {
-    const workHours = [];
+    const workHours: WorkHour[] = [];
     const projectStart = new Date(project.startDate);
     const projectEnd = project.continuous ? new Date(viewportEnd) : new Date(project.endDate);
     // Delegate to pure calculation function instead of manual date iteration
@@ -201,8 +207,8 @@ export class UnifiedTimelineService {
    * Delegates to existing calculation service
    */
   static calculateProjectMetrics(
-    project: any,
-    holidays: any[],
+    project: Project,
+    holidays: Holiday[],
     currentDate: Date = new Date()
   ) {
     // Create a proper Project type for the legacy function
@@ -249,9 +255,9 @@ export class UnifiedTimelineService {
    * Delegates to existing calculation service
    */
   static calculateBaselineVisualOffsets(
-    positions: any,
+    positions: TimelinePositionCalculation,
     isDragging: boolean,
-    dragState: any,
+    dragState: DragState | null,
     projectId: string,
     mode: 'days' | 'weeks' = 'days'
   ) {
@@ -267,9 +273,9 @@ export class UnifiedTimelineService {
    * Delegates to existing calculation service
    */
   static calculateVisualProjectDates(
-    project: any,
+    project: Project,
     isDragging: boolean,
-    dragState: any
+    dragState: DragState | null
   ) {
     try {
       return calculateVisualProjectDates(project, isDragging, dragState);
@@ -285,8 +291,8 @@ export class UnifiedTimelineService {
    * Get cached working day checker
    * Delegates to existing service
    */
-  static getCachedWorkingDayChecker(weeklyWorkHours: any, holidays: any[]) {
-    return useCachedWorkingDayChecker(weeklyWorkHours, holidays);
+  static getCachedWorkingDayChecker(weeklyWorkHours: Settings['weeklyWorkHours'] | undefined, holidays: Holiday[]) {
+    return createWorkingDayChecker(weeklyWorkHours, holidays);
   }
   /**
    * Get timeline positions
@@ -301,17 +307,17 @@ export class UnifiedTimelineService {
    * Consolidates multiple calculations into single method call
    */
   static getTimelineBarData(
-    project: any,
+    project: Project,
     dates: Date[],
     viewportStart: Date,
     viewportEnd: Date,
     milestones: Milestone[],
-    holidays: any[],
-    settings: any,
+    holidays: Holiday[],
+    settings: Settings,
     isDragging: boolean = false,
-    dragState: any = null,
+    dragState: DragState | null = null,
     isWorkingDayChecker?: (date: Date) => boolean, // Accept the hook result as parameter
-    events?: any[], // Add events parameter for planned time calculations
+    events?: unknown[], // Add events parameter for planned time calculations
     options?: {
       visualProjectDates?: {
         startDate: Date;
@@ -350,7 +356,7 @@ export class UnifiedTimelineService {
         return n.getTime();
       };
       // Group estimates by date
-      const grouped = new Map<number, Array<any>>();
+  const grouped = new Map<number, Array<DayEstimate>>();
       for (const est of dayEstimates) {
         const key = getMidnightTime(new Date(est.date));
         if (!grouped.has(key)) grouped.set(key, []);
@@ -458,11 +464,11 @@ export class UnifiedTimelineService {
    * Check if date is working day
    * Delegates to dateCalculations (authoritative implementation)
    */
-  static isWorkingDay(date: Date, holidays: any[], settings: any) {
+  static isWorkingDay(date: Date, holidays: Holiday[], settings: Settings) {
     // Convert Holiday[] to Date[] for dateCalculations signature
-    const holidayDates = Array.isArray(holidays) && holidays[0]?.startDate 
-      ? holidays.map((h: any) => new Date(h.startDate))
-      : holidays;
+    const holidayDates: Date[] = Array.isArray(holidays)
+      ? holidays.map((h) => new Date(h.startDate))
+      : [];
     return isWorkingDayDateCalc(date, settings, holidayDates);
   }
   
@@ -470,8 +476,14 @@ export class UnifiedTimelineService {
    * Get expanded holiday dates
    * Delegates to existing service
    */
-  static getExpandedHolidayDates(holidays: any[]) {
-    return expandHolidayDates(holidays);
+  static getExpandedHolidayDates(holidays: Holiday[]) {
+    const holidayInput = holidays.map((h) => ({
+      startDate: new Date(h.startDate),
+      endDate: new Date(h.endDate ?? h.startDate),
+      name: h.title ?? 'Holiday',
+      id: h.id
+    }));
+    return expandHolidayDates(holidayInput);
   }
   
   /**
@@ -513,7 +525,7 @@ export class UnifiedTimelineService {
    * Calculate overtime planned hours
    * Delegates to existing calculation service
    */
-  static calculateOvertimePlannedHours(date: Date, events: any[], settings: any, holidays: any[] = []) {
+  static calculateOvertimePlannedHours(date: Date, events: CalendarEvent[], settings: Settings, holidays: Holiday[] = []) {
     const workHours = this.generateWorkHoursForDate(date, settings, holidays);
     return calculateOvertimePlannedHours(date, events, workHours);
   }
@@ -585,10 +597,10 @@ export class UnifiedTimelineService {
    */
   static getAvailabilityBarData(
     dates: Date[],
-    projects: any[],
-    settings: any,
-    holidays: any[],
-    events: any[],
+    projects: Project[],
+    settings: Settings,
+    holidays: Holiday[],
+    events: unknown[],
     type: string,
     mode: string = 'days',
     displayMode: string = 'circles'
@@ -601,7 +613,7 @@ export class UnifiedTimelineService {
       // Helper methods for components
       isWorkingDay: (date: Date) => this.isWorkingDay(date, holidays, settings),
       generateWorkHours: (date: Date) => this.generateWorkHoursForDate(date, settings, holidays),
-      calculateTotal: (workHours: any[]) => this.calculateWorkHoursTotal(workHours),
+  calculateTotal: (workHours: unknown[]) => this.calculateWorkHoursTotal(workHours),
       isHoliday: (date: Date) => this.isHolidayDateCapacity(date, holidays),
       // Display settings
       displayMode,

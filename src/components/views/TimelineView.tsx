@@ -35,6 +35,7 @@ import { AppPageLayout } from '../layout/AppPageLayout';
 import { TimelineToolbar } from '@/components/features/timeline/TimelineToolbar';
 import { ResizableSplitter } from '../shared/ResizableSplitter';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import type { DayEstimate, Project } from '@/types/core';
 // Lazy load heavy modals
 const ProjectModal = React.lazy(() => import('../modals/ProjectModal').then(module => ({ default: module.ProjectModal })));
 const HolidayModal = React.lazy(() => import('../modals/HolidayModal').then(module => ({ default: module.HolidayModal })));
@@ -283,7 +284,7 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
   // Timeline 2.0: No sidebar toggle - always collapsed
 
   // Scroll to project functionality using service
-  const scrollToProject = useCallback((project: any) => {
+  const scrollToProject = useCallback((project: Project) => {
     if (isAnimating) return;
     const targetViewport = TimelineViewportService.calculateProjectScrollTarget({
       projectStartDate: new Date(project.startDate),
@@ -476,7 +477,7 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
   // Calculate day estimates for all projects (for resize validation)
   // Include dragState to recalculate during phase resize
   const allDayEstimates = React.useMemo(() => {
-    const estimates: any[] = [];
+    const estimates: DayEstimate[] = [];
     projects.forEach(project => {
       let projectMilestones = milestones.filter(m => m.projectId === project.id);
       

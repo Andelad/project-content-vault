@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
@@ -16,12 +16,7 @@ export function useCalendarConnections() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchConnections();
-    fetchImportHistory();
-  }, []);
-
-  const fetchConnections = async () => {
+  const fetchConnections = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('calendar_connections')
@@ -40,9 +35,9 @@ export function useCalendarConnections() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
-  const fetchImportHistory = async () => {
+  const fetchImportHistory = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('calendar_import_history')
@@ -55,7 +50,12 @@ export function useCalendarConnections() {
     } catch (error) {
       ErrorHandlingService.handle(error, { source: 'useCalendarConnections', action: 'Error fetching import history:' });
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchConnections();
+    fetchImportHistory();
+  }, [fetchConnections, fetchImportHistory]);
 
   const addConnection = async (connectionData: Omit<CalendarConnectionInsert, 'user_id'>) => {
     try {
@@ -63,7 +63,14 @@ export function useCalendarConnections() {
       if (!user) throw new Error('User not authenticated');
 
       // Remove any sensitive token data before storing
-      const { access_token, refresh_token, ...safeConnectionData } = connectionData as any;
+      const {
+        access_token: _accessToken,
+        refresh_token: _refreshToken,
+        ...safeConnectionData
+      } = connectionData as CalendarConnectionInsert & {
+        access_token?: string | null;
+        refresh_token?: string | null;
+      };
 
       const { data, error } = await supabase
         .from('calendar_connections')

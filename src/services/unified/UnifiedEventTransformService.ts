@@ -1,4 +1,4 @@
-import { CalendarEvent, WorkHour } from '@/types';
+import { CalendarEvent, Project, WorkHour, WorkHourException } from '@/types';
 import { EventInput } from '@fullcalendar/core';
 import { calculateEventStyle } from './UnifiedEventWorkHourService';
 import { OKLCH_FALLBACK_GRAY, OKLCH_HABIT_BROWN, NEUTRAL_COLORS } from '@/constants/colors';
@@ -20,7 +20,7 @@ export function prepareEventsForFullCalendar(
   events: CalendarEvent[], 
   workHours: WorkHour[],
   layerMode: 'events' | 'work-hours' | 'both' = 'both',
-  options: { selectedEventId?: string | null; projects?: any[]; habits?: any[]; exceptions?: any[] } = {}
+  options: { selectedEventId?: string | null; projects?: Project[]; habits?: CalendarEvent[]; exceptions?: WorkHourException[] } = {}
 ): EventInput[] {
   const { selectedEventId, projects = [], exceptions = [] } = options;
   const fcEvents: EventInput[] = [];
@@ -52,7 +52,7 @@ export function prepareEventsForFullCalendar(
   if (layerMode === 'work-hours' || layerMode === 'both') {
     // Build a map of deleted exceptions for efficient lookup
     const deletedExceptions = new Map<string, Set<string>>(); // slotId -> Set of dates (YYYY-MM-DD)
-    exceptions.forEach((exception: any) => {
+    exceptions.forEach((exception) => {
       if (exception.exceptionType === 'deleted') {
         const dateStr = new Date(exception.exceptionDate).toISOString().split('T')[0];
         if (!deletedExceptions.has(exception.slotId)) {
@@ -86,7 +86,7 @@ export function prepareEventsForFullCalendar(
 /**
  * Transform CalendarEvent to FullCalendar EventInput format
  */
-export function transformCalendarEventToFullCalendar(event: CalendarEvent, options: { isSelected?: boolean; projects?: any[] } = {}): EventInput {
+export function transformCalendarEventToFullCalendar(event: CalendarEvent, options: { isSelected?: boolean; projects?: Project[] } = {}): EventInput {
   const { isSelected = false, projects = [] } = options;
   
   // Find project for color fallback
@@ -285,14 +285,14 @@ export function transformWorkHourToFullCalendar(workHour: WorkHour): EventInput 
 /**
  * Transform FullCalendar event back to CalendarEvent format
  */
-export function transformFullCalendarToCalendarEvent(fcEvent: any): Partial<CalendarEvent> {
+export function transformFullCalendarToCalendarEvent(fcEvent: EventInput): Partial<CalendarEvent> {
   return {
     id: fcEvent.id,
     title: fcEvent.title,
-    startTime: new Date(fcEvent.start),
-    endTime: new Date(fcEvent.end),
+    startTime: new Date(fcEvent.start as string | Date),
+    endTime: new Date(fcEvent.end as string | Date),
     // ✅ DELEGATE to domain layer - no manual date math!
-    duration: calculateDurationHours(new Date(fcEvent.start), new Date(fcEvent.end))
+    duration: calculateDurationHours(new Date(fcEvent.start as string | Date), new Date(fcEvent.end as string | Date))
   };
 }
 

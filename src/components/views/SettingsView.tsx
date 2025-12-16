@@ -30,6 +30,8 @@ import {
   generateDefaultWorkSchedule
 } from '@/services';
 
+type SettingValue = string | number | boolean | null | WorkSlot[] | Record<string, unknown>;
+
 export function SettingsView() {
   const { settings: appSettings, updateSettings, setDefaultView } = useSettingsContext();
   const { toast } = useToast();
@@ -58,7 +60,7 @@ export function SettingsView() {
     }));
   }, [appSettings.defaultView]);
 
-  const handleSettingChange = async (key: string, value: any) => {
+  const handleSettingChange = async (key: string, value: SettingValue) => {
     // Delegate to SettingsOrchestrator (AI Rule: use existing orchestrator)
     const result = await SettingsOrchestrator.updateSetting(
       key,
@@ -487,7 +489,7 @@ export function SettingsView() {
           </div>
         );
 
-      case 'groups':
+      case 'groups': {
         const MAX_GROUPS = 8;
         const canAddGroup = groups.length < MAX_GROUPS;
         
@@ -675,6 +677,7 @@ export function SettingsView() {
             </div>
           </div>
         );
+      }
 
       case 'appearance':
         return (

@@ -13,7 +13,7 @@
  * Date: September 10, 2025
  */
 
-import type { Milestone, Project, CalendarEvent } from '@/types/core';
+import type { Milestone, Project, CalendarEvent, Holiday } from '@/types/core';
 import { getDateKey } from '@/utils/dateFormatUtils';
 import { calculateDurationDays, calculateDurationHours, datesOverlap } from '../general/dateCalculations';
 import { formatDateShort } from '@/utils/dateFormatUtils';
@@ -275,10 +275,13 @@ export function buildPlannedTimeMap(
 export function calculateProjectTimeMetrics(
   project: Project,
   events: ProjectEvent[],
-  milestonesOrHolidays?: Milestone[] | any[], // Accept milestones or holidays for backward compatibility
+  milestonesOrHolidays?: MilestoneWithProgress[] | Holiday[],
   currentDate: Date = new Date()
 ): ComprehensiveProjectTimeMetrics {
-  const milestones = Array.isArray(milestonesOrHolidays) && milestonesOrHolidays.length > 0 && 'id' in milestonesOrHolidays[0] ? milestonesOrHolidays as Milestone[] : [];
+  const milestones = Array.isArray(milestonesOrHolidays)
+    ? milestonesOrHolidays.filter((item): item is MilestoneWithProgress =>
+        typeof item === 'object' && item !== null && 'projectId' in item)
+    : [];
   
   const projectEvents = filterProjectEvents(events, project.id);
   const projectStart = new Date(project.startDate);
@@ -305,7 +308,7 @@ export function calculateProjectTimeMetrics(
   
   // Calculate milestone progress
   const relevantMilestones = milestones.filter(m => m.projectId === project.id);
-  const completedMilestones = relevantMilestones.filter(m => (m as any).completed === true);
+  const completedMilestones = relevantMilestones.filter(m => m.completed === true);
   const milestoneProgress = {
     completed: completedMilestones.length,
     total: relevantMilestones.length,

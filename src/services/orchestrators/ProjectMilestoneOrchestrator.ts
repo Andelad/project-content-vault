@@ -69,6 +69,37 @@ export interface MilestoneOrchestrationOptions {
   refetchMilestones?: () => Promise<void>;
 }
 
+type RecurringConfigJson = Record<string, string | number | boolean | null | undefined>;
+
+type MilestoneDraft = {
+  id?: string;
+  name: string;
+  projectId: string;
+  dueDate?: Date;
+  endDate?: Date;
+  timeAllocation?: number;
+  timeAllocationHours?: number;
+};
+
+type MilestoneCreatePayload = {
+  name: string;
+  projectId: string;
+  dueDate: Date | string;
+  timeAllocation: number;
+  timeAllocationHours?: number;
+  startDate?: Date | string;
+  endDate?: Date | string;
+  isRecurring?: boolean;
+  recurringConfig?: Milestone['recurringConfig'];
+  order?: number;
+};
+
+type MilestoneUpdatePayload = Partial<MilestoneCreatePayload> & {
+  time_allocation?: number;
+  time_allocation_hours?: number;
+  [key: string]: unknown;
+};
+
 /**
  * Project Milestone Orchestrator
  * 
@@ -203,7 +234,7 @@ export class ProjectMilestoneOrchestrator {
       if (!user) throw new Error('User not authenticated');
 
       // Build the recurring_config JSON object
-      const recurringConfigJson: any = {
+      const recurringConfigJson: RecurringConfigJson = {
         type: recurringConfig.recurringType,
         interval: recurringConfig.recurringInterval
       };
@@ -413,19 +444,25 @@ export class ProjectMilestoneOrchestrator {
    * Update milestone property with budget validation and state management
    * DELEGATES to UnifiedMilestoneService for validation (AI Rule)
    */
-  static async updateMilestoneProperty(
+  static async updateMilestoneProperty<
+    K extends keyof Milestone,
+    LocalMilestoneType extends Partial<Milestone> & { id?: string; isNew?: boolean }
+  >(
     milestoneId: string,
-    property: string,
-    value: any,
+    property: K,
+    value: Milestone[K],
     context: {
       projectMilestones: Milestone[];
       projectEstimatedHours: number;
       isCreatingProject?: boolean;
-      localMilestonesState?: any;
-      updateMilestone?: (id: string, updates: any, options?: any) => Promise<void>;
-      addMilestone?: (milestone: any) => Promise<Milestone>;
-      localMilestones: any[];
-      setLocalMilestones: (setter: any) => void;
+      localMilestonesState?: {
+        milestones: LocalMilestoneType[];
+        setMilestones: (milestones: LocalMilestoneType[]) => void;
+      };
+      updateMilestone?: (id: string, updates: Partial<Milestone>, options?: { silent?: boolean }) => Promise<void>;
+      addMilestone?: (milestone: Partial<Milestone>) => Promise<Milestone | LocalMilestoneType>;
+      localMilestones: LocalMilestoneType[];
+      setLocalMilestones: (setter: (prev: LocalMilestoneType[]) => LocalMilestoneType[]) => void;
     }
   ): Promise<{ success: boolean; error?: string }> {
     try {
@@ -448,7 +485,7 @@ export class ProjectMilestoneOrchestrator {
       // Handle different update contexts
       if (context.isCreatingProject && context.localMilestonesState) {
         // For new projects, update local state
-        const updatedMilestones = context.localMilestonesState.milestones.map((m: any) =>
+        const updatedMilestones = context.localMilestonesState.milestones.map((m) =>
           m.id === milestoneId ? { ...m, [property]: value } : m
         );
         context.localMilestonesState.setMilestones(updatedMilestones);
@@ -480,7 +517,7 @@ export class ProjectMilestoneOrchestrator {
           });
           
           // Remove from local state since it's now saved
-          context.setLocalMilestones((prev: any) => prev.filter((m: any) => m.id !== milestoneId));
+          context.setLocalMilestones((prev) => prev.filter((m) => m.id !== milestoneId));
         } else if (context.updateMilestone) {
           // For existing milestones, update in database silently
           await context.updateMilestone(milestoneId, { [property]: value }, { silent: true });
@@ -507,7 +544,11 @@ export class ProjectMilestoneOrchestrator {
     context: {
       projectMilestones: Milestone[];
       recurringMilestone: RecurringMilestone;
-      updateMilestone: (id: string, updates: any, options?: any) => Promise<void>;
+      updateMilestone: (
+        id: string,
+        updates: MilestoneUpdatePayload,
+        options?: { silent?: boolean }
+      ) => Promise<void>;
       setRecurringMilestone: (milestone: RecurringMilestone) => void;
     }
   ): Promise<{ success: boolean; error?: string }> {
@@ -551,12 +592,12 @@ export class ProjectMilestoneOrchestrator {
   static async saveNewMilestone(
     milestoneIndex: number,
     context: {
-      localMilestones: any[];
+      localMilestones: MilestoneDraft[];
       projectMilestones: Milestone[];
       projectEstimatedHours: number;
       projectId: string;
-      addMilestone: (milestone: any) => Promise<void>;
-      setLocalMilestones: (setter: any) => void;
+      addMilestone: (milestone: MilestoneCreatePayload) => Promise<void>;
+      setLocalMilestones: (setter: (prev: MilestoneDraft[]) => MilestoneDraft[]) => void;
     }
   ): Promise<{ success: boolean; error?: string }> {
     try {
@@ -604,7 +645,7 @@ export class ProjectMilestoneOrchestrator {
       });
 
       // Remove from local state
-      context.setLocalMilestones((prev: any) => prev.filter((_: any, i: number) => i !== milestoneIndex));
+  context.setLocalMilestones((prev) => prev.filter((_, i) => i !== milestoneIndex));
 
       return { success: true };
     } catch (error) {

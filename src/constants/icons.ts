@@ -1,6 +1,6 @@
 // Project icons mapping
 import {
-  Folder, Briefcase, Zap, Target, Lightbulb, Rocket, Star, Heart, Gift, Music, Camera, Code, Book, Gamepad2, Coffee, Home, Building, Car, Plane, Map, Globe, Infinity, Croissant, Square
+  Folder, Briefcase, Zap, Target, Lightbulb, Rocket, Star, Heart, Gift, Music, Camera, Code, Book, Gamepad2, Coffee, Home, Building, Car, Plane, Map, Globe, Infinity as InfinityIcon, Croissant, Square
 } from 'lucide-react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createElement } from 'react';
@@ -39,7 +39,7 @@ export const PROJECT_ICONS = [
   { name: 'plane', label: 'Plane', component: Plane },
   { name: 'map', label: 'Map', component: Map },
   { name: 'globe', label: 'Globe', component: Globe },
-  { name: 'infinity', label: 'Infinity', component: Infinity },
+  { name: 'infinity', label: 'Infinity', component: InfinityIcon },
 ] as const;
 
 // Type for project icon names

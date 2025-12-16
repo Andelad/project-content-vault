@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import DOMPurify from 'dompurify';
 import { 
   Bold, 
@@ -30,13 +30,13 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
   const [isFocused, setIsFocused] = useState(false);
 
   // Configure DOMPurify for safe HTML
-  const purifyConfig = {
+  const purifyConfig = useMemo(() => ({
     ALLOWED_TAGS: ['p', 'br', 'strong', 'b', 'em', 'i', 'u', 'h1', 'h2', 'h3', 'ul', 'ol', 'li', 'blockquote', 'pre', 'a', 'hr'],
     ALLOWED_ATTR: ['href', 'target'],
     ALLOW_DATA_ATTR: false,
     FORBID_TAGS: ['script', 'object', 'embed', 'form', 'input', 'button'],
     FORBID_ATTR: ['onclick', 'onload', 'onerror', 'onmouseover', 'style'],
-  };
+  }), []);
 
   // Initialize editor content with sanitization
   useEffect(() => {
@@ -44,7 +44,7 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
       const sanitizedValue = value ? DOMPurify.sanitize(value, purifyConfig) : '';
       editorRef.current.innerHTML = sanitizedValue;
     }
-  }, [value]);
+  }, [value, purifyConfig]);
 
   const handleInput = () => {
     if (editorRef.current) {

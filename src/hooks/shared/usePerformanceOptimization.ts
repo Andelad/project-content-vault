@@ -1,7 +1,7 @@
 import { useCallback, useRef, useMemo } from 'react';
 import { PERFORMANCE_LIMITS } from '../../constants';
 // Debounce hook for performance optimization
-export function useDebounce<T extends (...args: any[]) => any>(
+export function useDebounce<T extends (...args: unknown[]) => unknown>(
   callback: T,
   delay: number
 ): T {
@@ -16,7 +16,7 @@ export function useDebounce<T extends (...args: any[]) => any>(
   }, [callback, delay]) as T;
 }
 // Throttle hook for performance optimization
-export function useThrottle<T extends (...args: any[]) => any>(
+export function useThrottle<T extends (...args: unknown[]) => unknown>(
   callback: T,
   delay: number
 ): T {
@@ -45,8 +45,9 @@ export function useMemoizedComputation<T>(
   maxCacheSize: number = PERFORMANCE_LIMITS.MAX_CACHED_CALCULATIONS
 ): T {
   const cacheRef = useRef<Map<string, { value: T; timestamp: number }>>(new Map());
+  const depsKey = useMemo(() => JSON.stringify(deps), [deps]);
+
   return useMemo(() => {
-    const depsKey = JSON.stringify(deps);
     const cached = cacheRef.current.get(depsKey);
     if (cached && Date.now() - cached.timestamp < 5000) { // 5 second cache
       return cached.value;
@@ -62,7 +63,7 @@ export function useMemoizedComputation<T>(
       timestamp: Date.now()
     });
     return result;
-  }, deps);
+  }, [computeFn, depsKey, maxCacheSize]);
 }
 // Performance monitoring hook
 export function usePerformanceMonitor(componentName: string) {
@@ -74,6 +75,11 @@ export function usePerformanceMonitor(componentName: string) {
     const timeSinceLastRender = now - lastRenderTime.current;
     lastRenderTime.current = now;
     if (process.env.NODE_ENV === 'development') {
+      // Lightweight dev-only logging to monitor render frequency
+      console.debug(`[Perf] ${componentName} render`, {
+        renderCount: renderCountRef.current,
+        timeSinceLastRender
+      });
     }
   }, [componentName]);
   // Log render in development

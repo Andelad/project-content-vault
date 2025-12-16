@@ -34,6 +34,19 @@ export interface ClientDeletionResult {
   errors?: string[];
 }
 
+type DbClientRow = {
+  id: string;
+  user_id: string;
+  name: string;
+  status: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  billing_address: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 /**
  * Client Orchestrator
  * Handles client business workflows
@@ -235,7 +248,7 @@ export class ClientOrchestrator {
   /**
    * Transform database client to frontend format
    */
-  private static transformDatabaseClient(dbClient: any): Client {
+  private static transformDatabaseClient(dbClient: DbClientRow): Client {
     return {
       id: dbClient.id,
       userId: dbClient.user_id,

@@ -6,11 +6,15 @@ import { Button } from '../ui/button';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { UnifiedTimeTrackerService } from '@/services';
+import { Project } from '@/types/core';
+import { SearchResult } from '@/services/unified/UnifiedTimeTrackerService';
+
+type ProjectSelection = Project | { client: string; name: string };
 
 interface ProjectSearchInputProps {
   value: string;
   onChange: (value: string) => void;
-  onProjectSelect: (project: any) => void;
+  onProjectSelect: (project: ProjectSelection) => void;
   onAddProject?: () => void;
   disabled?: boolean;
   label?: string;
@@ -81,7 +85,7 @@ export function ProjectSearchInput({
   }, [value, projects, recentProjects]);
 
   // Handle search selection
-  const handleSelectItem = (item: any) => {
+  const handleSelectItem = (item: SearchResult) => {
     if (item.type === 'project') {
       const project = projects.find(p => p.id === item.id);
       if (project) {
@@ -94,7 +98,7 @@ export function ProjectSearchInput({
       }
     } else {
       // Client selected - create a client-only object
-      const clientProject = { client: item.name, name: item.name };
+      const clientProject: ProjectSelection = { client: item.name, name: item.name };
       onProjectSelect(clientProject);
       onChange(item.name);
       setSelectedProjectColor(null);

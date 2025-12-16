@@ -207,6 +207,12 @@ export class LabelRules {
     }
     // Log performance stats every 100 queries
     if (this.performanceMetrics.queriesExecuted % 100 === 0) {
+      console.info('Label query performance', {
+        queriesExecuted: this.performanceMetrics.queriesExecuted,
+        averageLabelsPerQuery: this.performanceMetrics.averageLabelsPerQuery,
+        slowQueries: this.performanceMetrics.slowQueries,
+        lastQueryTime: this.performanceMetrics.lastQueryTime
+      });
     }
   }
   /**

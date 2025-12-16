@@ -7,7 +7,7 @@
  * @module useLabels
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Label } from '@/types/core';
 import { useToast } from '@/hooks/use-toast';
@@ -39,7 +39,7 @@ export function useLabels(): UseLabelsReturn {
   /**
    * Fetch all labels for the current user
    */
-  const fetchLabels = async () => {
+  const fetchLabels = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -80,7 +80,7 @@ export function useLabels(): UseLabelsReturn {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   /**
    * Add a new label
@@ -305,10 +305,15 @@ export function useLabels(): UseLabelsReturn {
       if (fetchError) throw fetchError;
 
       // Map to Label objects
-      const projectLabels: Label[] = (data || [])
-        .filter(row => row.labels)
+      type ProjectLabelRow = {
+        label_id: string;
+        labels: Label & { user_id: string; created_at: string; updated_at: string };
+      };
+
+      const projectLabels: Label[] = (data as ProjectLabelRow[] | null || [])
+        .filter((row): row is ProjectLabelRow => Boolean(row.labels))
         .map(row => {
-          const labelData = row.labels as any;
+          const labelData = row.labels;
           return {
             id: labelData.id,
             userId: labelData.user_id,
@@ -330,7 +335,7 @@ export function useLabels(): UseLabelsReturn {
   // Fetch labels on mount
   useEffect(() => {
     fetchLabels();
-  }, []);
+  }, [fetchLabels]);
 
   return {
     labels,

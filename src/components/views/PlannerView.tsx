@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import FullCalendar from '@fullcalendar/react';
-import { Calendar, EventClickArg, EventDropArg, DateSelectArg } from '@fullcalendar/core';
+import { Calendar, EventClickArg, EventDropArg, DateSelectArg, EventContentArg, EventMountArg, EventSourceFunc, EventInput } from '@fullcalendar/core';
+import { EventResizeDoneArg } from '@fullcalendar/interaction';
 import rrulePlugin from '@fullcalendar/rrule';
 import { usePlannerContext } from '@/contexts/PlannerContext';
 import { useProjectContext } from '@/contexts/ProjectContext';
@@ -43,6 +44,7 @@ import '@/components/features/planner/fullcalendar-overrides.css';
 const EventModal = React.lazy(() => import('../modals/EventModal').then(module => ({ default: module.EventModal })));
 const HelpModal = React.lazy(() => import('../modals/HelpModal').then(module => ({ default: module.HelpModal })));
 import { WorkHourScopeDialog } from '@/components/modals';
+import type { Milestone } from '@/types/core';
 /**
  * PlannerView - FullCalendar-based planner with keyboard shortcuts
  * 
@@ -141,7 +143,7 @@ export function PlannerView() {
   const [weekStart, setWeekStart] = useState<Date>(new Date(calendarDate));
   // Create milestones map by project ID (use normalized milestones from ProjectContext)
   const milestonesMap = useMemo(() => {
-    const map = new Map<string, any[]>();
+    const map = new Map<string, Milestone[]>();
     (projectMilestones || []).forEach(milestone => {
       const list = map.get(milestone.projectId) || [];
       list.push(milestone);
@@ -173,7 +175,7 @@ export function PlannerView() {
     [orchestratorContext]
   );
   // FullCalendar event handlers
-  const handleEventClick = (info: any) => {
+  const handleEventClick = (info: EventClickArg) => {
     // Don't select work slots - they're not selectable
     if (info.event.extendedProps.isWorkHour) {
       return;
@@ -235,8 +237,8 @@ export function PlannerView() {
       () => dropInfo.revert()
     );
     // No additional handling needed - orchestrator manages everything
-  }, [plannerOrchestrator, settings, updateSettings, toast]);
-  const handleEventResize = useCallback(async (resizeInfo: any) => {
+  }, [plannerOrchestrator, updateHabit, updateWorkHour]);
+  const handleEventResize = useCallback(async (resizeInfo: EventResizeDoneArg) => {
     const eventId = resizeInfo.event.id;
     const extendedProps = resizeInfo.event.extendedProps;
     // Handle habit resize
@@ -285,7 +287,7 @@ export function PlannerView() {
       () => resizeInfo.revert()
     );
     // No additional handling needed - orchestrator manages everything
-  }, [plannerOrchestrator, settings, updateSettings, toast]);
+  }, [plannerOrchestrator, updateHabit, updateWorkHour]);
   const handleDateSelect = useCallback((selectInfo: DateSelectArg) => {
     // Create new event using global context so the modal opens
     setCreatingNewEvent({
@@ -382,7 +384,7 @@ export function PlannerView() {
   });
 
   // Custom event content renderer
-  const renderEventContent = useCallback((eventInfo: any) => {
+  const renderEventContent = useCallback((eventInfo: EventContentArg) => {
     const event = eventInfo.event;
     const extendedProps = event.extendedProps;
     
@@ -583,11 +585,16 @@ export function PlannerView() {
   }, [habits, updateHabit]);
   // Set up global completion toggle functions for HTML onclick events
   useEffect(() => {
-    (window as any).plannerToggleCompletion = handleCompletionToggle;
-    (window as any).plannerToggleHabitCompletion = handleHabitCompletionToggle;
+    type PlannerWindow = Window & {
+      plannerToggleCompletion?: (eventId: string) => void;
+      plannerToggleHabitCompletion?: (habitId: string) => void;
+    };
+    const plannerWindow = window as PlannerWindow;
+    plannerWindow.plannerToggleCompletion = handleCompletionToggle;
+    plannerWindow.plannerToggleHabitCompletion = handleHabitCompletionToggle;
     return () => {
-      delete (window as any).plannerToggleCompletion;
-      delete (window as any).plannerToggleHabitCompletion;
+      delete plannerWindow.plannerToggleCompletion;
+      delete plannerWindow.plannerToggleHabitCompletion;
     };
   }, [handleCompletionToggle, handleHabitCompletionToggle]);
   // Handle compact view toggle while preserving scroll position
@@ -619,27 +626,27 @@ export function PlannerView() {
   );
   // Prepare FullCalendar configuration
   const baseConfig = getBaseFullCalendarConfig(settings?.isCompactView || false);
-  console.log('📦 FullCalendar plugins:', baseConfig.plugins?.map((p: any) => p.name || p));
+  console.log('📦 FullCalendar plugins:', baseConfig.plugins?.map((p) => (typeof p === 'object' && p && 'name' in p ? (p as { name?: string }).name : String(p))));
   
   const calendarConfig = {
     ...baseConfig,
     ...getEventStylingConfig(),
     businessHours: businessHoursConfig, // Use work hours for business hours
     // Use function for events so refetchEvents() will get fresh data
-    events: (fetchInfo: any, successCallback: any, failureCallback: any) => {
+    events: ((fetchInfo, successCallback, failureCallback) => {
       try {
-        const allEvents = getStyledFullCalendarEvents({ selectedEventId, projects });
+        const allEvents = getStyledFullCalendarEvents({ selectedEventId, projects }) as EventInput[];
         // Filter events based on layer visibility using UnifiedCalendarService
         const filteredEvents = UnifiedCalendarService.filterEventsByLayerVisibility(
           allEvents,
           layerVisibility
-        );
+        ) as EventInput[];
         
         // Debug: Log RRULE events being passed to FullCalendar
-        const rruleEventsInFiltered = filteredEvents.filter((e: any) => e.rrule);
+        const rruleEventsInFiltered = filteredEvents.filter((e) => Boolean(e.rrule));
         if (rruleEventsInFiltered.length > 0) {
           console.log('🎯 Passing', rruleEventsInFiltered.length, 'RRULE events to FullCalendar:');
-          rruleEventsInFiltered.forEach((e: any) => {
+          rruleEventsInFiltered.forEach((e) => {
             console.log('  📋', e.title, {
               id: e.id,
               start: e.start,
@@ -654,7 +661,7 @@ export function PlannerView() {
           console.log('🧪 Testing RRULE parsing with rrule library...');
           import('rrule').then(({ RRule }) => {
             try {
-              const testRule = RRule.fromString(rruleEventsInFiltered[0].rrule);
+              const testRule = RRule.fromString(String(rruleEventsInFiltered[0].rrule));
               console.log('✅ RRULE parsing works:', testRule.toString());
               console.log('  First 3 occurrences:', testRule.all().slice(0, 3));
             } catch (err) {
@@ -668,11 +675,11 @@ export function PlannerView() {
         ErrorHandlingService.handle(error, { source: 'PlannerView', action: 'Error fetching events:' });
         failureCallback(error);
       }
-    },
+    }) satisfies EventSourceFunc,
     initialView: currentView === 'week' ? 'timeGridWeek' : 'timeGridDay',
     initialDate: calendarDate,
     // Custom event content renderer - also handles CSS property updates
-    eventContent: (arg: any) => {
+    eventContent: (arg: EventContentArg & { el?: HTMLElement | null }) => {
       // Update CSS properties on the container element
       // This runs every time the event is rendered, including when properties change
       const { futureEventBorderColor, selectedEventBorderColor } = arg.event.extendedProps;
@@ -697,7 +704,7 @@ export function PlannerView() {
     eventDrop: handleEventDrop,
     eventResize: handleEventResize,
     select: handleDateSelect,
-    eventDidMount: (info: any) => {
+  eventDidMount: (info: EventMountArg) => {
       // Set custom CSS properties for border colors on initial mount
       const { futureEventBorderColor, selectedEventBorderColor } = info.event.extendedProps;
       if (futureEventBorderColor) {
@@ -996,7 +1003,7 @@ export function PlannerView() {
         show={currentView === 'week' && (viewportSize === 'mobile' || viewportSize === 'tablet')}
       />
       {/* Estimated Time Card */}
-      {false && calendarReady && summaryDateStrings.length > 0 && !isEventsLoading && !isHolidaysLoading && (
+      {calendarReady && summaryDateStrings.length > 0 && !isEventsLoading && !isHolidaysLoading && (
         <div className="px-6 pb-[21px]">
           <div className="bg-gray-50 border border-gray-200 rounded-lg shadow-sm overflow-hidden">
             <EstimatedTimeCard
@@ -1019,10 +1026,12 @@ export function PlannerView() {
         <div
           ref={(el) => {
             calendarCardRef.current = el;
-            (swipeRef as any).current = el;
+            if (swipeRef) {
+              swipeRef.current = el;
+            }
           }}
           className={`planner-calendar-card h-full bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden ${settings?.isCompactView ? 'planner-compact' : ''}`}
-          style={{ ['--planner-scrollbar-width' as any]: `${calendarScrollbarWidth}px` }}
+          style={{ '--planner-scrollbar-width': `${calendarScrollbarWidth}px` } as React.CSSProperties}
         >
           <FullCalendar
             key={`${currentView}-${viewportSize}-${settings?.isCompactView ? 'compact' : 'normal'}`}

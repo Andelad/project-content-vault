@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React from 'react';
 import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
 import { Button } from '../ui/button';
@@ -107,11 +108,16 @@ export const StandardModal: React.FC<StandardModalProps> = ({
   className,
   modal = true,
 }) => {
-  const isEventFromNestedLayer = React.useCallback((event: any) => {
-    const originalEvent = event?.detail?.originalEvent ?? event;
-    const target = (originalEvent?.target || originalEvent?.currentTarget || event?.target) as HTMLElement | null;
+  const isEventFromNestedLayer = React.useCallback((event: unknown) => {
+    const eventLike = event as { detail?: { originalEvent?: Event } } & Partial<Event>;
+    const originalEvent = eventLike.detail?.originalEvent ?? eventLike;
+    const possibleTarget =
+      (originalEvent as Partial<Event>)?.target ??
+      (originalEvent as { currentTarget?: EventTarget | null })?.currentTarget ??
+      (eventLike as { target?: EventTarget | null })?.target ??
+      (eventLike as { currentTarget?: EventTarget | null })?.currentTarget;
 
-    if (!target) {
+    if (!possibleTarget || !(possibleTarget instanceof Element)) {
       return false;
     }
 
@@ -123,13 +129,14 @@ export const StandardModal: React.FC<StandardModalProps> = ({
       '[role="listbox"]'
     ];
 
-    return nestedLayerSelectors.some((selector) => target.closest(selector));
+    return nestedLayerSelectors.some((selector) => possibleTarget.closest(selector));
   }, []);
 
-  const preventCloseForNestedLayers = React.useCallback((event: any) => {
+  const preventCloseForNestedLayers = React.useCallback((event: unknown) => {
     if (isEventFromNestedLayer(event)) {
-      event.preventDefault();
-      event.stopPropagation?.();
+      const evt = event as { preventDefault?: () => void; stopPropagation?: () => void };
+      evt.preventDefault?.();
+      evt.stopPropagation?.();
     }
   }, [isEventFromNestedLayer]);
 

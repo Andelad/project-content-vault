@@ -120,8 +120,8 @@ export class ColorCalculationService {
       const borderValue = `${styleConfig.border.width}px ${styleConfig.border.style} ${borderColor}`;
       
       styleConfig.border.sides.forEach(side => {
-        const key = `border${side.charAt(0).toUpperCase() + side.slice(1)}` as keyof CSSProperties;
-        style[key] = borderValue as any;
+        const key = `border${side.charAt(0).toUpperCase() + side.slice(1)}` as 'borderLeft' | 'borderRight' | 'borderTop' | 'borderBottom';
+        style[key] = borderValue;
       });
     } else {
       // No borders for non-bordered types

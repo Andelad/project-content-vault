@@ -1,15 +1,15 @@
 import React from 'react';
 import { Clock, TrendingUp, Calendar, Target } from 'lucide-react';
 import { ProjectProgressGraph } from './ProjectProgressGraph';
-import { Project } from '@/types';
+import { Project, CalendarEvent, Holiday } from '@/types';
 import { formatDuration } from '@/services';
 import { calculateProjectTimeMetrics } from '@/services';
-import { useSettingsContext } from '@/contexts/SettingsContext';
+import type { ProjectEvent } from '@/services/calculations/projects/projectEntityCalculations';
 
 interface ProjectInsightsSectionProps {
-  project: any;
-  events: any[];
-  holidays: any[];
+  project: Project;
+  events: CalendarEvent[];
+  holidays: Holiday[];
 }
 
 export const ProjectInsightsSection: React.FC<ProjectInsightsSectionProps> = ({
@@ -17,18 +17,27 @@ export const ProjectInsightsSection: React.FC<ProjectInsightsSectionProps> = ({
   events,
   holidays,
 }) => {
-  const { settings } = useSettingsContext();
   // Calculate project metrics using the standard function
-  const metrics = React.useMemo(() => {
-    if (!project || !events || !holidays) return null;
-    return calculateProjectTimeMetrics(project, events, holidays, new Date());
-  }, [project, events, holidays]);
-
-  const projectEvents = React.useMemo(() => {
-    return events?.filter((event: any) =>
-      event.projectId === project.id
-    ) || [];
+  const projectEventsForMetrics = React.useMemo<ProjectEvent[]>(() => {
+    return (events || [])
+      .filter((event) => event.projectId === project.id)
+      .map((event) => ({
+        id: event.id,
+        startTime: event.startTime,
+        endTime: event.endTime,
+        completed: event.completed,
+        projectId: event.projectId!,
+      }));
   }, [events, project.id]);
+
+  const projectEventsForDisplay = React.useMemo(() => {
+    return (events || []).filter((event) => event.projectId === project.id);
+  }, [events, project.id]);
+
+  const metrics = React.useMemo(() => {
+    if (!project || !projectEventsForMetrics || !holidays) return null;
+    return calculateProjectTimeMetrics(project, projectEventsForMetrics, holidays, new Date());
+  }, [project, projectEventsForMetrics, holidays]);
 
   if (!metrics) {
     return (
@@ -84,7 +93,7 @@ export const ProjectInsightsSection: React.FC<ProjectInsightsSectionProps> = ({
         </div>
         <ProjectProgressGraph
           project={project}
-          events={projectEvents}
+          events={projectEventsForDisplay}
         />
       </div>
 
@@ -92,7 +101,7 @@ export const ProjectInsightsSection: React.FC<ProjectInsightsSectionProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-card rounded-lg p-4 border text-center">
           <div className="text-lg font-bold text-foreground mb-1">
-            {projectEvents.length}
+            {projectEventsForDisplay.length}
           </div>
           <div className="text-sm text-muted-foreground">Time Entries</div>
         </div>

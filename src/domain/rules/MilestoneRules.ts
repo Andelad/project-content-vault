@@ -43,6 +43,16 @@ export interface MilestoneBudgetCheck {
   utilizationPercentage: number;
 }
 
+export interface RecurringMilestoneRuleConfig {
+  type: 'daily' | 'weekly' | 'monthly';
+  interval: number;
+  weeklyDayOfWeek?: number;
+  monthlyPattern?: 'date' | 'dayOfWeek';
+  monthlyDate?: number;
+  monthlyWeekOfMonth?: number;
+  monthlyDayOfWeek?: number;
+}
+
 // ============================================================================
 // MILESTONE BUSINESS RULES
 // ============================================================================
@@ -158,7 +168,7 @@ export class MilestoneRules {
    */
   static validateRecurringMilestone(
     isRecurring: boolean,
-    recurringConfig: any,
+    recurringConfig: RecurringMilestoneRuleConfig,
     timeAllocation: number
   ): MilestoneDateValidation {
     const errors: string[] = [];

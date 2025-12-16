@@ -16,8 +16,7 @@ import { calculateWorkHoursTotal, calculateDayWorkHours } from '../calculations/
 import { TimelineViewport as TimelineViewportService } from './TimelineViewportService';
 import * as ProjectBarResizeService from './ProjectBarResizeService';
 import { normalizeToMidnight, addDaysToDate } from '../calculations/general/dateCalculations';
-import type { Project } from '@/types/core';
-import type { DayEstimate } from '@/types/core';
+import type { Project, Milestone, DayEstimate } from '@/types/core';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 export interface TimelineContext {
@@ -50,8 +49,8 @@ export interface DragCompletionResult {
 }
 
 export interface DragUpdateCallbacks {
-  onProjectUpdate?: (projectId: string, updates: any, options?: any) => void;
-  onMilestoneUpdate?: (milestoneId: string, updates: any, options?: any) => void;
+  onProjectUpdate?: (projectId: string, updates: Partial<Project>, options?: { silent?: boolean }) => void;
+  onMilestoneUpdate?: (milestoneId: string, updates: Partial<Milestone>, options?: { silent?: boolean }) => void;
   onSuccessToast?: (message: string) => void;
 }
 
@@ -119,11 +118,14 @@ export class TimelineDragCoordinatorService {
       viewportEnd
     );
 
+    const dayInMs = 24 * 60 * 60 * 1000;
+    let snappedDaysDelta = positionResult.daysDelta;
+
     // 5. Check for conflicts if we have a project
     let conflictResult: ConflictDetectionResult | undefined;
     let adjustmentResult: DateAdjustmentResult | undefined;
-    let resizeValidation: any = undefined;
-    let collisionResult: any = undefined;
+  let resizeValidation: ProjectBarResizeService.ResizeValidationResult | undefined;
+  let collisionResult: ProjectBarResizeService.CollisionDetectionResult | undefined;
     const targetProject = dragState.projectId
       ? projects.find(p => p.id === dragState.projectId)
       : undefined;
@@ -230,16 +232,16 @@ export class TimelineDragCoordinatorService {
 
       if (snappedDate.getTime() !== attemptedDate.getTime()) {
         appliedAdjustment = {
-          wasAdjusted: true,
+          originalStartDate: dragState.originalStartDate,
+          originalEndDate: dragState.originalEndDate,
           adjustedStartDate: resizedDates.startDate,
           adjustedEndDate: resizedDates.endDate,
-          reason: adjustmentReason
-        } as any;
+          wasAdjusted: true,
+          adjustmentReason: adjustmentReason || '',
+          daysMoved: snappedDaysDelta
+        };
       }
     }
-
-    const dayInMs = 24 * 60 * 60 * 1000;
-    let snappedDaysDelta = positionResult.daysDelta;
 
     if (dragState.action === 'resize-start-date') {
       snappedDaysDelta = Math.round(
@@ -258,7 +260,7 @@ export class TimelineDragCoordinatorService {
       lastDaysDelta: snappedDaysDelta,
       pixelDeltaX: positionResult.pixelDeltaX,
       lastSnappedDelta: snappedDaysDelta
-    } as any;
+    };
 
     return {
       shouldUpdate,
@@ -318,7 +320,7 @@ export class TimelineDragCoordinatorService {
       lastDaysDelta: positionResult.daysDelta,
       pixelDeltaX: positionResult.pixelDeltaX,
       visualDelta: positionResult.visualDelta
-    } as any;
+    };
 
     return {
       shouldUpdate: positionResult.shouldUpdate,
@@ -400,7 +402,7 @@ export class TimelineDragCoordinatorService {
       pixelDeltaX: positionResult.pixelDeltaX,
       visualDelta: positionResult.visualDelta,
       isValid: validation.isValid
-    } as any;
+    };
 
     return {
       shouldUpdate: positionResult.shouldUpdate,

@@ -14,12 +14,13 @@
 import { useEffect } from 'react';
 import type FullCalendar from '@fullcalendar/react';
 import { ErrorHandlingService } from '@/services';
+import type { CalendarEvent } from '@/types';
 
 interface UseCalendarDragDropProps {
   calendarRef: React.RefObject<FullCalendar>;
-  events: any[];
+  events: CalendarEvent[];
   setCreatingNewEvent: (config: { startTime: Date; endTime: Date } | null) => void;
-  toast: (config: any) => void;
+  toast: (config: { title: string; description: string; variant?: string; duration?: number }) => void;
 }
 
 export function useCalendarDragDrop({
@@ -37,11 +38,15 @@ export function useCalendarDragDrop({
       e.dataTransfer!.dropEffect = 'copy';
     };
 
-    const handleDrop = async (e: DragEvent) => {
+  const handleDrop = async (e: DragEvent) => {
       e.preventDefault();
       
       try {
-        const data = JSON.parse(e.dataTransfer!.getData('application/json'));
+        const data = JSON.parse(e.dataTransfer!.getData('application/json')) as {
+          type: string;
+          projectId: string;
+          estimatedHours: number;
+        };
         if (data.type !== 'project-estimate') return;
 
         const calendarApi = calendarRef.current?.getApi();
@@ -128,7 +133,8 @@ export function useCalendarDragDrop({
         }
 
         // Store project ID for modal to use
-        (window as any).__pendingEventProjectId = data.projectId;
+        type PlannerWindow = Window & { __pendingEventProjectId?: string };
+        (window as PlannerWindow).__pendingEventProjectId = data.projectId;
         setCreatingNewEvent({
           startTime,
           endTime: finalEndTime

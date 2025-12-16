@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useProjectContext } from '@/contexts/ProjectContext';
 import { ProjectMilestoneOrchestrator } from '@/services';
 import { Milestone } from '@/types/core';
@@ -10,6 +10,19 @@ export interface LocalMilestone extends Omit<Milestone, 'id'> {
   isNew?: boolean;
 }
 
+type MilestoneCreateInput = {
+  name: string;
+  projectId: string;
+  dueDate: Date | string;
+  timeAllocation: number;
+  timeAllocationHours?: number;
+  startDate?: Date | string;
+  endDate?: Date | string;
+  isRecurring?: boolean;
+  recurringConfig?: Milestone['recurringConfig'];
+  order?: number;
+};
+
 interface UseMilestoneOperationsConfig {
   projectId?: string;
   projectEstimatedHours: number;
@@ -20,7 +33,10 @@ interface UseMilestoneOperationsConfig {
     milestones: LocalMilestone[];
     setMilestones: (milestones: LocalMilestone[]) => void;
   };
-  trackedAddMilestone?: (milestone: any, options?: { silent?: boolean }) => Promise<any>;
+  trackedAddMilestone?: (
+    milestone: MilestoneCreateInput,
+    options?: { silent?: boolean }
+  ) => Promise<Milestone | undefined>;
 }
 
 /**
@@ -54,24 +70,37 @@ export function useMilestoneOperations(config: UseMilestoneOperationsConfig) {
   const addMilestoneToContext = trackedAddMilestone || contextAddMilestone;
 
   // Get all milestones for this project
-  const projectMilestones = isCreatingProject && localMilestonesState
-    ? localMilestonesState.milestones || []
-    : projectId
-    ? [...(Array.isArray(contextMilestones) ? contextMilestones.filter(m =>
-        m.projectId === projectId &&
-        m.dueDate >= projectStartDate &&
-        m.dueDate <= projectEndDate
-      ) : []), ...localMilestones.filter(m => 'isNew' in m && m.isNew)]
-    : localMilestones || [];
+  const projectMilestones = useMemo(() => {
+    if (isCreatingProject && localMilestonesState) {
+      return localMilestonesState.milestones || [];
+    }
+
+    if (projectId) {
+      const contextList = Array.isArray(contextMilestones)
+        ? contextMilestones.filter(m =>
+            m.projectId === projectId &&
+            m.dueDate >= projectStartDate &&
+            m.dueDate <= projectEndDate
+          )
+        : [];
+      const localNew = localMilestones.filter(m => 'isNew' in m && m.isNew);
+      return [...contextList, ...localNew];
+    }
+
+    return localMilestones || [];
+  }, [contextMilestones, isCreatingProject, localMilestones, localMilestonesState, projectEndDate, projectId, projectStartDate]);
 
   // Create a new milestone
-  const createMilestone = useCallback(async (milestone: LocalMilestone, options?: { silent?: boolean }) => {
+  const createMilestone = useCallback(async (
+    milestone: LocalMilestone,
+    options?: { silent?: boolean }
+  ) => {
     if (isCreatingProject && localMilestonesState) {
       localMilestonesState.setMilestones([...localMilestonesState.milestones, milestone]);
       return milestone;
     } else if (projectId) {
       try {
-        const created = await addMilestoneToContext(milestone, options);
+  const created = await addMilestoneToContext(milestone as MilestoneCreateInput, options);
         await refetchMilestones();
         return created;
       } catch (error) {
@@ -155,10 +184,10 @@ export function useMilestoneOperations(config: UseMilestoneOperationsConfig) {
   }, [isCreatingProject, localMilestonesState, projectId, contextDeleteMilestone, toast]);
 
   // Update milestone property (delegates to orchestrator)
-  const updateMilestoneProperty = useCallback(async (
+  const updateMilestoneProperty = useCallback(async <K extends keyof Milestone>(
     milestoneId: string,
-    property: string,
-    value: any
+    property: K,
+    value: Milestone[K]
   ) => {
     const validMilestones = projectMilestones.filter(m => m.id) as Milestone[];
     const result = await ProjectMilestoneOrchestrator.updateMilestoneProperty(
@@ -172,7 +201,7 @@ export function useMilestoneOperations(config: UseMilestoneOperationsConfig) {
         isCreatingProject,
         localMilestonesState,
         addMilestone: createMilestone,
-        updateMilestone: async (id: string, updates: any, options?: any) => {
+        updateMilestone: async (id: string, updates: Partial<Milestone>) => {
           await updateMilestone(id, updates);
         },
         setLocalMilestones

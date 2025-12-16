@@ -18,29 +18,35 @@
  */
 import { useCallback } from 'react';
 import { toast } from './use-toast';
-import { 
+import {
   addDaysToDate,
   normalizeToMidnight,
   calculateDaysDeltaFromPixels
 } from '@/services';
 import type { DragState } from '@/services/ui/DragPositioning';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
-import { getPhases } from '@/domain/rules/PhaseRules';
-import type { Milestone } from '@/types/core';
+import { getPhases, type Phase } from '@/domain/rules/PhaseRules';
+import type { Milestone, Project } from '@/types/core';
+
+type UpdateMilestoneFn = (
+  id: string,
+  updates: Partial<Milestone>,
+  options?: { silent?: boolean }
+) => Promise<unknown>;
 
 interface UsePhaseResizeProps {
-  projects: any[];
+  projects: Project[];
   milestones: Milestone[];
   dates: Date[];
   viewportStart: Date;
   viewportEnd: Date;
   timelineMode: 'days' | 'weeks';
-  updateMilestone: (id: string, updates: any, options?: any) => Promise<any>;
+  updateMilestone: UpdateMilestoneFn;
   checkAutoScroll: (clientX: number) => void;
   stopAutoScroll: () => void;
   setIsDragging: (dragging: boolean) => void;
-  setDragState: (state: any) => void;
-  dragState: any;
+  setDragState: (state: DragState | null) => void;
+  dragState: DragState | null;
 }
 
 /**
@@ -73,8 +79,8 @@ function initializePhaseResizeDragState(
  * Calculate bounds for phase resize based on adjacent phases
  */
 function calculatePhaseBounds(
-  phases: any[],
-  currentPhase: any,
+  phases: Phase[],
+  currentPhase: Phase,
   action: 'resize-phase-start' | 'resize-phase-end'
 ): { minDate: Date | null; maxDate: Date | null } {
   const sortedPhases = [...phases].sort((a, b) => 
@@ -87,7 +93,7 @@ function calculatePhaseBounds(
     // When moving start date:
     // - Min: day after previous phase ends (or null if first phase - locked to project start)
     // - Max: one day before current phase end (minimum 1 day duration)
-    const prevPhase = currentIndex > 0 ? sortedPhases[currentIndex - 1] : null;
+  const prevPhase = currentIndex > 0 ? sortedPhases[currentIndex - 1] : null;
     const minDate = prevPhase ? addDaysToDate(new Date(prevPhase.endDate!), 1) : null;
     const maxDate = addDaysToDate(new Date(currentPhase.endDate!), -1); // At least 1 day
     
@@ -96,7 +102,7 @@ function calculatePhaseBounds(
     // When moving end date:
     // - Min: one day after current phase start (minimum 1 day duration)
     // - Max: day before next phase starts (or null if last phase - locked to project end)
-    const nextPhase = currentIndex < sortedPhases.length - 1 ? sortedPhases[currentIndex + 1] : null;
+  const nextPhase = currentIndex < sortedPhases.length - 1 ? sortedPhases[currentIndex + 1] : null;
     const minDate = addDaysToDate(new Date(currentPhase.startDate!), 1); // At least 1 day
     const maxDate = nextPhase ? addDaysToDate(new Date(nextPhase.startDate!), -1) : null;
     
@@ -132,15 +138,15 @@ export function usePhaseResize({
     e.preventDefault();
     e.stopPropagation();
     
-    // Find the phase being resized
-    const targetPhase = milestones.find(m => m.id === phaseId);
-    if (!targetPhase || !targetPhase.startDate) {
-      return;
-    }
-    
     // Get all phases for this project
     const projectMilestones = milestones.filter(m => m.projectId === projectId);
     const phases = getPhases(projectMilestones);
+
+    // Find the phase being resized
+    const targetPhase = phases.find(m => m.id === phaseId);
+    if (!targetPhase) {
+      return;
+    }
     
     // Check if project has recurring template (should be blocked by UI but double-check)
     const hasRecurring = projectMilestones.some(m => m.isRecurring);
@@ -168,7 +174,7 @@ export function usePhaseResize({
     setIsDragging(true);
     setDragState(initialDragState);
     
-    let currentDragStateRef = initialDragState;
+  let currentDragStateRef = initialDragState;
     
     const handleMouseMove = (e: MouseEvent) => {
       try {
@@ -192,7 +198,7 @@ export function usePhaseResize({
           : addDaysToDate(new Date(currentDragStateRef.originalEndDate), daysDelta);
         
         // Get bounds based on adjacent phases
-        const bounds = calculatePhaseBounds(phases, targetPhase, action);
+  const bounds = calculatePhaseBounds(phases, targetPhase, action);
         
         // Apply bounds validation
         let constrainedDate = normalizeToMidnight(newDate);
@@ -234,7 +240,7 @@ export function usePhaseResize({
       // Only update if there was actual movement
       if (finalDaysDelta !== 0) {
         // Calculate final dates
-        const updates: any = {};
+  const updates: Partial<Milestone> = {};
         
         if (action === 'resize-phase-start') {
           const newStartDate = addDaysToDate(new Date(currentDragStateRef.originalStartDate), finalDaysDelta);
@@ -282,11 +288,7 @@ export function usePhaseResize({
     document.addEventListener('mouseup', handleMouseUp);
     
   }, [
-    projects,
     milestones,
-    dates,
-    viewportStart,
-    viewportEnd,
     timelineMode,
     updateMilestone,
     checkAutoScroll,

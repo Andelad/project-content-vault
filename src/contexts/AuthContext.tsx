@@ -1,5 +1,6 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, Session } from '@supabase/supabase-js';
+import { User, Session, AuthError } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured, supabaseConfigError } from '../integrations/supabase/client';
 import { SupabaseConfigError } from '../components/debug/SupabaseConfigError';
 
@@ -7,8 +8,8 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signUp: (email: string, password: string) => Promise<{ error: any }>;
+  signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
+  signUp: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -23,38 +24,50 @@ export const useAuth = () => {
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  if (!isSupabaseConfigured) {
-    return <SupabaseConfigError errorMessage={supabaseConfigError} />;
-  }
-
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    // Set up auth state listener FIRST
+    if (!isSupabaseConfigured) {
+      setLoading(false);
+      return undefined;
+    }
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+      (_event, authSession) => {
+        setSession(authSession);
+        setUser(authSession?.user ?? null);
         setLoading(false);
       }
     );
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+
+    supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
+      setSession(existingSession);
+      setUser(existingSession?.user ?? null);
       setLoading(false);
     });
+
     return () => subscription.unsubscribe();
   }, []);
+
   const signIn = async (email: string, password: string) => {
+    if (!isSupabaseConfigured) {
+      return { error: new AuthError('Supabase is not configured') };
+    }
+
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
     return { error };
   };
+
   const signUp = async (email: string, password: string) => {
+    if (!isSupabaseConfigured) {
+      return { error: new AuthError('Supabase is not configured') };
+    }
+
     const redirectUrl = `${window.location.origin}/`;
     const { error } = await supabase.auth.signUp({
       email,
@@ -65,11 +78,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
     return { error };
   };
+
   const signOut = async () => {
+    if (!isSupabaseConfigured) {
+      return;
+    }
     await supabase.auth.signOut();
     window.location.href = '/';
   };
-  const value = {
+  if (!isSupabaseConfigured) {
+    return <SupabaseConfigError errorMessage={supabaseConfigError} />;
+  }
+
+  const value: AuthContextType = {
     user,
     session,
     loading,
@@ -77,5 +98,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signUp,
     signOut,
   };
+
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

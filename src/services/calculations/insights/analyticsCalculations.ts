@@ -80,7 +80,7 @@ export function calculateWeeklyCapacity(weeklyWorkHours: WeeklyWorkHours): numbe
 /**
  * Calculate daily work capacity for a specific date
  */
-export function calculateDailyCapacity(date: Date, weeklyWorkHours: any): number {
+export function calculateDailyCapacity(date: Date, weeklyWorkHours: WeeklyWorkHours): number {
   if (!weeklyWorkHours) return 0;
 
   const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
@@ -89,7 +89,7 @@ export function calculateDailyCapacity(date: Date, weeklyWorkHours: any): number
 
   if (Array.isArray(dayData)) {
     // Use the same logic as calculateWeeklyCapacity for consistency
-    return dayData.reduce((sum: number, slot: any) => sum + (slot.duration || 0), 0);
+    return dayData.reduce((sum, slot) => sum + (slot.duration || 0), 0);
   }
   return dayData || 0;
 }

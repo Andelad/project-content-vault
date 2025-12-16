@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
@@ -16,11 +16,33 @@ export function useHabits() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
+  const fetchHabits = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('calendar_events')
+        .select('*')
+        .eq('category', 'habit')
+        .order('start_time', { ascending: true });
+
+      if (error) throw error;
+      setHabits(data || []);
+    } catch (error) {
+      ErrorHandlingService.handle(error, { source: 'useHabits', action: 'Error fetching habits:' });
+      toast({
+        title: "Error",
+        description: "Failed to load habits",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
+
   useEffect(() => {
     fetchHabits();
 
     // Set up realtime subscription for cross-window sync
-    let channel: any = null;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
 
     const setupRealtimeSubscription = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -95,29 +117,7 @@ export function useHabits() {
         supabase.removeChannel(channel);
       }
     };
-  }, []);
-
-  const fetchHabits = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('calendar_events')
-        .select('*')
-        .eq('category', 'habit')
-        .order('start_time', { ascending: true });
-
-      if (error) throw error;
-      setHabits(data || []);
-    } catch (error) {
-      ErrorHandlingService.handle(error, { source: 'useHabits', action: 'Error fetching habits:' });
-      toast({
-        title: "Error",
-        description: "Failed to load habits",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [fetchHabits]);
 
   const addHabit = async (
     habitData: Omit<CalendarEventInsert, 'user_id' | 'category' | 'project_id'>, 

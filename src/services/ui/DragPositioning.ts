@@ -33,6 +33,11 @@ export interface DragState {
   lastDaysDelta: number;
   mode?: 'days' | 'weeks';
   isDynamicWidth?: boolean;
+  // Derived/visual fields applied during drag lifecycle
+  pixelDeltaX?: number;
+  lastSnappedDelta?: number;
+  visualDelta?: number;
+  isValid?: boolean;
 }
 
 /**

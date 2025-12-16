@@ -1,5 +1,7 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useCallback, useMemo, useEffect } from 'react';
-import { CalendarEvent, Holiday } from '@/types';
+import { CalendarEvent, Holiday, WorkHour, Project } from '@/types';
+import type { Database } from '@/integrations/supabase/types';
 import { useEvents } from '@/hooks/useEvents';
 import { useHabits } from '@/hooks/useHabits';
 import { useHolidays } from '@/hooks/useHolidays';
@@ -14,6 +16,19 @@ import { ensureRecurringEventsExist } from '@/services';
 import { UnifiedTimeTrackerService } from '@/services';
 import { useSettingsContext } from './SettingsContext';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+type HabitRow = Database['public']['Tables']['calendar_events']['Row'];
+type HabitInsert = Database['public']['Tables']['calendar_events']['Insert'];
+type HabitUpdate = Database['public']['Tables']['calendar_events']['Update'];
+type CalendarEventUpdateRow = Database['public']['Tables']['calendar_events']['Update'];
+
+interface PendingWorkHourChange {
+  type: 'update' | 'delete' | 'add';
+  workHourId?: string;
+  updates?: Partial<Omit<WorkHour, 'id'>>;
+  newWorkHour?: Omit<WorkHour, 'id'>;
+  isFromSettings?: boolean;
+}
+
 interface PlannerContextType {
   // Calendar Events
   events: CalendarEvent[];
@@ -22,11 +37,11 @@ interface PlannerContextType {
   updateEvent: (id: string, updates: Partial<CalendarEvent>, options?: { silent?: boolean }) => Promise<void>;
   deleteEvent: (id: string, options?: { silent?: boolean }) => Promise<void>;
   // Habits
-  habits: any[];
-  isHabitsLoading: boolean;
-  addHabit: (habit: any) => Promise<any>;
-  updateHabit: (id: string, updates: any, options?: { silent?: boolean }) => Promise<any>;
-  deleteHabit: (id: string, options?: { silent?: boolean }) => Promise<void>;
+    habits: HabitRow[];
+    isHabitsLoading: boolean;
+    addHabit: (habit: Omit<HabitInsert, 'user_id' | 'category' | 'project_id'>, options?: { silent?: boolean }) => Promise<HabitRow>;
+    updateHabit: (id: string, updates: Omit<HabitUpdate, 'category' | 'project_id'>, options?: { silent?: boolean }) => Promise<HabitRow>;
+    deleteHabit: (id: string, options?: { silent?: boolean }) => Promise<void>;
   creatingNewHabit: { startTime?: Date; endTime?: Date } | null;
   setCreatingNewHabit: (times: { startTime: Date; endTime: Date } | null) => void;
   // Recurring Events
@@ -36,22 +51,22 @@ interface PlannerContextType {
   updateRecurringSeriesFuture: (eventId: string, updates: Partial<CalendarEvent>) => Promise<void>;
   updateRecurringSeriesAll: (eventId: string, updates: Partial<CalendarEvent>) => Promise<void>;
   // Holidays
-  holidays: Holiday[];
-  isHolidaysLoading: boolean;
-  addHoliday: (holiday: any) => Promise<any>;
-  updateHoliday: (id: string, updates: any, options?: { silent?: boolean }) => Promise<any>;
-  deleteHoliday: (id: string) => Promise<any>;
+    holidays: Holiday[];
+    isHolidaysLoading: boolean;
+    addHoliday: (holiday: Holiday) => Promise<unknown>;
+    updateHoliday: (id: string, updates: Partial<Holiday>, options?: { silent?: boolean }) => Promise<unknown>;
+    deleteHoliday: (id: string) => Promise<void>;
   creatingNewHoliday: { startDate: Date; endDate: Date } | null;
   setCreatingNewHoliday: (creating: { startDate: Date; endDate: Date } | null) => void;
   editingHolidayId: string | null;
   setEditingHolidayId: (holidayId: string | null) => void;
   // Work Hours
-  workHours: any[];
+  workHours: WorkHour[];
   isWorkHoursLoading: boolean;
-  updateWorkHour: (id: string, updates: Partial<any>, scope?: 'this-day' | 'all-future') => Promise<void>;
+  updateWorkHour: (id: string, updates: Partial<Omit<WorkHour, 'id'>>, scope?: 'this-day' | 'all-future') => Promise<void>;
   deleteWorkHour: (id: string, scope?: 'this-day' | 'all-future') => Promise<void>;
   showWorkHourScopeDialog: boolean;
-  pendingWorkHourChange: any;
+  pendingWorkHourChange: PendingWorkHourChange | null;
   confirmWorkHourChange: (scope: 'this-day' | 'all-future') => Promise<void>;
   cancelWorkHourChange: () => void;
   // UI State
@@ -78,7 +93,7 @@ interface PlannerContextType {
   // FullCalendar Events
   fullCalendarEvents: EventInput[];
   // Method to get styled events with project context
-  getStyledFullCalendarEvents: (options: { selectedEventId?: string | null; projects?: any[] }) => EventInput[];
+  getStyledFullCalendarEvents: (options: { selectedEventId?: string | null; projects?: Project[] }) => EventInput[];
   // Method to ensure recurring events exist for future viewing
   ensureEventsForDateRange: (startDate: Date, endDate: Date) => Promise<void>;
   // Utility functions
@@ -281,7 +296,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
     }));
   }, [dbHolidays]);
   const updateEvent = useCallback(async (id: string, updates: Partial<CalendarEvent>, options?: { silent?: boolean }): Promise<void> => {
-    const dbUpdates: any = {};
+    const dbUpdates: CalendarEventUpdateRow = {};
     if (updates.title !== undefined) dbUpdates.title = updates.title;
     if (updates.description !== undefined) dbUpdates.description = updates.description;
     if (updates.startTime !== undefined) dbUpdates.start_time = updates.startTime.toISOString();
@@ -606,7 +621,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
   }, [processedEvents, workHours, layerMode, dbHabits, workHourExceptions]);
 
   // Method to get styled events with project context
-  const getStyledFullCalendarEvents = useCallback((options: { selectedEventId?: string | null; projects?: any[] } = {}) => {
+  const getStyledFullCalendarEvents = useCallback((options: { selectedEventId?: string | null; projects?: Project[] } = {}) => {
     return prepareEventsForFullCalendar(
       processedEvents,
       workHours || [],

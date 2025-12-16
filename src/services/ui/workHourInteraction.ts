@@ -26,6 +26,7 @@ import {
   adjustEndTime,
   formatTime
 } from '../calculations/general/timeCalculations';
+import type { WorkHour } from '@/types/core';
 
 // ============================================================================
 // TYPES & CONSTANTS
@@ -140,17 +141,17 @@ export function handleWorkHourCreationMove(
 export function handleWorkHourCreationComplete(
   startTime: Date,
   endTime: Date,
-  existingWorkHours: any[] = []
+  existingWorkHours: WorkHour[] = []
 ): { startTime: Date; endTime: Date; duration: number; formattedDuration: string; isValid: boolean; validationErrors: string[] } {
   const adjustedEndTime = adjustEndTime(startTime, endTime);
   const duration = calculateDurationHours(startTime, adjustedEndTime);
   const validationErrors: string[] = [];
-  
+
   // Basic validation
   if (duration < WORK_HOUR_CONSTANTS.MIN_DURATION_MINUTES / 60) {
     validationErrors.push('Duration must be at least 15 minutes');
   }
-  
+
   return {
     startTime,
     endTime: adjustedEndTime,
@@ -172,21 +173,20 @@ export function handleWorkHourCreationComplete(
 export function getWorkHourOverlapInfo(
   startTime: Date,
   endTime: Date,
-  existingWorkHours: any[]
-): { hasOverlaps: boolean; overlaps: any[]; overlapDuration: number } {
+  existingWorkHours: WorkHour[]
+): { hasOverlaps: boolean; overlaps: WorkHour[]; overlapDuration: number } {
   const overlaps = existingWorkHours.filter(workHour => {
     const workHourStart = new Date(workHour.startTime);
     const workHourEnd = new Date(workHour.endTime);
-    return (startTime < workHourEnd && endTime > workHourStart);
+    return startTime < workHourEnd && endTime > workHourStart;
   });
-  
-  let overlapDuration = 0;
-  overlaps.forEach(overlap => {
+
+  const overlapDuration = overlaps.reduce((total, overlap) => {
     const overlapStart = Math.max(startTime.getTime(), new Date(overlap.startTime).getTime());
     const overlapEnd = Math.min(endTime.getTime(), new Date(overlap.endTime).getTime());
-    overlapDuration += (overlapEnd - overlapStart) / (1000 * 60 * 60); // Convert to hours
-  });
-  
+    return total + (overlapEnd - overlapStart) / (1000 * 60 * 60);
+  }, 0);
+
   return {
     hasOverlaps: overlaps.length > 0,
     overlaps,
@@ -208,10 +208,10 @@ export function generateWorkHourPreviewStyle(
 ): { top: string; height: string; opacity: string } {
   const startHour = startTime.getHours() + startTime.getMinutes() / 60;
   const endHour = endTime.getHours() + endTime.getMinutes() / 60;
-  
+
   const topOffset = (startHour - WORK_HOUR_CONSTANTS.MIN_HOUR) * 60; // 60px per hour
   const height = (endHour - startHour) * 60;
-  
+
   return {
     top: `${topOffset}px`,
     height: `${height}px`,
@@ -249,7 +249,7 @@ export function formatWorkSlotDurationDisplay(
   const duration = calculateDurationHours(startTime, endTime);
   const formattedTime = `${formatTime(startTime)} - ${formatTime(endTime)}`;
   const formattedDuration = formatDuration(duration);
-  
+
   return `${formattedTime} (${formattedDuration})`;
 }
 
@@ -257,6 +257,6 @@ export function formatWorkSlotDurationDisplay(
  * Format time for display in work hour components
  * Simple wrapper for time formatting
  */
-export function formatTimeForDisplay(date: Date): string {
-  return formatTime(date);
+export function formatWorkHourTimeDisplay(time: Date): string {
+  return formatTime(time);
 }

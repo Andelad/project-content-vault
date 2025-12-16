@@ -382,11 +382,37 @@
 }
 
 /* Today styling - using brand color in OKLCH */
-.fc-day-today {
-  background-color: transparent !important; /* No background shading on today column */
+
+/* Header row only: subtle brand tint */
+.fc-col-header-cell.fc-day-today {
+  /* Match the lighter planner column overlay intensity */
+  background-color: color-mix(in oklch, var(--brand-primary-light) 25%, transparent) !important;
 }
 
-.fc-day-today .fc-col-header-cell-cushion {
+/* Do NOT apply background to body cells via the generic fc-day-today class */
+.fc-day-today:not(.fc-col-header-cell) {
+  background-color: transparent !important;
+}
+
+/* Light, non-intrusive today column overlay in planner views */
+.fc-timegrid-col.fc-day-today,
+.fc-daygrid-day.fc-day-today {
+  position: relative;
+}
+
+.fc-timegrid-col.fc-day-today::before,
+.fc-daygrid-day.fc-day-today::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-color: var(--brand-primary-light);
+  opacity: 0.25; /* Softer overlay for planner columns */
+  pointer-events: none;
+  z-index: var(--z-base);
+}
+
+.fc-day-today .fc-col-header-cell-cushion,
+.fc-col-header-cell.fc-day-today .fc-col-header-cell-cushion {
   color: var(--brand-primary-text); /* Darker brand blue for text */
   font-weight: 600;
 }

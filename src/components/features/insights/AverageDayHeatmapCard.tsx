@@ -25,6 +25,11 @@ interface HeatmapTimeSlot {
   eventCount: number; // Number of events that occurred in this slot
 }
 
+type StreamPoint = {
+  time: string;
+  [key: string]: number | string;
+};
+
 type AveragePeriod = 'week' | 'month' | '6months';
 type LayerMode = 'single' | 'group' | 'project';
 
@@ -313,7 +318,7 @@ export const AverageDayHeatmapCard: React.FC<AverageDayHeatmapCardProps> = ({
 
       // Convert to stream format
       return heatmapData.map(slot => {
-        const dataPoint: any = { time: slot.timeString };
+        const dataPoint: StreamPoint = { time: slot.timeString };
         groups.forEach(group => {
           const avgDuration = validDaysCount > 0 ? groupData[group.id][slot.timeString] / validDaysCount : 0;
           dataPoint[group.name] = Math.min(avgDuration, 1.0);
@@ -395,7 +400,7 @@ export const AverageDayHeatmapCard: React.FC<AverageDayHeatmapCardProps> = ({
 
       // Convert to stream format
       return heatmapData.map(slot => {
-        const dataPoint: any = { time: slot.timeString };
+        const dataPoint: StreamPoint = { time: slot.timeString };
         relevantProjects.forEach(projectId => {
           const project = projects.find(p => p.id === projectId);
           if (project) {
@@ -413,18 +418,18 @@ export const AverageDayHeatmapCard: React.FC<AverageDayHeatmapCardProps> = ({
     if (layerMode === 'single') {
       return [{
         id: 'work',
-        data: streamData.map((d: any, index) => ({
+        data: streamData.map((d: StreamPoint, index) => ({
           x: index,
-          y: Math.min(d.work || 0, 0.5), // Cap at 30 minutes (0.5 hours)
+          y: Math.min(Number(d.work) || 0, 0.5), // Cap at 30 minutes (0.5 hours)
           time: d.time
         }))
       }];
     } else if (layerMode === 'group') {
       return groups.map(group => ({
         id: group.name,
-        data: streamData.map((d: any, index) => ({
+        data: streamData.map((d: StreamPoint, index) => ({
           x: index,
-          y: Math.min(d[group.name] || 0, 0.5), // Cap at 30 minutes
+          y: Math.min(Number(d[group.name]) || 0, 0.5), // Cap at 30 minutes
           time: d.time
         }))
       }));
@@ -438,9 +443,9 @@ export const AverageDayHeatmapCard: React.FC<AverageDayHeatmapCardProps> = ({
       const relevantProjects = projects.filter(p => projectIds.has(p.id));
       return relevantProjects.map(project => ({
         id: project.name,
-        data: streamData.map((d: any, index) => ({
+        data: streamData.map((d: StreamPoint, index) => ({
           x: index,
-          y: Math.min(d[project.name] || 0, 0.5), // Cap at 30 minutes
+          y: Math.min(Number(d[project.name]) || 0, 0.5), // Cap at 30 minutes
           time: d.time
         }))
       }));
@@ -615,11 +620,12 @@ export const AverageDayHeatmapCard: React.FC<AverageDayHeatmapCardProps> = ({
                         >
                           <div className="font-semibold text-slate-900">Avg time spent</div>
                           <div className="mt-2 space-y-1">
-                            {slice.points.map((point: any) => {
+                            {slice.points.map((point) => {
                               const minutes = Math.round(Number(point.data.y) * 60);
+                              const label = (point as { serieId?: string }).serieId ?? String(point.id);
                               return (
                                 <div key={point.id} className="font-medium text-slate-900">
-                                  {point.serieId} - {minutes} min
+                                  {label} - {minutes} min
                                 </div>
                               );
                             })}

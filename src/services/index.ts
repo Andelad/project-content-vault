@@ -199,7 +199,7 @@ export {
 import { calculateEventDurationOnDate as calculateEventDurationOnDateNew } from './calculations/events/eventCalculations';
 
 // Legacy wrapper - maintains old function signature
-export function calculateEventDurationOnDateLegacy(event: any, targetDate: Date): number {
+export function calculateEventDurationOnDateLegacy(event: CalendarEvent, targetDate: Date): number {
   return calculateEventDurationOnDateNew({ event, targetDate });
 }
 export { calculateWorkHourCapacity, getWorkHoursCapacityForPeriod } from './calculations/availability/capacityAnalysis';
@@ -257,7 +257,6 @@ export {
   initializeHolidayDragState,
   type SmoothAnimationConfig 
 } from './ui/DragPositioning';
-export { formatTimeForDisplay } from './ui/workHourInteraction';
 export { handleWorkHourCreationStart, handleWorkHourCreationMove, handleWorkHourCreationComplete } from './ui/workHourInteraction';
 export { getWorkHourOverlapInfo, generateWorkHourPreviewStyle, getWorkHourCreationCursor, shouldAllowWorkHourCreation, type WorkHourCreateState } from './ui/workHourInteraction';
 // PositionCalculation type migrated to ui/TimelinePositioning.ts
@@ -284,6 +283,7 @@ export { checkProjectOverlap, adjustProjectDatesForDrag, detectLiveDragConflicts
 
 import { CalculationCacheService, WorkingDayCache } from './performance';
 import * as React from 'react';
+import type { CalendarEvent, Holiday, Settings, WorkSlot } from '@/types';
 
 /**
  * Working day cache compatibility - migrated from /lib/workingDayCache
@@ -313,23 +313,23 @@ export const workingDayStats = {
 /**
  * Cached working day checker hook - migrated from /lib/workingDayCache
  */
-export function useCachedWorkingDayChecker(
-  weeklyWorkHours: any,
-  holidays: any[]
+type WeeklyWorkHours = Settings['weeklyWorkHours'];
+const DAY_NAMES: Array<keyof WeeklyWorkHours> = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+export function createWorkingDayChecker(
+  weeklyWorkHours: WeeklyWorkHours | undefined,
+  holidays: Holiday[]
 ) {
-  return React.useCallback((date: Date) => {
+  return (date: Date) => {
     return WorkingDayCache.isWorkingDay(
       date,
       weeklyWorkHours,
       holidays,
-      // Embedded working day logic - preserving original behavior
-      (date: Date, weeklyWorkHours: any, holidays: any[]) => {
-        // Normalize date to avoid time component issues
-        const checkDate = new Date(date);
+      (dateArg: Date, weeklyWorkHoursArg: WeeklyWorkHours | undefined, holidaysArg: Holiday[]) => {
+        const checkDate = new Date(dateArg);
         checkDate.setHours(0, 0, 0, 0);
 
-        // Check holidays first (fastest rejection)
-        const isHoliday = holidays.some((holiday: any) => {
+        const isHoliday = holidaysArg.some((holiday) => {
           const startDate = new Date(holiday.startDate);
           const endDate = new Date(holiday.endDate);
           startDate.setHours(0, 0, 0, 0);
@@ -339,20 +339,24 @@ export function useCachedWorkingDayChecker(
 
         if (isHoliday) return false;
 
-        // Check work hours for this day of week
-        const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-        const dayName = dayNames[checkDate.getDay()];
-        const workSlots = weeklyWorkHours[dayName] || [];
+        const dayName = DAY_NAMES[checkDate.getDay()];
+        const workSlots = weeklyWorkHoursArg?.[dayName] ?? [];
 
-        // Sum total work hours for this day
         const totalHours = Array.isArray(workSlots)
-          ? workSlots.reduce((sum: number, slot: any) => sum + (slot.duration || 0), 0)
+          ? workSlots.reduce((sum: number, slot: WorkSlot) => sum + (slot.duration || 0), 0)
           : 0;
 
         return totalHours > 0;
       }
     );
-  }, [weeklyWorkHours, holidays]);
+  };
+}
+
+export function useCachedWorkingDayChecker(
+  weeklyWorkHours: WeeklyWorkHours | undefined,
+  holidays: Holiday[]
+) {
+  return React.useMemo(() => createWorkingDayChecker(weeklyWorkHours, holidays), [weeklyWorkHours, holidays]);
 }
 
 /**

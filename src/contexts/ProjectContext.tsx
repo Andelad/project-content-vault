@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useCallback, useMemo, useRef } from 'react';
 import { Project, Group, Row } from '@/types/core';
 import { useProjects as useProjectsHook } from '@/hooks/useProjects';
@@ -382,7 +383,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         timeAllocationHours: result.time_allocation_hours,
         startDate: result.start_date ? new Date(result.start_date) : undefined,
         isRecurring: result.is_recurring ?? undefined,
-        recurringConfig: result.recurring_config as any,
+  recurringConfig: result.recurring_config ?? undefined,
         userId: result.user_id,
         createdAt: new Date(result.created_at),
         updatedAt: new Date(result.updated_at)

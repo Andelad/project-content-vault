@@ -10,8 +10,10 @@ import {
   useMilestoneBudget,
   useRecurringMilestones,
   RecurringMilestoneConfig,
+  RecurringMilestone,
   LocalMilestone
 } from '@/hooks/milestone';
+import type { Milestone } from '@/types/core';
 import {
   PhaseCard,
   RecurringPhaseCard,
@@ -19,6 +21,20 @@ import {
 } from '../phases';
 import { UnifiedMilestoneService, ProjectMilestoneOrchestrator, addDaysToDate } from '@/services';
 import { PhaseRules, type Phase } from '@/domain/rules/PhaseRules';
+
+type AutoEstimateDays = {
+  monday: boolean;
+  tuesday: boolean;
+  wednesday: boolean;
+  thursday: boolean;
+  friday: boolean;
+  saturday: boolean;
+  sunday: boolean;
+};
+
+type LocalValuesState = {
+  autoEstimateDays?: AutoEstimateDays;
+};
 
 interface ProjectMilestoneSectionProps {
   projectId?: string;
@@ -37,23 +53,13 @@ interface ProjectMilestoneSectionProps {
     setMilestones: (milestones: LocalMilestone[]) => void;
   };
   isCreatingProject?: boolean;
-  trackedAddMilestone?: (milestone: any, options?: { silent?: boolean }) => Promise<any>;
-  localValues?: {
-    autoEstimateDays?: {
-      monday: boolean;
-      tuesday: boolean;
-      wednesday: boolean;
-      thursday: boolean;
-      friday: boolean;
-      saturday: boolean;
-      sunday: boolean;
-    };
-  };
-  setLocalValues?: (updater: (prev: any) => any) => void;
-  onAutoEstimateDaysChange?: (newAutoEstimateDays: any) => void;
+  trackedAddMilestone?: (milestone: LocalMilestone, options?: { silent?: boolean }) => Promise<LocalMilestone | Milestone>;
+  localValues?: LocalValuesState;
+  setLocalValues?: (updater: (prev: LocalValuesState) => LocalValuesState) => void;
+  onAutoEstimateDaysChange?: (newAutoEstimateDays: AutoEstimateDays | undefined) => void;
   editingProperty?: string | null;
   setEditingProperty?: (property: string | null) => void;
-  handleSaveProperty?: (property: string, value: any) => void;
+  handleSaveProperty?: (property: string, value: string | number | boolean | Date | null | undefined) => void;
   recurringMilestoneInfo?: {
     hasRecurring: boolean;
     totalAllocation: number;
@@ -149,6 +155,11 @@ export function ProjectMilestoneSection({
     isCreatingProject,
     localMilestonesState
   });
+
+  const getExclusivityValidation = () => PhaseRules.checkPhaseRecurringExclusivity(projectMilestones as Milestone[]);
+  const persistedProjectMilestones = projectMilestones.filter(
+    (milestone): milestone is Milestone => Boolean(milestone.id)
+  );
 
   const { totalRecurringAllocation, budgetAnalysis } = useMilestoneBudget({
     projectMilestones,
@@ -366,7 +377,7 @@ export function ProjectMilestoneSection({
   // Handle initiating split (with warning if milestones exist)
   const handleInitiateSplit = () => {
     // DOMAIN RULE: Check mutual exclusivity before creating phases
-    const validation = PhaseRules.checkPhaseRecurringExclusivity(projectMilestones as any);
+    const validation = getExclusivityValidation();
     
     // Block if already has recurring template (don't allow mix)
     if (validation.hasRecurringTemplate) {
@@ -443,9 +454,9 @@ export function ProjectMilestoneSection({
       projectId,
       newLoad,
       {
-        projectMilestones: projectMilestones.filter(m => m.id) as any[],
+        projectMilestones: persistedProjectMilestones,
         recurringMilestone,
-        updateMilestone: async (id: string, updates: any) => {
+        updateMilestone: async (id: string, updates: Partial<Milestone>) => {
           await updateMilestone(id, updates);
         },
         setRecurringMilestone
@@ -462,7 +473,7 @@ export function ProjectMilestoneSection({
   };
 
   // Handle updating recurring milestone pattern
-  const handleUpdateRecurringPattern = async (updates: Partial<any>) => {
+  const handleUpdateRecurringPattern = async (updates: Partial<RecurringMilestone>) => {
     if (!recurringMilestone) return;
 
     const updatedMilestone = { ...recurringMilestone, ...updates };
@@ -549,7 +560,7 @@ export function ProjectMilestoneSection({
                 variant="outline"
                 onClick={() => {
                   // DOMAIN RULE: Check mutual exclusivity before creating recurring template
-                  const validation = PhaseRules.checkPhaseRecurringExclusivity(projectMilestones as any);
+                  const validation = getExclusivityValidation();
                   
                   // Block if already has split phases (don't allow mix)
                   if (validation.hasSplitPhases && !validation.hasRecurringTemplate) {
@@ -588,7 +599,7 @@ export function ProjectMilestoneSection({
 
         {/* State Inconsistency Warning - shows when validation detects phases but UI doesn't show them */}
         {(() => {
-          const validation = PhaseRules.checkPhaseRecurringExclusivity(projectMilestones as any);
+          const validation = getExclusivityValidation();
           const visiblePhases = phases.length;
           const hasInconsistency = (validation.hasSplitPhases && visiblePhases === 0) || 
                                    (validation.hasRecurringTemplate && !recurringMilestone);

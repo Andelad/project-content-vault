@@ -31,6 +31,7 @@ import {
 import { formatDateShort, formatWeekdayDate } from '@/utils/dateFormatUtils';
 import type { Holiday } from '../../types';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import type { DragState } from './DragPositioning';
 
 // Re-export date calculation functions for backwards compatibility
 export { 
@@ -235,13 +236,13 @@ export function getTimelinePositions(
  * Handles smooth visual feedback during project bar dragging
  */
 export function calculateBaselineVisualOffsets(
-  positions: any,
+  positions: TimelinePositionCalculation,
   isDragging: boolean,
-  dragState: any,
+  dragState: DragState | null | undefined,
   projectId: string,
   mode: 'days' | 'weeks' = 'days'
-): any {
-  let adjustedPositions = { ...positions };
+): TimelinePositionCalculation {
+  let adjustedPositions: TimelinePositionCalculation = { ...positions };
 
   if (isDragging && dragState?.projectId === projectId) {
     // Use lastDaysDelta for consistent snapping across all modes
@@ -278,9 +279,9 @@ export function calculateBaselineVisualOffsets(
  * Applies drag state to project dates for immediate visual feedback
  */
 export function calculateVisualProjectDates(
-  project: any,
+  project: { id: string; startDate: Date; endDate?: Date; continuous?: boolean },
   isDragging: boolean,
-  dragState: any
+  dragState: DragState | null | undefined
 ): { visualProjectStart: Date; visualProjectEnd: Date } {
   let visualProjectStart = new Date(project.startDate);
   // CRITICAL: For continuous projects, endDate should not be used for visuals
@@ -367,6 +368,7 @@ export function calculateTimelineColumnMarkerData(
   mode: 'days' | 'weeks' = 'days'
 ): TimelineColumnData[] {
   const columnWidth = mode === 'weeks' ? 153 : 52;
+  const WEEK_DAY_WIDTH_PX = 22; // 21px day + 1px gap
   const today = new Date();
   
   return dates.map((date, index) => {
@@ -392,8 +394,8 @@ export function calculateTimelineColumnMarkerData(
         
         if (!isWeekendDay) return null;
         
-        const leftPx = (dayOffset / 7) * columnWidth;
-        const dayWidthPx = 22; // 21px day + 1px gap = 22px effective spacing
+  const leftPx = dayOffset * WEEK_DAY_WIDTH_PX;
+  const dayWidthPx = WEEK_DAY_WIDTH_PX;
         
         return {
           leftPx,
@@ -411,7 +413,7 @@ export function calculateTimelineColumnMarkerData(
       if (isCurrentDay) {
         const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
         const daysFromWeekStart = (dayOfWeek + 6) % 7; // Convert to Monday = 0 system
-        todayPositionPx = (daysFromWeekStart / 7) * columnWidth;
+        todayPositionPx = daysFromWeekStart * WEEK_DAY_WIDTH_PX;
       }
       
       return {

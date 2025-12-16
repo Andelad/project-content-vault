@@ -1,9 +1,25 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { Settings, WorkHourOverride } from '@/types/core';
+import { Settings, WorkHour, WorkHourOverride, TimelineEntry } from '@/types/core';
 import { useSettings as useSettingsHook } from '@/hooks/useSettings';
 import { UnifiedTimeTrackerService } from '@/services';
 import { supabase } from '@/integrations/supabase/client';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import type { Database } from '@/integrations/supabase/types';
+
+type SettingsRow = (Database['public']['Tables']['settings']['Row']) & {
+  default_view?: string | null;
+  is_compact_view?: boolean | null;
+  weekly_work_hours?: Settings['weeklyWorkHours'] | null;
+};
+type SettingsUpdatePayload = Partial<Database['public']['Tables']['settings']['Update']> & {
+  weekly_work_hours?: Settings['weeklyWorkHours'];
+  default_view?: string;
+  is_compact_view?: boolean;
+};
+
+type TimelineEntryWithId = TimelineEntry & { id: string };
+type RealtimeSubscription = { unsubscribe: () => void };
 
 interface SettingsContextType {
   // Settings
@@ -12,14 +28,14 @@ interface SettingsContextType {
   setDefaultView: (defaultViewSetting: string) => void;
   
   // Work Hours
-  workHours: any[];
+  workHours: WorkHour[];
   workHourOverrides: WorkHourOverride[];
   addWorkHourOverride: (override: WorkHourOverride) => void;
   removeWorkHourOverride: (date: string, dayName: string, slotIndex: number) => void;
   
   // Timeline entries (legacy - to be refactored)
-  timelineEntries: any[];
-  updateTimelineEntry: (entry: any) => void;
+  timelineEntries: TimelineEntryWithId[];
+  updateTimelineEntry: (entry: TimelineEntryWithId) => void;
   
   // Time tracking state
   isTimeTracking: boolean;
@@ -43,11 +59,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
   // Local state
   const [workHourOverrides, setWorkHourOverrides] = useState<WorkHourOverride[]>([]);
-  const [workHours] = useState<any[]>([]);
-  const [timelineEntries, setTimelineEntries] = useState<any[]>([]);
+  const [workHours] = useState<WorkHour[]>([]);
+  const [timelineEntries, setTimelineEntries] = useState<TimelineEntryWithId[]>([]);
   const [isTimeTracking, setIsTimeTracking] = useState<boolean>(false);
   const [currentTrackingEventId, setCurrentTrackingEventId] = useState<string | null>(null);
-  const [realtimeSubscription, setRealtimeSubscription] = useState<any>(null);
+  const [realtimeSubscription, setRealtimeSubscription] = useState<RealtimeSubscription | null>(null);
 
   // Initialize sync service when user is available
   useEffect(() => {
@@ -118,7 +134,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         realtimeSubscription.unsubscribe();
       }
     };
-  }, []);
+  }, [realtimeSubscription]);
 
   // Update setIsTimeTracking - DO NOT sync to database here
   // The workflow handlers already save complete state to the database
@@ -161,15 +177,17 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     return false;
   });
 
-  const processedSettings: Settings = dbSettings ? {
-    weeklyWorkHours: (typeof dbSettings.weekly_work_hours === 'object' && 
-                     dbSettings.weekly_work_hours !== null && 
-                     !Array.isArray(dbSettings.weekly_work_hours) &&
-                     'monday' in dbSettings.weekly_work_hours) 
-      ? dbSettings.weekly_work_hours as unknown as Settings['weeklyWorkHours']
+  const dbSettingsTyped = dbSettings as SettingsRow | null;
+
+  const processedSettings: Settings = dbSettingsTyped ? {
+    weeklyWorkHours: (typeof dbSettingsTyped.weekly_work_hours === 'object' && 
+                     dbSettingsTyped.weekly_work_hours !== null && 
+                     !Array.isArray(dbSettingsTyped.weekly_work_hours) &&
+                     'monday' in dbSettingsTyped.weekly_work_hours) 
+      ? dbSettingsTyped.weekly_work_hours as unknown as Settings['weeklyWorkHours']
       : defaultSettings.weeklyWorkHours,
-    defaultView: (dbSettings as any).default_view || localDefaultView,
-    isCompactView: (dbSettings as any).is_compact_view ?? localIsCompactView
+    defaultView: dbSettingsTyped.default_view || localDefaultView,
+    isCompactView: dbSettingsTyped.is_compact_view ?? localIsCompactView
   } : { ...defaultSettings, defaultView: localDefaultView, isCompactView: localIsCompactView };
 
   // Helper function to set view based on default view setting
@@ -192,7 +210,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
-  const updateTimelineEntry = useCallback((entry: any) => {
+  const updateTimelineEntry = useCallback((entry: TimelineEntryWithId) => {
     setTimelineEntries(prev => {
       const index = prev.findIndex(e => e.id === entry.id);
       if (index >= 0) {
@@ -207,9 +225,9 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
   const updateSettings = useCallback((updates: Partial<Settings>) => {
     // Transform frontend Settings to database format
-    const dbUpdates: any = {};
+    const dbUpdates: SettingsUpdatePayload = {};
     if (updates.weeklyWorkHours) {
-      dbUpdates.weekly_work_hours = updates.weeklyWorkHours;
+      dbUpdates.weekly_work_hours = updates.weeklyWorkHours as unknown as SettingsRow['weekly_work_hours'];
     }
     if (updates.defaultView !== undefined) {
       dbUpdates.default_view = updates.defaultView;
@@ -227,7 +245,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     }
     // Only attempt database update if there are actual DB fields to update
     if (Object.keys(dbUpdates).length > 0 && updates.weeklyWorkHours) {
-      return dbUpdateSettings(dbUpdates);
+      return dbUpdateSettings(dbUpdates as Partial<Database['public']['Tables']['settings']['Update']>);
     }
     // Return resolved promise for non-DB updates (localStorage only)
     return Promise.resolve();

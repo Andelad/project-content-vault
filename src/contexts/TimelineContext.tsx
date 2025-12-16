@@ -1,5 +1,9 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import { TimelineEntry } from '@/types/core';
+
+type TimelineEntryWithId = TimelineEntry & { id: string };
 
 interface TimelineContextType {
   // Timeline View State
@@ -11,8 +15,8 @@ interface TimelineContextType {
   setCurrentDate: (date: Date) => void;
   
   // Timeline Entries (legacy - to be refactored)
-  timelineEntries: any[];
-  updateTimelineEntry: (entry: any) => void;
+  timelineEntries: TimelineEntryWithId[];
+  updateTimelineEntry: (entry: TimelineEntryWithId) => void;
   
   // Timeline Navigation
   navigateToToday: () => void;
@@ -43,7 +47,7 @@ export function TimelineProvider({ children }: { children: React.ReactNode }) {
   });
   const [timelineMode, setTimelineMode] = useState<'days' | 'weeks'>('days');
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
-  const [timelineEntries, setTimelineEntries] = useState<any[]>([]);
+  const [timelineEntries, setTimelineEntries] = useState<TimelineEntryWithId[]>([]);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
   // Persist currentView to localStorage whenever it changes
@@ -113,7 +117,7 @@ export function TimelineProvider({ children }: { children: React.ReactNode }) {
   }, [getVisibleDateRange]);
 
   // Timeline entries management (legacy - to be refactored)
-  const updateTimelineEntry = useCallback((entry: any) => {
+  const updateTimelineEntry = useCallback((entry: TimelineEntryWithId) => {
     setTimelineEntries(prev => {
       const index = prev.findIndex(e => e.id === entry.id);
       if (index >= 0) {

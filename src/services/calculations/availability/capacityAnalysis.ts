@@ -33,7 +33,7 @@ import {
   calculateOvertimePlannedHours as unifiedCalculateOvertimePlannedHours
 } from '../../unified/UnifiedEventWorkHourService';
 
-import type { CalendarEvent, WorkHour } from '@/types';
+import type { CalendarEvent, Holiday, Settings, WorkHour, WorkSlot } from '@/types';
 
 // ===== INTERFACES =====
 
@@ -74,10 +74,12 @@ export interface CapacityPlanningResult {
  */
 export interface HolidayOverlapAnalysis {
   hasOverlap: boolean;
-  overlappingHolidays: any[];
+  overlappingHolidays: Holiday[];
   affectedDays: number;
   recommendations: string[];
 }
+
+type WorkDurationSource = Pick<WorkHour, 'duration'> | Pick<WorkSlot, 'duration'>;
 
 // ===== CONFIGURATION =====
 
@@ -269,7 +271,7 @@ export function analyzeUtilizationEfficiency(capacity: WorkHourCapacity): Utiliz
 /**
  * Check if a date is a holiday
  */
-export function isHolidayDateCapacity(date: Date, holidays: any[]): boolean {
+export function isHolidayDateCapacity(date: Date, holidays: Holiday[]): boolean {
   return holidays.some(holiday => {
     const holidayStart = new Date(holiday.startDate);
     const holidayEnd = new Date(holiday.endDate);
@@ -290,7 +292,7 @@ export function calculateWorkHourCapacityWithHolidays(
   workHours: WorkHour[],
   events: CalendarEvent[],
   date: Date,
-  holidays: any[] = []
+  holidays: Holiday[] = []
 ): WorkHourCapacity {
   // If it's a holiday, capacity is typically zero unless explicitly scheduled
   if (isHolidayDateCapacity(date, holidays)) {
@@ -311,7 +313,7 @@ export function calculateWorkHourCapacityWithHolidays(
 export function wouldOverlapHolidays(
   startDate: Date,
   endDate: Date,
-  holidays: any[]
+  holidays: Holiday[]
 ): boolean {
   let currentDate = new Date(startDate);
   
@@ -328,7 +330,7 @@ export function wouldOverlapHolidays(
 /**
  * Get all holidays that overlap with a date range
  */
-export function getOverlappingHolidays(startDate: Date, endDate: Date, holidays: any[]): any[] {
+export function getOverlappingHolidays(startDate: Date, endDate: Date, holidays: Holiday[]): Holiday[] {
   return holidays.filter(holiday => {
     const holidayStart = new Date(holiday.startDate);
     const holidayEnd = new Date(holiday.endDate);
@@ -344,7 +346,7 @@ export function getOverlappingHolidays(startDate: Date, endDate: Date, holidays:
 export function analyzeHolidayOverlap(
   startDate: Date,
   endDate: Date,
-  holidays: any[]
+  holidays: Holiday[]
 ): HolidayOverlapAnalysis {
   const overlappingHolidays = getOverlappingHolidays(startDate, endDate, holidays);
   const hasOverlap = overlappingHolidays.length > 0;
@@ -390,7 +392,7 @@ export function performCapacityPlanning(
   events: CalendarEvent[],
   startDate: Date,
   endDate: Date,
-  holidays: any[] = []
+  holidays: Holiday[] = []
 ): CapacityPlanningResult {
   const capacityMap = new Map<string, WorkHourCapacity>();
   let totalCapacity = 0;
@@ -688,8 +690,8 @@ export function calculateNetAvailability(
  */
 export function generateWorkHoursForDate(
   date: Date,
-  settings: any,
-  holidays: any[] = []
+  settings: Settings,
+  holidays: Holiday[] = []
 ): WorkHour[] {
   return unifiedGenerateWorkHoursForDate(date, settings, holidays);
 }
@@ -701,8 +703,8 @@ export function generateWorkHoursForDate(
 export function calculateProjectWorkingDays(
   projectStart: Date,
   projectEnd: Date,
-  settings: any,
-  holidays: any[]
+  settings: Settings,
+  holidays: Holiday[]
 ): Date[] {
   const result = unifiedCalculateProjectWorkingDays(projectStart, projectEnd, settings, holidays);
   return result.workingDays;
@@ -767,7 +769,7 @@ export function calculateCommittedHoursForDate(
  * Check if work slots array has any work hours configured
  * Migrated from TimelineBusinessLogicService.WorkHoursValidationService
  */
-export function hasWorkHoursConfigured(workSlots: any[]): boolean {
+export function hasWorkHoursConfigured(workSlots: WorkDurationSource[]): boolean {
   return Array.isArray(workSlots) && calculateWorkHoursTotal(workSlots) > 0;
 }
 
@@ -775,7 +777,7 @@ export function hasWorkHoursConfigured(workSlots: any[]): boolean {
  * Check if a specific day has work hours configured in settings
  * Migrated from TimelineBusinessLogicService.WorkHoursValidationService
  */
-export function dayHasWorkHoursConfigured(date: Date, settings: any): boolean {
+export function dayHasWorkHoursConfigured(date: Date, settings: Settings): boolean {
   const dayWorkHours = calculateDayWorkHours(date, settings);
   return hasWorkHoursConfigured(dayWorkHours);
 }

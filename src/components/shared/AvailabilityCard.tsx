@@ -8,7 +8,7 @@ import { usePlannerContext } from '../../contexts/PlannerContext';
 import { UnifiedTimelineService, formatDuration } from '@/services';
 import { formatWeekdayDate, formatDateShort, formatWeekRange } from '@/utils/dateFormatUtils';
 import { NEUTRAL_COLORS } from '@/constants/colors';
-import type { Project, Settings } from '@/types/core';
+import type { Project, Settings, Milestone } from '@/types/core';
 import { TabComponent } from './TabComponent';
 import { AvailabilityCardSettingsButton } from './AvailabilityCardSettingsButton';
 import { AvailabilityCardModal } from '../modals/AvailabilityCardModal';
@@ -49,7 +49,7 @@ interface AvailabilityCardProps {
   context?: 'timeline' | 'planner';
   timeGutterWidth?: number;
   scrollbarWidth?: number;
-  milestones?: any[]; // Optional for now to maintain backward compatibility
+  milestones?: Milestone[]; // Optional for now to maintain backward compatibility
 }
 
 export const AvailabilityCard = memo(function AvailabilityCard({
@@ -187,7 +187,7 @@ export const AvailabilityCard = memo(function AvailabilityCard({
         netAvailability
       };
     });
-  }, [dates, holidays, settings, events, projects, milestones, mode, getWeekDates]);
+  }, [context, dates, holidays, settings, events, projects, milestones, mode, getWeekDates]);
 
   const maxAbsValue = useMemo(() => {
     const absValues = graphData.map(d => Math.abs(d.netAvailability));

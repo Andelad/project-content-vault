@@ -60,9 +60,10 @@ export function EstimatedTimeCard({
 
   // Measure the actual FullCalendar time axis width more reliably
   useEffect(() => {
-    let rafId: number | null = null;
-    let rafId2: number | null = null;
-    let ro: ResizeObserver | null = null;
+  let rafId: number | null = null;
+  let rafId2: number | null = null;
+  let ro: ResizeObserver | null = null;
+  let fallbackResizeHandler: (() => void) | null = null;
 
     const selectAxis = () => {
       const el =
@@ -89,27 +90,22 @@ export function EstimatedTimeCard({
 
     // Observe future size changes
   const el = selectAxis();
-    // Use typeof check to avoid TS narrowing issues where else-branch treats window as never
-    if (typeof (window as any).ResizeObserver !== 'undefined') {
+    if (typeof ResizeObserver !== 'undefined') {
       ro = new ResizeObserver(() => measure());
-  if (el) ro.observe(el);
+      if (el) ro.observe(el);
     } else {
       // Fallback: resize listener
       const onResize = () => measure();
       window.addEventListener('resize', onResize);
-      // Attach cleanup in the effect return below
-      (measure as any)._onResize = onResize;
+      fallbackResizeHandler = onResize;
     }
 
     return () => {
       if (rafId) cancelAnimationFrame(rafId);
       if (rafId2) cancelAnimationFrame(rafId2);
       if (ro) ro.disconnect();
-      // Cleanup fallback resize listener if attached
-      const onResize = (measure as any)._onResize as (() => void) | undefined;
-      if (onResize) {
-        window.removeEventListener('resize', onResize);
-        delete (measure as any)._onResize;
+      if (fallbackResizeHandler) {
+        window.removeEventListener('resize', fallbackResizeHandler);
       }
     };
   }, [timeAxisWidth]);

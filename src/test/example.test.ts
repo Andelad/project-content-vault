@@ -154,7 +154,7 @@ describe('Example: How Tests Work', () => {
 
     it('string matchers', () => {
       expect('Hello World').toContain('World');
-      expect('test@example.com').toMatch(/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/);
+      expect('test@example.com').toMatch(/^[\w.-]+@([\w-]+\.)+[\w-]{2,4}$/);
       expect('HELLO').toEqual('HELLO');
     });
 

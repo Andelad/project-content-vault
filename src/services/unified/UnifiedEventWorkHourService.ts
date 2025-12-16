@@ -26,7 +26,16 @@ import {
   addDaysToDate
 } from '../calculations/general/dateCalculations';
 
-import { WorkHour, CalendarEvent } from '@/types';
+import { WorkHour, CalendarEvent, Settings, Holiday, Project, WorkSlot } from '@/types';
+
+const timelineCalculationDateCache = timelineCalculationCache as Parameters<
+  typeof memoizeExpensiveCalculation<
+    (projectStart: Date, projectEnd: Date, settings: Settings, holidays: Holiday[]) => Date[]
+  >>[1];
+
+const timelineCalculationAllocationCache = timelineCalculationCache as Parameters<
+  typeof memoizeExpensiveCalculation<typeof getProjectTimeAllocation>
+>[1];
 import { calculateAutoEstimateWorkingDays, calculateEventDurationOnDateLegacy as calculateEventDurationOnDate } from '@/services';
 import { memoizeExpensiveCalculation, timelineCalculationCache } from '../performance/cachePerformanceService';
 import { getCalendarEventBackgroundColor, getCalendarEventTextColor } from '@/constants/colors';
@@ -181,8 +190,8 @@ export function calculateAvailabilityReduction(
  */
 export function generateWorkHoursForDate(
   date: Date,
-  settings: any,
-  holidays: any[] = []
+  settings: Settings,
+  holidays: Holiday[] = []
 ): WorkHour[] {
   // Check if the date is a holiday - holidays override work hours
   const isHolidayDate = holidays.some(holiday => {
@@ -238,8 +247,8 @@ export function generateWorkHoursForDate(
 export function calculateProjectWorkingDays(
   projectStart: Date,
   projectEnd: Date,
-  settings: any,
-  holidays: any[]
+  settings: Settings,
+  holidays: Holiday[]
 ): ProjectWorkingDaysResult {
   const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   const workingDays: Date[] = [];
@@ -277,16 +286,16 @@ export function calculateProjectWorkingDays(
  * Performance-optimized version with efficient cache key generation
  */
 export const memoizedProjectWorkingDays = memoizeExpensiveCalculation(
-  (projectStart: Date, projectEnd: Date, settings: any, holidays: any[]) => {
+  (projectStart: Date, projectEnd: Date, settings: Settings, holidays: Holiday[]) => {
     const result = calculateProjectWorkingDays(projectStart, projectEnd, settings, holidays);
     return result.workingDays;
   },
-  timelineCalculationCache,
+  timelineCalculationDateCache,
   (projectStart, projectEnd, settings, holidays) => {
     // Efficient cache key generation
     const settingsHash = Object.keys(settings.weeklyWorkHours || {}).map(day => {
-      const slots = settings.weeklyWorkHours[day];
-      return Array.isArray(slots) ? slots.reduce((sum, slot) => sum + slot.duration, 0) : (slots || 0);
+      const slots = settings.weeklyWorkHours[day as keyof Settings['weeklyWorkHours']];
+      return Array.isArray(slots) ? slots.reduce((sum, slot: WorkSlot) => sum + slot.duration, 0) : 0;
     }).join('-');
     
     const holidaysHash = holidays.map(h => `${h.id}`).join(',');
@@ -310,9 +319,9 @@ export function getProjectTimeAllocation(
   projectId: string,
   date: Date,
   events: CalendarEvent[],
-  project: any,
-  settings: any,
-  holidays: any[]
+  project: Project,
+  settings: Settings,
+  holidays: Holiday[]
 ): ProjectTimeAllocation {
   allocationCallCount++;
   const startTime = performance.now();
@@ -418,7 +427,7 @@ export function getProjectTimeAllocation(
  */
 export const memoizedGetProjectTimeAllocation = memoizeExpensiveCalculation(
   getProjectTimeAllocation,
-  timelineCalculationCache,
+  timelineCalculationAllocationCache,
   (projectId, date, events, project, settings, holidays) => {
     // Efficient cache key with reduced granularity
     const settingsHash = Object.keys(settings.weeklyWorkHours || {}).map(day => {

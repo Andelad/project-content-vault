@@ -238,7 +238,7 @@ function generateRecurringOccurrences(
   const config = milestone.recurringConfig;
   const occurrences: Date[] = [];
   // Start from project start date (not milestone due date)
-  let current = new Date(projectStartDate);
+  const current = new Date(projectStartDate);
   current.setHours(0, 0, 0, 0);
   // End date for generation
   const endLimit = projectContinuous 
@@ -339,7 +339,7 @@ export function calculateProjectDayEstimates(
   milestones: Milestone[],
   settings: Settings,
   holidays: Holiday[],
-  events: any[] = []
+  events: CalendarEvent[] = []
 ): DayEstimate[] {
   const allEstimates: DayEstimate[] = [];
   // PRIORITY 1 - Handle calendar events FIRST (they take precedence over milestones/auto-estimate)

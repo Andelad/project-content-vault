@@ -23,7 +23,7 @@
  * @see UnifiedTimelineService for timeline UI coordination
  */
 
-import { Project, Milestone } from '@/types';
+import { Project, Milestone, Settings } from '@/types';
 import { calculateDurationDays } from '@/services/calculations/general/dateCalculations';
 import { ProjectRules } from '@/domain/rules/ProjectRules';
 
@@ -473,7 +473,7 @@ export class UnifiedProjectEntity {
    * Calculate comprehensive project metrics
    * Migrated from ProjectCalculationService
    */
-  static calculateProjectMetrics(project: Project, milestones: Milestone[], settings: any) {
+  static calculateProjectMetrics(project: Project, milestones: Milestone[], settings: Settings) {
     const totalDuration = this.calculateProjectDuration(project);
     const workload = this.calculateTotalProjectWorkload(project, milestones);
     
@@ -496,7 +496,7 @@ export class UnifiedProjectEntity {
    * Calculate milestone-specific metrics
    * Migrated from ProjectCalculationService
    */
-  static calculateMilestoneMetrics(milestones: Milestone[], settings: any) {
+  static calculateMilestoneMetrics(milestones: Milestone[], settings: Settings) {
     return milestones.map(milestone => ({
       id: milestone.id,
       name: milestone.name,
@@ -511,8 +511,8 @@ export class UnifiedProjectEntity {
    * Calculate daily work capacity for a project
    * Migrated from ProjectCalculationService
    */
-  static calculateDailyWorkCapacity(project: Project, settings: any): number {
-    const workHoursPerDay = settings?.workHours?.hoursPerDay || 8;
+  static calculateDailyWorkCapacity(project: Project, settings: Settings): number {
+    const workHoursPerDay = (settings as Settings & { workHours?: { hoursPerDay?: number } })?.workHours?.hoursPerDay || 8;
     // Use a default allocation of 1.0 (100%) since allocation isn't in Project type
     return workHoursPerDay;
   }
@@ -521,9 +521,9 @@ export class UnifiedProjectEntity {
    * Calculate weekly work capacity for a project
    * Migrated from ProjectCalculationService
    */
-  static calculateWeeklyWorkCapacity(project: Project, settings: any): number {
+  static calculateWeeklyWorkCapacity(project: Project, settings: Settings): number {
     const dailyCapacity = this.calculateDailyWorkCapacity(project, settings);
-    const workDaysPerWeek = settings?.workHours?.daysPerWeek || 5;
+    const workDaysPerWeek = (settings as Settings & { workHours?: { daysPerWeek?: number } })?.workHours?.daysPerWeek || 5;
     
     return dailyCapacity * workDaysPerWeek;
   }
@@ -532,7 +532,7 @@ export class UnifiedProjectEntity {
    * Calculate project end date based on remaining work and capacity
    * Migrated from ProjectCalculationService
    */
-  static calculateProjectEndDate(project: Project, milestones: Milestone[], settings: any): Date | null {
+  static calculateProjectEndDate(project: Project, milestones: Milestone[], settings: Settings): Date | null {
     const remainingHours = this.calculateRemainingWorkHours(project, milestones);
     const dailyCapacity = this.calculateDailyWorkCapacity(project, settings);
     
@@ -627,8 +627,8 @@ export class UnifiedProjectEntity {
   }
 
   // Helper methods for the new functionality
-  private static calculateMilestoneDaysToComplete(milestone: Milestone, settings: any): number {
-    const hoursPerDay = settings?.workHours?.hoursPerDay || 8;
+  private static calculateMilestoneDaysToComplete(milestone: Milestone, settings: Settings): number {
+    const hoursPerDay = (settings as Settings & { workHours?: { hoursPerDay?: number } })?.workHours?.hoursPerDay || 8;
     const timeAllocation = milestone.timeAllocationHours ?? milestone.timeAllocation;
     return Math.ceil(timeAllocation / hoursPerDay);
   }

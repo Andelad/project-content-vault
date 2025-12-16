@@ -37,10 +37,12 @@ export const TimelineBackground = memo(function TimelineBackground({ dates, mode
             {/* Today column overlay */}
             {column.isToday && (
               <div 
-                className="absolute top-0 bottom-0 left-0 right-0 pointer-events-none"
+                className="absolute top-0 bottom-0 pointer-events-none"
                 style={{
                   backgroundColor: 'oklch(0.92 0.05 232 / 0.5)',
-                  zIndex: 2
+                  zIndex: 2,
+                  left: column.mode === 'weeks' ? `${column.todayPositionPx}px` : '0px',
+                  width: column.mode === 'weeks' ? '22px' : '100%'
                 }}
               />
             )}

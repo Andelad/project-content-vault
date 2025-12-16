@@ -144,13 +144,13 @@ class MemoizationCache<T> {
   }
 }
 // Global caches for different types of calculations
-export const timelineCalculationCache = new MemoizationCache<any>(500, 30000);
-export const dateCalculationCache = new MemoizationCache<any>(200, 30000);
-export const projectMetricsCache = new MemoizationCache<any>(300, 30000);
+export const timelineCalculationCache = new MemoizationCache<unknown>(500, 30000);
+export const dateCalculationCache = new MemoizationCache<unknown>(200, 30000);
+export const projectMetricsCache = new MemoizationCache<unknown>(300, 30000);
 /**
  * Memoization decorator for expensive calculations
  */
-export function memoizeExpensiveCalculation<T extends (...args: any[]) => any>(
+export function memoizeExpensiveCalculation<T extends (...args: unknown[]) => unknown>(
   fn: T,
   cache: MemoizationCache<ReturnType<T>>,
   keyGenerator?: (...args: Parameters<T>) => string
@@ -163,11 +163,16 @@ export function memoizeExpensiveCalculation<T extends (...args: any[]) => any>(
     if (cached !== undefined) {
       hitCount++;
       if (process.env.NODE_ENV === 'development' && (hitCount + missCount) % 100 === 0) {
+        console.debug('[Cache] hit ratio', {
+          hitCount,
+          missCount,
+          hitRate: `${((hitCount / Math.max(hitCount + missCount, 1)) * 100).toFixed(1)}%`
+        });
       }
       return cached;
     }
     missCount++;
-    const result = fn(...args);
+    const result = fn(...args) as ReturnType<T>;
     cache.set(key, result);
     return result;
   }) as T;

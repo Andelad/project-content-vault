@@ -1,25 +1,27 @@
 import { useCallback } from 'react';
 import { toast } from './use-toast';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
-import { 
+import {
   TimelineDragCoordinatorService,
   initializeHolidayDragState,
   addDaysToDate
 } from '@/services';
+import type { Holiday, Project } from '@/types/core';
+import type { DragState } from '@/services/ui/DragPositioning';
 
 interface UseHolidayDragProps {
-  holidays: any[];
-  projects: any[];
+  holidays: Holiday[];
+  projects: Project[];
   dates: Date[];
   viewportStart: Date;
   viewportEnd: Date;
   timelineMode: 'days' | 'weeks';
-  updateHoliday: (id: string, updates: any, options?: any) => Promise<any>;
+  updateHoliday: (id: string, updates: Partial<Holiday>, options?: { silent?: boolean }) => Promise<unknown>;
   checkAutoScroll: (clientX: number) => void;
   stopAutoScroll: () => void;
   setIsDragging: (dragging: boolean) => void;
-  setDragState: (state: any) => void;
-  dragState: any;
+  setDragState: (state: DragState | null) => void;
+  dragState: DragState | null;
 }
 
 /**
@@ -35,7 +37,7 @@ function checkHolidayOverlap(
   startDate: Date,
   endDate: Date,
   currentHolidayId: string,
-  allHolidays: any[]
+  allHolidays: Holiday[]
 ): boolean {
   return allHolidays.some(holiday => {
     // Skip the holiday being dragged
@@ -83,7 +85,7 @@ export function useHolidayDrag({
   dragState
 }: UseHolidayDragProps) {
   
-  const handleHolidayMouseDown = useCallback((e: React.MouseEvent, holidayId: string, action: string) => {
+  const handleHolidayMouseDown = useCallback((e: React.MouseEvent, holidayId: string, action: 'move' | 'resize-start-date' | 'resize-end-date') => {
     e.preventDefault();
     e.stopPropagation();
     
@@ -97,7 +99,7 @@ export function useHolidayDrag({
       new Date(targetHoliday.endDate),
       e.clientX,
       e.clientY,
-      action as 'move' | 'resize-start-date' | 'resize-end-date',
+      action,
       timelineMode
     );
     
@@ -220,7 +222,8 @@ export function useHolidayDrag({
     const handleTouchMove = (e: TouchEvent) => {
       if (e.touches.length > 0) {
         const touch = e.touches[0];
-        handleMouseMove({ clientX: touch.clientX } as MouseEvent);
+        const syntheticMouse: Pick<MouseEvent, 'clientX'> = { clientX: touch.clientX };
+        handleMouseMove(syntheticMouse as MouseEvent);
       }
     };
     
@@ -244,8 +247,7 @@ export function useHolidayDrag({
     checkAutoScroll,
     stopAutoScroll,
     setIsDragging,
-    setDragState,
-    dragState
+    setDragState
   ]);
   
   return { handleHolidayMouseDown };

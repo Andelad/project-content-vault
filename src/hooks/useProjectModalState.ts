@@ -1,10 +1,11 @@
 import { useState, useCallback } from 'react';
 import { useProjectContext } from '../contexts/ProjectContext';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import { Project } from '@/types/core';
 
 interface UseProjectModalStateProps {
   projectId: string;
-  project: any;
+  project?: Project | null;
   onClose: () => void;
 }
 

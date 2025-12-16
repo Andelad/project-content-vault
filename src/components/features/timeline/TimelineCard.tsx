@@ -4,16 +4,18 @@ import { ProjectBar } from './ProjectBar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useProjectContext } from '@/contexts/ProjectContext';
+import { Project } from '@/types/core';
+import type { DragState } from '@/services/ui/DragPositioning';
 
 interface TimelineCardProps {
   groups: Array<{ id: string; name: string }>;
-  groupLayouts: Array<{ visualRows: Array<{ projects: any[] }> }>;
+  groupLayouts: Array<{ visualRows: Array<{ projects: Project[] }> }>;
   collapsedGroups: Set<string>;
   dates: Date[];
   viewportStart: Date;
   viewportEnd: Date;
   isDragging: boolean;
-  dragState: any;
+  dragState: DragState | null;
   handleMilestoneDrag: (milestoneId: string, newDate: Date) => void;
   handleMilestoneDragEnd: () => void;
   handleProjectResizeMouseDown?: (e: React.MouseEvent, projectId: string, action: 'resize-start-date' | 'resize-end-date') => void;
@@ -98,7 +100,7 @@ export function TimelineCard({
                     <div className="absolute inset-0 min-h-[50px]" />
                     
                     {/* Render all projects in this visual row - positioned absolutely to overlay */}
-                    {visualRow.projects.map((project: any) => {
+                    {visualRow.projects.map((project: Project) => {
                       return (
                         <div key={project.id} className="absolute inset-0 pointer-events-none">
                           <ProjectBar

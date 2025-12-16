@@ -7,7 +7,7 @@
  * @module useClients
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Client } from '@/types/core';
 import { useToast } from '@/hooks/use-toast';
 import { ClientOrchestrator } from '@/services/orchestrators/ClientOrchestrator';
@@ -35,7 +35,7 @@ export function useClients(): UseClientsReturn {
   /**
    * Fetch all clients for the current user
    */
-  const fetchClients = async () => {
+    const fetchClients = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -57,7 +57,7 @@ export function useClients(): UseClientsReturn {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   /**
    * Add a new client
@@ -171,9 +171,9 @@ export function useClients(): UseClientsReturn {
   };
 
   // Fetch clients on mount
-  useEffect(() => {
-    fetchClients();
-  }, []);
+    useEffect(() => {
+      fetchClients();
+    }, [fetchClients]);
 
   return {
     clients,

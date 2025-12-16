@@ -11,6 +11,11 @@
  */
 
 import { ErrorHandlingService } from '../infrastructure/ErrorHandlingService';
+import { Settings } from '@/types/core';
+
+type LocalSettings = Partial<Settings> & { defaultView?: string };
+type UpdateSettingsFn = (settings: Partial<Settings>) => void;
+type SetLocalSettingsFn = (setter: (prev: LocalSettings) => LocalSettings) => void;
 
 export interface SettingsUpdateResult {
   success: boolean;
@@ -20,7 +25,7 @@ export interface SettingsUpdateResult {
 
 export interface SettingsResetResult {
   success: boolean;
-  resetSettings: any;
+  resetSettings: LocalSettings;
 }
 
 /**
@@ -35,10 +40,10 @@ export class SettingsOrchestrator {
    */
   static async updateSetting(
     key: string,
-    value: any,
+    value: Settings[keyof Settings] | string | number | boolean | null,
     context: {
-      setLocalSettings: (setter: (prev: any) => any) => void;
-      updateSettings: (settings: any) => void;
+      setLocalSettings: SetLocalSettingsFn;
+      updateSettings: UpdateSettingsFn;
       setDefaultView?: (view: string) => void;
     }
   ): Promise<SettingsUpdateResult> {
@@ -48,15 +53,16 @@ export class SettingsOrchestrator {
       
       // Handle special settings that need immediate application
       if (key === 'defaultView' && context.setDefaultView) {
-        context.setDefaultView(value);
+        const viewValue = String(value);
+        context.setDefaultView(viewValue);
         
         // Save to database/localStorage
-        context.updateSettings({ defaultView: value });
+        context.updateSettings({ defaultView: viewValue });
         
-        const viewDisplayName = value === 'timeline-weeks' ? 'Timeline (weeks)' : 
-                               value === 'timeline' ? 'Timeline (days)' :
-                               value === 'projects' ? 'Projects' : 
-                               value === 'calendar' ? 'Calendar' : value;
+        const viewDisplayName = viewValue === 'timeline-weeks' ? 'Timeline (weeks)' : 
+                               viewValue === 'timeline' ? 'Timeline (days)' :
+                               viewValue === 'projects' ? 'Projects' : 
+                               viewValue === 'calendar' ? 'Calendar' : viewValue;
         
         return {
           success: true,
@@ -79,9 +85,9 @@ export class SettingsOrchestrator {
    * DELEGATES to SettingsContext for persistence (AI Rule)
    */
   static async saveAllSettings(
-    localSettings: any,
+    localSettings: LocalSettings,
     context: {
-      updateSettings: (settings: any) => void;
+      updateSettings: UpdateSettingsFn;
     }
   ): Promise<SettingsUpdateResult> {
     try {

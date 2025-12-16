@@ -17,7 +17,11 @@ export interface TimeTrackingState {
   // Legacy fields for backward compatibility with existing components
   currentSeconds?: number;
   eventId?: string | null;
-  selectedProject?: any;
+  selectedProject?: {
+    id: string;
+    name: string;
+    color?: string;
+  } | null;
   searchQuery?: string;
   affectedEvents?: string[];
   lastUpdated?: Date; // Legacy field name
@@ -37,7 +41,11 @@ export interface SerializedTimeTrackingState {
   
   // UI state fields for persistence across views
   eventId?: string | null;
-  selectedProject?: any;
+  selectedProject?: {
+    id: string;
+    name: string;
+    color?: string;
+  } | null;
   searchQuery?: string;
   affectedEvents?: string[];
   currentSeconds?: number;

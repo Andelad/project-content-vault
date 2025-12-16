@@ -7,12 +7,12 @@ import { ChevronLeft, ChevronRight, GraduationCap } from 'lucide-react';
 import { NEUTRAL_COLORS } from '@/constants/colors';
 import { formatMonthYear, formatMonthLongYear, formatMonth, APP_LOCALE } from '@/utils/dateFormatUtils';
 import { calculateWeeklyCapacity } from '@/services';
-import type { Project, CalendarEvent } from '@/types/core';
+import type { Project, CalendarEvent, Settings } from '@/types/core';
 
 interface AvailabilityUsedCardProps {
   projects: Project[];
   events: CalendarEvent[];
-  weeklyWorkHours: any;
+  weeklyWorkHours: Settings['weeklyWorkHours'];
   onHelpClick?: () => void;
 }
 
@@ -291,7 +291,11 @@ export const AvailabilityUsedCard: React.FC<AvailabilityUsedCardProps> = ({
               format: (value) => `${value}h`
             }}
             tooltip={({ indexValue, data }) => {
-              const barData = data as any;
+              const barData = data as {
+                available: number;
+                utilized: number;
+                overbooked: number;
+              };
               return (
                 <div className="pointer-events-none relative rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-[0_8px_16px_rgba(15,23,42,0.08)]">
                   <div className="font-semibold text-slate-900">Period {indexValue}</div>

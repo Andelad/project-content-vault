@@ -44,12 +44,14 @@ const DAY_NAMES: (keyof ProjectWeeklyWorkHours)[] = [
 /**
  * Calculate working days for auto-estimation excluding specified days
  */
+type HolidayLike = ProjectHoliday | Date | string;
+
 export function calculateAutoEstimateWorkingDays(
   startDate: Date,
   endDate: Date,
   autoEstimateDays: Project['autoEstimateDays'],
-  settings?: any,
-  holidays: any[] = []  // Accept both Date[] and Holiday[] objects
+  settings?: ProjectWorkingDaysSettings,
+  holidays: HolidayLike[] = []  // Accept both Date[] and Holiday[] objects
 ): Date[] {
   const workingDays: Date[] = [];
   const current = new Date(startDate);
@@ -117,8 +119,8 @@ export function calculateAutoEstimateWorkingDays(
  */
 export function calculateAutoEstimateHoursPerDay(
   project: Project,
-  settings?: any,
-  holidays: Date[] = []
+  settings?: ProjectWorkingDaysSettings,
+  holidays: HolidayLike[] = []
 ): number {
   const startDate = new Date(project.startDate);
   const endDate = project.continuous ? new Date() : new Date(project.endDate);

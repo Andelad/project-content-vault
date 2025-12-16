@@ -24,7 +24,7 @@ const throttledCallbacks = new Map<string, NodeJS.Timeout>();
  * @param key - Unique identifier for this debounced operation (enables cleanup)
  * @returns Debounced function
  */
-export function debounce<T extends (...args: any[]) => void>(
+export function debounce<T extends (...args: unknown[]) => void>(
   callback: T,
   delay: number = 16, // ~60fps default
   key: string = 'default'
@@ -53,7 +53,7 @@ export function debounce<T extends (...args: any[]) => void>(
  * @param key - Unique identifier for this throttled operation (enables cleanup)
  * @returns Throttled function
  */
-export function throttle<T extends (...args: any[]) => void>(
+export function throttle<T extends (...args: unknown[]) => void>(
   callback: T,
   delay: number = 16, // ~60fps default
   key: string = 'default'

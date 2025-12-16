@@ -10,13 +10,32 @@ import {
   convertMousePositionToTimelineIndex,
   convertIndicesToDates
 } from '@/services';
+import type { Holiday } from '@/types/core';
+import type { DragState } from '@/services/ui/DragPositioning';
+import type { TimelinePositionCalculation } from '@/services/ui/ProjectBarPositioning';
+
+type HolidayDragAction = 'move' | 'resize-start-date' | 'resize-end-date';
+
+type HolidaySegment = {
+  startIndex: number;
+  dayCount: number;
+  id: string;
+  title: string;
+  weekMode: boolean;
+  actualStartWeek?: number;
+  actualEndWeek?: number;
+};
+
+type HolidayMouseEvent = Pick<React.MouseEvent, 'clientX' | 'clientY' | 'preventDefault' | 'stopPropagation'>;
+
+type TouchLikeMouseEvent = HolidayMouseEvent;
 
 interface HolidayBarProps {
   dates: Date[];
   collapsed: boolean;
   isDragging?: boolean;
-  dragState?: any;
-  handleHolidayMouseDown?: (e: React.MouseEvent, holidayId: string, action: string) => void;
+  dragState?: DragState | null;
+  handleHolidayMouseDown?: (e: HolidayMouseEvent, holidayId: string, action: HolidayDragAction) => void;
   mode?: 'days' | 'weeks';
 }
 
@@ -38,9 +57,9 @@ const RESIZE_HANDLE_Z_INDEX = 3;
  * @returns Object with visualStartDate and visualEndDate
  */
 function calculateVisualHolidayDates(
-  holiday: any,
+  holiday: Holiday,
   isDragging: boolean,
-  dragState: any
+  dragState: DragState | null
 ): { visualStartDate: Date; visualEndDate: Date } {
   let visualStartDate = new Date(holiday.startDate);
   let visualEndDate = new Date(holiday.endDate);
@@ -86,7 +105,10 @@ export function HolidayBar({ dates, collapsed, isDragging, dragState, handleHoli
   
   // Convert global holidays to timeline format with visual drag feedback
   // CRITICAL: Must recalculate whenever dragState changes for smooth drag visual feedback
-  const timelineHolidays = useMemo(() => globalHolidays.map(holiday => {
+  const timelineHolidays = useMemo<HolidaySegment[]>(() => {
+    const segments: HolidaySegment[] = [];
+
+    globalHolidays.forEach((holiday) => {
     // Calculate visual dates if this holiday is being dragged
     const { visualStartDate, visualEndDate } = calculateVisualHolidayDates(holiday, isDragging, dragState);
     if (mode === 'weeks') {
@@ -112,7 +134,9 @@ export function HolidayBar({ dates, collapsed, isDragging, dragState, handleHoli
         }
       });
       
-      if (startWeekIndex === -1) return null;
+      if (startWeekIndex === -1) {
+        return;
+      }
       
       // Calculate the day-level start and end indices
       const firstWeekStart = dates[startWeekIndex];
@@ -129,22 +153,22 @@ export function HolidayBar({ dates, collapsed, isDragging, dragState, handleHoli
       // Calculate the day count for display
       const dayCount = endDayIndex - startDayIndex + 1;
       
-      return {
+      segments.push({
         startIndex: startDayIndex,
         dayCount,
         id: holiday.id,
         title: holiday.title,
-        weekMode: true, // Flag to indicate this is week mode calculation
+        weekMode: true,
         actualStartWeek: startWeekIndex,
         actualEndWeek: endWeekIndex
-      };
+      });
     } else {
       // Days mode: Calculate position relative to viewport, but maintain full holiday width
       const holidayStart = normalizeToMidnight(new Date(visualStartDate));
       // Use midnight for end as well to match overlay logic and avoid DST off-by-one
       const holidayEnd = normalizeToMidnight(new Date(visualEndDate));
       
-      if (dates.length === 0) return null;
+  if (dates.length === 0) return;
       
       const firstVisibleDate = dates[0];
       const lastVisibleDate = dates[dates.length - 1];
@@ -162,19 +186,21 @@ export function HolidayBar({ dates, collapsed, isDragging, dragState, handleHoli
       const lastVisibleIndex = dates.length - 1;
       
       if (holidayEndIndex < 0 || startIndex > lastVisibleIndex) {
-        // Holiday is completely outside viewport
-        return null;
+        return;
       }
-      
-      return {
+
+      segments.push({
         startIndex,
         dayCount,
         id: holiday.id,
         title: holiday.title,
         weekMode: false
-      };
+      });
     }
-  }).filter(Boolean) as { startIndex: number; dayCount: number; id: string; title: string; weekMode?: boolean; actualStartWeek?: number; actualEndWeek?: number }[], [globalHolidays, dates, mode, isDragging, dragState]);
+    });
+
+    return segments;
+  }, [globalHolidays, dates, mode, isDragging, dragState]);
   
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -184,10 +210,10 @@ export function HolidayBar({ dates, collapsed, isDragging, dragState, handleHoli
   }, [globalHolidays, dates, mode]);
 
   // Handle holiday creation after drag
-  const handleCreateHoliday = (startDate: Date, endDate: Date) => {
+  const handleCreateHoliday = useCallback((startDate: Date, endDate: Date) => {
     // Instead of creating the holiday immediately, store the date range for the modal
     setCreatingNewHoliday({ startDate, endDate });
-  };
+  }, [setCreatingNewHoliday]);
 
   // Mouse handlers for hover-to-create interaction
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
@@ -318,7 +344,7 @@ export function HolidayBar({ dates, collapsed, isDragging, dragState, handleHoli
 
     document.addEventListener('mousemove', handleMouseMoveGlobal);
     document.addEventListener('mouseup', handleMouseUp);
-  }, [hoveredIndex, occupiedIndices, dates, mode, handleCreateHoliday, dragStart, dragEnd, isDragging]);
+  }, [hoveredIndex, occupiedIndices, dates, mode, handleCreateHoliday]);
 
   // Render preview of where holiday would be created
   const renderPreview = () => {
@@ -472,11 +498,11 @@ export function HolidayBar({ dates, collapsed, isDragging, dragState, handleHoli
 interface IndividualHolidayBarProps {
   dayIndex: number;
   date: Date;
-  holiday?: { startIndex: number; dayCount: number; id: string; title: string } | null;
+  holiday?: HolidaySegment | null;
   onHolidayClick: (holidayId: string) => void;
   isDragging?: boolean;
-  dragState?: any;
-  handleHolidayMouseDown?: (e: React.MouseEvent, holidayId: string, action: string) => void;
+  dragState?: DragState | null;
+  handleHolidayMouseDown?: (e: HolidayMouseEvent, holidayId: string, action: HolidayDragAction) => void;
   mode?: 'days' | 'weeks';
 }
 
@@ -495,7 +521,7 @@ function IndividualHolidayBar({
   const [mouseDownPos, setMouseDownPos] = useState<{ x: number; y: number } | null>(null);
   const [hasMoved, setHasMoved] = useState(false);
   
-  const handleHolidayMouseDownWithClickDetection = (e: React.MouseEvent, holidayId: string, action: string) => {
+  const handleHolidayMouseDownWithClickDetection = (e: HolidayMouseEvent, holidayId: string, action: HolidayDragAction) => {
     e.stopPropagation(); // Prevent event bubbling
     setMouseDownTime(Date.now());
     setMouseDownPos({ x: e.clientX, y: e.clientY });
@@ -618,12 +644,12 @@ function IndividualHolidayBar({
               if (!handleHolidayMouseDown) return;
               
               const touch = e.touches[0];
-              const fakeMouseEvent = {
+              const fakeMouseEvent: TouchLikeMouseEvent = {
                 clientX: touch.clientX,
                 clientY: touch.clientY,
                 preventDefault: () => {},
                 stopPropagation: () => {}
-              } as any;
+              };
               
               handleHolidayMouseDown(fakeMouseEvent, holiday.id, 'resize-start-date');
             }}
@@ -660,12 +686,12 @@ function IndividualHolidayBar({
               if (!handleHolidayMouseDown) return;
               
               const touch = e.touches[0];
-              const fakeMouseEvent = {
+              const fakeMouseEvent: TouchLikeMouseEvent = {
                 clientX: touch.clientX,
                 clientY: touch.clientY,
                 preventDefault: () => {},
                 stopPropagation: () => {}
-              } as any;
+              };
               
               handleHolidayMouseDown(fakeMouseEvent, holiday.id, 'resize-end-date');
             }}

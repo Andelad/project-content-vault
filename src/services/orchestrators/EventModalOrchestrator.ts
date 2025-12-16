@@ -170,15 +170,8 @@ export class EventModalOrchestrator {
 
       // Pass the camelCase eventData directly to PlannerContext's addEvent
       // PlannerContext will handle the transformation to database format
-      if (eventData.recurring) {
-        // For recurring events, create first event immediately
-        await addEvent(eventData as any);
-        return { success: true };
-      } else {
-        // Single event - process normally
-        await addEvent(eventData as any);
-        return { success: true };
-      }
+      await addEvent(eventData);
+      return { success: true };
     } catch (error) {
       ErrorHandlingService.handle(error, { source: 'EventModalOrchestrator', action: 'EventModalOrchestrator: Failed to create event:' });
       return { 
@@ -224,7 +217,7 @@ export class EventModalOrchestrator {
       } else {
         // Non-recurring event, update directly
         // Pass camelCase eventData - PlannerContext handles transformation
-        await updateEvent(originalEventId, eventData as any);
+        await updateEvent(originalEventId, eventData);
         return { success: true };
       }
     } catch (error) {
@@ -282,13 +275,13 @@ export class EventModalOrchestrator {
       // Pass camelCase eventData - PlannerContext handles transformation
       switch (updateType) {
         case 'this':
-          await updateEvent(originalEventId, eventData as any);
+          await updateEvent(originalEventId, eventData);
           break;
         case 'future':
-          await updateRecurringSeriesFuture(originalEventId, eventData as any);
+          await updateRecurringSeriesFuture(originalEventId, eventData);
           break;
         case 'all':
-          await updateRecurringSeriesAll(originalEventId, eventData as any);
+          await updateRecurringSeriesAll(originalEventId, eventData);
           break;
       }
 

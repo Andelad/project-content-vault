@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import type { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 type CalendarEvent = Database['public']['Tables']['calendar_events']['Row'];
 type CalendarEventInsert = Database['public']['Tables']['calendar_events']['Insert'];
 type CalendarEventUpdate = Database['public']['Tables']['calendar_events']['Update'];
@@ -10,71 +11,8 @@ export function useEvents() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  useEffect(() => {
-    fetchEvents();
-    // Set up realtime subscription for cross-window sync
-    let channel: any = null;
-    const setupRealtimeSubscription = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      channel = supabase
-        .channel('calendar_events_changes')
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'calendar_events',
-            filter: `user_id=eq.${user.id}`
-          },
-          (payload) => {
-            // // console.log('🔄 Event inserted (realtime):', payload.new);
-            setEvents(prev => {
-              // Prevent duplicates - only add if not already in state
-              const exists = prev.some(e => e.id === payload.new.id);
-              if (exists) return prev;
-              return [...prev, payload.new as CalendarEvent];
-            });
-          }
-        )
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'calendar_events',
-            filter: `user_id=eq.${user.id}`
-          },
-          (payload) => {
-            // // console.log('🔄 Event updated (realtime):', payload.new);
-            setEvents(prev => 
-              prev.map(event => event.id === payload.new.id ? payload.new as CalendarEvent : event)
-            );
-          }
-        )
-        .on(
-          'postgres_changes',
-          {
-            event: 'DELETE',
-            schema: 'public',
-            table: 'calendar_events',
-            filter: `user_id=eq.${user.id}`
-          },
-          (payload) => {
-            // // console.log('🔄 Event deleted (realtime):', payload.old);
-            setEvents(prev => prev.filter(event => event.id !== payload.old.id));
-          }
-        )
-        .subscribe();
-    };
-    setupRealtimeSubscription();
-    return () => {
-      if (channel) {
-        supabase.removeChannel(channel);
-      }
-    };
-  }, []);
-  const fetchEvents = async () => {
+
+  const fetchEvents = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('calendar_events')
@@ -92,45 +30,111 @@ export function useEvents() {
     } finally {
       setLoading(false);
     }
-  };
-  const addEvent = async (eventData: Omit<CalendarEventInsert, 'user_id'>, options?: { silent?: boolean }): Promise<CalendarEvent> => {
+  }, [toast]);
+
+  useEffect(() => {
+    fetchEvents();
+    // Set up realtime subscription for cross-window sync
+    let channel: RealtimeChannel | null = null;
+    const setupRealtimeSubscription = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      channel = supabase
+        .channel('calendar_events_changes')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'calendar_events',
+            filter: `user_id=eq.${user.id}`
+          },
+          (payload: RealtimePostgresChangesPayload<CalendarEvent>) => {
+            const newEvent = payload.new as CalendarEvent | null;
+            if (!newEvent?.id) return;
+            setEvents(prev => {
+              const exists = prev.some(e => e.id === newEvent.id);
+              if (exists) return prev;
+              return [...prev, newEvent];
+            });
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'calendar_events',
+            filter: `user_id=eq.${user.id}`
+          },
+          (payload: RealtimePostgresChangesPayload<CalendarEvent>) => {
+            const updatedEvent = payload.new as CalendarEvent | null;
+            if (!updatedEvent?.id) return;
+            setEvents(prev => 
+              prev.map(event => event.id === updatedEvent.id ? updatedEvent : event)
+            );
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'DELETE',
+            schema: 'public',
+            table: 'calendar_events',
+            filter: `user_id=eq.${user.id}`
+          },
+          (payload: RealtimePostgresChangesPayload<CalendarEvent>) => {
+            const deletedEvent = payload.old as Partial<CalendarEvent> | null;
+            if (!deletedEvent?.id) return;
+            setEvents(prev => prev.filter(event => event.id !== deletedEvent.id));
+          }
+        )
+        .subscribe();
+    };
+    setupRealtimeSubscription();
+    return () => {
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [fetchEvents]);
+
+  const addEvent = async (
+    eventData: Omit<CalendarEventInsert, 'user_id'>,
+    options?: { silent?: boolean }
+  ): Promise<CalendarEvent> => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         ErrorHandlingService.handle('❌ addEvent: User not authenticated', { source: 'useEvents' });
         throw new Error('User not authenticated');
       }
-      // // console.log('🔍 addEvent: Creating event in database:', {
-        // title: eventData.title,
-        // event_type: eventData.event_type,
-        // user_id: user.id
-      // });
+
       const { data, error } = await supabase
         .from('calendar_events')
         .insert([{ ...eventData, user_id: user.id }])
         .select()
         .single();
+
       if (error) {
         ErrorHandlingService.handle(error, { source: 'useEvents', action: '❌ addEvent: Database insert error:' });
         throw error;
       }
+
       if (!data) {
         ErrorHandlingService.handle('❌ addEvent: No data returned from insert', { source: 'useEvents' });
         throw new Error('No data returned from event creation');
       }
-      // // console.log('✅ addEvent: Event created successfully:', {
-        // id: data.id,
-        // title: data.title,
-        // event_type: data.event_type
-      // });
+
       setEvents(prev => [...prev, data]);
-      // Only show toast if not silent
+
       if (!options?.silent) {
         toast({
           title: "Success",
           description: "Event created successfully",
         });
       }
+
       return data;
     } catch (error) {
       ErrorHandlingService.handle(error, { source: 'useEvents', action: '❌ addEvent: Fatal error:' });
@@ -144,7 +148,12 @@ export function useEvents() {
       throw error;
     }
   };
-  const updateEvent = async (id: string, updates: CalendarEventUpdate, options?: { silent?: boolean }) => {
+
+  const updateEvent = async (
+    id: string,
+    updates: CalendarEventUpdate,
+    options?: { silent?: boolean }
+  ) => {
     try {
       const { data, error } = await supabase
         .from('calendar_events')
@@ -152,15 +161,18 @@ export function useEvents() {
         .eq('id', id)
         .select()
         .single();
+
       if (error) throw error;
+
       setEvents(prev => prev.map(event => event.id === id ? data : event));
-      // Only show toast if not silent
+
       if (!options?.silent) {
         toast({
           title: "Success",
           description: "Event updated successfully",
         });
       }
+
       return data;
     } catch (error) {
       ErrorHandlingService.handle(error, { source: 'useEvents', action: 'Error updating event:' });
@@ -174,14 +186,18 @@ export function useEvents() {
       throw error;
     }
   };
+
   const deleteEvent = async (id: string, options?: { silent?: boolean }) => {
     try {
       const { error } = await supabase
         .from('calendar_events')
         .delete()
         .eq('id', id);
+
       if (error) throw error;
+
       setEvents(prev => prev.filter(event => event.id !== id));
+
       if (!options?.silent) {
         toast({
           title: "Success",
@@ -200,6 +216,7 @@ export function useEvents() {
       throw error;
     }
   };
+
   return {
     events,
     loading,

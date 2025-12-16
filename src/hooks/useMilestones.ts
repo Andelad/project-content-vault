@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
@@ -6,31 +6,35 @@ import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingSer
 type Milestone = Database['public']['Tables']['milestones']['Row'];
 type MilestoneInsert = Database['public']['Tables']['milestones']['Insert'];
 type MilestoneUpdate = Database['public']['Tables']['milestones']['Update'];
+
+type CamelMilestoneInsert = {
+  projectId?: string;
+  dueDate?: string | Date;
+  timeAllocation?: number;
+  timeAllocationHours?: number;
+  startDate?: string | Date;
+  isRecurring?: boolean;
+  recurringConfig?: Milestone['recurring_config'];
+};
+
+type MilestoneInput = Omit<MilestoneInsert, 'user_id'> & CamelMilestoneInsert;
+
+const toIsoString = (value?: string | Date | null): string | null | undefined => {
+  if (value instanceof Date) return value.toISOString();
+  return value;
+};
 export function useMilestones(projectId?: string) {
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   // Debouncing for update success toasts
   const updateToastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  useEffect(() => {
-    if (projectId) {
-      fetchMilestones(projectId);
-    } else {
-      fetchAllMilestones();
-    }
-    // Cleanup timeout on unmount
-    return () => {
-      if (updateToastTimeoutRef.current) {
-        clearTimeout(updateToastTimeoutRef.current);
-      }
-    };
-  }, [projectId]);
-  const fetchMilestones = async (projectId: string) => {
+  const fetchMilestones = useCallback(async (targetProjectId: string) => {
     try {
       const { data, error } = await supabase
         .from('milestones')
         .select('*')
-        .eq('project_id', projectId)
+        .eq('project_id', targetProjectId)
         .order('due_date', { ascending: true });
       if (error) throw error;
       setMilestones(data || []);
@@ -44,8 +48,8 @@ export function useMilestones(projectId?: string) {
     } finally {
       setLoading(false);
     }
-  };
-  const fetchAllMilestones = async () => {
+  }, [toast]);
+  const fetchAllMilestones = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('milestones')
@@ -63,31 +67,44 @@ export function useMilestones(projectId?: string) {
     } finally {
       setLoading(false);
     }
-  };
-  const addMilestone = async (milestoneData: Omit<MilestoneInsert, 'user_id'>, options: { silent?: boolean } = {}) => {
+  }, [toast]);
+
+  useEffect(() => {
+    if (projectId) {
+      fetchMilestones(projectId);
+    } else {
+      fetchAllMilestones();
+    }
+    // Cleanup timeout on unmount
+    return () => {
+      if (updateToastTimeoutRef.current) {
+        clearTimeout(updateToastTimeoutRef.current);
+      }
+    };
+  }, [projectId, fetchAllMilestones, fetchMilestones]);
+  const addMilestone = async (milestoneData: MilestoneInput, options: { silent?: boolean } = {}) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
       // Transform camelCase to snake_case for database insertion
-      const dbMilestoneData: any = {
+      const dbMilestoneData: MilestoneInsert = {
         user_id: user.id,
         name: milestoneData.name,
-        project_id: (milestoneData as any).projectId || milestoneData.project_id,
-        due_date: (milestoneData as any).dueDate || milestoneData.due_date,
-        time_allocation: (milestoneData as any).timeAllocation || milestoneData.time_allocation,
-        time_allocation_hours: (milestoneData as any).timeAllocationHours || (milestoneData as any).timeAllocation || milestoneData.time_allocation,
+        project_id: milestoneData.projectId ?? milestoneData.project_id,
+        due_date: toIsoString(milestoneData.dueDate ?? milestoneData.due_date),
+        time_allocation: milestoneData.timeAllocation ?? milestoneData.time_allocation,
+        time_allocation_hours: milestoneData.timeAllocationHours ?? milestoneData.timeAllocation ?? milestoneData.time_allocation,
       };
       // Add optional fields if provided
-      if ((milestoneData as any).startDate || milestoneData.start_date) {
-        const startDateValue = (milestoneData as any).startDate || milestoneData.start_date;
-        dbMilestoneData.start_date = startDateValue instanceof Date ? startDateValue.toISOString() : startDateValue;
-      } else {
+      if (milestoneData.startDate || milestoneData.start_date) {
+        const startDateValue = milestoneData.startDate || milestoneData.start_date;
+        dbMilestoneData.start_date = toIsoString(startDateValue);
       }
-      if ((milestoneData as any).isRecurring !== undefined || milestoneData.is_recurring !== undefined) {
-        dbMilestoneData.is_recurring = (milestoneData as any).isRecurring ?? milestoneData.is_recurring;
+      if (milestoneData.isRecurring !== undefined || milestoneData.is_recurring !== undefined) {
+        dbMilestoneData.is_recurring = milestoneData.isRecurring ?? milestoneData.is_recurring;
       }
-      if ((milestoneData as any).recurringConfig || milestoneData.recurring_config) {
-        dbMilestoneData.recurring_config = (milestoneData as any).recurringConfig || milestoneData.recurring_config;
+      if (milestoneData.recurringConfig || milestoneData.recurring_config) {
+        dbMilestoneData.recurring_config = milestoneData.recurringConfig || milestoneData.recurring_config;
       }
       const { data, error } = await supabase
         .from('milestones')

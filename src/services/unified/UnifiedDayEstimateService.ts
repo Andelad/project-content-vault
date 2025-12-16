@@ -7,7 +7,7 @@
  * @module UnifiedDayEstimateService
  */
 
-import { Project, Milestone, DayEstimate, Settings, Holiday } from '@/types/core';
+import { Project, Milestone, DayEstimate, Settings, Holiday, CalendarEvent } from '@/types/core';
 import { normalizeToMidnight } from '../calculations/general/dateCalculations';
 
 import * as DayEstimateCalcs from '@/services/calculations/projects/dayEstimateCalculations';
@@ -24,7 +24,7 @@ export class UnifiedDayEstimateService {
     milestones: Milestone[],
     settings: Settings,
     holidays: Holiday[],
-    events: any[] = []
+    events: CalendarEvent[] = []
   ): DayEstimate[] {
     return DayEstimateCalcs.calculateProjectDayEstimates(
       project,
@@ -186,7 +186,7 @@ export class UnifiedDayEstimateService {
     dates: Date[],
     projects: Project[],
     milestonesMap: Map<string, Milestone[]>,
-    events: any[],
+    events: CalendarEvent[],
     settings: Settings,
     holidays: Holiday[]
   ): Map<string, Array<{ projectId: string; projectName: string; client: string | null; estimatedHours: number; color?: string; }>> {
@@ -204,16 +204,16 @@ export class UnifiedDayEstimateService {
         const projectEnd = new Date(project.endDate);
 
         // Filter milestones within project bounds
-        let projectMilestones = allMilestones.filter((m: any) => {
+        let projectMilestones = allMilestones.filter((m: Milestone) => {
           const end = new Date(m.endDate || m.dueDate);
           return end >= projectStart && end <= projectEnd;
         });
 
         // HYBRID SYSTEM: If there's a template milestone (isRecurring=true),
         // exclude old numbered instances to prevent double-counting
-        const hasTemplateMilestone = projectMilestones.some((m: any) => m.isRecurring === true);
+        const hasTemplateMilestone = projectMilestones.some((m: Milestone) => m.isRecurring === true);
         if (hasTemplateMilestone) {
-          projectMilestones = projectMilestones.filter((m: any) => 
+          projectMilestones = projectMilestones.filter((m: Milestone) => 
             m.isRecurring === true || (!m.isRecurring && (!m.name || !/\s\d+$/.test(m.name)))
           );
         }

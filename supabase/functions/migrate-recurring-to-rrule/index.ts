@@ -1,3 +1,4 @@
+/// <reference types="https://esm.sh/v135/@supabase/functions-js/src/deno.d.ts" />
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.56.0';
 
 const corsHeaders = {
@@ -5,14 +6,27 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+type LegacyEventRow = {
+  id: string;
+  title: string;
+  recurring_type: string;
+  recurring_interval: number | null;
+  recurring_end_date: string | null;
+  recurring_count: number | null;
+  rrule: string | null;
+};
+
+type MigrationFailure = { id: string; title: string; error: string };
+type MigratedEventSummary = { id: string; title: string; legacyFormat: string; rrule: string };
+
 /**
  * Convert legacy recurring event data to RRULE string
  */
 function convertLegacyToRRule(
   recurringType: string,
   interval: number = 1,
-  endDate?: string,
-  count?: number
+  endDate?: string | null,
+  count?: number | null
 ): string {
   const parts: string[] = [];
   
@@ -31,7 +45,7 @@ function convertLegacyToRRule(
   return parts.join(';');
 }
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -83,7 +97,7 @@ Deno.serve(async (req) => {
     // Fetch all events with legacy recurring format (has recurring_type but no rrule)
     const { data: legacyEvents, error: fetchError } = await supabaseAdmin
       .from('calendar_events')
-      .select('*')
+      .select('id,title,recurring_type,recurring_interval,recurring_end_date,recurring_count,rrule')
       .not('recurring_type', 'is', null)
       .is('rrule', null);
 
@@ -111,8 +125,8 @@ Deno.serve(async (req) => {
 
     let successCount = 0;
     let failureCount = 0;
-    const failures: any[] = [];
-    const migrated: any[] = [];
+  const failures: MigrationFailure[] = [];
+  const migrated: MigratedEventSummary[] = [];
 
     // Process each event
     for (const event of legacyEvents) {
@@ -121,7 +135,7 @@ Deno.serve(async (req) => {
           event.recurring_type,
           event.recurring_interval || 1,
           event.recurring_end_date,
-          event.recurring_count
+          event.recurring_count || undefined
         );
 
         // Update event with RRULE
@@ -143,12 +157,13 @@ Deno.serve(async (req) => {
         console.log(`✓ Migrated event ${event.id}: ${event.title}`);
       } catch (error) {
         failureCount++;
+        const message = error instanceof Error ? error.message : 'Unknown error';
         failures.push({
           id: event.id,
           title: event.title,
-          error: error.message
+          error: message
         });
-        console.error(`✗ Failed to migrate event ${event.id}: ${error.message}`);
+        console.error(`✗ Failed to migrate event ${event.id}: ${message}`);
       }
     }
 
@@ -175,11 +190,12 @@ Deno.serve(async (req) => {
     );
 
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('❌ Migration failed:', error);
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message
+        error: message
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -20,7 +20,7 @@ interface PhaseCardProps {
   isLast: boolean;
   editingProperty: string | null;
   onEditPropertyChange: (property: string | null) => void;
-  onUpdateProperty: (milestoneId: string, property: string, value: any) => void;
+  onUpdateProperty: (milestoneId: string, property: string, value: string | number | Date) => void;
   onDelete: (milestoneId: string) => void;
 }
 

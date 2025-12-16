@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
@@ -7,6 +7,15 @@ import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingSer
 type HolidayRow = Database['public']['Tables']['holidays']['Row'];
 type HolidayInsert = Database['public']['Tables']['holidays']['Insert'];
 type HolidayUpdate = Database['public']['Tables']['holidays']['Update'];
+
+type HolidayInput = {
+  title: string;
+  startDate: Date | string;
+  endDate: Date | string;
+  notes?: string | null;
+};
+
+type HolidayUpdates = Partial<HolidayInput>;
 
 // UI-friendly Holiday type (camelCase)
 export interface Holiday {
@@ -45,18 +54,7 @@ export function useHolidays() {
     return `${y}-${m}-${d}`;
   };
 
-  useEffect(() => {
-    fetchHolidays();
-    
-    // Cleanup timeout on unmount
-    return () => {
-      if (updateToastTimeoutRef.current) {
-        clearTimeout(updateToastTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  const fetchHolidays = async () => {
+  const fetchHolidays = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('holidays')
@@ -89,15 +87,26 @@ export function useHolidays() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
-  const addHoliday = async (holidayData: any) => {
+  useEffect(() => {
+    fetchHolidays();
+    
+    // Cleanup timeout on unmount
+    return () => {
+      if (updateToastTimeoutRef.current) {
+        clearTimeout(updateToastTimeoutRef.current);
+      }
+    };
+  }, [fetchHolidays]);
+
+  const addHoliday = async (holidayData: HolidayInput) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
       // Transform camelCase to snake_case for database
-      const dbHolidayData = {
+      const dbHolidayData: Omit<HolidayInsert, 'user_id'> & { user_id: string } = {
         title: holidayData.title,
         // Use LOCAL date components when persisting calendar-only dates
         start_date: holidayData.startDate instanceof Date 
@@ -119,7 +128,7 @@ export function useHolidays() {
       if (error) throw error;
       
       // Transform database response to camelCase for UI consistency
-      const transformedData = {
+      const transformedData: Holiday = {
         id: data.id,
         title: data.title,
         startDate: parseLocalDate(data.start_date as unknown as string),
@@ -147,10 +156,14 @@ export function useHolidays() {
     }
   };
 
-  const updateHoliday = async (id: string, updates: any, options: { silent?: boolean } = {}) => {
+  const updateHoliday = async (
+    id: string,
+    updates: HolidayUpdates,
+    options: { silent?: boolean } = {}
+  ) => {
     try {
       // Transform camelCase to snake_case for database if needed
-      const dbUpdates: any = {};
+  const dbUpdates: Partial<HolidayUpdate> = {};
       if (updates.title !== undefined) dbUpdates.title = updates.title;
       if (updates.startDate !== undefined) {
         dbUpdates.start_date = updates.startDate instanceof Date 

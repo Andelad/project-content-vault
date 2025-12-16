@@ -12,7 +12,8 @@
  * calculations in services rather than components.
  */
 
-import { CalendarEvent } from '@/types/core';
+import { CalendarEvent, Project } from '@/types/core';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { calculateDurationHours } from '@/services/calculations/general/dateCalculations';
 import {
   processEventOverlaps,
@@ -21,11 +22,14 @@ import {
   type EventSplitResult
 } from '@/services/calculations/events/eventSplittingCalculations';
 
+import type { TimeTrackingState } from '../../types/timeTracking';
+type SelectedProject = NonNullable<TimeTrackingState['selectedProject']>;
+
 export interface TrackingState {
   isTracking: boolean;
   startTime?: Date;
   eventId?: string | null;
-  selectedProject?: any;
+  selectedProject?: SelectedProject | null;
   searchQuery?: string;
   affectedEvents?: string[];
 }
@@ -50,7 +54,7 @@ export interface TrackingEventData {
 }
 
 import { timeTrackingOrchestrator } from '../orchestrators/timeTrackingOrchestrator';
-import type { TimeTrackingState } from '../../types/timeTracking';
+import type { TimeTrackerWorkflowContext, TimeTrackerWorkflowResult } from '../orchestrators/timeTrackingOrchestrator';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 /**
@@ -101,11 +105,11 @@ export class UnifiedTimeTrackerService {
     return timeTrackingOrchestrator.syncState(state, skipLocalCallback);
   }
 
-  static async handleTimeTrackingToggle(context: any): Promise<any> {
+  static async handleTimeTrackingToggle(context: TimeTrackerWorkflowContext): Promise<TimeTrackerWorkflowResult> {
     return timeTrackingOrchestrator.handleTimeTrackingToggle(context);
   }
 
-  static async loadTrackingStateWorkflow(context: any): Promise<any> {
+  static async loadTrackingStateWorkflow(context: TimeTrackerWorkflowContext): Promise<TimeTrackerWorkflowResult> {
     return timeTrackingOrchestrator.loadTrackingStateWorkflow(context);
   }
 
@@ -117,7 +121,7 @@ export class UnifiedTimeTrackerService {
     timeTrackingOrchestrator.setOnStateChangeCallback(callback);
   }
 
-  static async setupRealtimeSubscription(): Promise<any> {
+  static async setupRealtimeSubscription(): Promise<RealtimeChannel | null> {
     return timeTrackingOrchestrator.setupRealtimeSubscription();
   }
 
@@ -165,8 +169,8 @@ export class UnifiedTimeTrackerService {
     trackingEnd: Date,
     currentEventId: string | null,
     onDeleteEvent: (eventId: string, options?: { silent?: boolean }) => void,
-    onUpdateEvent: (eventId: string, updates: any, options?: any) => void,
-    onAddEvent: (event: any) => Promise<any>
+    onUpdateEvent: (eventId: string, updates: Partial<CalendarEvent>, options?: { silent?: boolean }) => void,
+    onAddEvent: (event: Partial<CalendarEvent>) => Promise<CalendarEvent | void | undefined>
   ): string[] {
     const trackingRange = createTimeRange(trackingStart, trackingEnd);
     
@@ -188,7 +192,7 @@ export class UnifiedTimeTrackerService {
       return [];
     }
     
-    const splitResults = eventsToProcess.map(event => processEventOverlaps(event as any, trackingRange));
+  const splitResults = eventsToProcess.map(event => processEventOverlaps(event, trackingRange));
 
     const newAffectedEvents: string[] = [];
 
@@ -208,8 +212,7 @@ export class UnifiedTimeTrackerService {
           if (result.newEvent) {
             onAddEvent({
               ...result.newEvent,
-              color: result.newEvent.color || '#3b82f6', // Default blue color
-              type: 'planned'
+              color: result.newEvent.color || '#3b82f6' // Default blue color
             });
           }
           break;
@@ -230,14 +233,14 @@ export class UnifiedTimeTrackerService {
   /**
    * Filter projects and clients based on search query
    */
-  static filterSearchResults(projects: any[], searchQuery: string, clientNameById: Record<string, string> = {}): SearchResult[] {
+  static filterSearchResults(projects: Project[], searchQuery: string, clientNameById: Record<string, string> = {}): SearchResult[] {
     if (!searchQuery.trim()) return [];
 
     const query = searchQuery.toLowerCase();
     const results: SearchResult[] = [];
 
     // Search projects with authoritative client name via clientId mapping when available
-    projects.forEach(project => {
+  projects.forEach(project => {
       const clientName = clientNameById[project.clientId] || project.client;
       const matchesName = project.name?.toLowerCase().includes(query);
       const matchesClient = clientName?.toLowerCase().includes(query) ?? false;
@@ -274,7 +277,7 @@ export class UnifiedTimeTrackerService {
    * Create tracking event data
    */
   static createTrackingEventData(
-    selectedProject: any,
+    selectedProject: SelectedProject | null,
     searchQuery: string,
     startTime: Date
   ): Omit<TrackingEventData, 'id'> {
@@ -297,7 +300,7 @@ export class UnifiedTimeTrackerService {
    * Create completed tracking event data
    */
   static createCompletedEventData(
-    selectedProject: any,
+    selectedProject: SelectedProject | null,
     searchQuery: string,
     startTime: Date,
     endTime: Date,

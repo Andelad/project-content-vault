@@ -5,7 +5,7 @@ import { useProjectContext } from '@/contexts/ProjectContext';
 import { usePlannerContext } from '@/contexts/PlannerContext';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import { isSameDate } from '@/utils/dateFormatUtils';
-import type { Project } from '@/types/core';
+import type { Project, Milestone } from '@/types/core';
 import { UnifiedTimelineService } from '@/services';
 import { ColorCalculationService } from '@/services/ui/ColorCalculations';
 import type { TimelineAllocationType } from '@/constants/styles';
@@ -22,6 +22,8 @@ import {
 import { ProjectIconIndicator } from './ProjectIconIndicator';
 import { DraggablePhaseMarkers } from './DraggablePhaseMarkers';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import type { DragState } from '@/services/ui/DragPositioning';
+import type { TimelinePositionCalculation } from '@/services/ui/ProjectBarPositioning';
 
 interface ProjectBarProps {
   project: Project;
@@ -29,7 +31,7 @@ interface ProjectBarProps {
   viewportStart: Date;
   viewportEnd: Date;
   isDragging: boolean;
-  dragState: any;
+  dragState: DragState | null;
   mode?: 'days' | 'weeks';
   isMultiProjectRow?: boolean;
   collapsed: boolean;
@@ -39,7 +41,13 @@ interface ProjectBarProps {
   onPhaseResizeMouseDown?: (e: React.MouseEvent, projectId: string, phaseId: string, action: 'resize-phase-start' | 'resize-phase-end') => void;
 }
 // Helper function to calculate baseline visual offsets
-function calculateBaselineVisualOffsets(positions: any, isDragging: boolean, dragState: any, projectId: string, mode: 'days' | 'weeks' = 'days') {
+function calculateBaselineVisualOffsets(
+  positions: TimelinePositionCalculation,
+  isDragging: boolean,
+  dragState: DragState | null,
+  projectId: string,
+  mode: 'days' | 'weeks' = 'days'
+) {
   try {
     return UnifiedTimelineService.calculateBaselineVisualOffsets(positions, isDragging, dragState, projectId, mode);
   } catch (error) {
@@ -48,7 +56,11 @@ function calculateBaselineVisualOffsets(positions: any, isDragging: boolean, dra
   }
 }
 // Helper function to calculate visual project dates with consolidated offset logic
-function calculateVisualProjectDates(project: any, isDragging: boolean, dragState: any) {
+function calculateVisualProjectDates(
+  project: Project,
+  isDragging: boolean,
+  dragState: DragState | null
+) {
   try {
     return UnifiedTimelineService.calculateVisualProjectDates(project, isDragging, dragState);
   } catch (error) {
@@ -84,8 +96,8 @@ export const ProjectBar = memo(function ProjectBar({
     holidays
   );
   // Centralized filtered milestones for this project (once per relevant change)
-  const filteredProjectMilestones = useMemo(() => {
-    if (!project) return [] as any[];
+  const filteredProjectMilestones = useMemo<Milestone[]>(() => {
+    if (!project) return [];
     const projectStart = new Date(project.startDate);
     const projectEnd = project.continuous ? null : new Date(project.endDate);
     let projectMilestones = milestones.filter(m => {
@@ -117,34 +129,7 @@ export const ProjectBar = memo(function ProjectBar({
     return calculateVisualProjectDates(project, isDragging, dragState);
   }, [project, isDragging, dragState]);
   // Get comprehensive timeline bar data from UnifiedTimelineService - MUST be before early returns
-  const timelineData = useMemo(() => {
-    if (!project) {
-      // Return a minimal default structure that matches UnifiedTimelineService.getTimelineBarData
-      return {
-        projectData: null,
-        projectDays: [],
-        workHoursForPeriod: [],
-        dayEstimates: [],
-        milestoneSegments: [],
-        projectMetrics: { 
-          exactDailyHours: [], 
-          dailyHours: [], 
-          dailyMinutes: [], 
-          heightInPixels: [], 
-          workingDaysCount: 0 
-        },
-        colorScheme: { 
-          baseline: NEUTRAL_COLORS.gray600, 
-          completedPlanned: NEUTRAL_COLORS.gray300, 
-          main: NEUTRAL_COLORS.gray500, 
-          midTone: NEUTRAL_COLORS.gray400, 
-          hover: NEUTRAL_COLORS.gray500, 
-          autoEstimate: NEUTRAL_COLORS.gray200 
-        },
-        visualDates: null,
-        isWorkingDay: () => false
-      };
-    }
+  const timelineData = useMemo<ReturnType<typeof UnifiedTimelineService.getTimelineBarData>>(() => {
     const options = visualProjectDates
       ? {
           visualProjectDates: {
@@ -190,8 +175,9 @@ export const ProjectBar = memo(function ProjectBar({
     projectMetrics,
     colorScheme,
     visualDates,
-    isWorkingDay
-  } = timelineData as any;
+    isWorkingDay,
+    getPerDateSummary
+  } = timelineData;
   const { exactDailyHours, dailyHours, dailyMinutes, heightInPixels, workingDaysCount } = projectMetrics;
   // Now we can do early returns - AFTER all hooks
   if (!project) {
@@ -248,8 +234,8 @@ export const ProjectBar = memo(function ProjectBar({
           const extendsRight = project.continuous; // Continuous projects always extend right
           
           // Calculate position and width, extending beyond viewport for continuous projects
-          let leftPx = adjustedPositions.baselineStartPx;
-          let widthPx = (adjustedPositions as any).baselineWidthPx ?? positions.baselineWidthPx;
+          const leftPx = adjustedPositions.baselineStartPx;
+          let widthPx = adjustedPositions.baselineWidthPx ?? positions.baselineWidthPx;
           
           // Extend width to viewport edge (plus buffer) for continuous projects
           if (extendsRight) {
@@ -328,8 +314,8 @@ export const ProjectBar = memo(function ProjectBar({
             return individualDates.map((date, dateIndex) => {
               // Get time allocation info from day estimates
               const dateNormalized = normalizeToMidnight(new Date(date));
-              const { dailyHours: totalHours, allocationType } = (timelineData as any).getPerDateSummary
-                ? (timelineData as any).getPerDateSummary(dateNormalized)
+              const { dailyHours: totalHours, allocationType } = getPerDateSummary
+                ? getPerDateSummary(dateNormalized)
                 : { dailyHours: 0, allocationType: 'none' as const };
               
               // Determine why there's no time for this day (for tooltip)
@@ -729,7 +715,7 @@ export const ProjectBar = memo(function ProjectBar({
                 <div 
                   className="absolute cursor-ew-resize pointer-events-auto group"
                   style={{ 
-                    left: `${adjustedPositions.baselineStartPx + ((adjustedPositions as any).baselineWidthPx ?? positions.baselineWidthPx) - RESIZE_ZONE_WIDTH}px`,
+                    left: `${adjustedPositions.baselineStartPx + (adjustedPositions.baselineWidthPx ?? positions.baselineWidthPx) - RESIZE_ZONE_WIDTH}px`,
                     top: '0px',
                     width: `${RESIZE_ZONE_WIDTH}px`,
                     height: '48px',

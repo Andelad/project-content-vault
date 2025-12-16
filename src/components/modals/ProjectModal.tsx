@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar as CalendarIcon, Clock, User, Palette, Trash2, Info, ChevronDown, ChevronRight, Folder, Infinity, LineChart, StickyNote } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, User, Palette, Trash2, Info, ChevronDown, ChevronRight, Folder, Infinity as InfinityIcon, LineChart, StickyNote } from 'lucide-react';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { Label } from '../ui/label';
@@ -19,12 +19,13 @@ import { useSettingsContext } from '../../contexts/SettingsContext';
 import { useTimelineContext } from '../../contexts/TimelineContext';
 import { ClientSearchInput } from '../shared';
 import { calculateProjectTimeMetrics, calculateAutoEstimateHoursPerDay, expandHolidayDates, calculateTotalWorkingDays, clearTimelineCache, ProjectOrchestrator, formatDuration, normalizeToMidnight } from '@/services';
+import type { ProjectEvent } from '@/services/calculations/projects/projectEntityCalculations';
 import { formatDate, formatDateForInput } from '@/utils/dateFormatUtils';
 import { useToast } from '@/hooks/use-toast';
 import { StandardModal } from './StandardModal';
 import { OKLCH_PROJECT_COLORS, PROJECT_ICONS } from '@/constants';
 import { NEUTRAL_COLORS } from '@/constants/colors';
-import type { Project } from '@/types/core';
+import type { Project, Milestone } from '@/types/core';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 import { TabComponent } from '../shared';
 import { supabase } from '@/integrations/supabase/client';
@@ -40,11 +41,12 @@ interface ProjectModalProps {
 export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: ProjectModalProps) {
   // Debug toggle
   const DEBUG = false;
-  const dlog = useCallback((...args: any[]) => { if (DEBUG) console.log(...args); }, [DEBUG]);
+  const dlog = useCallback((...args: unknown[]) => { if (DEBUG) console.log(...args); }, [DEBUG]);
   // Debug: Identify which modal instance this is
   const modalType = projectId ? 'EDIT' : 'CREATE';
   dlog(`🔍 ${modalType} Modal render:`, { isOpen, projectId, groupId, rowId });
   const { projects, groups, rows, updateProject, addProject, deleteProject, creatingNewProject, milestones, addMilestone, deleteMilestone } = useProjectContext();
+  type AddMilestoneInput = Parameters<typeof addMilestone>[0];
   const { setCurrentView } = useTimelineContext();
   const { events, holidays } = usePlannerContext();
   const { settings } = useSettingsContext();
@@ -130,7 +132,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
     }
   }, [isOpen, isCreating]);
   // Wrapper for addMilestone that tracks new milestone IDs for rollback
-  const trackedAddMilestone = useCallback(async (milestone: any, options?: { silent?: boolean }) => {
+  const trackedAddMilestone = useCallback(async (milestone: AddMilestoneInput, options?: { silent?: boolean }) => {
     const result = await addMilestone(milestone, options);
     // Track the new milestone ID if we're editing (not creating)
     if (!isCreating && result?.id) {
@@ -177,6 +179,12 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
       return info;
     });
   }, []);
+  const handleMilestoneLocalValuesUpdate = useCallback((updater: (prev: { autoEstimateDays?: Project['autoEstimateDays'] }) => { autoEstimateDays?: Project['autoEstimateDays'] }) => {
+    setLocalValues(prev => ({
+      ...prev,
+      ...updater({ autoEstimateDays: prev.autoEstimateDays }),
+    }));
+  }, [setLocalValues]);
   const localMilestonesStateMemo = useMemo(() => (
     isCreating ? {
       milestones: localProjectMilestones,
@@ -318,8 +326,8 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
           },
           {
             addProject,
-            addMilestone: async (data: any, options?: { silent?: boolean }) => {
-              await addMilestone(data, options);
+            addMilestone: async (data: Partial<Milestone>, options?: { silent?: boolean }) => {
+              await addMilestone(data as AddMilestoneInput, options);
             }
           }
         );
@@ -431,9 +439,9 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
       startDate: localValues.startDate,
       endDate: localValues.endDate,
       estimatedHours: localValues.estimatedHours,
-      color: localValues.color || '#000000',
-      groupId: groupId || project?.groupId,
-      rowId: rowId || project?.rowId,
+  color: localValues.color || '#000000',
+  groupId: project?.groupId ?? groupId ?? '',
+  rowId: rowId || project?.rowId,
       notes: localValues.notes,
       icon: localValues.icon,
       continuous: localValues.continuous,
@@ -445,8 +453,18 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
   milestones: project?.milestones ?? [],
     };
     const currentProject = project ?? fallbackProject;
-    return calculateProjectTimeMetrics(currentProject, events as any, holidays, new Date());
-  }, [project, localValues.name, localValues.client, localValues.startDate, localValues.endDate, localValues.estimatedHours, localValues.color, localValues.notes, localValues.icon, localValues.continuous, localValues.autoEstimateDays, groupId, rowId, events, holidays, localProjectMilestones]);
+    const projectEvents: ProjectEvent[] = events
+      .filter(event => !!event.projectId)
+      .map(event => ({
+        id: event.id,
+        startTime: event.startTime,
+        endTime: event.endTime,
+        completed: event.completed,
+        projectId: event.projectId!
+      }));
+
+    return calculateProjectTimeMetrics(currentProject, projectEvents, holidays, new Date());
+  }, [project, localValues.name, localValues.client, localValues.startDate, localValues.endDate, localValues.estimatedHours, localValues.color, localValues.notes, localValues.icon, localValues.continuous, localValues.autoEstimateDays, groupId, rowId, events, holidays]);
   // Special TimeMetric component for auto-estimate that shows daily breakdown
   const AutoEstimateTimeMetric = ({ 
     label, 
@@ -585,7 +603,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
       </div>
     );
   };
-  const handleSaveProperty = (property: string, value: any) => {
+  const handleSaveProperty = (property: string, value: unknown) => {
     // Validate date values
     if ((property === 'startDate' || property === 'endDate') && value instanceof Date) {
       // Check if date is valid
@@ -597,20 +615,20 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
     }
     if (isCreating) {
       // For new projects, just update local state until saved
-      if (property === 'startDate' && localValues.endDate && value > localValues.endDate) {
+      if (property === 'startDate' && localValues.endDate && value instanceof Date && value > localValues.endDate) {
         setLocalValues(prev => ({ ...prev, [property]: value, endDate: value }));
-      } else if (property === 'endDate' && localValues.startDate && value < localValues.startDate) {
+      } else if (property === 'endDate' && localValues.startDate && value instanceof Date && value < localValues.startDate) {
         setLocalValues(prev => ({ ...prev, [property]: value, startDate: value }));
       } else {
         setLocalValues(prev => ({ ...prev, [property]: value }));
       }
     } else if (projectId && projectId !== '') {
       // Validate date ranges for existing projects - use silent mode to prevent toasts
-      if (property === 'startDate' && localValues.endDate && value > localValues.endDate) {
+      if (property === 'startDate' && localValues.endDate && value instanceof Date && value > localValues.endDate) {
         // If start date is after end date, adjust end date to match
         updateProject(projectId, { [property]: value, endDate: value }, { silent: true });
         setLocalValues(prev => ({ ...prev, [property]: value, endDate: value }));
-      } else if (property === 'endDate' && localValues.startDate && value < localValues.startDate) {
+      } else if (property === 'endDate' && localValues.startDate && value instanceof Date && value < localValues.startDate) {
         // If end date is before start date, adjust start date to match
         updateProject(projectId, { [property]: value, startDate: value }, { silent: true });
         setLocalValues(prev => ({ ...prev, [property]: value, startDate: value }));
@@ -649,15 +667,17 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
       updateProject(projectId, { notes: value }, { silent: true });
     }
   };
+  type AutoEstimateDays = Project['autoEstimateDays'];
+
   // Handle auto-estimate days changes
-  const handleAutoEstimateDaysChange = useCallback((newAutoEstimateDays: any) => {
+  const handleAutoEstimateDaysChange = useCallback((newAutoEstimateDays: AutoEstimateDays) => {
     setLocalValues(prev => ({ ...prev, autoEstimateDays: newAutoEstimateDays }));
     if (!isCreating && projectId) {
       updateProject(projectId, { autoEstimateDays: newAutoEstimateDays }, { silent: true });
       // Clear timeline cache to ensure UI updates immediately
       clearTimelineCache();
     }
-  }, [isCreating, projectId, updateProject, setLocalValues]);
+  }, [isCreating, projectId, updateProject]);
   const handleContinuousToggle = () => {
     const newContinuous = !localValues.continuous;
     setLocalValues(prev => ({ ...prev, continuous: newContinuous }));
@@ -871,12 +891,15 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
     icon: Icon 
   }: {
     label: string;
-    value: any;
+    value: Date | number | string;
     property: string;
     type?: string;
-    icon: any;
+    icon: React.ComponentType<{ className?: string }>;
   }) => {
     const isEditing = editingProperty === property;
+    const dateValue = value as Date;
+    const numberValue = typeof value === 'number' ? value : 0;
+    const textValue = typeof value === 'string' ? value : '';
     return (
       <div className="space-y-2">
         <div className="flex items-center gap-2">
@@ -891,13 +914,13 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
                 className="w-full justify-start text-left font-normal"
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {formatDate(value)}
+                {formatDate(dateValue)}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
               <Calendar
                 mode="single"
-                selected={value}
+                selected={dateValue}
                 onSelect={(selectedDate) => {
                   if (selectedDate) {
                     handleSaveProperty(property, selectedDate);
@@ -910,7 +933,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
         ) : isEditing ? (
           <Input
             type={type}
-            defaultValue={value}
+            defaultValue={type === 'number' ? numberValue : textValue}
             className="w-full"
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
@@ -942,8 +965,8 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
             onClick={() => setEditingProperty(property)}
           >
             <div className="text-sm">
-              {type === 'number' ? `${value} hours` : 
-               value || 'Click to add...'}
+              {type === 'number' ? `${numberValue} hours` : 
+               textValue || 'Click to add...'}
             </div>
           </div>
         )}
@@ -993,7 +1016,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
                 <span className="text-muted-foreground">→</span>
                 {localValues.continuous ? (
                   <div className="flex items-center gap-1 px-3 py-2 h-10 rounded border border-input bg-white text-muted-foreground">
-                    <Infinity className="w-3 h-3" />
+                    <InfinityIcon className="w-3 h-3" />
                     <span className="text-sm">Continuous</span>
                   </div>
                 ) : (
@@ -1013,7 +1036,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
                       className="h-10 w-10 p-0"
                       onClick={handleContinuousToggle}
                     >
-                      <Infinity className="w-4 h-4" />
+                      <InfinityIcon className="w-4 h-4" />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
@@ -1186,7 +1209,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
                 isCreatingProject={isCreating}
                 trackedAddMilestone={!isCreating ? trackedAddMilestone : undefined}
                 localValues={localValues}
-                setLocalValues={setLocalValues}
+                setLocalValues={handleMilestoneLocalValuesUpdate}
                 onAutoEstimateDaysChange={handleAutoEstimateDaysChange}
                 editingProperty={editingProperty}
                 setEditingProperty={setEditingProperty}
@@ -1198,15 +1221,10 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
             {activeTab === 'progress' && (
               <div>
                 {/* Project Insights */}
-                {!isCreating && (
+                {!isCreating && project && (
                   <div className="mb-6">
                     <ProjectInsightsSection 
-                      project={project || {
-                        ...localValues,
-                        id: projectId || '',
-                        groupId: groupId || '',
-                        rowId: rowId || ''
-                      }}
+                      project={project}
                       events={events}
                       holidays={holidays}
                     />
