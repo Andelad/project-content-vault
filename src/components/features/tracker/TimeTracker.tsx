@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Play, Square, Search, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useProjectContext } from '@/contexts/ProjectContext';
 import { usePlannerContext } from '@/contexts/PlannerContext';
 import { useSettingsContext } from '@/contexts/SettingsContext';
+import { useClients } from '@/hooks/useClients';
 import { CalendarEvent } from '@/types';
 import { calculateOverlapActions, findOverlappingEvents } from '@/services';
 import { 
@@ -32,6 +33,7 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
   const { projects, groups } = useProjectContext();
   const { events, addEvent, updateEvent, deleteEvent } = usePlannerContext();
   const { isTimeTracking, setIsTimeTracking, currentTrackingEventId, setCurrentTrackingEventId: setGlobalTrackingEventId } = useSettingsContext();
+  const { clients } = useClients();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProject, setSelectedProject] = useState<any>(null);
   const [seconds, setSeconds] = useState(0);
@@ -46,6 +48,19 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
   const startTimeRef = useRef<Date | null>(null);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const currentStateRef = useRef<any>(null); // Track current state for sync
+
+  const clientNameById = useMemo(() => {
+    const map: Record<string, string> = {};
+    clients.forEach((c) => {
+      if (c.id) map[c.id] = c.name;
+    });
+    return map;
+  }, [clients]);
+
+  const getClientName = useCallback(
+    (project: any) => clientNameById[project?.clientId] || project?.client || '',
+    [clientNameById]
+  );
   // Storage keys - inline to avoid circular dependency issues
   const STORAGE_KEYS = {
     isTracking: 'timeTracker_isTracking',
@@ -298,12 +313,12 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
       return recentProjects.map(project => ({
         id: project.id,
         name: project.name,
-        client: project.client,
+        client: getClientName(project),
         type: 'project' as const
       }));
     }
-    return UnifiedTimeTrackerService.filterSearchResults(projects, searchQuery);
-  }, [searchQuery, projects, recentProjects]);
+    return UnifiedTimeTrackerService.filterSearchResults(projects, searchQuery, clientNameById);
+  }, [searchQuery, projects, recentProjects, getClientName, clientNameById]);
   // Format time display (simple inline function)
   const formatTime = (seconds: number): string => {
     const hrs = Math.floor(seconds / 3600);
@@ -318,9 +333,10 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
     if (item.type === 'project') {
       const project = projects.find(p => p.id === item.id);
       setSelectedProject(project);
+      const clientName = getClientName(project);
       searchQueryText = project 
-        ? project.client 
-          ? `${project.name} • ${project.client}` 
+        ? clientName 
+          ? `${project.name} • ${clientName}` 
           : project.name
         : '';
       setSearchQuery(searchQueryText);

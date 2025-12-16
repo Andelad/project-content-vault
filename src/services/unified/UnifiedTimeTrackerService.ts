@@ -230,29 +230,32 @@ export class UnifiedTimeTrackerService {
   /**
    * Filter projects and clients based on search query
    */
-  static filterSearchResults(projects: any[], searchQuery: string): SearchResult[] {
+  static filterSearchResults(projects: any[], searchQuery: string, clientNameById: Record<string, string> = {}): SearchResult[] {
     if (!searchQuery.trim()) return [];
 
     const query = searchQuery.toLowerCase();
     const results: SearchResult[] = [];
 
-    // Search projects
+    // Search projects with authoritative client name via clientId mapping when available
     projects.forEach(project => {
-      const matchesName = project.name.toLowerCase().includes(query);
-      const matchesClient = project.client?.toLowerCase().includes(query) ?? false;
+      const clientName = clientNameById[project.clientId] || project.client;
+      const matchesName = project.name?.toLowerCase().includes(query);
+      const matchesClient = clientName?.toLowerCase().includes(query) ?? false;
       
       if (matchesName || matchesClient) {
         results.push({
           type: 'project',
           id: project.id,
           name: project.name,
-          client: project.client
+          client: clientName
         });
       }
     });
 
-    // Search unique clients (filter out undefined/null clients)
-    const uniqueClients = Array.from(new Set(projects.map(p => p.client).filter(Boolean)));
+    // Search unique clients using client map (fall back to project.client strings)
+    const uniqueClients = Array.from(new Set(
+      projects.map(p => clientNameById[p.clientId] || p.client).filter(Boolean)
+    ));
     uniqueClients.forEach(client => {
       if (client && client.toLowerCase().includes(query) &&
           !results.some(r => r.type === 'client' && r.name === client)) {

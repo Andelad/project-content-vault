@@ -133,8 +133,8 @@ export function ClientsTab({
         {/* Clients list */}
         <div className="space-y-2">
           {filteredClients.map((client) => {
-            // Count projects for this client
-            const clientProjects = projects.filter((p) => p.client === client.name);
+            // Count projects for this client by clientId (authoritative)
+            const clientProjects = projects.filter((p) => p.clientId === client.id);
             const projectCount = clientProjects.length;
             const activeProjectCount = clientProjects.filter(
               (p) => new Date(p.startDate) <= new Date() && new Date(p.endDate) >= new Date()

@@ -111,8 +111,8 @@ export function DraggablePhaseMarkers({
           if (startPositions) {
             const adjustedStartPositions = calculateBaselineVisualOffsets(
               startPositions,
-              false, // Don't apply project-level drag offset
-              null,
+              isDragging,
+              dragState,
               project.id,
               mode
             );
@@ -124,7 +124,7 @@ export function DraggablePhaseMarkers({
               <Tooltip key={`${phase.id}-start-marker`} delayDuration={100}>
                 <TooltipTrigger asChild>
                   <div
-                    className={`absolute pointer-events-auto group shadow-md hover:shadow-lg drop-shadow-sm transition-all duration-200 ${
+                    className={`absolute pointer-events-auto group shadow-md hover:shadow-lg drop-shadow-sm transition-shadow duration-150 ${
                       hasRecurringTemplate ? 'cursor-not-allowed' : 'cursor-ew-resize'
                     }`}
                     style={{
@@ -220,8 +220,8 @@ export function DraggablePhaseMarkers({
           if (endPositions) {
             const adjustedEndPositions = calculateBaselineVisualOffsets(
               endPositions,
-              false, // Don't apply project-level drag offset
-              null,
+              isDragging,
+              dragState,
               project.id,
               mode
             );
@@ -236,7 +236,7 @@ export function DraggablePhaseMarkers({
             <Tooltip key={`${phase.id}-end-marker`} delayDuration={100}>
               <TooltipTrigger asChild>
                 <div
-                  className={`absolute pointer-events-auto group shadow-md hover:shadow-lg drop-shadow-sm transition-all duration-200 ${
+                  className={`absolute pointer-events-auto group shadow-md hover:shadow-lg drop-shadow-sm transition-shadow duration-150 ${
                     hasRecurringTemplate ? 'cursor-not-allowed' : 'cursor-ew-resize'
                   }`}
                   style={{

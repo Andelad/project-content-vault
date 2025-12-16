@@ -94,7 +94,7 @@ export function PhaseMarkers({
           <Tooltip key={`${phase.id}-marker`} delayDuration={100}>
             <TooltipTrigger asChild>
               <div
-                className="absolute pointer-events-auto transform -translate-x-1/2 transition-all duration-150 hover:scale-110 hover:z-30"
+                className="absolute pointer-events-auto transform -translate-x-1/2 transition-transform duration-150 hover:scale-110 hover:z-30"
                 style={{
                   left: `${markerPosition}px`,
                   top: '17.25px', // Center vertically in 48px height (24px midpoint - 6.75px for half diamond)

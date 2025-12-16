@@ -9,11 +9,40 @@
  * ✅ Mathematical operations only
  * ✅ Delegates to domain rules for business logic
  */
-import { Milestone, Project, DayEstimate, Settings, Holiday } from '@/types';
+import { Milestone, Project, DayEstimate, Settings, Holiday, CalendarEvent } from '@/types';
 import * as DateCalculations from '../general/dateCalculations';
 import { calculatePlannedTimeForDate } from '@/services/unified/UnifiedEventWorkHourService';
 import { TimelineRules } from '@/domain/rules';
 import { getDateKey } from '@/utils/dateFormatUtils';
+
+/**
+ * Sum completed event hours within an inclusive date range
+ * (planned events do not subtract from estimates)
+ */
+function sumCompletedEventHoursInRange(
+  eventsByDate: Map<string, CalendarEvent[]>,
+  startDate: Date,
+  endDate: Date
+): number {
+  if (!eventsByDate || eventsByDate.size === 0) return 0;
+
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  start.setHours(0, 0, 0, 0);
+  end.setHours(23, 59, 59, 999);
+
+  let totalCompleted = 0;
+
+  eventsByDate.forEach((eventsOnDay, dateKey) => {
+    const day = new Date(`${dateKey}T00:00:00`);
+    if (day < start || day > end) return;
+
+    const breakdown = TimelineRules.calculateDayTimeBreakdown(eventsOnDay);
+    totalCompleted += breakdown.completedEventHours;
+  });
+
+  return totalCompleted;
+}
 /**
  * Check if a date is a working day based on settings and holidays (for day estimates)
  */
@@ -127,7 +156,8 @@ export function calculateRecurringMilestoneDayEstimates(
   milestone: Milestone,
   project: Project,
   settings: Settings,
-  holidays: Holiday[]
+  holidays: Holiday[],
+  eventsByDate: Map<string, CalendarEvent[]> = new Map()
 ): DayEstimate[] {
   if (!milestone.isRecurring || !milestone.recurringConfig) {
     return calculateMilestoneDayEstimates(milestone, project, settings, holidays);
@@ -170,7 +200,16 @@ export function calculateRecurringMilestoneDayEstimates(
     if (workingDays.length === 0 || !Number.isFinite(timeAllocationHours) || timeAllocationHours <= 0) {
       return;
     }
-    const hoursPerDay = timeAllocationHours / workingDays.length;
+    const completedInOccurrence = sumCompletedEventHoursInRange(
+      eventsByDate,
+      occurrenceStartDate,
+      occurrenceEndDate
+    );
+    const remainingAllocation = Math.max(0, timeAllocationHours - completedInOccurrence);
+    if (remainingAllocation <= 0) {
+      return;
+    }
+    const hoursPerDay = remainingAllocation / workingDays.length;
     workingDays.forEach(date => {
       estimates.push({
         date: new Date(date),
@@ -348,16 +387,38 @@ export function calculateProjectDayEstimates(
       : previousMilestoneEnd 
         ? new Date(previousMilestoneEnd.getTime() + 24 * 60 * 60 * 1000) // Day after previous
         : new Date(project.startDate);
-    // Create a milestone with the correct segment startDate
-    const milestoneWithSegment = {
+    // Normalize end for comparisons
+    const milestoneEnd = new Date(milestone.endDate || milestone.dueDate);
+
+    // Determine remaining allocation after subtracting completed hours in this phase range
+    const originalAllocation = milestone.timeAllocationHours ?? milestone.timeAllocation ?? 0;
+    const completedInPhase = sumCompletedEventHoursInRange(eventsByDate, segmentStart, milestoneEnd);
+    const remainingAllocation = Math.max(0, originalAllocation - completedInPhase);
+
+    // If nothing remains, skip auto-estimate generation for this phase
+    if (remainingAllocation <= 0) {
+      previousMilestoneEnd = milestoneEnd;
+      return;
+    }
+
+    // Create milestone object with adjusted allocation (no rollover to other phases)
+    const milestoneWithAdjustedAllocation: Milestone = {
       ...milestone,
-      startDate: segmentStart
+      startDate: segmentStart,
+      timeAllocationHours: remainingAllocation,
+      timeAllocation: remainingAllocation
     };
     const milestoneEstimates = milestone.isRecurring
-      ? calculateRecurringMilestoneDayEstimates(milestoneWithSegment, project, settings, holidays)
-      : calculateMilestoneDayEstimates(milestoneWithSegment, project, settings, holidays);
+      ? calculateRecurringMilestoneDayEstimates(
+          milestoneWithAdjustedAllocation,
+          project,
+          settings,
+          holidays,
+          eventsByDate
+        )
+      : calculateMilestoneDayEstimates(milestoneWithAdjustedAllocation, project, settings, holidays);
     // Update the previous milestone end for next iteration
-    previousMilestoneEnd = new Date(milestone.endDate || milestone.dueDate);
+    previousMilestoneEnd = milestoneEnd;
     // Filter out milestone estimates that conflict with ANY events (planned OR completed)
     // Use domain rule: Auto-estimates only on days WITHOUT events
     // AND ensure they don't extend beyond project end date (only for non-continuous projects)
@@ -382,12 +443,20 @@ export function calculateProjectDayEstimates(
   // Domain Rule: Auto-estimates only on days WITHOUT events
   // Note: Skip auto-estimates for continuous projects or when no budget is defined
   if (milestones.length === 0 && Number.isFinite(project.estimatedHours) && project.estimatedHours > 0 && !project.continuous) {
-    console.log(`[DayEstimateCalcs] Auto-estimate triggered for project ${project.name}:`, {
-      estimatedHours: project.estimatedHours,
-      continuous: project.continuous,
-      startDate: project.startDate,
-      endDate: project.endDate
-    });
+    const projectStart = new Date(project.startDate);
+    const projectEnd = new Date(project.endDate);
+
+    // Subtract completed hours within the project range (planned time does not subtract)
+    const completedInProject = sumCompletedEventHoursInRange(
+      eventsByDate,
+      projectStart,
+      projectEnd
+    );
+    const remainingBudget = Math.max(0, project.estimatedHours - completedInProject);
+    if (remainingBudget <= 0) {
+      return allEstimates; // Fully completed; no auto-estimates remain
+    }
+
     const workingDays = getWorkingDaysBetween(
       project.startDate,
       project.endDate,
@@ -395,24 +464,30 @@ export function calculateProjectDayEstimates(
       holidays,
       project
     );
-    if (workingDays.length > 0) {
-      const hoursPerDay = project.estimatedHours / workingDays.length;
-      // Filter out working days that have ANY events (planned or completed)
-      // Domain Rule: Auto-estimates only on days WITHOUT events
-      const filteredWorkingDays = workingDays.filter(date => {
-        const dateKey = getDateKey(date);
-        return !allEventDates.has(dateKey);
-      });
-      filteredWorkingDays.forEach(date => {
-        allEstimates.push({
-          date: new Date(date),
-          projectId: project.id,
-          hours: hoursPerDay,
-          source: 'project-auto-estimate',
-          isWorkingDay: true
-        });
-      });
+    if (workingDays.length === 0) {
+      return allEstimates;
     }
+
+    // Filter out working days that have ANY events (planned or completed)
+    // Domain Rule: Auto-estimates only on days WITHOUT events
+    const filteredWorkingDays = workingDays.filter(date => {
+      const dateKey = getDateKey(date);
+      return !allEventDates.has(dateKey);
+    });
+    if (filteredWorkingDays.length === 0) {
+      return allEstimates;
+    }
+
+    const hoursPerDay = remainingBudget / filteredWorkingDays.length;
+    filteredWorkingDays.forEach(date => {
+      allEstimates.push({
+        date: new Date(date),
+        projectId: project.id,
+        hours: hoursPerDay,
+        source: 'project-auto-estimate',
+        isWorkingDay: true
+      });
+    });
   }
   return allEstimates;
 }
