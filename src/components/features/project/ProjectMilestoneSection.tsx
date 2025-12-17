@@ -331,8 +331,8 @@ export function ProjectMilestoneSection({
         startDate: newPhaseStart,
         endDate: newPhaseEnd,
         dueDate: newPhaseEnd,
-        timeAllocation: 1, // Minimum 1 hour required by DB constraint
-        timeAllocationHours: 1, // Minimum 1 hour required by DB constraint
+  timeAllocation: 0, // Allow placeholder phase with no hours until decided
+  timeAllocationHours: 0,
         isRecurring: false,
         userId: '',
         createdAt: new Date(),

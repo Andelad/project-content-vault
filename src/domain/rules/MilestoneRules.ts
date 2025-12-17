@@ -11,7 +11,7 @@
  */
 
 import type { Milestone, Project } from '@/types/core';
-import { normalizeToMidnight, addDaysToDate } from '@/services';
+import { normalizeToMidnight, addDaysToDate } from '@/services/calculations/general/dateCalculations';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -66,20 +66,20 @@ export interface RecurringMilestoneRuleConfig {
 export class MilestoneRules {
   
   // ==========================================================================
-  // RULE 1: POSITIVE TIME ALLOCATIONS
+  // RULE 1: NON-NEGATIVE TIME ALLOCATIONS
   // ==========================================================================
   
   /**
-   * RULE 1: Milestone time allocation must be positive
+   * RULE 1: Milestone time allocation must be non-negative
    * 
    * Business Logic Reference: Rule 4
-   * Formula: milestone.timeAllocationHours > 0
+   * Formula: milestone.timeAllocationHours >= 0
    * 
-   * @param timeAllocation - The time allocation to validate
-   * @returns true if allocation is positive, false otherwise
+  * @param timeAllocation - The time allocation to validate
+  * @returns true if allocation is non-negative, false otherwise
    */
   static validateTimeAllocation(timeAllocation: number): boolean {
-    return timeAllocation > 0;
+    return timeAllocation >= 0;
   }
 
   // ==========================================================================
@@ -318,7 +318,9 @@ export class MilestoneRules {
     const warnings: string[] = [];
 
     if (!this.validateTimeAllocation(timeAllocation)) {
-      errors.push('Milestone time allocation must be greater than 0');
+      errors.push('Milestone time allocation cannot be negative');
+    } else if (timeAllocation === 0) {
+      warnings.push('Milestone has 0h allocated — work will not be distributed until hours are set');
     }
 
     if (timeAllocation > projectBudget) {
