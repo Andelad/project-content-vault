@@ -636,7 +636,7 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
                 }}
               >
                 {/* Column Markers removed from here - will be added per-row */}
-                <div className="flex flex-col min-h-full bg-white">
+                <div className="flex flex-col min-h-full bg-white relative">
                   {/* Fixed Headers Row */}
                   <div className="flex border-b border-gray-200 bg-white relative z-10">
                     {/* Date Headers - full width, no sidebar */}
@@ -692,6 +692,15 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
                       </div> {/* End of Scrollable Content Layer */}
                     </div> {/* End of Timeline Content */}
                   </div> {/* End of Scrollable Content Area */}
+                  {/* Bottom fade/shadow to soften cut-off at scroll edge (stays fixed to container bottom) */}
+                  <div
+                    className="pointer-events-none absolute left-0 right-0 bottom-0"
+                    style={{
+                      height: '6px',
+                      zIndex: 80,
+                      background: 'linear-gradient(to top, rgba(64,64,64,0.06) 0%, rgba(64,64,64,0.03) 25%, rgba(64,64,64,0.01) 70%, rgba(64,64,64,0) 100%)'
+                    }}
+                  />
                 </div>
               </Card>
               

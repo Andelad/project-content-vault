@@ -316,6 +316,11 @@
   background: #f9fafb;
 }
 
+/* Bottom fade shadow for timeline scroll containers */
+.timeline-scroll-shadow-bottom {
+  position: relative;
+}
+
 /* Holiday diagonal pattern */
 .holiday-pattern {
   background-image: repeating-linear-gradient(

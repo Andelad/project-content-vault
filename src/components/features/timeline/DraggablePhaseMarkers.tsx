@@ -63,10 +63,16 @@ export function DraggablePhaseMarkers({
     ? normalizeToMidnight(new Date(viewportEnd))
     : normalizeToMidnight(new Date(project.endDate));
 
-  const MARKER_WIDTH = 8; // 8px wide marker (2px wider than project resize handles)
+  const MARKER_WIDTH = 12; // Slightly narrower marker per request
   const MARKER_HEIGHT = Math.round(32 * 2 / 3); // 2/3rds of original 32px = ~21px
   const MARKER_TOP = 8 + Math.round((32 - MARKER_HEIGHT) / 2); // Adjust top to keep centered in bar
   const MARKER_INSET = 1; // 1px inset on each side for gap when markers are adjacent
+  const MARKER_CORNER_RADIUS = 2; // Rounded corners on the triangle
+
+  // Precomputed rounded half-diamond paths (right and left pointing)
+  const markerMidY = MARKER_HEIGHT / 2;
+  const rightMarkerPath = `M 0 ${MARKER_CORNER_RADIUS} Q 0 0 ${MARKER_CORNER_RADIUS} 0 L ${MARKER_WIDTH - MARKER_CORNER_RADIUS} ${markerMidY - MARKER_CORNER_RADIUS} Q ${MARKER_WIDTH} ${markerMidY} ${MARKER_WIDTH - MARKER_CORNER_RADIUS} ${markerMidY + MARKER_CORNER_RADIUS} L ${MARKER_CORNER_RADIUS} ${MARKER_HEIGHT} Q 0 ${MARKER_HEIGHT} 0 ${MARKER_HEIGHT - MARKER_CORNER_RADIUS} Z`;
+  const leftMarkerPath = `M ${MARKER_WIDTH} ${MARKER_CORNER_RADIUS} Q ${MARKER_WIDTH} 0 ${MARKER_WIDTH - MARKER_CORNER_RADIUS} 0 L ${MARKER_CORNER_RADIUS} ${markerMidY - MARKER_CORNER_RADIUS} Q 0 ${markerMidY} ${MARKER_CORNER_RADIUS} ${markerMidY + MARKER_CORNER_RADIUS} L ${MARKER_WIDTH - MARKER_CORNER_RADIUS} ${MARKER_HEIGHT} Q ${MARKER_WIDTH} ${MARKER_HEIGHT} ${MARKER_WIDTH} ${MARKER_HEIGHT - MARKER_CORNER_RADIUS} Z`;
 
   // Check if project has recurring template (markers should not be draggable)
   const hasRecurringTemplate = milestones.some(m => m.isRecurring);
@@ -132,7 +138,7 @@ export function DraggablePhaseMarkers({
               <Tooltip key={`${phase.id}-start-marker`} delayDuration={100}>
                 <TooltipTrigger asChild>
                   <div
-                    className={`absolute pointer-events-auto group shadow-md hover:shadow-lg drop-shadow-sm transition-shadow duration-150 ${
+                    className={`absolute pointer-events-auto group transition-shadow duration-150 ${
                       hasRecurringTemplate ? 'cursor-not-allowed' : 'cursor-ew-resize'
                     }`}
                     style={{
@@ -161,13 +167,10 @@ export function DraggablePhaseMarkers({
                       width={MARKER_WIDTH} 
                       height={MARKER_HEIGHT} 
                       viewBox={`0 0 ${MARKER_WIDTH} ${MARKER_HEIGHT}`}
-                      className="absolute inset-0 transition-opacity"
+                      className="absolute inset-0 transition-opacity drop-shadow-sm group-hover:drop-shadow-md"
                       style={{ opacity: hasRecurringTemplate ? 0.3 : 1 }}
                     >
-                      <polygon 
-                        points={`0,0 ${MARKER_WIDTH},${MARKER_HEIGHT/2} 0,${MARKER_HEIGHT}`}
-                        fill={project.color}
-                      />
+                      <path d={rightMarkerPath} fill={project.color} />
                     </svg>
                     {/* Hover highlighting - darkened overlay triangle */}
                     {!hasRecurringTemplate && (
@@ -177,10 +180,7 @@ export function DraggablePhaseMarkers({
                         viewBox={`0 0 ${MARKER_WIDTH} ${MARKER_HEIGHT}`}
                         className="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity"
                       >
-                        <polygon 
-                          points={`0,0 ${MARKER_WIDTH},${MARKER_HEIGHT/2} 0,${MARKER_HEIGHT}`}
-                          fill="black"
-                        />
+                        <path d={rightMarkerPath} fill="black" />
                       </svg>
                     )}
                   </div>
@@ -244,7 +244,7 @@ export function DraggablePhaseMarkers({
             <Tooltip key={`${phase.id}-end-marker`} delayDuration={100}>
               <TooltipTrigger asChild>
                 <div
-                  className={`absolute pointer-events-auto group shadow-md hover:shadow-lg drop-shadow-sm transition-shadow duration-150 ${
+                  className={`absolute pointer-events-auto group transition-shadow duration-150 ${
                     hasRecurringTemplate ? 'cursor-not-allowed' : 'cursor-ew-resize'
                   }`}
                   style={{
@@ -273,13 +273,10 @@ export function DraggablePhaseMarkers({
                     width={MARKER_WIDTH} 
                     height={MARKER_HEIGHT} 
                     viewBox={`0 0 ${MARKER_WIDTH} ${MARKER_HEIGHT}`}
-                    className="absolute inset-0 transition-opacity"
+                    className="absolute inset-0 transition-opacity drop-shadow-sm group-hover:drop-shadow-md"
                     style={{ opacity: hasRecurringTemplate ? 0.3 : 1 }}
                   >
-                    <polygon 
-                      points={`${MARKER_WIDTH},0 0,${MARKER_HEIGHT/2} ${MARKER_WIDTH},${MARKER_HEIGHT}`}
-                      fill={project.color}
-                    />
+                    <path d={leftMarkerPath} fill={project.color} />
                   </svg>
                   {/* Hover highlighting - darkened overlay triangle */}
                   {!hasRecurringTemplate && (
@@ -289,10 +286,7 @@ export function DraggablePhaseMarkers({
                       viewBox={`0 0 ${MARKER_WIDTH} ${MARKER_HEIGHT}`}
                       className="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity"
                     >
-                      <polygon 
-                        points={`${MARKER_WIDTH},0 0,${MARKER_HEIGHT/2} ${MARKER_WIDTH},${MARKER_HEIGHT}`}
-                        fill="black"
-                      />
+                      <path d={leftMarkerPath} fill="black" />
                     </svg>
                   )}
                 </div>
