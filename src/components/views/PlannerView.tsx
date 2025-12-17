@@ -1002,25 +1002,7 @@ export function PlannerView() {
         onDayClick={handleWeekNavDayClick}
         show={currentView === 'week' && (viewportSize === 'mobile' || viewportSize === 'tablet')}
       />
-      {/* Estimated Time Card */}
-      {calendarReady && summaryDateStrings.length > 0 && !isEventsLoading && !isHolidaysLoading && (
-        <div className="px-6 pb-[21px]">
-          <div className="bg-gray-50 border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-            <EstimatedTimeCard
-              dates={summaryDates}
-              projects={projects}
-              milestonesMap={milestonesMap}
-              events={events}
-              settings={settings}
-              holidays={holidays}
-              viewMode={currentView}
-              onDragStart={handleProjectDragStart}
-              onDragEnd={handleProjectDragEnd}
-              scrollbarWidth={calendarScrollbarWidth}
-            />
-          </div>
-        </div>
-      )}
+      {/* Estimated Time Card intentionally hidden */}
       {/* Calendar Content */}
       <div className="flex-1 px-6 pb-[21px] min-h-0">
         <div
