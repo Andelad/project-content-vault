@@ -124,6 +124,8 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
   const [milestonesAddedDuringSession, setMilestonesAddedDuringSession] = useState<string[]>([]);
   // Track if we're saving (to prevent rollback on save) - start as false, set true when saving
   const shouldRollbackRef = React.useRef(true); // Default to rollback unless explicitly saving
+  // Preserve last finite end date when toggling continuous
+  const previousEndDateRef = React.useRef<Date | null>(null);
   // Reset tracking when modal opens
   useEffect(() => {
     if (isOpen && !isCreating) {
@@ -236,6 +238,9 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
       };
       setLocalValues(projectValues);
       setOriginalValues(projectValues);
+      if (!project.continuous && project.endDate) {
+        previousEndDateRef.current = new Date(project.endDate);
+      }
       // Clear local milestones for existing projects
       setLocalProjectMilestones([]);
     } else if (isCreating) {
@@ -265,6 +270,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
       };
       setLocalValues(defaultValues);
       setOriginalValues(defaultValues);
+      previousEndDateRef.current = defaultValues.endDate;
       // Reset milestones for new projects
       setLocalProjectMilestones([]);
     }
@@ -313,7 +319,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
             name: localValues.name.trim(),
             client: localValues.client.trim(),
             startDate: localValues.startDate,
-            endDate: localValues.endDate,
+            endDate: localValues.continuous ? undefined : localValues.endDate,
             estimatedHours: localValues.estimatedHours,
             groupId: gid,
             rowId: rid,
@@ -678,14 +684,43 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
       clearTimelineCache();
     }
   }, [isCreating, projectId, updateProject]);
-  const handleContinuousToggle = () => {
+  const getFarFutureDate = useCallback(() => {
+    const farFuture = new Date();
+    farFuture.setFullYear(farFuture.getFullYear() + 100);
+    return farFuture;
+  }, []);
+  const handleContinuousToggle = useCallback(async () => {
     const newContinuous = !localValues.continuous;
-    setLocalValues(prev => ({ ...prev, continuous: newContinuous }));
-    // Auto-save for existing projects - use silent mode to prevent toasts
-    if (!isCreating && projectId && projectId !== '') {
-      updateProject(projectId, { continuous: newContinuous }, { silent: true });
+    if (newContinuous) {
+      // Store the last finite end date so we can restore it later
+      previousEndDateRef.current = localValues.endDate;
+      const farFuture = getFarFutureDate();
+      setLocalValues(prev => ({ ...prev, continuous: true, endDate: farFuture }));
+      // Auto-save for existing projects - pass endDate undefined to satisfy domain rules
+      if (!isCreating && projectId && projectId !== '') {
+        try {
+          await updateProject(projectId, { continuous: true, endDate: undefined }, { silent: true });
+        } catch (error) {
+          // Errors are handled centrally; keep local state as-is to avoid toast loops
+        }
+      }
+    } else {
+      const fallbackEndDate = previousEndDateRef.current || (() => {
+        const fromStart = new Date(localValues.startDate);
+        fromStart.setDate(fromStart.getDate() + 7);
+        return fromStart;
+      })();
+      const safeEndDate = fallbackEndDate < localValues.startDate ? localValues.startDate : fallbackEndDate;
+      setLocalValues(prev => ({ ...prev, continuous: false, endDate: safeEndDate }));
+      if (!isCreating && projectId && projectId !== '') {
+        try {
+          await updateProject(projectId, { continuous: false, endDate: safeEndDate }, { silent: true });
+        } catch (error) {
+          // Errors are handled centrally; keep local state as-is to avoid toast loops
+        }
+      }
     }
-  };
+  }, [getFarFutureDate, isCreating, localValues.continuous, localValues.endDate, localValues.startDate, projectId, updateProject]);
   const handleGroupChange = (newGroupId: string) => {
     if (!isCreating && projectId && projectId !== '') {
       // For existing projects, update the group - use silent mode to prevent toasts
@@ -813,10 +848,10 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
     property: string;
   }) => {
     const isEditing = editingProperty === property;
-    const isContinuousWithRecurring = localValues.continuous && recurringMilestoneInfo.hasRecurring;
-    const displayValue = isContinuousWithRecurring ? 'N/A' : `${value}h`;
-    const isOverBudget = !localValues.continuous && recurringMilestoneInfo.hasRecurring && 
-                       recurringMilestoneInfo.totalAllocation > value;
+  const hasRecurring = recurringMilestoneInfo.hasRecurring;
+  const displayValue = hasRecurring ? 'N/A' : `${value}h`;
+  const isOverBudget = !localValues.continuous && hasRecurring && 
+             recurringMilestoneInfo.totalAllocation > value;
     return (
       <div className="min-w-[100px]">
         <Label className="text-xs text-muted-foreground mb-1 block">Time Budget</Label>
@@ -844,8 +879,8 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
             className="h-10 text-sm justify-start text-left font-normal px-3 border border-input rounded-md !bg-white hover:bg-accent hover:text-accent-foreground cursor-pointer flex items-center min-w-[100px] max-w-[200px] relative z-20 pointer-events-auto"
             role="button"
             tabIndex={0}
-            onMouseDown={(e) => { if (!isContinuousWithRecurring) { e.preventDefault(); e.stopPropagation(); setEditingProperty(property); } }}
-            onKeyDown={(e) => { if (!isContinuousWithRecurring && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setEditingProperty(property); } }}
+            onMouseDown={(e) => { if (!hasRecurring) { e.preventDefault(); e.stopPropagation(); setEditingProperty(property); } }}
+            onKeyDown={(e) => { if (!hasRecurring && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setEditingProperty(property); } }}
           >
             <span className="truncate">{displayValue}</span>
           </div>

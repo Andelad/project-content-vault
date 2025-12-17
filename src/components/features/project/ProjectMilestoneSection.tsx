@@ -530,19 +530,17 @@ export function ProjectMilestoneSection({
                   role="button"
                   tabIndex={0}
                   onClick={() => {
-                    const isContinuousWithRecurring = projectContinuous && recurringMilestoneInfo.hasRecurring;
-                    if (!isContinuousWithRecurring) externalSetEditingProperty('estimatedHours');
+                    if (!recurringMilestoneInfo.hasRecurring) externalSetEditingProperty('estimatedHours');
                   }}
                   onKeyDown={(e) => {
-                    const isContinuousWithRecurring = projectContinuous && recurringMilestoneInfo.hasRecurring;
-                    if (!isContinuousWithRecurring && (e.key === 'Enter' || e.key === ' ')) {
+                    if (!recurringMilestoneInfo.hasRecurring && (e.key === 'Enter' || e.key === ' ')) {
                       e.preventDefault();
                       externalSetEditingProperty('estimatedHours');
                     }
                   }}
                 >
                   <span className="truncate">
-                    {projectContinuous && recurringMilestoneInfo.hasRecurring ? 'N/A' : `${projectEstimatedHours}h`}
+                    {recurringMilestoneInfo.hasRecurring ? 'N/A' : `${projectEstimatedHours}h`}
                   </span>
                 </div>
               )}

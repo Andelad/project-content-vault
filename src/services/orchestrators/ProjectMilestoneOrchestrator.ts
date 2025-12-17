@@ -553,27 +553,34 @@ export class ProjectMilestoneOrchestrator {
     }
   ): Promise<{ success: boolean; error?: string }> {
     try {
-      // Get all recurring milestones from the database
-      const recurringMilestones = context.projectMilestones.filter(m => 
-        m.name && /\s\d+$/.test(m.name) // Ends with space and number
-      );
+      // Update the template recurring milestone (new system)
+      const template = context.projectMilestones.find(m => m.isRecurring === true);
+      if (template?.id && !template.id.startsWith('temp-')) {
+        await context.updateMilestone(template.id, {
+          time_allocation: newLoadValue,
+          time_allocation_hours: newLoadValue
+        }, { silent: true });
+      }
 
-      // Update each recurring milestone in the database silently
-      for (const milestone of recurringMilestones) {
+      // Backward compatibility: update any legacy numbered instances
+      const legacyRecurring = context.projectMilestones.filter(m => m.name && /\s\d+$/.test(m.name));
+      for (const milestone of legacyRecurring) {
         if (milestone.id && !milestone.id.startsWith('temp-')) {
           await context.updateMilestone(milestone.id, {
-            time_allocation: newLoadValue
+            time_allocation: newLoadValue,
+            time_allocation_hours: newLoadValue
           }, { silent: true });
         }
       }
-      
-      // Update the recurring milestone configuration
+
+      // Update UI state
       const updatedMilestone = {
         ...context.recurringMilestone,
-        timeAllocation: newLoadValue
+        timeAllocation: newLoadValue,
+        timeAllocationHours: newLoadValue
       };
-      
-      context.setRecurringMilestone(updatedMilestone);
+
+      context.setRecurringMilestone(updatedMilestone as RecurringMilestone);
 
       return { success: true };
     } catch (error) {

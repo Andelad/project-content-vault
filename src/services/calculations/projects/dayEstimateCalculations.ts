@@ -16,8 +16,8 @@ import { TimelineRules } from '@/domain/rules';
 import { getDateKey } from '@/utils/dateFormatUtils';
 
 /**
- * Sum completed event hours within an inclusive date range
- * (planned events do not subtract from estimates)
+ * Sum planned + completed event hours within an inclusive date range
+ * Planned time is a future projection and should reduce remaining auto-estimate.
  */
 function sumCompletedEventHoursInRange(
   eventsByDate: Map<string, CalendarEvent[]>,
@@ -31,17 +31,17 @@ function sumCompletedEventHoursInRange(
   start.setHours(0, 0, 0, 0);
   end.setHours(23, 59, 59, 999);
 
-  let totalCompleted = 0;
+  let total = 0;
 
   eventsByDate.forEach((eventsOnDay, dateKey) => {
     const day = new Date(`${dateKey}T00:00:00`);
     if (day < start || day > end) return;
 
     const breakdown = TimelineRules.calculateDayTimeBreakdown(eventsOnDay);
-    totalCompleted += breakdown.completedEventHours;
+    total += breakdown.completedEventHours + breakdown.plannedEventHours;
   });
 
-  return totalCompleted;
+  return total;
 }
 /**
  * Check if a date is a working day based on settings and holidays (for day estimates)
@@ -172,43 +172,45 @@ export function calculateRecurringMilestoneDayEstimates(
     project.endDate,
     project.continuous || false
   );
-  // For each occurrence, distribute hours
-  occurrences.forEach((occurrenceDate, index) => {
-    // Calculate the work period for this occurrence
-    // The work period should be BETWEEN occurrences, not overlapping
-    // Start: day after previous occurrence (or project start for first occurrence)
-    // End: this occurrence date
-    const occurrenceEndDate = new Date(occurrenceDate);
-    let occurrenceStartDate: Date;
-    if (index === 0) {
-      // First occurrence: start from project start
-      occurrenceStartDate = new Date(project.startDate);
-    } else {
-      // Subsequent occurrences: start from day after previous occurrence
-      const previousOccurrence = occurrences[index - 1];
-      occurrenceStartDate = new Date(previousOccurrence);
-      occurrenceStartDate.setDate(occurrenceStartDate.getDate() + 1); // Day after previous
+  // Distribute hours across intervals between consecutive anchors, clamped to project window
+  for (let i = 1; i < occurrences.length; i++) {
+    const anchorBefore = new Date(occurrences[i - 1]);
+    const anchorEnd = new Date(occurrences[i]);
+
+    // Work period is the days between anchors (exclusive of anchorBefore, inclusive of anchorEnd)
+    const rawStart = new Date(anchorBefore);
+    rawStart.setDate(rawStart.getDate() + 1);
+    const rawEnd = anchorEnd;
+
+    // Clamp to project window
+    const periodStart = rawStart < project.startDate ? new Date(project.startDate) : rawStart;
+    const periodEnd = project.continuous ? rawEnd : (rawEnd > project.endDate ? new Date(project.endDate) : rawEnd);
+
+    if (periodStart > periodEnd || !Number.isFinite(timeAllocationHours) || timeAllocationHours <= 0) {
+      continue;
     }
-    // Get working days for this occurrence
+
     const workingDays = getWorkingDaysBetween(
-      occurrenceStartDate,
-      occurrenceEndDate,
+      periodStart,
+      periodEnd,
       settings,
       holidays,
       project
     );
-    if (workingDays.length === 0 || !Number.isFinite(timeAllocationHours) || timeAllocationHours <= 0) {
-      return;
+    if (workingDays.length === 0) {
+      continue;
     }
+
     const completedInOccurrence = sumCompletedEventHoursInRange(
       eventsByDate,
-      occurrenceStartDate,
-      occurrenceEndDate
+      periodStart,
+      periodEnd
     );
     const remainingAllocation = Math.max(0, timeAllocationHours - completedInOccurrence);
     if (remainingAllocation <= 0) {
-      return;
+      continue;
     }
+
     const hoursPerDay = remainingAllocation / workingDays.length;
     workingDays.forEach(date => {
       estimates.push({
@@ -220,7 +222,7 @@ export function calculateRecurringMilestoneDayEstimates(
         isWorkingDay: true
       });
     });
-  });
+  }
   return estimates;
 }
 /**
@@ -237,99 +239,107 @@ function generateRecurringOccurrences(
   }
   const config = milestone.recurringConfig;
   const occurrences: Date[] = [];
-  // Start from project start date (not milestone due date)
-  const current = new Date(projectStartDate);
-  current.setHours(0, 0, 0, 0);
-  // End date for generation
-  const endLimit = projectContinuous 
-    ? new Date(current.getTime() + 365 * 24 * 60 * 60 * 1000) // 1 year for continuous
-    : new Date(projectEndDate);
-  endLimit.setHours(23, 59, 59, 999);
-  let safetyCounter = 0;
-  const MAX_OCCURRENCES = 100;
-  // Initialize first occurrence based on pattern
-  switch (config.type) {
-    case 'daily':
-      // First occurrence is project start + interval
-      current.setDate(current.getDate() + config.interval);
-      break;
-    case 'weekly':
-      if (config.weeklyDayOfWeek !== undefined) {
-        // Find the first occurrence of the target day on or after project start
-        const targetDayOfWeek = config.weeklyDayOfWeek;
-        const projectStartDay = current.getDay();
-        const daysUntilFirstOccurrence = targetDayOfWeek >= projectStartDay
-          ? targetDayOfWeek - projectStartDay
-          : 7 - projectStartDay + targetDayOfWeek;
-        current.setDate(current.getDate() + daysUntilFirstOccurrence);
-      } else {
-        current.setDate(current.getDate() + (7 * config.interval));
-      }
-      break;
-    case 'monthly':
-      if (config.monthlyPattern === 'date' && config.monthlyDate) {
-        // Find first occurrence of specific date on or after project start
-        current.setDate(config.monthlyDate);
-        // If we've passed this date in the current month, move to next month
-        if (current < projectStartDate) {
-          current.setMonth(current.getMonth() + 1);
-          // Get the last day of the new current month
-          const lastDayOfMonth = new Date(current.getFullYear(), current.getMonth() + 1, 0).getDate();
-          current.setDate(Math.min(config.monthlyDate, lastDayOfMonth));
-        }
-      } else if (config.monthlyPattern === 'dayOfWeek' && config.monthlyWeekOfMonth && config.monthlyDayOfWeek !== undefined) {
-        // Find first occurrence of day of week pattern
-        const firstDayOfMonth = new Date(current.getFullYear(), current.getMonth(), 1);
-        const firstTargetDay = (config.monthlyDayOfWeek - firstDayOfMonth.getDay() + 7) % 7;
-        const targetDateInMonth = 1 + firstTargetDay + (config.monthlyWeekOfMonth - 1) * 7;
-        current.setDate(targetDateInMonth);
-        // If we've passed this date, move to next month
-        if (current < projectStartDate) {
-          current.setMonth(current.getMonth() + 1);
-          const nextFirstDay = new Date(current.getFullYear(), current.getMonth(), 1);
-          const nextFirstTarget = (config.monthlyDayOfWeek - nextFirstDay.getDay() + 7) % 7;
-          current.setDate(1 + nextFirstTarget + (config.monthlyWeekOfMonth - 1) * 7);
-        }
-      } else {
-        current.setMonth(current.getMonth() + config.interval);
-      }
-      break;
-  }
-  while (current <= endLimit && safetyCounter < MAX_OCCURRENCES) {
-    if (current >= projectStartDate) {
-      occurrences.push(new Date(current));
-    }
-    // Move to next occurrence
+  const MAX_OCCURRENCES = 120;
+
+  const clampMonthlyDate = (date: Date, targetDay: number) => {
+    const lastDayOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+    return Math.min(targetDay, lastDayOfMonth);
+  };
+
+  const addInterval = (date: Date, direction: 1 | -1 = 1) => {
+    const next = new Date(date);
     switch (config.type) {
       case 'daily':
-        current.setDate(current.getDate() + config.interval);
-        break;
+        next.setDate(next.getDate() + direction * config.interval);
+        return next;
       case 'weekly':
-        // Simply add the interval weeks
-        current.setDate(current.getDate() + (7 * config.interval));
-        break;
+        next.setDate(next.getDate() + direction * (7 * config.interval));
+        return next;
       case 'monthly':
         if (config.monthlyPattern === 'date' && config.monthlyDate) {
-          // Specific date of month
-          current.setMonth(current.getMonth() + config.interval);
-          // Get the last day of the new current month
-          const lastDayOfMonth = new Date(current.getFullYear(), current.getMonth() + 1, 0).getDate();
-          current.setDate(Math.min(config.monthlyDate, lastDayOfMonth));
-        } else if (config.monthlyPattern === 'dayOfWeek' && config.monthlyWeekOfMonth && config.monthlyDayOfWeek !== undefined) {
-          // Specific week and day of month (e.g., 2nd Tuesday)
-          current.setMonth(current.getMonth() + config.interval);
-          const firstDayOfMonth = new Date(current.getFullYear(), current.getMonth(), 1);
-          const firstTargetDay = (config.monthlyDayOfWeek - firstDayOfMonth.getDay() + 7) % 7;
-          const targetDate = 1 + firstTargetDay + (config.monthlyWeekOfMonth - 1) * 7;
-          current.setDate(targetDate);
-        } else {
-          current.setMonth(current.getMonth() + config.interval);
+          next.setMonth(next.getMonth() + direction * config.interval);
+          next.setDate(clampMonthlyDate(next, config.monthlyDate));
+          return next;
         }
-        break;
+        if (config.monthlyPattern === 'dayOfWeek' && config.monthlyWeekOfMonth && config.monthlyDayOfWeek !== undefined) {
+          next.setMonth(next.getMonth() + direction * config.interval);
+          const firstDay = new Date(next.getFullYear(), next.getMonth(), 1);
+          const offset = (config.monthlyDayOfWeek - firstDay.getDay() + 7) % 7;
+          const target = 1 + offset + (config.monthlyWeekOfMonth - 1) * 7;
+          next.setDate(target);
+          return next;
+        }
+        next.setMonth(next.getMonth() + direction * config.interval);
+        return next;
     }
-    safetyCounter++;
+  };
+
+  const findFirstOccurrenceOnOrAfter = (start: Date) => {
+    const first = new Date(start);
+    first.setHours(0, 0, 0, 0);
+    switch (config.type) {
+      case 'daily':
+        return addInterval(first, 1);
+      case 'weekly': {
+        if (config.weeklyDayOfWeek !== undefined) {
+          const currentDow = first.getDay();
+          const diff = (config.weeklyDayOfWeek - currentDow + 7) % 7;
+          first.setDate(first.getDate() + diff);
+          return first;
+        }
+        return addInterval(first, 1);
+      }
+      case 'monthly': {
+        if (config.monthlyPattern === 'date' && config.monthlyDate) {
+          first.setDate(clampMonthlyDate(first, config.monthlyDate));
+          if (first < start) {
+            first.setMonth(first.getMonth() + 1);
+            first.setDate(clampMonthlyDate(first, config.monthlyDate));
+          }
+          return first;
+        }
+        if (config.monthlyPattern === 'dayOfWeek' && config.monthlyWeekOfMonth && config.monthlyDayOfWeek !== undefined) {
+          const firstDay = new Date(first.getFullYear(), first.getMonth(), 1);
+          const offset = (config.monthlyDayOfWeek - firstDay.getDay() + 7) % 7;
+          const target = 1 + offset + (config.monthlyWeekOfMonth - 1) * 7;
+          first.setDate(target);
+          if (first < start) {
+            first.setMonth(first.getMonth() + 1);
+            const nextFirstDay = new Date(first.getFullYear(), first.getMonth(), 1);
+            const nextOffset = (config.monthlyDayOfWeek - nextFirstDay.getDay() + 7) % 7;
+            first.setDate(1 + nextOffset + (config.monthlyWeekOfMonth - 1) * 7);
+          }
+          return first;
+        }
+        return addInterval(first, 1);
+      }
+    }
+  };
+
+  const firstOccurrence = findFirstOccurrenceOnOrAfter(projectStartDate);
+  if (!firstOccurrence) return occurrences;
+
+  // Include previous anchor to form the first interval
+  const previousOccurrence = addInterval(firstOccurrence, -1);
+  if (previousOccurrence) {
+    occurrences.push(previousOccurrence);
   }
-  return occurrences;
+
+  occurrences.push(new Date(firstOccurrence));
+
+  // Generate forward until we pass project end by at least one interval (to close the final interval)
+  let next = addInterval(firstOccurrence, 1);
+  let safety = 0;
+  const endLimit = projectContinuous
+    ? new Date(projectStartDate.getTime() + 365 * 24 * 60 * 60 * 1000)
+    : addInterval(projectEndDate, 1);
+  while (next && next <= endLimit && safety < MAX_OCCURRENCES) {
+    occurrences.push(new Date(next));
+    next = addInterval(next, 1);
+    safety++;
+  }
+
+  return occurrences.sort((a, b) => a.getTime() - b.getTime());
 }
 /**
  * Calculate all day estimates for a project
@@ -436,8 +446,19 @@ export function calculateProjectDayEstimates(
       const shouldInclude = !hasEventsOnDay && isWithinProjectBounds;
       return shouldInclude;
     });
-    totalMilestoneEstimates += filteredEstimates.length;
-    allEstimates.push(...filteredEstimates);
+
+    // REDISTRIBUTE: If some days were filtered out, spread remaining allocation evenly
+    let redistributedEstimates = filteredEstimates;
+    if (filteredEstimates.length > 0) {
+      const redistributedHoursPerDay = remainingAllocation / filteredEstimates.length;
+      redistributedEstimates = filteredEstimates.map(est => ({
+        ...est,
+        hours: redistributedHoursPerDay
+      }));
+    }
+
+    totalMilestoneEstimates += redistributedEstimates.length;
+    allEstimates.push(...redistributedEstimates);
   });
   // PRIORITY 3 - If no milestones, use project's auto-estimate logic
   // Domain Rule: Auto-estimates only on days WITHOUT events
