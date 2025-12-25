@@ -20,7 +20,7 @@ interface UseCalendarDragDropProps {
   calendarRef: React.RefObject<FullCalendar>;
   events: CalendarEvent[];
   setCreatingNewEvent: (config: { startTime: Date; endTime: Date } | null) => void;
-  toast: (config: { title: string; description: string; variant?: string; duration?: number }) => void;
+  toast: (config: { title: string; description: string; variant?: 'default' | 'destructive'; duration?: number }) => void;
 }
 
 export function useCalendarDragDrop({

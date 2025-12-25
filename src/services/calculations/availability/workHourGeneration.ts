@@ -31,7 +31,7 @@ import {
 
 import { Settings, WorkHour, WorkSlot } from '@/types/core';
 
-type WorkHourLike = Pick<WorkHour, 'duration'> | Pick<WorkSlot, 'duration'>;
+export type WorkHourLike = Pick<WorkHour, 'duration'> | Pick<WorkSlot, 'duration'>;
 
 export interface WeekOverrideManager {
   getWeekOverrides: (weekStart: Date) => WorkHour[];

@@ -64,9 +64,9 @@ export function SettingsView() {
     // Delegate to SettingsOrchestrator (AI Rule: use existing orchestrator)
     const result = await SettingsOrchestrator.updateSetting(
       key,
-      value,
+      value as Parameters<typeof SettingsOrchestrator.updateSetting>[1],
       {
-        setLocalSettings,
+        setLocalSettings: setLocalSettings as Parameters<typeof SettingsOrchestrator.updateSetting>[2]['setLocalSettings'],
         updateSettings,
         setDefaultView
       }
@@ -166,7 +166,10 @@ export function SettingsView() {
     const result = SettingsOrchestrator.resetToDefaults();
     
     if (result.success) {
-      setLocalSettings(result.resetSettings);
+      setLocalSettings(prev => ({
+        ...prev,
+        ...result.resetSettings
+      }));
       // Use service to generate default work schedule
       const defaultWeek = generateDefaultWorkSchedule('standard');
       updateSettings({ weeklyWorkHours: defaultWeek });

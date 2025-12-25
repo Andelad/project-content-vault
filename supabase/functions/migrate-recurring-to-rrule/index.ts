@@ -1,4 +1,4 @@
-/// <reference types="https://esm.sh/v135/@supabase/functions-js/src/deno.d.ts" />
+/// <reference lib="deno.ns" />
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.56.0';
 
 const corsHeaders = {

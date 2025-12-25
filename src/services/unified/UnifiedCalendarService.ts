@@ -118,11 +118,12 @@ export class UnifiedCalendarService {
   
   /**
    * Filter calendar events based on layer visibility
+   * Accepts FullCalendar EventInput or CalendarEvent with extendedProps
    */
-  static filterEventsByLayerVisibility(
-    events: Array<CalendarEvent & { extendedProps?: Record<string, unknown> }>,
+  static filterEventsByLayerVisibility<T extends { extendedProps?: Record<string, unknown> }>(
+    events: T[],
     layerVisibility: LayerVisibility
-  ): CalendarEvent[] {
+  ): T[] {
     return events.filter((event) => {
       const category = event.extendedProps?.category;
       const isWorkHour = event.extendedProps?.isWorkHour;
