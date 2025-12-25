@@ -20,7 +20,7 @@ export function prepareEventsForFullCalendar(
   events: CalendarEvent[], 
   workHours: WorkHour[],
   layerMode: 'events' | 'work-hours' | 'both' = 'both',
-  options: { selectedEventId?: string | null; projects?: Project[]; habits?: CalendarEvent[]; exceptions?: WorkHourException[] } = {}
+  options: { selectedEventId?: string | null; projects?: Project[]; habits?: unknown[]; exceptions?: WorkHourException[] } = {}
 ): EventInput[] {
   const { selectedEventId, projects = [], exceptions = [] } = options;
   const fcEvents: EventInput[] = [];

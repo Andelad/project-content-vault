@@ -37,7 +37,7 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
   const { clients } = useClients();
   const [searchQuery, setSearchQuery] = useState('');
   type SelectedProject = {
-    id?: string;
+    id: string;
     name: string;
     client?: string;
     clientId?: string;
@@ -379,8 +379,8 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
       setSearchQuery(searchQueryText);
       selectedProjectData = project;
     } else {
-      // Client selected - use just client name
-      const clientProject = { client: item.name, name: item.name };
+      // Client selected - use just client name with generated id
+      const clientProject = { id: `client-${item.id || item.name}`, client: item.name, name: item.name };
       setSelectedProject(clientProject);
       searchQueryText = item.name;
       setSearchQuery(searchQueryText);

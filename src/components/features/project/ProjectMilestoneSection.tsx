@@ -53,7 +53,7 @@ interface ProjectMilestoneSectionProps {
     setMilestones: (milestones: LocalMilestone[]) => void;
   };
   isCreatingProject?: boolean;
-  trackedAddMilestone?: (milestone: LocalMilestone, options?: { silent?: boolean }) => Promise<LocalMilestone | Milestone>;
+  trackedAddMilestone?: (milestone: LocalMilestone, options?: { silent?: boolean }) => Promise<Milestone | undefined>;
   localValues?: LocalValuesState;
   setLocalValues?: (updater: (prev: LocalValuesState) => LocalValuesState) => void;
   onAutoEstimateDaysChange?: (newAutoEstimateDays: AutoEstimateDays | undefined) => void;

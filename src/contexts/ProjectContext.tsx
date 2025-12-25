@@ -265,8 +265,10 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const projectWithColor = {
       ...project,
       color: project.color ?? getNextProjectColor(),
+      // Ensure endDate is provided, default to startDate + 30 days if not specified
+      endDate: project.endDate ?? new Date(new Date(project.startDate).getTime() + 30 * 24 * 60 * 60 * 1000),
     };
-    return dbAddProject(projectWithColor);
+    return dbAddProject(projectWithColor as Parameters<typeof dbAddProject>[0]);
   }, [dbAddProject, getNextProjectColor]);
 
   const updateProject = useCallback((id: string, updates: ProjectUpdateInput, options?: { silent?: boolean }) => {
@@ -380,14 +382,14 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         endDate: new Date(result.due_date),
         dueDate: new Date(result.due_date),
         timeAllocation: result.time_allocation,
-        timeAllocationHours: result.time_allocation_hours,
-        startDate: result.start_date ? new Date(result.start_date) : undefined,
-        isRecurring: result.is_recurring ?? undefined,
-  recurringConfig: result.recurring_config ?? undefined,
+        timeAllocationHours: result.time_allocation_hours ?? result.time_allocation,
+        startDate: result.start_date ? new Date(result.start_date) : new Date(result.due_date),
+        isRecurring: result.is_recurring ?? false,
+        recurringConfig: (result.recurring_config as unknown) as import('@/types/core').RecurringConfig | undefined,
         userId: result.user_id,
         createdAt: new Date(result.created_at),
         updatedAt: new Date(result.updated_at)
-      };
+      } satisfies import('@/types/core').Milestone;
     }
     
     return undefined;

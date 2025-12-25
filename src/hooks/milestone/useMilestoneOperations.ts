@@ -34,7 +34,7 @@ interface UseMilestoneOperationsConfig {
     setMilestones: (milestones: LocalMilestone[]) => void;
   };
   trackedAddMilestone?: (
-    milestone: MilestoneCreateInput,
+    milestone: LocalMilestone | MilestoneCreateInput,
     options?: { silent?: boolean }
   ) => Promise<Milestone | undefined>;
 }
@@ -94,14 +94,22 @@ export function useMilestoneOperations(config: UseMilestoneOperationsConfig) {
   const createMilestone = useCallback(async (
     milestone: LocalMilestone,
     options?: { silent?: boolean }
-  ) => {
+  ): Promise<Milestone> => {
     if (isCreatingProject && localMilestonesState) {
-      localMilestonesState.setMilestones([...localMilestonesState.milestones, milestone]);
-      return milestone;
+      // For local creation, generate a temporary id if not present
+      const milestoneWithId: Milestone = {
+        ...milestone,
+        id: milestone.id || `temp-${Date.now()}`,
+      } as Milestone;
+      localMilestonesState.setMilestones([...localMilestonesState.milestones, milestoneWithId]);
+      return milestoneWithId;
     } else if (projectId) {
       try {
-  const created = await addMilestoneToContext(milestone as MilestoneCreateInput, options);
+        const created = await addMilestoneToContext(milestone as MilestoneCreateInput, options);
         await refetchMilestones();
+        if (!created) {
+          throw new Error('Milestone creation returned undefined');
+        }
         return created;
       } catch (error) {
         ErrorHandlingService.handle(error, {
@@ -116,8 +124,13 @@ export function useMilestoneOperations(config: UseMilestoneOperationsConfig) {
         throw error;
       }
     } else {
-      setLocalMilestones(prev => [...prev, milestone]);
-      return milestone;
+      // For standalone local creation, generate a temporary id if not present
+      const milestoneWithId: Milestone = {
+        ...milestone,
+        id: milestone.id || `temp-${Date.now()}`,
+      } as Milestone;
+      setLocalMilestones(prev => [...prev, milestoneWithId]);
+      return milestoneWithId;
     }
   }, [isCreatingProject, localMilestonesState, projectId, addMilestoneToContext, refetchMilestones, toast]);
 

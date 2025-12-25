@@ -75,6 +75,8 @@ import {
   calculateDailyProjectHours as calculateDailyProjectHoursCalc,
   calculateDailyAvailableHours as calculateDailyAvailableHoursCalc
 } from '../calculations/availability/dailyMetrics';
+// Import WorkHourLike type
+import type { WorkHourLike } from '../calculations/availability/workHourGeneration';
 import type { Project, Milestone, DayEstimate, Settings, Holiday, CalendarEvent, WorkHour } from '@/types/core';
 import type { TimelinePositionCalculation } from '@/services/ui/ProjectBarPositioning';
 import type { DragState } from '@/services/ui/DragPositioning';
@@ -160,7 +162,7 @@ export class UnifiedTimelineService {
     milestones: Milestone[],
     settings: Settings,
     holidays: Holiday[],
-    events: unknown[] = []
+    events: CalendarEvent[] = []
   ): DayEstimate[] {
     return UnifiedDayEstimateService.calculateProjectDayEstimates(
       project,
@@ -339,7 +341,7 @@ export class UnifiedTimelineService {
       milestones,
       settings,
       holidays,
-      events || [] // Pass events to calculation
+      (events as CalendarEvent[]) || [] // Pass events to calculation
     );
     
     // Pre-aggregate per-date summaries to avoid per-render filtering in components
@@ -613,7 +615,7 @@ export class UnifiedTimelineService {
       // Helper methods for components
       isWorkingDay: (date: Date) => this.isWorkingDay(date, holidays, settings),
       generateWorkHours: (date: Date) => this.generateWorkHoursForDate(date, settings, holidays),
-  calculateTotal: (workHours: unknown[]) => this.calculateWorkHoursTotal(workHours),
+  calculateTotal: (workHours: WorkHourLike[]) => this.calculateWorkHoursTotal(workHours),
       isHoliday: (date: Date) => this.isHolidayDateCapacity(date, holidays),
       // Display settings
       displayMode,
