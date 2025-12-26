@@ -11,7 +11,7 @@
  * This is the domain layer - pure business logic with no external dependencies.
  * All timeline calculations should delegate to these rules.
  * 
- * @see docs/BUSINESS_LOGIC_REFERENCE.md - Rule 9: Timeline Day Display
+ * @see docs/core/Business Logic.md - Rule 9: Timeline Day Display
  */
 import type { CalendarEvent, Project } from '@/types/core';
 import { getDateKey } from '@/utils/dateFormatUtils';

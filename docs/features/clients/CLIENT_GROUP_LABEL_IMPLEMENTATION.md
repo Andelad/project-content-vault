@@ -508,7 +508,7 @@ WHERE pl.label_id IS NULL;
 
 ### **⏳ TODO**
 - [ ] Update Architecture Guide with new entities
-- [ ] Update BUSINESS_LOGIC_REFERENCE.md with client/label rules
+- [ ] Update architecture/Business Logic.md with client/label rules
 - [ ] Add domain rules for ClientRules and LabelRules
 - [ ] Update API documentation
 - [ ] Update user-facing documentation

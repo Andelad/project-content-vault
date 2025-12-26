@@ -6,7 +6,7 @@
  * 
  * This is the domain layer - pure business logic with no external dependencies.
  * 
- * @see docs/BUSINESS_LOGIC_REFERENCE.md for complete relationship documentation
+ * @see docs/core/Business Logic.md for complete relationship documentation
  */
 
 import type { Project, Milestone, Group, Row, Client, Label } from '@/types/core';

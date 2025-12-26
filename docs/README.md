@@ -6,7 +6,7 @@ Essential documentation for ongoing development and platform setup.
 
 ## ⭐ **CORE DOCUMENTS - READ FIRST**
 
-### 1. **`docs/architecture/Architecture Guide.md`** 🏗️
+### 1. **`docs/core/Architecture Guide.md`** 🏗️
 **THE SINGLE SOURCE OF TRUTH** for AI development and system architecture.
 
 **Critical for**:
@@ -47,7 +47,7 @@ Essential documentation for ongoing development and platform setup.
 
 ---
 
-### 3. **`BUSINESS_LOGIC_REFERENCE.md`** (docs/) 📋
+### 3. **`core/Business Logic.md`** (docs/) 📋
 **Complete specification of all business rules and relationships**
 
 **Critical for**:
@@ -68,7 +68,7 @@ Essential documentation for ongoing development and platform setup.
 ## 📁 Directory Structure
 
 ### Root Documentation Files
-- **`docs/architecture/Architecture Guide.md`** ⭐ - **CORE** - Services architecture and AI development patterns
+- **`docs/core/Architecture Guide.md`** ⭐ - **CORE** - Services architecture and AI development patterns
 - **`AI Dev Rules.md`** ⭐ - **CORE** - AI-specific development constraints
 - **`CLIENT_GROUP_LABEL_SPECIFICATION.md`** - Client/Group/Label system specification
 - **`FEEDBACK_FEATURE_SUMMARY.md`** - Feedback system feature overview
@@ -76,7 +76,7 @@ Essential documentation for ongoing development and platform setup.
 - **`IMPLEMENTATION_INSTRUCTIONS_FOR_LOVABLE.md`** - Lovable platform instructions
 
 ### `docs/` - Business Logic & Analysis
-- **`BUSINESS_LOGIC_REFERENCE.md`** ⭐ - **CORE** - Complete business rules specification
+- **`core/Business Logic.md`** ⭐ - **CORE** - Complete business rules specification
 - **`DOMAIN_DEFINITIONS.md`** ⭐ - **NEW** - Plain-English guide to what entities are/are not
 - **`CALCULATION_REFERENCE.md`** ⭐ - **NEW** - Complete list of all calculations with formulas
 - **`LOGIC_CONSOLIDATION_PROCESS.md`** - **NEW** - Systematic guide to consolidate business logic
@@ -86,14 +86,13 @@ Essential documentation for ongoing development and platform setup.
 - **`MILESTONE_VS_EVENTS_CLARIFICATION.md`** - Milestone vs event distinction
 - **`TIME_TRACKER_TABLET_IMPLEMENTATION.md`** - Tablet time tracker requirements
 
-### `docs/architecture/` - System Architecture
+### `docs/core/` - Core Documentation
 - **`BUSINESS_LOGIC_AUDIT.md`** - Business logic architecture analysis
 - **`DOMAIN_LAYER_ROADMAP.md`** - Domain layer implementation roadmap
 - **`DRAG_ARCHITECTURE_AUDIT.md`** - Drag system architecture analysis
 - **`DRAG_REDUNDANCY_ANALYSIS.md`** - Drag system redundancy findings
 - **`DRAG_SYSTEM_UNIFICATION.md`** - Drag system consolidation plan
 - **`DRAG_UNIFICATION_COMPLETE.md`** - Drag unification completion summary
-- **`SUPABASE_REQUIREMENTS.md`** - Database schema requirements
 - **`TIMELINE_RULES_IMPLEMENTATION.md`** - Timeline business rules
 
 ### `src/components/` - Component Organization
@@ -109,22 +108,22 @@ Essential documentation for ongoing development and platform setup.
 ## 🚀 Quick Start for Different Roles
 
 ### **For AI Agents**
-1. ⭐ **READ FIRST**: `/docs/architecture/Architecture Guide.md` - Understand the entire architecture
+1. ⭐ **READ FIRST**: `/docs/core/Architecture Guide.md` - Understand the entire architecture
 2. ⭐ **READ SECOND**: `/AI Dev Rules.md` - Know the constraints
-3. Read: `/docs/BUSINESS_LOGIC_REFERENCE.md` - Understand business rules
+3. Read: `/docs/core/Business Logic.md` - Understand business rules
 4. Reference: `/src/components/README.md` - Component organization
-5. Check: `/docs/architecture/` - For specific architecture decisions
+5. Check: `/docs/core/` - For specific architecture decisions
 
 ### **For Human Developers**
-1. ⭐ **Start with**: `/docs/architecture/Architecture Guide.md` - Core architecture patterns
-2. Read: `/docs/BUSINESS_LOGIC_REFERENCE.md` - Business rules
+1. ⭐ **Start with**: `/docs/core/Architecture Guide.md` - Core architecture patterns
+2. Read: `/docs/core/Business Logic.md` - Business rules
 3. Review: `/src/components/README.md` - Component structure
 4. Check: `/docs/CLIENT_GROUP_LABEL_IMPLEMENTATION.md` - Current features
-5. Reference: `/docs/architecture/` as needed
+5. Reference: `/docs/core/` as needed
 
 ### **For New Features**
-1. Check business rules in `BUSINESS_LOGIC_REFERENCE.md`
-2. Follow patterns in `docs/architecture/Architecture Guide.md`
+1. Check business rules in `core/Business Logic.md`
+2. Follow patterns in `docs/core/Architecture Guide.md`
 3. Place code according to service layer rules
 4. Add components following `src/components/README.md`
 5. Update business logic reference if needed
@@ -136,7 +135,7 @@ Essential documentation for ongoing development and platform setup.
 ```
 ```
 ┌─────────────────────────────────────────┐
-│   docs/architecture/                    │  ← START HERE
+│   docs/core/                         │  ← START HERE
 │   Architecture Guide.md                 │
 │   Single Source of Truth for System     │
 └─────────────────────────────────────────┘
@@ -146,7 +145,7 @@ Essential documentation for ongoing development and platform setup.
 │   Development Rules & Patterns          │
               ↓
 ┌─────────────────────────────────────────┐
-│   BUSINESS_LOGIC_REFERENCE.md (docs/)   │  ← Business Rules
+│   core/Business Logic.md (docs/)   │  ← Business Rules
 │   Complete Business Requirements        │
 └─────────────────────────────────────────┘
               ↓
@@ -207,16 +206,16 @@ src/
 ## 🔍 Finding Information
 
 **Looking for...**  
-- **Architecture patterns?** → `/docs/architecture/Architecture Guide.md`
+- **Architecture patterns?** → `/docs/core/Architecture Guide.md`
 - **AI development rules?** → `/AI Dev Rules.md`
-- **Business rules?** → `/docs/BUSINESS_LOGIC_REFERENCE.md`
+- **Business rules?** → `/docs/core/Business Logic.md`
 - **Component organization?** → `/src/components/README.md`
-- **Database schema?** → `/docs/architecture/SUPABASE_REQUIREMENTS.md`
+- **Database schema?** → `/supabase/migrations/` (actual SQL) + `/docs/core/Business Logic.md` (entities)
 - **Recent changes?** → `/docs/COMPONENTS_CLEANUP_SUMMARY.md`
 - **Feature specs?** → `/CLIENT_GROUP_LABEL_SPECIFICATION.md` or `/FEEDBACK_FEATURE_SUMMARY.md`
 
 ---
 
-**Last Updated**: October 26, 2025  
+**Last Updated**: December 26, 2025  
 **Maintained by**: Development Team  
 **Questions?** Start with Architecture Guide or Business Logic Reference

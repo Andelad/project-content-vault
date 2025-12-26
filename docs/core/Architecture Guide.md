@@ -2,7 +2,7 @@
 
 > **SINGLE SOURCE OF TRUTH** for AI development in this codebase. This guide reflects the actual services architecture and intended logic flow.
 
-**Last Updated:** October 20, 2025  
+**Last Updated:** December 26, 2025  
 **Repository Transition:** ✅ **COMPLETE** - All 34 build errors resolved, clean compilation achieved
 
 ## 🤖 AI Development Constraints
@@ -38,6 +38,158 @@
 - **Type definitions** → `types/core.ts`
 - **Display formatting** → `utils/dateFormatUtils.ts`
 - **React data fetching** → `hooks/useX.ts`
+
+## 📚 DOCUMENTATION UPDATE FLOW
+
+When business requirements or logic changes, update documentation in this order:
+
+### 1. App Logic (WHAT - Plain English)
+**File:** `docs/core/App Logic.md`
+
+**Update when:**
+- Business rules change
+- Entities or relationships change
+- Validation requirements change
+- Resolving [CLARIFY] decisions
+
+**What to update:**
+- Plain-English description of the rule
+- Entity definitions if changed
+- Business rules section
+- Edge cases if discovered
+- Version number in changelog
+
+**Example:**
+```markdown
+### Rule 5: Phase Continuity
+**Decision:** Gaps between phases ARE allowed (Option B)
+**Reasoning:** Provides flexibility for planning uncertainty
+**Decided:** December 26, 2025
+```
+
+---
+
+### 2. Business Logic (WHAT - Detailed)
+**File:** `docs/core/Business Logic.md`
+
+**Update when:**
+- Adding new business rule methods
+- Changing existing rule behavior
+- Documenting calculation details
+
+**What to update:**
+- Method signatures
+- Detailed rule specifications
+- Cross-references to App Logic
+- Usage examples
+
+**Example:**
+```markdown
+### Phase Validation Rules
+
+validatePhases(phases: Phase[]): ValidationResult
+- Checks for overlaps (not allowed)
+- Does NOT check for gaps (allowed per App Logic Edge Case 2)
+- Returns detailed validation errors
+```
+
+---
+
+### 3. Domain Rules (HOW - Implementation)
+**File:** `src/domain/rules/*.ts`
+
+**Update when:**
+- Implementing logic changes from specs above
+- Adding new validation methods
+- Changing calculation logic
+
+**What to update:**
+- Implementation code
+- JSDoc with `@see` reference to App Logic
+- Type definitions if needed
+
+**Example:**
+```typescript
+/**
+ * Validates phases for a project.
+ * 
+ * @see docs/core/App Logic.md - Part 4, Rules 5 & 6
+ * 
+ * Checks:
+ * - No overlaps (Rule 6 - enforced)
+ * - Gaps allowed (Rule 5 - Edge Case 2 resolved)
+ * 
+ * @param phases - All phases to validate
+ * @returns Validation result with any errors
+ */
+export function validatePhases(phases: Phase[]): ValidationResult {
+  // Implementation
+}
+```
+
+---
+
+### 4. Orchestrators (WHEN - Workflow Enforcement)
+**File:** `src/services/orchestrators/*.ts`
+
+**Update when:**
+- Workflows need to use updated rules
+- Error handling changes
+- Validation sequence changes
+
+**What to update:**
+- Calls to updated domain rules
+- Error messages
+- Workflow logic
+
+---
+
+### 5. Tests
+**Files:** Test files corresponding to changes
+
+**Update when:**
+- Any of the above changes
+- New behavior needs coverage
+- Edge cases discovered
+
+**What to update:**
+- Add tests for new behavior
+- Update tests for changed behavior
+- Ensure edge cases covered
+
+---
+
+### 📊 Documentation Hierarchy
+
+```
+App Logic.md (WHAT - Plain English)
+    ↓ defines requirements
+Business Logic.md (WHAT - Detailed)
+    ↓ specifies implementation
+Domain Rules (HOW - Code)
+    ↓ implements logic
+Orchestrators (WHEN - Workflows)
+    ↓ enforces rules
+UI Components (WHERE - Display)
+    ↓ shows results
+```
+
+All changes flow top-down. App Logic is the source of truth.
+
+---
+
+### 🎯 AI Development Pattern
+
+When AI (Cursor/Copilot) makes business logic changes:
+
+1. **AI reads App Logic** to understand current rules
+2. **AI proposes change** in App Logic first
+3. **User reviews and approves** the logic change
+4. **AI implements** in domain rules with `@see` reference
+5. **AI updates** orchestrators and tests
+6. **AI commits** with "logic:" prefix
+
+This ensures documentation stays synchronized with code.
 
 ## 🎯 Services Architecture Pattern (Simplified - October 2025)
 
@@ -438,8 +590,8 @@ Need to FETCH data for React component?
 The domain layer is the **single source of truth** for all business logic, rules, relationships, and constraints. It sits at the heart of the architecture and is referenced by all other layers.
 
 ### Key Documents
-- **Business Logic Reference**: `docs/BUSINESS_LOGIC_REFERENCE.md` - Complete specification of all rules
-- **Business Logic Audit**: `docs/architecture/BUSINESS_LOGIC_AUDIT.md` - Current state analysis
+- **Business Logic Reference**: `docs/core/Business Logic.md` - Complete specification of all rules
+- **Business Logic Audit**: `docs/core/BUSINESS_LOGIC_AUDIT.md` - Current state analysis
 
 ### Integration with Existing Layers
 
@@ -480,7 +632,7 @@ export class ProjectOrchestrator {
 ### AI Development with Domain Layer
 
 **When making changes:**
-1. Check `docs/BUSINESS_LOGIC_REFERENCE.md` first
+1. Check `docs/core/Business Logic.md` first
 2. Understand the business rule being affected
 3. Update domain rules in `src/domain/rules/` (✅ IMPLEMENTED)
 4. For new business logic, add to appropriate rule module

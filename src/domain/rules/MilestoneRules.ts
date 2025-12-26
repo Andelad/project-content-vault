@@ -7,7 +7,7 @@
  * This is the domain layer - pure business logic with no external dependencies.
  * Validators, services, and other layers should delegate to these rules.
  * 
- * @see docs/BUSINESS_LOGIC_REFERENCE.md for complete rule documentation
+ * @see docs/core/Business Logic.md for complete rule documentation
  */
 
 import type { Milestone, Project } from '@/types/core';

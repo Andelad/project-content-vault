@@ -1,507 +1,235 @@
 # 🚨 AI Development Guide
 
-## INSTRUCTION FOR AI COPILOT
-This guide must be followed for ALL code changes in this project.
+> **Note:** This file is named `.cursorrules` for compatibility with AI development tools that auto-detect it. It applies to ALL AI assistants (Cursor, Copilot, Claude, etc.), not just Cursor IDE.
 
-> **🤖 AI REMINDER**: For complex features involving multiple service layers, workflows, or architectural decisions, ALSO read `docs/architecture/Architecture Guide.md` to understand the complete services architecture, service layer responsibilities, and development workflow patterns.
-
----
-
-## 🔄 DEVELOPMENT WORKFLOW (VS Code ↔ Lovable ↔ Supabase)
-
-### Development Environment Split
-
-| Tool | Purpose | Access |
-|------|---------|--------|
-| **VS Code (Copilot/Cursor)** | TypeScript, React, business logic, services | Local files only |
-| **Lovable** | Database migrations, Supabase schema changes | Supabase integration |
-| **GitHub** | Sync point between VS Code and Lovable | Automatic sync |
-
-### Workflow Pattern
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  VS Code (Local Development)                                     │
-│  • Write TypeScript/React code                                   │
-│  • Create services, components, hooks                            │
-│  • Update business logic                                         │
-│  • Create INSTRUCTIONS_FOR_LOVABLE_*.md files for DB changes     │
-└─────────────────────┬───────────────────────────────────────────┘
-                      │ git push
-                      ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  GitHub (Sync Point)                                             │
-│  • Automatic sync to Lovable                                     │
-│  • Code review and history                                       │
-└─────────────────────┬───────────────────────────────────────────┘
-                      │ auto-sync
-                      ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  Lovable (Database Changes)                                      │
-│  • Read INSTRUCTIONS_FOR_LOVABLE_*.md files                      │
-│  • Execute database migrations                                   │
-│  • Create/modify Supabase tables, RLS policies, indexes          │
-│  • Has direct Supabase access                                    │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### For AI Agents (VS Code/Copilot/Cursor)
-
-**When you identify database changes needed:**
-1. ❌ **DO NOT** attempt to run SQL migrations directly
-2. ✅ **DO** create an `INSTRUCTIONS_FOR_LOVABLE_[FEATURE].md` file in the project root
-3. ✅ **DO** include exact SQL migration scripts in the instructions
-4. ✅ **DO** explain the purpose, expected outcomes, and verification steps
-5. ✅ **DO** commit and push to GitHub for Lovable to pick up
-
-**Instruction File Template:**
-```markdown
-# Instructions for Lovable: [Feature Name]
-
-## Purpose
-[Explain what this migration accomplishes]
-
-## Prerequisites
-[Any existing state or requirements]
-
-## Migration SQL
-\`\`\`sql
--- Your migration SQL here
-\`\`\`
-
-## Verification
-[How to verify the migration worked]
-
-## Rollback (if needed)
-\`\`\`sql
--- Rollback SQL here
-\`\`\`
-```
-
-### For Lovable
-
-When you see `INSTRUCTIONS_FOR_LOVABLE_*.md` files:
-1. Read the instructions carefully
-2. Execute the database migrations via Supabase
-3. Verify the changes using the provided verification steps
-4. Report success/failure
-5. The instruction file can be deleted or archived after completion
+> **Philosophy:** "Find existing, extend existing, create new only when necessary"
+>
+> **Read for complex features:** `docs/core/Architecture Guide.md` and `docs/core/App Logic.md`
 
 ---
 
-## BEFORE WRITING ANY CODE
+## 1. QUICK REFERENCE
+
+### Never Create
+- ❌ `/helpers/` directories
+- ❌ Business logic in `/utils/`
+- ❌ Calculations in components
+- ❌ Duplicate types (use `/types/core.ts`)
+- ❌ Manual date math
+- ❌ Validator wrappers (call domain rules directly)
+- ❌ Repository wrappers (call Supabase directly, except `timeTrackingRepository`)
+
+### Always Use
+- ✅ Import from `@/services` only
+- ✅ Types from `/types/core.ts`
+- ✅ `dateCalculations.ts` for all date operations
+- ✅ `ErrorHandlingService` for all errors
+- ✅ Find existing unified services first
+- ✅ Delegation pattern in unified services
+- ✅ Typography: update BOTH `index.css` AND `tailwind.config.ts`
+
+### Before Writing Code
 ```bash
-# Check if similar functionality exists
 grep -r "functionName" src/services/
-# Look for existing unified services
-ls src/services/unified/ | grep -i "relevant-domain"
+ls src/services/unified/ | grep -i "domain"
 ```
 
-## NEVER CREATE
-❌ `/helpers/` directories (ambiguous - use proper service layers instead)  
-❌ Business logic in `/utils/` (calculations, validations, domain logic)  
-❌ Calculations in components  
-❌ Duplicate types (use `/types/core.ts`)  
-❌ Manual date math  
+---
 
-## ALWAYS USE
-✅ Import from `@/services` only  
-✅ Types from `/types/core.ts`  
-✅ Dates from `dateCalculations.ts` (normalizeToMidnight, addDaysToDate, etc.)  
-✅ **ErrorHandlingService for all errors** - structured logging with context  
-✅ **Find existing unified services** - look for `Unified*Service` pattern  
-✅ Delegation pattern in unified services  
-✅ **Typography changes** - update BOTH `index.css` CSS variables AND `tailwind.config.ts` fontSize/fontWeight  
-✅ **Text colors** - ONLY use centralized CSS variables in `index.css` (never hardcode)  
+## 2. CODE ORGANIZATION
 
-## WHERE CODE GOES (Updated November 2025)
+| Code Type | Location | Example |
+|-----------|----------|---------|
+| UI | `/components` | Call services, no logic |
+| Workflows | `/services/orchestrators/*Orchestrator` | CREATE/UPDATE/DELETE |
+| Calculations | `/services/unified/Unified*Service` | READ/TRANSFORM |
+| Business Rules | `/domain/rules/*Rules` | Single source of truth |
+| Date Math | `/services/calculations/general/dateCalculations` | `normalizeToMidnight()` |
+| Error Handling | `ErrorHandlingService` | Structured logging |
+| React State | `/hooks/use*.ts` | State + service calls |
+| Generic Utils | `/utils` or `/lib` | `cn()`, `formatCurrency()` |
 
-| Code Type | Location | Pattern | Example |
-|-----------|----------|---------|---------|
-| UI | `/components` | Call orchestrators or unified services | `<div>{UnifiedXService.getData()}</div>` |
-| Complex Workflows | `/services/orchestrators/*Orchestrator` | CREATE/UPDATE/DELETE with validation | `ProjectOrchestrator.executeProjectCreationWorkflow()` |
-| Calculations | `/services/unified/Unified*Service` | READ/TRANSFORM operations | `UnifiedProjectService.calculateDuration()` |
-| Business Rules | `/domain/rules/*Rules` | Single source of truth | `ProjectRules.validateProjectDates()` |
-| Date/Time Math | `/services/calculations/general/dateCalculations` | Pure calculations | `calculateDurationHours()`, `normalizeToMidnight()` |
-| **Error Handling** | **`ErrorHandlingService`** | **Structured logging + toast** | `ErrorHandlingService.handle(error, context, { showToast: true })` |
-| **Validation** | **Inline in orchestrators** | **Call domain rules directly** | `ProjectRules.validate()` (NO validator layer) |
-| **Data Access** | **Inline in orchestrators OR hooks** | **Direct Supabase calls** | `supabase.from('projects').insert()` (NO repository layer) |
-| **React Coordination** | **`/hooks/use*.ts`** | **State + service calls** | `useProjectDrag()` (manages state, calls services) |
-| Generic Utils | `/utils` or `/lib` | Framework helpers | `cn()`, `formatCurrency()`, `debounce()` |
+---
 
-**Key Changes:**
-- ❌ NO `/validators` folder - call domain rules directly
-- ❌ NO `/repositories` folder - call Supabase directly (except timeTrackingRepository)
-- ✅ Orchestrators handle validation + data access inline
+## 3. DEVELOPMENT WORKFLOW (VS Code ↔ Lovable ↔ Supabase)
 
-## CRITICAL PATTERNS (Updated October 2025)
+| Tool | Purpose |
+|------|---------|
+| **VS Code** | TypeScript, React, business logic |
+| **Lovable** | Database migrations, Supabase schema |
+| **GitHub** | Sync point between both |
 
-### 🔍 Find Existing Services First
-```bash
-# Before creating ProjectService, check:
-ls src/services/unified/ | grep -i project
-ls src/services/orchestrators/ | grep -i project
-# Use whatever exists: UnifiedProjectService, ProjectOrchestrator, etc.
-```
+### For Database Changes
+1. ❌ **DO NOT** run SQL migrations directly
+2. ✅ Create `INSTRUCTIONS_FOR_LOVABLE_[FEATURE].md` in project root
+3. ✅ Include SQL, purpose, and verification steps
+4. ✅ Push to GitHub for Lovable to execute
 
-### Components → Orchestrators (for workflows)
+---
+
+## 4. PATTERNS
+
+### Orchestrators (workflows)
 ```typescript
-// ✅ RIGHT - Use orchestrator for CREATE/UPDATE/DELETE
-import { ProjectOrchestrator } from '@/services';
-const result = await ProjectOrchestrator.executeProjectCreationWorkflow(data, context);
-
-// ❌ WRONG - Component calling database directly
-const { data } = await supabase.from('projects').insert(projectData);
-```
-
-### Components → Unified Services (for calculations)
-```typescript
-// ✅ RIGHT - Use unified service for calculations
-import { UnifiedProjectService } from '@/services';
-const duration = UnifiedProjectService.calculateDuration(project);
-
-// ❌ WRONG - Manual calculations in components  
-const duration = (end - start) / (1000 * 60 * 60);
-```
-
-### Orchestrators Call Domain Rules Directly (NO validator layer)
-```typescript
-// ✅ RIGHT - Orchestrator calls domain rules directly
+// ✅ Call domain rules + Supabase directly
 export class ProjectOrchestrator {
   static async executeProjectCreationWorkflow(request, context) {
-    // Call domain rules directly
     const validation = ProjectRules.validateProjectDates(request.startDate, request.endDate);
     if (!validation.isValid) return { success: false, errors: validation.errors };
     
-    // Call Supabase directly (no repository)
-    const { data, error } = await supabase.from('projects').insert(prepared);
-  }
-}
-
-// ❌ WRONG - Creating validator wrapper
-export class ProjectValidator {
-  static validate(project) {
-    return ProjectRules.validate(project); // Unnecessary wrapper!
-  }
-}
-```
-
-### Orchestrators Call Supabase Directly (NO repository layer)
-```typescript
-// ✅ RIGHT - Orchestrator calls Supabase directly
-export class ProjectOrchestrator {
-  static async executeProjectCreationWorkflow(request, context) {
-    const prepared = this.transformToDatabase(request);
     const { data, error } = await supabase.from('projects').insert(prepared).select().single();
     return this.transformFromDatabase(data);
   }
-  
-  // Transformation helpers inline as private methods
-  private static transformToDatabase(request) { /* ... */ }
-  private static transformFromDatabase(data) { /* ... */ }
 }
+```
 
-// ❌ WRONG - Creating repository wrapper
-export class ProjectRepository {
-  async create(project) {
-    return supabase.from('projects').insert(project); // Unnecessary wrapper!
+### Unified Services (calculations)
+```typescript
+// ✅ Always delegate to domain layer
+export class UnifiedProjectService {
+  static calculateDuration(project: Project): number {
+    return DateCalculations.calculateProjectDuration(project);
   }
 }
 ```
 
-### Unified Services MUST Delegate
+### Dates
 ```typescript
-// ✅ RIGHT - Unified service delegates to domain layer
-export class UnifiedProjectService {
-  static calculateDuration(project: Project): number {
-    return DateCalculations.calculateProjectDuration(project); // DELEGATE!
-  }
-}
+// ✅ Use dateCalculations
+import { normalizeToMidnight, addDaysToDate } from '@/services';
 
-// ❌ WRONG - Unified service implementing logic
-export class UnifiedProjectService {
-  static calculateDuration(project: Project): number {
-    return (project.end - project.start) / (1000 * 60 * 60); // NO!
-  }
-}
+// ❌ Never manual
+date.setHours(0, 0, 0, 0);
+new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
 ```
 
-### Types - ONLY extend core.ts
+### Error Handling
 ```typescript
-// ✅ RIGHT
+// ✅ Use ErrorHandlingService
+ErrorHandlingService.handle(error, {
+  source: 'ProjectModal',
+  action: 'saveProject',
+  metadata: { projectId: project.id }
+}, { showToast: true });
+
+// ❌ Never
+console.error('Error:', error);
+```
+
+### Types
+```typescript
+// ✅ Extend core.ts
 import { Project } from '@/types/core';
 interface LocalProject extends Project { temp?: boolean; }
 
-// ❌ WRONG
-interface Project { id: string; } // NEVER redefine!
+// ❌ Never redefine
+interface Project { id: string; }
 ```
-
-### Dates - ONLY use dateCalculations
-```typescript
-// ✅ RIGHT
-import { calculateDurationHours, normalizeToMidnight, addDaysToDate } from '@/services';
-const midnight = normalizeToMidnight(new Date());
-const future = addDaysToDate(today, 7);
-
-// ❌ WRONG  
-date.setHours(0, 0, 0, 0); // NEVER manual date ops
-const future = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000); // NEVER manual arithmetic
-```
-
-### Error Handling - ALWAYS use ErrorHandlingService
-```typescript
-// ✅ RIGHT - Structured error handling
-import { ErrorHandlingService, ErrorSeverity } from '@/services';
-
-try {
-  await saveProject(project);
-} catch (error) {
-  ErrorHandlingService.handle(error, {
-    source: 'ProjectModal',
-    action: 'saveProject',
-    metadata: { projectId: project.id }
-  }, {
-    showToast: true,
-    severity: ErrorSeverity.ERROR,
-    userMessage: 'Failed to save project. Please try again.'
-  });
-}
-
-// ❌ WRONG - Inconsistent error handling
-try {
-  await saveProject(project);
-} catch (error) {
-  console.error('Error:', error); // NO!
-  toast({ title: 'Error', description: 'Something went wrong' }); // NO!
-}
-```
-
-## CHECKLIST (Updated November 2025)
-- [ ] Did I check if this exists? (`grep -r`)
-- [ ] Am I importing from `@/services`?
-- [ ] Am I using core.ts types?
-- [ ] Am I using dateCalculations for dates (NO manual .setHours or arithmetic)?
-- [ ] Am I using ErrorHandlingService for all errors?
-- [ ] Are unified services delegating to domain layers?
-- [ ] Is business logic in services, not components?
-- [ ] Am I calling domain rules directly (not creating validator wrappers)?
-- [ ] Am I calling Supabase directly (not creating repository wrappers)?
-- [ ] Are orchestrators handling workflows with inline validation?
-- [ ] Are transformation helpers inline in orchestrators (private methods)?
-- [ ] If creating a hook, does it only coordinate services (no business logic)?
-- [ ] Are calculations in services, not hooks or components?
-
-## 🎯 DEVELOPMENT PHILOSOPHY
-**"Find existing, extend existing, create new only when necessary"**
-- Look for similar services first
-- Use existing patterns and naming
-- Maintain architectural principles over exact naming conventions
 
 ---
 
-## 🎣 CUSTOM HOOKS - React Coordination Layer
+## 5. BUSINESS LOGIC CHANGES
 
-### ✅ When to Create Custom Hooks
-Create a custom hook when you need to:
-- **Manage React state** with service coordination (useState, useReducer)
-- **Handle complex DOM events** (drag handlers, scroll listeners, resize observers)
-- **Coordinate multiple services** with React lifecycle (useEffect, useCallback)
-- **Reuse React patterns** across multiple components
-- **Clean up side effects** (event listeners, subscriptions, timers)
+When modifying business rules:
 
-### ❌ Never Put in Hooks
-- ❌ Business logic (belongs in `domain/rules`)
-- ❌ Calculations (belongs in `services/calculations` or `services/unified`)
-- ❌ Workflows (belongs in `services/orchestrators`)
-- ❌ Database operations (belongs in orchestrators or data-fetching hooks)
-- ❌ Pure functions (belongs in services)
+1. **Update `docs/core/App_Logic.md`** (plain-English rule)
+2. **Update `docs/core/Business_Logic.md`** (detailed spec)
+3. **Update `src/domain/rules/*.ts`** (with `@see` references)
+4. **Update orchestrators** (workflows using the rule)
+5. **Update tests**
+6. **Commit with `logic:` prefix**
 
-### ✅ Correct Hook Pattern
+### What Requires Doc Updates
+✅ Validation rules, calculations, entities, relationships, [CLARIFY] decisions
+
+### What Doesn't
+❌ UI changes, performance optimizations, bug fixes, refactoring, tests
+
+---
+
+## 6. DOCUMENTATION
+
+| Folder | Purpose | Action |
+|--------|---------|--------|
+| `/docs/core/` | Framework (3 files) | UPDATE existing only |
+| `/docs/features/[name]/` | Feature docs | Permanent |
+| `/docs/operations/` | Testing, deployment | Permanent |
+| `/docs/ai-sessions/` | **TEMPORARY** | AI working docs |
+
+### AI Rules
+1. ❌ Don't create docs in `/docs/` root or `/docs/features/`
+2. ✅ Create temporary docs in `/docs/ai-sessions/`
+3. ✅ Update existing core docs when logic changes
+4. ✅ Remind user to delete `/docs/ai-sessions/` files when done
+
+---
+
+## 7. HOOKS
+
+### When to Create
+- Managing React state with service coordination
+- Handling DOM events (drag, scroll, resize)
+- Coordinating services with React lifecycle
+- Cleaning up side effects
+
+### Never Put in Hooks
+- ❌ Business logic → `domain/rules`
+- ❌ Calculations → `services/unified`
+- ❌ Workflows → `services/orchestrators`
+- ❌ Database operations → orchestrators
+
+> **Note:** Creating hooks does NOT require changing existing services. Services remain pure and stateless.
+
+### Pattern
 ```typescript
-// ✅ GOOD: Hook coordinates services + manages React state
-export function useProjectDrag(config: ProjectDragConfig) {
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragState, setDragState] = useState<DragState | null>(null);
-  
-  const handleMouseDown = useCallback((e: React.MouseEvent, projectId: string, action: string) => {
-    // Initialize using service
-    const initialState = initializeDragState(project, action, e.clientX, e.clientY);
-    setIsDragging(true);
-    setDragState(initialState);
-    
-    const handleMouseMove = (e: MouseEvent) => {
-      // Call service for calculations
-      const result = TimelineDragCoordinatorService.coordinateDragOperation(
-        dragState, e, timelineContext
-      );
-      // Update React state
-      setDragState(result.newDragState);
-    };
-    
-    // Setup DOM listeners
-    document.addEventListener('mousemove', handleMouseMove);
-    // ... cleanup
-  }, [config]);
-  
-  return { isDragging, dragState, handleMouseDown };
-}
-
-// Component uses the hook
-function TimelineView() {
-  const { isDragging, dragState, handleMouseDown } = useProjectDrag({
-    projects, updateProject, viewportStart, dates
-  });
-  // ... render
-}
-```
-
-### ❌ Wrong Hook Pattern
-```typescript
-// ❌ BAD: Hook implements business logic
+// ✅ Hook coordinates services + manages state
 export function useProjectDrag(config) {
-  const handleMouseDown = useCallback((e, projectId) => {
-    // ❌ WRONG: Calculating in hook instead of using service
-    const deltaX = e.clientX - startX;
-    const daysDelta = Math.round(deltaX / 50);
-    const newDate = new Date(startDate);
-    newDate.setDate(startDate.getDate() + daysDelta);
-    
-    // ❌ WRONG: Business validation in hook
-    if (newDate < minDate || newDate > maxDate) {
-      return;
-    }
-    
-    // ❌ WRONG: Database call in hook
-    await supabase.from('projects').update({ startDate: newDate });
-  }, []);
-}
-```
-
-### 📋 Hook Decision Tree
-```
-Do I need React state management?
-  YES → Do I need to coordinate services?
-    YES → Create custom hook ✅
-    NO → Keep state in component ✅
-  NO → Do I need calculations?
-    YES → Use existing service ✅
-    NO → Is this a workflow?
-      YES → Use orchestrator ✅
-      NO → Create utility function ✅
-```
-
-### 🔄 Hook Examples
-```typescript
-// ✅ Data fetching hook (thin Supabase wrapper)
-function useProjects() {
-  const [projects, setProjects] = useState([]);
-  useEffect(() => {
-    supabase.from('projects').select('*').then(setProjects);
-  }, []);
-  return projects;
-}
-
-// ✅ React coordination hook (manages state + calls services)
-function useTimelineNavigation(config) {
-  const [isAnimating, setIsAnimating] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   
-  const handleNavigate = useCallback((direction) => {
-    const target = TimelineViewportService.calculateNavigationTarget(config, direction);
-    createSmoothDragAnimation(config, target, () => setIsAnimating(false));
+  const handleMouseDown = useCallback((e, projectId) => {
+    const result = TimelineDragCoordinatorService.coordinateDragOperation(dragState, e);
+    setDragState(result.newDragState);
   }, [config]);
   
-  return { isAnimating, handleNavigate };
-}
-
-// ✅ DOM event coordination hook
-function useTimelineAutoScroll(viewport) {
-  const [autoScrollState, setAutoScrollState] = useState(null);
-  
-  const checkAutoScroll = useCallback((mouseX) => {
-    const config = TimelineViewportService.calculateAutoScrollTrigger(mouseX);
-    if (config.shouldScroll) {
-      setAutoScrollState(config);
-    }
-  }, [viewport]);
-  
-  return { autoScrollState, checkAutoScroll };
+  return { isDragging, handleMouseDown };
 }
 ```
 
 ---
 
-## 🎨 TYPOGRAPHY COLOR SYSTEM
+## 8. TYPOGRAPHY
 
-### Single Source of Truth - CSS Variables in `index.css`
+All text colors use CSS variables in `index.css`. **Never hardcode colors.**
 
-All text colors derive from centralized CSS variables. **Never hardcode text colors.**
+| CSS Variable | Usage | Tailwind Class |
+|--------------|-------|----------------|
+| `--foreground` | Primary text | `text-foreground` |
+| `--foreground-secondary` | Secondary text | `text-muted-foreground` |
+| `--foreground-tertiary` | Tertiary text | `text-gray-500` |
 
-```css
-/* Typography Colors - Single Source of Truth */
---foreground: 0 0% 35%;           /* Primary text - dark grey */
---foreground-secondary: 0 0% 45%; /* Secondary text - medium grey */
---foreground-tertiary: 0 0% 60%;  /* Tertiary/muted text - light grey */
---foreground-disabled: 0 0% 70%;  /* Disabled/placeholder text */
-
-/* Framework component colors reference these base values */
---card-foreground: 0 0% 35%;      /* Card text */
---popover-foreground: 0 0% 35%;   /* Dropdown/menu text */
---secondary-foreground: 0 0% 35%; /* Badge text */
---accent-foreground: 0 0% 35%;    /* Hover state text */
---muted-foreground: 0 0% 45%;     /* Secondary/muted text */
-```
-
-### ✅ Correct Usage
 ```typescript
-// ✅ Use semantic Tailwind classes
-<div className="text-foreground">Primary text</div>
-<div className="text-muted-foreground">Secondary text</div>
-<div className="text-gray-600">Secondary text (via override)</div>
-<div className="text-primary">Brand color link</div>
+// ✅ Use semantic classes
+<div className="text-foreground">Primary</div>
+<div className="text-muted-foreground">Secondary</div>
 
-// ✅ Use component variants that reference variables
-<Badge variant="secondary">8 projects</Badge> // Uses --secondary-foreground
-<Select>...</Select> // Uses --popover-foreground
-<Button variant="ghost">...</Button> // Uses --accent-foreground on hover
-```
-
-### ❌ Never Do This
-```typescript
-// ❌ NEVER hardcode text colors
+// ❌ Never hardcode
 <div className="text-[#595956]">Text</div>
-<div className="text-[#02c0b7]">Text</div>
-<div style={{ color: '#595956' }}>Text</div>
-
-// ❌ NEVER hardcode in CSS
-.my-class {
-  color: #595956; /* NO! */
-}
 ```
 
-### 🔄 To Change App-Wide Text Color
-1. Update `--foreground` in `src/index.css`
-2. All derived variables and overrides automatically update
-3. No code changes needed anywhere else
+### To Change App-Wide Text Color
+Update `--foreground` in `src/index.css` - all derived variables update automatically.
 
-### 📋 Color Variable Reference
-| CSS Variable | Lightness | Usage | Tailwind Class |
-|--------------|-----------|-------|----------------|
-| `--foreground` | 35% | Primary text | `text-foreground`, `text-gray-900`, `text-gray-800` |
-| `--foreground-secondary` | 45% | Secondary text | `text-muted-foreground`, `text-gray-600` |
-| `--foreground-tertiary` | 60% | Tertiary text | `text-gray-500` |
-| `--foreground-disabled` | 70% | Disabled text | Custom usage |
-| `--primary` | (brand color) | Links, CTA buttons | `text-primary` |
+---
 
-### 🎯 Hook Naming Convention
-- ✅ `useProjectDrag` - Manages project drag state + coordinates DragCoordinator service
-- ✅ `useHolidayDrag` - Manages holiday drag state + coordinates DragCoordinator service
-- ✅ `useTimelineNavigation` - Manages navigation state + coordinates ViewportService
-- ✅ `useTimelineAutoScroll` - Manages auto-scroll state + coordinates ViewportService
-- ✅ `useProjects` - Fetches project data (thin Supabase wrapper)
+## 9. CHECKLIST
 
-### 🚨 Services Don't Change
-**Important**: Creating hooks does NOT require changing existing services!
-- Services remain pure and stateless
-- Services continue to do calculations and coordination
-- Hooks just wrap React-specific concerns (state, lifecycle, DOM events)
-- Same service functions are called, just from hooks instead of components
+Before committing:
+- [ ] Checked for existing similar code? (`grep -r`)
+- [ ] Importing from `@/services`?
+- [ ] Using `core.ts` types?
+- [ ] Using `dateCalculations` for dates?
+- [ ] Using `ErrorHandlingService` for errors?
+- [ ] Unified services delegating to domain layer?
+- [ ] Business logic in services, not components?
+- [ ] If logic changed: updated App_Logic.md + Business_Logic.md?
+- [ ] Commit message has correct prefix?

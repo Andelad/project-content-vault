@@ -1,0 +1,6 @@
+# AI Session Documents
+# These are temporary working documents created by AI assistants
+# They can be safely deleted once work is complete
+
+*.md
+!README.md

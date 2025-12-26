@@ -7,8 +7,8 @@
  * Other layers (services, validators, contexts) should delegate to these rules
  * rather than duplicating business logic.
  * 
- * @see docs/BUSINESS_LOGIC_REFERENCE.md for complete documentation
- * @see docs/architecture/BUSINESS_LOGIC_AUDIT.md for migration information
+ * @see docs/core/Business Logic.md for complete documentation
+ * @see docs/core/BUSINESS_LOGIC_AUDIT.md for migration information
  */
 
 // ============================================================================
