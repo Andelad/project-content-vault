@@ -7,7 +7,26 @@
 
 ---
 
-## 📖 WHAT THIS DOCUMENT IS
+## � QUICK NAVIGATION
+
+**Core Documentation:**
+- [What This Document Is](#-what-this-document-is)
+- [What Makes This App Unique](#-what-makes-this-app-unique)
+
+**Main Sections:**
+- [PART 1: Core Entities](#️-part-1-core-entities-database-objects) - 9 database objects (User, Client, Project, Phase, Group, Label, Calendar Event, Work Slot, Holiday)
+- [PART 2: Derived Concepts](#-part-2-derived-concepts-calculated-from-entities) - 5 calculated concepts (Working Days, Work Hours, Capacity, Availability, Overcommitted)
+- [PART 3: Time Concepts](#️-part-3-time-concepts-critical-to-this-app) - 5 time types (Capacity, Estimated, Auto-Estimated, Planned, Completed)
+- [PART 4: Key Workflows](#-part-4-key-workflows) - 7 user journeys
+- [PART 5: Validation Rules](#-part-5-validation-rules-summary) - Consolidated validation tables
+
+**Reference:**
+- [Entity Relationships Summary](#entity-relationships-summary)
+- [Related Documents](#-related-documents)
+
+---
+
+## �📖 WHAT THIS DOCUMENT IS
 
 This document defines **WHAT the app does** in plain English, independent of code.
 
@@ -83,39 +102,29 @@ How they work:
 
 **Built for the individual, top-down, with dynamic rebalancing.**
 
-A user starts with the big picture, not tasks:
-- How much time is available?
-- How much time should go to projects (and holidays)?
-- How can time be redistributed across the calendar?
-- What needs to be done today?
+Instead of managing hundreds of tasks, users work with the big picture:
 
-**What the app does:**
-1. **Estimate** total time needed (top-down, not task-by-task)
-2. **Distribute** that time across working days (automatic)
-3. **Plan** specific sessions when needed (with exact times)
-4. **Track** actual work (reality vs. estimate)
-5. **Forecast** finish dates (updated as reality changes)
+1. Set your **capacity** (when you can work)
+2. Create **projects** with time estimates
+3. Watch the app **auto-distribute** hours across your available days
+4. Schedule specific work when needed
+5. Complete work and watch estimates **automatically rebalance**
 
 **Why it solves the problems above:**
-- Big-picture first (not trapped in task minutiae)
-- Forward-looking (not just rearview tracking)
-- Dynamic (plans rebalance when reality shifts)
-- Individual-first (clear, simple UI, no team overhead)
+- **Big-picture first** - Start with total hours, not individual tasks (solves task-estimation problem)
+- **Forward-looking** - See what's ahead, not just what's done (solves rearview-mirror problem)
+- **Dynamic** - Plans rebalance automatically when reality changes (solves static-plan problem)
+- **Individual-first** - Simple UI optimized for one person, affordable pricing (solves team-tool problem)
 
-### How It Works (Mechanics)
-
-1) **Capacity** defines available time (work hours, working days, holidays).  
-2) **Estimated Time** sets the total budget per project/phase.  
-3) **Auto-Estimated Time** spreads the remaining budget across free working days.  
-4) **Planned Time** schedules work to specific time slots (e.g., "Jan 5, 9am-3pm"); those days drop out of auto-estimates.  
-5) **Completed Time** records work done at specific times and dates; remaining time is redistributed automatically.  
-6) **Dynamic Rebalancing** keeps forecasts current whenever plans or progress change.
+**The rest of this document explains:**
+- **PART 1-2**: What things are (entities and derived concepts)
+- **PART 3**: How time works (the unique time hierarchy)
+- **PART 4-5**: How users interact with the system (workflows and validation)
 
 ---
 
-## 🏗️ PART 1: CORE ENTITIES & CONCEPTS
-
-### PART 1A: CORE ENTITIES (Database Objects)
+<!-- SECTION: PART-1-ENTITIES -->
+## 🏗️ PART 1: CORE ENTITIES (Database Objects)
 
 These are concrete objects stored in the database. Each has a unique ID and can be created, updated, and deleted.
 
@@ -455,13 +464,21 @@ A date when normal work hours don't apply.
 
 ---
 
-### PART 1B: DERIVED CONCEPTS (Calculated from Entities)
+<!-- SECTION: PART-2-DERIVED-CONCEPTS -->
+## 🧮 PART 2: DERIVED CONCEPTS (Calculated from Entities)
 
 These are important concepts that don't exist as separate database entities, but are calculated from the entities above. Users need to understand these to use the app effectively.
 
+**Concept Overview:**
+1. Working Days
+2. Work Hours
+3. Capacity
+4. Availability
+5. Overcommitted
+
 ---
 
-#### 1. Work Day
+### 1. Working Days
 
 **What it is:**
 A day considered workable - any day that has at least one work slot.
@@ -471,19 +488,29 @@ A day considered workable - any day that has at least one work slot.
 - Holidays (override: even if work slots exist, holidays are NOT working days)
 
 **Three Levels:**
-- **User Working Days**: Days with work slots, excluding holidays (base level)
-- **Project Working Days**: User working days with optional project-specific overrides (stored as project property)
-- **Remaining Working Days**: Project working days minus days with planned/completed events (used in calculations)
+
+This app uses "working days" in three different contexts:
+
+| Level | Definition | Calculated From | Example |
+|-------|-----------|-----------------|---------|
+| **User Working Days** | Days with work slots, excluding holidays (base level) | Work Slots + Holidays | Mon-Fri work slots = User working days Mon-Fri (except holidays) |
+| **Project Working Days** | User working days with optional project-specific overrides | User Working Days + Project Overrides (stored as project property) | User: Mon-Fri, Project override: Wed non-working = Mon, Tue, Thu, Fri |
+| **Remaining Working Days** | Project working days minus days with planned/completed events (used in auto-estimate calculations) | Project Working Days - Event Days | Project: Mon-Fri, Events on Mon-Tue = Remaining: Wed, Thu, Fri |
 
 **Not Stored Because:**
 Work slots are the source of truth. Working days are derived by checking: "Does this date have work slot instances?"
 
 **Project Overrides:**
-Projects can store exceptions: "Mark Dec 30 as non-working for Website project" or "Mark Saturday Jan 4 as working for Website project". These are stored as project properties, not separate entities.
+Projects can store exceptions: "Mark Dec 30 as non-working for Website project" or "Mark Saturday Jan 4 as working for Website project". These overrides are stored as project properties, not separate entities.
+
+**Critical For:**
+- **User Working Days**: Determines base availability
+- **Project Working Days**: Determines which days can have auto-estimates for a project
+- **Remaining Working Days**: Auto-estimate calculations (remaining hours ÷ remaining working days)
 
 ---
 
-#### 2. Work Hours
+### 2. Work Hours
 
 **What it is:**
 The total duration of work time available, calculated by summing work slot durations.
@@ -501,20 +528,18 @@ Work slots already contain start/end times. Duration is calculated on-demand: `e
 
 ---
 
-#### 3. Capacity
+### 3. Capacity
 
 **What it is:**
-The total amount of work time available to allocate to projects.
+The total amount of work time available to allocate to projects after work slots, working days, and holidays have been determined.
 
 **Calculated from:**
 - Work Slots (define when you can work)
-- Work Hours (total duration available)
+- Work Hours (total duration from slots)
 - Holidays (days with zero capacity)
-- Existing Events (reduce available capacity)
 
 **Examples:**
 - Base capacity: 40 work hours/week (from work slots)
-- Available capacity: 40 hours - 10 hours of existing events = 30 hours free this week
 - Project-specific capacity: Only count work hours on project working days
 
 **Not Stored Because:**
@@ -527,66 +552,75 @@ Constantly changing as events are added/completed. Calculated when needed for ca
 
 ---
 
-#### 4. User Working Days
+### 4. Availability
 
 **What it is:**
-Days when you're generally available to work (user-level, before project overrides).
+The amount of unallocated work time - capacity that hasn't been committed to planned or auto-estimated work yet. Also called "remaining capacity."
 
 **Calculated from:**
-- Work Slots (any day with slot instances)
-- Holidays (excluded even if slots exist)
+```
+Availability = Capacity - Planned Time - Auto-Estimated Time
+```
 
-**Example:**
-User has Mon-Fri work slots + Christmas holiday = User working days are Mon-Fri except Dec 25.
+**Examples:**
+- Week has 40 work hours capacity
+- Planned events: 10 hours
+- Auto-estimated time: 18 hours
+- **Availability: 12 hours** (40 - 10 - 18)
+
+**When it's different from capacity:**
+- **Capacity**: Total work time available (40 hours/week)
+- **Availability**: Unallocated work time after commitments (12 hours free)
 
 **Not Stored Because:**
-Can be determined by querying: "Show me all dates with work slot instances, excluding holiday dates."
+Changes constantly as you add/remove planned events or update project estimates. Calculated on-demand to answer "How much free time do I have?"
+
+**Used For:**
+- "Can I take on this new project?" checks
+- "Do I have time for this meeting?" decisions
+- Visual indicators of free vs. busy time
+- Answering "How much time is available next week?"
+
+**Key Distinction:**
+- **Negative availability** = Overcommitted (committed more than capacity)
+- **Zero availability** = Fully booked (no free time)
+- **Positive availability** = Time available to allocate
 
 ---
 
-#### 5. Project Working Days
+### 5. Overcommitted
 
 **What it is:**
-Days when work can happen for a specific project (user working days with project overrides applied).
+When the total committed time (planned events + auto-estimated time) exceeds available capacity.
 
 **Calculated from:**
-- User Working Days (base)
-- Project-specific overrides (stored as project property: "exclude Wed", "include next Saturday")
+- Capacity (total work hours available from work slots, minus holidays)
+- Planned Time (events scheduled at specific times)
+- Auto-Estimated Time (remaining hours distributed across remaining working days)
+- Completed Time (already done, fills capacity but doesn't cause overcommitment for future)
 
-**Example:**
-- User working days: Mon-Fri
-- Project override: Wed marked as non-working
-- Project working days: Mon, Tue, Thu, Fri
-
-**Partially Stored:**
-- Base (user working days): calculated from work slots
-- Overrides: stored as project property
-
----
-
-#### 6. Remaining Working Days
-
-**What it is:**
-Days available for auto-estimate distribution - project working days that don't already have planned/completed events.
-
-**Calculated from:**
-- Project Working Days (base)
-- Minus days with any calendar events for this project
-
-**Example:**
-- Project working days: Mon, Tue, Thu, Fri (20 days in Jan)
-- Events: Mon and Tue have planned events
-- Remaining working days: Thu, Fri (18 days remain)
-- Auto-estimate: 120 hours ÷ 18 days = 6.67 hours/day
+**Examples:**
+- Week has 40 work hours capacity
+- Project A: 20 hours auto-estimated
+- Project B: 15 hours auto-estimated
+- Planned events: 8 hours
+- Total committed: 20 + 15 + 8 = 43 hours
+- **Overcommitted by 3 hours** (43 - 40)
 
 **Not Stored Because:**
-Changes every time user plans or completes work. Always calculated fresh for auto-estimates.
+Constantly recalculating as events are added, completed, or estimates change. Calculated on-demand for warnings and capacity checks.
 
-**Critical For:**
-Auto-estimate calculations - determines how remaining hours are distributed.
+**Used For:**
+- Capacity warnings: "You're overbooked this week"
+- Feasibility checks: "Can I take on this new project?"
+- Workload visualization: Red highlights when overcommitted
+
+**Key Point:**
+Overcommitment is a **warning**, not a blocker. Users can still add work, but the system alerts them that they've committed more time than they have available.
 
 ---
 
+<!-- SECTION: ENTITY-RELATIONSHIPS -->
 ### Entity Relationships Summary
 
 **Ownership (all entities belong to a user):**
@@ -615,9 +649,17 @@ Auto-estimate calculations - determines how remaining hours are distributed.
 
 ---
 
-## ⏱️ PART 2: TIME CONCEPTS (Critical to This App)
+<!-- SECTION: PART-3-TIME-CONCEPTS -->
+## ⏱️ PART 3: TIME CONCEPTS (Critical to This App)
 
 **This is what makes the app unique.** Most apps just track "time spent" or "deadline". This app has a sophisticated hierarchy of time concepts.
+
+**Time Concept Overview:**
+0. Capacity (The Foundation)
+1. Estimated Time
+2. Auto-Estimated Time
+3. Planned Time
+4. Completed Time
 
 ---
 
@@ -869,7 +911,22 @@ Completed Time: ████████  (dark, solid border, specific times re
 ### 4. Completed Time
 
 **What it is:**
-Work that's actually been done - you've finished the work and tracked the hours.
+Work that's actually been done - you've finished the work and recorded the hours.
+
+**Two Ways to Create Completed Time:**
+
+1. **Tracked Time** (via time tracker):
+   - User starts a timer on a project
+   - Timer runs while working
+   - User stops timer when done
+   - System creates calendar event with `type = 'tracked'`
+   - Exact start/end times recorded automatically
+
+2. **Manually Completed**:
+   - User creates an event and marks it complete
+   - OR user marks a planned event as completed
+   - System sets `completed = true` or `type = 'completed'`
+   - User specifies start/end times
 
 **Where it's stored:**
 Calendar events with ANY of:
@@ -882,8 +939,9 @@ AND:
 - Category is NOT 'habit' or 'task'
 
 **Examples:**
-- "Website coding" - Jan 5, 9am-2pm, marked completed (5 hours)
-- Tracked time: "Debugging session" - Jan 8, 10:15am-1:45pm (3.5 hours)
+- Tracked time: "Website coding" - Jan 5, 9:15am-2:30pm (tracked via timer, 5.25 hours)
+- Manually completed: "Client meeting" - Jan 8, 2pm-3pm (manually marked complete, 1 hour)
+- Converted planned event: "Design work" was planned 9am-5pm, actually worked 9am-2pm (updated and marked complete, 5 hours)
 
 **Key Rules:**
 - Represents actual work done
@@ -891,6 +949,8 @@ AND:
 - **Removes that day from auto-estimate calculation**
 - In the past or present (not future)
 - Has specific start/end times (when work actually happened)
+- Tracked time captures exact duration automatically
+- Manual completion lets user adjust hours if needed
 
 **Effect on calculations:**
 ```
@@ -1024,9 +1084,19 @@ Calculation:
 
 ---
 
-## 🔄 PART 3: KEY WORKFLOWS
+<!-- SECTION: PART-4-WORKFLOWS -->
+## 🔄 PART 4: KEY WORKFLOWS
 
 These are the primary user journeys through the application.
+
+**Workflow Overview:**
+1. Initial Setup
+2. Create a Simple Project
+3. Create a Project with Phases
+4. Plan Specific Work
+5. Track Completed Work
+6. Take a Holiday
+7. Review Progress
 
 ---
 
@@ -1136,9 +1206,18 @@ These are the primary user journeys through the application.
 
 ---
 
-## ✅ PART 4: VALIDATION RULES SUMMARY
+<!-- SECTION: PART-5-VALIDATION -->
+## ✅ PART 5: VALIDATION RULES SUMMARY
 
 Consolidated validation rules across all entities.
+
+**Rule Categories:**
+- Names and Text
+- Contact Information (Client)
+- Dates
+- Numbers
+- Relationships
+- Deletion Constraints
 
 ---
 

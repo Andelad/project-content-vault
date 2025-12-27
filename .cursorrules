@@ -19,6 +19,24 @@
 - "How do auto-estimates calculate?" → Business Logic.md
 - "Where should I put this code?" → Architecture Guide.md
 
+**Document Ownership:**
+
+| Concept | Owner |
+|---------|-------|
+| Entity definitions | App Logic.md |
+| Time concepts | App Logic.md |
+| Business rules | App Logic.md (concepts) + Business Logic.md (implementation) |
+| **UI Features** | **Code itself (`src/components/features/`)** |
+| Code structure | Architecture Guide.md |
+
+**Building Features:**
+1. Read App Logic.md for WHAT to show
+2. Read Business Logic.md for HOW to calculate
+3. Explore `src/components/features/` for patterns
+4. Build using established patterns
+
+> **Philosophy:** Logic is stable (document it). UI is fluid (code is the doc).
+
 ---
 
 ## 1. QUICK REFERENCE
