@@ -1,6 +1,6 @@
 # App Logic - Time Forecasting Application
 
-**Version:** 1.0  
+**Version:** 1.1  
 **Date:** December 26, 2025  
 **Status:** IN PROGRESS - Foundation Document  
 **Author:** [Your Name]
@@ -33,27 +33,104 @@ This document defines **WHAT the app does** in plain English, independent of cod
 
 ## 🎯 WHAT MAKES THIS APP UNIQUE
 
-Most project management apps track:
-- Tasks
-- Deadlines
-- Completion status
+### The Problems with Existing Approaches
 
-**This app is fundamentally different** - it's about **TIME FORECASTING**.
+**1. Bottom-Up Project Management (Task-Based Apps)**
 
-The app helps you:
-1. **Estimate** how long work will take
-2. **Distribute** that time across your calendar
-3. **Plan** specific work sessions
-4. **Track** actual time spent
-5. **Forecast** when you'll finish
+How they work:
+- Break work into individual tasks
+- Track each task's status
+- Build time estimates from individual pieces (brick by brick)
 
-**The core innovation:** Four distinct types of time that work together.
+*The problem:* Tasks are hard to estimate accurately. Work expands to fill available time. Unexpected issues—tiredness, bugs, delays—destroy estimates. Users quickly lose sight of the big picture.
 
 ---
 
-## 🏗️ PART 1: CORE ENTITIES (Things That Exist)
+**2. Backward-Looking Time Tracking**
+
+How they work:
+- Track what's already been done
+- Record hours after the fact
+- No forecasting or planning ahead
+
+*The problem:* Driving by looking in the rearview mirror. Hard to answer forward-looking questions like "Can I take on a new client?" or "Can I take that holiday next month?" Past data doesn't by itself map the future.
+
+---
+
+**3. Static Individual Forecasting Tools**
+
+How they work:
+- Built for individuals
+- Allow time estimates and planning
+- But plans don't adapt to reality
+
+*The problem:* Plans become fiction when reality intervenes. Sleep in once, a task expands, an emergency appointment appears—the forecast is suddenly wrong. The tool doesn't recalculate. A user must manually rebuild the plan.
+
+---
+
+**4. Team-Focused Dynamic Forecasting Tools**
+
+How they work:
+- Built for teams and project managers
+- More sophisticated, often with dynamic rebalancing
+- Enterprise-level complexity and pricing
+
+*The problems:* Can be prohibitively expensive for individuals. UI is not optimised for individuals and makes it hard to quickly see what matters over time. Still build from task.
+
+---
+
+### How This App Is Different
+
+**Built for the individual, top-down, with dynamic rebalancing.**
+
+A user starts with the big picture, not tasks:
+- How much time is available?
+- How much time should go to projects (and holidays)?
+- How can time be redistributed across the calendar?
+- What needs to be done today?
+
+**What the app does:**
+1. **Estimate** total time needed (top-down, not task-by-task)
+2. **Distribute** that time across working days (automatic)
+3. **Plan** specific sessions when needed (with exact times)
+4. **Track** actual work (reality vs. estimate)
+5. **Forecast** finish dates (updated as reality changes)
+
+**Why it solves the problems above:**
+- Big-picture first (not trapped in task minutiae)
+- Forward-looking (not just rearview tracking)
+- Dynamic (plans rebalance when reality shifts)
+- Individual-first (clear, simple UI, no team overhead)
+
+### How It Works (Mechanics)
+
+1) **Capacity** defines available time (work hours, working days, holidays).  
+2) **Estimated Time** sets the total budget per project/phase.  
+3) **Auto-Estimated Time** spreads the remaining budget across free working days.  
+4) **Planned Time** schedules work to specific time slots (e.g., "Jan 5, 9am-3pm"); those days drop out of auto-estimates.  
+5) **Completed Time** records work done at specific times and dates; remaining time is redistributed automatically.  
+6) **Dynamic Rebalancing** keeps forecasts current whenever plans or progress change.
+
+---
+
+## 🏗️ PART 1: CORE ENTITIES & CONCEPTS
+
+### PART 1A: CORE ENTITIES (Database Objects)
 
 These are concrete objects stored in the database. Each has a unique ID and can be created, updated, and deleted.
+
+**Entity Overview:**
+1. User
+2. Client
+3. Project
+4. Phase
+5. Group
+6. Label
+7. Calendar Event
+8. Work Slot
+9. Holiday
+
+**Future Considerations:** Invoicing/Billing entities (if monetization requires client invoicing), Team/Workspace entities (if multi-user collaboration is added), Notification entities (if alert history needs persistence).
 
 ---
 
@@ -63,12 +140,22 @@ The person using the application.
 
 **Essential Properties:**
 - ID (unique identifier)
+- Email (for authentication and communication)
 - Authentication details (managed by Supabase Auth)
 
 **Key Rules:**
-- Each user has completely isolated data (Row Level Security)
-- User deletion cascades to all owned entities
-- All other entities belong to a user
+- Each user has completely isolated data (Row Level Security ensures users can only access their own entities)
+- User deletion cascades to all owned entities (clients, projects, phases, events, holidays, work slots, groups, labels)
+- All other entities in the system MUST belong to exactly one user
+- Users cannot access or modify other users' data
+
+**Not Stored Here (Out of Scope):**
+- Team/workspace features (individual app only)
+- User roles or permissions (all users have equal capabilities)
+- Billing or subscription tiers (if applicable, document separately)
+
+**Authentication:**
+Managed entirely by Supabase Auth - no custom user table exists.
 
 ---
 
@@ -77,130 +164,208 @@ The person using the application.
 The organization or person you're doing work for.
 
 **Essential Properties:**
-- Name (required)
+- Name (required, must be unique per user)
 - Status (active, inactive, archived)
 
 **Optional Properties:**
-- Contact email
-- Contact phone
-- Billing address
-- Notes
+- Contact email (basic format validation if provided)
+- Contact phone (basic format validation if provided)
+- Billing address (free-form text)
+- Notes (free-form text)
 
 **Key Rules:**
-- Every project MUST have a client
-- Clients are independent entities (not just text)
-- Can have multiple projects per client
-- Cannot delete client if projects exist (or cascade delete? CLARIFY)
+- Every project MUST have a client (required relationship)
+- Client names must be unique per user (each user has their own isolated client list)
+  - **Note:** Currently case-sensitive in database - "Acme Corp" and "ACme Corp" would be treated as different clients (likely should be case-insensitive - TO FIX)
+- Different users CAN have clients with the same name (data is isolated per user)
+- Clients are independent entities (not just text labels)
+- Can have multiple projects per client (one-to-many relationship)
+- **Cannot delete client if projects exist** (ON DELETE RESTRICT - must delete/reassign all projects first)
+- Status determines visibility:
+  - Active: shown in project creation dropdowns
+  - Inactive: shown in lists but marked as inactive
+  - Archived: hidden from most views (can be restored)
 
 **Examples:**
-- "Acme Corporation" (client)
-- "University of Edinburgh" (client)
-- "Personal Projects" (can be a client for your own work)
+- "Acme Corporation" (external client)
+- "University of Edinburgh" (institutional client)
+- "Personal Projects" (self - common pattern for personal work)
+- "Pro Bono Work" (category as a client)
+
+**Validation:**
+- Name: 1-100 characters, leading/trailing whitespace trimmed
+- Email (optional): Basic format check - requires `@` and `.`, no whitespace
+- Phone (optional): Can contain digits, spaces, hyphens, parentheses, plus signs (e.g., `+1 (555) 123-4567`)
 
 ---
 
 ### 3. Project
 **What it is:**
-A piece of work that needs to be completed by a deadline, with a time budget.
+A piece of work that needs to be completed by a deadline, with an optional time estimate (expressed in hours).
 
 **Essential Properties:**
 - Name (what is it?)
 - Client (who is it for? - REQUIRED)
 - Start date (when does work begin?)
 - End date (when must it be finished?)
-- Estimated hours (how much work total?)
+- Estimated hours (time estimate/load - can be 0 if no estimate set)
 
 **Organizational Properties (Optional):**
-- Groups (0, 1, or many - for organizing/filtering)
+- Group (0 or 1 - currently single group only, may expand to multiple group sets in future, so that a project can belong to multiple group sets, but only 1 group in a set)
 - Labels (0, 1, or many - flexible tags)
+- Working day overrides (specific dates marked as working/non-working for this project only - see "Project Working Days" in Derived Concepts)
 
 **Key Rules:**
 - MUST have a client
 - MUST have start date and end date
-- End date >= start date
-- MUST have estimated hours > 0 (if tracking time)
+- End date must be AFTER start date (projects must span at least one day)
+- If has phases: end date MUST be >= the last phase's end date (auto-synced to last phase)
+- Estimated hours must be >= 0 (cannot be negative)
 - Start date can be in the past (for historical projects)
 - If has phases: end date IS the last phase's end date (auto-synced)
-- If has recurring estimate: [CLARIFY: how does end date work?]
+- If has recurring phase, last phase is truncated to end on the project end date. Or user is given option to update end date to the last full phase cycle.
 
 **Examples:**
-- "Website Redesign" for Acme Corp, Jan 1 - Mar 31, 120 hours
-- "Thesis Research" for University, Sep 1 - Apr 30, 500 hours
+- "Website Redesign" for Acme Corp, Jan 1 - Mar 31, 120 hours (no phases - simple project)
+- "App Development" for Tech Startup, Feb 1 - Apr 30, 240 hours with 2 explicit phases:
+  - Phase 1: "Design & Planning" (Feb 1 - Feb 28, 80 hours)
+  - Phase 2: "Development" (Mar 1 - Apr 30, 160 hours)
+- "Ongoing Client Support" for Acme Corp, Jan 1 - Dec 31, 520 hours with recurring phase:
+  - Pattern: Weekly, 10 hours per week (distributed across 5 project working days = 2 hrs/day)
+  - Continues until project end date (Dec 31)
+  - Total: 52 weeks × 10 hours = 520 hours
 
 ---
 
 ### 4. Phase
 **What it is:**
-A time period within a project where specific work happens, with a portion of the project's time budget.
+A time period within a project where specific work happens, with a portion of the project's time budget. **Phases are defined by DAYS (date range)**, not hours. Can be individually defined or recurring.
 
 **Essential Properties:**
 - Project (which project does this belong to?)
-- Start date (when does this phase begin?)
-- End date (when does this phase end?)
-- Time allocation (how many hours of the project's total?)
+- Time allocation (how many hours?)
+- Type (explicit, recurring)
+
+**Type-Specific Properties:**
+
+**Explicit Phase:**
+- Start date (calendar date, not time)
+- End date (calendar date, not time)
+
+**Recurring Phase:**
+- Pattern (daily, weekly, monthly)
+- Hours per occurrence
+- Specific days (e.g., weekdays only for daily)
+- Week of month (for monthly patterns)
 
 **Optional Properties:**
 - Name (e.g., "Design Phase", "Development Phase")
 - Description
 
 **Key Rules:**
-- Phases divide a project into time periods
-- Each phase gets a portion of project's estimated hours
-- Phases MUST NOT overlap (no two phases on same date)
-- Phases [CLARIFY: must be continuous? or gaps allowed?]
-- Sum of phase allocations [CLARIFY: must equal project hours? can be less? can exceed?]
-- Last phase's end date IS the project's end date (synchronized)
-- Minimum phase duration = [CLARIFY: 1 day? can be 0 days?]
+- A project has EITHER explicit phases OR a recurring phase, NEVER both
+- **Explicit phases:**
+  - Each phase gets a portion of project's estimated hours
+  - Phases MUST NOT overlap
+  - Phases can have gaps between them
+  - Last phase's end date IS the project's end date (synchronized)
+- **Recurring phase:**
+  - Pattern continues until project end date
+  - Distributes hours evenly across occurrences
 
 **Database Note:**
 Currently stored in `milestones` table with both `start_date` and `end_date` populated.
 
 **Examples:**
-- "Discovery Phase" (Jan 1-15, 40 hours)
-- "Design Phase" (Jan 16-31, 40 hours)
-- "Development Phase" (Feb 1-28, 40 hours)
+- Explicit: "Discovery Phase" (Jan 1-15, 40 hours)
+- Explicit: "Design Phase" (Jan 16-31, 40 hours)
+- Recurring: "Client Support" - 2 hours/day, every weekday
+- Recurring: "Weekly Review" - 4 hours/week, every Monday
 
 **Important Distinction:**
-Phases are NOT tasks or milestones in the traditional sense. They're TIME PERIODS for budgeting work.
+- **Phases** = TIME PERIODS defined by DAYS (date from → date to) for budgeting work across a date range
+- **Events** = TIME BLOCKS defined by HOURS (start time → end time) for specific scheduled work
 
 ---
 
-### 5. Recurring Estimate
+### 5. Group
 **What it is:**
-An alternative to phases - regular time allocation repeated on a schedule.
+The primary way to organize projects by important life areas (e.g., Work, Personal, Health).
 
 **Essential Properties:**
-- Project (which project?)
-- Pattern (daily, weekly, monthly)
-- Hours per occurrence (how much each time?)
+- Name
 
 **Optional Properties:**
-- Specific days (e.g., weekdays only for daily)
-- Week of month (for monthly patterns)
+- Icon (emoji or icon identifier) - not currently required
+- Color (for visual distinction) - not currently required
+- Order (display sequence) - currently required
 
 **Key Rules:**
-- A project has EITHER phases OR recurring estimate, NEVER both
-- Recurring continues until project end date
-- Distributes hours evenly across pattern
+- **Current State:**
+  - Projects MUST belong to exactly 1 group (required)
+  - Users create a fixed list of groups
+  - Groups represent major life areas or categories
+  - Group names must be unique per user (case-insensitive: "Work" and "WORK" are treated as the same)
+- **Future State (planned):**
+  - Projects may have 0 or 1 group (making groups optional)
+  - UI updates needed to support ungrouped projects
+  - May expand to support multiple group sets (e.g., a project could belong to "Work" in one set AND "Q1 2026" in another set)
+- Deleting a group requires reassigning all projects in that group first
+- Users create whatever groups make sense to their workflow
 
 **Examples:**
-- "Client Support" - 2 hours/day, every weekday
-- "Weekly Review" - 4 hours/week, every Monday
-- "Monthly Report" - 8 hours/month, first Monday
+- "Work" (professional projects)
+- "Personal" (personal life projects)
+- "Health & Fitness" (wellbeing projects)
+- "Side Projects" (hobby or passion projects)
+- "Family" (family-related projects)
 
-**Mutual Exclusivity:**
-If project has phases → Cannot add recurring estimate
-If project has recurring estimate → Cannot add phases
+**Purpose:**
+Groups help distribute projects across important life areas, making it easier to see balance and prioritize across different aspects of life.
+
+**Difference from Labels:**
+- Groups = Primary categorization by life area (currently required, 1 per project)
+- Labels = Flexible tags for filtering (optional, many per project)
 
 ---
 
-### 6. Calendar Event
+### 6. Label
 **What it is:**
-A specific time block representing work (planned or completed).
+Flexible tags for categorizing and filtering projects.
 
 **Essential Properties:**
-- Start time
-- End time
+- Name
+
+**Optional Properties:**
+- Color (for visual distinction)
+
+**Key Rules:**
+- Projects can have 0, 1, or many labels
+- Labels are shared across all projects
+- Label names must be unique per user (case-insensitive: "#urgent" and "#URGENT" are treated as the same)
+- Labels are for filtering/organizing only (no business logic)
+- Deleting a label removes it from all projects
+
+**Examples:**
+- #christmas
+- #pro-bono
+- #q1-2026
+- #urgent
+- #backend
+
+**Difference from Groups:**
+- Groups = Collections you click to view projects
+- Labels = Tags you filter by (across any view)
+
+---
+
+### 7. Calendar Event
+**What it is:**
+A specific time block representing work (planned or completed). **Events are defined by HOURS (specific start and end times)**, not days.
+
+**Essential Properties:**
+- Start time (specific time of day, e.g., 9:00 AM)
+- End time (specific time of day, e.g., 3:00 PM)
 - Type (normal, tracked, completed, habit, task)
 
 **Optional Properties:**
@@ -216,6 +381,7 @@ A specific time block representing work (planned or completed).
 - Habits NEVER count toward project time (even if project field set)
 - Tasks NEVER count toward project time (even if project field set)
 - Event blocks auto-estimate for that day (if linked to project)
+- Events may technically span multiple days, but UI does not provide tools for creating multi-day events (single-day events only)
 
 **Examples:**
 - "Website work" (Project: Website Redesign, 8 hours, completed = false) → Planned Time
@@ -225,32 +391,41 @@ A specific time block representing work (planned or completed).
 
 ---
 
-### 7. Work Hour
+### 8. Work Slot
 **What it is:**
-Your availability - when you're able to work.
+A time block when you're available to work. These are concrete schedule entries stored in the database.
 
 **Essential Properties:**
 - Start time (e.g., 9:00 AM)
 - End time (e.g., 5:00 PM)
-- Days of week (e.g., Monday-Friday)
+- Day of week (Monday, Tuesday, etc.) OR specific date
+- Recurring (boolean - is this a weekly recurring slot or a one-time override?)
 
-**Optional Properties:**
-- Duration (calculated from start/end)
+**Calculated Property:**
+- Duration (calculated from start/end) - this contributes to **work hours**
+
+**How Work Slots Work:**
+1. **Weekly Pattern**: User sets recurring slots (e.g., "Every Monday 9am-5pm")
+2. **Generates Instances**: System creates slot instances for each applicable date
+3. **Planner Overrides**: User can modify/delete individual instances without affecting the pattern
+4. **Apply to Future**: Changes can optionally update the recurring pattern for all future dates
 
 **Key Rules:**
-- Defines your capacity
-- Auto-estimates only appear during work hours
-- Events outside work hours are "overtime"
-- Holidays override work hours
-- Can have multiple work hour blocks per day (e.g., 9-12, 2-5)
+- Each work slot instance has a unique ID (database entity)
+- Work slots CANNOT cross midnight (must be within a single day)
+- A day with at least one work slot = a **working day**
+- Multiple slots can exist on the same day (e.g., morning + afternoon with lunch break)
+- Holidays override work slots (no capacity on holidays even if slots exist)
 
 **Examples:**
-- Monday-Friday, 9:00 AM - 5:00 PM (standard 8-hour day)
-- Monday-Thursday, 9:00 AM - 6:00 PM, Friday 9:00 AM - 3:00 PM (flex schedule)
+- Recurring slot: "Every Monday 9am-5pm" (8-hour duration, generates work hours)
+- Recurring slot: "Every Friday 9am-1pm" (4-hour duration)
+- One-time override: "December 30, 2025, 10am-2pm" (doesn't affect recurring pattern)
+- Split day: "Every Tuesday 9am-12pm" + "Every Tuesday 2pm-5pm" (6 work hours with lunch break)
 
 ---
 
-### 8. Holiday
+### 9. Holiday
 **What it is:**
 A date when normal work hours don't apply.
 
@@ -262,7 +437,7 @@ A date when normal work hours don't apply.
 - Recurs annually (boolean - does this repeat every year?)
 
 **Key Rules:**
-- Holidays OVERRIDE work hours (no work capacity on holidays)
+- Holidays OVERRIDE work slots (no work capacity on holidays)
 - Auto-estimates SKIP holidays (no distribution to holiday dates)
 - Users CAN still create manual events on holidays (exceptions/overtime)
 - Holiday on a weekend is redundant but harmless
@@ -280,1189 +455,754 @@ A date when normal work hours don't apply.
 
 ---
 
-### 9. Group
-**What it is:**
-A collection for organizing projects (optional organizational tool).
+### PART 1B: DERIVED CONCEPTS (Calculated from Entities)
 
-**Essential Properties:**
-- Name
-
-**Optional Properties:**
-- Icon (emoji or icon identifier)
-- Color (for visual distinction)
-- Order (display sequence)
-
-**Key Rules:**
-- Projects can be in 0, 1, or MANY groups (flexible)
-- Groups are for organization only (no business logic)
-- Deleting a group doesn't delete projects
-- Users create whatever groups make sense to them
-
-**Examples:**
-- "Client Work" (organizational group)
-- "High Priority" (status-based group)
-- "Design Projects" (type-based group)
-
-**Note:** Projects can appear in multiple groups simultaneously (e.g., both "Client Work" AND "High Priority").
+These are important concepts that don't exist as separate database entities, but are calculated from the entities above. Users need to understand these to use the app effectively.
 
 ---
 
-### 10. Label
+#### 1. Work Day
+
 **What it is:**
-Flexible tags for categorizing and filtering projects.
+A day considered workable - any day that has at least one work slot.
 
-**Essential Properties:**
-- Name
+**Calculated from:**
+- Work Slots (if a date has work slot instances, it's a working day)
+- Holidays (override: even if work slots exist, holidays are NOT working days)
 
-**Optional Properties:**
-- Color (for visual distinction)
+**Three Levels:**
+- **User Working Days**: Days with work slots, excluding holidays (base level)
+- **Project Working Days**: User working days with optional project-specific overrides (stored as project property)
+- **Remaining Working Days**: Project working days minus days with planned/completed events (used in calculations)
 
-**Key Rules:**
-- Projects can have 0, 1, or many labels
-- Labels are shared across all projects
-- Labels are for filtering/organizing only (no business logic)
-- Deleting a label removes it from all projects
+**Not Stored Because:**
+Work slots are the source of truth. Working days are derived by checking: "Does this date have work slot instances?"
+
+**Project Overrides:**
+Projects can store exceptions: "Mark Dec 30 as non-working for Website project" or "Mark Saturday Jan 4 as working for Website project". These are stored as project properties, not separate entities.
+
+---
+
+#### 2. Work Hours
+
+**What it is:**
+The total duration of work time available, calculated by summing work slot durations.
+
+**Calculated from:**
+Work Slots (sum of all slot durations for a given time period)
 
 **Examples:**
-- #christmas
-- #pro-bono
-- #q1-2026
-- #urgent
-- #backend
+- Daily work hours: Mon has two slots (9am-12pm + 2pm-5pm) = 6 work hours for Monday
+- Weekly work hours: 5 working days × 8 hours/day = 40 work hours/week
+- Project work hours: Sum of all work hours within project date range
 
-**Difference from Groups:**
-- Groups = Collections you click to view projects
-- Labels = Tags you filter by (across any view)
+**Not Stored Because:**
+Work slots already contain start/end times. Duration is calculated on-demand: `end_time - start_time`.
+
+---
+
+#### 3. Capacity
+
+**What it is:**
+The total amount of work time available to allocate to projects.
+
+**Calculated from:**
+- Work Slots (define when you can work)
+- Work Hours (total duration available)
+- Holidays (days with zero capacity)
+- Existing Events (reduce available capacity)
+
+**Examples:**
+- Base capacity: 40 work hours/week (from work slots)
+- Available capacity: 40 hours - 10 hours of existing events = 30 hours free this week
+- Project-specific capacity: Only count work hours on project working days
+
+**Not Stored Because:**
+Constantly changing as events are added/completed. Calculated when needed for capacity warnings and availability checks.
+
+**Used For:**
+- "Am I overbooked?" warnings
+- "Can I take on this project?" forecasting
+- Auto-estimate distribution calculations
+
+---
+
+#### 4. User Working Days
+
+**What it is:**
+Days when you're generally available to work (user-level, before project overrides).
+
+**Calculated from:**
+- Work Slots (any day with slot instances)
+- Holidays (excluded even if slots exist)
+
+**Example:**
+User has Mon-Fri work slots + Christmas holiday = User working days are Mon-Fri except Dec 25.
+
+**Not Stored Because:**
+Can be determined by querying: "Show me all dates with work slot instances, excluding holiday dates."
+
+---
+
+#### 5. Project Working Days
+
+**What it is:**
+Days when work can happen for a specific project (user working days with project overrides applied).
+
+**Calculated from:**
+- User Working Days (base)
+- Project-specific overrides (stored as project property: "exclude Wed", "include next Saturday")
+
+**Example:**
+- User working days: Mon-Fri
+- Project override: Wed marked as non-working
+- Project working days: Mon, Tue, Thu, Fri
+
+**Partially Stored:**
+- Base (user working days): calculated from work slots
+- Overrides: stored as project property
+
+---
+
+#### 6. Remaining Working Days
+
+**What it is:**
+Days available for auto-estimate distribution - project working days that don't already have planned/completed events.
+
+**Calculated from:**
+- Project Working Days (base)
+- Minus days with any calendar events for this project
+
+**Example:**
+- Project working days: Mon, Tue, Thu, Fri (20 days in Jan)
+- Events: Mon and Tue have planned events
+- Remaining working days: Thu, Fri (18 days remain)
+- Auto-estimate: 120 hours ÷ 18 days = 6.67 hours/day
+
+**Not Stored Because:**
+Changes every time user plans or completes work. Always calculated fresh for auto-estimates.
+
+**Critical For:**
+Auto-estimate calculations - determines how remaining hours are distributed.
+
+---
+
+### Entity Relationships Summary
+
+**Ownership (all entities belong to a user):**
+- User → owns → Clients, Projects, Phases, Groups, Labels, Events, Work Slots, Holidays
+
+**Core Hierarchy:**
+- Client → has many → Projects (required: every project must have a client)
+- Project → has many → Phases (optional: 0, 1, or many explicit phases, OR 1 recurring phase)
+- Project → has many → Calendar Events (optional: planned and completed work)
+
+**Organizational:**
+- Project → belongs to → 1 Group (currently required)
+- Project → has many → Labels (optional: 0, 1, or many)
+
+**Capacity:**
+- User → has many → Work Slots (defines time blocks when you can work - database entities with IDs)
+- User → has → Work Days (DERIVED from work slots - not stored)
+- User → has → Capacity (DERIVED from work slots and holidays - not stored)
+- User → has many → Holidays (override work slots on specific dates)
+
+**Deletion Constraints:**
+- Cannot delete Client if Projects exist (must reassign/delete projects first)
+- Cannot delete Group if Projects exist (must reassign projects first)
+- Deleting Label removes it from all projects (no blocking)
+- Deleting Project cascades to its Phases and Events
 
 ---
 
 ## ⏱️ PART 2: TIME CONCEPTS (Critical to This App)
 
-**This is what makes the app unique.** Most apps just track "time spent" or "deadline". This app distinguishes between FOUR different types of time.
+**This is what makes the app unique.** Most apps just track "time spent" or "deadline". This app has a sophisticated hierarchy of time concepts.
 
 ---
 
-### The Four Types of Time
+### Understanding "Working Days"
+
+This app uses "working days" in three different contexts. Understanding the distinction is critical for auto-estimate calculations:
+
+| Level | Definition | Example |
+|-------|-----------|---------|
+| **User Working Days** | Days with work slots set, excluding holidays | Mon-Fri (from user settings) |
+| **Project Working Days** | User working days, with optional project-specific overrides | Mon-Fri, but project overrides Wed as non-working = Mon, Tue, Thu, Fri |
+| **Remaining Working Days** | Project working days that DON'T have any planned or completed events | Mon, Tue had events = Only Thu, Fri remain |
+
+**For auto-estimate calculations, "remaining working days" is used** - the narrowest definition.
+
+**Example:**
+- User sets Mon-Fri as working days via work slots (User Working Days = 5)
+- Project "Website" overrides Wed as non-working (Project Working Days = 4: Mon, Tue, Thu, Fri)
+- User has events on Mon and Tue (Remaining Working Days = 2: Thu, Fri only)
+- Auto-estimate calculation: Total remaining hours ÷ 2 days
+
+---
+
+### The Time Hierarchy
 
 ```
-PROJECT ESTIMATED TIME (120 hours total)
-    ↓
-    ├─→ AUTO-ESTIMATED TIME (80 hours remaining, distributed by system)
-    ├─→ PLANNED TIME (20 hours, user-scheduled future work)
-    └─→ COMPLETED TIME (20 hours, actually done work)
+CAPACITY (Your Available Time)
+  │
+  ├─ Work Slots (time blocks: Mon-Fri 9am-5pm)
+  ├─ Work Hours (calculated duration: 40 hours/week from slots)
+  ├─ User Working Days (Days with work slots, excluding holidays)
+  └─ Holidays (Days with no capacity)
+      ↓
+PROJECT TIME (Time allocated to projects)
+  │
+  ├─ Project Working Days (User working days with project overrides)
+  │     ↓
+  ├─ ESTIMATED TIME (120 hours total, Jan 1-31)
+  │     ↓
+  ├─ AUTO-ESTIMATED TIME (120 hours ÷ 20 remaining working days = 6 hrs/day)
+  │     ↓
+  ├─ PLANNED TIME (User schedules: Jan 5 9am-3pm = 6 hours)
+  │     → Removes Jan 5 from remaining working days
+  │     → 120 hours now spread over 19 remaining days
+  │     ↓
+  └─ COMPLETED TIME (User completes: Jan 5, 5 hours)
+        → Reduces total to 115 hours remaining
+        → 115 hours spread over 19 remaining days
 ```
+
+---
+
+### 0. Capacity (The Foundation)
+
+**What it is:**
+The total time you have available for work. Not a "type" of project time, but the container everything else fits into.
+
+**Defined by:**
+- **Work Slots** - Your schedule blocks (e.g., Mon-Fri 9am-5pm)
+- **User Working Days** - Days that have work slots AND aren't holidays
+- **Holidays** - Days with zero capacity (override work slots)
+
+**Work Slots vs Work Hours:**
+- **Work Slots** = Time blocks when you can work (set in user settings, e.g., "Mon-Fri 9am-5pm")
+- **Work Hours** = Total duration calculated from work slots (e.g., 8 hours/day × 5 days = 40 hours/week)
+- Work slots can have planner overrides (delete a day or change hours without affecting the overall pattern)
+
+**Examples:**
+- Standard capacity: Mon-Fri 9am-5pm work slots = 8 hours/day × 5 days = 40 work hours/week
+- Reduced capacity: Mon-Fri 9am-1pm work slots = 4 hours/day × 5 days = 20 work hours/week
+- Holiday override: Dec 25 = 0 hours (even though it's a weekday with work slots)
+
+**Why this matters:**
+- Auto-estimates only appear during work slot times
+- Projects compete for capacity (multiple projects = shared capacity)
+- Overbooked warnings compare scheduled time to capacity
+- Working days (not calendar days) determine auto-estimate distribution
+
+**User sees this as:**
+- Work slot settings
+- Calendar showing available/busy time
+- Warnings when capacity exceeded
 
 ---
 
 ### 1. Estimated Time
+
 **What it is:**
-The total time budget for a project.
+The total time budget you allocate to a project (or phase within a project). This is the broadest, highest-level view of project time.
 
 **Where it's stored:**
-`project.estimated_hours` (database field)
+- `project.estimated_hours` (for whole project)
+- `phase.time_allocation` (for phase within project)
+
+**Properties:**
+- Assigned to a date range (project start → end, or phase start → end)
+- Can be split across phases
+- Remains constant until you change it
+- The "big picture" allocation
 
 **Examples:**
-- Website project has 120 estimated hours
-- Thesis has 500 estimated hours
+- "Website project: 120 hours, Jan 1 - Jan 31"
+- "Design Phase: 40 hours, Jan 1 - Jan 15"
+- "Development Phase: 80 hours, Jan 16 - Jan 31"
 
 **Key Rules:**
-- Set when creating project
+- Set when creating project/phase
 - Can be updated later
-- Represents TOTAL work expected (not remaining)
-- This is the "pool" that other time types draw from
+- Represents TOTAL work (not remaining)
+- This is the "source" that auto-estimates draw from
 
 **User sees this as:**
-"Project budget: 120 hours"
+- "Project budget: 120 hours"
+- "Phase allocation: 40 hours"
 
 ---
 
 ### 2. Auto-Estimated Time
+
 **What it is:**
-System-calculated distribution of remaining hours across future working days.
+The estimated time broken down into individual days - the system automatically distributes your total estimate across working days.
 
 **Where it's stored:**
 NOT stored - calculated dynamically in real-time
 
-**How it's calculated:**
+**How it's calculated (simple terms):**
 ```
-Remaining Hours = Estimated Hours - Completed Hours
-Future Working Days = Count(working days from today to end, excluding holidays)
-Auto-Estimate Per Day = Remaining Hours / Future Working Days
+Step 1: Calculate remaining hours
+  Remaining Hours = Estimated Hours - Completed Hours
+
+Step 2: Count remaining working days
+  Start with project working days (user working days with project overrides applied)
+  Count from today to project end date
+  Remove holidays
+  Remove any days that have planned or completed events for this project
+  = Remaining Working Days
+
+Step 3: Divide
+  Hours Per Day = Remaining Hours ÷ Remaining Working Days
 ```
 
 **When it appears:**
-- On days WITHOUT manual events (for that project)
+- Only on remaining working days (project working days without events, not holidays)
+- Only during work slot times
 - Only today and future dates (never past)
-- Only during work hours
-- Skips holidays
 
 **Examples:**
-- Project: 120 hours total, 20 hours completed = 100 hours remaining
-- 25 working days left
-- Auto-estimate: 100 / 25 = 4 hours per day
+
+**Scenario 1: No planned events yet**
+- Project: 120 hours, Jan 1-31
+- Project working days: 22 (user working days, no project overrides)
+- Planned/completed events: None
+- Remaining working days: 22
+- Calculation: 120 ÷ 22 = 5.45 hours/day
+- Shows on ALL 22 remaining working days
+
+**Scenario 2: User plans one day**
+- User plans: Jan 5, 9am-3pm (6 hours)
+- Remaining working days: 21 (Jan 5 removed - has event)
+- Calculation: 120 ÷ 21 = 5.71 hours/day
+- Shows on 21 remaining working days (NOT on Jan 5)
+
+**Scenario 3: User completes work**
+- User completes: Jan 5, 5 hours
+- Remaining hours: 120 - 5 = 115 hours
+- Remaining working days: 21 (Jan 5 still removed - has event)
+- Calculation: 115 ÷ 21 = 5.48 hours/day
+- Shows on 21 remaining working days
 
 **Key Rules:**
-- Blocked by ANY event on that day (planned OR completed)
-- Updates dynamically as work is completed
+- **ANY planned or completed event removes that day from remaining working days count**
+- Recalculates dynamically as work progresses
 - Only shown for projects with estimated hours > 0
 - Never appears in the past
+- Never appears on holidays
+- Never appears outside work slot times
 
 **User sees this as:**
-Light color, no border on timeline - represents "what you need to do to finish on time"
+Lightest color, no border on timeline - represents "what you need to do per day to finish on time"
+
+**Visual:**
+```
+Mon: ░░░░ 5.5 hrs (auto-estimate)
+Tue: ░░░░ 5.5 hrs (auto-estimate)
+Wed: [planned event - no auto-estimate]
+Thu: ░░░░ 5.5 hrs (auto-estimate)
+Fri: [completed work - no auto-estimate]
+```
 
 ---
 
 ### 3. Planned Time
+
 **What it is:**
-User-scheduled future work - specific time blocks you intend to work.
+Specific time blocks when you commit to working on the project. This adds **specific start/end times** to your estimate.
+
+**The key difference:**
+- Estimated Time: "120 hours across Jan 1-31" (date range, no specific times)
+- Auto-Estimated: "~5 hours per day" (daily distribution, still no specific times)
+- **Planned Time: "Jan 5, 9am-3pm" (specific start and end time)**
 
 **Where it's stored:**
 Calendar events with:
-- `completed = false`
-- `type != 'tracked'`
-- `type != 'completed'`
-- `project_id` is set
+- `project_id` is set (linked to project)
+- `start_time` and `end_time` (specific times)
+- `completed = false` (not done yet)
+- `type != 'tracked'` and `type != 'completed'`
+- Category is NOT 'habit' or 'task'
 
 **Examples:**
-- "Website coding" scheduled for Monday 9am-5pm (8 hours)
-- "Client meeting" scheduled for Tuesday 2pm-3pm (1 hour)
+- "Website coding" - Jan 5, 9am-3pm (6 hours)
+- "Client meeting" - Jan 8, 2pm-3pm (1 hour)
+- "Design work" - Jan 10, 10am-4pm (6 hours, with 2-hour lunch break = 4 work hours)
 
 **Key Rules:**
 - User manually creates these events
-- Linked to a project
+- Must be linked to a project
+- Must have specific start/end times
+- **Removes that day from auto-estimate calculation**
 - In the future (not completed yet)
-- Blocks auto-estimate on that day (for that project)
+
+**Effect on auto-estimates:**
+```
+BEFORE planning Jan 5:
+  Remaining hours: 120
+  Remaining working days: 22
+  Auto-estimate per day: 5.45 hours
+  Jan 5 shows: ░░░░ 5.45 hrs (auto-estimate)
+
+AFTER planning Jan 5 (9am-3pm, 6 hours):
+  Remaining hours: Still 120 (not completed yet)
+  Remaining working days: 21 (Jan 5 removed from count)
+  Auto-estimate per day: 120 ÷ 21 = 5.71 hours
+  Jan 5 shows: ▒▒▒▒ 6 hrs (planned) - no auto-estimate
+```
 
 **User sees this as:**
-Lighter color, dashed border on timeline - represents "scheduled future work"
+Lighter color, dashed border on timeline - represents "scheduled future work at specific times"
 
 **Visual Distinction:**
 ```
-Auto-Estimate:  ░░░░░░░░  (lightest, no border)
-Planned Time:   ▒▒▒▒▒▒▒▒  (light, dashed border)
-Completed Time: ████████  (dark, solid border)
+Auto-Estimate:  ░░░░░░░░  (lightest, no border, no specific times)
+Planned Time:   ▒▒▒▒▒▒▒▒  (light, dashed border, specific times: 9am-3pm)
+Completed Time: ████████  (dark, solid border, specific times recorded)
 ```
 
 ---
 
 ### 4. Completed Time
+
 **What it is:**
-Work that's actually been done - tracked or marked complete.
+Work that's actually been done - you've finished the work and tracked the hours.
 
 **Where it's stored:**
 Calendar events with ANY of:
-- `completed = true`
-- `type = 'tracked'`
-- `type = 'completed'`
+- `completed = true` (manually marked complete)
+- `type = 'tracked'` (from time tracker)
+- `type = 'completed'` (explicitly completed)
+
+AND:
+- `project_id` is set (linked to project)
+- Category is NOT 'habit' or 'task'
 
 **Examples:**
-- "Website coding" marked as completed (6 hours)
-- Tracked time: "Debugging session" (3.5 hours)
+- "Website coding" - Jan 5, 9am-2pm, marked completed (5 hours)
+- Tracked time: "Debugging session" - Jan 8, 10:15am-1:45pm (3.5 hours)
 
 **Key Rules:**
 - Represents actual work done
-- Reduces remaining hours (affects auto-estimates)
+- **Reduces remaining hours** (affects future auto-estimates)
+- **Removes that day from auto-estimate calculation**
 - In the past or present (not future)
-- Blocks auto-estimate on that day
+- Has specific start/end times (when work actually happened)
+
+**Effect on calculations:**
+```
+BEFORE completing Jan 5:
+  Estimated hours: 120
+  Completed hours: 0
+  Remaining hours: 120
+  Remaining working days: 21 (Jan 5 has planned event)
+  Auto-estimate per day: 120 ÷ 21 = 5.71 hours
+
+AFTER completing Jan 5 (5 hours actual):
+  Estimated hours: 120 (unchanged)
+  Completed hours: 5
+  Remaining hours: 115
+  Remaining working days: 21 (Jan 5 still excluded - now has completed event)
+  Auto-estimate per day: 115 ÷ 21 = 5.48 hours
+```
 
 **User sees this as:**
-Darker color, solid border on timeline - represents "work completed"
+Darker color, solid border on timeline - represents "work actually completed at specific times"
+
+**Progress tracking:**
+- Shows exactly when work was done
+- Calculates total hours completed
+- Shows % complete (completed / estimated × 100)
+- Forecasts completion date based on current pace
 
 ---
 
-### Critical Rule: Timeline Day Estimate Logic
+### Critical Rule: Day Calculation Logic
 
 **For each day, for each project:**
 
 ```
-IF day has events (planned OR completed) linked to this project:
-    Show event time with appropriate styling
+IF day has ANY events (planned OR completed) linked to this project:
+    Day is REMOVED from remaining working days count
+    Show event(s) with appropriate styling (planned or completed)
     DO NOT show auto-estimate
 ELSE IF day is in the past:
-    Show nothing (no estimates in past)
-ELSE IF day is not a working day OR is a holiday:
-    Show nothing (no estimates outside work hours)
+    Show nothing (no estimates for past days without events)
+ELSE IF day is not in project working days:
+    Show nothing (not a working day for this project)
+ELSE IF day is a holiday:
+    Show nothing (no work on holidays)
 ELSE:
-    Show auto-estimate
+    Day IS a remaining working day
+    Show auto-estimate for this day
 END IF
 ```
 
 **Key Points:**
-- Events BLOCK auto-estimates (one or the other, never both)
-- Both planned AND completed events block auto-estimates
-- Auto-estimates only fill "empty" working days
+- Events (planned OR completed) **completely remove a day** from remaining working days count
+- Auto-estimate redistributes across **remaining** working days only
+- One or the other, never both on same day
+- Auto-estimates only appear on remaining working days (within work slot times)
 
-**Example Day Breakdown:**
+**Example Week:**
 
 ```
-Monday: 8 hours planned → Shows 8 hours planned time (light, dashed)
-Tuesday: 6 hours completed → Shows 6 hours completed time (dark, solid)
-Wednesday: No events → Shows 4 hours auto-estimate (lightest, no border)
-Thursday: Holiday → Shows nothing
-Friday: No events → Shows 4 hours auto-estimate
+Project: 120 hours total, Jan 1-31
+Completed so far: 10 hours
+Remaining hours: 110 hours
+Remaining working days (no events): 20
+
+Monday (Jan 6):
+  - Has planned event: "Website work" 9am-5pm (8 hours)
+  - Shows: ▒▒▒▒▒▒▒▒ 8 hrs planned (dashed)
+  - Remaining working days: NOT counted (20 days, not 21)
+
+Tuesday (Jan 7):
+  - Has completed event: "Client meeting" 2pm-3pm (1 hour)
+  - Shows: ████ 1 hr completed (solid)
+  - Remaining working days: NOT counted (even though only 1 hour - day is used)
+
+Wednesday (Jan 8):
+  - No events
+  - Is a project working day (not holiday)
+  - Shows: ░░░░ 5.5 hrs auto-estimate
+  - Remaining working days: COUNTED
+
+Thursday (Jan 9):
+  - Holiday
+  - Shows: Nothing
+  - Remaining working days: NOT counted
+
+Friday (Jan 10):
+  - No events
+  - Is a project working day
+  - Shows: ░░░░ 5.5 hrs auto-estimate
+  - Remaining working days: COUNTED
+
+Calculation:
+  110 remaining hours ÷ 20 remaining working days = 5.5 hours/day
 ```
 
 ---
 
-### Why This Matters
+### Why This Hierarchy Matters
 
 **Traditional apps:**
-- You estimate total time
-- You track actual time
-- That's it
+1. You estimate total time: 120 hours
+2. You track actual time: 15 hours done
+3. Math: 105 hours remaining
+4. That's it - no distribution, no forecasting
 
 **This app:**
-- You estimate total time (Estimated Time)
-- System distributes remaining time (Auto-Estimate)
-- You schedule specific work (Planned Time)
-- You track actual work (Completed Time)
+1. **Capacity**: You define when you can work (work slots: Mon-Fri 9am-5pm)
+2. **Estimated Time**: You allocate 120 hours to project (Jan 1-31)
+3. **Auto-Estimated Time**: System shows "~5 hrs/day to finish on time"
+4. **Planned Time**: You schedule specific work (Jan 5, 9am-3pm)
+   - Auto-estimate removes Jan 5 from remaining working days, redistributes across other days
+5. **Completed Time**: You finish work (Jan 5, 5 hours actual)
+   - Remaining hours drop to 115
+   - Auto-estimate recalculates: 115 ÷ remaining working days
 
-**The benefit:**
-- See if you're on track to meet deadlines
-- Visualize workload across calendar
-- Automatically rebalance as work progresses
+**The benefits:**
+- **Capacity awareness**: See if you're overbooked
+- **Automatic distribution**: Don't manually schedule every day
+- **Dynamic rebalancing**: Auto-estimates adjust as you work
+- **Realistic forecasting**: "At current pace, finish Feb 3"
+- **Specific planning**: Schedule critical days, auto-fill the rest
+- **Progress tracking**: See exactly what's done vs. what's left
 
----
-
-## 🔄 PART 3: ENTITY RELATIONSHIPS
-
-How entities connect to each other.
-
-```
-User
-  │
-  ├─── Clients (many)
-  │      └─── Projects (many per client)
-  │             ├─── Phases (0 or many, XOR...)
-  │             ├─── Recurring Estimate (0 or 1, XOR phases)
-  │             ├─── Calendar Events (many)
-  │             ├─── Groups (many-to-many)
-  │             └─── Labels (many-to-many)
-  │
-  ├─── Calendar Events (many)
-  │      └─── Can link to Project (optional)
-  │
-  ├─── Work Hours (defines availability)
-  │
-  ├─── Holidays (dates with no work)
-  │
-  ├─── Groups (organizational collections)
-  │      └─── Projects (many-to-many)
-  │
-  └─── Labels (flexible tags)
-         └─── Projects (many-to-many)
-```
+**The user experience:**
+1. Set work slots (capacity)
+2. Create project with estimate (estimated time)
+3. See timeline auto-fill with suggested hours (auto-estimated time)
+4. Schedule specific days when needed (planned time)
+5. Track work as completed (completed time)
+6. Watch auto-estimates adjust automatically
 
 ---
 
-### Critical Relationships
+## 🔄 PART 3: KEY WORKFLOWS
 
-**1. Project → Client (Many-to-One, REQUIRED)**
-- Every project MUST have exactly one client
-- A client can have many projects
-- Cannot delete client if projects exist (or cascade? CLARIFY)
-
-**2. Project → Phases (One-to-Many, OPTIONAL)**
-- A project can have 0, 1, or many phases
-- Each phase belongs to exactly one project
-- If phases exist, project cannot have recurring estimate (XOR)
-
-**3. Project → Recurring Estimate (One-to-One, OPTIONAL)**
-- A project can have 0 or 1 recurring estimate
-- If recurring exists, project cannot have phases (XOR)
-
-**4. Project → Calendar Events (One-to-Many, OPTIONAL)**
-- A project can have many events
-- Events can exist without a project (personal time)
-- Only events with project_id count toward project time
-
-**5. Project → Groups (Many-to-Many, OPTIONAL)**
-- A project can be in 0, 1, or many groups
-- A group can contain many projects
-- Junction table: `project_groups`
-
-**6. Project → Labels (Many-to-Many, OPTIONAL)**
-- A project can have 0, 1, or many labels
-- A label can be on many projects
-- Junction table: `project_labels`
-
-**7. Calendar Event → Project (Many-to-One, OPTIONAL)**
-- An event can optionally link to a project
-- Events without projects don't affect any project's time
-
-**8. User → Everything (One-to-Many, REQUIRED)**
-- All entities belong to a user (except User itself)
-- Complete data isolation per user (RLS)
+These are the primary user journeys through the application.
 
 ---
 
-## ⚖️ PART 4: CORE BUSINESS RULES
+### Workflow 1: Initial Setup
 
-What you can and can't do.
+**Goal:** Configure the app for first use
 
----
+**Steps:**
+1. User signs up/logs in (Supabase Auth)
+2. Create groups for life areas (e.g., "Work", "Personal", "Health")
+3. Set work slots (e.g., Mon-Fri, 9am-5pm)
+4. Add any known holidays (e.g., Christmas, bank holidays)
+5. Create first project with client.
 
-### Rule 1: Client Required for Projects
-**Plain English:**
-Every project must belong to a client. You can't create a project without selecting or creating a client.
-
-**Why:**
-Projects don't exist in a vacuum - they're always for someone (even if it's yourself).
-
-**What happens:**
-- Creating project without client → Error
-- Deleting client with projects → [CLARIFY: prevent or cascade?]
+**Result:** App is ready to accept projects with proper capacity calculations.
 
 ---
 
-### Rule 2: Phase-Recurring Mutual Exclusivity
-**Plain English:**
-A project can split time into phases OR use a recurring estimate, but never both at the same time.
+### Workflow 2: Create a Simple Project
 
-**Why:**
-These are two different ways of planning the same thing - they would conflict.
-
-**What happens:**
-- If project has phases → Cannot add recurring estimate (error/warning)
-- If project has recurring → Cannot add phases (error/warning)
-- Can delete all phases to add recurring (switching modes)
-- Can delete recurring to add phases (switching modes)
-
-**Edge Cases:**
-- Empty phases array + no recurring = Implicit single milestone (auto-estimate to end date)
-- Delete last phase → Can now add recurring
-- Delete recurring → Can now add phases
-
----
-
-### Rule 3: Project End Date = Last Phase End Date
-**Plain English:**
-When a project has phases, the project's end date is automatically the same as the last phase's end date. They stay synchronized.
-
-**Why:**
-The last phase represents when work actually finishes, so the project ends then.
-
-**What happens:**
-- Change last phase end date → Project end date updates automatically
-- Add phase after current last → Project end date extends
-- User cannot manually set project end date different from last phase
-
-**Edge Cases:**
-- What about recurring estimates? [CLARIFY: end date independent? or controls recurring?]
-- What if phases are deleted? [CLARIFY: revert to original end date? or keep current?]
-
----
-
-### Rule 4: Phase Budget Allocation
-**Plain English:**
-The hours you allocate to phases [CLARIFY: must/should/can] add up to the project's total estimated hours.
-
-**Current Rules (NEED CLARIFICATION):**
-- Option A: Sum MUST equal 100% (strict budget enforcement)
-- Option B: Sum CAN be less (allows unallocated buffer)
-- Option C: Sum CAN exceed (allows overbudget planning)
-
-**What happens:**
-- If total < 100%: [CLARIFY: error? warning? allowed?]
-- If total > 100%: [CLARIFY: error? warning? allowed?]
-- If total = 100%: Ideal state
-
-**Edge Cases:**
-- Change project hours after creating phases: [CLARIFY: auto-adjust phases? or leave as-is?]
-- Partial allocation (e.g., 80 of 100 hours allocated): [CLARIFY: valid? shown as warning?]
-
----
-
-### Rule 5: Phase Continuity
-**Plain English:**
-Phases [CLARIFY: must be continuous? or can have gaps?]
-
-**Options (NEED CLARIFICATION):**
-- Option A: Phases MUST be continuous (end of Phase 1 = start of Phase 2 - 1 day)
-- Option B: Gaps are ALLOWED between phases
-- Option C: Gaps are allowed but warned about
-
-**What happens:**
-- If gap exists: [CLARIFY: error? warning? allowed?]
-- If phases overlap: ERROR (definitely not allowed)
-
-**Why this matters:**
-- Continuous: Every day assigned to a phase (clear allocation)
-- Gaps allowed: Flexibility for breaks, uncertainty
-
----
-
-### Rule 6: Phase Overlap Forbidden
-**Plain English:**
-No two phases can have the same date. Each date belongs to exactly zero or one phase.
-
-**Why:**
-Can't allocate time to two phases on the same day - the hours would conflict.
-
-**What happens:**
-- Try to create overlapping phases → Error with clear message
-- Resize phase to overlap another → Error (or snap to boundary? CLARIFY)
-
-**Validation:**
-```
-For each pair of phases:
-  IF phase1.endDate >= phase2.startDate 
-  AND phase1.startDate <= phase2.endDate:
-    ERROR: Phases overlap
-```
-
----
-
-### Rule 7: No Estimated Time in the Past
-**Plain English:**
-If a project has estimated hours, auto-estimates only appear on today and future working days, not past dates.
-
-**Why:**
-Estimated time represents work you WILL do, not work you DID. Past work is tracked via completed events.
-
-**What happens:**
-- Auto-estimates only calculate for today + future
-- Past days show only completed events (if any)
-- If project entirely in past with estimated hours: [CLARIFY: error? warning? allowed?]
-
-**Edge Cases:**
-- Create project with past dates and estimated hours: [CLARIFY: block? auto-adjust dates? allow?]
-- Phase partially in past: Only future portion gets auto-estimates
-
----
-
-### Rule 8: Event-Project Attribution
-**Plain English:**
-An event only counts toward a project's time if explicitly linked to that project. Habits and tasks NEVER count, even if linked.
-
-**Why:**
-Not all calendar events are project work (personal time, habits, admin tasks).
-
-**What happens:**
-- Event without project → Doesn't affect any project
-- Event with project → Counts toward that project only
-- Habit event (even with project) → Never counts
-- Task event (even with project) → Never counts
-
-**Types That Count:**
-- ✅ Normal events with project
-- ✅ Completed events with project
-- ✅ Tracked time with project
-
-**Types That DON'T Count:**
-- ❌ Events without project
-- ❌ Habits (category = 'habit')
-- ❌ Tasks (category = 'task')
-
----
-
-### Rule 9: Timeline Day Estimates (See Part 2 - Time Concepts)
-
-For each day on the timeline, show ONE of:
-1. Planned time (if future events exist)
-2. Completed time (if past/completed events exist)
-3. Auto-estimate (if no events exist and is working day)
-4. Nothing (if past with no events, or holiday, or non-working day)
-
-**Covered in detail in Part 2.**
-
----
-
-### Rule 10: Work Hours Override
-**Plain English:**
-Holidays override work hours. On a holiday, work hours don't apply.
-
-**What happens:**
-- Normal day: Use work hours for capacity/auto-estimates
-- Holiday: No work capacity, no auto-estimates
-- User CAN still create manual events on holidays (exception work)
-
-**Examples:**
-- Monday (work day): 8 hours capacity, auto-estimates appear
-- Dec 25 (holiday): 0 hours capacity, no auto-estimates
-- Dec 25 with manual event: Event shows, but no auto-estimate
-
----
-
-## 📊 PART 5: KEY CALCULATIONS
-
-**Note:** This lists core business calculations. Implementation details and UI calculations are handled by developers.
-
----
-
-### Project Calculations
-
-**Project Duration (Days)**
-```
-Duration = (End Date - Start Date) + 1
-
-Example: Jan 1 to Jan 5 = 5 days
-```
-
-**Project Working Days**
-```
-Working Days = Count of days between Start and End where:
-  - Day is in work hours schedule
-  - Day is not a holiday
-
-Example: Jan 1-7 (7 days total)
-  - Excludes Sat, Sun (2 days)
-  - Excludes Jan 1 holiday (1 day)
-  = 4 working days
-```
-
-**Project Budget Utilization**
-```
-Total Allocated = Sum of all phase.timeAllocationHours
-Utilization % = (Total Allocated / Project Estimated Hours) × 100
-
-Example: 80 hours allocated / 100 hours project = 80% utilization
-```
-
-**Remaining Budget**
-```
-Remaining = Project Estimated Hours - Total Allocated
-
-Example: 100 hours - 80 hours = 20 hours remaining
-```
-
----
-
-### Time Tracking Calculations
-
-**Completed Hours Total**
-```
-Completed Hours = Sum of duration for all events where:
-  - Event is linked to this project
-  - Event.completed = true OR Event.type = 'tracked' OR Event.type = 'completed'
-
-Example: 3 completed events (6h, 4h, 2h) = 12 hours completed
-```
-
-**Remaining Project Hours**
-```
-Remaining = Project Estimated Hours - Completed Hours
-
-Example: 100 hours - 12 hours = 88 hours remaining
-```
-
-**Progress Percentage**
-```
-Progress % = (Completed Hours / Project Estimated Hours) × 100
-
-Example: 12 hours / 100 hours = 12% complete
-```
-
----
-
-### Timeline Calculations
-
-**Daily Auto-Estimate (Phase-Based)**
-```
-For each day in phase:
-  IF day has events for this project:
-    Auto-Estimate = 0 (blocked by events)
-  ELSE IF day is in the past:
-    Auto-Estimate = 0 (no estimates in past)
-  ELSE IF day is not a working day OR is a holiday:
-    Auto-Estimate = 0 (no work on non-working days)
-  ELSE:
-    Working Days in Phase = count of eligible days in this phase
-    Daily Auto-Estimate = Phase Time Allocation / Working Days in Phase
-
-Example: 40-hour phase over 10 working days = 4 hours/day
-```
-
-**Daily Auto-Estimate (Recurring)**
-```
-For each day until project end:
-  IF day matches recurring pattern (e.g., weekday for daily):
-    IF day has events for this project:
-      Auto-Estimate = 0 (blocked by events)
-    ELSE:
-      Auto-Estimate = Hours per Occurrence
-  ELSE:
-    Auto-Estimate = 0 (doesn't match pattern)
-
-Example: 2 hours/day recurring, weekdays only
-  - Monday (no event): 2 hours
-  - Tuesday (has event): 0 hours (blocked)
-  - Saturday: 0 hours (doesn't match weekday pattern)
-```
-
-**Daily Auto-Estimate (No Phases/Recurring - Implicit)**
-```
-Remaining Hours = Project Estimated Hours - Completed Hours
-Future Working Days = count(working days from today to project end, excluding holidays)
-Daily Auto-Estimate = Remaining Hours / Future Working Days
-
-Example: 88 hours remaining / 22 working days = 4 hours/day
-```
-
----
-
-### Capacity Calculations
-
-**Available Hours Per Day**
-```
-Available Hours = Total Work Hours - Sum(Event Durations on that day)
-
-Example: 8 hours work - 3 hours of events = 5 hours available
-```
-
-**Overbooked Detection**
-```
-IF Sum(Event Durations) > Total Work Hours:
-  Day is overbooked
-
-Example: 10 hours of events scheduled on 8-hour work day = Overbooked
-```
-
-**Capacity Utilization**
-```
-Utilization % = (Scheduled Hours / Available Hours) × 100
-
-Example: 6 hours scheduled / 8 hours available = 75% utilization
-```
-
----
-
-## 🚶 PART 6: USER WORKFLOWS
-
-How people actually use the app.
-
----
-
-### Workflow 1: Create Project with Phases
+**Goal:** Add a project without phases
 
 **Steps:**
 1. User clicks "New Project"
-2. Enters: Name, Client, Start/End dates, Estimated hours
-3. Chooses "Split into phases"
-4. Defines phases:
-   - Phase 1: "Research" (Jan 1-15, 40 hours)
-   - Phase 2: "Design" (Jan 16-31, 40 hours)
-   - Phase 3: "Development" (Feb 1-28, 40 hours)
-5. System validates:
-   - No overlaps ✓
-   - Phases continuous or gaps allowed (based on Rule 5)
-   - Budget allocation valid (based on Rule 4)
-   - Last phase end = project end (auto-syncs)
-6. Saves project + phases
-7. Timeline shows auto-estimates distributed across phases
+2. Enters project name
+3. Selects or creates a client
+4. Selects a group
+5. Sets start date and end date
+6. Sets estimated hours (optional, can be 0)
+7. Adds labels (optional)
+8. Saves project
 
-**Result:**
-- Project created
-- 3 phases exist
-- No recurring estimate
-- Timeline shows estimated work in each phase
+**Result:** Project appears on timeline with auto-estimated hours distributed across working days.
 
 ---
 
-### Workflow 2: Create Project with Recurring Estimate
+### Workflow 3: Create a Project with Phases
+
+**Goal:** Add a project broken into time periods
 
 **Steps:**
-1. User clicks "New Project"
-2. Enters: Name, Client, Start/End dates, Estimated hours
-3. Chooses "Recurring estimate"
-4. Defines pattern:
-   - Daily, 2 hours per day, weekdays only
-5. System validates:
-   - No phases exist ✓
-   - Pattern is valid ✓
-6. Saves project + recurring estimate
-7. Timeline shows 2-hour blocks on every weekday until end date
+1. Create project (as above, but don't set estimated hours yet)
+2. Add Phase 1: name, start date, end date, hours allocation
+3. Add Phase 2: name, start date (must be after Phase 1 end), end date, hours allocation
+4. Project end date auto-syncs to last phase's end date
+5. Project estimated hours = sum of phase allocations
 
-**Result:**
-- Project created
-- Recurring estimate exists
-- No phases
-- Timeline shows regular pattern
+**Result:** Timeline shows each phase as a distinct time period with its own auto-estimates.
 
 ---
 
-### Workflow 3: Add Planned Time
+### Workflow 4: Plan Specific Work
+
+**Goal:** Schedule work at specific times
 
 **Steps:**
-1. User views timeline
-2. Clicks on a day (or drags on calendar)
-3. Creates event:
-   - Title: "Website coding"
-   - Project: Website Redesign
-   - Time: 9am - 5pm (8 hours)
-   - Completed: false
-4. Saves event
-5. Timeline updates:
-   - That day shows 8 hours planned time (light, dashed)
-   - Auto-estimate for that day disappears
-   - Future days' auto-estimates recalculate (redistributed)
+1. User navigates to a day on the calendar
+2. Creates a new event with start time and end time
+3. Links event to a project
+4. Event appears on calendar
 
-**Result:**
-- Planned time added
-- Auto-estimate blocked for that day
-- Remaining auto-estimates adjusted
+**Result:** Day is removed from auto-estimate calculation; planned hours shown instead.
 
 ---
 
-### Workflow 4: Track Completed Time
+### Workflow 5: Track Completed Work
+
+**Goal:** Record actual work done
+
+**Option A - Mark planned event complete:**
+1. User has a planned event
+2. User marks it as completed
+3. Optionally adjusts actual hours
+
+**Option B - Use time tracker:**
+1. User starts timer on a project
+2. User works
+3. User stops timer
+4. Tracked time is recorded as completed event
+
+**Result:** Remaining hours decrease; auto-estimates recalculate for remaining days.
+
+---
+
+### Workflow 6: Take a Holiday
+
+**Goal:** Block out days with no work
 
 **Steps:**
-1. User did work on Monday
-2. Two options:
-   - Option A: Mark existing planned event as complete
-   - Option B: Create new completed event / use time tracker
-3. Event becomes "completed time"
-4. Timeline shows:
-   - Monday: 6 hours completed time (dark, solid)
-5. Calculations update:
-   - Completed hours increase
-   - Remaining hours decrease
-   - Future auto-estimates recalculate (lower now)
+1. User creates a holiday (date, optional name)
+2. Optionally marks as recurring annually
 
-**Result:**
-- Progress tracked
-- Timeline updated
-- Auto-estimates adjusted for remaining work
+**Result:** Holiday date excluded from all auto-estimate calculations; no capacity on that day.
 
 ---
 
-### Workflow 5: Switch from Phases to Recurring
+### Workflow 7: Review Progress
 
-**Steps:**
-1. User has project with 3 phases
-2. Decides recurring estimate makes more sense
-3. Deletes all 3 phases
-4. System allows creation of recurring estimate (mutual exclusivity cleared)
-5. User adds recurring estimate
-6. Timeline switches from phase-based to recurring pattern
+**Goal:** Understand project status
 
-**Validation:**
-- Cannot add recurring while phases exist (blocked)
-- Must delete all phases first
-- Then can add recurring
+**User can see:**
+- Total estimated hours vs. completed hours
+- Percentage complete
+- Auto-estimated hours per remaining day
+- Forecast finish date (at current pace)
+- Whether capacity is overbooked
 
 ---
 
-### Workflow 6: Update Phase Dates
+## ✅ PART 4: VALIDATION RULES SUMMARY
 
-**Steps:**
-1. User views timeline
-2. Drags phase end date to extend it
-3. System validates:
-   - New date doesn't overlap next phase ✓
-   - Maintains continuity (if required by Rule 5)
-   - If this is last phase, project end date updates too
-4. Saves new dates
-5. Timeline recalculates auto-estimates for that phase
-
-**Result:**
-- Phase dates updated
-- Project end date synced (if last phase)
-- Auto-estimates redistributed
+Consolidated validation rules across all entities.
 
 ---
 
-## ✅ PART 7: VALIDATION RULES SUMMARY
+### Names and Text
 
-Complete list of validations enforced by the system.
+| Entity | Field | Rules |
+|--------|-------|-------|
+| Client | Name | 1-100 chars, required, unique per user (case-insensitive TO FIX), trimmed |
+| Project | Name | Required, trimmed |
+| Group | Name | Required, unique per user (case-insensitive), trimmed |
+| Label | Name | Required, unique per user (case-insensitive), trimmed |
+| Phase | Name | Optional |
+| Holiday | Name | Optional |
 
----
+### Contact Information (Client)
 
-### Project Validations
+| Field | Rules |
+|-------|-------|
+| Email | Optional; if provided, must contain `@` and `.`, no whitespace |
+| Phone | Optional; if provided, can contain digits, spaces, hyphens, parentheses, plus signs |
+| Billing Address | Optional; free-form text |
+| Notes | Optional; free-form text |
 
-- [ ] Must have name (non-empty string)
-- [ ] Must have client (required foreign key)
-- [ ] Must have start date
-- [ ] Must have end date
-- [ ] End date >= start date
-- [ ] Must have estimated hours > 0 (if tracking time)
-- [ ] If has estimated hours AND project entirely in past: [CLARIFY: block? warn? allow?]
-- [ ] If has phases: end date must equal last phase end date (auto-sync)
-- [ ] Cannot have both phases AND recurring estimate (mutual exclusivity)
+### Dates
 
----
+| Entity | Rule |
+|--------|------|
+| Project | End date must be AFTER start date |
+| Project | If has phases, end date must be >= last phase's end date |
+| Phase | End date must be >= start date |
+| Phase | Phases must not overlap within a project |
+| Holiday | Single date required |
 
-### Phase Validations
+### Numbers
 
-- [ ] Must have start date
-- [ ] Must have end date  
-- [ ] End date >= start date
-- [ ] Minimum duration = [CLARIFY: 1 day? 0 days allowed?]
-- [ ] Must not overlap with other phases (strict enforcement)
-- [ ] Must maintain continuity with adjacent phases [CLARIFY: required? or optional?]
-- [ ] Must have time allocation > 0
-- [ ] Time allocation must not exceed remaining project budget [CLARIFY: hard limit? or warning?]
+| Entity | Field | Rules |
+|--------|-------|-------|
+| Project | Estimated hours | Must be >= 0 |
+| Phase | Time allocation | Must be >= 0 |
+| Event | Duration | Calculated from start/end times, must be > 0 |
 
----
+### Relationships
 
-### Phase Collection Validations (All Phases Together)
+| Rule | Enforcement |
+|------|-------------|
+| Project must have a client | Required on create |
+| Project must have a group | Required on create (currently) |
+| Phase must have a project | Required on create |
+| Event linked to project | Optional |
 
-- [ ] Sum of allocations [CLARIFY: must equal? can be less? can exceed?] project estimated hours
-- [ ] No overlaps between any phases
-- [ ] Continuous coverage [CLARIFY: required? or gaps allowed?] from project start to end
-- [ ] Last phase end date = project end date (auto-synced, not validated)
+### Deletion Constraints
 
----
-
-### Recurring Estimate Validations
-
-- [ ] Cannot exist if project has phases (mutual exclusivity)
-- [ ] Must have valid pattern (daily/weekly/monthly)
-- [ ] Must have hours per occurrence > 0
-- [ ] [CLARIFY: any max hours per occurrence limit?]
-
----
-
-### Calendar Event Validations
-
-- [ ] Must have start time
-- [ ] Must have end time
-- [ ] End time >= start time (can be same for 0-duration events? CLARIFY)
-- [ ] If linked to project: project must exist
-- [ ] If category = 'habit': never counts toward project (even if project_id set)
-- [ ] If category = 'task': never counts toward project (even if project_id set)
+| Entity | Constraint |
+|--------|------------|
+| Client | Cannot delete if has projects (ON DELETE RESTRICT) |
+| Group | Cannot delete if has projects (must reassign first) |
+| Label | Can delete; removes from all projects |
+| Project | Deletes associated phases and events |
+| Holiday | Can delete freely |
 
 ---
 
-### Work Hour Validations
-
-- [ ] Must have start time
-- [ ] Must have end time
-- [ ] End time > start time (must have positive duration)
-- [ ] Must have at least one day of week selected
-- [ ] [CLARIFY: can work hours overlap? or must be distinct blocks?]
-
----
-
-### Holiday Validations
-
-- [ ] Must have date
-- [ ] [CLARIFY: can have duplicate holidays on same date? or enforce unique?]
-- [ ] If recurring: applies every year on same date
-
----
-
-## 🤔 PART 8: EDGE CASES & DECISIONS NEEDED
-
-Questions that need definitive answers to complete the logic.
-
----
-
-### Edge Case 1: Project Entirely in Past with Estimated Hours
-
-**Scenario:** User creates project (Jan 1-15) today (Dec 25), with 40 estimated hours.
-
-**Question:** What should happen?
-
-**Options:**
-- A) Block creation (error: "Cannot create project in past with estimated hours")
-- B) Allow creation but show no auto-estimates (just allow completed time tracking)
-- C) Auto-adjust start date to today
-- D) Allow creation and show retroactive auto-estimates (unusual)
-
-**Current State:** UNKNOWN - NEEDS DECISION  
-**Recommended:** Option B (allow for historical tracking, but no estimates)
-
----
-
-### Edge Case 2: Phase Gaps
-
-**Scenario:** Phase 1 (Jan 1-10), Phase 2 (Jan 15-20). Gap: Jan 11-14 (4 days).
-
-**Question:** Is this allowed?
-
-**Options:**
-- A) No - phases must be continuous (error on gap)
-- B) Yes - gaps are fine (flexible planning)
-- C) Allowed but warned (shows warning, doesn't block)
-
-**Current State:** UNKNOWN - NEEDS DECISION  
-**Recommended:** Option B or C (flexibility useful for planning uncertainty)
-
----
-
-### Edge Case 3: Phase Budget Under-Allocation
-
-**Scenario:** Project has 100 hours. User creates 3 phases totaling 80 hours. 20 hours unallocated.
-
-**Question:** Is this valid?
-
-**Options:**
-- A) Error - must allocate all hours (strict budget)
-- B) Warning - suggest allocating remaining hours
-- C) OK - unallocated hours are buffer (no message)
-
-**Current State:** UNKNOWN - NEEDS DECISION  
-**Recommended:** Option B (warn but allow - buffer is sometimes intentional)
-
----
-
-### Edge Case 4: Phase Budget Over-Allocation
-
-**Scenario:** Project has 100 hours. User creates 3 phases totaling 120 hours.
-
-**Question:** Is this valid?
-
-**Options:**
-- A) Error - block save (strict enforcement)
-- B) Warning - allow save but flag overbudget
-- C) OK - allow overbudget planning (flexible)
-
-**Current State:** UNKNOWN - NEEDS DECISION  
-**Recommended:** Option A or B (should at least warn - overbudget is important)
-
----
-
-### Edge Case 5: Recurring Estimate + Project End Date
-
-**Scenario:** Project with recurring estimate (2 hrs/day). End date is Dec 31.
-
-**Question:** How does end date work?
-
-**Options:**
-- A) Recurring stops on end date (end date controls duration)
-- B) Recurring continues indefinitely, end date is just for display
-- C) End date determines total hours (2hrs/day until end = calculated total)
-
-**Current State:** UNKNOWN - NEEDS DECISION  
-**Recommended:** Option A (end date controls duration - most intuitive)
-
----
-
-### Edge Case 6: Changing Project Hours After Creating Phases
-
-**Scenario:** Project has 100 hours, 4 phases of 25 hours each (perfectly allocated). User changes project to 120 hours.
-
-**Question:** What happens to phase allocations?
-
-**Options:**
-- A) Phases stay at 25 hours each (now under-allocated by 20 hours)
-- B) Phases auto-adjust proportionally (now 30 hours each)
-- C) User must manually update phases (show warning)
-
-**Current State:** UNKNOWN - NEEDS DECISION  
-**Recommended:** Option A or C (auto-adjustment could be surprising)
-
----
-
-### Edge Case 7: Zero-Duration Phase
-
-**Scenario:** User tries to create phase where start date = end date (1 day "phase").
-
-**Question:** Is this allowed?
-
-**Options:**
-- A) No - minimum 2 days (start != end)
-- B) Yes - 1-day phases are valid (single day of work)
-
-**Current State:** UNKNOWN - NEEDS DECISION  
-**Recommended:** Option B (1-day phases are conceptually valid)
-
----
-
-### Edge Case 8: Deleting Last Phase
-
-**Scenario:** Project has 1 phase. User deletes it.
-
-**Question:** What happens to project end date?
-
-**Options:**
-- A) Project end date reverts to original value (before phases were added)
-- B) Project end date stays at current value (phase end date persists)
-- C) Prompt user to set new end date
-
-**Current State:** UNKNOWN - NEEDS DECISION  
-**Recommended:** Option A (revert to original - phases are gone)
-
----
-
-### Edge Case 9: Events on Holidays
-
-**Scenario:** User creates manual event on a holiday.
-
-**Question:** Is this allowed? Does it count?
-
-**Options:**
-- A) Block creation (can't work on holidays)
-- B) Allow creation, counts as overtime/exception work
-- C) Allow creation but doesn't count toward project
-
-**Current State:** UNKNOWN - NEEDS DECISION  
-**Recommended:** Option B (allow exceptions - sometimes you work holidays)
-
----
-
-### Edge Case 10: Multiple Work Hour Blocks Same Day
-
-**Scenario:** User has work hours 9am-12pm and 2pm-5pm (split day).
-
-**Question:** How does this work?
-
-**Options:**
-- A) Not allowed - one continuous block per day
-- B) Allowed - auto-estimates distribute across both blocks
-- C) Allowed - capacity is sum of both blocks
-
-**Current State:** UNKNOWN - NEEDS DECISION  
-**Recommended:** Option B or C (flexibility for split schedules)
-
----
-
-## 📝 PART 9: TERMINOLOGY REFERENCE
-
-### Current Terms (Use These)
-- **Phase** - Time period within project with budget allocation
-- **Recurring Estimate** - Regular time allocation pattern
-- **Client** - Organization/person project is for
-- **Group** - Organizational collection (many-to-many with projects)
-- **Label** - Flexible tag (many-to-many with projects)
-- **Estimated Time** - Project's total time budget
-- **Auto-Estimated Time** - System-calculated time distribution
-- **Planned Time** - User-scheduled future work
-- **Completed Time** - Work actually done
-- **Work Hours** - User's availability schedule
-- **Holiday** - Date with no normal work capacity
-
-### Deprecated Terms (Don't Use)
-- ~~Milestone~~ → Use "Phase" instead
-- ~~Row~~ → Removed (use "Group" for organizing)
-- ~~Number of Milestones~~ → Use "Phase count" or describe phases
-
-### Terms That May Cause Confusion
-- **Event** - Can mean calendar event OR occurrence of recurring pattern (clarify in context)
-- **Estimate** - Can mean project total OR daily auto-estimate (use full term: "Estimated Time" vs "Auto-Estimated Time")
-- **Group** - Don't confuse with "group set" concept (we're using simple groups, not sets)
-
----
-
-## 🎯 PART 10: DOCUMENT COMPLETION CHECKLIST
-
-**Before considering this document "complete," answer all [CLARIFY] questions:**
-
-### Critical Decisions Needed:
-
-**Phase Rules:**
-- [ ] Must phases be continuous, or can gaps exist? (Rule 5)
-- [ ] Must phase allocations equal 100% of project hours? (Rule 4)
-- [ ] What's minimum phase duration? (1 day? 0 days?)
-- [ ] What happens when changing project hours after phases created?
-
-**End Date Rules:**
-- [ ] How does project end date work with recurring estimates?
-- [ ] What happens to end date when last phase deleted?
-
-**Edge Cases:**
-- [ ] Can create projects entirely in past with estimated hours?
-- [ ] What happens with phase budget under/over allocation?
-- [ ] Are events allowed on holidays?
-- [ ] Can work hours have multiple blocks per day?
-
-**Deletion Behavior:**
-- [ ] Delete client with projects: prevent or cascade?
-- [ ] Delete group: remove from projects or prevent?
-- [ ] Delete last phase: what happens to project end date?
-
-### Sections to Expand (As Needed):
-
-- [ ] Add more user workflows (based on actual user research)
-- [ ] Add more edge cases (discover through testing)
-- [ ] Refine calculations (add any missing formulas)
-- [ ] Update validation rules (based on decisions above)
-
----
-
-## 📚 PART 11: HOW TO USE THIS DOCUMENT
-
-### For Product Managers:
-1. Read "Core Entities" to understand structure
-2. Read "Time Concepts" to understand unique value
-3. Read "Business Rules" to understand constraints
-4. Answer all [CLARIFY] questions to finalize logic
-5. Review with stakeholders for sign-off
-
-### For Developers:
-1. Read entire document for context
-2. Reference "Validation Rules" when implementing
-3. Reference "Calculations" for formulas
-4. Check "Edge Cases" for tricky scenarios
-5. **This defines WHAT (logic), not HOW (code)**
-
-### For QA/Testers:
-1. Read "Business Rules" for what to test
-2. Reference "Validation Rules" for test cases
-3. Check "Edge Cases" for edge case testing
-4. Use "User Workflows" for scenario testing
-
-### For Future Team Members:
-1. Read "What Makes This App Unique" first
-2. Read "Core Entities" and "Time Concepts"
-3. Skim "Business Rules" to understand constraints
-4. Refer back as needed during development
-
----
-
-## 📊 DOCUMENT MAINTENANCE
-
-**When to Update:**
-- Adding new entities or features
-- Changing business rules or constraints
-- Discovering edge cases in production
-- Finalizing [CLARIFY] decisions
-- After stakeholder reviews
-
-**Review Frequency:**
-- After every major feature addition
-- When business requirements change
-- Before starting new development cycles
-- When confusion arises about "how it should work"
-
-**Version Control:**
-- Update version number at top when making changes
-- Add to change log (below)
-- Get stakeholder approval for rule changes
-
----
-
-## 📅 CHANGE LOG
-
-| Date | Version | Changes | Author |
-|------|---------|---------|--------|
-| 2025-12-25 | 2.0 | Complete restructure: separated entities from time concepts, added holidays, clarified time types, added edge cases | [Your Name] |
-| | | | |
-| | | | |
-
----
-
-## ✅ DOCUMENT STATUS
-
-**Current State:** Foundation complete, decisions needed
-
-**What's Done:**
-- ✅ Core entities defined
-- ✅ Time concepts explained (unique value)
-- ✅ Entity relationships mapped
-- ✅ Business rules documented
-- ✅ Key calculations listed
-- ✅ User workflows outlined
-- ✅ Edge cases identified
-
-**What's Needed:**
-- ⏳ Answer all [CLARIFY] questions (critical decisions)
-- ⏳ Stakeholder review and approval
-- ⏳ Developer technical review
-- ⏳ Add any missing workflows (as discovered)
-- ⏳ Add any missing edge cases (as discovered)
-
-**When This is "Done":**
-1. All [CLARIFY] sections have decisions
-2. Stakeholders agree this reflects how app should work
-3. Developers understand what to build
-4. QA understands what to test
-
-**This document is the source of truth for business logic.**
-
----
-
-**END OF APP LOGIC SPECIFICATION v2.0**
-
-Next step: Fill in all [CLARIFY] decisions, then move to implementation (Domain Rules → Code).
+## 📚 RELATED DOCUMENTS
+
+- **Business Logic.md** - Detailed business rules, edge cases, state transitions, calculations
+- **Architecture Guide.md** - Technical implementation, code structure, data flow
+- **User Guide.md** - End-user documentation

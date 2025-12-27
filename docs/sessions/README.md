@@ -1,4 +1,4 @@
-# AI Sessions - Temporary Working Documents
+# Sessions - Temporary Working Documents
 
 This folder contains **temporary documentation** created by AI assistants during development sessions.
 

@@ -3,8 +3,21 @@
 > **Note:** This file is named `.cursorrules` for compatibility with AI development tools that auto-detect it. It applies to ALL AI assistants (Cursor, Copilot, Claude, etc.), not just Cursor IDE.
 
 > **Philosophy:** "Find existing, extend existing, create new only when necessary"
->
-> **Read for complex features:** `docs/core/Architecture Guide.md` and `docs/core/App Logic.md`
+
+---
+
+## 📚 DOCUMENTATION GUIDE
+
+| Document | When to Read | Contains |
+|----------|--------------|----------|
+| **`docs/core/App Logic.md`** | Understanding WHAT things are | Entity definitions, time concepts, workflows, validation rules |
+| **`docs/core/Business Logic.md`** | Understanding HOW things behave | Detailed rules, calculations, edge cases, state transitions, TypeScript interfaces |
+| **`docs/core/Architecture Guide.md`** | Understanding WHERE code goes | Code structure, patterns, service organization |
+
+**Quick Reference:**
+- "What is a Phase?" → App Logic.md
+- "How do auto-estimates calculate?" → Business Logic.md
+- "Where should I put this code?" → Architecture Guide.md
 
 ---
 
@@ -132,12 +145,23 @@ interface Project { id: string; }
 
 When modifying business rules:
 
-1. **Update `docs/core/App_Logic.md`** (plain-English rule)
-2. **Update `docs/core/Business_Logic.md`** (detailed spec)
+1. **Update `docs/core/App Logic.md`** (entity definitions, workflows, validation summary)
+2. **Update `docs/core/Business Logic.md`** (detailed rules, calculations, edge cases)
 3. **Update `src/domain/rules/*.ts`** (with `@see` references)
 4. **Update orchestrators** (workflows using the rule)
 5. **Update tests**
 6. **Commit with `logic:` prefix**
+
+### Document Ownership
+
+| Change Type | Update App Logic | Update Business Logic |
+|-------------|------------------|----------------------|
+| New entity or property | ✅ Yes | ✅ Yes (TypeScript interface) |
+| New validation rule | ✅ Yes (summary table) | ✅ Yes (detailed logic) |
+| New workflow | ✅ Yes | ❌ No |
+| Calculation formula | ❌ No | ✅ Yes |
+| Edge case handling | ❌ No | ✅ Yes |
+| State transition | ❌ No | ✅ Yes |
 
 ### What Requires Doc Updates
 ✅ Validation rules, calculations, entities, relationships, [CLARIFY] decisions
@@ -154,13 +178,13 @@ When modifying business rules:
 | `/docs/core/` | Framework (3 files) | UPDATE existing only |
 | `/docs/features/[name]/` | Feature docs | Permanent |
 | `/docs/operations/` | Testing, deployment | Permanent |
-| `/docs/ai-sessions/` | **TEMPORARY** | AI working docs |
+| `/docs/sessions/` | **TEMPORARY** | AI working docs |
 
 ### AI Rules
 1. ❌ Don't create docs in `/docs/` root or `/docs/features/`
-2. ✅ Create temporary docs in `/docs/ai-sessions/`
+2. ✅ Create temporary docs in `/docs/sessions/`
 3. ✅ Update existing core docs when logic changes
-4. ✅ Remind user to delete `/docs/ai-sessions/` files when done
+4. ✅ Remind user to delete `/docs/sessions/` files when done
 
 ---
 

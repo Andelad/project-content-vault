@@ -1,426 +1,60 @@
 # Business Logic
-## Single Source of Truth for Domain Rules and Relationships
+## Detailed Rules, Calculations, and Edge Cases
 
-**Document Version**: 1.1.0  
-**Last Updated**: December 26, 2025  
+**Document Version**: 1.2.0  
+**Last Updated**: December 27, 2025  
 **Status**: Foundation Document - Updated for Client-Group-Label System  
 
 ---
 
 ## Purpose
 
-This document serves as the **single source of truth** for all business logic, domain rules, entity relationships, and invariants in the Time Forecasting Application. When making changes, validating features, or debugging issues, **refer to this document first**.
+This document contains **detailed business rules, calculations, state transitions, and edge cases** for the Time Forecasting Application. 
+
+**For entity definitions and what things ARE, see [App Logic.md](./App%20Logic.md).**
+
+This document focuses on:
+- How entities **behave** and **interact**
+- Complex **calculation formulas**
+- **State transitions** and lifecycle rules
+- **Edge cases** and boundary conditions
+- **Invariants** that must always be true
 
 ---
 
 ## Table of Contents
 
-1. [Domain Model Overview](#domain-model-overview)
-2. [Core Entities](#core-entities)
-3. [Entity Relationships](#entity-relationships)
-4. [Business Rules](#business-rules)
-5. [Invariants (Always True)](#invariants-always-true)
-6. [Validation Rules](#validation-rules)
-7. [Calculation Rules](#calculation-rules)
-8. [State Transitions](#state-transitions)
-9. [Edge Cases & Constraints](#edge-cases--constraints)
+1. [Entity Relationships (Detailed)](#entity-relationships-detailed)
+2. [Business Rules](#business-rules)
+3. [Invariants (Always True)](#invariants-always-true)
+4. [Validation Rules (Detailed)](#validation-rules-detailed)
+5. [Calculation Rules](#calculation-rules)
+6. [State Transitions](#state-transitions)
+7. [Edge Cases & Constraints](#edge-cases--constraints)
 
 ---
 
-## Domain Model Overview
+## Entity Relationships (Detailed)
 
-The application models a **time forecasting and project planning** system where:
-
-- **Users** organize work into **Projects**
-- **Projects** are organized within **Groups** and **Rows**
-- **Projects** have **Milestones** that break down work into smaller deliverables
-- Time is tracked through **Calendar Events** and **Work Hours**
-- **Settings** define working schedules and system preferences
+> **Note:** For entity definitions (what each entity IS), see [App Logic.md](./App%20Logic.md#-part-1-core-entities-things-that-exist).
 
 ```
 User
   ├─ Clients (required for projects)
-  ├─ Groups (optional organization)
+  ├─ Groups (required for projects - currently)
   ├─ Labels (flexible tagging)
-  └─ Projects (belong to Client, optionally to Group, many Labels)
-      ├─ Milestones
-      ├─ Calendar Events
+  └─ Projects (belong to Client AND Group, with optional Labels)
+      ├─ Phases (time periods for budgeting)
+      ├─ Calendar Events (planned and completed work)
       └─ Time Entries
-  ├─ Settings (work hours, holidays)
-  ├─ Work Hours
-  └─ Holidays
+  ├─ Work Hours (weekly schedule)
+  ├─ Work Days (derived, with project overrides)
+  └─ Holidays (capacity overrides)
 ```
 
-**Key Changes (October 2025):**
-- ✅ **Clients**: New entity, required for all projects
-- ✅ **Groups**: Simplified (removed description/color), now optional
-- ✅ **Labels**: New entity, many-to-many with projects
-- ⚠️ **Rows**: Deprecated (kept for backward compatibility during transition)
-
----
-
-## Core Entities
-
-### 1. User
-**Purpose**: Application user account (managed by Supabase Auth)
-
-**Properties**: Inherited from `auth.users`
-
-**Business Rules**:
-- Each user has isolated data (Row Level Security enforced)
-- User deletion cascades to all owned entities
-
----
-
-### 2. Client ✅ NEW (October 2025)
-**Purpose**: Organization or individual that commissions work
-
-**Properties**:
-```typescript
-{
-  id: string
-  name: string
-  status: 'active' | 'inactive' | 'archived'
-  contactEmail?: string
-  contactPhone?: string
-  billingAddress?: string
-  notes?: string
-  userId: string
-  createdAt: Date
-  updatedAt: Date
-}
-```
-
-**Business Rules**:
-- **Client must have a unique name per user**
-- **Required for all projects** (cannot create project without client)
-- **Cannot delete client if it has projects** (RESTRICT constraint)
-- **Status determines visibility**: Active clients shown in project creation, archived clients hidden
-- Client name can be changed (affects project displays)
-
-**Relationships**:
-- Has many: Projects (required relationship)
-- Owned by: ONE User
-
----
-
-### 3. Group ✅ UPDATED (October 2025)
-**Purpose**: Optional high-level organizational category (e.g., "Web Development", "Consulting")
-
-**Properties**:
-```typescript
-{
-  id: string
-  name: string
-  userId: string
-  createdAt: Date
-  updatedAt: Date
-}
-```
-
-**Business Rules**:
-- Group must have a unique name per user
-- **Groups are optional** (projects can exist without groups)
-- **One project can belong to at most one group**
-- Deleting a group prompts user: "Keep projects ungrouped" or "Delete projects"
-
-**Relationships**:
-- Has many: Projects (optional relationship)
-- Owned by: ONE User
-
----
-
-### 4. Label ✅ NEW (October 2025)
-**Purpose**: Flexible text tag for categorization and filtering
-
-**Properties**:
-```typescript
-{
-  id: string
-  name: string
-  color?: string  // Optional hex code, default: '#6B7280'
-  userId: string
-  createdAt: Date
-  updatedAt: Date
-}
-```
-
-**Business Rules**:
-- Label must have a unique name per user (case-insensitive)
-- **Labels are optional** (projects can exist without labels)
-- **One project can have many labels** (many-to-many via junction table)
-- **Deleting a label is safe** (cascade removes associations only, not projects)
-- Label name must be 1-30 characters
-
-**Relationships**:
-- Has many: Projects (via project_labels junction table)
-- Owned by: ONE User
-
----
-
-### 5. Row ⚠️ DEPRECATED (October 2025)
-**Purpose**: Sub-organization within groups (legacy structure)
-
-**Status**: Kept for backward compatibility during transition, will be removed
-
-**Properties**:
-```typescript
-{
-  id: string
-  groupId: string
-  name: string
-  order: number
-  userId: string
-  createdAt: Date
-  updatedAt: Date
-}
-```
-
-**Business Rules** (Legacy):
-- Row must belong to a valid group
-- Row order determines display sequence within a group
-
-**Migration Note**: The `row_id` field in projects is now optional and will be removed in future cleanup phase
-
----
-
-### 6. Project ✅ UPDATED (October 2025)
-**Purpose**: A work initiative with defined timeline and resource allocation
-
-**Properties**:
-```typescript
-{
-  id: string
-  name: string
-  clientId: string  // ✅ NEW: Required foreign key to clients
-  groupId?: string  // ✅ CHANGED: Now optional
-  rowId?: string  // ⚠️ DEPRECATED: Kept for backward compatibility
-  client?: string  // ⚠️ DEPRECATED: Legacy string field
-  startDate: Date
-  endDate: Date
-  estimatedHours: number  // Total project budget in hours
-  color: string (hex code)
-  notes?: string
-  icon?: string  // Lucide icon name, default: 'folder'
-  continuous?: boolean  // True if project has no end date
-  status?: 'current' | 'future' | 'archived'
-  autoEstimateDays?: {  // Days to include in auto-estimation
-    monday: boolean
-    tuesday: boolean
-    wednesday: boolean
-    thursday: boolean
-    friday: boolean
-    saturday: boolean
-    sunday: boolean
-  }
-  userId: string
-  createdAt: Date
-  updatedAt: Date
-  
-  // Populated by joins:
-  clientData?: Client
-  groupData?: Group
-  labels?: Label[]
-}
-```
-
-**Business Rules**:
-- **Project must have a valid start date**
-- **For time-limited projects: end date must be after start date**
-- **Continuous projects have no end date** (continuous = true)
-- **Estimated hours must be positive** (> 0)
-- **✅ NEW: Project must belong to a valid Client** (required)
-- **✅ CHANGED: Group is optional** (projects can be ungrouped)
-- **✅ NEW: Projects can have zero or more Labels** (many-to-many)
-- **Client can be changed** (business decision: allowed)
-- Auto-estimate days default to all true if not specified
-
-**Relationships**:
-- ✅ Belongs to: ONE Client (required)
-- ✅ Belongs to: ONE Group (optional)
-- ✅ Has many: Labels (via project_labels junction table)
-- Has many: Milestones
-- Has many: Calendar Events
-- ⚠️ Belongs to: ONE Row (deprecated, for backward compatibility)
-
----
-
-### 7. Milestone
-**Purpose**: Time allocation segment for forecasting and day estimate calculations
-
-**CRITICAL DISTINCTION**: Milestones are **NOT tasks or completable items**. They define budget allocations that drive capacity planning. Actual work is tracked via Calendar Events.
-
-**Properties**:
-```typescript
-{
-  id: string
-  name: string
-  projectId: string
-  
-  // PRIMARY FIELDS (forecasting/estimation)
-  endDate: Date  // Milestone deadline (budget allocation end)
-  timeAllocationHours: number  // Hours allocated for day estimates
-  startDate?: Date  // When milestone allocation begins (optional)
-  
-  // RECURRING PATTERNS (virtual instances)
-  isRecurring?: boolean  // Whether this follows a recurring pattern
-  recurringConfig?: {
-    type: 'daily' | 'weekly' | 'monthly'
-    interval: number  // Every N days/weeks/months
-    weeklyDayOfWeek?: 0-6  // For weekly patterns
-    monthlyPattern?: 'date' | 'dayOfWeek'
-    monthlyDate?: 1-31
-    monthlyWeekOfMonth?: 1-5
-    monthlyDayOfWeek?: 0-6
-  }
-  
-  // METADATA
-  userId: string
-  createdAt: Date
-  updatedAt: Date
-}
-```
-
-**Business Rules**:
-- **Milestone must belong to a valid project**
-- **Milestone endDate must fall within project's startDate and endDate**
-- **Milestone timeAllocationHours must be positive** (> 0)
-- **Sum of all milestone allocations ≤ project estimatedHours** (cannot exceed budget)
-- **Milestones are naturally ordered by endDate** (no manual ordering)
-- If `startDate` is provided, it must be before `endDate`
-- **Recurring milestones generate virtual instances** during day estimate calculations
-- **Milestones cannot be marked complete** (only Calendar Events can be completed)
-
-**Use in Day Estimates**:
-- Single milestones: Allocate hours proportionally between startDate and endDate
-- Recurring milestones: Generate virtual occurrences matching the pattern
-- System calculates: "User needs X hours of work on date Y based on milestone allocations"
-- User schedules actual Calendar Events based on these estimates
-
-**Relationships**:
-- Belongs to: ONE Project
-- Constrained by: Project dates and budget
-- Drives: Day estimate calculations
-- Distinct from: Calendar Events (actual work)
-
----
-
-### 8. Calendar Event
-
----
-
-### 7. CalendarEvent
-**Purpose**: Actual planned or completed work sessions
-
-**CRITICAL DISTINCTION**: Calendar Events represent **actual work**, unlike Milestones which are forecasting tools.
-
-**Properties**:
-```typescript
-{
-  id: string
-  title: string
-  startTime: Date
-  endTime: Date
-  projectId?: string
-  color: string
-  completed?: boolean  // CAN BE MARKED COMPLETE (unlike milestones)
-  description?: string
-  duration: number  // Duration in hours
-  type?: 'planned' | 'tracked' | 'completed'
-  recurring?: RecurringPattern
-  originalEventId?: string  // For split midnight-crossing events
-  isSplitEvent?: boolean
-}
-```
-
-**Business Rules**:
-- Event endTime must be after startTime
-- Duration is calculated from startTime to endTime
-- Events crossing midnight are automatically split into separate events
-- Recurring events follow pattern rules
-- **Events CAN be marked complete** (this tracks actual work done)
-- Completed events cannot be edited (only completion status can change)
-
-**Relationship to Milestones**:
-- Milestones provide day estimates: "You need 2.5h on March 10th"
-- User creates Calendar Events: "I'll schedule 2.5h of work on March 10th"
-- User marks Events complete: "I finished that work"
-- Milestones are NOT marked complete (they're forecasts, not tasks)
-
----
-
-### 8. WorkHour / WorkSlot
-**Purpose**: Daily work availability slots
-
-**Properties**:
-```typescript
-// WorkSlot (in Settings)
-{
-  id: string
-  startTime: string  // "09:00" format
-  endTime: string    // "17:00" format
-  duration: number   // Calculated hours (supports 15min increments)
-}
-
-// WorkHour (standalone entity)
-{
-  id: string
-  title: string
-  startTime: Date
-  endTime: Date
-  duration: number
-  type?: 'work' | 'meeting' | 'break'
-}
-```
-
-**Business Rules**:
-- Work slots cannot overlap within the same day
-- Duration is automatically calculated from start/end times
-- Minimum slot duration: 15 minutes (0.25 hours)
-- Time must be in 24-hour format
-
----
-
-### 9. Holiday
-**Purpose**: Non-working days
-
-**Properties**:
-```typescript
-{
-  id: string
-  title: string
-  startDate: Date
-  endDate: Date
-  notes?: string
-}
-```
-
-**Business Rules**:
-- Holiday endDate must be ≥ startDate
-- Holidays exclude days from working day calculations
-- Can span multiple days
-
----
-
-### 10. Settings
-**Purpose**: User preferences and work schedule
-
-**Properties**:
-```typescript
-{
-  weeklyWorkHours: {
-    monday: WorkSlot[]
-    tuesday: WorkSlot[]
-    // ... all days
-  }
-  defaultView?: string
-}
-```
-
-**Business Rules**:
-- Each day can have multiple work slots
-- Work slots on same day cannot overlap
-- Used for capacity calculations
+> **Entity Definitions:** For what each entity IS (properties, examples), see [App Logic.md](./App%20Logic.md#-part-1-core-entities-things-that-exist).
+> 
+> This document focuses on HOW entities behave and interact.
 
 ---
 
