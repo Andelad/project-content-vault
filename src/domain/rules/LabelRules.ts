@@ -67,6 +67,39 @@ export class LabelRules {
   static areLabelNamesEquivalent(name1: string, name2: string): boolean {
     return this.normalizeLabelName(name1) === this.normalizeLabelName(name2);
   }
+
+  // ==========================================================================
+  // RULE 3B: LABEL NAME UNIQUENESS (CASE-INSENSITIVE)
+  // ==========================================================================
+
+  /**
+   * RULE 3B: Check for duplicate label names (case-insensitive)
+   *
+   * Business Logic: Label names must be unique per user, ignoring case
+   * Reference: Business Logic Invariant 8
+   *
+   * @param name - The label name to check
+   * @param existingLabels - All existing labels for this user
+   * @param excludeLabelId - Optional label ID to exclude (for updates)
+   * @returns Object with availability status and conflicting label if found
+   */
+  static isLabelNameAvailable(
+    name: string,
+    existingLabels: Label[],
+    excludeLabelId?: string
+  ): { available: boolean; conflictingLabel?: Label } {
+    const normalizedName = name.trim().toLowerCase();
+    
+    const conflict = existingLabels.find(label => 
+      label.name.toLowerCase() === normalizedName &&
+      label.id !== excludeLabelId
+    );
+    
+    return {
+      available: !conflict,
+      conflictingLabel: conflict
+    };
+  }
   // ==========================================================================
   // RULE 4: LABEL COLOR VALIDATION
   // ==========================================================================

@@ -50,6 +50,39 @@ export class ClientRules {
   }
 
   // ==========================================================================
+  // RULE 1B: CLIENT NAME UNIQUENESS (CASE-INSENSITIVE)
+  // ==========================================================================
+
+  /**
+   * RULE 1B: Check for duplicate client names (case-insensitive)
+   *
+   * Business Logic: Client names must be unique per user, ignoring case
+   * Reference: Business Logic Invariant 6
+   *
+   * @param name - The client name to check
+   * @param existingClients - All existing clients for this user
+   * @param excludeClientId - Optional client ID to exclude (for updates)
+   * @returns Object with availability status and conflicting client if found
+   */
+  static isClientNameAvailable(
+    name: string,
+    existingClients: Client[],
+    excludeClientId?: string
+  ): { available: boolean; conflictingClient?: Client } {
+    const normalizedName = name.trim().toLowerCase();
+    
+    const conflict = existingClients.find(client => 
+      client.name.toLowerCase() === normalizedName &&
+      client.id !== excludeClientId
+    );
+    
+    return {
+      available: !conflict,
+      conflictingClient: conflict
+    };
+  }
+
+  // ==========================================================================
   // RULE 2: CLIENT CONTACT VALIDATION
   // ==========================================================================
 
@@ -114,13 +147,31 @@ export class ClientRules {
    * @param client - The client to validate
    * @returns Detailed validation result
    */
-  static validateClient(client: Partial<Client>): ClientValidation {
+  static validateClient(
+    client: Partial<Client>,
+    existingClients: Client[] = [],
+    isUpdate: boolean = false
+  ): ClientValidation {
     const errors: string[] = [];
     const warnings: string[] = [];
 
     // Name validation
     if (!client.name || !this.validateClientName(client.name)) {
       errors.push('Client name is required and must be 1-100 characters');
+    } else {
+      // Check for duplicate names (case-insensitive)
+      const { available, conflictingClient } = this.isClientNameAvailable(
+        client.name,
+        existingClients,
+        isUpdate ? client.id : undefined
+      );
+      
+      if (!available && conflictingClient) {
+        errors.push(
+          `A client named "${conflictingClient.name}" already exists. ` +
+          `Client names must be unique (case-insensitive).`
+        );
+      }
     }
 
     // Email validation
@@ -132,9 +183,6 @@ export class ClientRules {
     if (client.contactPhone && !this.validateClientPhone(client.contactPhone)) {
       errors.push('Client phone contains invalid characters');
     }
-
-    // Business name uniqueness could be checked here (requires database access)
-    // This would be handled at the service/orchestrator level
 
     return {
       isValid: errors.length === 0,
