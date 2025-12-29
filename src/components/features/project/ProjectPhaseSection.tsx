@@ -20,7 +20,7 @@ import {
   PhaseConfigDialog
 } from '../phases';
 import { UnifiedPhaseService, ProjectPhaseOrchestrator, addDaysToDate } from '@/services';
-import { PhaseRules, type Phase } from '@/domain/rules/PhaseRules';
+import { PhaseRules } from '@/domain/rules/PhaseRules';
 
 type AutoEstimateDays = {
   monday: boolean;
@@ -124,7 +124,7 @@ export function ProjectPhaseSection({
     setLocalPhases,
     createMilestone,
     updateMilestone,
-    deleteMilestone,
+    deletePhase,
     updateMilestoneProperty,
     refetchMilestones
   } = usePhaseOperations({
@@ -156,7 +156,7 @@ export function ProjectPhaseSection({
     localPhasesState
   });
 
-  const getExclusivityValidation = () => PhaseRules.checkPhaseRecurringExclusivity(projectPhases as Milestone[]);
+  const getExclusivityValidation = () => PhaseRules.checkPhaseRecurringExclusivity(projectPhases as Phase[]);
   const persistedProjectMilestones = projectPhases.filter(
     (milestone): milestone is Milestone => Boolean(milestone.id)
   );
@@ -173,7 +173,7 @@ export function ProjectPhaseSection({
 
     // Detect split mode based on whether phases exist
   React.useEffect(() => {
-    const phaseMilestones = projectPhases.filter(p => m.startDate !== undefined);
+    const phaseMilestones = projectPhases.filter(p => p.startDate !== undefined);
     const hasPhases = phaseMilestones.length > 0;
     
     setIsSplitMode(hasPhases);
@@ -181,7 +181,7 @@ export function ProjectPhaseSection({
 
   // Check for overlapping phases and offer to fix them
   const hasOverlappingPhases = React.useMemo(() => {
-    const phases = projectPhases.filter(p => m.startDate !== undefined) as Phase[];
+    const phases = projectPhases.filter(p => p.startDate !== undefined) as Phase[];
     if (phases.length < 2) return false;
     
     const validation = PhaseRules.validatePhasesContinuity(phases, projectStartDate, projectEndDate);
@@ -189,7 +189,7 @@ export function ProjectPhaseSection({
   }, [projectPhases, projectStartDate, projectEndDate]);
 
   const handleRepairOverlappingPhases = async () => {
-    const phases = projectPhases.filter(p => m.startDate !== undefined) as Phase[];
+    const phases = projectPhases.filter(p => p.startDate !== undefined) as Phase[];
     const repairs = PhaseRules.repairOverlappingPhases(phases);
     
     if (repairs.length === 0) {
@@ -235,13 +235,13 @@ export function ProjectPhaseSection({
   // Filter milestones for display
   const displayMilestones = projectPhases.filter(phase => {
     // Hide template milestone (shown in RecurringPhaseCard instead)
-    if (milestone.isRecurring) return false;
+    if (phase.isRecurring) return false;
     return true;
   });
 
   // All milestones are now phases (with startDate and endDate)
   const phases = displayMilestones
-    .filter(p => m.startDate !== undefined)
+    .filter(p => p.startDate !== undefined)
     .sort((a, b) => new Date(a.startDate!).getTime() - new Date(b.startDate!).getTime());
 
   // Handle splitting estimate into phases
@@ -289,7 +289,7 @@ export function ProjectPhaseSection({
     };
 
     if (isCreatingProject && localPhasesState) {
-      localPhasesState.setMilestones([phase1, phase2]);
+      localPhasesState.setPhases([phase1, phase2]);
       setIsSplitMode(true);
       setShowSplitWarning(false);
     } else if (projectId) {
@@ -310,7 +310,7 @@ export function ProjectPhaseSection({
   // Handle adding a new phase
   const handleAddPhase = async () => {
     try {
-      const existingPhases = projectPhases.filter(p => m.startDate !== undefined);
+      const existingPhases = projectPhases.filter(p => p.startDate !== undefined);
       const nextPhaseNumber = existingPhases.length + 1;
 
       // DOMAIN RULE: Calculate dates for new phase (shrinks last phase)
@@ -353,11 +353,11 @@ export function ProjectPhaseSection({
         // Also update last phase in local state
         if (lastPhase) {
           const updatedPhases = localPhasesState.phases.map(p =>
-            m.id === lastPhase.id ? { ...p, endDate: lastPhaseNewEnd, dueDate: lastPhaseNewEnd } : m
+            p.id === lastPhase.id ? { ...p, endDate: lastPhaseNewEnd, dueDate: lastPhaseNewEnd } : p
           );
-          localPhasesState.setMilestones([...updatedPhases, newPhase]);
+          localPhasesState.setPhases([...updatedPhases, newPhase]);
         } else {
-          localPhasesState.setMilestones([...localPhasesState.phases, newPhase]);
+          localPhasesState.setPhases([...localPhasesState.phases, newPhase]);
         }
       } else if (projectId) {
         // Silent - no toast when adding phase in modal
@@ -410,12 +410,12 @@ export function ProjectPhaseSection({
   // Handle deleting existing milestones before split
   const handleDeleteAndSplit = async () => {
     if (isCreatingProject && localPhasesState) {
-      localPhasesState.setMilestones([]);
+      localPhasesState.setPhases([]);
     } else {
       // Delete all milestones in parallel for faster response
       const deletePromises = projectPhases
-        .filter(p => m.id)
-        .map(p => deleteMilestone(m.id!));
+        .filter(p => p.id)
+        .map(p => deletePhase(p.id!));
       
       await Promise.all(deletePromises);
       
@@ -627,8 +627,8 @@ export function ProjectPhaseSection({
                       }
                       
                       // Delete everything and start fresh
-                      const allMilestones = projectPhases.filter(p => m.id);
-                      const deletePromises = allMilestones.map(p => deleteMilestone(m.id!));
+                      const allMilestones = projectPhases.filter(p => p.id);
+                      const deletePromises = allMilestones.map(p => deletePhase(p.id!));
                       
                       await Promise.all(deletePromises);
                       await refetchMilestones();
@@ -721,7 +721,7 @@ export function ProjectPhaseSection({
             editingProperty={editingProperty}
             onEditPropertyChange={setEditingProperty}
             onUpdateProperty={updateMilestoneProperty}
-            onDelete={deleteMilestone}
+            onDelete={deletePhase}
           />
         ))}
 
@@ -864,12 +864,12 @@ export function ProjectPhaseSection({
         onConfirm={async () => {
           // Delete ALL phases/milestones before creating recurring template
           if (isCreatingProject && localPhasesState) {
-            localPhasesState.setMilestones([]);
+            localPhasesState.setPhases([]);
           } else {
             // Delete all milestones in parallel for faster response
             const deletePromises = projectPhases
-              .filter(p => m.id)
-              .map(p => deleteMilestone(m.id!));
+              .filter(p => p.id)
+              .map(p => deletePhase(p.id!));
             
             await Promise.all(deletePromises);
             
@@ -904,12 +904,12 @@ export function ProjectPhaseSection({
         onConfirm={async () => {
           // Delete existing split phases before showing recurring config
           if (isCreatingProject && localPhasesState) {
-            localPhasesState.setMilestones([]);
+            localPhasesState.setPhases([]);
           } else {
             // Delete all milestones in parallel for faster response
             const deletePromises = projectPhases
-              .filter(p => m.id)
-              .map(p => deleteMilestone(m.id!));
+              .filter(p => p.id)
+              .map(p => deletePhase(p.id!));
             
             await Promise.all(deletePromises);
             

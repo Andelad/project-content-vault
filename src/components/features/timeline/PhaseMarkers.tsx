@@ -41,9 +41,9 @@ export function PhaseMarkers({
   calculateBaselineVisualOffsets
 }: PhaseMarkersProps) {
   // Get phases for this project (milestones with startDate and endDate)
-  const phases = getPhasesSortedByEndDate(phases);
+  const sortedPhases = getPhasesSortedByEndDate(phases);
 
-  if (phases.length === 0) {
+  if (sortedPhases.length === 0) {
     return null;
   }
 
@@ -54,7 +54,7 @@ export function PhaseMarkers({
   // Calculate positions for phase end markers
   return (
     <>
-      {phases.map((phase, index) => {
+      {sortedPhases.map((phase, index) => {
         const phaseEndDate = normalizeToMidnight(new Date(phase.endDate!));
 
         // Don't show marker for the last phase if it ends at project end date

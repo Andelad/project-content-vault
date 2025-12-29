@@ -32,12 +32,12 @@ export function OrphanedPhasesCleaner() {
       });
       // Find orphaned instances
       let totalOrphans = 0;
-      projectPhases.forEach(milestones => {
-        const templates = milestones.filter(p => m.is_recurring === true);
+      projectPhases.forEach(phases => {
+        const templates = phases.filter(p => p.is_recurring === true);
         const templateNames = new Set(templates.map(t => t.name));
-        const numberedInstances = milestones.filter(p => {
-          if (m.is_recurring === true) return false;
-          const match = m.name?.match(/^(.+) \d+$/);
+        const numberedInstances = phases.filter(p => {
+          if (p.is_recurring === true) return false;
+          const match = p.name?.match(/^(.+) \d+$/);
           return match !== null;
         });
         const orphaned = numberedInstances.filter(instance => {
@@ -93,12 +93,12 @@ export function OrphanedPhasesCleaner() {
       });
       // Find and delete orphaned instances
       const orphanedIds: string[] = [];
-      projectPhases.forEach(milestones => {
-        const templates = milestones.filter(p => m.is_recurring === true);
+      projectPhases.forEach(phases => {
+        const templates = phases.filter(p => p.is_recurring === true);
         const templateNames = new Set(templates.map(t => t.name));
-        const numberedInstances = milestones.filter(p => {
-          if (m.is_recurring === true) return false;
-          const match = m.name?.match(/^(.+) \d+$/);
+        const numberedInstances = phases.filter(p => {
+          if (p.is_recurring === true) return false;
+          const match = p.name?.match(/^(.+) \d+$/);
           return match !== null;
         });
         const orphaned = numberedInstances.filter(instance => {
@@ -107,7 +107,7 @@ export function OrphanedPhasesCleaner() {
           const baseName = match[1];
           return !templateNames.has(baseName);
         });
-        orphanedIds.push(...orphaned.map(p => m.id));
+        orphanedIds.push(...orphaned.map(p => p.id));
       });
       if (orphanedIds.length === 0) {
         toast({

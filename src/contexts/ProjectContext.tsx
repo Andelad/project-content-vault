@@ -374,7 +374,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const result = await dbAddMilestone(payload, options);
     await refetchMilestones();
     
-    // Convert database result to Milestone type
+    // Convert database result to Phase type
     if (result) {
       return {
         id: result.id,

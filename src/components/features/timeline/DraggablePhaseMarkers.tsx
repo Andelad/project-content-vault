@@ -52,9 +52,9 @@ export function DraggablePhaseMarkers({
   onPhaseResizeMouseDown
 }: DraggablePhaseMarkersProps) {
   // Get phases for this project (milestones with startDate and endDate)
-  const phases = getPhasesSortedByEndDate(phases);
+  const sortedPhases = getPhasesSortedByEndDate(phases);
 
-  if (phases.length === 0) {
+  if (sortedPhases.length === 0) {
     return null;
   }
 
@@ -75,11 +75,11 @@ export function DraggablePhaseMarkers({
   const leftMarkerPath = `M ${MARKER_WIDTH} ${MARKER_CORNER_RADIUS} Q ${MARKER_WIDTH} 0 ${MARKER_WIDTH - MARKER_CORNER_RADIUS} 0 L ${MARKER_CORNER_RADIUS} ${markerMidY - MARKER_CORNER_RADIUS} Q 0 ${markerMidY} ${MARKER_CORNER_RADIUS} ${markerMidY + MARKER_CORNER_RADIUS} L ${MARKER_WIDTH - MARKER_CORNER_RADIUS} ${MARKER_HEIGHT} Q ${MARKER_WIDTH} ${MARKER_HEIGHT} ${MARKER_WIDTH} ${MARKER_HEIGHT - MARKER_CORNER_RADIUS} Z`;
 
   // Check if project has recurring template (markers should not be draggable)
-  const hasRecurringTemplate = milestones.some(p => m.isRecurring);
+  const hasRecurringTemplate = sortedPhases.some(p => p.isRecurring);
 
   return (
     <TooltipProvider delayDuration={100} skipDelayDuration={0}>
-      {phases.map((phase, index) => {
+      {sortedPhases.map((phase, index) => {
         const phaseStartDate = normalizeToMidnight(new Date(phase.startDate!));
         const phaseEndDate = normalizeToMidnight(new Date(phase.endDate!));
         const isFirstPhase = index === 0;
