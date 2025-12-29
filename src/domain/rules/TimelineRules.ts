@@ -1,43 +1,53 @@
 /**
- * Timeline & Day Display Business Rules
+ * Timeline Display Rules
  * 
- * Single source of truth for timeline rendering - Events vs Estimates.
+ * VIEW-SPECIFIC rules for the Timeline View's display decisions.
  * 
- * CRITICAL DISTINCTION:
- * - EVENTS = Actual calendar time blocks (planned or completed)
- * - ESTIMATES = Calculated projections from project/milestone allocations
- * - These are MUTUALLY EXCLUSIVE on any given day
+ * ⚠️ ARCHITECTURE NOTE:
+ * This file contains DISPLAY LOGIC specific to the Timeline View.
+ * For pure domain rules (event classification), see EventClassificationRules.ts.
  * 
- * This is the domain layer - pure business logic with no external dependencies.
- * All timeline calculations should delegate to these rules.
+ * Key View Constraint (Timeline-specific):
+ * - Events and auto-estimates are MUTUALLY EXCLUSIVE per day in Timeline View
+ * - This is a UI constraint (bars can't overlap), NOT a domain rule
+ * - Other views (Planner, Reports) may show both simultaneously
  * 
- * @see docs/core/Business Logic.md - Rule 9: Timeline Day Display
+ * @see docs/core/View Specifications.md - Timeline View display rules
+ * @see docs/core/Business Logic.md - Rule 9 (domain calculations)
+ * @see EventClassificationRules.ts - Pure domain event classification
  */
 import type { CalendarEvent, Project } from '@/types/core';
-import { getDateKey } from '@/utils/dateFormatUtils';
-import { isSameDay } from '@/services/calculations/general/dateCalculations';
+import { EventClassificationRules } from './EventClassificationRules';
+
 // ============================================================================
-// TYPE DEFINITIONS
+// TYPE DEFINITIONS (Timeline View-Specific)
 // ============================================================================
+
 /**
  * Types of time that can appear on timeline bars
  * 
- * CRITICAL: 'planned' and 'completed' are EVENT types (actual calendar time)
- *           'auto-estimate' is a CALCULATED type (projection, not an event)
+ * View-specific: These map to visual bar styles in Timeline View
  */
 export type TimelineTimeType = 'planned-event' | 'completed-event' | 'auto-estimate';
+
 /**
- * Classification of a calendar event for timeline purposes
+ * Classification of a calendar event for timeline display
+ * 
+ * @deprecated Prefer EventClassificationRules.classifyEvent() for pure domain logic.
+ * Use this only when you need the timeline-specific 'blocksEstimates' property.
  */
 export interface EventTimeClassification {
   type: 'planned-event' | 'completed-event';
   hours: number;
   isPlanned: boolean;
   isCompleted: boolean;
-  blocksEstimates: boolean; // Events block estimates from appearing
+  blocksEstimates: boolean; // Timeline-specific: events block estimate bars from appearing
 }
+
 /**
- * Day display breakdown - Events OR Estimates (never both)
+ * Day display breakdown for Timeline View
+ * 
+ * Timeline-specific: Enforces mutual exclusivity (events OR estimates, never both)
  */
 export interface DayTimeBreakdown {
   // Event hours (actual calendar time)
@@ -47,244 +57,184 @@ export interface DayTimeBreakdown {
   autoEstimateHours: number;
   // State flags
   hasAnyEvents: boolean;
-  shouldShowEstimates: boolean; // Only true if NO events
-  // Display determination
+  shouldShowEstimates: boolean; // Timeline-specific: Only true if NO events
+  // Display determination (Timeline-specific)
   displayType: TimelineTimeType;
 }
+
 // ============================================================================
-// TIMELINE BUSINESS RULES
+// TIMELINE VIEW RULES
 // ============================================================================
+
 /**
- * Timeline Business Rules
+ * Timeline Display Rules
  * 
- * Centralized location for all timeline and day estimate logic.
- * Referenced by the Business Logic Reference document (Rule 9).
+ * View-specific rules for Timeline View rendering.
+ * Delegates to EventClassificationRules for pure domain logic.
+ * 
+ * @see docs/core/View Specifications.md - Timeline View
  */
 export class TimelineRules {
+  
   // ==========================================================================
-  // RULE 1: EVENT PROJECT FILTERING
+  // DELEGATED METHODS (Pure Domain Logic)
+  // These delegate to EventClassificationRules for domain purity
   // ==========================================================================
+
   /**
-   * RULE 1: Events must be linked to project to contribute to day estimates
-   * 
-   * Business Logic Reference: Rule 9 - Event Project Filtering
-   * Formula: event.projectId === project.id AND category !== 'habit' AND category !== 'task'
-   * 
-   * Critical: Events without projectId or with different projectId are ignored.
-   * Double-lock: Habits and tasks cannot be associated with projects, even if
-   * legacy data has projectId set. This protects against data inconsistencies.
-   * 
-   * @param event - The calendar event to check
-   * @param project - The project to check against
-   * @returns true if event belongs to this project
+   * Check if event belongs to a project
+   * @see EventClassificationRules.isEventForProject
    */
   static isEventForProject(event: CalendarEvent, project: Project): boolean {
-    // Defensive filter: habits and tasks never belong to projects
-    if (event.category === 'habit' || event.category === 'task') {
-      return false;
-    }
-    return event.projectId === project.id;
+    return EventClassificationRules.isEventForProject(event, project);
   }
+
   /**
-   * Filter events to only those belonging to a specific project
-   * 
-   * @param events - All calendar events
-   * @param project - The project to filter for
-   * @returns Events belonging to this project
+   * Filter events for a specific project
+   * @see EventClassificationRules.filterEventsForProject
    */
   static filterEventsForProject(events: CalendarEvent[], project: Project): CalendarEvent[] {
-    return events.filter(event => this.isEventForProject(event, project));
+    return EventClassificationRules.filterEventsForProject(events, project);
   }
-  // ==========================================================================
-  // RULE 2: EVENT TYPE CLASSIFICATION
-  // ==========================================================================
+
   /**
-   * RULE 2a: Determine if event is planned time (not yet done)
-   * 
-   * Business Logic Reference: Rule 9 - Planned Time
-   * Formula: completed === false AND type !== 'tracked' AND type !== 'completed'
-   * 
-   * Planned time represents user's intention for future work.
-   * Visual: Lighter color with dashed border
-   * 
-   * @param event - The calendar event to classify
-   * @returns true if event represents planned (not yet done) time
+   * Check if event is planned time
+   * @see EventClassificationRules.isPlannedTime
    */
   static isPlannedTime(event: CalendarEvent): boolean {
-    // Check completion flag
-    if (event.completed === true) return false;
-    // Check type field
-    if (event.type === 'tracked' || event.type === 'completed') return false;
-    // Everything else is planned time
-    return true;
+    return EventClassificationRules.isPlannedTime(event);
   }
+
   /**
-   * RULE 2b: Determine if event is completed/tracked time (already done)
-   * 
-   * Business Logic Reference: Rule 9 - Completed/Tracked Time
-   * Formula: completed === true OR type === 'tracked' OR type === 'completed'
-   * 
-   * Completed time represents actual work done.
-   * Visual: Darker solid color
-   * 
-   * @param event - The calendar event to classify
-   * @returns true if event represents completed/tracked time
+   * Check if event is completed time
+   * @see EventClassificationRules.isCompletedTime
    */
   static isCompletedTime(event: CalendarEvent): boolean {
-    // Check completion flag
-    if (event.completed === true) return true;
-    // Check type field
-    if (event.type === 'tracked' || event.type === 'completed') return true;
-    return false;
+    return EventClassificationRules.isCompletedTime(event);
   }
+
   /**
-   * RULE 2c: Classify event for timeline purposes
-   * 
-   * @param event - The calendar event to classify
-   * @returns Complete classification of the event
+   * Classify event for timeline display (includes blocksEstimates property)
    */
   static classifyEvent(event: CalendarEvent): EventTimeClassification {
-    const isPlanned = this.isPlannedTime(event);
-    const isCompleted = this.isCompletedTime(event);
-    // Calculate event duration in hours
-    const startTime = new Date(event.startTime);
-    const endTime = new Date(event.endTime);
-    const durationMs = endTime.getTime() - startTime.getTime();
-    const hours = durationMs / (1000 * 60 * 60);
+    const domainClassification = EventClassificationRules.classifyEvent(event);
+    
     return {
-      type: isCompleted ? 'completed-event' : 'planned-event',
-      hours,
-      isPlanned,
-      isCompleted,
-      blocksEstimates: true // Both planned and completed events block estimates
+      type: domainClassification.isCompleted ? 'completed-event' : 'planned-event',
+      hours: domainClassification.hours,
+      isPlanned: domainClassification.isPlanned,
+      isCompleted: domainClassification.isCompleted,
+      blocksEstimates: true // Timeline-specific: both planned and completed block estimates
     };
   }
-  // ==========================================================================
-  // RULE 3: AUTO-ESTIMATE BLOCKING
-  // ==========================================================================
+
   /**
-   * RULE 3: Auto-estimates only appear on days WITHOUT any events
+   * Get event date
+   * @see EventClassificationRules.getEventDate
+   */
+  static getEventDate(event: CalendarEvent): Date {
+    return EventClassificationRules.getEventDate(event);
+  }
+
+  /**
+   * Get event date key
+   * @see EventClassificationRules.getEventDateKey
+   */
+  static getEventDateKey(event: CalendarEvent): string {
+    return EventClassificationRules.getEventDateKey(event);
+  }
+
+  /**
+   * Validate event for timeline
+   * @see EventClassificationRules.isValidEvent
+   */
+  static isValidTimelineEvent(event: CalendarEvent): boolean {
+    return EventClassificationRules.isValidEvent(event);
+  }
+
+  /**
+   * Group events by date
+   * @see EventClassificationRules.groupEventsByDate
+   */
+  static groupEventsByDate(events: CalendarEvent[]): Map<string, CalendarEvent[]> {
+    return EventClassificationRules.groupEventsByDate(events);
+  }
+
+  // ==========================================================================
+  // TIMELINE VIEW-SPECIFIC RULES
+  // These implement the mutual exclusivity constraint for Timeline View
+  // ==========================================================================
+
+  /**
+   * TIMELINE VIEW RULE: Auto-estimates only appear on days WITHOUT any events
    * 
-   * Business Logic Reference: Rule 9 - Auto-Estimate Time
+   * This is a VIEW CONSTRAINT (bars can't overlap), not a domain rule.
+   * Other views (Planner, Reports) may show both events and estimates.
    * 
-   * Critical: If a day has ANY events (planned or completed) for a project,
-   * that day should NOT show auto-estimate time for that project.
+   * @see docs/core/View Specifications.md - Timeline View mutual exclusivity
    * 
    * @param eventsOnDay - Events on a specific day for a project
    * @returns true if auto-estimates should be shown (no events present)
    */
   static shouldShowAutoEstimate(eventsOnDay: CalendarEvent[]): boolean {
-    // If there are any events on this day, don't show auto-estimate
     return eventsOnDay.length === 0;
   }
+
   /**
-   * Check if a specific event blocks auto-estimates
+   * Check if a specific event blocks auto-estimates in Timeline View
    * 
    * @param event - The event to check
-   * @returns true if this event blocks auto-estimates
+   * @returns true if this event blocks auto-estimates (always true for Timeline)
    */
   static doesEventBlockAutoEstimate(event: CalendarEvent): boolean {
-    // Both planned and completed events block auto-estimates
-    return true;
+    return true; // All events block auto-estimates in Timeline View
   }
-  // ==========================================================================
-  // RULE 4: DAY TIME BREAKDOWN
-  // ==========================================================================
+
   /**
-   * RULE 4: Calculate day display breakdown
+   * TIMELINE VIEW RULE: Calculate day display breakdown
    * 
-   * Analyzes all events on a day and determines what to display.
-   * Events and estimates are mutually exclusive.
+   * Implements mutual exclusivity: shows EITHER events OR auto-estimates, never both.
+   * This is a Timeline View UI constraint, not a domain rule.
+   * 
+   * @see docs/core/View Specifications.md - Timeline View display rules
    * 
    * @param eventsOnDay - All events for this project on this day
-   * @returns Complete breakdown for display
+   * @returns Complete breakdown for Timeline display
    */
   static calculateDayTimeBreakdown(eventsOnDay: CalendarEvent[]): DayTimeBreakdown {
-    let plannedEventHours = 0;
-    let completedEventHours = 0;
-    // Classify and sum up EVENT hours
-    eventsOnDay.forEach(event => {
-      const classification = this.classifyEvent(event);
-      // DEBUG: Log each event classification
-      const eventDate = getDateKey(new Date(event.startTime));
-      if (eventDate === '2024-10-13') {
-        console.log(`[TimelineRules] Event on Oct 13:`, {
-          id: event.id,
-          startTime: event.startTime,
-          endTime: event.endTime,
-          completed: event.completed,
-          type: event.type,
-          classification: {
-            type: classification.type,
-            hours: classification.hours,
-            isPlanned: classification.isPlanned,
-            isCompleted: classification.isCompleted
-          }
-        });
-      }
-      if (classification.isCompleted) {
-        completedEventHours += classification.hours;
-      } else if (classification.isPlanned) {
-        plannedEventHours += classification.hours;
-      }
-    });
-    const hasAnyEvents = eventsOnDay.length > 0;
+    // Delegate to domain rules for event summary
+    const summary = EventClassificationRules.summarizeDayEvents(eventsOnDay);
+
+    const hasAnyEvents = summary.hasEvents;
     const shouldShowEstimates = this.shouldShowAutoEstimate(eventsOnDay);
-    // Determine what to display
-    // CRITICAL: If any events exist, show events. Otherwise show estimates.
+
+    // TIMELINE VIEW RULE: Determine what to display (mutual exclusivity)
     let displayType: TimelineTimeType;
     if (hasAnyEvents) {
-      // Current rule: If has both planned and completed, show as planned
-      // Future: Stack them separately
-      displayType = plannedEventHours > 0 ? 'planned-event' : 'completed-event';
+      // Show events: prefer planned if both exist
+      displayType = summary.plannedHours > 0 ? 'planned-event' : 'completed-event';
     } else {
       displayType = 'auto-estimate';
     }
+
     return {
-      plannedEventHours,
-      completedEventHours,
-      autoEstimateHours: 0, // Will be calculated separately if needed
+      plannedEventHours: summary.plannedHours,
+      completedEventHours: summary.completedHours,
+      autoEstimateHours: 0, // Calculated separately if needed
       hasAnyEvents,
       shouldShowEstimates,
       displayType
     };
   }
+
   // ==========================================================================
-  // RULE 5: EVENT DATE EXTRACTION
+  // TIMELINE VISUAL STYLING (View-Specific)
   // ==========================================================================
+
   /**
-   * RULE 5: Extract the date an event occurs on (normalized)
+   * Get visual styling for time type on Timeline View
    * 
-   * Events are associated with dates for day estimate calculations.
-   * Time component is stripped to get the calendar day.
-   * 
-   * @param event - The calendar event
-   * @returns Date normalized to midnight (00:00:00)
-   */
-  static getEventDate(event: CalendarEvent): Date {
-    const eventDate = new Date(event.startTime);
-    eventDate.setHours(0, 0, 0, 0);
-    return eventDate;
-  }
-  /**
-   * Get date key for grouping events by day
-   * 
-   * Uses centralized timezone-safe date key function from utils.
-   * 
-   * @param event - The calendar event
-   * @returns Date key in format 'YYYY-MM-DD'
-   */
-  static getEventDateKey(event: CalendarEvent): string {
-    const date = new Date(event.startTime);
-    return getDateKey(date);
-  }
-  // ==========================================================================
-  // RULE 6: VISUAL STYLING RULES
-  // ==========================================================================
-  /**
-   * RULE 6: Determine visual styling based on time type
-   * 
-   * Defines the visual appearance for each type of time on timeline.
+   * View-specific: Defines bar appearance in Timeline
    * 
    * @param timeType - The type of time to get styling for
    * @returns Styling description
@@ -298,57 +248,23 @@ export class TimelineRules {
     switch (timeType) {
       case 'planned-event':
         return {
-          description: 'Lighter color with dashed border (actual calendar event)',
+          description: 'Lighter color with dashed border (scheduled future work)',
           hasBorder: true,
           borderStyle: 'dashed',
           colorIntensity: 'medium'
         };
       case 'completed-event':
         return {
-          description: 'Darker solid color (actual calendar event)',
+          description: 'Darker solid color (work already done)',
           hasBorder: false,
           colorIntensity: 'dark'
         };
       case 'auto-estimate':
         return {
-          description: 'Lightest color, no border (calculated projection)',
+          description: 'Lightest color, no border (calculated daily allocation)',
           hasBorder: false,
           colorIntensity: 'light'
         };
     }
-  }
-  // ==========================================================================
-  // VALIDATION HELPERS
-  // ==========================================================================
-  /**
-   * Validate that event has required fields for timeline calculations
-   * 
-   * @param event - The event to validate
-   * @returns true if event is valid for timeline
-   */
-  static isValidTimelineEvent(event: CalendarEvent): boolean {
-    return (
-      event.startTime !== undefined &&
-      event.endTime !== undefined &&
-      new Date(event.startTime) < new Date(event.endTime)
-    );
-  }
-  /**
-   * Group events by date for day estimate calculations
-   * 
-   * @param events - Events to group
-   * @returns Map of dateKey -> events on that date
-   */
-  static groupEventsByDate(events: CalendarEvent[]): Map<string, CalendarEvent[]> {
-    const grouped = new Map<string, CalendarEvent[]>();
-    events.forEach(event => {
-      if (!this.isValidTimelineEvent(event)) return;
-      const dateKey = this.getEventDateKey(event);
-      if (!grouped.has(dateKey)) {
-        grouped.set(dateKey, []);
-      }
-      grouped.get(dateKey)!.push(event);
-    });
-    return grouped;
   }
 }

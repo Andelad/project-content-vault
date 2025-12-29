@@ -13,12 +13,12 @@ After updating the App Logic documentation, several misalignments were discovere
 
 1. **Wrong Table Name**: Database has `milestones` but App Logic calls this entity **"Phase"**
 2. **Unused Table**: Database has `work_hours` table that is not used anywhere in the codebase
-3. **Missing Column**: `projects` table is missing `working_day_overrides` column documented in App Logic
+3. **Wrong Column Name**: `projects` table has `auto_estimate_days` but should be renamed to `working_day_overrides` per App Logic
 
 **Impact:**
 - ❌ Code and documentation use different terminology (confusion for AI and developers)
 - ❌ Unused tables create maintenance burden and confusion
-- ❌ Missing columns prevent documented features from being implemented
+- ❌ Misnamed columns don't align with documented business logic terminology
 
 ---
 
@@ -80,19 +80,27 @@ CREATE TABLE public.milestones (
 
 ---
 
-### Issue 3: Missing working_day_overrides Column
+### Issue 3: Wrong Column Name - auto_estimate_days → working_day_overrides
 
 | Aspect | Details |
 |--------|---------|
-| **App Logic Says** | "Working day overrides (specific dates marked as working/non-working for this project only)" |
-| **Current Schema** | ❌ Column does not exist in `projects` table |
-| **Data Type** | JSONB (stores array of date overrides) |
-| **Purpose** | Allow projects to override user's default working days for specific dates |
+| **Current Name** | `auto_estimate_days` |
+| **Correct Name** | `working_day_overrides` (per App Logic) |
+| **Current Schema** | ✅ Column exists as `projects.auto_estimate_days` (JSONB) |
+| **Data Type** | JSONB (stores object with day-of-week boolean flags) |
+| **Purpose** | Allow projects to customize which days of the week are working days for auto-estimation |
+| **Current Structure** | `{"monday": true, "tuesday": true, ..., "sunday": false}` |
+| **Migration Added** | `20250902000000_add_auto_estimate_days.sql` |
 
 **Example Use Case:**
-- User's default working days: Mon-Fri
-- Project has a critical deadline: needs to work Sat, Dec 28
-- Override: Mark Dec 28 as a working day for this project only
+- User's default working days: Mon-Fri (from settings)
+- Project needs custom schedule: Mon-Sat for critical deadline
+- Override: Enable Saturday in this project's `working_day_overrides`
+
+**Why Rename:**
+- "working_day_overrides" better describes the business concept
+- Aligns with App Logic documentation terminology
+- More intuitive for developers and AI assistants
 
 ---
 
@@ -170,21 +178,16 @@ COMMENT ON TABLE public.work_hour_exceptions IS
     'Instance overrides for work slots on specific dates (deleted or modified times)';
 
 -- ============================================================
--- PART 3: Add working_day_overrides to projects table
+-- PART 3: Rename auto_estimate_days to working_day_overrides
 -- ============================================================
 
--- Step 3.1: Add the column
+-- Rename column to align with App Logic terminology
 ALTER TABLE public.projects 
-ADD COLUMN IF NOT EXISTS working_day_overrides JSONB DEFAULT '[]'::jsonb NOT NULL;
+RENAME COLUMN auto_estimate_days TO working_day_overrides;
 
--- Step 3.2: Add comment explaining the column
+-- Update column comment to reflect new name
 COMMENT ON COLUMN public.projects.working_day_overrides IS 
-    'Array of date-specific overrides marking days as working/non-working for this project only. Format: [{"date": "2025-12-28", "isWorkingDay": true}, ...]';
-
--- Step 3.3: Add check constraint to ensure valid JSON structure
-ALTER TABLE public.projects
-ADD CONSTRAINT working_day_overrides_valid_json 
-CHECK (jsonb_typeof(working_day_overrides) = 'array');
+    'Project-specific working day customization. JSONB object defining which days of the week are working days for this project. Each day key (monday-sunday) maps to a boolean value. Overrides user default work schedule for auto-estimation calculations.';
 
 -- ============================================================
 -- VERIFICATION QUERIES
@@ -205,13 +208,24 @@ BEGIN
         RAISE EXCEPTION 'ERROR: work_hours table still exists! Should be dropped.';
     END IF;
     
+    -- Verify working_day_overrides column exists (renamed from auto_estimate_days)
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns 
         WHERE table_name = 'projects' 
         AND column_name = 'working_day_overrides' 
         AND table_schema = 'public'
     ) THEN
-        RAISE EXCEPTION 'ERROR: projects.working_day_overrides column does not exist!';
+        RAISE EXCEPTION 'ERROR: projects.working_day_overrides column does not exist! Migration may have failed.';
+    END IF;
+    
+    -- Verify auto_estimate_days column no longer exists
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'projects' 
+        AND column_name = 'auto_estimate_days' 
+        AND table_schema = 'public'
+    ) THEN
+        RAISE EXCEPTION 'ERROR: projects.auto_estimate_days column still exists! Should be renamed to working_day_overrides.';
     END IF;
     
     RAISE NOTICE 'SUCCESS: All schema changes verified!';
@@ -234,7 +248,7 @@ npx supabase gen types typescript --project-id YOUR_PROJECT_ID > src/integration
 - ❌ `Database['public']['Tables']['milestones']` removed
 - ✅ `Database['public']['Tables']['phases']` added
 - ❌ `Database['public']['Tables']['work_hours']` removed
-- ✅ `projects` table now includes `working_day_overrides: Json` field
+- ✅ `projects.auto_estimate_days` renamed to `projects.working_day_overrides`
 
 ---
 
@@ -330,96 +344,79 @@ export class PhaseRules {
 
 ---
 
-### Step 5: Add working_day_overrides Support
+### Step 5: Update TypeScript References (auto_estimate_days → working_day_overrides)
 
-Create TypeScript interface and helper functions:
+Update all TypeScript code to use the new column name:
 
 **File:** `src/types/core.ts`
 
+Find and replace in Project interface:
 ```typescript
-/**
- * Working Day Override
- * Allows projects to mark specific dates as working/non-working
- * Overrides user's default working day settings for this project only
- */
-export interface WorkingDayOverride {
-  date: string; // YYYY-MM-DD format
-  isWorkingDay: boolean;
-}
+// BEFORE (current):
+  autoEstimateDays?: {
+    monday: boolean;
+    tuesday: boolean;
+    wednesday: boolean;
+    thursday: boolean;
+    friday: boolean;
+    saturday: boolean;
+    sunday: boolean;
+  };
 
-/**
- * Check if a specific date is a working day for a project
- * Takes into account project-specific overrides
- */
-export function isProjectWorkingDay(
-  date: Date,
-  project: Project,
-  userWorkingDays: DayOfWeek[]
-): boolean {
-  const dateStr = format(date, 'yyyy-MM-dd');
-  
-  // Check for project-specific override first
-  const override = project.working_day_overrides?.find(
-    o => o.date === dateStr
-  );
-  
-  if (override) {
-    return override.isWorkingDay;
-  }
-  
-  // Fall back to user's default working days
-  const dayOfWeek = format(date, 'EEEE').toLowerCase() as DayOfWeek;
-  return userWorkingDays.includes(dayOfWeek);
-}
+// AFTER (rename to):
+  workingDayOverrides?: {
+    monday: boolean;
+    tuesday: boolean;
+    wednesday: boolean;
+    thursday: boolean;
+    friday: boolean;
+    saturday: boolean;
+    sunday: boolean;
+  };
+
+**File:** `src/hooks/useProjects.ts`
+
+Update database field mapping:
+```typescript
+// BEFORE:
+  autoEstimateDays:
+    dbProject.auto_estimate_days !== null
+      ? (dbProject.auto_estimate_days as Project['autoEstimateDays'])
+      : undefined,
+
+// AFTER:
+  workingDayOverrides:
+    dbProject.working_day_overrides !== null
+      ? (dbProject.working_day_overrides as Project['workingDayOverrides'])
+      : undefined,
 ```
 
-**File:** `src/domain/rules/ProjectRules.ts`
-
+And when saving:
 ```typescript
-/**
- * RULE X: Working day override validation
- * Business Logic: Override dates must be valid and properly formatted
- */
-static validateWorkingDayOverride(override: WorkingDayOverride): boolean {
-  // Check date format (YYYY-MM-DD)
-  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-  if (!dateRegex.test(override.date)) {
-    return false;
-  }
-  
-  // Check if date is valid
-  const parsed = parseISO(override.date);
-  if (!isValid(parsed)) {
-    return false;
-  }
-  
-  // isWorkingDay must be boolean
-  return typeof override.isWorkingDay === 'boolean';
-}
+// BEFORE:
+  auto_estimate_days: projectData.autoEstimateDays ?? null,
 
-/**
- * Add working day override to project
- */
-static addWorkingDayOverride(
-  project: Project,
-  date: string,
-  isWorkingDay: boolean
-): WorkingDayOverride[] {
-  const newOverride: WorkingDayOverride = { date, isWorkingDay };
-  
-  if (!this.validateWorkingDayOverride(newOverride)) {
-    throw new Error(`Invalid working day override: ${JSON.stringify(newOverride)}`);
-  }
-  
-  const existing = project.working_day_overrides || [];
-  
-  // Remove existing override for this date (if any)
-  const filtered = existing.filter(o => o.date !== date);
-  
-  // Add new override
-  return [...filtered, newOverride].sort((a, b) => a.date.localeCompare(b.date));
-}
+// AFTER:
+  working_day_overrides: projectData.workingDayOverrides ?? null,
 ```
+
+**File:** `src/components/features/project/ProjectMilestoneSection.tsx`
+
+Update UI component:
+```typescript
+// BEFORE:
+  autoEstimateDays?: AutoEstimateDays;
+  onAutoEstimateDaysChange?: (newAutoEstimateDays: AutoEstimateDays | undefined) => void;
+
+// AFTER:
+  workingDayOverrides?: WorkingDayOverrides;
+  onWorkingDayOverridesChange?: (newWorkingDayOverrides: WorkingDayOverrides | undefined) => void;
+```
+
+Update all references in the component (lines 755-850):
+- Rename `autoEstimateDays` → `workingDayOverrides`
+- Update UI labels: "Auto-Estimate Days" → "Working Day Overrides"
+- Update descriptions to match new terminology
 
 ---
 
@@ -432,7 +429,8 @@ After implementing all changes:
 - [ ] `phases` table exists with correct schema
 - [ ] `milestones` table no longer exists
 - [ ] `work_hours` table no longer exists
-- [ ] `projects.working_day_overrides` column exists
+- [ ] `projects.working_day_overrides` column exists (renamed from `auto_estimate_days`)
+- [ ] `projects.auto_estimate_days` column no longer exists
 - [ ] All RLS policies work correctly on `phases` table
 - [ ] Can insert, update, delete phases successfully
 
@@ -464,7 +462,7 @@ After this migration:
 |-----------------|----------------|---------|
 | 1. User | `auth.users` | ✅ Aligned |
 | 2. Client | `clients` | ✅ Aligned |
-| 3. Project | `projects` (+ new `working_day_overrides`) | ✅ Aligned |
+| 3. Project | `projects` (`auto_estimate_days` → `working_day_overrides`) | ✅ Aligned |
 | 4. Phase | `phases` (formerly `milestones`) | ✅ **Fixed** |
 | 5. Group | `groups` | ✅ Aligned |
 | 6. Label | `labels` + `project_labels` | ✅ Aligned |
@@ -503,8 +501,13 @@ ALTER INDEX idx_phases_due_date RENAME TO idx_milestones_due_date;
 -- Rollback: Recreate work_hours table (from backup if data existed)
 -- Only if needed - table was unused
 
--- Rollback: Remove working_day_overrides column
-ALTER TABLE public.projects DROP COLUMN IF EXISTS working_day_overrides;
+-- Rollback: Rename working_day_overrides back to auto_estimate_days
+ALTER TABLE public.projects 
+RENAME COLUMN working_day_overrides TO auto_estimate_days;
+
+-- Restore original comment
+COMMENT ON COLUMN public.projects.auto_estimate_days IS 
+    'JSONB object defining which days of the week are included in auto-estimation calculations. Each day key maps to a boolean value.';
 ```
 
 **Note:** Keep a database backup before running the migration!

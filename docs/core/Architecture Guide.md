@@ -2,35 +2,41 @@
 
 > **SINGLE SOURCE OF TRUTH** for AI development in this codebase. This guide reflects the actual services architecture and intended logic flow.
 
-**Last Updated:** December 26, 2025  
+**Last Updated:** December 27, 2025  
 **Repository Transition:** ✅ **COMPLETE** - All 34 build errors resolved, clean compilation achieved
+**Terminology Update:** ✅ **IN PROGRESS** - Milestone → Phase migration (codebase partially updated)
 
 ## 🤖 AI Development Constraints
 
 ### NEVER Create These Patterns:
 - ❌ File paths containing `/validators/` (layer eliminated)
 - ❌ File paths containing `/repositories/` (layer eliminated, except timeTrackingRepository)
-- ❌ Import statements like `from '@/services/core/domain/ProjectEntity'`
+- ❌ Wrapper entities that just delegate to domain rules (no added value)
+- ❌ Anemic domain models (data only, no behavior - use rich entities instead)
 - ❌ Functions named `calculate*` in `/src/components/`
 - ❌ Multiple files with same function names
 - ❌ Business logic in components or hooks
-- ❌ New validator files (use domain rules directly in orchestrators)
+- ❌ New validator wrapper files
 - ❌ New repository wrappers (use Supabase directly or hooks)
+- ❌ References to `MilestoneRules` (use `PhaseRules` instead)
+- ❌ References to `UnifiedMilestoneService` (use `UnifiedPhaseService` instead)
 
 ### ALWAYS Follow These Patterns:
 - ✅ Import from `@/services` only (barrel imports)
+- ✅ Use rich domain entities from `/domain/entities/` that encapsulate business logic
 - ✅ Put pure math in `calculations/`, business calculations in `unified/UnifiedXService.ts`
 - ✅ Put complex workflows in `orchestrators/XOrchestrator.ts`
-- ✅ Call domain rules directly from orchestrators (no validator layer)
+- ✅ Call domain rules or entity methods from orchestrators
 - ✅ Call Supabase directly from orchestrators (no repository layer)
 - ✅ Check existing functionality before creating new
 - ✅ Use exact naming patterns: `UnifiedProjectService`, `ProjectOrchestrator`
-- ✅ Follow the simplified flow: Components → Orchestrators (workflows) OR Unified Services (calculations) → Domain Rules → Direct Supabase
+- ✅ Follow the simplified flow: Components → Orchestrators (workflows) OR Unified Services (calculations) → Domain Entities/Rules → Direct Supabase
 
 ## 🗺️ Quick Reference Map
 
 **Where does my code go?**
-- **Business rules/validation** → `domain/rules/ProjectRules.ts`
+- **Business rules/validation** → `domain/rules/ProjectRules.ts` (shared logic)
+- **Domain entities** → `domain/entities/Project.ts` (rich objects with behavior)
 - **Workflows (CREATE/UPDATE/DELETE)** → `services/orchestrators/XOrchestrator.ts`
 - **Business calculations** → `services/unified/UnifiedXService.ts`
 - **Pure math (no business context)** → `services/calculations/general/`
@@ -38,6 +44,139 @@
 - **Type definitions** → `types/core.ts`
 - **Display formatting** → `utils/dateFormatUtils.ts`
 - **React data fetching** → `hooks/useX.ts`
+
+## 🏛️ Architecture Philosophy: Hybrid DDD Approach
+
+### Why Hybrid DDD?
+
+This codebase follows a **Hybrid Domain-Driven Design (DDD)** approach—a pragmatic middle ground between:
+- **Strict DDD**: Full layer separation, repository pattern, complete domain isolation (8-12 weeks to implement)
+- **Pragmatic Mixing**: Application logic + UI concerns mixed freely (fast but maintenance heavy)
+
+**Our Choice:** Hybrid DDD prioritizes **clear separation of concerns in documentation** while allowing **pragmatic mixing in code** for velocity.
+
+---
+
+### Three-Layer Documentation Model
+
+**1. App Logic** (`App Logic.md`) - **WHAT** (Domain Truth)
+- Defines core business concepts in plain English
+- **100% UI-agnostic** - never references specific views or displays
+- Defines entities, relationships, and universal rules
+- Source of truth for "what exists" and "what can happen"
+
+**2. Business Logic** (`Business Logic.md`) - **HOW** (Domain Calculations)
+- Specifies calculation formulas and domain rules
+- **UI-agnostic** - defines rules that apply universally
+- Maps to domain code (`domain/rules/`, `services/calculations/`)
+- Source of truth for "how things are calculated"
+
+**3. View Specifications** (`View Specifications.md`) - **WHERE** (UI Constraints)
+- Documents view-specific display rules and constraints
+- **UI-specific** - explains why Timeline, Calendar, etc. behave differently
+- Maps to UI code (`components/`, presentation logic in orchestrators)
+- Source of truth for "how views display domain data"
+
+**Example of Separation:**
+
+| Concern | Layer | Example |
+|---------|-------|---------|
+| Time types coexist in domain | App Logic + Business Logic | "Projects have auto-estimated, planned, and completed time simultaneously" |
+| Timeline can't show overlaps | View Specifications | "Timeline View displays only ONE time type per day (mutual exclusivity constraint)" |
+| Auto-estimate calculation | Business Logic | "Auto-estimate = (Remaining Hours) ÷ (Days without events)" |
+| Timeline bar visual style | View Specifications | "Auto-estimates shown with light color, no border" |
+
+---
+
+### Intentional Code Pragmatism
+
+**Where We Mix Layers (By Design):**
+
+**Orchestrators** (`services/orchestrators/`) intentionally mix:
+- ✅ Application logic (workflows, coordination)
+- ✅ Presentation concerns (preparing data for UI)
+- ✅ Infrastructure calls (direct Supabase)
+
+**Why:** Orchestrators are the "glue layer" between pure domain logic and UI needs. Forcing strict separation here creates:
+- Extra abstraction layers with no value
+- Repository wrappers that just delegate
+- Anemic domain models (data-only)
+- Development slowdown
+
+**Trade-off:** Faster development, less boilerplate, BUT requires clear documentation to maintain architectural clarity.
+
+**Where We Stay Pure:**
+
+**Domain Rules** (`domain/rules/`) stay pure:
+- ❌ NO UI references (no "timeline", "calendar", "view")
+- ❌ NO presentation logic (no styling, no display decisions)
+- ✅ ONLY universal business rules
+
+**Domain Entities** (`domain/entities/`) stay rich:
+- ✅ Encapsulate business logic (not just data)
+- ✅ Validate on construction
+- ❌ NO UI concerns
+
+---
+
+### Orchestrator Scope (Intentionally Mixed)
+
+**What Orchestrators Can Do:**
+
+```typescript
+// ✅ ALLOWED - Application Logic
+async createProject(data: ProjectInput): Promise<Project> {
+  // 1. Call domain validation
+  const validation = ProjectRules.validate(data);
+  
+  // 2. Call Supabase directly (no repository)
+  const result = await supabase.from('projects').insert(data);
+  
+  // 3. Prepare data for UI (presentation concern)
+  const enriched = this.enrichProjectForDisplay(result);
+  
+  // 4. Handle side effects (workflow logic)
+  await this.notifyProjectCreated(enriched);
+  
+  return enriched;
+}
+```
+
+**What Orchestrators Cannot Do:**
+
+```typescript
+// ❌ FORBIDDEN - Business Rule Logic
+// This belongs in domain/rules/ProjectRules.ts
+calculateRemainingHours(project: Project): number {
+  return project.estimatedHours - project.completedHours; // NO!
+}
+```
+
+**Rule of Thumb:**
+
+- **Domain rules** = universal truths (same in all views, same for all users)
+- **Orchestrators** = workflows + view prep (coordination, enrichment, side effects)
+
+---
+
+### Migration Path (When Needed)
+
+If the codebase grows and mixing becomes painful:
+
+**Phase 1** (Current): Hybrid DDD with clear docs
+- Domain logic in rules/entities ✅
+- Orchestrators mix freely (documented) ✅
+- No repository layer ✅
+
+**Phase 2** (Future): Strict DDD
+- Add repository layer
+- Extract presentation logic from orchestrators
+- Create application services layer
+- Estimated effort: 8-12 weeks
+
+**Current Decision:** Stay in Phase 1 until pain points emerge.
+
+---
 
 ## 📚 DOCUMENTATION UPDATE FLOW
 
@@ -178,20 +317,163 @@ All changes flow top-down. App Logic is the source of truth.
 
 ---
 
-### 🎯 AI Development Pattern
+## �️ Domain Layer Architecture (Updated December 2025)
 
-When AI (Cursor/Copilot) makes business logic changes:
+### Domain Entities (`/domain/entities/`)
 
-1. **AI reads App Logic** to understand current rules
-2. **AI proposes change** in App Logic first
-3. **User reviews and approves** the logic change
-4. **AI implements** in domain rules with `@see` reference
-5. **AI updates** orchestrators and tests
-6. **AI commits** with "logic:" prefix
+**Purpose:** Rich domain models that encapsulate business logic and enforce invariants.
 
-This ensures documentation stays synchronized with code.
+**Characteristics:**
+- Cannot be created in invalid state (factory methods validate)
+- Encapsulate business behavior (not just data)
+- Map directly to App Logic entity definitions
+- Provide discoverable API for operations
 
-## 🎯 Services Architecture Pattern (Simplified - October 2025)
+**When to use:**
+- Creating or modifying core business objects (Project, Client, Phase, etc.)
+- Need to enforce business rules at construction
+- Want to prevent invalid states
+- Business logic naturally belongs to a single entity
+
+**Pattern:**
+```typescript
+// Factory method - enforces validation
+const result = Project.create({
+  name: "Website Redesign",
+  clientId: client.id,
+  startDate: new Date('2025-01-01'),
+  endDate: new Date('2025-03-31'),
+  estimatedHours: 120,
+  groupId: group.id,
+  color: '#FF5733',
+  userId: user.id
+});
+
+if (!result.success) {
+  // result.errors contains validation errors
+  console.error(result.errors);
+  return;
+}
+
+const project = result.data;
+
+// Business operations with built-in validation
+const updateResult = project.updateDates(newStart, newEnd);
+if (updateResult.success) {
+  project.convertToContinuous();
+}
+
+// Query methods
+const isActive = project.isActiveOnDate(today);
+const duration = project.getDurationDays();
+const allocation = project.getDailyAllocationHours();
+
+// Convert for database persistence
+const projectData = project.toData();
+```
+
+**Available Entities:**
+- ✅ `Project` - Complete with validation and business methods
+- 🚧 `Client` - Planned (Phase 1)
+- 🚧 `Phase` - Planned (Phase 1)
+- 🚧 `Group` - Planned (Phase 2)
+- 🚧 `Label` - Planned (Phase 2)
+- 🚧 `CalendarEvent` - Planned (Phase 2)
+
+### Domain Rules (`/domain/rules/`)
+
+**Purpose:** Shared business rules and complex validation logic used by multiple entities.
+
+**Characteristics:**
+- Static methods (no state)
+- Pure validation and calculation functions
+- Used internally by entities
+- Used by orchestrators for cross-entity validation
+
+**When to use:**
+- Validation logic spans multiple entities
+- Complex calculations needed by multiple parts of the system
+- Shared business constraints
+- Cross-entity relationship validation
+
+**Pattern:**
+```typescript
+// Used by entities internally
+class Project {
+  getBudgetAnalysis() {
+    return ProjectRules.analyzeBudget(this.toData(), this.phases);
+  }
+}
+
+// Used by orchestrators for cross-entity validation
+const relationshipCheck = RelationshipRules.validateProjectPhases(project, phases);
+if (!relationshipCheck.isValid) {
+  return { success: false, errors: relationshipCheck.errors };
+}
+```
+
+### Key Distinction
+
+| Aspect | Domain Entities | Domain Rules |
+|--------|----------------|--------------|
+| **What** | Rich objects with state + behavior | Static validation functions |
+| **Scope** | Single entity (Project, Client) | Cross-entity or shared logic |
+| **State** | Has mutable state | Stateless (pure functions) |
+| **Usage** | `const p = Project.create(...)` | `ProjectRules.validate(...)` |
+| **Example** | `project.updateDates()` | `RelationshipRules.validateProjectPhases()` |
+
+### Integration with Existing Patterns
+
+**Orchestrators use entities:**
+```typescript
+// Before (functional approach)
+const validation = ProjectRules.validateProjectDates(startDate, endDate);
+if (!validation.isValid) return { success: false };
+const { data } = await supabase.from('projects').insert(projectData);
+
+// After (entity approach)
+const projectResult = Project.create({ name, clientId, ... });
+if (!projectResult.success) return projectResult;
+const { data } = await supabase.from('projects').insert(projectResult.data.toData());
+```
+
+**Unified Services can use entities:**
+```typescript
+// Approach 1: Keep functional
+static calculateDuration(startDate: Date, endDate: Date): number {
+  return calculateDurationDays(startDate, endDate);
+}
+
+// Approach 2: Accept entity or data
+static calculateDuration(projectOrData: Project | ProjectData): number {
+  const project = projectOrData instanceof Project 
+    ? projectOrData 
+    : Project.fromDatabase(projectOrData);
+  return project.getDurationDays() ?? 0;
+}
+```
+
+**Hooks can return entities:**
+```typescript
+const { data: projects } = useQuery({
+  queryKey: ['projects'],
+  queryFn: async () => {
+    const { data } = await supabase.from('projects').select('*');
+    return data?.map(p => Project.fromDatabase(p)) ?? [];
+  }
+});
+
+// Components use entity methods
+projects.forEach(project => {
+  if (project.isActiveOnDate(today)) {
+    console.log(project.getDurationDays());
+  }
+});
+```
+
+---
+
+## 🎯 Services Architecture Pattern (Simplified - October 2025, Updated December 2025)
 
 ### Core Logic Flow (Current):
 ```
@@ -230,7 +512,8 @@ src/
 │   ├── entities/                # TODO: Domain entities with business rules
 │   ├── rules/                   # ✅ Centralized business rules (50+ methods)
 │   │   ├── ProjectRules.ts      # Project validation and constraints
-│   │   ├── MilestoneRules.ts    # Milestone validation and budget rules
+│   │   ├── PhaseRules.ts      # Phase validation and budget rules
+│   │   ├── MilestoneRules.ts  # ⚠️ LEGACY - To be migrated to PhaseRules
 │   │   ├── TimelineRules.ts     # Timeline and scheduling rules
 │   │   └── RelationshipRules.ts # Cross-entity relationship rules
 │   ├── value-objects/           # TODO: Immutable value types
@@ -239,11 +522,13 @@ src/
 │   ├── unified/                 # ✅ Main API - Calculations & transformations
 │   │   ├── UnifiedProjectService.ts
 │   │   ├── UnifiedTimelineService.ts
-│   │   ├── UnifiedMilestoneService.ts
+│   │   ├── UnifiedPhaseService.ts
+│   │   ├── UnifiedMilestoneService.ts # ⚠️ LEGACY - To be migrated to UnifiedPhaseService
 │   │   └── ... (other unified services)
 │   ├── orchestrators/           # ✅ Workflow coordination (9 files)
 │   │   ├── ProjectOrchestrator.ts         # Project workflows
-│   │   ├── ProjectMilestoneOrchestrator.ts # Milestone workflows
+│   │   ├── ProjectPhaseOrchestrator.ts # Phase workflows
+│   │   ├── ProjectMilestoneOrchestrator.ts # ⚠️ LEGACY - To be migrated to ProjectPhaseOrchestrator
 │   │   ├── EventModalOrchestrator.ts      # Event modal workflows
 │   │   ├── GroupOrchestrator.ts           # Group workflows
 │   │   ├── HolidayModalOrchestrator.ts    # Holiday workflows
@@ -308,7 +593,7 @@ src/types/core.ts = SINGLE SOURCE OF TRUTH for all domain types
 ### Type Usage Patterns:
 ```typescript
 // ✅ CORRECT - Reference core types
-import type { Project, Milestone, CalendarEvent } from '@/types/core';
+import type { Project, Phase, CalendarEvent } from '@/types/core';
 
 // ✅ CORRECT - Extend core types for specific use cases
 interface ProjectEvent extends Pick<CalendarEvent, 'id' | 'startTime' | 'endTime'> {
@@ -316,7 +601,7 @@ interface ProjectEvent extends Pick<CalendarEvent, 'id' | 'startTime' | 'endTime
 }
 
 // ✅ CORRECT - Flexible backward compatibility
-export type FlexibleMilestone = Milestone & {
+export type FlexiblePhase = Phase & {
   projectId?: string; // Optional for legacy compatibility
 };
 
@@ -329,8 +614,8 @@ interface Project { // This creates conflicts and inconsistency
 ```
 
 ### Domain Types in core.ts:
-- **Project**: Main project entity with status, milestones, scheduling
-- **Milestone**: Project milestone with time allocation and ordering
+- **Project**: Main project entity with status, phases, scheduling
+- **Phase**: Project phase with time allocation and ordering
 - **CalendarEvent**: Events with recurring patterns and completion tracking
 - **Group/Row**: Project organization and layout structure
 - **Holiday**: Calendar holidays with regional support
@@ -340,7 +625,7 @@ interface Project { // This creates conflicts and inconsistency
 Components may define **Props**, **Config**, and **Local** interfaces that extend core types:
 ```typescript
 // ✅ ALLOWED - Component-specific extensions
-interface LocalMilestone extends Omit<Milestone, 'id'> {
+interface LocalPhase extends Omit<Phase, 'id'> {
   id?: string;
   isNew?: boolean;
 }
@@ -365,7 +650,7 @@ interface ProjectModalProps {
 | ⭐ "define business rule" | **Business rule** | `domain/rules/ProjectRules.ts` | `static validateX()` |
 | ⭐ "check if valid" | **Business rule** | `domain/rules/` | Reference business rules |
 | "calculate project duration" | Pure data math | `calculations/general/dateCalculations.ts` | Pure function (date math) |
-| "validate milestone budget" | **Inline validation** | `orchestrators/ProjectOrchestrator.ts` | Call `MilestoneRules.checkBudget()` directly |
+| "validate phase budget" | **Inline validation** | `orchestrators/ProjectOrchestrator.ts` | Call `PhaseRules.checkBudget()` directly |
 | "position timeline bar" | UI positioning | `ui/positioning/TimelinePositioning.ts` | `static calculateBarPosition()` |
 | "handle drag operation" | UI math | `ui/positioning/DragPositioning.ts` | Mouse→pixel→date conversion |
 | "coordinate project creation" | Workflow | `orchestrators/ProjectOrchestrator.ts` | `async executeProjectCreationWorkflow()` |
@@ -385,7 +670,7 @@ interface ProjectModalProps {
   - Rule: Could run on server with zero business knowledge
   
 - **Business calculations** (uses domain rules, multiple calculations, transformations) → `unified/`
-  - Example: `calculateProjectBudgetStatus(project, milestones)` → Uses MilestoneRules + pure math
+  - Example: `calculateProjectBudgetStatus(project, phases)` → Uses PhaseRules + pure math
   - Example: `calculateWorkingDays(dates, holidays, settings)` → Combines data + business rules
   - Rule: Requires understanding of your business domain
 
@@ -393,6 +678,213 @@ interface ProjectModalProps {
 
 **Key Changes:**
 - ❌ No more validators layer - call domain rules directly
+- ❌ No more repositories layer - call Supabase directly or use hooks
+- ✅ Orchestrators handle validation + data access inline
+- ✅ Transformation helpers inline in orchestrators (private methods)
+
+---
+
+## 🎭 Orchestrator Patterns & Best Practices
+
+### Orchestrator Responsibilities (Hybrid DDD)
+
+**What Orchestrators SHOULD Do:**
+```typescript
+class ProjectOrchestrator {
+  // ✅ Coordinate workflows (application logic)
+  async createProject(data: CreateProjectInput): Promise<Result<Project>> {
+    // ✅ Call domain validation
+    const validation = ProjectRules.validateCreate(data);
+    if (!validation.isValid) return failure(validation.errors);
+    
+    // ✅ Transform for database (presentation concern - allowed in hybrid)
+    const dbData = this.transformForDatabase(data);
+    
+    // ✅ Direct database access (no repository layer)
+    const { data: project, error } = await supabase
+      .from('projects')
+      .insert(dbData)
+      .select()
+      .single();
+    
+    if (error) return failure([error.message]);
+    
+    // ✅ Enrich for UI (presentation concern - allowed in hybrid)
+    const enriched = this.enrichProjectForDisplay(project);
+    
+    // ✅ Trigger side effects (workflow coordination)
+    await this.notifyProjectCreated(enriched);
+    await this.updateRelatedEntities(enriched);
+    
+    return success(enriched);
+  }
+  
+  // ✅ Private helpers for presentation (allowed in hybrid)
+  private transformForDatabase(input: CreateProjectInput) {
+    return {
+      ...input,
+      created_at: new Date().toISOString(),
+      color: normalizeProjectColor(input.color), // UI concern
+    };
+  }
+  
+  // ✅ Enrich data for display (allowed in hybrid)
+  private enrichProjectForDisplay(project: DbProject): Project {
+    return {
+      ...project,
+      displayColor: this.getDisplayColor(project.color), // UI concern
+      formattedDates: this.formatDatesForUI(project), // UI concern
+    };
+  }
+}
+```
+
+**What Orchestrators MUST NOT Do:**
+```typescript
+class ProjectOrchestrator {
+  // ❌ FORBIDDEN - Business rule logic (belongs in domain/rules/)
+  private calculateRemainingHours(project: Project): number {
+    return project.estimatedHours - project.completedHours; // NO!
+  }
+  
+  // ❌ FORBIDDEN - Domain validation logic (belongs in ProjectRules)
+  private validateProjectDates(start: Date, end: Date): boolean {
+    return end > start; // NO! Call ProjectRules.validateDates()
+  }
+  
+  // ❌ FORBIDDEN - Complex calculation (belongs in UnifiedProjectService)
+  private calculateProjectMetrics(project: Project): Metrics {
+    // Multi-step calculations belong in unified services
+    const budget = ...; // NO!
+    const progress = ...; // NO!
+    return { budget, progress };
+  }
+}
+```
+
+### JSDoc Examples for Orchestrators
+
+**Template for Orchestrator Methods:**
+```typescript
+/**
+ * Creates a new project with validation and side effects.
+ * 
+ * HYBRID DDD SCOPE:
+ * - Validates via ProjectRules (domain)
+ * - Transforms data for database (presentation - allowed)
+ * - Calls Supabase directly (no repository layer)
+ * - Enriches for UI display (presentation - allowed)
+ * - Coordinates side effects (workflow logic)
+ * 
+ * @param data - Project creation input
+ * @returns Result with created project or validation errors
+ * 
+ * @example
+ * const result = await ProjectOrchestrator.createProject({
+ *   name: "Website Redesign",
+ *   clientId: "client-123",
+ *   startDate: new Date(),
+ *   endDate: addMonths(new Date(), 3)
+ * });
+ * 
+ * if (result.success) {
+ *   console.log('Project created:', result.data);
+ * }
+ */
+async createProject(data: CreateProjectInput): Promise<Result<Project>>
+```
+
+### Orchestrator Organization Patterns
+
+**File Structure:**
+```typescript
+// src/services/orchestrators/ProjectOrchestrator.ts
+import { supabase } from '@/integrations/supabase';
+import { ProjectRules } from '@/domain/rules/ProjectRules';
+import { UnifiedProjectService } from '@/services/unified/UnifiedProjectService';
+import type { Project, CreateProjectInput } from '@/types/core';
+
+export class ProjectOrchestrator {
+  // Public workflow methods (CREATE/UPDATE/DELETE)
+  static async createProject(...) { }
+  static async updateProject(...) { }
+  static async deleteProject(...) { }
+  
+  // Private transformation helpers (presentation layer - allowed)
+  private static transformForDatabase(...) { }
+  private static enrichForDisplay(...) { }
+  
+  // Private coordination helpers (workflow logic)
+  private static notifyCreated(...) { }
+  private static updateRelatedEntities(...) { }
+}
+```
+
+### Common Orchestrator Anti-Patterns
+
+**Anti-Pattern 1: Business Logic in Orchestrator**
+```typescript
+// ❌ BAD - Validation logic in orchestrator
+async createProject(data: CreateProjectInput) {
+  if (!data.name || data.name.length < 3) { // Domain rule!
+    return failure(['Name must be at least 3 characters']);
+  }
+  // ...
+}
+
+// ✅ GOOD - Call domain rules
+async createProject(data: CreateProjectInput) {
+  const validation = ProjectRules.validateCreate(data);
+  if (!validation.isValid) return failure(validation.errors);
+  // ...
+}
+```
+
+**Anti-Pattern 2: Calculations in Orchestrator**
+```typescript
+// ❌ BAD - Complex calculation in orchestrator
+async updateProject(id: string, updates: Partial<Project>) {
+  const project = await this.getProject(id);
+  const remainingHours = project.estimatedHours - project.completedHours; // NO!
+  const progress = (project.completedHours / project.estimatedHours) * 100; // NO!
+  // ...
+}
+
+// ✅ GOOD - Use unified services for calculations
+async updateProject(id: string, updates: Partial<Project>) {
+  const project = await this.getProject(id);
+  const metrics = UnifiedProjectService.calculateMetrics(project); // YES!
+  // ...
+}
+```
+
+**Anti-Pattern 3: UI Logic in Orchestrator (Beyond Preparation)**
+```typescript
+// ❌ BAD - Timeline-specific display logic
+async createProject(data: CreateProjectInput) {
+  const project = await supabase.from('projects').insert(data);
+  
+  // Timeline mutual exclusivity logic - belongs in View Specifications!
+  if (project.hasEvents) {
+    project.hideAutoEstimates = true; // NO! UI constraint, not domain rule
+  }
+  return project;
+}
+
+// ✅ GOOD - Only prepare data, let views handle display
+async createProject(data: CreateProjectInput) {
+  const project = await supabase.from('projects').insert(data);
+  
+  // Just fetch related data for UI to use
+  const events = await this.getProjectEvents(project.id);
+  
+  return { ...project, events }; // View decides what to show
+}
+```
+
+---
+
+## 🚫 Utils/Lib Rules
 - ❌ No more repositories layer - call Supabase directly or use hooks
 - ✅ Orchestrators handle validation + data access inline
 - ✅ Transformation helpers inline in orchestrators (private methods)
@@ -409,7 +901,7 @@ interface ProjectModalProps {
 - Business calculations
 - Domain-specific logic
 - Application workflows  
-- Project/milestone/work-hour logic
+- Project/phase/work-hour logic
 
 ### Examples:
 ```typescript
@@ -421,7 +913,7 @@ export function normalizeProjectColor(color: string): string // Legacy format mi
 
 // ❌ FORBIDDEN in utils/ - Must go in services/
 export function calculateProjectDuration() // Business calculation
-export function validateMilestone() // Domain logic
+export function validatePhase() // Domain logic
 export function createProject() // Application workflow
 ```
 
@@ -526,10 +1018,11 @@ Eliminates duplicate calculations across different views (e.g., project bars on 
 ## 🚀 AI Implementation Guidelines (Updated October 2025)
 
 ### For Business Rules:
-1. ✅ Add to existing domain rules module (`ProjectRules`, `MilestoneRules`, etc.)
+1. ✅ Add to existing domain rules module (`ProjectRules`, `PhaseRules`, etc.)
 2. ✅ Create new rule module if needed (new domain area)
 3. ✅ Keep domain rules as single source of truth
 4. ❌ Never duplicate business logic in components/hooks
+5. ⚠️ **MIGRATION:** Replace `MilestoneRules` imports with `PhaseRules` (terminology update in progress)
 
 ### For Complex Workflows (CREATE/UPDATE/DELETE):
 1. ✅ Use orchestrators (`ProjectOrchestrator`, `GroupOrchestrator`, etc.)
@@ -666,9 +1159,9 @@ class ProjectOrchestrator {
   static async createProject() { }
   static async updateProject() { }
   static async deleteProject() { }
-  static async createMilestone() { }
-  static async updateMilestone() { }
-  static async deleteMilestone() { }
+  static async createPhase() { }
+  static async updatePhase() { }
+  static async deletePhase() { }
 }
 
 // ✅ AFTER: Split by entity
@@ -679,11 +1172,11 @@ class ProjectOrchestrator {
   static async deleteProject() { }
 }
 
-// ProjectMilestoneOrchestrator.ts (400 lines)
-class ProjectMilestoneOrchestrator {
-  static async createMilestone() { }
-  static async updateMilestone() { }
-  static async deleteMilestone() { }
+// ProjectPhaseOrchestrator.ts (400 lines)
+class ProjectPhaseOrchestrator {
+  static async createPhase() { }
+  static async updatePhase() { }
+  static async deletePhase() { }
 }
 ```
 

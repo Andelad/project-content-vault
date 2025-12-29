@@ -1,31 +1,60 @@
-// Core application types - single source of truth
+/**
+ * Core application types - single source of truth
+ * 
+ * @see {@link /docs/core/App Logic.md} - Entity definitions
+ * @see {@link /docs/core/Business Logic.md} - Business rules and validation
+ */
 
 export type ProjectStatus = 'current' | 'future' | 'archived';
 
-// Recurring configuration for milestone patterns
+/**
+ * Recurring pattern configuration for phases.
+ * Defines how a phase repeats over time (daily, weekly, monthly patterns).
+ * 
+ * @see {@link /docs/core/App Logic.md#4-phase} - Recurring phase definition
+ */
 export interface RecurringConfig {
   type: 'daily' | 'weekly' | 'monthly';
-  interval: number;
-  weeklyDayOfWeek?: number; // 0-6
-  monthlyPattern?: 'date' | 'dayOfWeek';
-  monthlyDate?: number; // 1-31
-  monthlyWeekOfMonth?: number; // 1-4
-  monthlyDayOfWeek?: number; // 0-6
+  interval: number; // Every X days/weeks/months
+  
+  // Weekly recurrence options
+  weeklyDayOfWeek?: number; // 0-6 (Sunday=0, Monday=1, ..., Saturday=6)
+  
+  // Monthly recurrence options
+  monthlyPattern?: 'date' | 'dayOfWeek'; // Repeat by specific date or day of week
+  monthlyDate?: number; // 1-31 for specific date of month
+  monthlyWeekOfMonth?: number; // 1-4 for which week of the month
+  monthlyDayOfWeek?: number; // 0-6 for day of week in monthly pattern
 }
 
+/**
+ * Phase (time period within a project).
+ * 
+ * Represents a time-bounded allocation of work within a project.
+ * Can be explicit (fixed dates) or recurring (pattern-based).
+ * 
+ * NOTE: Currently named "Milestone" in database and much of the codebase.
+ * Migration to "Phase" terminology is in progress.
+ * 
+ * @see {@link /docs/core/App Logic.md#4-phase} - Phase entity definition
+ * @see {@link /docs/core/Business Logic.md} - Phase business rules
+ * @see {@link /docs/operations/MILESTONE_TO_PHASE_MIGRATION.md} - Migration plan
+ */
 export interface Milestone {
   id: string;
   name: string;
   projectId: string; // Maps to project_id in database
   
   // PRIMARY FIELDS (forecasting/estimation)
-  endDate: Date; // Milestone deadline
+  endDate: Date; // Phase deadline
   timeAllocationHours: number; // Hours allocated for day estimates
-  startDate?: Date; // When milestone allocation begins (optional)
+  startDate?: Date; // When phase allocation begins (optional)
   
   // BACKWARD COMPATIBILITY (legacy code may still read these)
-  dueDate: Date; // Use endDate instead
-  timeAllocation: number; // Use timeAllocationHours instead
+  /** @deprecated Use endDate instead. Will be removed in v2.0 */
+  dueDate: Date;
+  /** @deprecated Use timeAllocationHours instead. Will be removed in v2.0 */
+  timeAllocation: number;
   
   // RECURRING PATTERNS (virtual instance generation)
   isRecurring?: boolean; // Whether this follows a recurring pattern
@@ -37,22 +66,57 @@ export interface Milestone {
   updatedAt: Date; // Converted from updated_at string in repository layer
 }
 
+/**
+ * Phase type alias - preferred terminology.
+ * Use this in new code instead of Milestone.
+ * 
+ * @see {@link /docs/core/App Logic.md#4-phase} - Phase entity definition
+ */
+export type Phase = Milestone;
+
+/**
+ * Project entity - a piece of work with time estimate and deadline.
+ * 
+ * Projects can be:
+ * - Time-limited: has end date, auto-estimates distributed across working days
+ * - Continuous: no end date (ongoing work), progress tracking only
+ * 
+ * @see {@link /docs/core/App Logic.md#3-project} - Project entity definition
+ * @see {@link /docs/core/Business Logic.md} - Project business rules
+ */
 export interface Project {
   id: string;
   name: string;
-  client: string; // DEPRECATED: Keep for backward compatibility (Phase 5B)
-  clientId: string; // NEW: Required client reference (Phase 5B)
+  
+  // DEPRECATED FIELDS - Do not use in new code
+  /** @deprecated Use clientId instead. Will be removed in v2.0 */
+  client: string;
+  /** @deprecated Row entity removed from data model. Will be removed in v2.0 */
+  rowId?: string;
+  
+  // REQUIRED FIELDS
+  clientId: string; // Foreign key to Client entity (required)
   startDate: Date;
-  endDate: Date; // Required in DB but should be ignored for continuous projects
-  estimatedHours: number;
+  
+  // CONDITIONAL: Required for time-limited, NULL for continuous
+  // TODO: Should be Date | null to properly support continuous projects
+  endDate: Date; // Required in DB but should be ignored when continuous=true
+  
+  estimatedHours: number; // >= 0, can be 0 for "no estimate"
   color: string;
   groupId: string; // REQUIRED: Projects must belong to a group
-  rowId?: string; // DEPRECATED: Keep for current timeline (Phase 5B)
   notes?: string;
   icon?: string; // Lucide icon name, defaults to 'folder'
-  milestones?: Milestone[]; // Project milestones
+  
+  // PROJECT TYPE
   continuous?: boolean; // When true, endDate is meaningless and should be ignored
-  status?: ProjectStatus; // Project status for organization
+  status?: ProjectStatus; // 'current' | 'future' | 'archived'
+  
+  // PHASES (time periods within project)
+  milestones?: Milestone[]; // TODO: Rename to phases after migration
+  
+  // WORKING DAY OVERRIDES
+  // TODO: Document in App Logic.md or remove if unused
   autoEstimateDays?: {
     monday: boolean;
     tuesday: boolean;
@@ -62,15 +126,23 @@ export interface Project {
     saturday: boolean;
     sunday: boolean;
   }; // Days to include in auto-estimation (default: all true)
+  
   userId: string;
   createdAt: Date;
   updatedAt: Date;
   
-  // Populated by joins (Phase 5B)
-  clientData?: Client;
-  labels?: Label[];
+  // Populated by joins
+  clientData?: Client; // Populated when querying with client data
+  labels?: Label[]; // Populated when querying with labels
 }
 
+/**
+ * @deprecated Row entity has been removed from the data model.
+ * Projects now belong directly to Groups.
+ * This interface will be removed in v2.0.
+ * 
+ * @see {@link /docs/core/App Logic.md} - Row entity not present in current model
+ */
 export interface Row {
   id: string;
   groupId: string;
@@ -78,39 +150,68 @@ export interface Row {
   order: number; // For sorting rows within groups
 }
 
+/**
+ * Group entity - primary way to organize projects by life area.
+ * 
+ * Examples: "Work", "Personal", "Health & Fitness"
+ * 
+ * @see {@link /docs/core/App Logic.md#5-group} - Group entity definition
+ */
 export interface Group {
   id: string;
-  name: string;
+  name: string; // Unique per user (case-insensitive)
   userId: string;
   createdAt: Date;
   updatedAt: Date;
-  // REMOVED (Phase 5B): color and description fields removed from database
+  // Note: color and description fields removed from database in Phase 5B
 }
 
 export type ClientStatus = 'active' | 'inactive' | 'archived';
 
+/**
+ * Client entity - organization or person work is done for.
+ * 
+ * @see {@link /docs/core/App Logic.md#2-client} - Client entity definition
+ * @see {@link /docs/core/Business Logic.md} - Client validation rules
+ */
 export interface Client {
   id: string;
-  name: string;
+  name: string; // Required, unique per user (case-insensitive), 1-100 chars
   status: ClientStatus;
-  contactEmail?: string;
-  contactPhone?: string;
-  billingAddress?: string;
-  notes?: string;
+  contactEmail?: string; // Optional, basic format validation (@, ., no whitespace)
+  contactPhone?: string; // Optional, can contain digits, spaces, hyphens, parentheses, plus
+  billingAddress?: string; // Optional, free-form text
+  notes?: string; // Optional, free-form text
   userId: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
+/**
+ * Label entity - flexible tags for categorizing projects.
+ * 
+ * Examples: "#urgent", "#q1-2026", "#pro-bono"
+ * 
+ * @see {@link /docs/core/App Logic.md#6-label} - Label entity definition
+ */
 export interface Label {
   id: string;
-  name: string;
-  color?: string;
+  name: string; // Required, unique per user (case-insensitive)
+  color?: string; // Optional, for visual distinction
   userId: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
+/**
+ * Calendar Event - specific time block for work (planned or completed).
+ * 
+ * Events are defined by HOURS (specific times), not days.
+ * Events linked to a project count toward that project's time.
+ * Habits and tasks NEVER count toward project time.
+ * 
+ * @see {@link /docs/core/App Logic.md#7-calendar-event} - Event entity definition
+ */
 export interface CalendarEvent {
   id: string;
   title: string;
@@ -248,7 +349,11 @@ export interface DayEstimate {
   // - 'event': Calendar event time (could be planned or completed)
   // - 'milestone-allocation': Calculated estimate from milestone
   // - 'project-auto-estimate': Calculated estimate from project budget
-  // Events and estimates are mutually exclusive on any day
+  // 
+  // NOTE: In the DOMAIN, events and estimates can coexist on the same day.
+  // The "mutual exclusivity" is a TIMELINE VIEW constraint (bars can't overlap).
+  // Other views (Planner, Reports) may display both simultaneously.
+  // @see docs/core/View Specifications.md - Timeline View mutual exclusivity
   source: 'event' | 'milestone-allocation' | 'project-auto-estimate';
   milestoneId?: string;
   isWorkingDay: boolean;

@@ -11,7 +11,7 @@
 
 import type { Project, Milestone, Group, Row, Client, Label } from '@/types/core';
 import { ProjectRules } from './ProjectRules';
-import { MilestoneRules } from './MilestoneRules';
+import { PhaseRules } from './PhaseRules';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -71,7 +71,7 @@ export class RelationshipRules {
 
     // Validate milestone dates are within project range
     const milestoneEndDate = milestone.endDate || milestone.dueDate;
-    const dateValidation = MilestoneRules.validateMilestoneDateWithinProject(
+    const dateValidation = PhaseRules.validateMilestoneDateWithinProject(
       milestoneEndDate,
       project.startDate,
       project.endDate,
@@ -113,7 +113,7 @@ export class RelationshipRules {
     const errors: string[] = [];
     const warnings: string[] = [];
 
-    const budgetCheck = MilestoneRules.checkBudgetConstraint(
+    const budgetCheck = PhaseRules.checkBudgetConstraint(
       milestones,
       project.estimatedHours
     );

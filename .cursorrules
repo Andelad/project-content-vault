@@ -10,32 +10,32 @@
 
 | Document | When to Read | Contains |
 |----------|--------------|----------|
-| **`docs/core/App Logic.md`** | Understanding WHAT things are | Entity definitions, time concepts, workflows, validation rules |
-| **`docs/core/Business Logic.md`** | Understanding HOW things behave | Detailed rules, calculations, edge cases, state transitions, TypeScript interfaces |
-| **`docs/core/Architecture Guide.md`** | Understanding WHERE code goes | Code structure, patterns, service organization |
+| **`docs/core/App Logic.md`** | Understanding WHAT (domain concepts) | Entity definitions, time concepts, workflows (UI-agnostic) |
+| **`docs/core/Business Logic.md`** | Understanding HOW (domain rules) | Calculations, validation formulas, edge cases (UI-agnostic) |
+| **`docs/core/View Specifications.md`** | Understanding UI constraints | Display rules, view-specific behavior, visual styling |
+| **`docs/core/Architecture Guide.md`** | Understanding WHERE code goes | Hybrid DDD approach, code structure, patterns |
 
 **Quick Reference:**
 - "What is a Phase?" → App Logic.md
 - "How do auto-estimates calculate?" → Business Logic.md
+- "Why can't Timeline show overlapping bars?" → View Specifications.md
 - "Where should I put this code?" → Architecture Guide.md
+- "Can orchestrators mix concerns?" → Architecture Guide.md (yes, by design)
 
 **Document Ownership:**
 
 | Concept | Owner |
 |---------|-------|
-| Entity definitions | App Logic.md |
-| Time concepts | App Logic.md |
-| Business rules | App Logic.md (concepts) + Business Logic.md (implementation) |
-| **UI Features** | **Code itself (`src/components/features/`)** |
-| Code structure | Architecture Guide.md |
+| Domain entities & rules | App Logic.md (concepts) + Business Logic.md (formulas) |
+| UI display constraints | View Specifications.md |
+| Code patterns | Architecture Guide.md |
+| Feature implementation | Code itself (`src/components/features/`) |
 
 **Building Features:**
-1. Read App Logic.md for WHAT to show
-2. Read Business Logic.md for HOW to calculate
-3. Explore `src/components/features/` for patterns
-4. Build using established patterns
-
-> **Philosophy:** Logic is stable (document it). UI is fluid (code is the doc).
+1. Read App Logic.md + Business Logic.md for domain truth
+2. Read View Specifications.md for UI-specific constraints
+3. Check Architecture Guide.md for code organization
+4. Explore `src/components/features/` for patterns
 
 ---
 
@@ -43,21 +43,23 @@
 
 ### Never Create
 - ❌ `/helpers/` directories
-- ❌ Business logic in `/utils/`
+- ❌ Business logic in `/utils/` or components
 - ❌ Calculations in components
 - ❌ Duplicate types (use `/types/core.ts`)
 - ❌ Manual date math
-- ❌ Validator wrappers (call domain rules directly)
-- ❌ Repository wrappers (call Supabase directly, except `timeTrackingRepository`)
+- ❌ Validator wrapper files (call domain rules directly)
+- ❌ Repository wrapper files (call Supabase directly, except `timeTrackingRepository`)
+- ❌ Domain/business logic in orchestrators (put in `domain/rules/`)
 
 ### Always Use
 - ✅ Import from `@/services` only
 - ✅ Types from `/types/core.ts`
+- ✅ Domain rules from `/domain/rules/` for validation & business logic
+- ✅ Domain entities from `/domain/entities/` (Phase 2 - gradual adoption)
 - ✅ `dateCalculations.ts` for all date operations
 - ✅ `ErrorHandlingService` for all errors
 - ✅ Find existing unified services first
 - ✅ Delegation pattern in unified services
-- ✅ Typography: update BOTH `index.css` AND `tailwind.config.ts`
 
 ### Before Writing Code
 ```bash
@@ -69,16 +71,28 @@ ls src/services/unified/ | grep -i "domain"
 
 ## 2. CODE ORGANIZATION
 
-| Code Type | Location | Example |
-|-----------|----------|---------|
-| UI | `/components` | Call services, no logic |
-| Workflows | `/services/orchestrators/*Orchestrator` | CREATE/UPDATE/DELETE |
-| Calculations | `/services/unified/Unified*Service` | READ/TRANSFORM |
-| Business Rules | `/domain/rules/*Rules` | Single source of truth |
-| Date Math | `/services/calculations/general/dateCalculations` | `normalizeToMidnight()` |
-| Error Handling | `ErrorHandlingService` | Structured logging |
-| React State | `/hooks/use*.ts` | State + service calls |
-| Generic Utils | `/utils` or `/lib` | `cn()`, `formatCurrency()` |
+**Architecture: Hybrid DDD** (see Architecture Guide.md for details)
+
+| Code Type | Location | Purity | Example |
+|-----------|----------|--------|---------|
+| **Domain Rules** | `/domain/rules/*Rules` | 100% pure (no UI/DB) | Validation, business logic |
+| **Domain Entities** | `/domain/entities/*` | 100% pure (no UI/DB) | Rich objects (Phase 2 adoption) |
+| **Orchestrators** | `/services/orchestrators/*Orchestrator` | Mixed (by design) | Workflows: validation + DB + UI prep |
+| **Unified Services** | `/services/unified/Unified*Service` | Pure calculations | Business calculations |
+| **UI Components** | `/components` | UI only | Call services, no logic |
+| Date Math | `/services/calculations/general/dateCalculations` | Pure math | `normalizeToMidnight()` |
+| Error Handling | `ErrorHandlingService` | Infrastructure | Structured logging |
+| React State | `/hooks/use*.ts` | Coordination | State + service calls |
+| Generic Utils | `/utils` or `/lib` | Pure helpers | `cn()`, `formatCurrency()` |
+
+**Orchestrator Scope (Hybrid DDD - Mixed by Design):**
+- ✅ Call domain rules (`ProjectRules.validate()`)
+- ✅ Call Supabase directly (no repository layer)
+- ✅ Transform data for database
+- ✅ Enrich data for UI display
+- ✅ Coordinate workflows & side effects
+- ❌ NEVER implement business rules (use `domain/rules/`)
+- ❌ NEVER implement calculations (use `unified/` services)
 
 ---
 
@@ -102,15 +116,25 @@ ls src/services/unified/ | grep -i "domain"
 
 ### Orchestrators (workflows)
 ```typescript
-// ✅ Call domain rules + Supabase directly
+// ✅ Orchestrators coordinate & mix concerns (by design)
 export class ProjectOrchestrator {
   static async executeProjectCreationWorkflow(request, context) {
+    // ✅ Call domain rules (pure validation)
     const validation = ProjectRules.validateProjectDates(request.startDate, request.endDate);
     if (!validation.isValid) return { success: false, errors: validation.errors };
     
+    // ✅ Transform for DB (allowed)
+    const prepared = this.transformForDatabase(request);
+    
+    // ✅ Direct Supabase (no repository layer)
     const { data, error } = await supabase.from('projects').insert(prepared).select().single();
-    return this.transformFromDatabase(data);
+    
+    // ✅ Enrich for UI (allowed)
+    return this.enrichForDisplay(data);
   }
+  
+  // ❌ FORBIDDEN - business logic belongs in domain/rules/
+  // private calculateRemainingHours() { ... }
 }
 ```
 
@@ -163,29 +187,29 @@ interface Project { id: string; }
 
 When modifying business rules:
 
-1. **Update `docs/core/App Logic.md`** (entity definitions, workflows, validation summary)
-2. **Update `docs/core/Business Logic.md`** (detailed rules, calculations, edge cases)
-3. **Update `src/domain/rules/*.ts`** (with `@see` references)
-4. **Update orchestrators** (workflows using the rule)
-5. **Update tests**
-6. **Commit with `logic:` prefix**
+1. **Update `docs/core/App Logic.md`** (entity definitions, domain concepts - UI-agnostic)
+2. **Update `docs/core/Business Logic.md`** (detailed rules, calculations - UI-agnostic)
+3. **Update `docs/core/View Specifications.md`** (if UI-specific display rules changed)
+4. **Update `src/domain/rules/*.ts`** (with `@see` references)
+5. **Update orchestrators** (workflows using the rule)
+6. **Update tests**
+7. **Commit with `logic:` prefix**
 
 ### Document Ownership
 
-| Change Type | Update App Logic | Update Business Logic |
-|-------------|------------------|----------------------|
-| New entity or property | ✅ Yes | ✅ Yes (TypeScript interface) |
-| New validation rule | ✅ Yes (summary table) | ✅ Yes (detailed logic) |
-| New workflow | ✅ Yes | ❌ No |
-| Calculation formula | ❌ No | ✅ Yes |
-| Edge case handling | ❌ No | ✅ Yes |
-| State transition | ❌ No | ✅ Yes |
+| Change Type | App Logic | Business Logic | View Specs |
+|-------------|-----------|----------------|------------|
+| New entity/property | ✅ Yes | ✅ Yes (TS interface) | ❌ No |
+| Domain validation rule | ✅ Yes (summary) | ✅ Yes (detailed) | ❌ No |
+| Calculation formula | ❌ No | ✅ Yes | ❌ No |
+| UI display constraint | ❌ No | ❌ No | ✅ Yes |
+| New workflow | ✅ Yes | ❌ No | ❌ No |
 
 ### What Requires Doc Updates
-✅ Validation rules, calculations, entities, relationships, [CLARIFY] decisions
+✅ Validation rules, calculations, entities, relationships, UI display constraints
 
 ### What Doesn't
-❌ UI changes, performance optimizations, bug fixes, refactoring, tests
+❌ Bug fixes, refactoring, tests, performance optimizations
 
 ---
 
@@ -271,7 +295,9 @@ Before committing:
 - [ ] Using `core.ts` types?
 - [ ] Using `dateCalculations` for dates?
 - [ ] Using `ErrorHandlingService` for errors?
-- [ ] Unified services delegating to domain layer?
+- [ ] Domain rules in `domain/rules/`, not orchestrators?
+- [ ] Orchestrators coordinate only (no business logic)?
 - [ ] Business logic in services, not components?
-- [ ] If logic changed: updated App_Logic.md + Business_Logic.md?
+- [ ] If domain logic changed: updated App Logic.md + Business Logic.md?
+- [ ] If UI constraint changed: updated View Specifications.md?
 - [ ] Commit message has correct prefix?

@@ -1,9 +1,9 @@
 # Business Logic
 ## Detailed Rules, Calculations, and Edge Cases
 
-**Document Version**: 1.2.0  
+**Document Version**: 2.0.0  
 **Last Updated**: December 27, 2025  
-**Status**: Foundation Document - Updated for Client-Group-Label System  
+**Status**: Foundation Document - Updated for Client-Group-Label System, Phase Terminology  
 
 ---
 
@@ -41,15 +41,16 @@ This document focuses on:
 ```
 User
   ├─ Clients (required for projects)
+  │     └─ Projects (every project belongs to exactly one client)
   ├─ Groups (required for projects - currently)
-  ├─ Labels (flexible tagging)
-  └─ Projects (belong to Client AND Group, with optional Labels)
-      ├─ Phases (time periods for budgeting)
-      ├─ Calendar Events (planned and completed work)
-      └─ Time Entries
-  ├─ Work Hours (weekly schedule)
-  ├─ Work Days (derived, with project overrides)
-  └─ Holidays (capacity overrides)
+  │     └─ Projects (every project belongs to exactly one group)
+  ├─ Labels (flexible tagging, many-to-many with projects)
+  ├─ Projects
+  │     ├─ Phases (time periods for budgeting - explicit or recurring)
+  │     └─ Calendar Events (planned and completed work)
+  ├─ Work Slots (weekly schedule defining capacity)
+  ├─ Working Days (derived from work slots)
+  └─ Holidays (capacity overrides - no work on these days)
 ```
 
 > **Entity Definitions:** For what each entity IS (properties, examples), see [App Logic.md](./App%20Logic.md#-part-1-core-entities-things-that-exist).
@@ -60,64 +61,74 @@ User
 
 ## Entity Relationships
 
-### Project → Milestone Relationship
+### Project → Phase Relationship
 
 **Type**: One-to-Many (1:N)
 
 **Rules**:
-1. **Project can have 0 to many milestones**
-2. **Milestone must belong to exactly one project**
-3. **Milestone dates are constrained by project dates**:
+1. **Project can have 0 to many phases** (explicit phases OR one recurring phase pattern)
+2. **Phase must belong to exactly one project**
+3. **Phase dates are constrained by project dates** (for time-limited projects):
    ```
-   project.startDate ≤ milestone.endDate ≤ project.endDate
+   project.startDate ≤ phase.endDate ≤ project.endDate
    ```
-4. **Milestone time allocations are constrained by project budget**:
+4. **Phase time allocations are constrained by project budget**:
    ```
-   SUM(milestone.timeAllocationHours) ≤ project.estimatedHours
+   SUM(phase.timeAllocationHours) ≤ project.estimatedHours
    ```
 
 **Cascade Behavior**:
-- Deleting a project → deletes all its milestones
+- Deleting a project → deletes all its phases
 
 ---
 
 ### Project → Client Relationship
 
-**Type**: Text Label (not a foreign key)
+**Type**: Foreign Key (Many-to-One)
 
-**Current Implementation**:
-- Project has a `client` field (string)
-- Multiple projects can reference the same client name
+**Implementation**:
+- Project has a `client_id` field (foreign key to clients table)
+- Multiple projects can belong to the same client
+- Client is a **required** relationship (every project MUST have a client)
 
-**Implications**:
-- No referential integrity at database level
-- Client filtering/grouping done by string matching
-- Typos can create duplicate "clients"
+**Referential Integrity**:
+- ON DELETE RESTRICT: Cannot delete a client if projects exist
+- Must delete or reassign all projects before deleting a client
 
 **Query Pattern**:
 ```typescript
 // Get all projects for a client
-projects.filter(p => p.client === "Acme Corp")
+projects.filter(p => p.clientId === client.id)
 ```
 
 ---
 
-### Group → Row → Project Hierarchy
+### Project → Group Relationship
 
-**Type**: Tree Structure (1:N:N)
+**Type**: Foreign Key (Many-to-One)
 
 **Rules**:
-1. **Group → Rows**: One-to-Many
-   - Group can have multiple rows
-   - Row belongs to exactly one group
-2. **Row → Projects**: One-to-Many
-   - Row can have multiple projects
-   - Project belongs to exactly one row
-3. **Transitive**: Project indirectly belongs to one group (via row)
+1. **Project → Group**: Many-to-One (currently required)
+   - Project belongs to exactly one group
+   - Group can have many projects
+2. **Direct relationship**: Projects belong directly to groups (no intermediate entity)
 
 **Cascade Behavior**:
-- Deleting a group → deletes all rows → deletes all projects
-- Deleting a row → deletes all projects in that row
+- Cannot delete group if projects exist (must reassign projects first)
+
+---
+
+### Project → Label Relationship
+
+**Type**: Many-to-Many
+
+**Rules**:
+1. **Projects can have 0, 1, or many labels**
+2. **Labels can be applied to many projects**
+3. **Labels are optional** (no project requires labels)
+
+**Cascade Behavior**:
+- Deleting a label removes it from all projects (no blocking)
 
 ---
 
@@ -127,62 +138,65 @@ projects.filter(p => p.client === "Acme Corp")
 
 **Rules**:
 - Calendar events can be linked to a project (optional)
-- Events without projectId are unassigned work
+- Events without projectId may be unassigned work, tasks, habits, or other non-project activities
 - Used for progress tracking and time tracking
 
 ---
 
 ## Business Rules
 
-### Rule 1: Milestone Budget Constraint
-**Statement**: The sum of all milestone time allocations for a project cannot exceed the project's estimated hours.
+### Rule 1: Phase Budget Constraint
+**Statement**: The sum of all phase time allocations for a project cannot exceed the project's estimated hours.
 
 **Formula**:
 ```
-SUM(milestone.timeAllocationHours FOR projectId) ≤ project.estimatedHours
+SUM(phase.timeAllocationHours FOR projectId) ≤ project.estimatedHours
 ```
 
 **Enforcement**:
 - Validated in `UnifiedProjectEntity.analyzeBudget()`
-- Validated in `MilestoneValidator.validateMilestoneCreation()`
+- Validated in `PhaseValidator.validatePhaseCreation()`
 - Checked in `CrossEntityValidator`
 
 **Violations**:
 - **Severity**: High
-- **Action**: Prevent milestone creation/update that would exceed budget
-- **Message**: "Milestone allocation would exceed project budget by X hours"
+- **Action**: Prevent phase creation/update that would exceed budget
+- **Message**: "Phase allocation would exceed project budget by X hours"
 
 ---
 
-### Rule 2: Milestone Date Constraint
-**Statement**: All milestone dates must fall within the parent project's date range.
+### Rule 2: Phase Date Constraint
+**Statement**: All phase dates must fall within the parent project's date range (for time-limited projects).
 
 **Formula**:
 ```
-project.startDate ≤ milestone.endDate ≤ project.endDate
+project.startDate ≤ phase.endDate ≤ project.endDate
 ```
 
 **Special Cases**:
-- If `milestone.startDate` exists: `project.startDate ≤ milestone.startDate ≤ milestone.endDate ≤ project.endDate`
+- If `phase.startDate` exists: `project.startDate ≤ phase.startDate ≤ phase.endDate ≤ project.endDate`
+- For **continuous projects**: Phases must have end dates (absolute deadlines), but no upper bound from project
 
 **Enforcement**:
-- Validated in `UnifiedMilestoneEntity.validateMilestoneDate()`
-- Validated in `MilestoneValidator.validateMilestoneCreation()`
+- Validated in `UnifiedPhaseEntity.validatePhaseDate()`
+- Validated in `PhaseValidator.validatePhaseCreation()`
 
 **Violations**:
 - **Severity**: High
-- **Action**: Prevent milestone creation/update
-- **Message**: "Milestone date must fall within project timeline"
+- **Action**: Prevent phase creation/update
+- **Message**: "Phase date must fall within project timeline"
 
 ---
 
 ### Rule 3: Project Date Validity
-**Statement**: For time-limited projects, the end date must be after the start date.
+**Statement**: For time-limited projects, the end date must be after the start date. Continuous projects have no end date.
 
 **Formula**:
 ```
 IF project.continuous === false THEN
   project.endDate > project.startDate
+ELSE
+  project.endDate is NULL
 ```
 
 **Enforcement**:
@@ -196,14 +210,16 @@ IF project.continuous === false THEN
 
 ---
 
-### Rule 4: Positive Time Allocations
-**Statement**: All time allocations (project budget, milestone allocation) must be positive numbers.
+### Rule 4: Non-Negative Time Allocations
+**Statement**: All time allocations (project budget, phase allocation) must be non-negative numbers. Zero is allowed for projects with no estimate.
 
 **Formula**:
 ```
-project.estimatedHours > 0
-milestone.timeAllocationHours > 0
+project.estimatedHours >= 0
+phase.timeAllocationHours > 0
 ```
+
+**Note**: Project estimated hours can be 0 (no estimate set), but phase allocations must be positive (phases are only created when allocating time).
 
 **Enforcement**:
 - Validated in `UnifiedProjectEntity.validateEstimatedHours()`
@@ -212,30 +228,30 @@ milestone.timeAllocationHours > 0
 **Violations**:
 - **Severity**: Critical
 - **Action**: Prevent creation/update
-- **Message**: "Time allocation must be greater than zero"
+- **Message**: "Time allocation cannot be negative"
 
 ---
 
-### Rule 5: Milestone Order Consistency
-**Statement**: Milestones within a project should have unique, sequential order values.
+### Rule 5: Phase Order Consistency
+**Statement**: Phases within a project should have unique, sequential order values.
 
 **Formula**:
 ```
-For project P with milestones [m1, m2, m3]:
-  m1.order < m2.order < m3.order
+For project P with phases [p1, p2, p3]:
+  p1.order < p2.order < p3.order
 ```
 
 **Enforcement**:
-- Normalized via `normalizeMilestoneOrders()` function
+- Normalized via `normalizePhaseOrders()` function
 - Auto-corrected on fetch
 
 **Violations**:
 - **Severity**: Low (auto-corrected)
-- **Action**: Reorder milestones on load
+- **Action**: Reorder phases on load
 
 ---
 
-### Rule 6: Work Hour Slot Non-Overlap
+### Rule 6: Work Slot Non-Overlap
 **Statement**: Work slots within the same day cannot overlap.
 
 **Formula**:
@@ -244,8 +260,10 @@ For any two slots s1, s2 on same day:
   s1.endTime ≤ s2.startTime OR s2.endTime ≤ s1.startTime
 ```
 
+**Additional Rule**: Work slots cannot cross midnight (must be within a single day).
+
 **Enforcement**:
-- Validated in `WorkHourValidator`
+- Validated in `WorkSlotValidator`
 - Checked before saving settings
 
 **Violations**:
@@ -256,12 +274,35 @@ For any two slots s1, s2 on same day:
 ---
 
 ### Rule 7: Calendar Event Duration
-**Statement**: Event duration is calculated from start to end time and must be positive.
+**Statement**: Event duration is calculated from start to end time and must be positive. User-created events cannot cross midnight (UI validation), but tracked events can span midnight.
 
 **Formula**:
 ```
 event.duration = (event.endTime - event.startTime) in hours
 event.duration > 0
+
+// User-created events
+IF event.type !== 'tracked' THEN
+  event.startTime and event.endTime must be on the same day
+END IF
+
+// Tracked events (from time tracking)
+IF event.type === 'tracked' THEN
+  Can span midnight (no day boundary restriction)
+END IF
+```
+
+**Enforcement**:
+- Calculated automatically in event handlers
+- Validated in `CalendarEventValidator`
+- UI prevents midnight crossing for manual event creation
+- Time tracking system can create events spanning midnight
+
+**Formula**:
+```
+event.duration = (event.endTime - event.startTime) in hours
+event.duration > 0
+event.startTime and event.endTime must be on the same day
 ```
 
 **Enforcement**:
@@ -276,9 +317,12 @@ event.duration > 0
 **Rules**:
 ```
 IF project.continuous === true THEN
-  project.endDate is optional/ignored
+  project.endDate is NULL
+  Auto-estimates are NOT calculated (no deadline to work toward)
+  Phases can still have deadlines (absolute end dates)
 ELSE
   project.endDate is required AND > project.startDate
+  Auto-estimates distribute remaining hours across working days
 ```
 
 **Enforcement**:
@@ -287,85 +331,348 @@ ELSE
 
 ---
 
-### Rule 9: Timeline Day Display - Events vs Estimates
-**Statement**: Timeline bars display either EVENTS (actual work) or ESTIMATES (projected work), never both on the same day.
+### Rule 9: Daily Time Allocation - Data Coexistence and Display
 
-**Critical Distinction**:
-- **Events** = Actual calendar time blocks (planned or completed)
-- **Estimates** = Calculated projections from project/milestone allocations
+> **See Also:** 
+> - App Logic Part 3 - Time Concepts (Capacity, Estimated, Auto-Estimated, Planned, Completed)
+> - View Specifications.md - Timeline View (how this data is displayed in different views)
 
-**Two Categories of Time Display**:
+**Statement**: For any given day and project, multiple types of time data coexist in the domain. How they are displayed depends on the view's capabilities.
 
-### A. EVENTS (Actual Calendar Time)
+**Domain Truth:**
 
-Events are calendar entries that show actual time blocks - either planned future work or completed past work.
+All time types can exist simultaneously for a project on a given day:
+- **Auto-Estimated Time**: Calculated distribution (`(Estimated - Completed) ÷ Remaining Days`)
+- **Planned Time**: Calendar events scheduled for that day
+- **Completed Time**: Tracked work done on that day
 
-1. **Planned Event Time** (Visual: Lighter color with dashed border)
-   - **Source**: Calendar events where `projectId === project.id` AND NOT completed/tracked
-   - **Definition**: Events with `completed === false` AND `type !== 'tracked'` AND `type !== 'completed'`
-   - **Purpose**: Shows user's scheduled future work
-   - **Blocks estimates**: YES - any event on a day blocks estimates for that day
+These are **different aspects of project time**, not mutually exclusive data:
+- Auto-estimates represent the calculated daily allocation needed to finish on time
+- Planned events represent specific scheduled work blocks
+- Completed events represent actual work done
 
-2. **Completed/Tracked Event Time** (Visual: Darker solid color)
-   - **Source**: Calendar events where `projectId === project.id` AND completed/tracked
-   - **Definition**: Events with `completed === true` OR `type === 'tracked'` OR `type === 'completed'`
-   - **Purpose**: Shows actual work done
-   - **Blocks estimates**: YES - any event on a day blocks estimates for that day
+**Display Decision (View-Specific):**
 
-### B. ESTIMATES (Calculated Projections)
+Different views may display this data differently based on their UI capabilities:
 
-Estimates are NOT events. They are calculated distributions of project/milestone time allocations.
-
-3. **Auto-Estimate Time** (Visual: Lightest color, no border)
-   - **Source**: Project/milestone time budget distributed across working days
-   - **Calculation**: Milestone `timeAllocationHours` OR project `estimatedHours` divided by working days
-   - **Purpose**: Shows work needed to meet deadline
-   - **Only appears**: On days WITHOUT any calendar events (planned or completed) for that project
-   - **NOT an event**: This is a calculated projection, not actual calendar time
-
-**Critical Rule - Events vs Estimates Are Mutually Exclusive**:
-```typescript
-// For any given day and project:
-IF day has ANY events (planned OR completed) for project THEN
-  Display: Event time (planned or completed styling)
-  DO NOT display: Estimates
-  Calculation: Sum hours from calendar events only
-ELSE
-  Display: Auto-estimate time
-  Calculation: Project/milestone allocation / working days
-END IF
+**Timeline View** (see View Specifications.md):
+```
+FOR each day D and project P:
+  IF ∃ calendar_event WHERE date = D AND projectId = P THEN
+    Display: Event time (planned or completed styling)
+    Hide: Auto-estimated time (UI constraint - can't render overlapping bars)
+  ELSE IF project is time-limited THEN
+    Display: Auto-estimated time
+  END IF
 ```
 
-**Critical Rule - Event Project Filtering**:
-```typescript
-// Events MUST be filtered by projectId
-∀ event on timeline:
-  event.projectId === project.id
+**Calendar View** (future):
+- May show both events AND auto-estimates (grid cells can contain multiple items)
+
+**Reports View** (future):
+- Shows all time types simultaneously (tables have no overlap constraint)
+
+**Why This Separation Matters:**
+
+The domain calculation (auto-estimates) happens **regardless of display**. Even when Timeline hides auto-estimates (because events exist), they are still calculated and available for:
+- Reports showing total auto-estimated hours
+- Capacity analysis
+- Future days without events
+- Other views that can display multiple types
+
+---
+
+### Rule 9.1: Auto-Estimate Calculation (Domain Rule)
+
+**Formula**:
 ```
-Events not linked to a project do NOT appear on that project's timeline.
+FOR each day D and project P:
+  Calculate auto-estimate:
+    Remaining Hours = Estimated Hours - Completed Hours (for whole project)
+    Remaining Days = Working Days from today to end, excluding days with ANY events
+    Auto-Estimate for day D = Remaining Hours ÷ Remaining Days
+  
+  Store/provide for display:
+    - Auto-Estimated Time (always calculated)
+    - Planned Event Time (if events exist on day D)
+    - Completed Event Time (if completed events exist on day D)
+```
 
-**Critical Rule - Estimates Are NOT Events**:
-- Estimates come from project/milestone `timeAllocationHours` or `estimatedHours`
-- Estimates are mathematical distributions across working days
-- Estimates do NOT have a `completed` status (they're not events)
-- Estimates appear ONLY where no actual events exist
+**Key Principle:**
 
-**Mixed Day Handling** (day with both planned AND completed events):
-- Current behavior: Show as planned time (lighter with dashed border)
-- Future: Stack planned on top of completed (not yet implemented)
-- Note: Both are events, so no estimates appear on this day
+Auto-estimates are **always calculated** for all remaining working days, regardless of whether they will be displayed. The calculation is:
 
-**Enforcement**:
-- Event filtering: `TimelineRules.filterEventsForProject()`
-- Event classification: `TimelineRules.isPlannedTime()` / `TimelineRules.isCompletedTime()`
-- Estimate blocking: `TimelineRules.shouldShowAutoEstimate()` (returns false if ANY events exist)
-- Implemented in `dayEstimateCalculations.ts`
-- Validated by TimelineBar component rendering logic
+1. **Remaining Hours**: `project.estimatedHours - SUM(completed_event_hours)`
+2. **Remaining Days**: Working days WITHOUT any events (planned OR completed)
+3. **Hours per Day**: `Remaining Hours ÷ Remaining Days`
+
+**Why Exclude Event Days from Calculation:**
+
+Days with events (planned or completed) are excluded from the "Remaining Days" denominator to avoid double-counting:
+- If you've scheduled 6 hours on Monday (planned event), Monday is excluded from auto-estimate distribution
+- The remaining hours are spread across OTHER days
+- This prevents the system from suggesting work on days you've already allocated
+
+**Example Calculation:**
+
+```
+Project: 120 estimated hours, Jan 1-31
+Working days: 22 days
+Completed work: 0 hours
+Planned events: None
+
+Auto-estimate calculation:
+  Remaining hours: 120 - 0 = 120
+  Remaining days: 22 (all working days available)
+  Per day: 120 ÷ 22 = 5.45 hours/day
+
+Result: Auto-estimate of 5.45 hours calculated for ALL 22 days
+```
+
+**Domain Invariant:** Auto-estimates are ONLY calculated for time-limited projects (`continuous = false`). Continuous projects have no end date, so there's no "deadline to work toward" for distribution.
+
+---
+
+### Rule 9.2: Event Day Exclusion (Domain Rule)
+
+### Rule 9.2: Event Day Exclusion (Domain Rule)
+
+**Statement**: Days with calendar events (planned OR completed) are excluded from auto-estimate distribution.
+
+**Formula:**
+```
+Remaining Working Days =
+  Start with: Project working days (user working days + project overrides)
+  Filter to: Today → Project end date (exclude past)
+  Exclude: Holidays
+  Exclude: Days with ANY calendar events for this project (planned OR completed)
+```
+
+**Rationale:**
+
+Each calendar event represents a specific time allocation for that day:
+- **Planned event** = You've committed to work X hours on that day
+- **Completed event** = You've already worked X hours on that day
+
+Including these days in auto-estimate distribution would mean:
+- Day shows auto-estimate (e.g., 5 hours)
+- Day also has event (e.g., 6 hours)
+- Total appears to be 11 hours (incorrect!)
+
+By excluding event days, we ensure:
+- Days with events show actual/planned work
+- Days without events show calculated suggestions
+- No double-counting of time
+
+**Example:**
+
+```
+Project: 120 estimated hours, Jan 1-31
+Working days: 22
+
+User plans Monday, Jan 5: 6-hour event
+  Remaining days: 21 (Jan 5 excluded)
+  Auto-estimate per day: 120 ÷ 21 = 5.71 hours
+  
+User completes Monday, Jan 5: Marks 6-hour event complete
+  Remaining hours: 120 - 6 = 114
+  Remaining days: Still 21 (Jan 5 still excluded - has event)
+  Auto-estimate per day: 114 ÷ 21 = 5.43 hours
+```
+
+**Key Point:** Event days are excluded from BOTH numerator (if completed) AND denominator (always).
+
+---
+
+### Rule 9.3: Time Type Definitions (Domain Concepts)
+
+**From App Logic Part 3 - Time Concepts:**
+
+1. **PLANNED TIME** (Calendar Events - Not Completed)
+   - **Source**: Calendar events with `projectId = P`, `completed = false`, `type != 'tracked'`
+   - **Definition**: Specific time blocks user scheduled for future work
+   - **Effect on Domain**: Removes that day from auto-estimate distribution (Rule 9.2)
+   - **Display** (view-specific): See View Specifications for visual styling
+   - **Example**: "Jan 5, 9am-3pm, Website coding" (6 hours planned)
+
+2. **COMPLETED TIME** (Calendar Events - Completed)
+   - **Source**: Calendar events with `projectId = P`, `completed = true` OR `type = 'tracked'`
+   - **Definition**: Specific time blocks of work already done
+   - **Effect on Domain**: Removes day from auto-estimate distribution AND reduces remaining estimated hours
+   - **Display** (view-specific): See View Specifications for visual styling
+   - **Example**: "Jan 5, 9am-3pm, Website coding" (6 hours completed)
+
+3. **AUTO-ESTIMATED TIME** (Calculated Distribution - Not an Event)
+   - **Source**: NOT a calendar event - calculated from project/phase `estimatedHours` or `timeAllocationHours`
+   - **Calculation**: `(Estimated Hours - Completed Hours) ÷ Remaining Working Days`
+   - **Appears**: Only for project working days WITHOUT any calendar events
+   - **Purpose**: Shows daily work needed to finish on time (time-limited projects only)
+   - **Display** (view-specific): See View Specifications for visual styling
+   - **Example**: 120 hours ÷ 22 days = 5.45 hours/day
+   - **Storage**: NOT stored in database (calculated on-demand)
+   - **Properties**: NO start/end times, NO completed status, NO event record
+
+---
+
+### Rule 9.4: Event Filtering (Data Integrity)
+
+**Statement**: Only events explicitly linked to a project count toward that project's time.
+
+**Formula:**
+```typescript
+FOR event to count toward project P:
+  event.projectId === P.id
+  AND event.category !== 'habit'  // Habits never count toward projects
+  AND event.category !== 'task'   // Tasks never count toward projects
+```
+
+**Defensive Rule:**
+
+Even if legacy data has `projectId` set on habits or tasks, these are NEVER counted toward project time. This prevents data inconsistencies from corrupting calculations.
+
+**Events not linked** (no `projectId` or different `projectId`) do NOT:
+- Appear in project displays
+- Affect project auto-estimates
+- Count toward project hours
+
+---
+
+### Rule 9.5: Continuous Projects (Special Case)
+
+**Statement**: Continuous projects (`continuous = true`) do NOT calculate auto-estimates.
+
+**Rationale:**
+
+Auto-estimates are distributed toward a **deadline**:
+- "How much per day to finish by end date?"
+
+Continuous projects have **no end date**, therefore:
+- No deadline to work toward
+- No basis for daily distribution
+- Auto-estimates would be undefined (division by infinity)
+
+**Data That Still Exists:**
+- ✅ Estimated hours (total budget)
+- ✅ Planned events (scheduled work)
+- ✅ Completed events (tracked work)
+- ❌ Auto-estimated time (not calculated)
+
+**Display Impact:**
+- Shows planned and completed events when they exist
+- Shows nothing on days without events (no auto-estimates to show)
+
+---
+
+## Implementation & Enforcement
+
+**Calculation Layer:**
+- `dayEstimateCalculations.ts` - Implements Rules 9.1, 9.2, 9.5
+- `projectCalculations.ts` - Calculates remaining hours (Rule 9.1)
+
+**Domain Rules Layer:**
+- `TimelineRules.ts` - Event filtering (Rule 9.4), data classification
+
+**View Layer:** (See View Specifications.md)
+- Timeline View - Display mutual exclusivity, visual styling
+- Calendar View - Integration with calendar events
+
+**Critical Validation Points:**
+- Event creation: Validate `projectId` assignment
+- Project rendering: Apply event filtering before calculations
+- Auto-estimate display: Check for event existence before showing
+
+---
+
+### Examples (Domain Logic)
+
+**Scenario 1: No calendar events yet**
+```
+Project: 120 hours estimated, Jan 1-31
+Project working days: 22
+Calendar events: None
+Remaining working days: 22 (Rule 9.2)
+Auto-estimate per day: 120 ÷ 22 = 5.45 hours/day (Rule 9.1)
+
+Domain State:
+  - All 22 days eligible for auto-estimates
+  - Each day's contribution: 5.45 hours
+  - Total distributed: 22 × 5.45 = 119.9 hours ≈ 120 hours
+```
+
+**Scenario 2: User plans one day**
+```
+User creates event: "Jan 5, 9am-3pm, 6 hours" (planned, not completed)
+
+Domain State After Event Creation:
+  - Jan 5 now has calendar event → excluded from auto-estimate days (Rule 9.2)
+  - Remaining working days: 21 (Rule 9.2)
+  - Remaining hours to distribute: 120 hours (not completed yet)
+  - Auto-estimate per day: 120 ÷ 21 = 5.71 hours/day (Rule 9.1)
+
+Data Changes:
+  - calendar_events table: New row with projectId, duration=6h, completed=false
+  - Project data: Unchanged (event is planned, not completed)
+  - Auto-estimates: Recalculated for 21 days instead of 22
+```
+
+**Scenario 3: User completes work**
+```
+User marks Jan 5 event as completed (6 hours completed)
+
+Domain State After Completion:
+  - Jan 5 still has calendar event → still excluded from auto-estimate days
+  - Remaining working days: 21 (Rule 9.2)
+  - Completed hours: 6 hours (reduces remaining work)
+  - Remaining hours to distribute: 120 - 6 = 114 hours (Rule 9.1)
+  - Auto-estimate per day: 114 ÷ 21 = 5.43 hours/day (Rule 9.1)
+
+Data Changes:
+  - calendar_events table: event.completed = true
+  - Project calculations: Remaining hours decreased by 6
+  - Auto-estimates: Recalculated with new remaining hours
+```
+
+**Scenario 4: Mixed day (both planned AND completed events)**
+```
+Jan 5 has two events:
+  - 9am-12pm (3 hours, completed)
+  - 2pm-5pm (3 hours, planned)
+
+Domain State:
+  - Jan 5 has events → excluded from auto-estimate days (Rule 9.2)
+  - Day's total: 6 hours (3 completed + 3 planned)
+  - Remaining hours: 120 - 3 = 117 hours (only completed counts)
+  - Remaining working days: 21
+  - Auto-estimate per day: 117 ÷ 21 = 5.57 hours/day
+  
+Data Truth:
+  - Both events exist in calendar_events table
+  - Both linked to same projectId
+  - Day contributes 6 hours total, 3 hours completed
+  - Display handling: See View Specifications (UI layer decision)
+```
+
+**Scenario 5: Continuous project**
+```
+Project: continuous = true, 120 hours estimated
+
+Domain State:
+  - No end date → cannot calculate deadline
+  - Auto-estimates: NOT calculated (Rule 9.5)
+  - Planned events: Still exist and count
+  - Completed events: Still reduce remaining hours
+  
+Calculation Results:
+  - remainingWorkingDays: undefined (no end date)
+  - autoEstimatePerDay: 0 (Rule 9.5 - no calculation)
+  - Data still tracked: ✅ events, ✅ completed hours
+  - Display result: See View Specifications
+```
 
 ---
 
 ### Rule 10: Recurring Pattern Validity
-**Statement**: Recurring events/milestones must have valid pattern configurations.
+**Statement**: Recurring events/phases must have valid pattern configurations.
 
 **Rules**:
 ```
@@ -388,7 +695,7 @@ Invariants are conditions that **must always be true** in the system. Violating 
 **Statement**: Every user-created entity must have a valid userId.
 
 ```typescript
-∀ entity ∈ [projects, milestones, groups, rows, events]:
+∀ entity ∈ [projects, phases, clients, groups, labels, events, workSlots, holidays]:
   entity.userId !== null AND entity.userId exists in auth.users
 ```
 
@@ -400,9 +707,9 @@ Invariants are conditions that **must always be true** in the system. Violating 
 **Statement**: Child entities must have valid parent references.
 
 ```typescript
-∀ milestone: milestone.projectId exists in projects
-∀ project: project.rowId exists in rows AND project.groupId exists in groups
-∀ row: row.groupId exists in groups
+∀ phase: phase.projectId exists in projects
+∀ project: project.clientId exists in clients
+∀ project: project.groupId exists in groups (currently required)
 ```
 
 **Impact if violated**: Orphaned data, display errors
@@ -410,23 +717,25 @@ Invariants are conditions that **must always be true** in the system. Violating 
 ---
 
 ### Invariant 3: Date Ordering
-**Statement**: All date ranges must be properly ordered.
+**Statement**: All date ranges must be properly ordered (for entities with end dates).
 
 ```typescript
-∀ entity with date range:
+∀ entity with date range (where endDate is not NULL):
   entity.startDate ≤ entity.endDate
 ```
+
+**Note**: Continuous projects have NULL endDate, so this invariant doesn't apply to them.
 
 **Impact if violated**: Calculation errors, negative durations
 
 ---
 
 ### Invariant 4: Budget Conservation
-**Statement**: Total milestone allocation never exceeds project budget (enforced).
+**Statement**: Total phase allocation never exceeds project budget (enforced).
 
 ```typescript
 ∀ project:
-  SUM(milestone.timeAllocationHours WHERE milestone.projectId = project.id) 
+  SUM(phase.timeAllocationHours WHERE phase.projectId = project.id) 
   ≤ project.estimatedHours
 ```
 
@@ -445,18 +754,80 @@ Invariants are conditions that **must always be true** in the system. Violating 
 
 ---
 
+### Invariant 6: Client Name Uniqueness
+**Statement**: Client names must be unique per user (case-insensitive).
+
+```typescript
+∀ client1, client2 WHERE client1.userId === client2.userId:
+  LOWER(client1.name) !== LOWER(client2.name)
+```
+
+**Impact if violated**: Duplicate clients, data integrity issues
+
+---
+
+### Invariant 7: Group Name Uniqueness
+**Statement**: Group names must be unique per user (case-insensitive).
+
+```typescript
+∀ group1, group2 WHERE group1.userId === group2.userId:
+  LOWER(group1.name) !== LOWER(group2.name)
+```
+
+**Impact if violated**: Duplicate groups, UI confusion
+
+---
+
+### Invariant 8: Label Name Uniqueness
+**Statement**: Label names must be unique per user (case-insensitive).
+
+```typescript
+∀ label1, label2 WHERE label1.userId === label2.userId:
+  LOWER(label1.name) !== LOWER(label2.name)
+```
+
+**Impact if violated**: Duplicate labels, filtering issues
+
+---
+
 ## Validation Rules
+
+### Client Validation
+
+**Create Client**:
+```typescript
+✓ name is not empty (required)
+✓ name is 1-100 characters
+✓ name is unique per user (case-insensitive)
+✓ email (if provided) contains '@' and '.', no whitespace
+✓ phone (if provided) contains only digits, spaces, hyphens, parentheses, plus signs
+```
+
+**Update Client**:
+```typescript
+✓ All create rules apply
+✓ Name change must maintain uniqueness
+```
+
+**Delete Client**:
+```typescript
+✓ Cannot delete if projects exist (ON DELETE RESTRICT)
+✓ Must delete or reassign all projects first
+```
+
+---
 
 ### Project Validation
 
 **Create Project**:
 ```typescript
 ✓ name is not empty
-✓ estimatedHours > 0
+✓ estimatedHours >= 0 (can be 0 for no estimate)
 ✓ startDate is valid date
-✓ endDate > startDate (if not continuous)
-✓ groupId exists
-✓ rowId exists and belongs to groupId
+✓ clientId exists (required)
+✓ groupId exists (currently required)
+✓ IF time-limited: endDate > startDate
+✓ IF continuous: endDate is NULL
 ✓ color is valid hex code
 ✓ icon is valid Lucide icon name (or default)
 ```
@@ -464,31 +835,61 @@ Invariants are conditions that **must always be true** in the system. Violating 
 **Update Project**:
 ```typescript
 ✓ All create rules apply
-✓ If changing dates, check milestones still within range
-✓ If reducing estimatedHours, check milestones don't exceed new budget
-✓ Cannot change continuous flag if milestones depend on date range
+✓ If changing dates, check phases still within range
+✓ If reducing estimatedHours, check phases don't exceed new budget
+✓ Cannot change from time-limited to continuous if phases depend on project end date
 ```
 
 ---
 
-### Milestone Validation
+### Phase Validation
 
-**Create Milestone**:
+**Create Phase**:
 ```typescript
-✓ name is not empty
 ✓ projectId exists
 ✓ timeAllocationHours > 0
-✓ endDate is within project date range
+✓ endDate is within project date range (for time-limited projects)
 ✓ startDate < endDate (if startDate provided)
-✓ Adding milestone doesn't exceed project budget
+✓ Adding phase doesn't exceed project budget
 ✓ No duplicate order values (auto-corrected)
+✓ For continuous projects: phase must have end date (absolute deadline)
 ```
 
-**Update Milestone**:
+**Update Phase**:
 ```typescript
 ✓ All create rules apply
 ✓ New allocation doesn't exceed project budget
-✓ New dates still within project range
+✓ New dates still within project range (for time-limited projects)
+```
+
+---
+
+### Group Validation
+
+**Create Group**:
+```typescript
+✓ name is not empty (required)
+✓ name is unique per user (case-insensitive)
+```
+
+**Delete Group**:
+```typescript
+✓ Cannot delete if projects exist (must reassign projects first)
+```
+
+---
+
+### Label Validation
+
+**Create Label**:
+```typescript
+✓ name is not empty (required)
+✓ name is unique per user (case-insensitive)
+```
+
+**Delete Label**:
+```typescript
+✓ Can always delete (removes from all projects, no blocking)
 ```
 
 ---
@@ -497,12 +898,30 @@ Invariants are conditions that **must always be true** in the system. Violating 
 
 **Create Event**:
 ```typescript
-✓ title is not empty
 ✓ startTime < endTime
+✓ startTime and endTime on same day (no midnight crossing)
 ✓ duration > 0
 ✓ If projectId provided, project exists
 ✓ Color is valid hex code
 ✓ Recurring pattern is valid (if provided)
+```
+
+---
+
+### Work Slot Validation
+
+**Create/Update Work Slot**:
+```typescript
+✓ startTime < endTime
+✓ startTime and endTime on same day (no midnight crossing)
+✓ dayOfWeek is 0-6 (Sunday-Saturday)
+✓ No overlap with existing slots on same day
+```
+
+**Override Behavior**:
+```typescript
+✓ User can update all future occurrences OR just specific date
+✓ Specific date overrides stored separately from recurring pattern
 ```
 
 ---
@@ -512,47 +931,75 @@ Invariants are conditions that **must always be true** in the system. Violating 
 ### 1. Project Duration
 **Formula**:
 ```typescript
+// For time-limited projects only
 duration = (endDate - startDate) in days
+
+// For continuous projects
+duration = undefined (no end date)
 ```
 
 **Implementation**: `calculateDurationDays()`
 
 ---
 
-### 2. Milestone Utilization
+### 2. Phase Utilization
 **Formula**:
 ```typescript
-utilization = (SUM(milestone.timeAllocationHours) / project.estimatedHours) * 100
+utilization = (SUM(phase.timeAllocationHours) / project.estimatedHours) * 100
 ```
 
 **Implementation**: `UnifiedProjectEntity.analyzeBudget()`
 
 ---
 
-### 3. Working Days Calculation
-**Logic**:
+### 3. Working Days Calculation (Three Levels)
+
+**Level 1: User Working Days**
 ```typescript
-1. Get all days in date range
-2. Filter by autoEstimateDays settings (which days of week)
-3. Exclude holidays
-4. Exclude days with no work slots in settings
+// Days with work slots, excluding holidays
+userWorkingDays = days WHERE hasWorkSlots(day) AND NOT isHoliday(day)
+```
+
+**Level 2: Project Working Days**
+```typescript
+// User working days with optional project-specific overrides
+projectWorkingDays = userWorkingDays
+  .filter(day => !projectExclusions.includes(day))  // Remove project-excluded days
+  .concat(projectInclusions)                         // Add project-included days (rare)
+```
+
+**Level 3: Remaining Working Days**
+```typescript
+// Project working days minus days with planned/completed events
+remainingWorkingDays = projectWorkingDays
+  .filter(day => day >= today)                       // Only future days
+  .filter(day => !hasEventsForProject(day, project)) // No events on this day
 ```
 
 **Implementation**: `calculateAutoEstimateWorkingDays()`
 
 ---
 
-### 4. Day Estimates Distribution
-**For Project Auto-Estimate**:
+### 4. Auto-Estimate Distribution (Time-Limited Projects Only)
+**Formula**:
 ```typescript
-dailyHours = project.estimatedHours / COUNT(working days)
+// Step 1: Calculate remaining hours
+remainingHours = project.estimatedHours - completedHours
+
+// Step 2: Count remaining working days
+remainingDays = COUNT(remainingWorkingDays from today to project.endDate)
+
+// Step 3: Calculate daily hours
+dailyHours = remainingHours / remainingDays
 ```
 
-**For Milestone Allocation**:
+**For Phase Allocation**:
 ```typescript
-// Distribute milestone hours across working days until deadline
-dailyHours = milestone.timeAllocationHours / COUNT(working days until endDate)
+// Distribute phase hours across working days until phase deadline
+dailyHours = phase.timeAllocationHours / COUNT(working days until phase.endDate)
 ```
+
+**Note**: Continuous projects do NOT have auto-estimates (no deadline to distribute toward).
 
 **Implementation**: `UnifiedDayEstimateService`
 
@@ -561,7 +1008,7 @@ dailyHours = milestone.timeAllocationHours / COUNT(working days until endDate)
 ### 5. Budget Remaining
 **Formula**:
 ```typescript
-remaining = project.estimatedHours - SUM(milestone.timeAllocationHours)
+remaining = project.estimatedHours - SUM(phase.timeAllocationHours)
 ```
 
 ---
@@ -569,7 +1016,7 @@ remaining = project.estimatedHours - SUM(milestone.timeAllocationHours)
 ### 6. Budget Overage
 **Formula**:
 ```typescript
-overage = MAX(0, SUM(milestone.timeAllocationHours) - project.estimatedHours)
+overage = MAX(0, SUM(phase.timeAllocationHours) - project.estimatedHours)
 ```
 
 ---
@@ -593,7 +1040,7 @@ overage = MAX(0, SUM(milestone.timeAllocationHours) - project.estimatedHours)
 
 ---
 
-### Milestone Completion
+### Phase Completion
 
 ```
 [active] → [completed]
@@ -619,13 +1066,12 @@ overage = MAX(0, SUM(milestone.timeAllocationHours) - project.estimatedHours)
 ## Edge Cases & Constraints
 
 ### Edge Case 1: Midnight-Crossing Events
-**Scenario**: Event starts on one day and ends on the next.
+**Scenario**: Event or work slot starts on one day and ends on the next.
 
 **Handling**:
-- Automatically split into two separate events
-- First event: original startTime to 23:59:59
-- Second event: 00:00:00 to original endTime
-- Link via `originalEventId` and `isSplitEvent` flag
+- **Events**: Prevented by validation (events must be within single day)
+- **Work Slots**: Prevented by validation (slots must be within single day)
+- If legacy data exists: split into two separate events automatically
 
 ---
 
@@ -638,27 +1084,27 @@ overage = MAX(0, SUM(milestone.timeAllocationHours) - project.estimatedHours)
 
 ---
 
-### Edge Case 3: Milestone Reordering
-**Scenario**: Changing milestone dates causes order conflicts
+### Edge Case 3: Phase Reordering
+**Scenario**: Changing phase dates causes order conflicts
 
 **Handling**:
 - Auto-normalize orders on save
 - Orders are relative, not absolute
-- `normalizeMilestoneOrders()` fixes gaps and duplicates
+- `normalizePhaseOrders()` fixes gaps and duplicates
 
 ---
 
 ### Edge Case 4: Budget Exactly at Limit
-**Scenario**: Milestone allocation exactly equals project budget
+**Scenario**: Phase allocation exactly equals project budget
 
 **Handling**:
 - Allowed (utilization = 100%)
-- Warning shown if trying to add more milestones
+- Warning shown if trying to add more phases
 
 ---
 
-### Edge Case 5: Orphaned Milestones
-**Scenario**: Project deleted but milestones remain (shouldn't happen with cascade)
+### Edge Case 5: Orphaned Phases
+**Scenario**: Project deleted but phases remain (shouldn't happen with cascade)
 
 **Handling**:
 - Database cascade delete should prevent
@@ -677,28 +1123,30 @@ overage = MAX(0, SUM(milestone.timeAllocationHours) - project.estimatedHours)
 
 ---
 
-### Edge Case 7: Continuous Project Milestone Dates
-**Scenario**: How to handle milestones in continuous projects (no endDate)
+### Edge Case 7: Continuous Project Phase Dates
+**Scenario**: How to handle phases in continuous projects (no project endDate)
 
 **Handling**:
-- Milestones still require endDate (absolute deadlines)
-- No upper bound validation on milestone dates
-- Validate only that milestone.endDate is after project.startDate
+- Phases still require endDate (absolute deadlines within ongoing work)
+- No upper bound validation from project (project has no end)
+- Validate only that phase.endDate is after project.startDate
+- Auto-estimates NOT calculated for continuous projects
 
 ---
 
-### Edge Case 8: Empty Project (No Milestones)
-**Scenario**: Project with no milestones
+### Edge Case 8: Empty Project (No Phases)
+**Scenario**: Project with no phases
 
 **Handling**:
 - Perfectly valid
 - Timeline shows project bar only
-- Auto-estimate distributes entire estimatedHours across working days
+- For time-limited projects: auto-estimate distributes entire estimatedHours across working days
+- For continuous projects: no auto-estimates shown
 
 ---
 
-### Edge Case 9: Milestone Time Exceeds Project Budget
-**Scenario**: Single milestone allocation > project estimatedHours
+### Edge Case 9: Phase Time Exceeds Project Budget
+**Scenario**: Single phase allocation > project estimatedHours
 
 **Handling**:
 - Prevented during creation
@@ -717,6 +1165,26 @@ overage = MAX(0, SUM(milestone.timeAllocationHours) - project.estimatedHours)
 
 ---
 
+### Edge Case 11: Client Deletion with Projects
+**Scenario**: User tries to delete client that has projects
+
+**Handling**:
+- Prevented by database constraint (ON DELETE RESTRICT)
+- Error message shown: "Cannot delete client with existing projects"
+- User must delete or reassign all projects first
+
+---
+
+### Edge Case 12: Group Deletion with Projects
+**Scenario**: User tries to delete group that has projects
+
+**Handling**:
+- Prevented by application logic
+- Error message shown: "Cannot delete group with existing projects"
+- User must reassign all projects to another group first
+
+---
+
 ## Implementation Notes
 
 ### Where Rules Are Currently Enforced
@@ -727,13 +1195,14 @@ overage = MAX(0, SUM(milestone.timeAllocationHours) - project.estimatedHours)
 
 2. **Domain Entities** (`src/services/unified/UnifiedProjectService.ts`)
    - `UnifiedProjectEntity` - project-specific rules
-   - `UnifiedMilestoneService` - milestone calculations
+   - `UnifiedPhaseService` - phase calculations
 
 3. **Validators** (`src/services/validators/`)
    - `ProjectValidator` - comprehensive project validation
-   - `MilestoneValidator` - comprehensive milestone validation
+   - `PhaseValidator` - comprehensive phase validation
+   - `ClientValidator` - client validation
    - `CrossEntityValidator` - cross-domain validation
-   - `WorkHourValidator` - work hour slot validation
+   - `WorkSlotValidator` - work slot validation
 
 4. **Contexts** (`src/contexts/`)
    - State management
@@ -742,26 +1211,32 @@ overage = MAX(0, SUM(milestone.timeAllocationHours) - project.estimatedHours)
 5. **Database** (`supabase/migrations/`)
    - Foreign key constraints
    - NOT NULL constraints
-   - ON DELETE CASCADE rules
+   - ON DELETE CASCADE / RESTRICT rules
 
 ### Gaps Identified
 
 - ❌ No centralized domain model classes
 - ❌ Business rules duplicated across layers
-- ❌ No single "reference" for developers to consult
 - ❌ Validation inconsistently applied
-- ❌ Client entity not normalized (text field only)
+
+### Resolved (v2.0.0)
+
+- ✅ Client entity now normalized (proper foreign key relationship)
+- ✅ Row entity removed (projects belong directly to groups)
+- ✅ Milestone terminology standardized to "Phase"
+- ✅ Single reference document established
 
 ---
 
 ## Next Steps
 
 1. ✅ **This document** - establish single source of truth
-2. 🔄 **Create domain model layer** (`src/domain/`)
-3. 🔄 **Consolidate validators** to reference domain models
-4. 🔄 **Update Architecture Guide** to include domain layer
-5. 🔄 **Refactor contexts** to use domain layer
-6. 🔄 **Add comprehensive tests** based on these rules
+2. ✅ **Client normalization** - proper entity with foreign key
+3. 🔄 **Create domain model layer** (`src/domain/`)
+4. 🔄 **Consolidate validators** to reference domain models
+5. 🔄 **Update Architecture Guide** to include domain layer
+6. 🔄 **Refactor contexts** to use domain layer
+7. 🔄 **Add comprehensive tests** based on these rules
 
 ---
 
@@ -781,12 +1256,15 @@ overage = MAX(0, SUM(milestone.timeAllocationHours) - project.estimatedHours)
 
 ## Glossary
 
-- **Entity**: A domain object with identity (Project, Milestone, etc.)
+- **Entity**: A domain object with identity (Project, Phase, Client, etc.)
+- **Phase**: A time period within a project (previously called "milestone" in some contexts)
 - **Business Rule**: A constraint or calculation that enforces business requirements
 - **Invariant**: A condition that must always be true
 - **Validation Rule**: A check performed before persisting data
 - **Domain Logic**: Core business logic independent of UI/database concerns
+- **Continuous Project**: A project with no end date (ongoing work)
+- **Time-Limited Project**: A project with a definite end date (deadline)
 
 ---
 
-**End of Business Logic Reference v1.0.0**
+**End of Business Logic Reference v2.0.0**

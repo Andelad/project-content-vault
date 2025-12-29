@@ -1,7 +1,7 @@
 # App Logic - Time Forecasting Application
 
-**Version:** 1.1  
-**Date:** December 26, 2025  
+**Version:** 1.2  
+**Date:** December 27, 2025  
 **Status:** IN PROGRESS - Foundation Document  
 **Author:** [Your Name]
 
@@ -72,7 +72,7 @@ How they work:
 - Record hours after the fact
 - No forecasting or planning ahead
 
-*The problem:* Driving by looking in the rearview mirror. Hard to answer forward-looking questions like "Can I take on a new client?" or "Can I take that holiday next month?" Past data doesn't by itself map the future.
+*The problem:* Driving by looking in the rearview mirror. Hard to answer forward-looking questions like "Can I take on a new client?" or "Can I take that holiday next month?" Past data doesn't automatically map the future.
 
 ---
 
@@ -100,15 +100,15 @@ How they work:
 
 ### How This App Is Different
 
-**Built for the individual, top-down, with dynamic rebalancing.**
+**Built for the individual, BigPicture-down, with dynamic forecasting.**
 
 Instead of managing hundreds of tasks, users work with the big picture:
 
 1. Set your **capacity** (when you can work)
 2. Create **projects** with time estimates
-3. Watch the app **auto-distribute** hours across your available days
-4. Schedule specific work when needed
-5. Complete work and watch estimates **automatically rebalance**
+3. Watch the app **auto-estimate** your work load across your available days
+4. Plan specific work when needed
+5. Complete work and watch auto-estimates automatically rebalance.
 
 **Why it solves the problems above:**
 - **Big-picture first** - Start with total hours, not individual tasks (solves task-estimation problem)
@@ -184,12 +184,12 @@ The organization or person you're doing work for.
 
 **Key Rules:**
 - Every project MUST have a client (required relationship)
-- Client names must be unique per user (each user has their own isolated client list)
-  - **Note:** Currently case-sensitive in database - "Acme Corp" and "ACme Corp" would be treated as different clients (likely should be case-insensitive - TO FIX)
+- Client names must be unique per user, case-insensitive (each user has their own isolated client list - "Acme Corp" and "ACME CORP" are treated as the same client)
 - Different users CAN have clients with the same name (data is isolated per user)
 - Clients are independent entities (not just text labels)
 - Can have multiple projects per client (one-to-many relationship)
 - **Cannot delete client if projects exist** (ON DELETE RESTRICT - must delete/reassign all projects first)
+- A client can have no projects
 - Status determines visibility:
   - Active: shown in project creation dropdowns
   - Inactive: shown in lists but marked as inactive
@@ -210,29 +210,47 @@ The organization or person you're doing work for.
 
 ### 3. Project
 **What it is:**
-A piece of work that needs to be completed by a deadline, with an optional time estimate (expressed in hours).
+A piece of work that needs to be completed, with an optional time estimate (expressed in hours). Projects can be **time-limited** (with a deadline) or **continuous** (ongoing with no end date).
 
 **Essential Properties:**
 - Name (what is it?)
 - Client (who is it for? - REQUIRED)
 - Start date (when does work begin?)
-- End date (when must it be finished?)
 - Estimated hours (time estimate/load - can be 0 if no estimate set)
+
+**Conditional Properties:**
+- End date (when must it be finished? - REQUIRED for time-limited projects, NULL for continuous projects)
 
 **Organizational Properties (Optional):**
 - Group (0 or 1 - currently single group only, may expand to multiple group sets in future, so that a project can belong to multiple group sets, but only 1 group in a set)
 - Labels (0, 1, or many - flexible tags)
 - Working day overrides (specific dates marked as working/non-working for this project only - see "Project Working Days" in Derived Concepts)
 
+**Project Types:**
+
+| Type | End Date | Auto-Estimates | Use Case |
+|------|----------|----------------|----------|
+| **Time-Limited** | Required | Distributed across working days until deadline | Projects with deadlines |
+| **Continuous** | NULL/None | Not applicable (no deadline to work toward) | Ongoing retainers, maintenance, open-ended work |
+
 **Key Rules:**
 - MUST have a client
-- MUST have start date and end date
-- End date must be AFTER start date (projects must span at least one day)
-- If has phases: end date MUST be >= the last phase's end date (auto-synced to last phase)
+- MUST have start date
+- **Time-limited projects:**
+  - MUST have end date
+  - End date must be AFTER start date (projects must span at least one day)
+  - Auto-estimates distributed across working days within date range
+  - If has phases: end date MUST be >= the last phase's end date (auto-synced to last phase)
+  - If has phases: end date IS the last phase's end date (auto-synced)
+  - If has recurring phase, last phase is truncated to end on the project end date. Or user is given option to update end date to the last full phase cycle.
+- **Continuous projects:**
+  - End date is NULL/not set
+  - No auto-estimates (no deadline to calculate distribution toward)
+  - Can still have phases with their own deadlines
+  - Phases must have end dates (absolute deadlines within the ongoing project)
+  - Progress tracked by completed time vs. estimated time
 - Estimated hours must be >= 0 (cannot be negative)
 - Start date can be in the past (for historical projects)
-- If has phases: end date IS the last phase's end date (auto-synced)
-- If has recurring phase, last phase is truncated to end on the project end date. Or user is given option to update end date to the last full phase cycle.
 
 **Examples:**
 - "Website Redesign" for Acme Corp, Jan 1 - Mar 31, 120 hours (no phases - simple project)
@@ -252,8 +270,8 @@ A time period within a project where specific work happens, with a portion of th
 
 **Essential Properties:**
 - Project (which project does this belong to?)
-- Time allocation (how many hours?)
 - Type (explicit, recurring)
+- Date range (start date and end date for explicit phases; pattern defines dates for recurring phases)
 
 **Type-Specific Properties:**
 
@@ -306,7 +324,6 @@ The primary way to organize projects by important life areas (e.g., Work, Person
 
 **Optional Properties:**
 - Icon (emoji or icon identifier) - not currently required
-- Color (for visual distinction) - not currently required
 - Order (display sequence) - currently required
 
 **Key Rules:**
@@ -344,9 +361,6 @@ Flexible tags for categorizing and filtering projects.
 
 **Essential Properties:**
 - Name
-
-**Optional Properties:**
-- Color (for visual distinction)
 
 **Key Rules:**
 - Projects can have 0, 1, or many labels
@@ -389,7 +403,7 @@ A specific time block representing work (planned or completed). **Events are def
 - Events NOT linked to a project don't affect any project
 - Habits NEVER count toward project time (even if project field set)
 - Tasks NEVER count toward project time (even if project field set)
-- Event blocks auto-estimate for that day (if linked to project)
+- Event linked to a project removes that day from auto-estimate calculation for that project (day becomes "used")
 - Events may technically span multiple days, but UI does not provide tools for creating multi-day events (single-day events only)
 
 **Examples:**
@@ -402,35 +416,31 @@ A specific time block representing work (planned or completed). **Events are def
 
 ### 8. Work Slot
 **What it is:**
-A time block when you're available to work. These are concrete schedule entries stored in the database.
+A time block when you're available to work on a specific day of the week (e.g., "Every Monday 9am-5pm"). Work slots define your weekly work schedule and recur by their nature.
 
 **Essential Properties:**
 - Start time (e.g., 9:00 AM)
 - End time (e.g., 5:00 PM)
-- Day of week (Monday, Tuesday, etc.) OR specific date
-- Recurring (boolean - is this a weekly recurring slot or a one-time override?)
+- Day of week (Monday, Tuesday, Wednesday, etc.)
 
 **Calculated Property:**
 - Duration (calculated from start/end) - this contributes to **work hours**
 
-**How Work Slots Work:**
-1. **Weekly Pattern**: User sets recurring slots (e.g., "Every Monday 9am-5pm")
-2. **Generates Instances**: System creates slot instances for each applicable date
-3. **Planner Overrides**: User can modify/delete individual instances without affecting the pattern
-4. **Apply to Future**: Changes can optionally update the recurring pattern for all future dates
-
 **Key Rules:**
-- Each work slot instance has a unique ID (database entity)
+- Work slots recur weekly (a Monday slot applies to ALL Mondays)
 - Work slots CANNOT cross midnight (must be within a single day)
 - A day with at least one work slot = a **working day**
 - Multiple slots can exist on the same day (e.g., morning + afternoon with lunch break)
 - Holidays override work slots (no capacity on holidays even if slots exist)
+- Specific dates can have overrides (different hours or no work for that occurrence only)
+- When modifying a recurring work slot, user can choose to update all future occurrences or just that specific date
 
 **Examples:**
-- Recurring slot: "Every Monday 9am-5pm" (8-hour duration, generates work hours)
-- Recurring slot: "Every Friday 9am-1pm" (4-hour duration)
-- One-time override: "December 30, 2025, 10am-2pm" (doesn't affect recurring pattern)
-- Split day: "Every Tuesday 9am-12pm" + "Every Tuesday 2pm-5pm" (6 work hours with lunch break)
+- "Every Monday 9am-5pm" (8-hour duration)
+- "Every Friday 9am-1pm" (4-hour duration)
+- "Every Tuesday 9am-12pm" + "Every Tuesday 2pm-5pm" (6 work hours with lunch break)
+- Override: "December 30, 2025, no work" (removes Monday slot for that specific date)
+- Override: "December 31, 2025, 10am-2pm" (changes Friday hours for that specific date)
 
 ---
 
@@ -439,7 +449,7 @@ A time block when you're available to work. These are concrete schedule entries 
 A date when normal work hours don't apply.
 
 **Essential Properties:**
-- Date (which day?)
+- Start date and end date (duration - can be a single day or multiple days)
 
 **Optional Properties:**
 - Name (e.g., "Christmas", "New Year's Day")
@@ -453,12 +463,12 @@ A date when normal work hours don't apply.
 - Recurring holidays automatically appear each year
 
 **Examples:**
-- December 25, "Christmas", recurs annually
-- July 4, "Independence Day", recurs annually
-- June 15, 2026, "Company Retreat" (one-time)
+- December 25 - December 25, "Christmas", recurs annually (single day)
+- July 4 - July 4, "Independence Day", recurs annually (single day)
+- June 15, 2026 - June 19, 2026, "Company Retreat" (one-time, 5 days)
 
 **Why This Matters:**
-- Timeline calculations exclude holidays
+- Auto-estimate calculations exclude holidays
 - Capacity warnings account for holidays
 - Project duration calculations skip holidays
 
@@ -484,7 +494,7 @@ These are important concepts that don't exist as separate database entities, but
 A day considered workable - any day that has at least one work slot.
 
 **Calculated from:**
-- Work Slots (if a date has work slot instances, it's a working day)
+- Work Slots (if a date has work slot instances, it's a working day for that user)
 - Holidays (override: even if work slots exist, holidays are NOT working days)
 
 **Three Levels:**
@@ -498,10 +508,14 @@ This app uses "working days" in three different contexts:
 | **Remaining Working Days** | Project working days minus days with planned/completed events (used in auto-estimate calculations) | Project Working Days - Event Days | Project: Mon-Fri, Events on Mon-Tue = Remaining: Wed, Thu, Fri |
 
 **Not Stored Because:**
-Work slots are the source of truth. Working days are derived by checking: "Does this date have work slot instances?"
+Work slots are the source of truth. Working days are derived by checking: "Does this date have work slot instances?" or "Does this date have project-level overrides?"
 
 **Project Overrides:**
-Projects can store exceptions: "Mark Dec 30 as non-working for Website project" or "Mark Saturday Jan 4 as working for Website project". These overrides are stored as project properties, not separate entities.
+Projects can override the user's working days in two ways:
+1. **Chosen work days** (alternative weekly recurring template): Project specifies which days of the week are working days (e.g., user works Mon-Fri, but this project only has work on Tue-Thu)
+2. **Specific date exclusions** (not yet implemented): Mark specific dates as non-working or working exceptions (e.g., "No work on Dec 30 for this project" or "Work on Saturday Jan 4 for this project only")
+
+These overrides are stored as project properties, not separate entities.
 
 **Critical For:**
 - **User Working Days**: Determines base availability
@@ -578,7 +592,6 @@ Changes constantly as you add/remove planned events or update project estimates.
 **Used For:**
 - "Can I take on this new project?" checks
 - "Do I have time for this meeting?" decisions
-- Visual indicators of free vs. busy time
 - Answering "How much time is available next week?"
 
 **Key Distinction:**
@@ -613,7 +626,6 @@ Constantly recalculating as events are added, completed, or estimates change. Ca
 **Used For:**
 - Capacity warnings: "You're overbooked this week"
 - Feasibility checks: "Can I take on this new project?"
-- Workload visualization: Red highlights when overcommitted
 
 **Key Point:**
 Overcommitment is a **warning**, not a blocker. Users can still add work, but the system alerts them that they've committed more time than they have available.
@@ -652,7 +664,7 @@ Overcommitment is a **warning**, not a blocker. Users can still add work, but th
 <!-- SECTION: PART-3-TIME-CONCEPTS -->
 ## ⏱️ PART 3: TIME CONCEPTS (Critical to This App)
 
-**This is what makes the app unique.** Most apps just track "time spent" or "deadline". This app has a sophisticated hierarchy of time concepts.
+**This is what makes the app unique.** Most apps just track "time spent", "time estimates", or "deadlines". This app has a sophisticated hierarchy of time concepts.
 
 **Time Concept Overview:**
 0. Capacity (The Foundation)
@@ -660,26 +672,6 @@ Overcommitment is a **warning**, not a blocker. Users can still add work, but th
 2. Auto-Estimated Time
 3. Planned Time
 4. Completed Time
-
----
-
-### Understanding "Working Days"
-
-This app uses "working days" in three different contexts. Understanding the distinction is critical for auto-estimate calculations:
-
-| Level | Definition | Example |
-|-------|-----------|---------|
-| **User Working Days** | Days with work slots set, excluding holidays | Mon-Fri (from user settings) |
-| **Project Working Days** | User working days, with optional project-specific overrides | Mon-Fri, but project overrides Wed as non-working = Mon, Tue, Thu, Fri |
-| **Remaining Working Days** | Project working days that DON'T have any planned or completed events | Mon, Tue had events = Only Thu, Fri remain |
-
-**For auto-estimate calculations, "remaining working days" is used** - the narrowest definition.
-
-**Example:**
-- User sets Mon-Fri as working days via work slots (User Working Days = 5)
-- Project "Website" overrides Wed as non-working (Project Working Days = 4: Mon, Tue, Thu, Fri)
-- User has events on Mon and Tue (Remaining Working Days = 2: Thu, Fri only)
-- Auto-estimate calculation: Total remaining hours ÷ 2 days
 
 ---
 
@@ -723,17 +715,17 @@ The total time you have available for work. Not a "type" of project time, but th
 - **Holidays** - Days with zero capacity (override work slots)
 
 **Work Slots vs Work Hours:**
-- **Work Slots** = Time blocks when you can work (set in user settings, e.g., "Mon-Fri 9am-5pm")
+- **Work Slots** = Time blocks when you can work (set in user settings, e.g., "Fri 9am-5pm")
 - **Work Hours** = Total duration calculated from work slots (e.g., 8 hours/day × 5 days = 40 hours/week)
 - Work slots can have planner overrides (delete a day or change hours without affecting the overall pattern)
 
 **Examples:**
 - Standard capacity: Mon-Fri 9am-5pm work slots = 8 hours/day × 5 days = 40 work hours/week
-- Reduced capacity: Mon-Fri 9am-1pm work slots = 4 hours/day × 5 days = 20 work hours/week
+- Mixed arrangement: Mon-Thu 9am-5pm (8 hrs/day), Fri 6am-8am + 11am-3pm (6 hrs/day) = (4 × 8) + 6 = 38 work hours/week (each work slot is on a single day, recurs weekly)
 - Holiday override: Dec 25 = 0 hours (even though it's a weekday with work slots)
 
 **Why this matters:**
-- Auto-estimates only appear during work slot times
+- Auto-estimates only appear on days with work slot times
 - Projects compete for capacity (multiple projects = shared capacity)
 - Overbooked warnings compare scheduled time to capacity
 - Working days (not calendar days) determine auto-estimate distribution
@@ -780,7 +772,7 @@ The total time budget you allocate to a project (or phase within a project). Thi
 ### 2. Auto-Estimated Time
 
 **What it is:**
-The estimated time broken down into individual days - the system automatically distributes your total estimate across working days.
+The estimated time broken down into individual days - the system automatically distributes your total estimate across working days within a project duration.
 
 **Where it's stored:**
 NOT stored - calculated dynamically in real-time
@@ -837,34 +829,25 @@ Step 3: Divide
 - Never appears on holidays
 - Never appears outside work slot times
 
-**User sees this as:**
-Lightest color, no border on timeline - represents "what you need to do per day to finish on time"
-
-**Visual:**
-```
-Mon: ░░░░ 5.5 hrs (auto-estimate)
-Tue: ░░░░ 5.5 hrs (auto-estimate)
-Wed: [planned event - no auto-estimate]
-Thu: ░░░░ 5.5 hrs (auto-estimate)
-Fri: [completed work - no auto-estimate]
-```
-
 ---
 
 ### 3. Planned Time
 
 **What it is:**
-Specific time blocks when you commit to working on the project. This adds **specific start/end times** to your estimate.
+Calendar events with specific start and end times when you commit to working on the project. **Total planned time** is the sum of these events' durations across a time period (e.g., weekly, monthly, or for the entire project).
 
 **The key difference:**
 - Estimated Time: "120 hours across Jan 1-31" (date range, no specific times)
 - Auto-Estimated: "~5 hours per day" (daily distribution, still no specific times)
-- **Planned Time: "Jan 5, 9am-3pm" (specific start and end time)**
+- **Planned Time: Individual events with specific times on specific days**
+  - "Jan 5, 9am-3pm" (6 hours)
+  - "Jan 8, 2pm-3pm" (1 hour)
+  - **Total planned time for week: 7 hours** (sum of events)
 
 **Where it's stored:**
 Calendar events with:
 - `project_id` is set (linked to project)
-- `start_time` and `end_time` (specific times)
+- `start_time` and `end_time` (specific times within a single day - cannot cross midnight)
 - `completed = false` (not done yet)
 - `type != 'tracked'` and `type != 'completed'`
 - Category is NOT 'habit' or 'task'
@@ -873,12 +856,13 @@ Calendar events with:
 - "Website coding" - Jan 5, 9am-3pm (6 hours)
 - "Client meeting" - Jan 8, 2pm-3pm (1 hour)
 - "Design work" - Jan 10, 10am-4pm (6 hours, with 2-hour lunch break = 4 work hours)
+- Total planned time for Jan 5-10: 6 + 1 + 4 = 11 hours
 
 **Key Rules:**
 - User manually creates these events
 - Must be linked to a project
-- Must have specific start/end times
-- **Removes that day from auto-estimate calculation**
+- Must have specific start/end times within a single day (cannot cross midnight)
+- **Each event removes that day from auto-estimate calculation**
 - In the future (not completed yet)
 
 **Effect on auto-estimates:**
@@ -893,17 +877,7 @@ AFTER planning Jan 5 (9am-3pm, 6 hours):
   Remaining hours: Still 120 (not completed yet)
   Remaining working days: 21 (Jan 5 removed from count)
   Auto-estimate per day: 120 ÷ 21 = 5.71 hours
-  Jan 5 shows: ▒▒▒▒ 6 hrs (planned) - no auto-estimate
-```
-
-**User sees this as:**
-Lighter color, dashed border on timeline - represents "scheduled future work at specific times"
-
-**Visual Distinction:**
-```
-Auto-Estimate:  ░░░░░░░░  (lightest, no border, no specific times)
-Planned Time:   ▒▒▒▒▒▒▒▒  (light, dashed border, specific times: 9am-3pm)
-Completed Time: ████████  (dark, solid border, specific times recorded)
+  Jan 5 shows: Planned event (6 hrs) - no auto-estimate
 ```
 
 ---
@@ -969,14 +943,11 @@ AFTER completing Jan 5 (5 hours actual):
   Auto-estimate per day: 115 ÷ 21 = 5.48 hours
 ```
 
-**User sees this as:**
-Darker color, solid border on timeline - represents "work actually completed at specific times"
-
 **Progress tracking:**
 - Shows exactly when work was done
 - Calculates total hours completed
 - Shows % complete (completed / estimated × 100)
-- Forecasts completion date based on current pace
+- Forecasts work hours to complete project with project duration
 
 ---
 
@@ -1017,18 +988,18 @@ Remaining working days (no events): 20
 
 Monday (Jan 6):
   - Has planned event: "Website work" 9am-5pm (8 hours)
-  - Shows: ▒▒▒▒▒▒▒▒ 8 hrs planned (dashed)
+  - Shows: Planned event (8 hrs)
   - Remaining working days: NOT counted (20 days, not 21)
 
 Tuesday (Jan 7):
   - Has completed event: "Client meeting" 2pm-3pm (1 hour)
-  - Shows: ████ 1 hr completed (solid)
+  - Shows: Completed event (1 hr)
   - Remaining working days: NOT counted (even though only 1 hour - day is used)
 
 Wednesday (Jan 8):
   - No events
   - Is a project working day (not holiday)
-  - Shows: ░░░░ 5.5 hrs auto-estimate
+  - Shows: Auto-estimate (5.5 hrs)
   - Remaining working days: COUNTED
 
 Thursday (Jan 9):
@@ -1039,7 +1010,7 @@ Thursday (Jan 9):
 Friday (Jan 10):
   - No events
   - Is a project working day
-  - Shows: ░░░░ 5.5 hrs auto-estimate
+  - Shows: Auto-estimate (5.5 hrs)
   - Remaining working days: COUNTED
 
 Calculation:
@@ -1070,14 +1041,14 @@ Calculation:
 - **Capacity awareness**: See if you're overbooked
 - **Automatic distribution**: Don't manually schedule every day
 - **Dynamic rebalancing**: Auto-estimates adjust as you work
-- **Realistic forecasting**: "At current pace, finish Feb 3"
+- **Realistic forecasting**: "At current pace, your project will be delayed"
 - **Specific planning**: Schedule critical days, auto-fill the rest
 - **Progress tracking**: See exactly what's done vs. what's left
 
 **The user experience:**
 1. Set work slots (capacity)
 2. Create project with estimate (estimated time)
-3. See timeline auto-fill with suggested hours (auto-estimated time)
+3. See auto-estimated hours distributed across working days
 4. Schedule specific days when needed (planned time)
 5. Track work as completed (completed time)
 6. Watch auto-estimates adjust automatically
@@ -1091,12 +1062,13 @@ These are the primary user journeys through the application.
 
 **Workflow Overview:**
 1. Initial Setup
-2. Create a Simple Project
-3. Create a Project with Phases
-4. Plan Specific Work
-5. Track Completed Work
-6. Take a Holiday
-7. Review Progress
+2. Create a Client
+3. Create a Simple Project
+4. Create a Project with Phases
+5. Plan Specific Work
+6. Track Completed Work
+7. Take a Holiday
+8. Review Progress
 
 ---
 
@@ -1115,7 +1087,25 @@ These are the primary user journeys through the application.
 
 ---
 
-### Workflow 2: Create a Simple Project
+### Workflow 2: Create a Client
+
+**Goal:** Add a client before creating projects for them
+
+**Steps:**
+1. User clicks "New Client" (or creates inline during project creation)
+2. Enters client name (required, must be unique)
+3. Optionally adds contact information:
+   - Contact email
+   - Contact phone
+   - Billing address
+   - Notes
+4. Saves client
+
+**Result:** Client is available to select when creating projects.
+
+---
+
+### Workflow 3: Create a Simple Project
 
 **Goal:** Add a project without phases
 
@@ -1129,11 +1119,11 @@ These are the primary user journeys through the application.
 7. Adds labels (optional)
 8. Saves project
 
-**Result:** Project appears on timeline with auto-estimated hours distributed across working days.
+**Result:** Project is created with auto-estimated hours distributed across working days.
 
 ---
 
-### Workflow 3: Create a Project with Phases
+### Workflow 4: Create a Project with Phases
 
 **Goal:** Add a project broken into time periods
 
@@ -1144,11 +1134,11 @@ These are the primary user journeys through the application.
 4. Project end date auto-syncs to last phase's end date
 5. Project estimated hours = sum of phase allocations
 
-**Result:** Timeline shows each phase as a distinct time period with its own auto-estimates.
+**Result:** Each phase is treated as a distinct time period with its own auto-estimate allocation.
 
 ---
 
-### Workflow 4: Plan Specific Work
+### Workflow 5: Plan Specific Work
 
 **Goal:** Schedule work at specific times
 
@@ -1162,7 +1152,7 @@ These are the primary user journeys through the application.
 
 ---
 
-### Workflow 5: Track Completed Work
+### Workflow 6: Track Completed Work
 
 **Goal:** Record actual work done
 
@@ -1181,7 +1171,7 @@ These are the primary user journeys through the application.
 
 ---
 
-### Workflow 6: Take a Holiday
+### Workflow 7: Take a Holiday
 
 **Goal:** Block out days with no work
 
@@ -1193,7 +1183,7 @@ These are the primary user journeys through the application.
 
 ---
 
-### Workflow 7: Review Progress
+### Workflow 8: Review Progress
 
 **Goal:** Understand project status
 
@@ -1256,7 +1246,7 @@ Consolidated validation rules across all entities.
 | Entity | Field | Rules |
 |--------|-------|-------|
 | Project | Estimated hours | Must be >= 0 |
-| Phase | Time allocation | Must be >= 0 |
+| Phase | Time allocation | Must be >= 0; sum of all phase allocations must not exceed project estimated hours |
 | Event | Duration | Calculated from start/end times, must be > 0 |
 
 ### Relationships
