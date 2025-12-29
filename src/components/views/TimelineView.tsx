@@ -646,7 +646,7 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
                     {/* Date Headers - full width, no sidebar */}
                     <div className="flex-1 bg-white" style={{ 
                       minWidth: mode === 'weeks' 
-                        ? `${dates.length * 154}px` // 154px per week column (7 days × 22px)
+                        ? `${dates.length * 153}px` // 153px per week column (7 days × 21px + 6 gaps × 1px)
                         : `${dates.length * 52 + 52}px` // 52px per day + 52px buffer
                     }}>
                       <TimelineDateHeader dates={dates} mode={mode} />
@@ -664,7 +664,7 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
                         className="absolute top-0 left-0 bottom-0 pointer-events-none" 
                         style={{ 
                           width: mode === 'weeks' 
-                            ? `${dates.length * 154}px` // 154px per week column (matches headers)
+                            ? `${dates.length * 153}px` // 153px per week column (matches headers and components)
                             : `${dates.length * 52 + 52}px`,
                           zIndex: 1
                         }}

@@ -144,9 +144,12 @@ export const TimelineDateHeader = memo(function TimelineDateHeader({ dates, mode
             // Format the date range using service
             const dateRange = UnifiedTimelineService.formatWeekDateRange(weekStart);
             
+            // Add 1px to first column to account for alignment offset
+            const columnWidth = index === 0 ? 154 : 153;
+            
             return (
-              <div key={index} className={`text-center ${index < dates.length - 1 ? 'border-r border-gray-200' : ''}`} style={{ minWidth: '153px', width: '153px' }}>
-                {renderDateCell(weekStart, index, 153, 
+              <div key={index} className={`text-center ${index < dates.length - 1 ? 'border-r border-gray-200' : ''}`} style={{ minWidth: `${columnWidth}px`, width: `${columnWidth}px` }}>
+                {renderDateCell(weekStart, index, columnWidth, 
                   <div 
                     className={`text-xs px-1 ${isCurrentWeek ? 'font-medium' : 'text-gray-700'}`}
                     style={isCurrentWeek ? { color: 'oklch(0.50 0.127 232)' } : undefined}

@@ -63,16 +63,10 @@ export function DraggablePhaseMarkers({
     ? normalizeToMidnight(new Date(viewportEnd))
     : normalizeToMidnight(new Date(project.endDate));
 
-  const MARKER_WIDTH = 12; // Slightly narrower marker per request
-  const MARKER_HEIGHT = Math.round(32 * 2 / 3); // 2/3rds of original 32px = ~21px
-  const MARKER_TOP = 8 + Math.round((32 - MARKER_HEIGHT) / 2); // Adjust top to keep centered in bar
-  const MARKER_INSET = 1; // 1px inset on each side for gap when markers are adjacent
-  const MARKER_CORNER_RADIUS = 2; // Rounded corners on the triangle
-
-  // Precomputed rounded half-diamond paths (right and left pointing)
-  const markerMidY = MARKER_HEIGHT / 2;
-  const rightMarkerPath = `M 0 ${MARKER_CORNER_RADIUS} Q 0 0 ${MARKER_CORNER_RADIUS} 0 L ${MARKER_WIDTH - MARKER_CORNER_RADIUS} ${markerMidY - MARKER_CORNER_RADIUS} Q ${MARKER_WIDTH} ${markerMidY} ${MARKER_WIDTH - MARKER_CORNER_RADIUS} ${markerMidY + MARKER_CORNER_RADIUS} L ${MARKER_CORNER_RADIUS} ${MARKER_HEIGHT} Q 0 ${MARKER_HEIGHT} 0 ${MARKER_HEIGHT - MARKER_CORNER_RADIUS} Z`;
-  const leftMarkerPath = `M ${MARKER_WIDTH} ${MARKER_CORNER_RADIUS} Q ${MARKER_WIDTH} 0 ${MARKER_WIDTH - MARKER_CORNER_RADIUS} 0 L ${MARKER_CORNER_RADIUS} ${markerMidY - MARKER_CORNER_RADIUS} Q 0 ${markerMidY} ${MARKER_CORNER_RADIUS} ${markerMidY + MARKER_CORNER_RADIUS} L ${MARKER_WIDTH - MARKER_CORNER_RADIUS} ${MARKER_HEIGHT} Q ${MARKER_WIDTH} ${MARKER_HEIGHT} ${MARKER_WIDTH} ${MARKER_HEIGHT - MARKER_CORNER_RADIUS} Z`;
+  const MARKER_WIDTH = 6; // Width to match project bar end styling
+  const MARKER_HEIGHT = 48; // Full height of project bar
+  const MARKER_TOP = 0; // Align with project bar top
+  const MARKER_INSET = 0; // No inset - flush with phase edges
 
   // Check if project has recurring template (markers should not be draggable)
   const hasRecurringTemplate = sortedPhases.some(p => p.isRecurring);
@@ -162,26 +156,23 @@ export function DraggablePhaseMarkers({
                       }
                     }}
                   >
-                    {/* Triangle pointing right (into phase) - half diamond */}
-                    <svg 
-                      width={MARKER_WIDTH} 
-                      height={MARKER_HEIGHT} 
-                      viewBox={`0 0 ${MARKER_WIDTH} ${MARKER_HEIGHT}`}
-                      className="absolute inset-0 transition-opacity drop-shadow-sm group-hover:drop-shadow-md"
-                      style={{ opacity: hasRecurringTemplate ? 0.3 : 1 }}
-                    >
-                      <path d={rightMarkerPath} fill={project.color} />
-                    </svg>
-                    {/* Hover highlighting - darkened overlay triangle */}
+                    {/* Simple rectangle styled like project bar end */}
+                    <div
+                      className="absolute inset-0 transition-opacity"
+                      style={{
+                        backgroundColor: project.color,
+                        opacity: hasRecurringTemplate ? 0.3 : 0.3,
+                        borderRadius: '0px 2px 2px 0px', // Rounded on right edge
+                      }}
+                    />
+                    {/* Hover highlighting */}
                     {!hasRecurringTemplate && (
-                      <svg 
-                        width={MARKER_WIDTH} 
-                        height={MARKER_HEIGHT} 
-                        viewBox={`0 0 ${MARKER_WIDTH} ${MARKER_HEIGHT}`}
-                        className="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity"
-                      >
-                        <path d={rightMarkerPath} fill="black" />
-                      </svg>
+                      <div
+                        className="absolute inset-0 bg-black opacity-0 group-hover:opacity-10 transition-opacity"
+                        style={{
+                          borderRadius: '0px 2px 2px 0px',
+                        }}
+                      />
                     )}
                   </div>
                 </TooltipTrigger>
@@ -234,11 +225,15 @@ export function DraggablePhaseMarkers({
               mode
             );
 
-            // In weeks mode, each day is 22px wide within the 153px week column
-            // In days mode, each day column is 52px wide
-            const dayWidth = mode === 'weeks' ? 22 : 52;
-            // Position at the right edge of the phase end date column
-            const markerPosition = adjustedEndPositions.baselineStartPx + dayWidth - MARKER_WIDTH;
+            // Calculate the width of the actual day rectangle (not the column)
+            // In weeks mode: rectangles are 21px, columns are 22px (21px + 1px gap) except last day (21px)
+            // In days mode: rectangles are 50px, columns are 52px
+            const dayRectWidth = mode === 'weeks' ? 21 : 50;
+            
+            // Position at the right edge of the day rectangle
+            // In weeks mode, there's a consistent offset that needs correction (likely from baseline padding)
+            const weeksModeOffset = mode === 'weeks' ? 4 : 0;
+            const markerPosition = adjustedEndPositions.baselineStartPx + dayRectWidth + weeksModeOffset - MARKER_WIDTH;
 
             markers.push(
             <Tooltip key={`${phase.id}-end-marker`} delayDuration={100}>
@@ -248,7 +243,7 @@ export function DraggablePhaseMarkers({
                     hasRecurringTemplate ? 'cursor-not-allowed' : 'cursor-ew-resize'
                   }`}
                   style={{
-                    left: `${markerPosition - MARKER_INSET}px`,
+                    left: `${markerPosition}px`,
                     top: `${MARKER_TOP}px`,
                     width: `${MARKER_WIDTH}px`,
                     height: `${MARKER_HEIGHT}px`,
@@ -268,26 +263,23 @@ export function DraggablePhaseMarkers({
                     }
                   }}
                 >
-                  {/* Triangle pointing left (into phase) - half diamond */}
-                  <svg 
-                    width={MARKER_WIDTH} 
-                    height={MARKER_HEIGHT} 
-                    viewBox={`0 0 ${MARKER_WIDTH} ${MARKER_HEIGHT}`}
-                    className="absolute inset-0 transition-opacity drop-shadow-sm group-hover:drop-shadow-md"
-                    style={{ opacity: hasRecurringTemplate ? 0.3 : 1 }}
-                  >
-                    <path d={leftMarkerPath} fill={project.color} />
-                  </svg>
-                  {/* Hover highlighting - darkened overlay triangle */}
+                  {/* Simple rectangle styled like project bar end */}
+                  <div
+                    className="absolute inset-0 transition-opacity"
+                    style={{
+                      backgroundColor: project.color,
+                      opacity: hasRecurringTemplate ? 0.3 : 0.3,
+                      borderRadius: '2px 0px 0px 2px', // Rounded on left edge
+                    }}
+                  />
+                  {/* Hover highlighting */}
                   {!hasRecurringTemplate && (
-                    <svg 
-                      width={MARKER_WIDTH} 
-                      height={MARKER_HEIGHT} 
-                      viewBox={`0 0 ${MARKER_WIDTH} ${MARKER_HEIGHT}`}
-                      className="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity"
-                    >
-                      <path d={leftMarkerPath} fill="black" />
-                    </svg>
+                    <div
+                      className="absolute inset-0 bg-black opacity-0 group-hover:opacity-10 transition-opacity"
+                      style={{
+                        borderRadius: '2px 0px 0px 2px',
+                      }}
+                    />
                   )}
                 </div>
               </TooltipTrigger>

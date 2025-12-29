@@ -481,11 +481,16 @@ export function HolidayBar({ dates, collapsed, isDragging, dragState, handleHoli
             holidays = [null];
           }
           
+          // Add 1px to first column to account for alignment offset
+          const columnWidth = mode === 'weeks' 
+            ? (dayIndex === 0 ? 154 : 153)
+            : 52;
+          
           return (
             <div 
               key={dayIndex}
               className="relative h-[52px] flex items-center justify-center border-r border-gray-100 last:border-r-0"
-              style={{ minWidth: `${mode === 'weeks' ? 153 : 52}px`, width: `${mode === 'weeks' ? 153 : 52}px` }}
+              style={{ minWidth: `${columnWidth}px`, width: `${columnWidth}px` }}
             >
               {/* Render all holidays in this column */}
               {holidays.map((holiday, holidayIndex) => (

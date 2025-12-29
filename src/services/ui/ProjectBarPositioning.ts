@@ -108,6 +108,37 @@ export function calculateTimelinePositions(
 }
 
 /**
+ * Calculate pixel position from day index in weeks mode
+ * Accounts for varying day widths: days 0-5 are 22px, day 6 is 21px
+ * @param dayIndex - Number of days from the start
+ * @returns Pixel position
+ */
+function calculateWeekModePixelPosition(dayIndex: number): number {
+  const completeWeeks = Math.floor(dayIndex / 7);
+  const remainingDays = dayIndex % 7;
+  
+  // Each complete week is 153px (6 days × 22px + 1 day × 21px)
+  const completeWeeksPx = completeWeeks * 153;
+  
+  // Remaining days: first 6 days are 22px each, 7th day is 21px
+  const remainingDaysPx = remainingDays * 22;
+  
+  return completeWeeksPx + remainingDaysPx;
+}
+
+/**
+ * Calculate width in pixels for a number of days in weeks mode
+ * Accounts for varying day widths: days 0-5 are 22px, day 6 is 21px
+ * @param startDayIndex - Starting day index
+ * @param numDays - Number of days
+ * @returns Width in pixels
+ */
+function calculateWeekModeWidth(startDayIndex: number, numDays: number): number {
+  const endDayIndex = startDayIndex + numDays;
+  return calculateWeekModePixelPosition(endDayIndex) - calculateWeekModePixelPosition(startDayIndex);
+}
+
+/**
  * Calculate positions for weeks mode timeline
  */
 function calculateWeeksModePositions(
@@ -123,7 +154,6 @@ function calculateWeeksModePositions(
   }
 
   const msPerDay = 24 * 60 * 60 * 1000;
-  const daySpacing = 22; // Effective spacing: 21px day + 1px gap = 22px per day position
 
   // Calculate day offsets from first week start
   const daysFromStartToProjectStart = Math.floor(
@@ -140,20 +170,20 @@ function calculateWeeksModePositions(
   let baselineWidthPx: number;
 
   if (projectIntersectsViewport) {
-    baselineStartPx = daysFromStartToProjectStart * daySpacing - 2; // Start 2px before
+    // Use new calculation that accounts for varying day widths
+    baselineStartPx = calculateWeekModePixelPosition(daysFromStartToProjectStart) - 2; // Start 2px before
     const numDays = daysFromStartToProjectEnd + 1 - daysFromStartToProjectStart;
-    // Width: numDays × 22px - 1px (no gap after last day) + 4px (2px padding on each side)
+    // Width: use accurate calculation + 4px (2px padding on each side)
     baselineWidthPx = Math.max(
-      daySpacing * 0.5,
-      numDays * daySpacing - 1 + 4
+      11, // Minimum half-day width
+      calculateWeekModeWidth(daysFromStartToProjectStart, numDays) + 4
     );
   } else {
-    baselineStartPx = daysFromStartToProjectStart * daySpacing - 2; // Start 2px before
+    baselineStartPx = calculateWeekModePixelPosition(daysFromStartToProjectStart) - 2; // Start 2px before
     const numDays = daysFromStartToProjectEnd + 1 - daysFromStartToProjectStart;
-    // Width: numDays × 22px - 1px (no gap after last day) + 4px (2px padding on each side)
     baselineWidthPx = Math.max(
-      daySpacing * 0.5,
-      numDays * daySpacing - 1 + 4
+      11, // Minimum half-day width
+      calculateWeekModeWidth(daysFromStartToProjectStart, numDays) + 4
     );
   }
 

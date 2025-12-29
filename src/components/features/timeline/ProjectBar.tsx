@@ -19,6 +19,7 @@ import {
   calculateRectangleHeight,
   normalizeToMidnight
 } from '@/services';
+import { getPhasesSortedByEndDate } from '@/domain/rules/PhaseRules';
 import { ProjectIconIndicator } from './ProjectIconIndicator';
 import { DraggablePhaseMarkers } from './DraggablePhaseMarkers';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
@@ -195,8 +196,229 @@ export const ProjectBar = memo(function ProjectBar({
     // ✅ Main return - AFTER all hooks
     return (
       <div className="h-[48px] relative flex flex-col pointer-events-none">
-        {/* White background - render first so it's behind everything */}
+        {/* White background - split by phases if they exist */}
         {(() => {
+          const sortedPhases = getPhasesSortedByEndDate(filteredProjectMilestones);
+          const hasPhases = sortedPhases.length > 0;
+          
+          // If project has phases, render a segment for each phase
+          if (hasPhases) {
+            return (
+              <>
+                {sortedPhases.map((phase, index) => {
+                  const phaseStartDate = normalizeToMidnight(new Date(phase.startDate!));
+                  const phaseEndDate = normalizeToMidnight(new Date(phase.endDate!));
+                  
+                  const positions = (() => {
+                    try {
+                      return getTimelinePositions(
+                        phaseStartDate,
+                        phaseEndDate,
+                        viewportStart,
+                        viewportEnd,
+                        dates,
+                        mode
+                      );
+                    } catch (error) {
+                      ErrorHandlingService.handle(error, { source: 'ProjectBar', action: 'Error getting phase segment positions:' });
+                      return null;
+                    }
+                  })();
+                  
+                  if (!positions) return null;
+                  
+                  const adjustedPositions = calculateBaselineVisualOffsets(
+                    positions, isDragging, dragState, project.id, mode
+                  );
+                  
+                  const leftPx = adjustedPositions.baselineStartPx;
+                  const widthPx = adjustedPositions.baselineWidthPx ?? positions.baselineWidthPx;
+                  
+                  if (widthPx <= 0) return null;
+                  
+                  // Determine if this phase extends beyond viewport
+                  const normalizedViewportStart = normalizeToMidnight(new Date(viewportStart));
+                  const normalizedViewportEnd = normalizeToMidnight(new Date(viewportEnd));
+                  const extendsLeft = phaseStartDate < normalizedViewportStart;
+                  const extendsRight = index === sortedPhases.length - 1 && project.continuous;
+                  
+                  // Calculate border radius - all corners rounded like project bar
+                  let borderRadius = '6px';
+                  if (extendsLeft && extendsRight) {
+                    borderRadius = '0px';
+                  } else if (extendsLeft) {
+                    borderRadius = '0px 6px 6px 0px';
+                  } else if (extendsRight) {
+                    borderRadius = '6px 0px 0px 6px';
+                  }
+                  
+                  // Calculate borders
+                  const borderLeft = (index === 0 && !extendsLeft) ? `1px solid ${NEUTRAL_COLORS.gray200}` : 'none';
+                  const borderRight = (index === sortedPhases.length - 1 && !extendsRight) ? `1px solid ${NEUTRAL_COLORS.gray200}` : 'none';
+                  const borderTop = `1px solid ${NEUTRAL_COLORS.gray200}`;
+                  const borderBottom = `1px solid ${NEUTRAL_COLORS.gray200}`;
+                  
+                  return (
+                    <div
+                      key={`phase-segment-${phase.id}`}
+                      className="absolute pointer-events-none"
+                      style={{
+                        backgroundColor: 'rgba(255, 255, 255, 0.75)',
+                        left: `${leftPx}px`,
+                        width: `${widthPx}px`,
+                        top: '0px',
+                        height: '48px',
+                        zIndex: 1,
+                        borderLeft,
+                        borderRight,
+                        borderTop,
+                        borderBottom,
+                        borderRadius,
+                        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)'
+                      }}
+                    />
+                  );
+                })}
+                
+                {/* Draw connecting lines and curves between phases */}
+                {sortedPhases.map((phase, index) => {
+                  if (index === sortedPhases.length - 1) return null; // No line after last phase
+                  
+                  const currentPhaseEndDate = normalizeToMidnight(new Date(phase.endDate!));
+                  const nextPhase = sortedPhases[index + 1];
+                  const nextPhaseStartDate = normalizeToMidnight(new Date(nextPhase.startDate!));
+                  
+                  // Check if there's a gap between phases
+                  const daysBetween = Math.floor((nextPhaseStartDate.getTime() - currentPhaseEndDate.getTime()) / (24 * 60 * 60 * 1000)) - 1;
+                  
+                  if (daysBetween > 0) {
+                    // Calculate line position
+                    const endPositions = (() => {
+                      try {
+                        return getTimelinePositions(
+                          currentPhaseEndDate,
+                          currentPhaseEndDate,
+                          viewportStart,
+                          viewportEnd,
+                          dates,
+                          mode
+                        );
+                      } catch (error) {
+                        return null;
+                      }
+                    })();
+                    
+                    const startPositions = (() => {
+                      try {
+                        return getTimelinePositions(
+                          nextPhaseStartDate,
+                          nextPhaseStartDate,
+                          viewportStart,
+                          viewportEnd,
+                          dates,
+                          mode
+                        );
+                      } catch (error) {
+                        return null;
+                      }
+                    })();
+                    
+                    if (!endPositions || !startPositions) return null;
+                    
+                    const adjustedEndPos = calculateBaselineVisualOffsets(
+                      endPositions, isDragging, dragState, project.id, mode
+                    );
+                    const adjustedStartPos = calculateBaselineVisualOffsets(
+                      startPositions, isDragging, dragState, project.id, mode
+                    );
+                    
+                    // Position line from end of current phase to start of next phase
+                    const dayRectWidth = mode === 'weeks' ? 21 : 50;
+                    const weeksModeOffset = mode === 'weeks' ? 4 : 0;
+                    const lineStart = adjustedEndPos.baselineStartPx + dayRectWidth + weeksModeOffset;
+                    const lineEnd = adjustedStartPos.baselineStartPx;
+                    const lineWidth = lineEnd - lineStart;
+                    
+                    if (lineWidth <= 0) return null;
+                    
+                    const barHeight = 48;
+                    const lineHeight = 3;
+                    const lineTop = (barHeight - lineHeight) / 2; // Vertical center (22.5)
+                    
+                    // Each curve is a square - width = height
+                    // We have top and bottom curves, so total height is 2x the width
+                    const curveSquareSize = lineTop - 0; // Distance from top to line center (22.5)
+                    const curveWidth = curveSquareSize; // Make it square: 22.5px wide x 22.5px tall for each
+                    const curveHeight = curveSquareSize * 2; // Total height for both curves (45px)
+                    const curveTop = (barHeight - curveHeight) / 2; // Center vertically (1.5)
+                    
+                    return (
+                      <React.Fragment key={`phase-connector-${phase.id}`}>
+                        {/* Right curve from end of current phase - extends into gap */}
+                        <svg
+                          className="absolute pointer-events-none"
+                          style={{
+                            left: `${lineStart}px`,
+                            top: `${curveTop}px`,
+                            width: `${curveWidth}px`,
+                            height: `${curveHeight}px`,
+                            zIndex: 1,
+                          }}
+                        >
+                          {/* Fill area with convex curves */}
+                          <path
+                            d={`M 0 0 Q 0 ${curveSquareSize} ${curveWidth} ${curveSquareSize} L ${curveWidth} ${curveSquareSize + lineHeight} Q 0 ${curveSquareSize + lineHeight} 0 ${curveHeight} Z`}
+                            fill="rgba(255, 255, 255, 0.75)"
+                            stroke={NEUTRAL_COLORS.gray200}
+                            strokeWidth="1"
+                          />
+                        </svg>
+                        
+                        {/* Connecting line */}
+                        <div
+                          className="absolute pointer-events-none"
+                          style={{
+                            backgroundColor: NEUTRAL_COLORS.gray300,
+                            left: `${lineStart + curveWidth}px`,
+                            width: `${lineWidth - (curveWidth * 2)}px`,
+                            top: `${lineTop}px`,
+                            height: `${lineHeight}px`,
+                            zIndex: 1,
+                            borderTop: `1px solid ${NEUTRAL_COLORS.gray200}`,
+                            borderBottom: `1px solid ${NEUTRAL_COLORS.gray200}`,
+                            boxShadow: '0 0.5px 1.5px 0 rgba(0, 0, 0, 0.1), 0 0.5px 1px 0 rgba(0, 0, 0, 0.06)'
+                          }}
+                        />
+                        
+                        {/* Left curve into start of next phase - extends into gap */}
+                        <svg
+                          className="absolute pointer-events-none"
+                          style={{
+                            left: `${lineEnd - curveWidth}px`,
+                            top: `${curveTop}px`,
+                            width: `${curveWidth}px`,
+                            height: `${curveHeight}px`,
+                            zIndex: 1,
+                          }}
+                        >
+                          {/* Fill area with convex curves */}
+                          <path
+                            d={`M 0 ${curveSquareSize} Q ${curveWidth} ${curveSquareSize} ${curveWidth} 0 L ${curveWidth} ${curveHeight} Q ${curveWidth} ${curveSquareSize + lineHeight} 0 ${curveSquareSize + lineHeight} Z`}
+                            fill="rgba(255, 255, 255, 0.75)"
+                            stroke={NEUTRAL_COLORS.gray200}
+                            strokeWidth="1"
+                          />
+                        </svg>
+                      </React.Fragment>
+                    );
+                  }
+                  return null;
+                })}
+              </>
+            );
+          }
+          
+          // No phases - render single background for entire project
           const projectStart = new Date(project.startDate);
           const projectEnd = project.continuous 
             ? new Date(viewportEnd)
@@ -231,21 +453,21 @@ export const ProjectBar = memo(function ProjectBar({
           const normalizedViewportEnd = normalizeToMidnight(new Date(viewportEnd));
           
           const extendsLeft = normalizedProjectStart < normalizedViewportStart;
-          const extendsRight = project.continuous; // Continuous projects always extend right
+          const extendsRight = project.continuous;
           
-          // Calculate position and width, extending beyond viewport for continuous projects
+          // Calculate position and width
           const leftPx = adjustedPositions.baselineStartPx;
           let widthPx = adjustedPositions.baselineWidthPx ?? positions.baselineWidthPx;
           
-          // Extend width to viewport edge (plus buffer) for continuous projects
+          // Extend width for continuous projects
           if (extendsRight) {
             const columnWidth = mode === 'weeks' ? 153 : 52;
             const bufferWidth = mode === 'days' ? columnWidth : 0;
             const totalViewportWidth = dates.length * columnWidth + bufferWidth;
-            widthPx = totalViewportWidth - leftPx + 100; // Add 100px buffer to extend beyond edge
+            widthPx = totalViewportWidth - leftPx + 100;
           }
           
-                    // Calculate border radius based on extensions
+          // Calculate border radius
           let borderRadius = '6px';
           if (extendsLeft && extendsRight) {
             borderRadius = '0px';
@@ -255,36 +477,33 @@ export const ProjectBar = memo(function ProjectBar({
             borderRadius = '6px 0px 0px 6px';
           }
           
-          // Calculate which borders to show
+          // Calculate borders
           const borderLeft = extendsLeft ? 'none' : `1px solid ${NEUTRAL_COLORS.gray200}`;
           const borderRight = extendsRight ? 'none' : `1px solid ${NEUTRAL_COLORS.gray200}`;
           const borderTop = `1px solid ${NEUTRAL_COLORS.gray200}`;
           const borderBottom = `1px solid ${NEUTRAL_COLORS.gray200}`;
           
           return (
-            <>
-              {/* White background with outline, rounded corners, and drop shadow */}
-              <div
-                className="absolute pointer-events-none"
-                style={{
-                  // Make project bar background 85% opacity for partial see-through
-                  backgroundColor: 'rgba(255, 255, 255, 0.85)',
-                  left: `${leftPx}px`,
-                  width: `${widthPx}px`,
-                  top: '0px',
-                  height: '48px',
-                  zIndex: 1,
-                  borderLeft,
-                  borderRight,
-                  borderTop,
-                  borderBottom,
-                  borderRadius,
-                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)'
-                }}
-              />
-            </>
+            <div
+              className="absolute pointer-events-none"
+              style={{
+                backgroundColor: 'rgba(255, 255, 255, 0.75)',
+                left: `${leftPx}px`,
+                width: `${widthPx}px`,
+                top: '0px',
+                height: '48px',
+                zIndex: 1,
+                borderLeft,
+                borderRight,
+                borderTop,
+                borderBottom,
+                borderRadius,
+                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)'
+              }}
+            />
           );
         })()}
+        
         {/* Project rectangles area - positioned to rest bottom edge on top of baseline */}
         <div 
           className="flex w-full relative z-20 flex-1 pointer-events-none" 
@@ -427,10 +646,14 @@ export const ProjectBar = memo(function ProjectBar({
                 colorScheme
               );
               // Mode-dependent width calculations
-              // In weeks mode: 21px per day (with 1px gaps between)
+              // In weeks mode: 21px per day (with 1px gaps between days 0-5, no gap after day 6)
               // In days mode: 50px rectangle in 52px column
               const dayRectWidth = mode === 'weeks' ? 21 : 50;
-              const dayColumnWidth = mode === 'weeks' ? 22 : 52; // includes 1px gap for weeks
+              // Week mode: last day of week (index 6) is 21px, all others are 22px (21px + 1px gap)
+              const isLastDayOfWeek = mode === 'weeks' && dateIndex % 7 === 6;
+              const dayColumnWidth = mode === 'weeks' 
+                ? (isLastDayOfWeek ? 21 : 22) 
+                : 52;
               
               // Week view specific: add subtle separator for auto-estimate
               const weekViewBorderOverride = allocType === 'auto-estimate' ? {

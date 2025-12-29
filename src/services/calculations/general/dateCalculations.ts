@@ -701,10 +701,10 @@ export function calculateDaysDeltaFromPixels(
   deltaX: number,
   mode: 'days' | 'weeks',
   columnWidthDays: number = 52,
-  columnWidthWeeks: number = 154
+  columnWidthWeeks: number = 153
 ): number {
   if (mode === 'weeks') {
-    // In weeks mode, each column is 7 days wide
+    // In weeks mode, each column is 7 days wide (153px = 7 days × 21px + 6 gaps × 1px)
     const columnsDelta = deltaX / columnWidthWeeks;
     return Math.round(columnsDelta * 7);
   } else {
