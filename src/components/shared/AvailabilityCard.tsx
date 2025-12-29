@@ -49,7 +49,7 @@ interface AvailabilityCardProps {
   context?: 'timeline' | 'planner';
   timeGutterWidth?: number;
   scrollbarWidth?: number;
-  milestones?: Phase[]; // Optional for now to maintain backward compatibility
+  phases?: Phase[]; // Optional for now to maintain backward compatibility
 }
 
 export const AvailabilityCard = memo(function AvailabilityCard({
@@ -62,7 +62,7 @@ export const AvailabilityCard = memo(function AvailabilityCard({
   context = 'timeline',
   timeGutterWidth = 0,
   scrollbarWidth = 0,
-  milestones = []
+  phases = []
 }: AvailabilityCardProps) {
   const [activeTab, setActiveTab] = useState<'time-spent' | 'availability-graph'>('availability-graph');
   const [hoveredColumnIndex, setHoveredColumnIndex] = useState<number | null>(null);

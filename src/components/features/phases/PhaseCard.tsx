@@ -15,7 +15,7 @@ interface PhaseCardProps {
   milestone: Phase | LocalPhase;
   projectEstimatedHours: number;
   projectContinuous: boolean;
-  allPhases: (Milestone | LocalPhase)[];
+  allPhases: (Phase | LocalPhase)[];
   isFirst: boolean;
   isLast: boolean;
   editingProperty: string | null;

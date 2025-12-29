@@ -96,25 +96,25 @@ export const ProjectBar = memo(function ProjectBar({
     holidays
   );
   // Centralized filtered milestones for this project (once per relevant change)
-  const filteredProjectMilestones = useMemo<Milestone[]>(() => {
+  const filteredProjectMilestones = useMemo<Phase[]>(() => {
     if (!project) return [];
     const projectStart = new Date(project.startDate);
     const projectEnd = project.continuous ? null : new Date(project.endDate);
     let projectPhases = phases.filter(p => {
-      if (m.projectId !== project.id) return false;
-      const milestoneDate = new Date(m.endDate || m.dueDate);
+      if (p.projectId !== project.id) return false;
+      const milestoneDate = new Date(p.endDate || p.dueDate);
       if (milestoneDate < projectStart) return false;
       if (project.continuous) return true;
       return milestoneDate <= projectEnd!;
     });
-    const hasTemplateMilestone = projectPhases.some(p => m.isRecurring === true);
+    const hasTemplateMilestone = projectPhases.some(p => p.isRecurring === true);
     if (hasTemplateMilestone) {
       projectPhases = projectPhases.filter(p => 
-        m.isRecurring === true || (!m.isRecurring && (!m.name || !/\s\d+$/.test(m.name)))
+        p.isRecurring === true || (!p.isRecurring && (!p.name || !/\s\d+$/.test(p.name)))
       );
     }
     return projectPhases;
-  }, [project, milestones]);
+  }, [project, phases]);
 
   const visualProjectDates = useMemo(() => {
     if (!project) return null;
@@ -741,7 +741,7 @@ export const ProjectBar = memo(function ProjectBar({
         {/* Phase markers (draggable rectangles at phase boundaries) */}
         <DraggablePhaseMarkers
           project={project}
-          milestones={filteredProjectMilestones}
+          phases={filteredProjectMilestones}
           viewportStart={viewportStart}
           viewportEnd={viewportEnd}
           dates={dates}

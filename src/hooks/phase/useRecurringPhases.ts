@@ -35,7 +35,7 @@ export interface RecurringPhaseConfig {
 
 interface UseRecurringPhasesConfig {
   projectId?: string;
-  projectPhases: (Milestone | LocalPhase)[];
+  projectPhases: (Phase | LocalPhase)[];
   projectStartDate: Date;
   projectEndDate: Date;
   projectContinuous: boolean;

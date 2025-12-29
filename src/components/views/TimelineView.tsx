@@ -115,7 +115,7 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
     if (process.env.NODE_ENV === 'development') {
       const validation = RelationshipRules.validateSystemIntegrity({
         projects,
-        milestones: [],
+        phases: [],
         clients: [],
         groups
       });
@@ -479,27 +479,27 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
   const allDayEstimates = React.useMemo(() => {
     const estimates: DayEstimate[] = [];
     projects.forEach(project => {
-      let projectPhases = phases.filter(p => m.projectId === project.id);
+      let projectPhases = phases.filter(p => p.projectId === project.id);
       
       // If a phase is being dragged for this project, apply visual dates
       if (isDragging && dragState?.projectId === project.id && dragState?.milestoneId &&
           (dragState?.action === 'resize-phase-start' || dragState?.action === 'resize-phase-end')) {
         projectPhases = projectPhases.map(p => {
-          if (m.id === dragState.milestoneId) {
+          if (p.id === dragState.milestoneId) {
             // Apply visual date changes during drag
             const daysDelta = dragState.lastDaysDelta || 0;
             const msOffset = daysDelta * 24 * 60 * 60 * 1000;
             
-            if (dragState.action === 'resize-phase-start' && m.startDate) {
+            if (dragState.action === 'resize-phase-start' && p.startDate) {
               return {
                 ...p,
-                startDate: new Date(new Date(m.startDate).getTime() + msOffset)
+                startDate: new Date(new Date(p.startDate).getTime() + msOffset)
               };
-            } else if (dragState.action === 'resize-phase-end' && m.endDate) {
+            } else if (dragState.action === 'resize-phase-end' && p.endDate) {
               return {
                 ...p,
-                endDate: new Date(new Date(m.endDate).getTime() + msOffset),
-                dueDate: new Date(new Date(m.endDate).getTime() + msOffset)
+                endDate: new Date(new Date(p.endDate).getTime() + msOffset),
+                dueDate: new Date(new Date(p.endDate).getTime() + msOffset)
               };
             }
           }
@@ -730,7 +730,7 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
                         projects={projects}
                         settings={settings}
                         mode={mode}
-                        milestones={milestones}
+                        phases={phases}
                         context="timeline"
                         columnMarkersOverlay={
                           /* All timeline overlays: borders, today, weekends, holidays */

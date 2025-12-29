@@ -19,7 +19,7 @@ interface RecurringPhase {
 }
 
 interface UseMilestoneBudgetConfig {
-  projectPhases: (Milestone | LocalPhase)[];
+  projectPhases: (Phase | LocalPhase)[];
   projectEstimatedHours: number;
   projectStartDate: Date;
   projectEndDate: Date;
