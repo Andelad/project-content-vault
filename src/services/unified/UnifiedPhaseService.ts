@@ -61,17 +61,17 @@ export class UnifiedPhaseService {
    * Used by: Project management, milestone creation, budget analysis
    */
   static validateBudgetAllocation(
-    milestones: Phase[], 
+    phases: Phase[], 
     projectBudget: number,
     excludeMilestoneId?: string
   ): MilestoneValidationResult {
     // Filter out excluded milestone if specified
-    const relevantMilestones = excludeMilestoneId 
-      ? milestones.filter(m => m.id !== excludeMilestoneId)
+    const relevantPhases = excludeMilestoneId 
+      ? milestones.filter(p => m.id !== excludeMilestoneId)
       : milestones;
     
     // Use pure calculation functions
-    const totalAllocated = calculateTotalAllocation(relevantMilestones);
+    const totalAllocated = calculateTotalAllocation(relevantPhases);
     const utilization = calculateBudgetUtilization(totalAllocated, projectBudget);
     const remaining = calculateRemainingBudget(totalAllocated, projectBudget);
     const overage = calculateOverageAmount(totalAllocated, projectBudget);
@@ -112,7 +112,7 @@ export class UnifiedPhaseService {
    * Used by: Timeline rendering, project scheduling, milestone planning
    */
   static calculateTimeDistribution(
-    milestones: Phase[],
+    phases: Phase[],
     projectStartDate: Date,
     projectEndDate: Date,
     options: WorkingDayOptions = {}
@@ -121,7 +121,7 @@ export class UnifiedPhaseService {
       return [];
     }
 
-    // Expand recurring milestones into their occurrences
+    // Expand recurring phases into their occurrences
     const expandedMilestones: Phase[] = [];
     milestones.forEach(m => {
       if (m.isRecurring && m.recurringConfig) {
@@ -136,7 +136,7 @@ export class UnifiedPhaseService {
         // Create a milestone entry for each occurrence
         occurrences.forEach(date => {
           expandedMilestones.push({
-            ...m,
+            ...p,
             dueDate: date,
             endDate: date
           });
@@ -148,7 +148,7 @@ export class UnifiedPhaseService {
     });
 
     // Sort milestones by due date
-    const sortedMilestones = [...expandedMilestones].sort((a, b) => {
+    const sortedPhases = [...expandedMilestones].sort((a, b) => {
       const dateA = a.endDate || a.dueDate;
       const dateB = b.endDate || b.dueDate;
       return dateA.getTime() - dateB.getTime();
@@ -158,8 +158,8 @@ export class UnifiedPhaseService {
     let currentDate = new Date(projectStartDate);
     currentDate = normalizeToMidnight(currentDate);
 
-    for (let i = 0; i < sortedMilestones.length; i++) {
-      const phase = sortedMilestones[i];
+    for (let i = 0; i < sortedPhases.length; i++) {
+      const phase = sortedPhases[i];
       const milestoneDate = normalizeToMidnight(milestone.endDate || milestone.dueDate);
 
           // Calculate working days using unified service (when available)
@@ -218,7 +218,7 @@ export class UnifiedPhaseService {
    * Calculate milestone metrics for analytics and reporting
    * Used by: Dashboard, insights, project analysis
    */
-  static calculateMilestoneMetrics(milestones: Phase[], projectBudget: number) {
+  static calculateMilestoneMetrics(phases: Phase[], projectBudget: number) {
     const totalAllocated = calculateTotalAllocation(milestones);
     const distribution = calculateAllocationDistribution(milestones);
     const budgetAnalysis = this.validateBudgetAllocation(milestones, projectBudget);
@@ -240,7 +240,7 @@ export class UnifiedPhaseService {
    */
   static getEstimatedHoursForDate(
     date: Date,
-    milestones: Phase[],
+    phases: Phase[],
     projectStartDate: Date,
     projectEndDate: Date,
     options: WorkingDayOptions = {}
@@ -266,7 +266,7 @@ export class UnifiedPhaseService {
   static calculateMilestoneDateRange(params: {
     projectStartDate: Date;
     projectEndDate: Date;
-    existingMilestones: (Milestone | { id?: string; dueDate: Date })[];
+    existingPhases: (Milestone | { id?: string; dueDate: Date })[];
     currentMilestone?: { id?: string; dueDate: Date };
   }): {
     minDate: Date;
@@ -283,16 +283,16 @@ export class UnifiedPhaseService {
     let actualMinDate = minDate;
     let actualMaxDate = maxDate;
 
-    if (params.existingMilestones.length > 0 && params.currentMilestone) {
+    if (params.existingPhases.length > 0 && params.currentMilestone) {
       const currentDate = params.currentMilestone.dueDate;
-      const sortedMilestones = params.existingMilestones
-        .filter(m => !params.currentMilestone || m.id !== params.currentMilestone.id)
+      const sortedPhases = params.existingPhases
+        .filter(p => !params.currentMilestone || m.id !== params.currentMilestone.id)
         .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
       
       // Find appropriate gap for current milestone
-      for (let i = 0; i < sortedMilestones.length + 1; i++) {
-        const prevMilestone = i > 0 ? sortedMilestones[i - 1] : null;
-        const nextMilestone = i < sortedMilestones.length ? sortedMilestones[i] : null;
+      for (let i = 0; i < sortedPhases.length + 1; i++) {
+        const prevMilestone = i > 0 ? sortedPhases[i - 1] : null;
+        const nextMilestone = i < sortedPhases.length ? sortedPhases[i] : null;
         
         const gapStart = prevMilestone ? new Date(prevMilestone.dueDate.getTime() + 24 * 60 * 60 * 1000) : minDate;
         const gapEnd = nextMilestone ? new Date(nextMilestone.dueDate.getTime() - 24 * 60 * 60 * 1000) : maxDate;
@@ -341,19 +341,19 @@ export class UnifiedPhaseService {
   static calculateDefaultMilestoneDate(params: {
     projectStartDate: Date;
     projectEndDate: Date;
-    existingMilestones: (Milestone | { dueDate: Date })[];
+    existingPhases: (Milestone | { dueDate: Date })[];
   }): Date {
-    const { projectStartDate, projectEndDate, existingMilestones } = params;
+    const { projectStartDate, projectEndDate, existingPhases } = params;
     
     // Start with the day after project start
     let defaultDate = new Date(projectStartDate);
     defaultDate = addDaysToDate(defaultDate, 1);
     
     // If there are existing milestones, place this one after the last one
-    if (existingMilestones.length > 0) {
-      const sortedMilestones = [...existingMilestones]
+    if (existingPhases.length > 0) {
+      const sortedPhases = [...existingPhases]
         .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
-      const lastMilestone = sortedMilestones[sortedMilestones.length - 1];
+      const lastMilestone = sortedPhases[sortedPhases.length - 1];
       const dayAfterLast = addDaysToDate(new Date(lastMilestone.dueDate), 1);
       
       // Use the later of: day after project start, or day after last milestone
@@ -523,7 +523,7 @@ export class UnifiedMilestoneEntity {
    * Domain Rule: Calculate total budget utilization across milestones
    */
   static calculateBudgetUtilization(
-    milestones: Phase[], 
+    phases: Phase[], 
     projectBudget: number
   ): number {
     const totalAllocated = milestones.reduce(
@@ -537,11 +537,11 @@ export class UnifiedMilestoneEntity {
    * Domain Rule: Check if adding a milestone would exceed project budget
    */
   static wouldExceedBudget(
-    existingMilestones: Phase[],
+    existingPhases: Phase[],
     additionalHours: number,
     projectBudget: number
   ): MilestoneBudgetValidation {
-    const currentTotal = existingMilestones.reduce(
+    const currentTotal = existingPhases.reduce(
       (sum, m) => sum + (m.timeAllocation || 0), 
       0
     );
@@ -561,14 +561,14 @@ export class UnifiedMilestoneEntity {
    * Domain Rule: Check if updating a specific milestone would exceed budget
    */
   static wouldUpdateExceedBudget(
-    milestones: Phase[],
+    phases: Phase[],
     milestoneId: string,
     newTimeAllocation: number,
     projectBudget: number
   ): MilestoneBudgetValidation {
     // Calculate total excluding the milestone being updated
     const totalExcludingCurrent = milestones
-      .filter(m => m.id !== milestoneId)
+      .filter(p => m.id !== milestoneId)
       .reduce((sum, m) => sum + (m.timeAllocation || 0), 0);
     
     const newTotal = totalExcludingCurrent + newTimeAllocation;
@@ -617,12 +617,12 @@ export class UnifiedMilestoneEntity {
    */
   static hasDateConflict(
     proposedDate: Date,
-    existingMilestones: Phase[],
+    existingPhases: Phase[],
     excludeMilestoneId?: string
   ): boolean {
-    return existingMilestones
-      .filter(m => !excludeMilestoneId || m.id !== excludeMilestoneId)
-      .some(m => m.dueDate.getTime() === proposedDate.getTime());
+    return existingPhases
+      .filter(p => !excludeMilestoneId || m.id !== excludeMilestoneId)
+      .some(p => m.dueDate.getTime() === proposedDate.getTime());
   }
 
   /**
@@ -632,7 +632,7 @@ export class UnifiedMilestoneEntity {
     proposedDate: Date,
     projectStart: Date,
     projectEnd: Date,
-    existingMilestones: Phase[],
+    existingPhases: Phase[],
     excludeMilestoneId?: string
   ): MilestoneDateValidation {
     const errors: string[] = [];
@@ -644,7 +644,7 @@ export class UnifiedMilestoneEntity {
 
     const conflictsWithExisting = this.hasDateConflict(
       proposedDate, 
-      existingMilestones, 
+      existingPhases, 
       excludeMilestoneId
     );
     if (conflictsWithExisting) {

@@ -21,7 +21,7 @@ export class UnifiedDayEstimateService {
    */
   static calculateProjectDayEstimates(
     project: Project,
-    milestones: Phase[],
+    phases: Phase[],
     settings: Settings,
     holidays: Holiday[],
     events: CalendarEvent[] = []
@@ -40,14 +40,14 @@ export class UnifiedDayEstimateService {
    */
   static calculateMultiProjectDayEstimates(
     projects: Project[],
-    milestonesMap: Map<string, Milestone[]>,
+    phasesMap: Map<string, Milestone[]>,
     settings: Settings,
     holidays: Holiday[]
   ): Map<string, DayEstimate[]> {
     const resultMap = new Map<string, DayEstimate[]>();
 
     projects.forEach(project => {
-      const phases = milestonesMap.get(project.id) || [];
+      const phases = phasesMap.get(project.id) || [];
       const estimates = this.calculateProjectDayEstimates(
         project,
         milestones,
@@ -176,7 +176,7 @@ export class UnifiedDayEstimateService {
    * 
    * @param dates - Array of dates to get summaries for
    * @param projects - All projects
-   * @param milestonesMap - Map of project ID to milestones
+   * @param phasesMap - Map of project ID to milestones
    * @param events - All calendar events
    * @param settings - User settings
    * @param holidays - Holiday definitions
@@ -185,7 +185,7 @@ export class UnifiedDayEstimateService {
   static getDailyProjectSummaries(
     dates: Date[],
     projects: Project[],
-    milestonesMap: Map<string, Milestone[]>,
+    phasesMap: Map<string, Milestone[]>,
     events: CalendarEvent[],
     settings: Settings,
     holidays: Holiday[]
@@ -199,21 +199,21 @@ export class UnifiedDayEstimateService {
 
       projects.forEach(project => {
         // Fetch and normalize milestones for this project to match TimelineBar logic
-        const allMilestones = milestonesMap.get(project.id) || [];
+        const allMilestones = phasesMap.get(project.id) || [];
         const projectStart = new Date(project.startDate);
         const projectEnd = new Date(project.endDate);
 
         // Filter milestones within project bounds
-        let projectMilestones = allMilestones.filter((m: Milestone) => {
+        let projectPhases = allMilestones.filter((m: Milestone) => {
           const end = new Date(m.endDate || m.dueDate);
           return end >= projectStart && end <= projectEnd;
         });
 
         // HYBRID SYSTEM: If there's a template milestone (isRecurring=true),
         // exclude old numbered instances to prevent double-counting
-        const hasTemplateMilestone = projectMilestones.some((m: Milestone) => m.isRecurring === true);
+        const hasTemplateMilestone = projectPhases.some((m: Milestone) => m.isRecurring === true);
         if (hasTemplateMilestone) {
-          projectMilestones = projectMilestones.filter((m: Milestone) => 
+          projectPhases = projectPhases.filter((m: Milestone) => 
             m.isRecurring === true || (!m.isRecurring && (!m.name || !/\s\d+$/.test(m.name)))
           );
         }
@@ -221,7 +221,7 @@ export class UnifiedDayEstimateService {
         // Calculate day estimates for this project (this already excludes days with events)
         const dayEstimates = this.calculateProjectDayEstimates(
           project,
-          projectMilestones,
+          projectPhases,
           settings,
           holidays,
           events

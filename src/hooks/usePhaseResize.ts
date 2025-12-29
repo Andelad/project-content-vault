@@ -36,7 +36,7 @@ type UpdateMilestoneFn = (
 
 interface UsePhaseResizeProps {
   projects: Project[];
-  milestones: Phase[];
+  phases: Phase[];
   dates: Date[];
   viewportStart: Date;
   viewportEnd: Date;
@@ -139,17 +139,17 @@ export function usePhaseResize({
     e.stopPropagation();
     
     // Get all phases for this project
-    const projectMilestones = milestones.filter(m => m.projectId === projectId);
-    const phases = getPhases(projectMilestones);
+    const projectPhases = milestones.filter(p => m.projectId === projectId);
+    const phases = getPhases(projectPhases);
 
     // Find the phase being resized
-    const targetPhase = phases.find(m => m.id === phaseId);
+    const targetPhase = phases.find(p => m.id === phaseId);
     if (!targetPhase) {
       return;
     }
     
     // Check if project has recurring template (should be blocked by UI but double-check)
-    const hasRecurring = projectMilestones.some(m => m.isRecurring);
+    const hasRecurring = projectPhases.some(p => m.isRecurring);
     if (hasRecurring) {
       toast({
         title: "Cannot adjust phase dates",

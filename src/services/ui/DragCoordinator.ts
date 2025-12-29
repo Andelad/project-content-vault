@@ -433,7 +433,7 @@ export class TimelineDragCoordinatorService {
         }, { silent: true });
 
         if (onSuccessToast) {
-          onSuccessToast("Milestone updated successfully");
+          onSuccessToast("Phase updated successfully");
         }
 
         return {

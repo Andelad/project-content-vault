@@ -169,7 +169,7 @@ export class ProjectOrchestrator {
    * Calls domain rules directly (no validator layer).
    * 
    * @param request - Project creation request data
-   * @param existingMilestones - Optional existing milestones to validate against
+   * @param existingPhases - Optional existing milestones to validate against
    * @returns Validation result with errors and warnings
    * 
    * @example
@@ -189,7 +189,7 @@ export class ProjectOrchestrator {
    */
   static validateProjectCreation(
     request: ProjectCreationRequest,
-    existingMilestones: Phase[] = []
+    existingPhases: Phase[] = []
   ): ProjectValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -243,7 +243,7 @@ export class ProjectOrchestrator {
       };
       const pastValidation = ProjectRules.validateProjectNotFullyInPast(
         tempProject,
-        existingMilestones
+        existingPhases
       );
       if (!pastValidation.isValid) {
         errors.push(...pastValidation.errors);
@@ -281,7 +281,7 @@ export class ProjectOrchestrator {
         errors.push(...dateValidation.errors);
       }
       // Check milestone date compatibility using domain rules
-      const incompatibleMilestones = currentMilestones.filter(m => {
+      const incompatiblePhases = currentMilestones.filter(p => {
         const validation = PhaseRules.validateMilestoneDateWithinProject(
           m.dueDate,
           updatedProject.startDate,
@@ -289,8 +289,8 @@ export class ProjectOrchestrator {
         );
         return !validation.isValid;
       });
-      if (incompatibleMilestones.length > 0) {
-        errors.push(`${incompatibleMilestones.length} milestone(s) would fall outside the updated project timeframe`);
+      if (incompatiblePhases.length > 0) {
+        errors.push(`${incompatiblePhases.length} milestone(s) would fall outside the updated project timeframe`);
       }
     }
     // Validate budget changes using domain rules
@@ -314,7 +314,7 @@ export class ProjectOrchestrator {
    */
   static analyzeProjectMilestones(
     project: Project,
-    milestones: Phase[]
+    phases: Phase[]
   ): ProjectMilestoneAnalysis {
     // Use domain rules for budget analysis
     const budgetCheck = PhaseRules.checkBudgetConstraint(milestones, project.estimatedHours);
@@ -326,10 +326,10 @@ export class ProjectOrchestrator {
       utilizationPercentage: budgetCheck.utilizationPercentage
     };
     // Simple milestone type counting (recurring detection can be enhanced later)
-  const regularMilestones = milestones.filter(m => !('isRecurring' in m && m.isRecurring)).length;
-  const recurringMilestones = milestones.filter(m => m.isRecurring === true).length;
+  const regularMilestones = milestones.filter(p => !('isRecurring' in m && m.isRecurring)).length;
+  const recurringMilestones = milestones.filter(p => m.isRecurring === true).length;
     // Check for over-budget milestones
-    const hasOverBudgetMilestones = milestones.some(m => 
+    const hasOverBudgetMilestones = milestones.some(p => 
       m.timeAllocation > project.estimatedHours
     );
     // Check for date conflicts
@@ -363,7 +363,7 @@ export class ProjectOrchestrator {
    */
   static calculateBudgetAdjustment(
     project: Project,
-    milestones: Phase[],
+    phases: Phase[],
     targetUtilization: number = 0.9 // 90% utilization target
   ): {
     currentBudget: number;
@@ -380,9 +380,9 @@ export class ProjectOrchestrator {
   /**
    * Check for milestone date conflicts
    */
-  private static checkMilestoneDateConflicts(milestones: Phase[]): boolean {
+  private static checkMilestoneDateConflicts(phases: Phase[]): boolean {
     const dateMap = new Map<string, number>();
-    for (const milestone of milestones) {
+    for (const phase of milestones) {
       const dateKey = getDateKey(milestone.dueDate);
       const count = dateMap.get(dateKey) || 0;
       dateMap.set(dateKey, count + 1);
@@ -397,7 +397,7 @@ export class ProjectOrchestrator {
    */
   static generateProjectStatus(
     project: Project,
-    milestones: Phase[]
+    phases: Phase[]
   ): {
     status: 'healthy' | 'warning' | 'critical';
     summary: string;
@@ -421,7 +421,7 @@ export class ProjectOrchestrator {
     }
     if (analysis.milestoneCount === 0) {
       status = status === 'critical' ? 'critical' : 'warning';
-      details.push('No milestones defined');
+      details.push('No phases defined');
     }
     // Generate summary
     let summary = '';
@@ -577,7 +577,7 @@ export class ProjectOrchestrator {
       // Step 4: Apply Phase Time Domain Rules auto-adjustments
       const warnings: string[] = validation.warnings || [];
       if (request.phases && request.phases.length > 0) {
-        const phases = request.phases.filter(m => m.endDate !== undefined);
+        const phases = request.phases.filter(p => m.endDate !== undefined);
         if (phases.length > 0) {
           // Convert to Milestone objects for domain rule processing
           const today = new Date();
@@ -642,9 +642,9 @@ export class ProjectOrchestrator {
             request.phases = request.phases.map((m, idx) => {
               const adjusted = phaseObjects.find(p => p.id === `temp-${idx}`);
               if (adjusted && adjusted.endDate && m.endDate) {
-                return { ...m, endDate: adjusted.endDate };
+                return { ...p, endDate: adjusted.endDate };
               }
-              return m;
+              return p;
             });
           }
         }
@@ -682,7 +682,7 @@ export class ProjectOrchestrator {
       options?: { silent?: boolean }
     ) => Promise<Milestone | void | undefined>
   ): Promise<void> {
-    for (const milestone of milestones) {
+    for (const phase of milestones) {
       if (milestone.name.trim()) {
         try {
           await addMilestone({

@@ -148,7 +148,7 @@ export class UnifiedProjectService {
   static validateDates(
     startDate: Date,
     endDate: Date,
-    milestones: Phase[] = []
+    phases: Phase[] = []
   ): { valid: boolean; errors: string[] } {
     const errors: string[] = [];
 
@@ -232,7 +232,7 @@ export class UnifiedProjectService {
    * Analyze project budget vs milestone allocation
    * Delegates to domain rules (no wrapper layer)
    */
-  static analyzeBudget(project: Project, milestones: Phase[]): ProjectBudgetAnalysis {
+  static analyzeBudget(project: Project, phases: Phase[]): ProjectBudgetAnalysis {
     return ProjectRules.analyzeBudget(project, milestones);
   }
   
@@ -242,7 +242,7 @@ export class UnifiedProjectService {
    */
   static validateTimeConstraints(
     estimatedHours: number,
-    milestones: Phase[]
+    phases: Phase[]
   ): ProjectTimeValidation {
     return ProjectRules.validateProjectTime(estimatedHours, milestones);
   }
@@ -310,7 +310,7 @@ export function calculateMilestoneTimeDistribution(
 export function validateProjectDates(
   startDate: Date,
   endDate: Date,
-  milestones: Phase[] = []
+  phases: Phase[] = []
 ): { valid: boolean; errors: string[] } {
   return UnifiedProjectService.validateDates(startDate, endDate, milestones);
 }
@@ -379,7 +379,7 @@ export class UnifiedProjectEntity {
    * Domain Rule: Calculate total milestone allocation for a project
    * @deprecated Use ProjectRules.calculateTotalMilestoneAllocation() instead
    */
-  static calculateTotalMilestoneAllocation(milestones: Phase[]): number {
+  static calculateTotalMilestoneAllocation(phases: Phase[]): number {
     return ProjectRules.calculateTotalMilestoneAllocation(milestones);
   }
 
@@ -387,7 +387,7 @@ export class UnifiedProjectEntity {
    * Domain Rule: Calculate project budget analysis
    * @deprecated Use ProjectRules.analyzeBudget() instead
    */
-  static analyzeBudget(project: Project, milestones: Phase[]): ProjectBudgetAnalysis {
+  static analyzeBudget(project: Project, phases: Phase[]): ProjectBudgetAnalysis {
     return ProjectRules.analyzeBudget(project, milestones);
   }
 
@@ -397,7 +397,7 @@ export class UnifiedProjectEntity {
    */
   static canAccommodateAdditionalHours(
     project: Project, 
-    milestones: Phase[], 
+    phases: Phase[], 
     additionalHours: number
   ): boolean {
     return ProjectRules.canAccommodateAdditionalHours(project, milestones, additionalHours);
@@ -409,7 +409,7 @@ export class UnifiedProjectEntity {
    */
   static validateProjectTime(
     estimatedHours: number,
-    milestones: Phase[]
+    phases: Phase[]
   ): ProjectTimeValidation {
     return ProjectRules.validateProjectTime(estimatedHours, milestones);
   }
@@ -473,7 +473,7 @@ export class UnifiedProjectEntity {
    * Calculate comprehensive project metrics
    * Migrated from ProjectCalculationService
    */
-  static calculateProjectMetrics(project: Project, milestones: Phase[], settings: Settings) {
+  static calculateProjectMetrics(project: Project, phases: Phase[], settings: Settings) {
     const totalDuration = this.calculateProjectDuration(project);
     const workload = this.calculateTotalProjectWorkload(project, milestones);
     
@@ -496,8 +496,8 @@ export class UnifiedProjectEntity {
    * Calculate milestone-specific metrics
    * Migrated from ProjectCalculationService
    */
-  static calculateMilestoneMetrics(milestones: Phase[], settings: Settings) {
-    return milestones.map(milestone => ({
+  static calculateMilestoneMetrics(phases: Phase[], settings: Settings) {
+    return milestones.map(phase => ({
       id: milestone.id,
       name: milestone.name,
       dueDate: milestone.dueDate,
@@ -532,7 +532,7 @@ export class UnifiedProjectEntity {
    * Calculate project end date based on remaining work and capacity
    * Migrated from ProjectCalculationService
    */
-  static calculateProjectEndDate(project: Project, milestones: Phase[], settings: Settings): Date | null {
+  static calculateProjectEndDate(project: Project, phases: Phase[], settings: Settings): Date | null {
     const remainingHours = this.calculateRemainingWorkHours(project, milestones);
     const dailyCapacity = this.calculateDailyWorkCapacity(project, settings);
     
@@ -591,7 +591,7 @@ export class UnifiedProjectEntity {
    * Validate milestone timeline consistency
    * Migrated from ProjectCalculationService
    */
-  static validateMilestoneTimeline(project: Project, milestones: Phase[]): {
+  static validateMilestoneTimeline(project: Project, phases: Phase[]): {
     isValid: boolean;
     issues: string[];
     suggestions: string[];
@@ -638,7 +638,7 @@ export class UnifiedProjectEntity {
     return milestoneDate < new Date();
   }
 
-  private static calculateRemainingWorkHours(project: Project, milestones: Phase[]): number {
+  private static calculateRemainingWorkHours(project: Project, phases: Phase[]): number {
     const totalAllocatedHours = milestones.reduce((total, milestone) => {
       const hours = milestone.timeAllocationHours ?? milestone.timeAllocation;
       return total + hours;
@@ -646,7 +646,7 @@ export class UnifiedProjectEntity {
     return Math.max(0, project.estimatedHours - totalAllocatedHours);
   }
 
-  private static calculateTotalProjectWorkload(project: Project, milestones: Phase[]): number {
+  private static calculateTotalProjectWorkload(project: Project, phases: Phase[]): number {
     return milestones.reduce((total, milestone) => {
       const hours = milestone.timeAllocationHours ?? milestone.timeAllocation;
       return total + hours;

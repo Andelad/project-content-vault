@@ -222,7 +222,7 @@ describe('Phase Helpers', () => {
       
       // OLD WAY (inline in component) - incorrectly checked endDate
       // This would include milestones too since they also have endDate!
-      const oldWayIncorrect = filteredProjectMilestones.filter(m => {
+      const oldWayIncorrect = filteredProjectMilestones.filter(p => {
         return m.endDate !== undefined;
       }).sort((a, b) => {
         const aDate = new Date(a.endDate!).getTime();

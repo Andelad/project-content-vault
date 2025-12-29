@@ -19,7 +19,7 @@ interface RecurringPhase {
 }
 
 interface UseMilestoneBudgetConfig {
-  projectMilestones: (Milestone | LocalPhase)[];
+  projectPhases: (Milestone | LocalPhase)[];
   projectEstimatedHours: number;
   projectStartDate: Date;
   projectEndDate: Date;
@@ -35,7 +35,7 @@ interface UseMilestoneBudgetConfig {
  */
 export function usePhaseBudget(config: UseMilestoneBudgetConfig) {
   const {
-    projectMilestones,
+    projectPhases,
     projectEstimatedHours,
     projectStartDate,
     projectEndDate,
@@ -74,7 +74,7 @@ export function usePhaseBudget(config: UseMilestoneBudgetConfig) {
       };
     }
 
-    const nonRecurringPhases = projectMilestones.filter(m => {
+    const nonRecurringPhases = projectPhases.filter(p => {
       // Exclude temporary/unsaved milestones
       if ('isNew' in m && (m as LocalPhase).isNew) return false;
       if (typeof m.id === 'string' && m.id.startsWith('temp-')) return false;
@@ -95,11 +95,11 @@ export function usePhaseBudget(config: UseMilestoneBudgetConfig) {
       isOverBudget,
       utilizationPercent: projectEstimatedHours > 0 ? (totalAllocated / projectEstimatedHours) * 100 : 0
     };
-  }, [projectMilestones, projectEstimatedHours, totalRecurringAllocation, recurringMilestone]);
+  }, [projectPhases, projectEstimatedHours, totalRecurringAllocation, recurringMilestone]);
 
   // Enhanced project health analysis using domain entities
   const projectHealthAnalysis = useMemo(() => {
-    const validMilestones = projectMilestones.filter(m => m.id) as Milestone[];
+    const validMilestones = projectPhases.filter(p => m.id) as Milestone[];
     const project: Project = {
       id: projectId || 'new',
       name: 'Current Project',
@@ -118,7 +118,7 @@ export function usePhaseBudget(config: UseMilestoneBudgetConfig) {
     };
 
     return ProjectOrchestrator.analyzeProjectMilestones(project, validMilestones);
-  }, [projectMilestones, projectEstimatedHours, projectStartDate, projectEndDate, projectContinuous, projectId]);
+  }, [projectPhases, projectEstimatedHours, projectStartDate, projectEndDate, projectContinuous, projectId]);
 
   return {
     totalRecurringAllocation,

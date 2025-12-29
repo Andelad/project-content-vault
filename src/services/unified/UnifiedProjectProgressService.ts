@@ -135,14 +135,14 @@ export class UnifiedProjectProgressService {
   static getEstimatedProgress(
     targetDate: Date,
     project: Project,
-    milestones: Phase[]
+    phases: Phase[]
   ): number {
     const startDate = new Date(project.startDate);
     const endDate = new Date(project.endDate);
-    const relevantMilestones = getRelevantMilestones(milestones, project.id);
+    const relevantPhases = getRelevantMilestones(milestones, project.id);
     
-    if (relevantMilestones.length === 0) {
-      // No milestones, use linear interpolation
+    if (relevantPhases.length === 0) {
+      // No phases, use linear interpolation
       const totalDays = calculateDurationDays(startDate, endDate);
       const targetDays = calculateDurationDays(startDate, targetDate);
       
@@ -155,7 +155,7 @@ export class UnifiedProjectProgressService {
     let prevDate = startDate;
     let prevHours = 0;
     
-    for (const milestone of relevantMilestones) {
+    for (const phase of relevantPhases) {
       const milestoneDate = milestone.endDate || milestone.dueDate;
       const timeAllocation = milestone.timeAllocationHours ?? milestone.timeAllocation;
       
@@ -197,7 +197,7 @@ export class UnifiedProjectProgressService {
   static calculateProgressData(
     project: Project,
     events: ProjectEvent[],
-    milestones: Phase[] = [],
+    phases: Phase[] = [],
     options: ProgressCalculationOptions = {}
   ): DataPoint[] {
     const startDate = new Date(project.startDate);
@@ -207,7 +207,7 @@ export class UnifiedProjectProgressService {
     if (totalDays <= 0) return [];
     
     const projectEvents = getProjectEvents(events, project.id);
-    const relevantMilestones = getRelevantMilestones(milestones, project.id);
+    const relevantPhases = getRelevantMilestones(milestones, project.id);
     const data: DataPoint[] = [];
     
     // Add starting point
@@ -220,11 +220,11 @@ export class UnifiedProjectProgressService {
       plannedTime: getPlannedTimeUpToDate(events, project.id, startDate)
     });
     
-    if (relevantMilestones.length > 0) {
+    if (relevantPhases.length > 0) {
       // Add milestone points
       let cumulativeEstimatedHours = 0;
       
-      relevantMilestones.forEach((milestone) => {
+      relevantPhases.forEach((milestone) => {
         const milestoneDate = milestone.endDate || milestone.dueDate;
         const timeAllocation = milestone.timeAllocationHours ?? milestone.timeAllocation;
         cumulativeEstimatedHours += timeAllocation;
@@ -260,7 +260,7 @@ export class UnifiedProjectProgressService {
   static isOnTrack(
     project: Project,
     events: ProjectEvent[],
-    milestones: Phase[] = [],
+    phases: Phase[] = [],
     currentDate: Date = new Date()
   ): boolean {
     const expectedProgress = this.getEstimatedProgress(currentDate, project, milestones);
@@ -327,7 +327,7 @@ export class UnifiedProjectProgressService {
   static analyzeProgress(
     project: Project,
     events: CalendarEvent[],
-    milestones: MilestoneWithProgress[],
+    phases: MilestoneWithProgress[],
     holidays: Holiday[],
     settings: Settings
   ): ProjectProgressAnalysis {
@@ -348,10 +348,10 @@ export class UnifiedProjectProgressService {
     const isOnTrack = this.isOnTrack(project, projectEvents, milestones);
 
     // Analyze milestone progress
-    const relevantMilestones = getRelevantMilestones(milestones, project.id);
+    const relevantPhases = getRelevantMilestones(milestones, project.id);
     const today = new Date();
     
-    const milestoneProgress = relevantMilestones.map(milestone => {
+    const milestoneProgress = relevantPhases.map(phase => {
       const dueDate = milestone.endDate || milestone.dueDate;
       const timeAllocation = milestone.timeAllocationHours ?? milestone.timeAllocation;
       const daysUntilDue = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
@@ -399,8 +399,8 @@ export class UnifiedProjectProgressService {
       completed: event.completed || false
     }));
 
-  const relevantMilestones = getRelevantMilestones(milestones, project.id);
-  const progressMethod = relevantMilestones.length > 0 ? 'milestone' : 'linear';
+  const relevantPhases = getRelevantMilestones(milestones, project.id);
+  const progressMethod = relevantPhases.length > 0 ? 'milestone' : 'linear';
   
   // Generate progress data points
   const progressData: ProgressDataPoint[] = [];
@@ -419,7 +419,7 @@ export class UnifiedProjectProgressService {
     });
     
     // Add milestone points
-    relevantMilestones.forEach(milestone => {
+    relevantPhases.forEach(milestone => {
       const timeAllocation = milestone.timeAllocationHours ?? milestone.timeAllocation;
       const milestoneDate = milestone.endDate || milestone.dueDate;
       cumulativeHours += timeAllocation;
@@ -543,7 +543,7 @@ export class UnifiedProjectProgressService {
 export function getEstimatedProgressForDate(
   targetDate: Date,
   project: Project,
-  milestones: Phase[]
+  phases: Phase[]
 ): number {
   return UnifiedProjectProgressService.getEstimatedProgress(targetDate, project, milestones);
 }
@@ -554,7 +554,7 @@ export function getEstimatedProgressForDate(
 export function calculateProjectProgressData(
   project: Project,
   events: ProjectEvent[],
-  milestones: Phase[] = [],
+  phases: Phase[] = [],
   options: ProgressCalculationOptions = {}
 ): DataPoint[] {
   return UnifiedProjectProgressService.calculateProgressData(project, events, milestones, options);
@@ -566,7 +566,7 @@ export function calculateProjectProgressData(
 export function isProjectOnTrack(
   project: Project,
   events: ProjectEvent[],
-  milestones: Phase[] = [],
+  phases: Phase[] = [],
   currentDate: Date = new Date()
 ): boolean {
   return UnifiedProjectProgressService.isOnTrack(project, events, milestones, currentDate);
@@ -585,7 +585,7 @@ export function calculateProjectStatus(project: Project): ProjectStatus {
 export function analyzeProjectProgress(
   project: Project,
   events: CalendarEvent[],
-  milestones: MilestoneWithProgress[],
+  phases: MilestoneWithProgress[],
   holidays: Holiday[],
   settings: Settings
 ): ProjectProgressAnalysis {

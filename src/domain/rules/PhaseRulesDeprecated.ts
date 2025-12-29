@@ -94,7 +94,7 @@ export class PhaseRules {
   /**
    * @deprecated Use PhaseRules.calculateTotalAllocation instead
    */
-  static calculateTotalAllocation(milestones: Phase[]): number {
+  static calculateTotalAllocation(phases: Phase[]): number {
     return PhaseRules.calculateTotalAllocation(milestones);
   }
 
@@ -102,7 +102,7 @@ export class PhaseRules {
    * @deprecated Use PhaseRules.checkBudgetConstraint instead
    */
   static checkBudgetConstraint(
-    milestones: Phase[],
+    phases: Phase[],
     projectBudget: number,
     excludeMilestoneId?: string
   ) {
@@ -117,7 +117,7 @@ export class PhaseRules {
    * @deprecated Use PhaseRules.canAccommodateAdditionalMilestone instead
    */
   static canAccommodateAdditionalMilestone(
-    milestones: Phase[],
+    phases: Phase[],
     projectBudget: number,
     additionalHours: number
   ): boolean {
@@ -144,16 +144,16 @@ export class PhaseRules {
   static validateMilestone(
     milestone: Phase,
     project: Project,
-    existingMilestones: Phase[] = []
+    existingPhases: Phase[] = []
   ) {
-    return PhaseRules.validateMilestone(milestone, project, existingMilestones);
+    return PhaseRules.validateMilestone(milestone, project, existingPhases);
   }
 
   /**
    * @deprecated Use PhaseRules.calculateBudgetUtilization instead
    */
   static calculateBudgetUtilization(
-    milestones: Phase[],
+    phases: Phase[],
     projectBudget: number
   ): number {
     return PhaseRules.calculateBudgetUtilization(milestones, projectBudget);
@@ -163,7 +163,7 @@ export class PhaseRules {
    * @deprecated Use PhaseRules.calculateRemainingBudget instead
    */
   static calculateRemainingBudget(
-    milestones: Phase[],
+    phases: Phase[],
     projectBudget: number
   ): number {
     return PhaseRules.calculateRemainingBudget(milestones, projectBudget);
@@ -173,7 +173,7 @@ export class PhaseRules {
    * @deprecated Use PhaseRules.calculateBudgetOverage instead
    */
   static calculateBudgetOverage(
-    milestones: Phase[],
+    phases: Phase[],
     projectBudget: number
   ): number {
     return PhaseRules.calculateBudgetOverage(milestones, projectBudget);
@@ -182,7 +182,7 @@ export class PhaseRules {
   /**
    * @deprecated Use PhaseRules.calculateAverageMilestoneAllocation instead
    */
-  static calculateAverageMilestoneAllocation(milestones: Phase[]): number {
+  static calculateAverageMilestoneAllocation(phases: Phase[]): number {
     return PhaseRules.calculateAverageMilestoneAllocation(milestones);
   }
 
@@ -190,7 +190,7 @@ export class PhaseRules {
    * @deprecated Use PhaseRules.generateRecommendations instead
    */
   static generateRecommendations(
-    milestones: Phase[],
+    phases: Phase[],
     projectBudget: number
   ): string[] {
     return PhaseRules.generateRecommendations(milestones, projectBudget);
@@ -199,7 +199,7 @@ export class PhaseRules {
   /**
    * @deprecated Use PhaseRules.sortMilestonesByDate instead
    */
-  static sortMilestonesByDate(milestones: Phase[]): Phase[] {
+  static sortMilestonesByDate(phases: Phase[]): Phase[] {
     return PhaseRules.sortMilestonesByDate(milestones);
   }
 

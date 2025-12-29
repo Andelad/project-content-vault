@@ -60,7 +60,7 @@ export function calculateDailyProjectHours(
   projects: Project[],
   settings: Settings,
   holidays: Holiday[],
-  milestones: Phase[] = [],
+  phases: Phase[] = [],
   events: CalendarEvent[] = []
 ): number {
   let totalHours = 0;
@@ -86,14 +86,14 @@ export function calculateDailyProjectHours(
     // Only process if date is within project range
     if (targetDate >= projectStart && targetDate <= projectEnd) {
       // Get milestones for this project
-      const projectMilestones = milestones.filter((m) => m.projectId === project.id);
+      const projectPhases = milestones.filter((m) => m.projectId === project.id);
       // Get events for this project
       const projectEvents = events.filter((e) => e.projectId === project.id);
       
       // Calculate day estimates using the same method as project bars
       const dayEstimates = calculateProjectDayEstimates(
         project,
-        projectMilestones,
+        projectPhases,
         settings,
         holidays,
         projectEvents

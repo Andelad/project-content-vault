@@ -100,20 +100,20 @@ export const ProjectBar = memo(function ProjectBar({
     if (!project) return [];
     const projectStart = new Date(project.startDate);
     const projectEnd = project.continuous ? null : new Date(project.endDate);
-    let projectMilestones = milestones.filter(m => {
+    let projectPhases = phases.filter(p => {
       if (m.projectId !== project.id) return false;
       const milestoneDate = new Date(m.endDate || m.dueDate);
       if (milestoneDate < projectStart) return false;
       if (project.continuous) return true;
       return milestoneDate <= projectEnd!;
     });
-    const hasTemplateMilestone = projectMilestones.some(m => m.isRecurring === true);
+    const hasTemplateMilestone = projectPhases.some(p => m.isRecurring === true);
     if (hasTemplateMilestone) {
-      projectMilestones = projectMilestones.filter(m => 
+      projectPhases = projectPhases.filter(p => 
         m.isRecurring === true || (!m.isRecurring && (!m.name || !/\s\d+$/.test(m.name)))
       );
     }
-    return projectMilestones;
+    return projectPhases;
   }, [project, milestones]);
 
   const visualProjectDates = useMemo(() => {

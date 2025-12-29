@@ -30,8 +30,8 @@ interface UseMilestoneOperationsConfig {
   projectEndDate: Date;
   isCreatingProject?: boolean;
   localPhasesState?: {
-    milestones: LocalPhase[];
-    setMilestones: (milestones: LocalPhase[]) => void;
+    phases: LocalPhase[];
+    setPhases: (phases: LocalPhase[]) => void;
   };
   trackedAddMilestone?: (
     milestone: LocalPhase | MilestoneCreateInput,
@@ -70,20 +70,20 @@ export function usePhaseOperations(config: UseMilestoneOperationsConfig) {
   const addMilestoneToContext = trackedAddMilestone || contextAddMilestone;
 
   // Get all milestones for this project
-  const projectMilestones = useMemo(() => {
+  const projectPhases = useMemo(() => {
     if (isCreatingProject && localPhasesState) {
       return localPhasesState.phases || [];
     }
 
     if (projectId) {
       const contextList = Array.isArray(contextMilestones)
-        ? contextMilestones.filter(m =>
+        ? contextMilestones.filter(p =>
             m.projectId === projectId &&
             m.dueDate >= projectStartDate &&
             m.dueDate <= projectEndDate
           )
         : [];
-      const localNew = localPhases.filter(m => 'isNew' in m && m.isNew);
+      const localNew = localPhases.filter(p => 'isNew' in m && m.isNew);
       return [...contextList, ...localNew];
     }
 
@@ -137,8 +137,8 @@ export function usePhaseOperations(config: UseMilestoneOperationsConfig) {
   // Update an existing milestone
   const updateMilestone = useCallback(async (milestoneId: string, updates: Partial<Phase>) => {
     if (isCreatingProject && localPhasesState) {
-      const updated = localPhasesState.phases.map(m =>
-        m.id === milestoneId ? { ...m, ...updates } : m
+      const updated = localPhasesState.phases.map(p =>
+        m.id === milestoneId ? { ...p, ...updates } : m
       );
       localPhasesState.setMilestones(updated);
       return true;
@@ -154,14 +154,14 @@ export function usePhaseOperations(config: UseMilestoneOperationsConfig) {
         });
         toast({
           title: "Error",
-          description: "Failed to update milestone. Please try again.",
+          description: "Failed to update phase. Please try again.",
           variant: "destructive",
         });
         return false;
       }
     } else {
-      setLocalPhases(prev => prev.map(m =>
-        m.id === milestoneId ? { ...m, ...updates } : m
+      setLocalPhases(prev => prev.map(p =>
+        m.id === milestoneId ? { ...p, ...updates } : m
       ));
       return true;
     }
@@ -170,7 +170,7 @@ export function usePhaseOperations(config: UseMilestoneOperationsConfig) {
   // Delete a milestone
   const deleteMilestone = useCallback(async (milestoneId: string) => {
     if (isCreatingProject && localPhasesState) {
-      const filtered = localPhasesState.phases.filter(m => m.id !== milestoneId);
+      const filtered = localPhasesState.phases.filter(p => m.id !== milestoneId);
       localPhasesState.setMilestones(filtered);
       return true;
     } else if (projectId) {
@@ -185,13 +185,13 @@ export function usePhaseOperations(config: UseMilestoneOperationsConfig) {
         });
         toast({
           title: "Error",
-          description: "Failed to delete milestone. Please try again.",
+          description: "Failed to delete phase. Please try again.",
           variant: "destructive",
         });
         return false;
       }
     } else {
-      setLocalPhases(prev => prev.filter(m => m.id !== milestoneId));
+      setLocalPhases(prev => prev.filter(p => m.id !== milestoneId));
       return true;
     }
   }, [isCreatingProject, localPhasesState, projectId, contextDeleteMilestone, toast]);
@@ -202,13 +202,13 @@ export function usePhaseOperations(config: UseMilestoneOperationsConfig) {
     property: K,
     value: Milestone[K]
   ) => {
-    const validMilestones = projectMilestones.filter(m => m.id) as Milestone[];
+    const validMilestones = projectPhases.filter(p => m.id) as Milestone[];
     const result = await ProjectPhaseOrchestrator.updateMilestoneProperty(
       milestoneId,
       property,
       value,
       {
-        projectMilestones: validMilestones,
+        projectPhases: validMilestones,
         projectEstimatedHours,
         localPhases,
         isCreatingProject,
@@ -231,10 +231,10 @@ export function usePhaseOperations(config: UseMilestoneOperationsConfig) {
     }
 
     return true;
-  }, [projectMilestones, projectEstimatedHours, localPhases, isCreatingProject, localPhasesState, createMilestone, updateMilestone, toast]);
+  }, [projectPhases, projectEstimatedHours, localPhases, isCreatingProject, localPhasesState, createMilestone, updateMilestone, toast]);
 
   return {
-    projectMilestones,
+    projectPhases,
     localPhases,
     setLocalPhases,
     createMilestone,

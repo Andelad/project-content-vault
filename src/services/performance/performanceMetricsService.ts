@@ -399,7 +399,7 @@ export const performanceMonitor = {
   
   getAverageRenderTime: (componentName?: string) => {
     const relevantMetrics = componentName 
-      ? performanceLog.filter(m => m.componentName === componentName)
+      ? performanceLog.filter(p => m.componentName === componentName)
       : performanceLog;
     
     if (relevantMetrics.length === 0) return 0;

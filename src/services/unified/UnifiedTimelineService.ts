@@ -130,7 +130,7 @@ export class UnifiedTimelineService {
    * Get project validation data
    * Delegates to ProjectPhaseOrchestrator
    */
-  static validateProject(project: Project, milestones: Phase[] = []) {
+  static validateProject(project: Project, phases: Phase[] = []) {
     return ProjectPhaseOrchestrator.validateProjectTimeframe(
       new Date(project.startDate),
       new Date(project.endDate),
@@ -159,7 +159,7 @@ export class UnifiedTimelineService {
    */
   static calculateProjectDayEstimates(
     project: Project,
-    milestones: Phase[],
+    phases: Phase[],
     settings: Settings,
     holidays: Holiday[],
     events: CalendarEvent[] = []
@@ -177,7 +177,7 @@ export class UnifiedTimelineService {
    * Delegates to existing calculation service
    */
   static calculateMilestoneSegments(
-    milestones: Phase[],
+    phases: Phase[],
     projectStart: Date,
     projectEnd: Date
   ) {
@@ -313,7 +313,7 @@ export class UnifiedTimelineService {
     dates: Date[],
     viewportStart: Date,
     viewportEnd: Date,
-    milestones: Phase[],
+    phases: Phase[],
     holidays: Holiday[],
     settings: Settings,
     isDragging: boolean = false,

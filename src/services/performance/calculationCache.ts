@@ -225,7 +225,7 @@ export class CalculationCacheService {
     });
 
     // Milestone calculations cache
-    this.initializeCache('milestoneCalculations', {
+    this.initializeCache('phaseCalculations', {
       maxSize: 800,
       ttl: 3 * 60 * 1000, // 3 minutes
       name: 'Milestone Calculations'
@@ -286,7 +286,7 @@ export class CalculationCacheService {
    * Get milestone cache statistics
    */
   static getMilestoneStats(): CacheStats {
-    const cache = this.caches.get('milestoneCalculations');
+    const cache = this.caches.get('phaseCalculations');
     if (!cache) {
       return { hits: 0, misses: 0, checks: 0 };
     }

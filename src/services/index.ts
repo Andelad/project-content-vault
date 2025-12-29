@@ -97,7 +97,7 @@ export {
   calculateSuggestedMilestoneBudget,
   sortMilestonesByDate,
   findMilestoneGap
-} from './calculations/projects/milestoneCalculations';
+} from './calculations/projects/phaseCalculations';
 
 // 🚧 Legacy Layer (Migration in Progress)
 // ⚠️ TODO: Migrate these to new architecture layers above
@@ -234,7 +234,7 @@ export {
   getMilestoneSegmentForDate,
   calculateMilestoneSegments,
   type MilestoneSegment
-} from './calculations/projects/milestoneCalculations';
+} from './calculations/projects/phaseCalculations';
 // Legacy project progress analysis - migrated to unified service with compatibility wrapper
 export { wouldOverlapHolidays, isHolidayDateCapacity, calculateCommittedHoursForDate, hasWorkHoursConfigured, dayHasWorkHoursConfigured } from './calculations/availability/capacityAnalysis';
 export { calculateProjectDays } from './ui/ProjectBarPositioning';

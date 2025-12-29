@@ -140,7 +140,7 @@ export function isMilestone(milestone: Milestone): boolean {
  * // phases is Phase[] - TypeScript knows they have startDate
  * ```
  */
-export function getPhases(milestones: Phase[]): Phase[] {
+export function getPhases(phases: Phase[]): Phase[] {
   return milestones.filter(isPhase);
 }
 
@@ -159,7 +159,7 @@ export function getPhases(milestones: Phase[]): Phase[] {
  * // These are deadline-only milestones
  * ```
  */
-export function getMilestones(milestones: Phase[]): Phase[] {
+export function getMilestones(phases: Phase[]): Phase[] {
   return milestones.filter(isMilestone);
 }
 
@@ -213,14 +213,14 @@ export function sortPhasesByStartDate(phases: Phase[]): Phase[] {
  * @example
  * ```ts
  * // Instead of:
- * const phases = milestones.filter(m => m.endDate !== undefined)
+ * const phases = milestones.filter(p => m.endDate !== undefined)
  *   .sort((a, b) => new Date(a.endDate!).getTime() - new Date(b.endDate!).getTime());
  * 
  * // Use:
  * const phases = getPhasesSortedByEndDate(milestones);
  * ```
  */
-export function getPhasesSortedByEndDate(milestones: Phase[]): Phase[] {
+export function getPhasesSortedByEndDate(phases: Phase[]): Phase[] {
   return sortPhasesByEndDate(getPhases(milestones));
 }
 
@@ -402,7 +402,7 @@ export class PhaseRules {
    * @param milestones - Array of milestones
    * @returns Total hours allocated
    */
-  static calculateTotalAllocation(milestones: Phase[]): number {
+  static calculateTotalAllocation(phases: Phase[]): number {
     return milestones.reduce((sum, milestone) => {
       const hours = milestone.timeAllocationHours ?? milestone.timeAllocation ?? 0;
       return sum + hours;
@@ -421,16 +421,16 @@ export class PhaseRules {
    * @returns Budget check result
    */
   static checkBudgetConstraint(
-    milestones: Phase[],
+    phases: Phase[],
     projectBudget: number,
     excludeMilestoneId?: string
   ): MilestoneBudgetCheck {
     // Filter out excluded milestone if provided
-    const relevantMilestones = excludeMilestoneId
-      ? milestones.filter(m => m.id !== excludeMilestoneId)
+    const relevantPhases = excludeMilestoneId
+      ? milestones.filter(p => m.id !== excludeMilestoneId)
       : milestones;
 
-    const totalAllocated = this.calculateTotalAllocation(relevantMilestones);
+    const totalAllocated = this.calculateTotalAllocation(relevantPhases);
     const remaining = projectBudget - totalAllocated;
     const overage = Math.max(0, totalAllocated - projectBudget);
     const utilizationPercentage = projectBudget > 0 ? (totalAllocated / projectBudget) * 100 : 0;
@@ -455,7 +455,7 @@ export class PhaseRules {
    * @returns true if budget can accommodate, false otherwise
    */
   static canAccommodateAdditionalMilestone(
-    milestones: Phase[],
+    phases: Phase[],
     projectBudget: number,
     additionalHours: number
   ): boolean {
@@ -511,13 +511,13 @@ export class PhaseRules {
    * 
    * @param milestone - Milestone to validate
    * @param project - Parent project
-   * @param existingMilestones - Other project milestones
+   * @param existingPhases - Other project milestones
    * @returns Comprehensive validation result
    */
   static validateMilestone(
     milestone: Milestone,
     project: Project,
-    existingMilestones: Phase[] = []
+    existingPhases: Phase[] = []
   ): MilestoneValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -532,7 +532,7 @@ export class PhaseRules {
     errors.push(...timeValidation.errors);
     warnings.push(...timeValidation.warnings);
 
-    // For recurring milestones, validate pattern
+    // For recurring phases, validate pattern
     if (milestone.isRecurring) {
       const recurringValidation = this.validateRecurringPhase(
         milestone.isRecurring,
@@ -561,15 +561,15 @@ export class PhaseRules {
     }
 
     // Validate budget constraint with existing milestones
-    // Note: For recurring milestones, this checks per-occurrence allocation
+    // Note: For recurring phases, this checks per-occurrence allocation
     const canAccommodate = this.canAccommodateAdditionalMilestone(
-      existingMilestones,
+      existingPhases,
       project.estimatedHours,
       milestoneHours
     );
 
     if (!canAccommodate && !project.continuous) {
-      const budgetCheck = this.checkBudgetConstraint(existingMilestones, project.estimatedHours);
+      const budgetCheck = this.checkBudgetConstraint(existingPhases, project.estimatedHours);
       if (milestone.isRecurring) {
         warnings.push(
           `Recurring milestone allocation (${milestoneHours}h per occurrence) may exceed project budget. ` +
@@ -605,7 +605,7 @@ export class PhaseRules {
    * @returns Utilization percentage (0-100+)
    */
   static calculateBudgetUtilization(
-    milestones: Phase[],
+    phases: Phase[],
     projectBudget: number
   ): number {
     if (projectBudget === 0) return 0;
@@ -624,7 +624,7 @@ export class PhaseRules {
    * @returns Remaining hours (can be negative if over budget)
    */
   static calculateRemainingBudget(
-    milestones: Phase[],
+    phases: Phase[],
     projectBudget: number
   ): number {
     const totalAllocated = this.calculateTotalAllocation(milestones);
@@ -642,7 +642,7 @@ export class PhaseRules {
    * @returns Overage hours (0 if not over budget)
    */
   static calculateBudgetOverage(
-    milestones: Phase[],
+    phases: Phase[],
     projectBudget: number
   ): number {
     const totalAllocated = this.calculateTotalAllocation(milestones);
@@ -655,7 +655,7 @@ export class PhaseRules {
    * @param milestones - Array of milestones
    * @returns Average hours per milestone
    */
-  static calculateAverageMilestoneAllocation(milestones: Phase[]): number {
+  static calculateAverageMilestoneAllocation(phases: Phase[]): number {
     if (milestones.length === 0) return 0;
     const totalAllocated = this.calculateTotalAllocation(milestones);
     return totalAllocated / milestones.length;
@@ -669,7 +669,7 @@ export class PhaseRules {
    * @returns Array of recommendation strings
    */
   static generateRecommendations(
-    milestones: Phase[],
+    phases: Phase[],
     projectBudget: number
   ): string[] {
     const recommendations: string[] = [];
@@ -713,7 +713,7 @@ export class PhaseRules {
    * @param milestones - Array of milestones
    * @returns Sorted milestones
    */
-  static sortMilestonesByDate(milestones: Phase[]): Phase[] {
+  static sortMilestonesByDate(phases: Phase[]): Phase[] {
     return milestones.sort((a, b) => {
       const dateA = a.endDate || a.dueDate;
       const dateB = b.endDate || b.dueDate;
@@ -1003,14 +1003,14 @@ export class PhaseRules {
    * 
    * @see docs/PHASE_DOMAIN_LOGIC.md - Rule 4: Mutual Exclusivity
    */
-  static checkPhaseRecurringExclusivity(milestones: Phase[]): {
+  static checkPhaseRecurringExclusivity(phases: Phase[]): {
     hasSplitPhases: boolean;
     hasRecurringTemplate: boolean;
     isValid: boolean;
     error?: string;
   } {
-    const splitPhases = milestones.filter(m => m.startDate !== undefined);
-    const recurringTemplate = milestones.find(m => m.isRecurring === true);
+    const splitPhases = milestones.filter(p => m.startDate !== undefined);
+    const recurringTemplate = milestones.find(p => m.isRecurring === true);
     
     const hasSplitPhases = splitPhases.length > 0;
     const hasRecurringTemplate = !!recurringTemplate;

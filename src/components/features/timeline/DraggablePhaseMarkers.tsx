@@ -8,7 +8,7 @@ import type { TimelinePositionCalculation } from '@/services/ui/ProjectBarPositi
 
 interface DraggablePhaseMarkersProps {
   project: Project;
-  milestones: Phase[];
+  phases: Phase[];
   viewportStart: Date;
   viewportEnd: Date;
   dates: Date[];
@@ -75,7 +75,7 @@ export function DraggablePhaseMarkers({
   const leftMarkerPath = `M ${MARKER_WIDTH} ${MARKER_CORNER_RADIUS} Q ${MARKER_WIDTH} 0 ${MARKER_WIDTH - MARKER_CORNER_RADIUS} 0 L ${MARKER_CORNER_RADIUS} ${markerMidY - MARKER_CORNER_RADIUS} Q 0 ${markerMidY} ${MARKER_CORNER_RADIUS} ${markerMidY + MARKER_CORNER_RADIUS} L ${MARKER_WIDTH - MARKER_CORNER_RADIUS} ${MARKER_HEIGHT} Q ${MARKER_WIDTH} ${MARKER_HEIGHT} ${MARKER_WIDTH} ${MARKER_HEIGHT - MARKER_CORNER_RADIUS} Z`;
 
   // Check if project has recurring template (markers should not be draggable)
-  const hasRecurringTemplate = milestones.some(m => m.isRecurring);
+  const hasRecurringTemplate = milestones.some(p => m.isRecurring);
 
   return (
     <TooltipProvider delayDuration={100} skipDelayDuration={0}>

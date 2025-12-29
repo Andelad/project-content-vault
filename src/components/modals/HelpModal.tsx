@@ -182,7 +182,7 @@ const helpSections: HelpSection[] = [
           <ol className="list-decimal list-inside space-y-2 text-gray-700 ml-4 mb-6">
             <li>Open a project from the Overview section</li>
             <li>Find the Milestones section</li>
-            <li>Click "Add Milestone"</li>
+            <li>Click "Add Phase"</li>
             <li>Enter a title and select the due date</li>
             <li>Save to see it appear on your timeline</li>
           </ol>

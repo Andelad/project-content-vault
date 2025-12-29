@@ -8,7 +8,7 @@ import type { TimelinePositionCalculation } from '@/services/ui/ProjectBarPositi
 
 interface PhaseMarkersProps {
   project: Project;
-  milestones: Phase[];
+  phases: Phase[];
   viewportStart: Date;
   viewportEnd: Date;
   dates: Date[];

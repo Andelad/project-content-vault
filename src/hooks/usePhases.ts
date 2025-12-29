@@ -25,7 +25,7 @@ const toIsoString = (value?: string | Date | null): string | null | undefined =>
   if (value instanceof Date) return value.toISOString();
   return value;
 };
-export function useMilestones(projectId?: string) {
+export function usePhases(projectId?: string) {
   const [phases, setPhases] = useState<Milestone[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -41,10 +41,10 @@ export function useMilestones(projectId?: string) {
       if (error) throw error;
       setMilestones(data || []);
     } catch (error) {
-      ErrorHandlingService.handle(error, { source: 'useMilestones', action: 'Error fetching milestones:' });
+      ErrorHandlingService.handle(error, { source: 'useMilestones', action: 'Error fetching phases:' });
       toast({
         title: "Error",
-        description: "Failed to load milestones",
+        description: "Failed to load phases",
         variant: "destructive",
       });
     } finally {
@@ -63,7 +63,7 @@ export function useMilestones(projectId?: string) {
       ErrorHandlingService.handle(error, { source: 'useMilestones', action: 'Error fetching all milestones:' });
       toast({
         title: "Error",
-        description: "Failed to load milestones",
+        description: "Failed to load phases",
         variant: "destructive",
       });
     } finally {
@@ -123,7 +123,7 @@ export function useMilestones(projectId?: string) {
       if (!options.silent) {
         toast({
           title: "Success",
-          description: "Milestone created successfully",
+          description: "Phase created successfully",
         });
       }
       return data;
@@ -132,7 +132,7 @@ export function useMilestones(projectId?: string) {
       // Always show error toasts immediately
       toast({
         title: "Error",
-        description: "Failed to create milestone",
+        description: "Failed to create phase",
         variant: "destructive",
       });
       throw error;
@@ -147,7 +147,7 @@ export function useMilestones(projectId?: string) {
         .select()
         .single();
       if (error) throw error;
-      setMilestones(prev => prev.map(milestone => 
+      setMilestones(prev => prev.map(phase => 
         milestone.id === id ? data : milestone
       ).sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime()));
   // Only show toast if not in silent mode
@@ -159,7 +159,7 @@ export function useMilestones(projectId?: string) {
         updateToastTimeoutRef.current = setTimeout(() => {
           toast({
             title: "Success",
-            description: "Milestone updated successfully",
+            description: "Phase updated successfully",
           });
         }, 500);
       }
@@ -169,13 +169,13 @@ export function useMilestones(projectId?: string) {
       // Always show error toasts immediately
       toast({
         title: "Error",
-        description: "Failed to update milestone",
+        description: "Failed to update phase",
         variant: "destructive",
       });
       throw error;
     }
   };
-  const showSuccessToast = (message: string = "Milestone updated successfully") => {
+  const showSuccessToast = (message: string = "Phase updated successfully") => {
     toast({
       title: "Success",
       description: message,
@@ -184,7 +184,7 @@ export function useMilestones(projectId?: string) {
   const deleteMilestone = async (id: string, options: { silent?: boolean } = {}) => {
     try {
       // First, fetch the milestone to check if it's a recurring template
-      const phase = milestones.find(m => m.id === id);
+      const phase = milestones.find(p => m.id === id);
       if (milestone?.is_recurring === true) {
         // This is a recurring template - delete all numbered instances first
         // Numbered instances have names like "Sprint 1", "Sprint 2", etc.
@@ -202,7 +202,7 @@ export function useMilestones(projectId?: string) {
           throw instancesError;
         }
         // Update local state to remove numbered instances
-        setMilestones(prev => prev.filter(m => 
+        setMilestones(prev => prev.filter(p => 
           !(m.project_id === milestone.project_id && 
             m.is_recurring === false && 
             m.name.startsWith(numberedPattern))
@@ -217,12 +217,12 @@ export function useMilestones(projectId?: string) {
         ErrorHandlingService.handle(error, { source: 'useMilestones', action: '[useMilestones] Error deleting milestone:' });
         throw error;
       }
-      setMilestones(prev => prev.filter(m => m.id !== id));
+      setMilestones(prev => prev.filter(p => m.id !== id));
       // Only show toast if not in silent mode
       if (!options.silent) {
         toast({
           title: "Success",
-          description: "Milestone deleted successfully",
+          description: "Phase deleted successfully",
         });
       }
     } catch (error) {
@@ -230,7 +230,7 @@ export function useMilestones(projectId?: string) {
       // Always show error toasts
       toast({
         title: "Error",
-        description: "Failed to delete milestone",
+        description: "Failed to delete phase",
         variant: "destructive",
       });
       throw error;

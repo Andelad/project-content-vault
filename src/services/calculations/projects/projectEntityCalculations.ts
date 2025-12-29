@@ -204,15 +204,15 @@ export function getPlannedTimeUpToDate(
  * Get relevant milestones for a project
  */
 export function getRelevantMilestones(
-  milestones: MilestoneWithProgress[], 
+  phases: MilestoneWithProgress[], 
   projectId: string,
   startDate?: Date,
   endDate?: Date
 ): MilestoneWithProgress[] {
-  let filtered = milestones.filter(m => m.projectId === projectId);
+  let filtered = milestones.filter(p => m.projectId === projectId);
   
   if (startDate && endDate) {
-    filtered = filtered.filter(m => {
+    filtered = filtered.filter(p => {
       const dueDate = new Date(m.dueDate);
       return dueDate >= startDate && dueDate <= endDate;
     });
@@ -307,12 +307,12 @@ export function calculateProjectTimeMetrics(
   const averageHoursPerDay = (durationDays > 0 && durationDays !== -1) ? totalPlannedHours / durationDays : 0;
   
   // Calculate milestone progress
-  const relevantMilestones = milestones.filter(m => m.projectId === project.id);
-  const completedMilestones = relevantMilestones.filter(m => m.completed === true);
+  const relevantPhases = milestones.filter(p => m.projectId === project.id);
+  const completedMilestones = relevantPhases.filter(p => m.completed === true);
   const milestoneProgress = {
     completed: completedMilestones.length,
-    total: relevantMilestones.length,
-    percentage: relevantMilestones.length > 0 ? (completedMilestones.length / relevantMilestones.length) * 100 : 0
+    total: relevantPhases.length,
+    percentage: relevantPhases.length > 0 ? (completedMilestones.length / relevantPhases.length) * 100 : 0
   };
   
   // Calculate remaining days and required hours per day

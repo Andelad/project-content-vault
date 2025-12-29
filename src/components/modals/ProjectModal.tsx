@@ -103,7 +103,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
   const [isInsightsExpanded, setIsInsightsExpanded] = useState(false);
   const [isNotesExpanded, setIsNotesExpanded] = useState(true);
   // State for milestones in new projects
-  const [localProjectMilestones, setLocalProjectMilestones] = useState<Array<{
+  const [localProjectPhases, setLocalProjectPhases] = useState<Array<{
     name: string;
     dueDate: Date;
     endDate: Date;
@@ -189,10 +189,10 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
   }, [setLocalValues]);
   const localPhasesStateMemo = useMemo(() => (
     isCreating ? {
-      milestones: localProjectMilestones,
-      setMilestones: setLocalProjectMilestones
+      phases: localProjectPhases,
+      setPhases: setLocalProjectPhases
     } : undefined
-  ), [isCreating, localProjectMilestones]);
+  ), [isCreating, localProjectPhases]);
   // Store original values to restore on cancel
   const [originalValues, setOriginalValues] = useState({
     name: '',
@@ -242,7 +242,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
         previousEndDateRef.current = new Date(project.endDate);
       }
       // Clear local milestones for existing projects
-      setLocalProjectMilestones([]);
+      setLocalProjectPhases([]);
     } else if (isCreating) {
       // Set defaults for new project, using pre-populated dates if available
       const today = new Date();
@@ -272,7 +272,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
       setOriginalValues(defaultValues);
       previousEndDateRef.current = defaultValues.endDate;
       // Reset milestones for new projects
-      setLocalProjectMilestones([]);
+      setLocalProjectPhases([]);
     }
   }, [project, isCreating, creatingNewProject]);
   // Handle smooth modal closing - just call onClose, AnimatePresence will handle the animation
@@ -328,7 +328,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
             icon: localValues.icon,
             continuous: localValues.continuous,
             autoEstimateDays: localValues.autoEstimateDays,
-            milestones: localProjectMilestones
+            phases: localProjectPhases
           },
           {
             addProject,
@@ -376,7 +376,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
         setIsSubmitting(false);
       }
     }
-  }, [resolvedGroupId, groupId, resolvedRowId, rowId, isCreating, localValues.name, localValues.client, localValues.startDate, localValues.endDate, localValues.estimatedHours, localValues.color, localValues.notes, localValues.icon, localValues.continuous, localValues.autoEstimateDays, localProjectMilestones, addProject, addMilestone, toast, handleClose, isSubmitting]);
+  }, [resolvedGroupId, groupId, resolvedRowId, rowId, isCreating, localValues.name, localValues.client, localValues.startDate, localValues.endDate, localValues.estimatedHours, localValues.color, localValues.notes, localValues.icon, localValues.continuous, localValues.autoEstimateDays, localProjectPhases, addProject, addMilestone, toast, handleClose, isSubmitting]);
   // Handle deleting the project
   const handleDeleteProject = () => {
     if (projectId && projectId !== '') {
@@ -456,7 +456,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
       createdAt: project?.createdAt ?? new Date(),
       updatedAt: project?.updatedAt ?? new Date(),
   status: project?.status ?? 'current',
-  milestones: project?.phases ?? [],
+  phases: project?.phases ?? [],
     };
     const currentProject = project ?? fallbackProject;
     const projectEvents: ProjectEvent[] = events
@@ -742,18 +742,18 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
   }) => {
   const [isOpen, setIsOpen] = useState(false);
     // Get relevant milestones
-    const relevantMilestones = isCreating
-      ? localProjectMilestones
-      : milestones.filter(m => projectId && m.projectId === projectId);
+    const relevantPhases = isCreating
+      ? localProjectPhases
+      : milestones.filter(p => projectId && m.projectId === projectId);
     // Calculate disabled date ranges based on milestone constraints
     const getDisabledDates = () => {
-      if (!relevantMilestones || relevantMilestones.length === 0) {
+      if (!relevantPhases || relevantPhases.length === 0) {
         return (date: Date) => false; // No restrictions if no milestones
       }
       if (property === 'startDate') {
         // Start date cannot be on or after any milestone
         return (date: Date) => {
-          return relevantMilestones.some(m => {
+          return relevantPhases.some(p => {
             const milestoneDate = normalizeToMidnight(new Date(m.dueDate));
             const normalizedDate = normalizeToMidnight(date);
             return normalizedDate.getTime() >= milestoneDate.getTime();
@@ -762,7 +762,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
       } else if (property === 'endDate') {
         // End date cannot be on or before any milestone
         return (date: Date) => {
-          return relevantMilestones.some(m => {
+          return relevantPhases.some(p => {
             const milestoneDate = normalizeToMidnight(new Date(m.dueDate));
             const normalizedDate = normalizeToMidnight(date);
             return normalizedDate.getTime() <= milestoneDate.getTime();
@@ -790,7 +790,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
             className="w-auto p-0"
             align="start"
           >
-            {relevantMilestones && relevantMilestones.length > 0 && (
+            {relevantPhases && relevantPhases.length > 0 && (
               <div className="p-3 border-b bg-gray-50">
                 <div className="text-sm font-medium text-gray-700 mb-1">
                   {property === 'startDate' ? 'Start Date Constraints' : 'End Date Constraints'}
@@ -802,8 +802,8 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
                   }
                 </div>
                 <div className="text-xs text-gray-500 mt-1">
-                  Milestones: {relevantMilestones
-                    .map(m => formatDate(new Date(m.dueDate)))
+                  Milestones: {relevantPhases
+                    .map(p => formatDate(new Date(m.dueDate)))
                     .join(', ')}
                 </div>
               </div>
@@ -821,7 +821,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
               disabled={getDisabledDates()}
               modifiers={{
                 // Mark milestone dates in red
-                milestone: (date) => relevantMilestones.some(m => {
+                milestone: (date) => relevantPhases.some(p => {
                   const mDate = new Date(m.dueDate);
                   return mDate.toDateString() === date.toDateString();
                 })

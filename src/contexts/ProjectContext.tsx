@@ -105,7 +105,7 @@ interface ProjectContextType {
   reorderRows: (groupId: string, fromIndex: number, toIndex: number) => void;
 
   // Milestones
-  milestones: Phase[];
+  phases: Phase[];
   addMilestone: (milestone: MilestoneCreateInput, options?: { silent?: boolean }) => Promise<Milestone | undefined>;
   updateMilestone: (id: string, updates: MilestoneUpdateInput, options?: { silent?: boolean }) => Promise<void>;
   deleteMilestone: (id: string, options?: { silent?: boolean }) => Promise<void>;
@@ -186,7 +186,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     deleteMilestone: dbDeleteMilestone,
     showSuccessToast: showMilestoneSuccessToast,
     refetch: refetchMilestones,
-  } = useMilestones();
+  } = usePhases();
 
   const processedMilestones = useMemo<Milestone[]>(() => {
     if (!dbMilestones) {
@@ -342,7 +342,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   }, [dbDeleteRow]);
 
   const getMilestonesForProject = useCallback((projectId: string) => {
-    return processedMilestones.filter(milestone => milestone.projectId === projectId);
+    return processedMilestones.filter(phase => milestone.projectId === projectId);
   }, [processedMilestones]);
 
   const addMilestone = useCallback(async (milestone: MilestoneCreateInput, options?: { silent?: boolean }) => {

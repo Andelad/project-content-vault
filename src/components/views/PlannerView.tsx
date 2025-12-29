@@ -91,7 +91,7 @@ export function PlannerView() {
     confirmWorkHourChange,
     cancelWorkHourChange
   } = usePlannerContext();
-  const { projects, milestones: projectMilestones } = useProjectContext();
+  const { projects, phases: projectPhases } = useProjectContext();
   const { 
     currentDate, 
     setCurrentDate,
@@ -142,15 +142,15 @@ export function PlannerView() {
   });
   const [weekStart, setWeekStart] = useState<Date>(new Date(calendarDate));
   // Create milestones map by project ID (use normalized milestones from ProjectContext)
-  const milestonesMap = useMemo(() => {
+  const phasesMap = useMemo(() => {
     const map = new Map<string, Milestone[]>();
-    (projectMilestones || []).forEach(milestone => {
+    (projectPhases || []).forEach(milestone => {
       const list = map.get(milestone.projectId) || [];
       list.push(milestone);
       map.set(milestone.projectId, list);
     });
     return map;
-  }, [projectMilestones]);
+  }, [projectPhases]);
   // Derive summary dates from the latest strings (set by datesSet)
   // Do not compute from fallback values to avoid flash
   // Convert date strings to Date objects (stable based on string keys)
@@ -1047,7 +1047,7 @@ export function PlannerView() {
           context="planner"
           timeGutterWidth={timeAxisWidth}
           scrollbarWidth={calendarScrollbarWidth}
-          milestones={projectMilestones}
+          milestones={projectPhases}
         />
       </div>
       {/* Modals */}

@@ -130,7 +130,7 @@ export class ProjectRules {
    * @param milestones - Array of milestones to sum
    * @returns Total hours allocated across all milestones
    */
-  static calculateTotalMilestoneAllocation(milestones: Phase[]): number {
+  static calculateTotalMilestoneAllocation(phases: Phase[]): number {
     return milestones.reduce((sum, milestone) => {
       const hours = milestone.timeAllocationHours ?? milestone.timeAllocation ?? 0;
       return sum + hours;
@@ -147,7 +147,7 @@ export class ProjectRules {
    * @param milestones - The project's milestones
    * @returns Comprehensive budget analysis
    */
-  static analyzeBudget(project: Project, milestones: Phase[]): ProjectBudgetAnalysis {
+  static analyzeBudget(project: Project, phases: Phase[]): ProjectBudgetAnalysis {
     const totalEstimatedHours = project.estimatedHours;
     const totalAllocatedHours = this.calculateTotalMilestoneAllocation(milestones);
     const remainingHours = totalEstimatedHours - totalAllocatedHours;
@@ -183,7 +183,7 @@ export class ProjectRules {
    */
   static canAccommodateAdditionalHours(
     project: Project, 
-    milestones: Phase[], 
+    phases: Phase[], 
     additionalHours: number
   ): boolean {
     const analysis = this.analyzeBudget(project, milestones);
@@ -207,7 +207,7 @@ export class ProjectRules {
    */
   static validateProjectTime(
     estimatedHours: number,
-    milestones: Phase[]
+    phases: Phase[]
   ): ProjectTimeValidation {
     const errors: string[] = [];
     const warnings: string[] = [];

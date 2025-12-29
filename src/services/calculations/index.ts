@@ -21,7 +21,7 @@ export * from './insights/analyticsCalculations';
 
 // ===== PROJECTS =====
 export * from './projects/dayEstimateCalculations';
-// Note: milestoneCalculations has calculateProjectWorkingDays which is also in capacityCalculations
+// Note: phaseCalculations has calculateProjectWorkingDays which is also in capacityCalculations
 // Using capacityCalculations as primary source for calculateProjectWorkingDays
 export {
   calculateTotalAllocation,
@@ -46,7 +46,7 @@ export {
   calculateMilestoneSegments,
   calculateBudgetAdjustment,
   type MilestoneSegment
-} from './projects/milestoneCalculations';
+} from './projects/phaseCalculations';
 export * from './projects/projectEntityCalculations';
 export {
   calculateAutoEstimateWorkingDays,

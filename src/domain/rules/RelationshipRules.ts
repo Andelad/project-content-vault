@@ -107,7 +107,7 @@ export class RelationshipRules {
    * @returns Validation result
    */
   static validateProjectMilestoneBudget(
-    milestones: Phase[],
+    phases: Phase[],
     project: Project
   ): RelationshipValidation {
     const errors: string[] = [];
@@ -150,7 +150,7 @@ export class RelationshipRules {
    */
   static validateProjectMilestones(
     project: Project,
-    milestones: Phase[]
+    phases: Phase[]
   ): RelationshipValidation {
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -261,13 +261,13 @@ export class RelationshipRules {
    * @returns List of orphaned milestone IDs
    */
   static findOrphanedMilestones(
-    milestones: Phase[],
+    phases: Phase[],
     projects: Project[]
   ): string[] {
     const projectIds = new Set(projects.map(p => p.id));
     return milestones
-      .filter(m => !projectIds.has(m.projectId))
-      .map(m => m.id);
+      .filter(p => !projectIds.has(m.projectId))
+      .map(p => m.id);
   }
 
   /**
@@ -321,7 +321,7 @@ export class RelationshipRules {
    */
   static validateSystemIntegrity(context: {
     projects: Project[];
-    milestones: Phase[];
+    phases: Phase[];
     clients: Client[];
     groups: Group[];
     labels?: Label[];
@@ -353,12 +353,12 @@ export class RelationshipRules {
 
     // Check project-milestone budget constraints
     context.projects.forEach(project => {
-      const projectMilestones = context.phases.filter(
+      const projectPhases = context.phases.filter(
         m => m.projectId === project.id
       );
       
       const budgetValidation = this.validateProjectMilestoneBudget(
-        projectMilestones,
+        projectPhases,
         project
       );
       
@@ -392,11 +392,11 @@ export class RelationshipRules {
    */
   static getProjectDeletionImpact(
     projectId: string,
-    milestones: Phase[]
+    phases: Phase[]
   ): string[] {
     return milestones
-      .filter(m => m.projectId === projectId)
-      .map(m => m.id);
+      .filter(p => m.projectId === projectId)
+      .map(p => m.id);
   }
 
   /**
@@ -413,7 +413,7 @@ export class RelationshipRules {
   static getClientDeletionImpact(
     clientId: string,
     projects: Project[],
-    milestones: Phase[]
+    phases: Phase[]
   ): {
     projectIds: string[];
     milestoneIds: string[];
@@ -421,8 +421,8 @@ export class RelationshipRules {
     const affectedProjects = projects.filter(p => p.clientId === clientId);
     const projectIds = affectedProjects.map(p => p.id);
     const milestoneIds = milestones
-      .filter(m => projectIds.includes(m.projectId))
-      .map(m => m.id);
+      .filter(p => projectIds.includes(m.projectId))
+      .map(p => m.id);
 
     return { projectIds, milestoneIds };
   }
@@ -441,7 +441,7 @@ export class RelationshipRules {
   static getGroupDeletionImpact(
     groupId: string,
     projects: Project[],
-    milestones: Phase[]
+    phases: Phase[]
   ): {
     projectIds: string[];
     milestoneIds: string[];
@@ -449,8 +449,8 @@ export class RelationshipRules {
     const affectedProjects = projects.filter(p => p.groupId === groupId);
     const projectIds = affectedProjects.map(p => p.id);
     const milestoneIds = milestones
-      .filter(m => projectIds.includes(m.projectId))
-      .map(m => m.id);
+      .filter(p => projectIds.includes(m.projectId))
+      .map(p => m.id);
 
     return { projectIds, milestoneIds };
   }

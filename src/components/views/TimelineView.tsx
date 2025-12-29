@@ -479,12 +479,12 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
   const allDayEstimates = React.useMemo(() => {
     const estimates: DayEstimate[] = [];
     projects.forEach(project => {
-      let projectMilestones = milestones.filter(m => m.projectId === project.id);
+      let projectPhases = phases.filter(p => m.projectId === project.id);
       
       // If a phase is being dragged for this project, apply visual dates
       if (isDragging && dragState?.projectId === project.id && dragState?.milestoneId &&
           (dragState?.action === 'resize-phase-start' || dragState?.action === 'resize-phase-end')) {
-        projectMilestones = projectMilestones.map(m => {
+        projectPhases = projectPhases.map(p => {
           if (m.id === dragState.milestoneId) {
             // Apply visual date changes during drag
             const daysDelta = dragState.lastDaysDelta || 0;
@@ -492,24 +492,24 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
             
             if (dragState.action === 'resize-phase-start' && m.startDate) {
               return {
-                ...m,
+                ...p,
                 startDate: new Date(new Date(m.startDate).getTime() + msOffset)
               };
             } else if (dragState.action === 'resize-phase-end' && m.endDate) {
               return {
-                ...m,
+                ...p,
                 endDate: new Date(new Date(m.endDate).getTime() + msOffset),
                 dueDate: new Date(new Date(m.endDate).getTime() + msOffset)
               };
             }
           }
-          return m;
+          return p;
         });
       }
       
       const projectEstimates = UnifiedDayEstimateService.calculateProjectDayEstimates(
         project,
-        projectMilestones,
+        projectPhases,
         settings,
         holidays,
         events
@@ -593,7 +593,7 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
   }, [updateMilestone]);
   // Handle milestone drag end
   const handleMilestoneDragEnd = useCallback(() => {
-    showMilestoneSuccessToast("Milestone updated successfully");
+    showMilestoneSuccessToast("Phase updated successfully");
   }, [showMilestoneSuccessToast]);
   return (
     <DndProvider backend={HTML5Backend}>

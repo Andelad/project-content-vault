@@ -298,7 +298,7 @@ export function RecurringPhaseCard({
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Delete Recurring Milestones</AlertDialogTitle>
+                <AlertDialogTitle>Delete Recurring Phases</AlertDialogTitle>
                 <AlertDialogDescription>
                   Are you sure you want to delete the recurring milestone pattern? This will remove the configuration and any generated milestones. This action cannot be undone.
                 </AlertDialogDescription>
@@ -309,7 +309,7 @@ export function RecurringPhaseCard({
                   onClick={onDelete}
                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 >
-                  Delete Recurring Milestones
+                  Delete Recurring Phases
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

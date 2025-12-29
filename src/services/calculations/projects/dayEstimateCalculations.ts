@@ -346,7 +346,7 @@ function generateRecurringOccurrences(
  */
 export function calculateProjectDayEstimates(
   project: Project,
-  milestones: Phase[],
+  phases: Phase[],
   settings: Settings,
   holidays: Holiday[],
   events: CalendarEvent[] = []
@@ -382,14 +382,14 @@ export function calculateProjectDayEstimates(
   });
   // PRIORITY 2 - Process milestones (only for dates without planned events)
   // Sort milestones by due date to calculate segments correctly
-  const sortedMilestones = [...phases].sort((a, b) => {
+  const sortedPhases = [...phases].sort((a, b) => {
     const dateA = new Date(a.endDate || a.dueDate);
     const dateB = new Date(b.endDate || b.dueDate);
     return dateA.getTime() - dateB.getTime();
   });
   let totalMilestoneEstimates = 0;
   let previousMilestoneEnd: Date | null = null;
-  sortedMilestones.forEach(milestone => {
+  sortedPhases.forEach(milestone => {
     // CRITICAL: If milestone already has startDate (it's a phase), use it!
     // Only calculate segment start for pure milestones (no startDate)
     const segmentStart = milestone.startDate

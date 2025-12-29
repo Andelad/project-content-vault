@@ -23,19 +23,19 @@ export function OrphanedPhasesCleaner() {
         .eq('user_id', user.id);
       if (error) throw error;
       // Group by project
-      const projectMilestones = new Map<string, typeof allMilestones>();
+      const projectPhases = new Map<string, typeof allMilestones>();
       allMilestones?.forEach(m => {
-        if (!projectMilestones.has(m.project_id)) {
-          projectMilestones.set(m.project_id, []);
+        if (!projectPhases.has(m.project_id)) {
+          projectPhases.set(m.project_id, []);
         }
-        projectMilestones.get(m.project_id)!.push(m);
+        projectPhases.get(m.project_id)!.push(m);
       });
       // Find orphaned instances
       let totalOrphans = 0;
-      projectMilestones.forEach(milestones => {
-        const templates = milestones.filter(m => m.is_recurring === true);
+      projectPhases.forEach(milestones => {
+        const templates = milestones.filter(p => m.is_recurring === true);
         const templateNames = new Set(templates.map(t => t.name));
-        const numberedInstances = milestones.filter(m => {
+        const numberedInstances = milestones.filter(p => {
           if (m.is_recurring === true) return false;
           const match = m.name?.match(/^(.+) \d+$/);
           return match !== null;
@@ -84,19 +84,19 @@ export function OrphanedPhasesCleaner() {
         .eq('user_id', user.id);
       if (fetchError) throw fetchError;
       // Group by project
-      const projectMilestones = new Map<string, typeof allMilestones>();
+      const projectPhases = new Map<string, typeof allMilestones>();
       allMilestones?.forEach(m => {
-        if (!projectMilestones.has(m.project_id)) {
-          projectMilestones.set(m.project_id, []);
+        if (!projectPhases.has(m.project_id)) {
+          projectPhases.set(m.project_id, []);
         }
-        projectMilestones.get(m.project_id)!.push(m);
+        projectPhases.get(m.project_id)!.push(m);
       });
       // Find and delete orphaned instances
       const orphanedIds: string[] = [];
-      projectMilestones.forEach(milestones => {
-        const templates = milestones.filter(m => m.is_recurring === true);
+      projectPhases.forEach(milestones => {
+        const templates = milestones.filter(p => m.is_recurring === true);
         const templateNames = new Set(templates.map(t => t.name));
-        const numberedInstances = milestones.filter(m => {
+        const numberedInstances = milestones.filter(p => {
           if (m.is_recurring === true) return false;
           const match = m.name?.match(/^(.+) \d+$/);
           return match !== null;
@@ -107,7 +107,7 @@ export function OrphanedPhasesCleaner() {
           const baseName = match[1];
           return !templateNames.has(baseName);
         });
-        orphanedIds.push(...orphaned.map(m => m.id));
+        orphanedIds.push(...orphaned.map(p => m.id));
       });
       if (orphanedIds.length === 0) {
         toast({

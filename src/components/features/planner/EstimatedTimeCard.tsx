@@ -23,7 +23,7 @@ interface EstimatedTimeCardProps {
   /** All projects */
   projects: Project[];
   /** Map of project ID to milestones */
-  milestonesMap: Map<string, Milestone[]>;
+  phasesMap: Map<string, Milestone[]>;
   /** All calendar events */
   events: CalendarEvent[];
   /** User settings */
@@ -45,7 +45,7 @@ interface EstimatedTimeCardProps {
 export function EstimatedTimeCard({
   dates,
   projects,
-  milestonesMap,
+  phasesMap,
   events,
   settings,
   holidays,
@@ -115,12 +115,12 @@ export function EstimatedTimeCard({
     return UnifiedDayEstimateService.getDailyProjectSummaries(
       dates,
       projects,
-      milestonesMap,
+      phasesMap,
       events,
       settings,
       holidays
     );
-  }, [dates, projects, milestonesMap, events, settings, holidays]);
+  }, [dates, projects, phasesMap, events, settings, holidays]);
 
   // Handle popover open/close
   const handlePopoverChange = useCallback((dateKey: string, open: boolean) => {
