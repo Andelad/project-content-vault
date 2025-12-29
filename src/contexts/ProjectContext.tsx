@@ -11,13 +11,14 @@ import { Milestone } from '@/types/core';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 type SupabaseGroupRow = Database['public']['Tables']['groups']['Row'];
 type SupabaseRowRow = Database['public']['Tables']['rows']['Row'];
-type SupabaseMilestoneRow = Database['public']['Tables']['milestones']['Row'];
-type SupabaseMilestoneInsert = Database['public']['Tables']['milestones']['Insert'];
+// Note: Table renamed from 'milestones' to 'phases' in database
+type SupabaseMilestoneRow = Database['public']['Tables']['phases']['Row'];
+type SupabaseMilestoneInsert = Database['public']['Tables']['phases']['Insert'];
 type SupabaseGroupInsert = Database['public']['Tables']['groups']['Insert'];
 type SupabaseGroupUpdate = Database['public']['Tables']['groups']['Update'];
 type SupabaseRowInsert = Database['public']['Tables']['rows']['Insert'];
 type SupabaseRowUpdate = Database['public']['Tables']['rows']['Update'];
-type SupabaseMilestoneUpdate = Database['public']['Tables']['milestones']['Update'];
+type SupabaseMilestoneUpdate = Database['public']['Tables']['phases']['Update'];
 
 interface ProjectGroup extends Group {
   color?: string;

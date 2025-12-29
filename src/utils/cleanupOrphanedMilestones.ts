@@ -11,7 +11,7 @@ export async function cleanupOrphanedMilestones(projectId: string) {
   try {
     // Get all milestones for the project
     const { data: allMilestones, error } = await supabase
-      .from('milestones')
+      .from('phases')
       .select('*')
       .eq('project_id', projectId);
     if (error) throw error;
@@ -38,7 +38,7 @@ export async function cleanupOrphanedMilestones(projectId: string) {
     }
     // Delete orphaned instances
     const { error: deleteError } = await supabase
-      .from('milestones')
+      .from('phases')
       .delete()
       .in('id', orphanedIds);
     if (deleteError) throw deleteError;

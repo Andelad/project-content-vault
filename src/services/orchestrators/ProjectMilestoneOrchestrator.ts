@@ -273,7 +273,7 @@ export class ProjectMilestoneOrchestrator {
 
       // Insert the template milestone
       const { data: insertedMilestone, error } = await supabase
-        .from('milestones')
+        .from('phases')
         .insert([templateMilestone])
         .select()
         .single();
@@ -428,7 +428,7 @@ export class ProjectMilestoneOrchestrator {
   ): Promise<void> {
     try {
       const { error } = await supabase
-        .from('milestones')
+        .from('phases')
         .delete()
         .eq('id', milestoneId);
 

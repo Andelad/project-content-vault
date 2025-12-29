@@ -2,7 +2,7 @@
 
 **Priority**: High  
 **Effort**: Large (4-6 hours - major refactor)  
-**Status**: 🟡 Partially Implemented  
+**Status**: ✅ Database Complete - Code Updates Pending  
 **Created**: December 27, 2025  
 **Updated**: December 29, 2025
 
@@ -18,60 +18,53 @@ The following database changes have been executed via Lovable:
 | **PR 1b** | Drop unused `work_hours` table | ✅ Done | N/A (unused) |
 | **PR 2** | Rename `work_hour_exceptions` → `work_slot_exceptions` | ✅ Done | ✅ `UnifiedWorkHourRecurrenceService.ts` updated |
 | **PR 3** | Rename `auto_estimate_days` → `working_day_overrides` | ✅ Done | ✅ `useProjects.ts` & `ProjectOrchestrator.ts` updated |
+| **PR 4** | Rename `milestones` → `phases` (table) | ✅ Done | 🟡 Partial - DB queries updated |
 
 **TypeScript types** (`src/integrations/supabase/types.ts`) have been auto-regenerated.
 
 ---
 
-## 🔴 REMAINING: PR 4 - Rename milestones → phases
+## 🟡 REMAINING: PR 4 Code Refactoring (VS Code)
 
-**This is the largest change (~50+ files) and should be done in VS Code.**
+**Database migration is COMPLETE.** The table is now `phases`.
 
-### Scope of Changes:
-- 🔴 **~50+ TypeScript files** need manual updates
-- 🔴 **Breaking changes** - code will fail after migration until updated
-- 🟡 **Types auto-regenerate** - don't edit `src/integrations/supabase/types.ts` directly
+**Code updates done in Lovable:**
+- ✅ All `from('milestones')` → `from('phases')` in Supabase queries
+- ✅ Type imports updated to use `Database['public']['Tables']['phases']`
+
+**Remaining for VS Code** (semantic naming throughout codebase):
+- 🔴 **~50+ TypeScript files** use `milestone`/`Milestone` variable names
+- 🔴 **File renames** (optional but recommended for consistency)
+- 🔴 **Domain rules** - Consider merging `MilestoneRules.ts` into `PhaseRules.ts`
 
 ---
 
-## 📋 VS Code Instructions for PR4: milestones → phases
+## 📋 VS Code Instructions for PR4: Code Refactoring
 
 **Ask VS Code/Cursor to do the following:**
 
-### Step 1: Database Migration
-```
-Run a Supabase migration to rename the milestones table to phases:
-1. Rename table: milestones → phases
-2. Rename indexes: idx_milestones_* → idx_phases_*
-3. Drop old RLS policies and create new ones with "phases" in names
-4. Rename trigger: handle_milestones_updated_at → handle_phases_updated_at
-```
+### Step 1: Variable/Interface Renames (Find & Replace)
 
-### Step 2: Code Updates (Find & Replace)
+| Find | Replace | Notes |
+|------|---------|-------|
+| `Milestone` (type/interface) | `Phase` | Check for conflicts with existing Phase type |
+| `milestone` (variable) | `phase` | Context-dependent |
+| `milestones` (array variable) | `phases` | Context-dependent |
+| `useMilestones` | Consider keeping or aliasing | Hook name |
 
-| Find | Replace |
-|------|---------|
-| `from('milestones')` | `from('phases')` |
-| `'milestones'` (in Supabase contexts) | `'phases'` |
-| Interface `Milestone` | Interface `Phase` (keep separate from existing Phase type if conflicts) |
-| Variable `milestone` | Variable `phase` |
-| Variable `milestones` | Variable `phases` |
+### Step 2: File Renames (Optional)
+- `src/hooks/useMilestones.ts` → `usePhases.ts` (or create alias)
+- `src/hooks/milestone/` folder → `src/hooks/phase/`
+- Components with "Milestone" in name
 
-### Step 3: File Renames
-- `src/hooks/useMilestones.ts` → consider consolidating with existing phase hooks
-- Check `src/hooks/milestone/` folder for files to update
-- Update any component files with "Milestone" in name
-
-### Step 4: Update Domain Rules
+### Step 3: Update Domain Rules
 - Merge `MilestoneRules.ts` logic with `PhaseRules.ts` or rename entirely
 - Update all imports throughout codebase
 
-### Step 5: Test
+### Step 4: Test
 - Verify CRUD operations on phases work
 - Verify RLS policies are applied correctly
 - Verify no TypeScript compilation errors
-
----
 
 ## 📋 Original Problem Statement
 
