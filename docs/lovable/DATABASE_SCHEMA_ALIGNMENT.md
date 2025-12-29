@@ -12,8 +12,9 @@
 After updating the App Logic documentation, several misalignments were discovered between the database schema and the documented business entities:
 
 1. **Wrong Table Name**: Database has `milestones` but App Logic calls this entity **"Phase"**
-2. **Unused Table**: Database has `work_hours` table that is not used anywhere in the codebase
+2. **Unused Table**: Database has `work_hours` table that is not used anywhere in the codebase (work slots stored differently)
 3. **Wrong Column Name**: `projects` table has `auto_estimate_days` but should be renamed to `working_day_overrides` per App Logic
+4. **Wrong Table Name**: Database has `work_hour_exceptions` but should be `work_slot_exceptions` to align with App Logic entity naming
 
 **Impact:**
 - ❌ Code and documentation use different terminology (confusion for AI and developers)
@@ -26,7 +27,8 @@ After updating the App Logic documentation, several misalignments were discovere
 
 **After Fix:**
 - ✅ Database uses `phases` table (aligned with App Logic entity name)
-- ✅ `work_hours` table removed (replaced by `settings.weekly_work_hours` JSONB + `work_hour_exceptions` table)
+- ✅ `work_hours` table removed (work slots stored in `settings.weekly_work_hours` JSONB + `work_slot_exceptions` table)
+- ✅ `work_hour_exceptions` renamed to `work_slot_exceptions` (aligned with App Logic: Work Slot is entity, Work Hours is derived concept)
 - ✅ `projects` table has `working_day_overrides` column for project-specific working day customization
 - ✅ All code references updated to use new terminology
 
@@ -66,8 +68,9 @@ CREATE TABLE public.milestones (
 |--------|---------|
 | **Status** | ❌ Unused - 0 code references found |
 | **Migration Comment** | "Create work_hours table (optional, as mentioned in requirements)" |
-| **Why Delete?** | Conflicts with App Logic: "Work Hours" is a **derived concept** (calculated duration), NOT a stored entity |
-| **Actual Storage** | Work slots are stored in `settings.weekly_work_hours` (JSONB) + `work_hour_exceptions` table |
+| **Why Delete?** | Conflicts with App Logic: "Work Hours" is a **derived concept** (calculated duration from work slots), NOT a stored entity |
+| **App Logic Entity** | Entity #7: "Work Slot" - the actual stored entity |
+| **Actual Storage** | Work slots are stored in `settings.weekly_work_hours` (JSONB) + `work_slot_exceptions` table |
 
 **Search Results:**
 - ❌ 0 matches for `from('work_hours')`
@@ -75,8 +78,12 @@ CREATE TABLE public.milestones (
 - ✅ Only auto-generated TypeScript type definition exists (will disappear when table dropped)
 
 **What Actually Stores Work Slot Data:**
-1. `settings.weekly_work_hours` (JSONB) - Recurring weekly patterns (e.g., Mon-Fri 9-5)
-2. `work_hour_exceptions` table - Instance overrides for specific dates
+1. `settings.weekly_work_hours` (JSONB) - Recurring weekly work slot patterns (e.g., Mon-Fri 9am-5pm)
+2. `work_slot_exceptions` table - Instance overrides for specific dates (currently named `work_hour_exceptions`, needs renaming)
+
+**App Logic Clarification:**
+- **Work Slot** (Entity #7): Time block definition stored in database (e.g., "Monday 9am-12pm")
+- **Work Hours** (Derived Concept): Generated instances for calendar display by expanding work slots with recurrence rules
 
 ---
 
@@ -167,18 +174,61 @@ COMMENT ON TABLE public.phases IS
 
 -- Step 2.1: Drop the table (CASCADE drops dependent objects like indexes, triggers, RLS policies)
 -- NOTE: This table is NOT used in codebase. Work slots are stored in:
---   - settings.weekly_work_hours (JSONB) for recurring patterns
---   - work_hour_exceptions for instance overrides
+--   - settings.weekly_work_hours (JSONB) for recurring work slot patterns
+--   - work_slot_exceptions table for instance overrides
 DROP TABLE IF EXISTS public.work_hours CASCADE;
 
 COMMENT ON TABLE public.settings IS 
     'User settings including weekly_work_hours (recurring work slot patterns) and preferences';
 
-COMMENT ON TABLE public.work_hour_exceptions IS 
-    'Instance overrides for work slots on specific dates (deleted or modified times)';
+-- ============================================================
+-- PART 3: Rename work_hour_exceptions to work_slot_exceptions
+-- ============================================================
+
+-- Rename table to align with App Logic entity naming
+-- App Logic: "Work Slot" is the entity, "Work Hours" is the derived concept
+ALTER TABLE public.work_hour_exceptions 
+RENAME TO work_slot_exceptions;
+
+-- Update table and column comments
+COMMENT ON TABLE public.work_slot_exceptions IS 
+    'Exceptions to the weekly work slot pattern defined in settings.weekly_work_hours. Allows users to modify or delete work slots on specific dates.';
+
+COMMENT ON COLUMN public.work_slot_exceptions.exception_date IS 
+    'The specific date this exception applies to';
+
+COMMENT ON COLUMN public.work_slot_exceptions.slot_id IS 
+    'The WorkSlot ID from settings.weekly_work_hours that this exception modifies';
+
+COMMENT ON COLUMN public.work_slot_exceptions.exception_type IS 
+    'Type of exception: "deleted" (work slot removed for this date) or "modified" (work slot times changed for this date)';
+
+COMMENT ON COLUMN public.work_slot_exceptions.modified_start_time IS 
+    'If exception_type is "modified", the new start time in HH:MM format';
+
+COMMENT ON COLUMN public.work_slot_exceptions.modified_end_time IS 
+    'If exception_type is "modified", the new end time in HH:MM format';
+
+-- Rename RLS policies to match new table name
+DROP POLICY IF EXISTS "Users can view their own work hour exceptions" ON public.work_slot_exceptions;
+DROP POLICY IF EXISTS "Users can create their own work hour exceptions" ON public.work_slot_exceptions;
+DROP POLICY IF EXISTS "Users can update their own work hour exceptions" ON public.work_slot_exceptions;
+DROP POLICY IF EXISTS "Users can delete their own work hour exceptions" ON public.work_slot_exceptions;
+
+CREATE POLICY "Users can view their own work slot exceptions" 
+    ON public.work_slot_exceptions FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can create their own work slot exceptions" 
+    ON public.work_slot_exceptions FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own work slot exceptions" 
+    ON public.work_slot_exceptions FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own work slot exceptions" 
+    ON public.work_slot_exceptions FOR DELETE USING (auth.uid() = user_id);
 
 -- ============================================================
--- PART 3: Rename auto_estimate_days to working_day_overrides
+-- PART 4: Rename auto_estimate_days to working_day_overrides
 -- ============================================================
 
 -- Rename column to align with App Logic terminology
@@ -206,6 +256,14 @@ BEGIN
     
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'work_hours' AND table_schema = 'public') THEN
         RAISE EXCEPTION 'ERROR: work_hours table still exists! Should be dropped.';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'work_slot_exceptions' AND table_schema = 'public') THEN
+        RAISE EXCEPTION 'ERROR: work_slot_exceptions table does not exist! Should be renamed from work_hour_exceptions.';
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'work_hour_exceptions' AND table_schema = 'public') THEN
+        RAISE EXCEPTION 'ERROR: work_hour_exceptions table still exists! Should be renamed to work_slot_exceptions.';
     END IF;
     
     -- Verify working_day_overrides column exists (renamed from auto_estimate_days)
@@ -248,15 +306,17 @@ npx supabase gen types typescript --project-id YOUR_PROJECT_ID > src/integration
 - ❌ `Database['public']['Tables']['milestones']` removed
 - ✅ `Database['public']['Tables']['phases']` added
 - ❌ `Database['public']['Tables']['work_hours']` removed
+- ❌ `Database['public']['Tables']['work_hour_exceptions']` removed
+- ✅ `Database['public']['Tables']['work_slot_exceptions']` added
 - ✅ `projects.auto_estimate_days` renamed to `projects.working_day_overrides`
 
 ---
 
-### Step 3: Update Code References (milestones → phases)
+### Step 3: Update Code References
 
 Use global find-and-replace to update all code references:
 
-#### 3.1 Database Queries
+#### 3.1 Database Queries - Phases
 
 **Find:** `from('milestones')`  
 **Replace:** `from('phases')`
@@ -264,7 +324,18 @@ Use global find-and-replace to update all code references:
 **Find:** `'milestones'` (in Supabase query contexts)  
 **Replace:** `'phases'`
 
-#### 3.2 TypeScript Interfaces & Types
+#### 3.2 Database Queries - Work Slot Exceptions
+
+**Find:** `from('work_hour_exceptions')`  
+**Replace:** `from('work_slot_exceptions')`
+
+**Find:** `'work_hour_exceptions'` (in Supabase query contexts)  
+**Replace:** `'work_slot_exceptions'`
+
+**Find:** `work_hour_exceptions` (in imports, types)  
+**Replace:** `work_slot_exceptions`
+
+#### 3.3 TypeScript Interfaces & Types - Phases
 
 **Find:** `Milestone` (interface/type name)  
 **Replace:** `Phase`
@@ -429,24 +500,33 @@ After implementing all changes:
 - [ ] `phases` table exists with correct schema
 - [ ] `milestones` table no longer exists
 - [ ] `work_hours` table no longer exists
+- [ ] `work_slot_exceptions` table exists (renamed from `work_hour_exceptions`)
+- [ ] `work_hour_exceptions` table no longer exists
 - [ ] `projects.working_day_overrides` column exists (renamed from `auto_estimate_days`)
 - [ ] `projects.auto_estimate_days` column no longer exists
 - [ ] All RLS policies work correctly on `phases` table
+- [ ] All RLS policies work correctly on `work_slot_exceptions` table
 - [ ] Can insert, update, delete phases successfully
+- [ ] Can insert, update, delete work slot exceptions successfully
 
 ### Code Tests
 
 - [ ] TypeScript types regenerated (no compilation errors)
 - [ ] All imports updated (`Milestone` → `Phase`)
-- [ ] All database queries work (`from('phases')`)
+- [ ] All database queries work (`from('phases')`, `from('work_slot_exceptions')`)
 - [ ] No references to `milestones` table remain in code
 - [ ] No references to `work_hours` table remain in code
+- [ ] No references to `work_hour_exceptions` table remain in code
 - [ ] Working day override logic works correctly
+- [ ] Work slot exception logic works correctly
 
 ### Integration Tests
 
 - [ ] Can create a phase for a project
 - [ ] Can update phase time allocation
+- [ ] Can create work slot exceptions for specific dates
+- [ ] Can modify work slot times for a specific date
+- [ ] Can delete work slots for a specific date
 - [ ] Can delete a phase
 - [ ] Can add working day override to project
 - [ ] Can remove working day override from project
@@ -467,7 +547,7 @@ After this migration:
 | 5. Group | `groups` | ✅ Aligned |
 | 6. Label | `labels` + `project_labels` | ✅ Aligned |
 | 7. Calendar Event | `calendar_events` | ✅ Aligned |
-| 8. Work Slot | `settings.weekly_work_hours` + `work_hour_exceptions` | ✅ **Fixed** |
+| 8. Work Slot | `settings.weekly_work_hours` + `work_slot_exceptions` | ✅ **Fixed** |
 | 9. Holiday | `holidays` | ✅ Aligned |
 
 **Derived Concepts (Not Stored):**
@@ -501,6 +581,9 @@ ALTER INDEX idx_phases_due_date RENAME TO idx_milestones_due_date;
 -- Rollback: Recreate work_hours table (from backup if data existed)
 -- Only if needed - table was unused
 
+-- Rollback: Rename work_slot_exceptions back to work_hour_exceptions
+ALTER TABLE public.work_slot_exceptions RENAME TO work_hour_exceptions;
+
 -- Rollback: Rename working_day_overrides back to auto_estimate_days
 ALTER TABLE public.projects 
 RENAME COLUMN working_day_overrides TO auto_estimate_days;
@@ -517,8 +600,10 @@ COMMENT ON COLUMN public.projects.auto_estimate_days IS
 ## 💡 Notes
 
 - **Why "Phase" instead of "Milestone"?** Original creator preference: "I never liked the name milestone, so I thought 'Phase' would work better." Aligns better with project management terminology (phases are ongoing, milestones are single points).
-- **Why delete work_hours table?** It's unused and conflicts with App Logic. "Work Hours" is a derived concept (duration), not a stored entity.
+- **Why delete work_hours table?** It's unused and conflicts with App Logic. "Work Hours" is a derived concept (calculated duration from work slots), not a stored entity.
+- **Why rename to work_slot_exceptions?** Aligns with App Logic entity naming. "Work Slot" (Entity #7) is the stored entity; "Work Hours" is the derived concept generated for display.
 - **Why JSONB for overrides?** Flexible, indexable, and works well for sparse data (most projects won't have overrides).
+- **App Logic terminology is intentional**: Work Slots = what you define/store, Work Hours = what you see/use in calculations.
 
 ---
 
