@@ -605,7 +605,6 @@ export type Database = {
       }
       projects: {
         Row: {
-          auto_estimate_days: Json | null
           client: string
           client_id: string
           color: string
@@ -622,9 +621,9 @@ export type Database = {
           start_date: string
           updated_at: string
           user_id: string
+          working_day_overrides: Json | null
         }
         Insert: {
-          auto_estimate_days?: Json | null
           client: string
           client_id: string
           color: string
@@ -641,9 +640,9 @@ export type Database = {
           start_date: string
           updated_at?: string
           user_id: string
+          working_day_overrides?: Json | null
         }
         Update: {
-          auto_estimate_days?: Json | null
           client?: string
           client_id?: string
           color?: string
@@ -660,6 +659,7 @@ export type Database = {
           start_date?: string
           updated_at?: string
           user_id?: string
+          working_day_overrides?: Json | null
         }
         Relationships: [
           {
