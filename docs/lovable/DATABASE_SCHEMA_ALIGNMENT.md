@@ -2,50 +2,85 @@
 
 **Priority**: High  
 **Effort**: Large (4-6 hours - major refactor)  
-**Status**: 🔴 Not Implemented  
+**Status**: 🟡 Partially Implemented  
 **Created**: December 27, 2025  
 **Updated**: December 29, 2025
 
 ---
 
-## ⚠️ IMPORTANT: Read This First
+## ✅ COMPLETED MIGRATIONS (Done in Lovable)
 
-**This is a MAJOR codebase refactor, not just a database migration.**
+The following database changes have been executed via Lovable:
+
+| PR | Change | Status | Code Updated |
+|----|--------|--------|--------------|
+| **PR 1a** | Case-insensitive unique constraints on `clients.name`, `groups.name`, `labels.name` | ✅ Done | ✅ Domain rules updated |
+| **PR 1b** | Drop unused `work_hours` table | ✅ Done | N/A (unused) |
+| **PR 2** | Rename `work_hour_exceptions` → `work_slot_exceptions` | ✅ Done | ✅ `UnifiedWorkHourRecurrenceService.ts` updated |
+| **PR 3** | Rename `auto_estimate_days` → `working_day_overrides` | ✅ Done | ✅ `useProjects.ts` & `ProjectOrchestrator.ts` updated |
+
+**TypeScript types** (`src/integrations/supabase/types.ts`) have been auto-regenerated.
+
+---
+
+## 🔴 REMAINING: PR 4 - Rename milestones → phases
+
+**This is the largest change (~50+ files) and should be done in VS Code.**
 
 ### Scope of Changes:
 - 🔴 **~50+ TypeScript files** need manual updates
 - 🔴 **Breaking changes** - code will fail after migration until updated
-- 🔴 **Multi-step process** - database first, then code updates
 - 🟡 **Types auto-regenerate** - don't edit `src/integrations/supabase/types.ts` directly
-
-### Recommended Approach:
-1. **Do database migration first** (Part 1 below)
-2. **Regenerate TypeScript types** immediately after
-3. **Fix code references** using find-and-replace (Part 2 below)
-4. **Test thoroughly** before deploying
-
-### Alternative: Split Into Smaller PRs
-Consider doing these changes separately:
-- **PR 1**: Drop `work_hours` table only (safe, no code impact)
-- **PR 2**: Rename `work_hour_exceptions` → `work_slot_exceptions` (medium impact)
-- **PR 3**: Rename `auto_estimate_days` → `working_day_overrides` (medium impact)
-- **PR 4**: Rename `milestones` → `phases` (largest impact, ~50 files)
 
 ---
 
-## 📋 Problem Statement
+## 📋 VS Code Instructions for PR4: milestones → phases
+
+**Ask VS Code/Cursor to do the following:**
+
+### Step 1: Database Migration
+```
+Run a Supabase migration to rename the milestones table to phases:
+1. Rename table: milestones → phases
+2. Rename indexes: idx_milestones_* → idx_phases_*
+3. Drop old RLS policies and create new ones with "phases" in names
+4. Rename trigger: handle_milestones_updated_at → handle_phases_updated_at
+```
+
+### Step 2: Code Updates (Find & Replace)
+
+| Find | Replace |
+|------|---------|
+| `from('milestones')` | `from('phases')` |
+| `'milestones'` (in Supabase contexts) | `'phases'` |
+| Interface `Milestone` | Interface `Phase` (keep separate from existing Phase type if conflicts) |
+| Variable `milestone` | Variable `phase` |
+| Variable `milestones` | Variable `phases` |
+
+### Step 3: File Renames
+- `src/hooks/useMilestones.ts` → consider consolidating with existing phase hooks
+- Check `src/hooks/milestone/` folder for files to update
+- Update any component files with "Milestone" in name
+
+### Step 4: Update Domain Rules
+- Merge `MilestoneRules.ts` logic with `PhaseRules.ts` or rename entirely
+- Update all imports throughout codebase
+
+### Step 5: Test
+- Verify CRUD operations on phases work
+- Verify RLS policies are applied correctly
+- Verify no TypeScript compilation errors
+
+---
+
+## 📋 Original Problem Statement
 
 After updating the App Logic documentation, several misalignments were discovered between the database schema and the documented business entities:
 
-1. **Wrong Table Name**: Database has `milestones` but App Logic calls this entity **"Phase"**
-2. **Unused Table**: Database has `work_hours` table that is not used anywhere in the codebase (work slots stored differently)
-3. **Wrong Column Name**: `projects` table has `auto_estimate_days` but should be renamed to `working_day_overrides` per App Logic
-4. **Wrong Table Name**: Database has `work_hour_exceptions` but should be `work_slot_exceptions` to align with App Logic entity naming
-
-**Impact:**
-- ❌ Code and documentation use different terminology (confusion for AI and developers)
-- ❌ Unused tables create maintenance burden and confusion
-- ❌ Misnamed columns don't align with documented business logic terminology
+1. ~~**Wrong Table Name**: Database has `milestones` but App Logic calls this entity **"Phase"**~~ → **PR4 pending**
+2. ~~**Unused Table**: Database has `work_hours` table that is not used anywhere in the codebase~~ → ✅ **Dropped**
+3. ~~**Wrong Column Name**: `projects` table has `auto_estimate_days`~~ → ✅ **Renamed to `working_day_overrides`**
+4. ~~**Wrong Table Name**: Database has `work_hour_exceptions`~~ → ✅ **Renamed to `work_slot_exceptions`**
 
 ---
 
