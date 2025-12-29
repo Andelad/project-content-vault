@@ -108,7 +108,7 @@ type DatabaseProjectRow = {
   notes?: string | null;
   icon?: string | null;
   continuous?: boolean | null;
-  auto_estimate_days?: unknown;
+  working_day_overrides?: unknown;
   user_id?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
@@ -138,7 +138,7 @@ type DatabaseProjectPayload = Partial<{
   notes?: string;
   icon?: string;
   continuous?: boolean;
-  auto_estimate_days?: Project['autoEstimateDays'];
+  working_day_overrides?: Project['autoEstimateDays'];
 }>;
 export interface ProjectUpdateRequest {
   id: string;
@@ -916,8 +916,8 @@ export class ProjectOrchestrator {
       icon: dbProject.icon || undefined,
       continuous: dbProject.continuous ?? false,
       status: 'current',
-      autoEstimateDays: (dbProject.auto_estimate_days && typeof dbProject.auto_estimate_days === 'object') ? 
-        dbProject.auto_estimate_days as {
+      autoEstimateDays: (dbProject.working_day_overrides && typeof dbProject.working_day_overrides === 'object') ? 
+        dbProject.working_day_overrides as {
           monday: boolean;
           tuesday: boolean;
           wednesday: boolean;
@@ -984,7 +984,7 @@ export class ProjectOrchestrator {
     if (projectData.notes !== undefined) dbData.notes = projectData.notes;
     if (projectData.icon !== undefined) dbData.icon = projectData.icon;
     if (projectData.continuous !== undefined) dbData.continuous = projectData.continuous;
-    if (projectData.autoEstimateDays !== undefined) dbData.auto_estimate_days = projectData.autoEstimateDays;
+    if (projectData.autoEstimateDays !== undefined) dbData.working_day_overrides = projectData.autoEstimateDays;
     
     return dbData;
   }

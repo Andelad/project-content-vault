@@ -56,8 +56,8 @@ const transformProjectRow = (dbProject: SupabaseProjectRow): Project => ({
   continuous: dbProject.continuous ?? false,
   status: 'current',
   autoEstimateDays:
-    dbProject.auto_estimate_days && typeof dbProject.auto_estimate_days === 'object'
-      ? (dbProject.auto_estimate_days as Project['autoEstimateDays'])
+    dbProject.working_day_overrides && typeof dbProject.working_day_overrides === 'object'
+      ? (dbProject.working_day_overrides as Project['autoEstimateDays'])
       : {
           monday: true,
           tuesday: true,
@@ -148,7 +148,7 @@ export function useProjects() {
           continuous: projectData.continuous ?? false,
           group_id: projectData.groupId,
           row_id: projectData.rowId ?? null,
-          auto_estimate_days: projectData.autoEstimateDays ?? null,
+          working_day_overrides: projectData.autoEstimateDays ?? null,
         };
 
         const { data, error } = await supabase
