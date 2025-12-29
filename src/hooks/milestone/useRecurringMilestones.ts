@@ -215,7 +215,7 @@ export function useRecurringMilestones(config: UseRecurringMilestonesConfig) {
         const template = recurringMilestones.find(m => m.isRecurring);
         if (template && template.id && !template.id.startsWith('temp-')) {
           // Delete template (cascade handles instances)
-          const { error } = await supabase.from('milestones').delete().eq('id', template.id);
+          const { error } = await supabase.from('phases').delete().eq('id', template.id);
           if (error) throw error;
 
           toast({
@@ -229,7 +229,7 @@ export function useRecurringMilestones(config: UseRecurringMilestonesConfig) {
             .map(m => m.id!);
 
           if (orphanedIds.length > 0) {
-            const { error } = await supabase.from('milestones').delete().in('id', orphanedIds);
+            const { error } = await supabase.from('phases').delete().in('id', orphanedIds);
             if (error) throw error;
 
             await refetchMilestones();

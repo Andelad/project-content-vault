@@ -454,7 +454,43 @@ export type Database = {
         }
         Relationships: []
       }
-      milestones: {
+      milestones_backup_20251018: {
+        Row: {
+          created_at: string | null
+          due_date: string | null
+          id: string | null
+          name: string | null
+          order_index: number | null
+          project_id: string | null
+          time_allocation: number | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          due_date?: string | null
+          id?: string | null
+          name?: string | null
+          order_index?: number | null
+          project_id?: string | null
+          time_allocation?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          due_date?: string | null
+          id?: string | null
+          name?: string | null
+          order_index?: number | null
+          project_id?: string | null
+          time_allocation?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      phases: {
         Row: {
           created_at: string
           due_date: string
@@ -506,42 +542,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      milestones_backup_20251018: {
-        Row: {
-          created_at: string | null
-          due_date: string | null
-          id: string | null
-          name: string | null
-          order_index: number | null
-          project_id: string | null
-          time_allocation: number | null
-          updated_at: string | null
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          due_date?: string | null
-          id?: string | null
-          name?: string | null
-          order_index?: number | null
-          project_id?: string | null
-          time_allocation?: number | null
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          due_date?: string | null
-          id?: string | null
-          name?: string | null
-          order_index?: number | null
-          project_id?: string | null
-          time_allocation?: number | null
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Relationships: []
       }
       profiles: {
         Row: {

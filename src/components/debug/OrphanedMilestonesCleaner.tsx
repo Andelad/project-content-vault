@@ -18,7 +18,7 @@ export function OrphanedMilestonesCleaner() {
       if (!user) throw new Error('Not authenticated');
       // Get all user's milestones
       const { data: allMilestones, error } = await supabase
-        .from('milestones')
+        .from('phases')
         .select('id, name, is_recurring, project_id')
         .eq('user_id', user.id);
       if (error) throw error;
@@ -79,7 +79,7 @@ export function OrphanedMilestonesCleaner() {
       if (!user) throw new Error('Not authenticated');
       // Get all user's milestones
       const { data: allMilestones, error: fetchError } = await supabase
-        .from('milestones')
+        .from('phases')
         .select('id, name, is_recurring, project_id')
         .eq('user_id', user.id);
       if (fetchError) throw fetchError;
@@ -122,7 +122,7 @@ export function OrphanedMilestonesCleaner() {
       for (let i = 0; i < orphanedIds.length; i += batchSize) {
         const batch = orphanedIds.slice(i, i + batchSize);
         const { error: deleteError } = await supabase
-          .from('milestones')
+          .from('phases')
           .delete()
           .in('id', batch);
         if (deleteError) throw deleteError;

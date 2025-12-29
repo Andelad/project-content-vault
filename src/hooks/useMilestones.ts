@@ -3,9 +3,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
-type Milestone = Database['public']['Tables']['milestones']['Row'];
-type MilestoneInsert = Database['public']['Tables']['milestones']['Insert'];
-type MilestoneUpdate = Database['public']['Tables']['milestones']['Update'];
+// Note: Database types still use 'milestones' key but table is now 'phases'
+// TODO: After types regenerate, update to use 'phases' key
+type Milestone = Database['public']['Tables']['phases']['Row'];
+type MilestoneInsert = Database['public']['Tables']['phases']['Insert'];
+type MilestoneUpdate = Database['public']['Tables']['phases']['Update'];
 
 type CamelMilestoneInsert = {
   projectId?: string;
@@ -32,7 +34,7 @@ export function useMilestones(projectId?: string) {
   const fetchMilestones = useCallback(async (targetProjectId: string) => {
     try {
       const { data, error } = await supabase
-        .from('milestones')
+        .from('phases')
         .select('*')
         .eq('project_id', targetProjectId)
         .order('due_date', { ascending: true });
@@ -52,7 +54,7 @@ export function useMilestones(projectId?: string) {
   const fetchAllMilestones = useCallback(async () => {
     try {
       const { data, error } = await supabase
-        .from('milestones')
+        .from('phases')
         .select('*')
         .order('due_date', { ascending: true });
       if (error) throw error;
@@ -107,7 +109,7 @@ export function useMilestones(projectId?: string) {
         dbMilestoneData.recurring_config = milestoneData.recurringConfig || milestoneData.recurring_config;
       }
       const { data, error } = await supabase
-        .from('milestones')
+        .from('phases')
         .insert(dbMilestoneData)
         .select()
         .single();
@@ -139,7 +141,7 @@ export function useMilestones(projectId?: string) {
   const updateMilestone = async (id: string, updates: MilestoneUpdate, options: { silent?: boolean } = {}) => {
     try {
       const { data, error } = await supabase
-        .from('milestones')
+        .from('phases')
         .update(updates)
         .eq('id', id)
         .select()
@@ -190,7 +192,7 @@ export function useMilestones(projectId?: string) {
         const numberedPattern = `${baseName} `;
         // Delete all numbered instances (name starts with base name + space + number)
         const { error: instancesError } = await supabase
-          .from('milestones')
+          .from('phases')
           .delete()
           .eq('project_id', milestone.project_id)
           .eq('is_recurring', false)
@@ -208,7 +210,7 @@ export function useMilestones(projectId?: string) {
       }
       // Then delete the milestone itself
       const { error } = await supabase
-        .from('milestones')
+        .from('phases')
         .delete()
         .eq('id', id);
       if (error) {
