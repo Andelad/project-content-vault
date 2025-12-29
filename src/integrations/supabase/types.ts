@@ -777,7 +777,7 @@ export type Database = {
         }
         Relationships: []
       }
-      work_hour_exceptions: {
+      work_slot_exceptions: {
         Row: {
           created_at: string
           day_of_week: string

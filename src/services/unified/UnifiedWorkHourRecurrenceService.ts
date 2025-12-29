@@ -6,7 +6,7 @@
  * 
  * Architecture:
  * - Base patterns stored in settings.weekly_work_hours (e.g., Mon-Fri 9-5)
- * - Exceptions stored in work_hour_exceptions table for specific dates
+ * - Exceptions stored in work_slot_exceptions table for specific dates
  * - Work hours generate infinitely from pattern + apply exceptions
  * - Follows same edit patterns as RRULE events (this day, all future, all)
  * 
@@ -50,7 +50,7 @@ export async function createWorkHourException(
     // Format date as YYYY-MM-DD for database
     const dateStr = exceptionDate.toISOString().split('T')[0];
 
-    const exceptionData: Database['public']['Tables']['work_hour_exceptions']['Insert'] = {
+    const exceptionData: Database['public']['Tables']['work_slot_exceptions']['Insert'] = {
       user_id: user.id,
       exception_date: dateStr,
       day_of_week: dayOfWeek,
@@ -62,7 +62,7 @@ export async function createWorkHourException(
 
     // Upsert to handle updating existing exceptions
     const { data, error } = await supabase
-      .from('work_hour_exceptions')
+      .from('work_slot_exceptions')
       .upsert(exceptionData, {
         onConflict: 'user_id,exception_date,slot_id'
       })
@@ -112,7 +112,7 @@ export async function getWorkHourExceptions(
     }
 
     let query = supabase
-      .from('work_hour_exceptions')
+      .from('work_slot_exceptions')
       .select('*')
       .eq('user_id', user.id);
 
@@ -202,7 +202,7 @@ export async function deleteWorkHourException(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const { error } = await supabase
-      .from('work_hour_exceptions')
+      .from('work_slot_exceptions')
       .delete()
       .eq('id', exceptionId);
 
@@ -236,7 +236,7 @@ export async function deleteAllExceptionsForDate(
     const dateStr = date.toISOString().split('T')[0];
 
     const { error } = await supabase
-      .from('work_hour_exceptions')
+      .from('work_slot_exceptions')
       .delete()
       .eq('user_id', user.id)
       .eq('exception_date', dateStr);
@@ -271,7 +271,7 @@ export async function deleteAllFutureExceptions(
     const dateStr = fromDate.toISOString().split('T')[0];
 
     const { error } = await supabase
-      .from('work_hour_exceptions')
+      .from('work_slot_exceptions')
       .delete()
       .eq('user_id', user.id)
       .gte('exception_date', dateStr);
