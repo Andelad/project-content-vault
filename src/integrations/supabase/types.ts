@@ -816,39 +816,6 @@ export type Database = {
         }
         Relationships: []
       }
-      work_hours: {
-        Row: {
-          created_at: string | null
-          description: string | null
-          end: string
-          id: string
-          start: string
-          title: string
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          description?: string | null
-          end: string
-          id?: string
-          start: string
-          title: string
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          description?: string | null
-          end?: string
-          id?: string
-          start?: string
-          title?: string
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
     }
     Views: {
       [_ in never]: never
