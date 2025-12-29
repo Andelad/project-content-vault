@@ -4,13 +4,13 @@
  * Single source of truth for phase-related business logic.
  * 
  * MIGRATION NOTE (December 2025):
- * This file consolidates both PhaseRules and PhaseRules.
- * The term "phase" is now preferred, but "milestone" terminology is preserved
- * for backward compatibility and database field names (milestone.endDate, etc.)
+ * This file consolidates Phase rules with legacy milestone terminology.
+ * "Phase" is the primary term; "milestone" remains only for backward compatibility
+ * and database field names (phase.endDate, etc.).
  * 
  * Key Domain Concepts:
  * - Phase: Has both startDate and endDate (represents a time period)
- * - Milestone: Has only endDate/dueDate (represents a deadline)
+ * - Milestone (legacy term): Has only endDate/dueDate (represents a deadline)
  * 
  * Budget Model (Mutually Exclusive):
  * 1. Fixed Budget (Default): Project has total hours budget (e.g., 28h)
@@ -32,14 +32,14 @@
  * @see docs/core/Business Logic.md
  */
 
-import type { Phase, Project } from '@/types/core';
+import type { PhaseDTO, Project } from '@/types/core';
 import { normalizeToMidnight, addDaysToDate } from '@/services/calculations/general/dateCalculations';
 
 /**
- * A Phase is a Phase with a defined start date
+ * A Phase is a PhaseDTO with a defined start date
  * This creates a time period rather than just a deadline
  */
-export type Phase = Phase & { startDate: Date };
+export type Phase = PhaseDTO & { startDate: Date };
 
 // ============================================================================
 // TYPE DEFINITIONS (from PhaseRules)
@@ -71,6 +71,12 @@ export interface MilestoneBudgetCheck {
   utilizationPercentage: number;
 }
 
+// Phase-prefixed aliases for semantic consistency
+export type PhaseValidationResult = MilestoneValidationResult;
+export type PhaseDateValidation = MilestoneDateValidation;
+export type PhaseTimeValidation = MilestoneTimeValidation;
+export type PhaseBudgetCheck = MilestoneBudgetCheck;
+
 export interface RecurringPhaseRuleConfig {
   type: 'daily' | 'weekly' | 'monthly';
   interval: number;
@@ -86,13 +92,13 @@ export interface RecurringPhaseRuleConfig {
 // ============================================================================
 
 /**
- * Type guard: Check if a milestone is actually a phase
+ * Type guard: Check if an entity is actually a phase (has a start date)
  * 
  * A phase has both startDate and endDate, representing a time period.
  * A pure milestone only has a deadline (endDate/dueDate).
  * 
- * @param milestone - The milestone to check
- * @returns True if the milestone has a startDate (is a phase)
+ * @param entity - The phase/milestone to check
+ * @returns True if the item has a startDate (is a phase)
  * 
  * @example
  * ```ts
@@ -100,37 +106,42 @@ export interface RecurringPhaseRuleConfig {
  * const phases = items.filter(isPhase); // Type-safe Phase[]
  * ```
  */
-export function isPhase(milestone: Milestone): milestone is Phase {
-  return milestone.startDate !== undefined;
+export function isPhase(entity: PhaseDTO): entity is Phase {
+  return entity.startDate !== undefined;
 }
 
 /**
- * Type guard: Check if a milestone is a pure milestone (not a phase)
+ * Type guard: Check if a phase/milestone is a deadline-only entity (no start date)
  * 
- * @param milestone - The milestone to check
- * @returns True if the milestone does NOT have a startDate
+ * @param entity - The phase/milestone to check
+ * @returns True if the entity does NOT have a startDate
  * 
  * @example
  * ```ts
- * const items = [phase1, milestone1, phase2];
- * const phases = items.filter(isMilestone); // Pure milestones only
+ * const items = [phase1, deadline1, phase2];
+ * const deadlineOnly = items.filter(isDeadlineOnly); // Deadline-only entities
  * ```
  */
-export function isMilestone(milestone: Milestone): boolean {
-  return milestone.startDate === undefined;
+export function isDeadlineOnly(entity: PhaseDTO): boolean {
+  return entity.startDate === undefined;
 }
+
+/**
+ * @deprecated Use isDeadlineOnly instead. Kept for backward compatibility.
+ */
+export const isMilestone = isDeadlineOnly;
 
 // ============================================================================
 // FILTERING RULES
 // ============================================================================
 
 /**
- * Extract all phases from a mixed array of milestones
+ * Extract all phases from a mixed array of phases/milestones
  * 
  * Filters for items that have startDate defined and returns them
  * as type-safe Phase[] array.
  * 
- * @param milestones - Array of milestones (may include phases)
+ * @param milestones - Array of phases/milestones
  * @returns Array of only phases
  * 
  * @example
@@ -140,8 +151,8 @@ export function isMilestone(milestone: Milestone): boolean {
  * // phases is Phase[] - TypeScript knows they have startDate
  * ```
  */
-export function getPhases(phases: Phase[]): Phase[] {
-  return milestones.filter(isPhase);
+export function getPhases(phases: PhaseDTO[]): PhaseDTO[] {
+  return phases.filter(isPhase);
 }
 
 /**
@@ -159,8 +170,8 @@ export function getPhases(phases: Phase[]): Phase[] {
  * // These are deadline-only milestones
  * ```
  */
-export function getMilestones(phases: Phase[]): Phase[] {
-  return milestones.filter(isMilestone);
+export function getMilestones(phases: PhaseDTO[]): PhaseDTO[] {
+  return phases.filter(isDeadlineOnly);
 }
 
 // ============================================================================
@@ -173,7 +184,7 @@ export function getMilestones(phases: Phase[]): Phase[] {
  * @param phases - Array of phases to sort
  * @returns Sorted array (earliest end date first)
  */
-export function sortPhasesByEndDate(phases: Phase[]): Phase[] {
+export function sortPhasesByEndDate(phases: PhaseDTO[]): PhaseDTO[] {
   return [...phases].sort((a, b) => {
     const aDate = new Date(a.endDate).getTime();
     const bDate = new Date(b.endDate).getTime();
@@ -187,7 +198,7 @@ export function sortPhasesByEndDate(phases: Phase[]): Phase[] {
  * @param phases - Array of phases to sort
  * @returns Sorted array (earliest start date first)
  */
-export function sortPhasesByStartDate(phases: Phase[]): Phase[] {
+export function sortPhasesByStartDate(phases: PhaseDTO[]): PhaseDTO[] {
   return [...phases].sort((a, b) => {
     const aDate = new Date(a.startDate).getTime();
     const bDate = new Date(b.startDate).getTime();
@@ -213,14 +224,14 @@ export function sortPhasesByStartDate(phases: Phase[]): Phase[] {
  * @example
  * ```ts
  * // Instead of:
- * const phases = milestones.filter(p => m.endDate !== undefined)
+ * const phases = milestones.filter(p => p.endDate !== undefined)
  *   .sort((a, b) => new Date(a.endDate!).getTime() - new Date(b.endDate!).getTime());
  * 
  * // Use:
  * const phases = getPhasesSortedByEndDate(phases);
  * ```
  */
-export function getPhasesSortedByEndDate(phases: Phase[]): Phase[] {
+export function getPhasesSortedByEndDate(phases: PhaseDTO[]): PhaseDTO[] {
   return sortPhasesByEndDate(getPhases(phases));
 }
 
@@ -253,7 +264,7 @@ export class PhaseRules {
    * RULE 1: Phase time allocation must be non-negative
    * 
    * Business Logic Reference: Rule 4
-   * Formula: milestone.timeAllocationHours >= 0
+   * Formula: phase.timeAllocationHours >= 0
    * 
    * @param timeAllocation - The time allocation to validate
    * @returns true if allocation is non-negative, false otherwise
@@ -266,7 +277,7 @@ export class PhaseRules {
    * RULE 2: Phase dates must fall within project date range
    * 
    * Business Logic Reference: Rule 2
-   * Formula: project.startDate ≤ milestone.endDate ≤ project.endDate
+   * Formula: project.startDate ≤ phase.endDate ≤ project.endDate
    * 
    * Applies to:
    * - Single milestones: Due date must be within project dates
@@ -397,14 +408,14 @@ export class PhaseRules {
    * RULE 3a: Calculate total milestone allocation
    * 
    * Business Logic Reference: Calculation Rule 2
-   * Formula: SUM(milestone.timeAllocationHours)
+   * Formula: SUM(phase.timeAllocationHours)
    * 
    * @param milestones - Array of milestones
    * @returns Total hours allocated
    */
-  static calculateTotalAllocation(phases: Phase[]): number {
-    return milestones.reduce((sum, milestone) => {
-      const hours = milestone.timeAllocationHours ?? milestone.timeAllocation ?? 0;
+  static calculateTotalAllocation(phases: PhaseDTO[]): number {
+    return phases.reduce((sum, phase) => {
+      const hours = phase.timeAllocationHours ?? phase.timeAllocation ?? 0;
       return sum + hours;
     }, 0);
   }
@@ -413,7 +424,7 @@ export class PhaseRules {
    * RULE 3b: Check if milestones exceed project budget
    * 
    * Business Logic Reference: Rule 1
-   * Formula: SUM(milestone.timeAllocationHours) ≤ project.estimatedHours
+   * Formula: SUM(phase.timeAllocationHours) ≤ project.estimatedHours
    * 
    * @param milestones - Project milestones
    * @param projectBudget - Project estimated hours
@@ -421,14 +432,14 @@ export class PhaseRules {
    * @returns Budget check result
    */
   static checkBudgetConstraint(
-    phases: Phase[],
+    phases: PhaseDTO[],
     projectBudget: number,
     excludeMilestoneId?: string
   ): MilestoneBudgetCheck {
     // Filter out excluded milestone if provided
     const relevantPhases = excludeMilestoneId
-      ? milestones.filter(p => m.id !== excludeMilestoneId)
-      : milestones;
+      ? phases.filter(p => p.id !== excludeMilestoneId)
+      : phases;
 
     const totalAllocated = this.calculateTotalAllocation(relevantPhases);
     const remaining = projectBudget - totalAllocated;
@@ -455,7 +466,7 @@ export class PhaseRules {
    * @returns true if budget can accommodate, false otherwise
    */
   static canAccommodateAdditionalMilestone(
-    phases: Phase[],
+    phases: PhaseDTO[],
     projectBudget: number,
     additionalHours: number
   ): boolean {
@@ -515,9 +526,9 @@ export class PhaseRules {
    * @returns Comprehensive validation result
    */
   static validateMilestone(
-    milestone: Milestone,
+    milestone: PhaseDTO,
     project: Project,
-    existingPhases: Phase[] = []
+    existingPhases: PhaseDTO[] = []
   ): MilestoneValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -605,7 +616,7 @@ export class PhaseRules {
    * @returns Utilization percentage (0-100+)
    */
   static calculateBudgetUtilization(
-    phases: Phase[],
+    phases: PhaseDTO[],
     projectBudget: number
   ): number {
     if (projectBudget === 0) return 0;
@@ -617,14 +628,14 @@ export class PhaseRules {
    * Calculate remaining budget after milestone allocations
    * 
    * Business Logic Reference: Calculation Rule 5
-   * Formula: project.estimatedHours - SUM(milestone.timeAllocationHours)
+   * Formula: project.estimatedHours - SUM(phase.timeAllocationHours)
    * 
    * @param milestones - Array of milestones
    * @param projectBudget - Project estimated hours
    * @returns Remaining hours (can be negative if over budget)
    */
   static calculateRemainingBudget(
-    phases: Phase[],
+    phases: PhaseDTO[],
     projectBudget: number
   ): number {
     const totalAllocated = this.calculateTotalAllocation(phases);
@@ -642,7 +653,7 @@ export class PhaseRules {
    * @returns Overage hours (0 if not over budget)
    */
   static calculateBudgetOverage(
-    phases: Phase[],
+    phases: PhaseDTO[],
     projectBudget: number
   ): number {
     const totalAllocated = this.calculateTotalAllocation(phases);
@@ -655,10 +666,10 @@ export class PhaseRules {
    * @param milestones - Array of milestones
    * @returns Average hours per milestone
    */
-  static calculateAverageMilestoneAllocation(phases: Phase[]): number {
-    if (milestones.length === 0) return 0;
+  static calculateAverageMilestoneAllocation(phases: PhaseDTO[]): number {
+    if (phases.length === 0) return 0;
     const totalAllocated = this.calculateTotalAllocation(phases);
-    return totalAllocated / milestones.length;
+    return totalAllocated / phases.length;
   }
 
   /**
@@ -669,7 +680,7 @@ export class PhaseRules {
    * @returns Array of recommendation strings
    */
   static generateRecommendations(
-    phases: Phase[],
+    phases: PhaseDTO[],
     projectBudget: number
   ): string[] {
     const recommendations: string[] = [];
@@ -690,7 +701,7 @@ export class PhaseRules {
       );
     }
 
-    if (milestones.length > 0) {
+    if (phases.length > 0) {
       const avgAllocation = this.calculateAverageMilestoneAllocation(phases);
       if (avgAllocation < 1) {
         recommendations.push(
@@ -713,8 +724,8 @@ export class PhaseRules {
    * @param milestones - Array of milestones
    * @returns Sorted milestones
    */
-  static sortMilestonesByDate(phases: Phase[]): Phase[] {
-    return milestones.sort((a, b) => {
+  static sortMilestonesByDate(phases: PhaseDTO[]): PhaseDTO[] {
+    return phases.sort((a, b) => {
       const dateA = a.endDate || a.dueDate;
       const dateB = b.endDate || b.dueDate;
       return dateA.getTime() - dateB.getTime();
@@ -800,7 +811,7 @@ export class PhaseRules {
    * @param milestone - Phase to check
    * @returns true if milestone is a recurring instance
    */
-  static isRecurringPhase(milestone: Milestone): boolean {
+  static isRecurringPhase(milestone: PhaseDTO): boolean {
     return milestone.name ? /\s\d+$/.test(milestone.name) : false;
   }
 
@@ -816,7 +827,7 @@ export class PhaseRules {
    * @returns Validation result with errors
    */
   static validatePhaseEndDateNotInPast(
-    phase: Milestone,
+    phase: PhaseDTO,
     today: Date = new Date()
   ): { isValid: boolean; errors: string[] } {
     const errors: string[] = [];
@@ -857,7 +868,7 @@ export class PhaseRules {
    * @returns Minimum required end date
    */
   static calculateMinimumPhaseEndDate(
-    phase: Milestone,
+    phase: PhaseDTO,
     today: Date = new Date()
   ): Date {
     const timeAllocation = phase.timeAllocationHours ?? phase.timeAllocation ?? 0;
@@ -885,7 +896,7 @@ export class PhaseRules {
    * @returns Validation result with errors
    */
   static validatePhaseSpacing(
-    phases: Phase[]
+    phases: PhaseDTO[]
   ): { isValid: boolean; errors: string[] } {
     const errors: string[] = [];
     
@@ -933,10 +944,10 @@ export class PhaseRules {
    * @returns Updated array of phases with cascaded adjustments
    */
   static cascadePhaseAdjustments(
-    phases: Phase[],
+    phases: PhaseDTO[],
     adjustedPhaseId: string,
     newEndDate: Date
-  ): Phase[] {
+  ): PhaseDTO[] {
     // Sort phases by end date
     const sortedPhases = [...phases].sort((a, b) => {
       const aEnd = new Date(a.endDate || a.dueDate).getTime();
@@ -1003,14 +1014,14 @@ export class PhaseRules {
    * 
    * @see docs/PHASE_DOMAIN_LOGIC.md - Rule 4: Mutual Exclusivity
    */
-  static checkPhaseRecurringExclusivity(phases: Phase[]): {
+  static checkPhaseRecurringExclusivity(phases: PhaseDTO[]): {
     hasSplitPhases: boolean;
     hasRecurringTemplate: boolean;
     isValid: boolean;
     error?: string;
   } {
-    const splitPhases = milestones.filter(p => m.startDate !== undefined);
-    const recurringTemplate = milestones.find(p => m.isRecurring === true);
+    const splitPhases = phases.filter(p => p.startDate !== undefined);
+    const recurringTemplate = phases.find(p => p.isRecurring === true);
     
     const hasSplitPhases = splitPhases.length > 0;
     const hasRecurringTemplate = !!recurringTemplate;
@@ -1044,7 +1055,7 @@ export class PhaseRules {
    * @returns Validation result with errors (overlaps) and warnings (gaps)
    */
   static validatePhasesContinuity(
-    phases: Phase[],
+    phases: PhaseDTO[],
     projectStartDate: Date,
     projectEndDate: Date
   ): {
@@ -1115,7 +1126,7 @@ export class PhaseRules {
    * @returns Budget check result
    */
   static validatePhaseBudgets(
-    phases: Phase[],
+    phases: PhaseDTO[],
     projectEstimatedHours: number
   ): {
     isValid: boolean;
@@ -1141,7 +1152,7 @@ export class PhaseRules {
    * @returns Dates for new phase and updated last phase end date
    */
   static calculateNewPhaseDates(
-    existingPhases: Phase[],
+    existingPhases: PhaseDTO[],
     projectEndDate: Date
   ): {
     newPhaseStart: Date;
@@ -1193,7 +1204,7 @@ export class PhaseRules {
    * Input:  Phase 1 (Nov 1 → Nov 15), Phase 2 (Nov 15 → Nov 30)
    * Output: Phase 1 (Nov 1 → Nov 15), Phase 2 (Nov 16 → Nov 30)
    */
-  static repairOverlappingPhases(phases: Phase[]): Array<{ phaseId: string; updates: { startDate?: Date; endDate?: Date } }> {
+  static repairOverlappingPhases(phases: PhaseDTO[]): Array<{ phaseId: string; updates: { startDate?: Date; endDate?: Date } }> {
     if (phases.length === 0) {
       return [];
     }

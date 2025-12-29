@@ -4,7 +4,7 @@
  */
 
 import type { CalendarEvent, Holiday, Project, WorkHour, WorkSlot } from '@/types/core';
-import type { Phase } from '@/types/core';
+import type { PhaseDTO } from '@/types/core';
 
 interface CacheEntry<T> {
   value: T;
@@ -24,7 +24,7 @@ interface CacheStats {
   checks: number;
 }
 
-type MilestoneHashInput = Partial<Phase> & {
+type MilestoneHashInput = Partial<PhaseDTO> & {
   id?: string;
   targetDate?: Date | string | null;
   estimatedHours?: number | null;

@@ -7,7 +7,7 @@
  */
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { Project, Phase, CalendarEvent, Settings, Holiday } from '@/types/core';
+import { Project, PhaseDTO, CalendarEvent, Settings, Holiday } from '@/types/core';
 import { UnifiedDayEstimateService } from '@/services';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -23,7 +23,7 @@ interface EstimatedTimeCardProps {
   /** All projects */
   projects: Project[];
   /** Map of project ID to milestones */
-  phasesMap: Map<string, Milestone[]>;
+  phasesMap: Map<string, PhaseDTO[]>;
   /** All calendar events */
   events: CalendarEvent[];
   /** User settings */

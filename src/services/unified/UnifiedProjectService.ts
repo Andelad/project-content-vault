@@ -6,7 +6,7 @@
  * USE WHEN:
  * - Calculating project duration, workload, or daily allocation
  * - Validating project dates or business rules
- * - Analyzing project budget vs milestone allocation
+ * - Analyzing project budget vs phase allocation
  * - Working with project properties (no event/time-tracking data needed)
  * 
  * DON'T USE WHEN:
@@ -23,7 +23,7 @@
  * @see UnifiedTimelineService for timeline UI coordination
  */
 
-import { Project, Phase, Settings } from '@/types';
+import { Project, PhaseDTO, Settings } from '@/types';
 import { calculateDurationDays } from '@/services/calculations/general/dateCalculations';
 import { ProjectRules } from '@/domain/rules/ProjectRules';
 
@@ -32,7 +32,7 @@ import { ProjectRules } from '@/domain/rules/ProjectRules';
 // ============================================================================
 
 export interface ProjectBudgetAnalysis {
-  totalAllocation: number;          // Total hours allocated to milestones
+  totalAllocation: number;          // Total hours allocated to phases
   suggestedBudget: number;           // Suggested project budget
   isOverBudget: boolean;             // Whether allocation exceeds budget
   overageHours: number;              // Hours over budget
@@ -148,7 +148,7 @@ export class UnifiedProjectService {
   static validateDates(
     startDate: Date,
     endDate: Date,
-    phases: Phase[] = []
+    phases: PhaseDTO[] = []
   ): { valid: boolean; errors: string[] } {
     const errors: string[] = [];
 
@@ -157,10 +157,10 @@ export class UnifiedProjectService {
       errors.push('Project end date must be after start date');
     }
 
-    milestones.forEach(milestone => {
-      const milestoneDate = milestone.endDate || milestone.dueDate;
-      if (milestoneDate < startDate || milestoneDate > endDate) {
-        errors.push(`Milestone "${milestone.name || 'Unnamed'}" is outside project date range`);
+    phases.forEach(phase => {
+      const phaseDate = phase.endDate || phase.dueDate;
+      if (phaseDate < startDate || phaseDate > endDate) {
+        errors.push(`Phase "${phase.name || 'Unnamed'}" is outside project date range`);
       }
     });
 
@@ -180,25 +180,25 @@ export class UnifiedProjectService {
   }
   
   // ==========================================================================
-  // MILESTONE CALCULATIONS (Time-based only)
+  // PHASE CALCULATIONS (Time-based only)
   // ==========================================================================
   
   /**
-   * Calculate milestone time-based status (no event data)
-   * For work-based milestone progress, use UnifiedProjectProgressService
+   * Calculate phase time-based status (no event data)
+   * For work-based phase progress, use UnifiedProjectProgressService
    */
-  static calculateMilestoneStatus(
-    milestone: Milestone,
+  static calculatePhaseStatus(
+    phase: PhaseDTO,
     project: Project,
     currentDate: Date = new Date()
   ): MilestoneProgress {
-    const milestoneDate = milestone.endDate || milestone.dueDate;
+    const phaseDate = phase.endDate || phase.dueDate;
     const projectStart = new Date(project.startDate);
     
-    const completed = currentDate >= milestoneDate;
-    const overdue = currentDate > milestoneDate;
+    const completed = currentDate >= phaseDate;
+    const overdue = currentDate > phaseDate;
     
-    const totalTime = milestoneDate.getTime() - projectStart.getTime();
+    const totalTime = phaseDate.getTime() - projectStart.getTime();
     const elapsedTime = currentDate.getTime() - projectStart.getTime();
     const progress = totalTime > 0 ? 
       Math.min(100, Math.max(0, (elapsedTime / totalTime) * 100)) : 0;
@@ -207,21 +207,42 @@ export class UnifiedProjectService {
   }
   
   /**
-   * Calculate time distribution for milestone
+   * Calculate time distribution for phase
    */
-  static calculateMilestoneDistribution(
-    milestone: Milestone,
+  static calculatePhaseDistribution(
+    phase: PhaseDTO,
     project: Project
   ): MilestoneTimeDistribution {
     const projectStart = new Date(project.startDate);
     const projectEnd = new Date(project.endDate);
-    const milestoneDate = milestone.endDate || milestone.dueDate;
+    const phaseDate = phase.endDate || phase.dueDate;
     
     const totalDays = this.calculateDuration(projectStart, projectEnd);
-    const beforeDays = this.calculateDuration(projectStart, milestoneDate);
+    const beforeDays = this.calculateDuration(projectStart, phaseDate);
     const afterDays = totalDays - beforeDays;
     
     return { beforeDays, afterDays, totalDays };
+  }
+  
+  /**
+   * @deprecated Use calculatePhaseStatus instead. Kept for backward compatibility.
+   */
+  static calculateMilestoneStatus(
+    phase: PhaseDTO,
+    project: Project,
+    currentDate: Date = new Date()
+  ): MilestoneProgress {
+    return this.calculatePhaseStatus(phase, project, currentDate);
+  }
+  
+  /**
+   * @deprecated Use calculatePhaseDistribution instead. Kept for backward compatibility.
+   */
+  static calculateMilestoneDistribution(
+    phase: PhaseDTO,
+    project: Project
+  ): MilestoneTimeDistribution {
+    return this.calculatePhaseDistribution(phase, project);
   }
   
   // ==========================================================================
@@ -229,11 +250,11 @@ export class UnifiedProjectService {
   // ==========================================================================
   
   /**
-   * Analyze project budget vs milestone allocation
+   * Analyze project budget vs phase allocation
    * Delegates to domain rules (no wrapper layer)
    */
-  static analyzeBudget(project: Project, phases: Phase[]): ProjectBudgetAnalysis {
-    return ProjectRules.analyzeBudget(project, milestones);
+  static analyzeBudget(project: Project, phases: PhaseDTO[]): ProjectBudgetAnalysis {
+    return ProjectRules.analyzeBudget(project, phases);
   }
   
   /**
@@ -242,9 +263,9 @@ export class UnifiedProjectService {
    */
   static validateTimeConstraints(
     estimatedHours: number,
-    phases: Phase[]
+    phases: PhaseDTO[]
   ): ProjectTimeValidation {
-    return ProjectRules.validateProjectTime(estimatedHours, milestones);
+    return ProjectRules.validateProjectTime(estimatedHours, phases);
   }
 }
 
@@ -284,24 +305,24 @@ export function calculateDailyWorkAllocation(project: Project, targetDate: Date)
 }
 
 /**
- * @deprecated Use UnifiedProjectService.calculateMilestoneStatus() instead
+ * @deprecated Use UnifiedProjectService.calculatePhaseStatus() instead
  */
 export function calculateMilestoneProgress(
-  milestone: Milestone,
+  milestone: PhaseDTO,
   project: Project,
   currentDate: Date = new Date()
 ): MilestoneProgress {
-  return UnifiedProjectService.calculateMilestoneStatus(milestone, project, currentDate);
+  return UnifiedProjectService.calculatePhaseStatus(milestone, project, currentDate);
 }
 
 /**
- * @deprecated Use UnifiedProjectService.calculateMilestoneDistribution() instead
+ * @deprecated Use UnifiedProjectService.calculatePhaseDistribution() instead
  */
 export function calculateMilestoneTimeDistribution(
-  milestone: Milestone,
+  milestone: PhaseDTO,
   project: Project
 ): MilestoneTimeDistribution {
-  return UnifiedProjectService.calculateMilestoneDistribution(milestone, project);
+  return UnifiedProjectService.calculatePhaseDistribution(milestone, project);
 }
 
 /**
@@ -310,9 +331,9 @@ export function calculateMilestoneTimeDistribution(
 export function validateProjectDates(
   startDate: Date,
   endDate: Date,
-  phases: Phase[] = []
+  phases: PhaseDTO[] = []
 ): { valid: boolean; errors: string[] } {
-  return UnifiedProjectService.validateDates(startDate, endDate, milestones);
+  return UnifiedProjectService.validateDates(startDate, endDate, phases);
 }
 
 /**
@@ -379,7 +400,7 @@ export class UnifiedProjectEntity {
    * Domain Rule: Calculate total milestone allocation for a project
    * @deprecated Use ProjectRules.calculateTotalMilestoneAllocation() instead
    */
-  static calculateTotalMilestoneAllocation(phases: Phase[]): number {
+  static calculateTotalMilestoneAllocation(phases: PhaseDTO[]): number {
     return ProjectRules.calculateTotalMilestoneAllocation(phases);
   }
 
@@ -387,8 +408,8 @@ export class UnifiedProjectEntity {
    * Domain Rule: Calculate project budget analysis
    * @deprecated Use ProjectRules.analyzeBudget() instead
    */
-  static analyzeBudget(project: Project, phases: Phase[]): ProjectBudgetAnalysis {
-    return ProjectRules.analyzeBudget(project, milestones);
+  static analyzeBudget(project: Project, phases: PhaseDTO[]): ProjectBudgetAnalysis {
+    return ProjectRules.analyzeBudget(project, phases);
   }
 
   /**
@@ -397,7 +418,7 @@ export class UnifiedProjectEntity {
    */
   static canAccommodateAdditionalHours(
     project: Project, 
-    phases: Phase[], 
+    phases: PhaseDTO[], 
     additionalHours: number
   ): boolean {
     return ProjectRules.canAccommodateAdditionalHours(project, phases, additionalHours);
@@ -409,9 +430,9 @@ export class UnifiedProjectEntity {
    */
   static validateProjectTime(
     estimatedHours: number,
-    phases: Phase[]
+    phases: PhaseDTO[]
   ): ProjectTimeValidation {
-    return ProjectRules.validateProjectTime(estimatedHours, milestones);
+    return ProjectRules.validateProjectTime(estimatedHours, phases);
   }
 
   /**
@@ -473,9 +494,9 @@ export class UnifiedProjectEntity {
    * Calculate comprehensive project metrics
    * Migrated from ProjectCalculationService
    */
-  static calculateProjectMetrics(project: Project, phases: Phase[], settings: Settings) {
+  static calculateProjectMetrics(project: Project, phases: PhaseDTO[], settings: Settings) {
     const totalDuration = this.calculateProjectDuration(project);
-    const workload = this.calculateTotalProjectWorkload(project, milestones);
+    const workload = this.calculateTotalProjectWorkload(project, phases);
     
     const dailyCapacity = this.calculateDailyWorkCapacity(project, settings);
     const weeklyCapacity = this.calculateWeeklyWorkCapacity(project, settings);
@@ -487,24 +508,31 @@ export class UnifiedProjectEntity {
       dailyCapacity,
       weeklyCapacity,
       estimatedEndDate: endDate,
-      totalMilestones: milestones.length,
+      totalMilestones: phases.length, // Legacy field name; represents total phases
       remainingWork: Math.max(0, project.estimatedHours - workload)
     };
   }
 
   /**
-   * Calculate milestone-specific metrics
+   * Calculate phase-specific metrics
    * Migrated from ProjectCalculationService
    */
-  static calculateMilestoneMetrics(phases: Phase[], settings: Settings) {
-    return milestones.map(phase => ({
-      id: milestone.id,
-      name: milestone.name,
-      dueDate: milestone.dueDate,
-      timeAllocation: milestone.timeAllocation,
-      daysToComplete: this.calculateMilestoneDaysToComplete(milestone, settings),
-      isOverdue: this.isMilestoneOverdue(milestone)
+  static calculatePhaseMetrics(phases: PhaseDTO[], settings: Settings) {
+    return phases.map(phase => ({
+      id: phase.id,
+      name: phase.name,
+      dueDate: phase.dueDate,
+      timeAllocation: phase.timeAllocation,
+      daysToComplete: this.calculatePhaseDaysToComplete(phase, settings),
+      isOverdue: this.isPhaseOverdue(phase)
     }));
+  }
+
+  /**
+   * @deprecated Use calculatePhaseMetrics instead
+   */
+  static calculateMilestoneMetrics(milestones: PhaseDTO[], settings: Settings) {
+    return this.calculatePhaseMetrics(milestones, settings);
   }
 
   /**
@@ -532,8 +560,8 @@ export class UnifiedProjectEntity {
    * Calculate project end date based on remaining work and capacity
    * Migrated from ProjectCalculationService
    */
-  static calculateProjectEndDate(project: Project, phases: Phase[], settings: Settings): Date | null {
-    const remainingHours = this.calculateRemainingWorkHours(project, milestones);
+  static calculateProjectEndDate(project: Project, phases: PhaseDTO[], settings: Settings): Date | null {
+    const remainingHours = this.calculateRemainingWorkHours(project, phases);
     const dailyCapacity = this.calculateDailyWorkCapacity(project, settings);
     
     if (remainingHours <= 0 || dailyCapacity <= 0) {
@@ -591,7 +619,7 @@ export class UnifiedProjectEntity {
    * Validate milestone timeline consistency
    * Migrated from ProjectCalculationService
    */
-  static validateMilestoneTimeline(project: Project, phases: Phase[]): {
+  static validateMilestoneTimeline(project: Project, phases: PhaseDTO[]): {
     isValid: boolean;
     issues: string[];
     suggestions: string[];
@@ -599,21 +627,21 @@ export class UnifiedProjectEntity {
     const issues: string[] = [];
     const suggestions: string[] = [];
 
-    // Check if milestones are within project bounds
+    // Check if phases are within project bounds
     if (project.startDate && project.endDate) {
       const projectStart = new Date(project.startDate);
       const projectEnd = new Date(project.endDate);
 
-      milestones.forEach(milestone => {
-        if (milestone.endDate || milestone.dueDate) {
-          const milestoneDate = milestone.endDate || milestone.dueDate;
-          if (milestoneDate < projectStart) {
-            issues.push(`Milestone "${milestone.name}" is scheduled before project start date`);
-            suggestions.push(`Move milestone "${milestone.name}" to after ${projectStart.toDateString()}`);
+      phases.forEach(phase => {
+        if (phase.endDate || phase.dueDate) {
+          const phaseDate = phase.endDate || phase.dueDate;
+          if (phaseDate < projectStart) {
+            issues.push(`Phase "${phase.name}" is scheduled before project start date`);
+            suggestions.push(`Move phase "${phase.name}" to after ${projectStart.toDateString()}`);
           }
-          if (milestoneDate > projectEnd) {
-            issues.push(`Milestone "${milestone.name}" is scheduled after project end date`);
-            suggestions.push(`Move milestone "${milestone.name}" to before ${projectEnd.toDateString()}`);
+          if (phaseDate > projectEnd) {
+            issues.push(`Phase "${phase.name}" is scheduled after project end date`);
+            suggestions.push(`Move phase "${phase.name}" to before ${projectEnd.toDateString()}`);
           }
         }
       });
@@ -626,29 +654,43 @@ export class UnifiedProjectEntity {
     };
   }
 
-  // Helper methods for the new functionality
-  private static calculateMilestoneDaysToComplete(milestone: Milestone, settings: Settings): number {
+  // Helper methods for phase calculations
+  private static calculatePhaseDaysToComplete(phase: PhaseDTO, settings: Settings): number {
     const hoursPerDay = (settings as Settings & { workHours?: { hoursPerDay?: number } })?.workHours?.hoursPerDay || 8;
-    const timeAllocation = milestone.timeAllocationHours ?? milestone.timeAllocation;
+    const timeAllocation = phase.timeAllocationHours ?? phase.timeAllocation;
     return Math.ceil(timeAllocation / hoursPerDay);
   }
 
-  private static isMilestoneOverdue(milestone: Milestone): boolean {
-    const milestoneDate = milestone.endDate || milestone.dueDate;
-    return milestoneDate < new Date();
+  private static isPhaseOverdue(phase: PhaseDTO): boolean {
+    const phaseDate = phase.endDate || phase.dueDate;
+    return phaseDate < new Date();
+  }
+  
+  /**
+   * @deprecated Use calculatePhaseDaysToComplete instead. Kept for backward compatibility.
+   */
+  private static calculateMilestoneDaysToComplete(phase: PhaseDTO, settings: Settings): number {
+    return this.calculatePhaseDaysToComplete(phase, settings);
+  }
+  
+  /**
+   * @deprecated Use isPhaseOverdue instead. Kept for backward compatibility.
+   */
+  private static isMilestoneOverdue(phase: PhaseDTO): boolean {
+    return this.isPhaseOverdue(phase);
   }
 
-  private static calculateRemainingWorkHours(project: Project, phases: Phase[]): number {
-    const totalAllocatedHours = milestones.reduce((total, milestone) => {
-      const hours = milestone.timeAllocationHours ?? milestone.timeAllocation;
+  private static calculateRemainingWorkHours(project: Project, phases: PhaseDTO[]): number {
+    const totalAllocatedHours = phases.reduce((total, phase) => {
+      const hours = phase.timeAllocationHours ?? phase.timeAllocation;
       return total + hours;
     }, 0);
     return Math.max(0, project.estimatedHours - totalAllocatedHours);
   }
 
-  private static calculateTotalProjectWorkload(project: Project, phases: Phase[]): number {
-    return milestones.reduce((total, milestone) => {
-      const hours = milestone.timeAllocationHours ?? milestone.timeAllocation;
+  private static calculateTotalProjectWorkload(project: Project, phases: PhaseDTO[]): number {
+    return phases.reduce((total, phase) => {
+      const hours = phase.timeAllocationHours ?? phase.timeAllocation;
       return total + hours;
     }, 0);
   }

@@ -24,6 +24,9 @@ import { TimelineViewport } from './TimelineViewportService';
 export interface DragState {
   projectId?: string;
   holidayId?: string;
+  /** Primary phase identifier (phase == milestone). */
+  phaseId?: string;
+  /** @deprecated use phaseId. Kept for backward compatibility with legacy milestone terminology. */
   milestoneId?: string;
   action: string;
   startX: number;
@@ -139,6 +142,8 @@ export type DragOperation =
   | 'move-holiday'
   | 'resize-holiday-start'
   | 'resize-holiday-end'
+  | 'move-phase'
+  /** @deprecated use move-phase */
   | 'move-milestone'
   | 'adjust-time-allocation';
 
@@ -227,6 +232,7 @@ export function validateDragDateRange(
   switch (operation) {
     case 'move-project':
     case 'move-holiday':
+    case 'move-phase':
     case 'move-milestone':
       newStartDate = addDaysToDate(originalStartDate, daysDelta);
       newEndDate = addDaysToDate(originalEndDate, daysDelta);
@@ -406,6 +412,7 @@ export function getDragCursor(operation: DragOperation): string {
   switch (operation) {
     case 'move-project':
     case 'move-holiday':
+    case 'move-phase':
     case 'move-milestone':
       return 'grabbing';
       
@@ -451,20 +458,21 @@ export function initializeDragState(
 /**
  * Initialize drag state for a milestone drag operation
  */
-export function initializeMilestoneDragState(
-  milestoneId: string,
-  milestoneDate: Date,
+export function initializePhaseDragState(
+  phaseId: string,
+  phaseDate: Date,
   startX: number,
   startY: number,
   mode: 'days' | 'weeks' = 'days'
 ): DragState {
   return {
-    milestoneId,
-    action: 'move-milestone',
+    phaseId,
+    milestoneId: phaseId,
+    action: 'move-phase',
     startX,
     startY,
-    originalStartDate: new Date(milestoneDate),
-    originalEndDate: new Date(milestoneDate), // Milestones have same start/end
+    originalStartDate: new Date(phaseDate),
+    originalEndDate: new Date(phaseDate), // Phases use same date for drag start/end in this context
     lastDaysDelta: 0,
     mode,
     isDynamicWidth: false
@@ -472,10 +480,23 @@ export function initializeMilestoneDragState(
 }
 
 /**
- * Calculate milestone drag update with snap behavior
- * Milestones snap to day boundaries in days mode, smooth in weeks mode
+ * @deprecated Use initializePhaseDragState. Kept to avoid breaking older imports.
  */
-export function calculateMilestoneDragUpdate(
+export function initializeMilestoneDragState(
+  milestoneId: string,
+  milestoneDate: Date,
+  startX: number,
+  startY: number,
+  mode: 'days' | 'weeks' = 'days'
+): DragState {
+  return initializePhaseDragState(milestoneId, milestoneDate, startX, startY, mode);
+}
+
+/**
+ * Calculate phase drag update with snap behavior
+ * Phases snap to day boundaries in days mode, smooth in weeks mode
+ */
+export function calculatePhaseDragUpdate(
   currentMouseX: number,
   dragState: DragState,
   mode: 'days' | 'weeks'
@@ -514,6 +535,17 @@ export function calculateMilestoneDragUpdate(
     shouldUpdate,
     shouldSnap: mode === 'days'
   };
+}
+
+/**
+ * @deprecated Use calculatePhaseDragUpdate. Kept to avoid breaking older imports.
+ */
+export function calculateMilestoneDragUpdate(
+  currentMouseX: number,
+  dragState: DragState,
+  mode: 'days' | 'weeks'
+): DragPositionResult {
+  return calculatePhaseDragUpdate(currentMouseX, dragState, mode);
 }
 
 /**

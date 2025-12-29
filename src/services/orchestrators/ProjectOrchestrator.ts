@@ -13,7 +13,7 @@
  * 
  * @module ProjectOrchestrator
  */
-import { Project, Phase, ClientStatus } from '@/types/core';
+import { Project, PhaseDTO, ClientStatus } from '@/types/core';
 import { ProjectRules } from '@/domain/rules/ProjectRules';
 import { PhaseRules } from '@/domain/rules/PhaseRules';
 import { getDateKey } from '@/utils/dateFormatUtils';
@@ -79,6 +79,7 @@ export interface ProjectMilestone {
 }
 export interface ProjectCreationWithMilestonesRequest extends ProjectCreationRequest {
   milestones?: ProjectMilestone[];
+  phases?: ProjectMilestone[];
 }
 
 type ProjectMilestoneCreateInput = {
@@ -90,7 +91,7 @@ type ProjectMilestoneCreateInput = {
   startDate?: Date | string;
   endDate?: Date | string;
   isRecurring?: boolean;
-  recurringConfig?: Phase['recurringConfig'];
+  recurringConfig?: PhaseDTO['recurringConfig'];
   order?: number;
 };
 
@@ -189,7 +190,7 @@ export class ProjectOrchestrator {
    */
   static validateProjectCreation(
     request: ProjectCreationRequest,
-    existingPhases: Phase[] = []
+    existingPhases: PhaseDTO[] = []
   ): ProjectValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -239,7 +240,7 @@ export class ProjectOrchestrator {
         createdAt: new Date(),
         updatedAt: new Date(),
         status: 'current',
-        milestones: []
+        phases: []
       };
       const pastValidation = ProjectRules.validateProjectNotFullyInPast(
         tempProject,
@@ -261,7 +262,7 @@ export class ProjectOrchestrator {
   static validateProjectUpdate(
     request: ProjectUpdateRequest,
     currentProject: Project,
-    currentMilestones: Phase[]
+    currentMilestones: PhaseDTO[]
   ): ProjectValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -283,7 +284,7 @@ export class ProjectOrchestrator {
       // Check milestone date compatibility using domain rules
       const incompatiblePhases = currentMilestones.filter(p => {
         const validation = PhaseRules.validateMilestoneDateWithinProject(
-          m.dueDate,
+          p.dueDate,
           updatedProject.startDate,
           updatedProject.endDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
         );
@@ -314,7 +315,7 @@ export class ProjectOrchestrator {
    */
   static analyzeProjectMilestones(
     project: Project,
-    phases: Phase[]
+    phases: PhaseDTO[]
   ): ProjectMilestoneAnalysis {
     // Use domain rules for budget analysis
     const budgetCheck = PhaseRules.checkBudgetConstraint(phases, project.estimatedHours);
@@ -326,11 +327,11 @@ export class ProjectOrchestrator {
       utilizationPercentage: budgetCheck.utilizationPercentage
     };
     // Simple milestone type counting (recurring detection can be enhanced later)
-  const regularMilestones = milestones.filter(p => !('isRecurring' in m && m.isRecurring)).length;
-  const recurringMilestones = milestones.filter(p => m.isRecurring === true).length;
+  const regularMilestones = phases.filter(p => !('isRecurring' in p && p.isRecurring)).length;
+  const recurringMilestones = phases.filter(p => p.isRecurring === true).length;
     // Check for over-budget milestones
-    const hasOverBudgetMilestones = milestones.some(p => 
-      m.timeAllocation > project.estimatedHours
+    const hasOverBudgetMilestones = phases.some(p => 
+      p.timeAllocation > project.estimatedHours
     );
     // Check for date conflicts
     const hasDateConflicts = this.checkMilestoneDateConflicts(phases);
@@ -339,7 +340,7 @@ export class ProjectOrchestrator {
     if (projectBudget.isOverBudget) {
       suggestions.push(`Consider increasing project budget by ${projectBudget.overageHours}h or reducing milestone allocations`);
     }
-    if (milestones.length === 0) {
+    if (phases.length === 0) {
       suggestions.push('Consider adding milestones to track project progress');
     }
     if (projectBudget.utilizationPercentage < 50) {
@@ -350,7 +351,7 @@ export class ProjectOrchestrator {
     }
     return {
       projectBudget,
-      milestoneCount: milestones.length,
+      milestoneCount: phases.length,
       regularMilestones,
       recurringMilestones,
       hasOverBudgetMilestones,
@@ -363,7 +364,7 @@ export class ProjectOrchestrator {
    */
   static calculateBudgetAdjustment(
     project: Project,
-    phases: Phase[],
+    phases: PhaseDTO[],
     targetUtilization: number = 0.9 // 90% utilization target
   ): {
     currentBudget: number;
@@ -380,10 +381,10 @@ export class ProjectOrchestrator {
   /**
    * Check for milestone date conflicts
    */
-  private static checkMilestoneDateConflicts(phases: Phase[]): boolean {
+  private static checkMilestoneDateConflicts(phases: PhaseDTO[]): boolean {
     const dateMap = new Map<string, number>();
-    for (const phase of milestones) {
-      const dateKey = getDateKey(milestone.dueDate);
+    for (const phase of phases) {
+      const dateKey = getDateKey(phase.dueDate);
       const count = dateMap.get(dateKey) || 0;
       dateMap.set(dateKey, count + 1);
       if (count > 0) {
@@ -397,13 +398,13 @@ export class ProjectOrchestrator {
    */
   static generateProjectStatus(
     project: Project,
-    phases: Phase[]
+    phases: PhaseDTO[]
   ): {
     status: 'healthy' | 'warning' | 'critical';
     summary: string;
     details: string[];
   } {
-    const analysis = this.analyzeProjectMilestones(project, milestones);
+    const analysis = this.analyzeProjectMilestones(project, phases);
     const details: string[] = [];
     // Determine overall status
     let status: 'healthy' | 'warning' | 'critical' = 'healthy';
@@ -496,7 +497,7 @@ export class ProjectOrchestrator {
     request: ProjectCreationWithMilestonesRequest,
     projectContext: {
       addProject: (data: Partial<Project>) => Promise<Project>;
-      addPhase: (data: Partial<Phase>, options?: { silent?: boolean }) => Promise<void>;
+      addPhase: (data: Partial<PhaseDTO>, options?: { silent?: boolean }) => Promise<void>;
     }
   ): Promise<ProjectCreationResult> {
     try {
@@ -577,12 +578,12 @@ export class ProjectOrchestrator {
       // Step 4: Apply Phase Time Domain Rules auto-adjustments
       const warnings: string[] = validation.warnings || [];
       if (request.phases && request.phases.length > 0) {
-        const phases = request.phases.filter(p => m.endDate !== undefined);
+        const phases = request.phases.filter(p => p.endDate !== undefined);
         if (phases.length > 0) {
           // Convert to Milestone objects for domain rule processing
           const today = new Date();
           today.setHours(0, 0, 0, 0);
-          let phaseObjects: Phase[] = phases.map((p, index) => ({
+          let phaseObjects: PhaseDTO[] = phases.map((p, index) => ({
             id: `temp-${index}`, // Temporary ID for processing
             projectId: createdProject.id,
             userId: '', // Will be set on actual save
@@ -642,9 +643,9 @@ export class ProjectOrchestrator {
             request.phases = request.phases.map((m, idx) => {
               const adjusted = phaseObjects.find(p => p.id === `temp-${idx}`);
               if (adjusted && adjusted.endDate && m.endDate) {
-                return { ...p, endDate: adjusted.endDate };
+                return { ...m, endDate: adjusted.endDate };
               }
-              return p;
+              return m;
             });
           }
         }
@@ -678,18 +679,18 @@ export class ProjectOrchestrator {
     projectId: string,
     milestones: ProjectMilestone[],
     addPhase: (
-      data: ProjectMilestoneCreateInput | Partial<Phase>,
+      data: ProjectMilestoneCreateInput | Partial<PhaseDTO>,
       options?: { silent?: boolean }
-    ) => Promise<Milestone | void | undefined>
+    ) => Promise<PhaseDTO | void | undefined>
   ): Promise<void> {
     for (const phase of milestones) {
-      if (milestone.name.trim()) {
+      if (phase.name.trim()) {
         try {
           await addPhase({
-            name: milestone.name,
-            dueDate: milestone.dueDate,
-            timeAllocation: milestone.timeAllocation,
-            timeAllocationHours: milestone.timeAllocationHours,
+            name: phase.name,
+            dueDate: phase.dueDate,
+            timeAllocation: phase.timeAllocation,
+            timeAllocationHours: phase.timeAllocationHours,
             projectId: projectId
           }, { silent: true }); // Silent mode to prevent individual milestone toasts
         } catch (error) {
@@ -792,7 +793,7 @@ export class ProjectOrchestrator {
     projectId: string,
     updates: Partial<Project>,
     currentProject: Project,
-    currentMilestones: Phase[] = [],
+    currentMilestones: PhaseDTO[] = [],
     options: { silent?: boolean } = {}
   ): Promise<{ success: boolean; project?: Project; errors?: string[]; warnings?: string[] }> {
     try {

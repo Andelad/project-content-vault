@@ -3,3 +3,4 @@
 - auto-estimate and planned/completed time don't exist on same day. Should that change?
 - archive projects or groups? What if a group becomes a past consideration, like finishing university? How does that affect the timeline?
 - can a planned and completed calendar event be represented on the timeline onthe same day?
+- how far back does the timeline show? Allow archived groups - means timeline isn't a complete historic record. Allow to show archived groups in timeline?

@@ -28,15 +28,18 @@ export interface RecurringConfig {
 }
 
 /**
- * Phase (time period within a project).
+ * Phase Data Transfer Object (DTO)
  * 
+ * Plain data structure for phase information used in presentation/application layers.
  * Represents a time-bounded allocation of work within a project.
  * Can be explicit (fixed dates) or recurring (pattern-based).
+ * 
+ * For domain logic and business rules, use the PhaseEntity class from @/domain/entities/Phase
  * 
  * @see {@link /docs/core/App Logic.md#4-phase} - Phase entity definition
  * @see {@link /docs/core/Business Logic.md} - Phase business rules
  */
-export interface Phase {
+export interface PhaseDTO {
   id: string;
   name: string;
   projectId: string; // Maps to project_id in database
@@ -61,6 +64,12 @@ export interface Phase {
   createdAt: Date; // Converted from created_at string in repository layer
   updatedAt: Date; // Converted from updated_at string in repository layer
 }
+
+/**
+ * @deprecated Use PhaseDTO instead. This alias exists for backward compatibility during migration.
+ * Will be removed in a future version.
+ */
+export type Phase = PhaseDTO;
 
 /**
  * Project entity - a piece of work with time estimate and deadline.
@@ -101,7 +110,7 @@ export interface Project {
   status?: ProjectStatus; // 'current' | 'future' | 'archived'
   
   // PHASES (time periods within project)
-  phases?: Phase[];
+  phases?: PhaseDTO[];
   
   // WORKING DAY OVERRIDES
   // TODO: Document in App Logic.md or remove if unused

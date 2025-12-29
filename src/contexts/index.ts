@@ -11,4 +11,4 @@ export { AuthProvider, useAuth } from './AuthContext';
 export { ContextProviders, AppProviders, useAppContexts } from './ContextProviders';
 
 // Type exports
-export type { Project, Group, Row, Milestone } from '@/types/core';
+export type { Project, Group, Row, PhaseDTO } from '@/types/core';

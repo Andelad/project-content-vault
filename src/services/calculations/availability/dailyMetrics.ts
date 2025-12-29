@@ -30,7 +30,7 @@ import {
 } from './capacityAnalysis';
 import { calculateWorkHoursTotal } from './workHourGeneration';
 import { calculateProjectDayEstimates } from '../projects/dayEstimateCalculations';
-import type { Project, CalendarEvent, Phase, Settings, Holiday } from '@/types/core';
+import type { Project, CalendarEvent, PhaseDTO, Settings, Holiday } from '@/types/core';
 
 /**
  * Get total work hours for a specific day
@@ -60,7 +60,7 @@ export function calculateDailyProjectHours(
   projects: Project[],
   settings: Settings,
   holidays: Holiday[],
-  phases: Phase[] = [],
+  phases: PhaseDTO[] = [],
   events: CalendarEvent[] = []
 ): number {
   let totalHours = 0;
@@ -86,7 +86,7 @@ export function calculateDailyProjectHours(
     // Only process if date is within project range
     if (targetDate >= projectStart && targetDate <= projectEnd) {
       // Get milestones for this project
-      const projectPhases = milestones.filter((m) => m.projectId === project.id);
+      const projectPhases = phases.filter((phase) => phase.projectId === project.id);
       // Get events for this project
       const projectEvents = events.filter((e) => e.projectId === project.id);
       

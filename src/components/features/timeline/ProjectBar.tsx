@@ -5,7 +5,7 @@ import { useProjectContext } from '@/contexts/ProjectContext';
 import { usePlannerContext } from '@/contexts/PlannerContext';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import { isSameDate } from '@/utils/dateFormatUtils';
-import type { Project, Phase } from '@/types/core';
+import type { Project, PhaseDTO } from '@/types/core';
 import { UnifiedTimelineService } from '@/services';
 import { ColorCalculationService } from '@/services/ui/ColorCalculations';
 import type { TimelineAllocationType } from '@/constants/styles';
@@ -96,16 +96,16 @@ export const ProjectBar = memo(function ProjectBar({
     holidays
   );
   // Centralized filtered milestones for this project (once per relevant change)
-  const filteredProjectMilestones = useMemo<Phase[]>(() => {
+  const filteredProjectMilestones = useMemo<PhaseDTO[]>(() => {
     if (!project) return [];
     const projectStart = new Date(project.startDate);
     const projectEnd = project.continuous ? null : new Date(project.endDate);
     let projectPhases = phases.filter(p => {
       if (p.projectId !== project.id) return false;
-      const milestoneDate = new Date(p.endDate || p.dueDate);
-      if (milestoneDate < projectStart) return false;
+      const phaseDate = new Date(p.endDate || p.dueDate);
+      if (phaseDate < projectStart) return false;
       if (project.continuous) return true;
-      return milestoneDate <= projectEnd!;
+      return phaseDate <= projectEnd!;
     });
     const hasTemplateMilestone = projectPhases.some(p => p.isRecurring === true);
     if (hasTemplateMilestone) {

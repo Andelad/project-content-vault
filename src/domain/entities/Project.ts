@@ -481,7 +481,7 @@ export class Project {
       client: '', // Deprecated field - kept for backward compatibility
       clientId: this.clientId,
       startDate: this.startDate,
-      endDate: this.endDate ?? new Date(0), // Database requires Date, use epoch for null
+      endDate: this.continuous ? new Date(0) : (this.endDate ?? new Date(0)), // Use epoch for continuous or null
       estimatedHours: this.estimatedHours,
       groupId: this.groupId,
       color: this.color,
@@ -506,7 +506,7 @@ export class Project {
       name: this.name,
       clientId: this.clientId,
       startDate: new Date(this.startDate),
-      endDate: this.endDate ? new Date(this.endDate) : null,
+      endDate: this.continuous ? null : (this.endDate ? new Date(this.endDate) : null),
       estimatedHours: this.estimatedHours,
       groupId: this.groupId,
       color: this.color,

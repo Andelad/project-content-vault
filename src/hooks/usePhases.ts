@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import type { Database } from '@/integrations/supabase/types';
+import type { Database, Json } from '@/integrations/supabase/types';
+import type { PhaseDTO } from '@/types/core';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 // Note: Database types still use 'milestones' key but table is now 'phases'
 // TODO: After types regenerate, update to use 'phases' key
@@ -16,7 +17,7 @@ type CamelMilestoneInsert = {
   timeAllocationHours?: number;
   startDate?: string | Date;
   isRecurring?: boolean;
-  recurringConfig?: Phase['recurring_config'];
+  recurringConfig?: PhaseDTO['recurringConfig'];
 };
 
 type MilestoneInput = Omit<MilestoneInsert, 'user_id'> & CamelMilestoneInsert;
@@ -39,9 +40,9 @@ export function usePhases(projectId?: string) {
         .eq('project_id', targetProjectId)
         .order('due_date', { ascending: true });
       if (error) throw error;
-      setMilestones(data || []);
+      setPhases(data || []);
     } catch (error) {
-      ErrorHandlingService.handle(error, { source: 'useMilestones', action: 'Error fetching phases:' });
+      ErrorHandlingService.handle(error, { source: 'usePhases', action: 'Error fetching phases:' });
       toast({
         title: "Error",
         description: "Failed to load phases",
@@ -58,7 +59,7 @@ export function usePhases(projectId?: string) {
         .select('*')
         .order('due_date', { ascending: true });
       if (error) throw error;
-      setMilestones(data || []);
+      setPhases(data || []);
     } catch (error) {
       ErrorHandlingService.handle(error, { source: 'useMilestones', action: 'Error fetching all milestones:' });
       toast({
@@ -106,7 +107,7 @@ export function usePhases(projectId?: string) {
         dbMilestoneData.is_recurring = milestoneData.isRecurring ?? milestoneData.is_recurring;
       }
       if (milestoneData.recurringConfig || milestoneData.recurring_config) {
-        dbMilestoneData.recurring_config = milestoneData.recurringConfig || milestoneData.recurring_config;
+        dbMilestoneData.recurring_config = (milestoneData.recurringConfig || milestoneData.recurring_config) as Json;
       }
       const { data, error } = await supabase
         .from('phases')
@@ -118,7 +119,7 @@ export function usePhases(projectId?: string) {
         throw error;
       }
       // Insert locally and sort by due_date
-      setMilestones(prev => [...prev, data].sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime()));
+      setPhases(prev => [...prev, data].sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime()));
       // Only show toast if not in silent mode
       if (!options.silent) {
         toast({
@@ -147,8 +148,8 @@ export function usePhases(projectId?: string) {
         .select()
         .single();
       if (error) throw error;
-      setMilestones(prev => prev.map(phase => 
-        milestone.id === id ? data : milestone
+      setPhases(prev => prev.map(phase => 
+        phase.id === id ? data : phase
       ).sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime()));
   // Only show toast if not in silent mode
       if (!options.silent) {
@@ -184,17 +185,17 @@ export function usePhases(projectId?: string) {
   const deletePhase = async (id: string, options: { silent?: boolean } = {}) => {
     try {
       // First, fetch the milestone to check if it's a recurring template
-      const phase = milestones.find(p => m.id === id);
-      if (milestone?.is_recurring === true) {
+      const phase = phases.find(p => p.id === id);
+      if (phase?.is_recurring === true) {
         // This is a recurring template - delete all numbered instances first
         // Numbered instances have names like "Sprint 1", "Sprint 2", etc.
-        const baseName = milestone.name;
+        const baseName = phase.name;
         const numberedPattern = `${baseName} `;
         // Delete all numbered instances (name starts with base name + space + number)
         const { error: instancesError } = await supabase
           .from('phases')
           .delete()
-          .eq('project_id', milestone.project_id)
+          .eq('project_id', phase.project_id)
           .eq('is_recurring', false)
           .like('name', `${numberedPattern}%`);
         if (instancesError) {
@@ -202,10 +203,10 @@ export function usePhases(projectId?: string) {
           throw instancesError;
         }
         // Update local state to remove numbered instances
-        setMilestones(prev => prev.filter(p => 
-          !(m.project_id === milestone.project_id && 
-            m.is_recurring === false && 
-            m.name.startsWith(numberedPattern))
+        setPhases(prev => prev.filter(p => 
+          !(p.project_id === phase.project_id && 
+            p.is_recurring === false && 
+            p.name.startsWith(numberedPattern))
         ));
       }
       // Then delete the milestone itself
@@ -217,7 +218,7 @@ export function usePhases(projectId?: string) {
         ErrorHandlingService.handle(error, { source: 'useMilestones', action: '[useMilestones] Error deleting milestone:' });
         throw error;
       }
-      setMilestones(prev => prev.filter(p => m.id !== id));
+      setPhases(prev => prev.filter(p => p.id !== id));
       // Only show toast if not in silent mode
       if (!options.silent) {
         toast({

@@ -44,7 +44,7 @@ import '@/components/features/planner/fullcalendar-overrides.css';
 const EventModal = React.lazy(() => import('../modals/EventModal').then(module => ({ default: module.EventModal })));
 const HelpModal = React.lazy(() => import('../modals/HelpModal').then(module => ({ default: module.HelpModal })));
 import { WorkHourScopeDialog } from '@/components/modals';
-import type { Phase } from '@/types/core';
+import type { PhaseDTO } from '@/types/core';
 /**
  * PlannerView - FullCalendar-based planner with keyboard shortcuts
  * 
@@ -143,11 +143,11 @@ export function PlannerView() {
   const [weekStart, setWeekStart] = useState<Date>(new Date(calendarDate));
   // Create milestones map by project ID (use normalized milestones from ProjectContext)
   const phasesMap = useMemo(() => {
-    const map = new Map<string, Milestone[]>();
-    (projectPhases || []).forEach(milestone => {
-      const list = map.get(milestone.projectId) || [];
-      list.push(milestone);
-      map.set(milestone.projectId, list);
+    const map = new Map<string, PhaseDTO[]>();
+    (projectPhases || []).forEach(phase => {
+      const list = map.get(phase.projectId) || [];
+      list.push(phase);
+      map.set(phase.projectId, list);
     });
     return map;
   }, [projectPhases]);
@@ -1047,7 +1047,7 @@ export function PlannerView() {
           context="planner"
           timeGutterWidth={timeAxisWidth}
           scrollbarWidth={calendarScrollbarWidth}
-          milestones={projectPhases}
+          phases={projectPhases}
         />
       </div>
       {/* Modals */}

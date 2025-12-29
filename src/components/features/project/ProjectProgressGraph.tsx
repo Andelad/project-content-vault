@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Project, CalendarEvent, Phase } from '@/types/core';
+import { Project, CalendarEvent, PhaseDTO } from '@/types/core';
 import { analyzeProjectProgress } from '@/services';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { formatDateShort } from '@/utils/dateFormatUtils';
@@ -8,7 +8,7 @@ import { NEUTRAL_COLORS } from '@/constants/colors';
 interface ProjectProgressGraphProps {
   project: Project;
   events: CalendarEvent[];
-  milestones?: Phase[];
+  milestones?: PhaseDTO[];
 }
 
 export function ProjectProgressGraph({ project, events, milestones = [] }: ProjectProgressGraphProps) {
@@ -17,7 +17,7 @@ export function ProjectProgressGraph({ project, events, milestones = [] }: Proje
     return analyzeProjectProgress({
       project,
       events,
-      phases,
+      phases: milestones,
       includeEventDatePoints: true,
       maxDataPoints: 20
     });

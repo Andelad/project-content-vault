@@ -16,7 +16,7 @@ import { calculateWorkHoursTotal, calculateDayWorkHours } from '../calculations/
 import { TimelineViewport as TimelineViewportService } from './TimelineViewportService';
 import * as ProjectBarResizeService from './ProjectBarResizeService';
 import { normalizeToMidnight, addDaysToDate } from '../calculations/general/dateCalculations';
-import type { Project, Phase, DayEstimate } from '@/types/core';
+import type { Project, PhaseDTO, DayEstimate } from '@/types/core';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 export interface TimelineContext {
@@ -50,7 +50,7 @@ export interface DragCompletionResult {
 
 export interface DragUpdateCallbacks {
   onProjectUpdate?: (projectId: string, updates: Partial<Project>, options?: { silent?: boolean }) => void;
-  onMilestoneUpdate?: (milestoneId: string, updates: Partial<Phase>, options?: { silent?: boolean }) => void;
+  onMilestoneUpdate?: (milestoneId: string, updates: Partial<PhaseDTO>, options?: { silent?: boolean }) => void;
   onSuccessToast?: (message: string) => void;
 }
 
@@ -70,8 +70,9 @@ export class TimelineDragCoordinatorService {
     timelineContext: TimelineContext
   ): DragCoordinationResult {
     // Route to appropriate handler based on entity type
-    if (dragState.milestoneId) {
-      return this.coordinateMilestoneDrag(dragState, mouseEvent, timelineContext);
+    const phaseId = dragState.phaseId ?? dragState.milestoneId;
+    if (phaseId) {
+      return this.coordinatePhaseDrag({ ...dragState, phaseId, milestoneId: dragState.milestoneId ?? phaseId }, mouseEvent, timelineContext);
     }
     
     if (dragState.holidayId) {
@@ -277,15 +278,15 @@ export class TimelineDragCoordinatorService {
    * Coordinate milestone drag operation
    * Handles milestone-specific drag calculations and validation
    */
-  private static coordinateMilestoneDrag(
+  private static coordinatePhaseDrag(
     dragState: DragState,
     mouseEvent: MouseEvent,
     timelineContext: TimelineContext
   ): DragCoordinationResult {
     const { timelineMode } = timelineContext;
 
-    // 1. Calculate milestone drag update (with snap behavior)
-    const positionResult = DragCalculationsService.calculateMilestoneDragUpdate(
+    // 1. Calculate phase drag update (with snap behavior)
+    const positionResult = DragCalculationsService.calculatePhaseDragUpdate(
       mouseEvent.clientX,
       dragState,
       timelineMode
@@ -308,7 +309,7 @@ export class TimelineDragCoordinatorService {
       };
     }
 
-    // 3. Calculate new milestone date
+  // 3. Calculate new phase date
     const { daysDelta } = positionResult;
     let newDate = new Date(dragState.originalStartDate);
     newDate = addDaysToDate(dragState.originalStartDate, daysDelta);
@@ -326,10 +327,22 @@ export class TimelineDragCoordinatorService {
       shouldUpdate: positionResult.shouldUpdate,
       newDragState,
       autoScrollConfig,
-      // Milestones don't have conflict detection with other projects
+      // Phases don't have conflict detection with other projects in this handler
       conflictResult: undefined,
       adjustmentResult: undefined
     };
+  }
+
+  /**
+   * @deprecated Use coordinatePhaseDrag. Kept for backward compatibility with milestone terminology.
+   */
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  private static coordinateMilestoneDrag(
+    dragState: DragState,
+    mouseEvent: MouseEvent,
+    timelineContext: TimelineContext
+  ): DragCoordinationResult {
+    return this.coordinatePhaseDrag(dragState, mouseEvent, timelineContext);
   }
 
   /**
@@ -425,11 +438,12 @@ export class TimelineDragCoordinatorService {
   ): Promise<DragCompletionResult> {
     try {
       const { onProjectUpdate, onMilestoneUpdate, onSuccessToast } = updateCallbacks;
+      const phaseId = dragState.phaseId ?? dragState.milestoneId;
 
-      // Handle milestone drag completion
-      if (dragState.milestoneId && onMilestoneUpdate) {
-        onMilestoneUpdate(dragState.milestoneId, {
-          dueDate: finalDates.startDate // Milestones use dueDate
+      // Handle phase drag completion (legacy: milestone)
+      if (phaseId && onMilestoneUpdate) {
+        onMilestoneUpdate(phaseId, {
+          dueDate: finalDates.startDate // Phases/milestones use dueDate for marker drags
         }, { silent: true });
 
         if (onSuccessToast) {

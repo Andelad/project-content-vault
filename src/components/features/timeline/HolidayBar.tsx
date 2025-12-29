@@ -457,37 +457,51 @@ export function HolidayBar({ dates, collapsed, isDragging, dragState, handleHoli
 
         {/* Holiday display columns */}
         {dates.map((date, dayIndex) => {
-          let holiday = null;
+          let holidays: (HolidaySegment | null)[] = [];
           
           if (mode === 'weeks') {
-            // In week mode, show the holiday in the week where it should be visually positioned
-            // Find holidays that span this week and render them with proper positioning
-            holiday = timelineHolidays.find(h => 
+            // In week mode, show ALL holidays that should be rendered in this week column
+            // Filter all holidays that span this week and should render here
+            holidays = timelineHolidays.filter(h => 
               h.weekMode && 
-              dayIndex >= h.actualStartWeek && 
-              dayIndex <= h.actualEndWeek &&
+              dayIndex >= h.actualStartWeek! && 
+              dayIndex <= h.actualEndWeek! &&
               dayIndex === h.actualStartWeek // Only render in the first week to avoid duplicates
             );
           } else {
             // Days mode: dayIndex represents actual day index
-            // Show holiday in each day it spans
-            holiday = timelineHolidays.find(h => 
+            // Show all holidays in each day it spans
+            holidays = timelineHolidays.filter(h => 
               dayIndex >= h.startIndex && dayIndex < h.startIndex + h.dayCount
             );
           }
           
+          // If no holidays for this column, render empty column
+          if (holidays.length === 0) {
+            holidays = [null];
+          }
+          
           return (
-            <IndividualHolidayBar
+            <div 
               key={dayIndex}
-              dayIndex={dayIndex}
-              date={date}
-              holiday={holiday}
-              onHolidayClick={(holidayId) => setEditingHolidayId(holidayId)}
-              isDragging={isDragging}
-              dragState={dragState}
-              handleHolidayMouseDown={handleHolidayMouseDown}
-              mode={mode}
-            />
+              className="relative h-[52px] flex items-center justify-center border-r border-gray-100 last:border-r-0"
+              style={{ minWidth: `${mode === 'weeks' ? 153 : 52}px`, width: `${mode === 'weeks' ? 153 : 52}px` }}
+            >
+              {/* Render all holidays in this column */}
+              {holidays.map((holiday, holidayIndex) => (
+                <IndividualHolidayBar
+                  key={holiday ? `${dayIndex}-${holiday.id}` : `${dayIndex}-empty`}
+                  dayIndex={dayIndex}
+                  date={date}
+                  holiday={holiday}
+                  onHolidayClick={(holidayId) => setEditingHolidayId(holidayId)}
+                  isDragging={isDragging}
+                  dragState={dragState}
+                  handleHolidayMouseDown={handleHolidayMouseDown}
+                  mode={mode}
+                />
+              ))}
+            </div>
           );
         })}
       </div>
@@ -516,7 +530,6 @@ function IndividualHolidayBar({
   handleHolidayMouseDown,
   mode = 'days'
 }: IndividualHolidayBarProps) {
-  const columnWidth = mode === 'weeks' ? 153 : 52; // Match TimelineView's column width
   const [mouseDownTime, setMouseDownTime] = useState<number | null>(null);
   const [mouseDownPos, setMouseDownPos] = useState<{ x: number; y: number } | null>(null);
   const [hasMoved, setHasMoved] = useState(false);
@@ -566,54 +579,56 @@ function IndividualHolidayBar({
     }
   };
   
+  // If no holiday, render nothing (the wrapper div is already created)
+  if (!holiday) {
+    return null;
+  }
+  
   return (
-    <div 
-      className="relative h-[52px] flex items-center justify-center border-r border-gray-100 last:border-r-0"
-      style={{ minWidth: `${columnWidth}px`, width: `${columnWidth}px` }}
-    >
+    <>
       {/* Existing holiday display - show if holiday exists for this column */}
-      {holiday && (
-        mode === 'weeks' || 
-        (mode === 'days' && dayIndex === Math.max(0, holiday.startIndex))
-      ) && (
-        <div
-          className={`absolute top-1/2 left-0 -translate-y-1/2 h-10 bg-orange-200/80 border border-orange-300/50 rounded-md flex items-center justify-center text-orange-800 text-sm transition-all shadow-sm z-[1] ${
-            isDragging && dragState?.holidayId === holiday.id 
-              ? 'opacity-90 shadow-lg' 
-              : 'hover:bg-orange-300/80'
-          }`}
-          style={(() => {
-            if (mode === 'weeks') {
-              // For week mode, calculate the precise positioning within week columns
-              const dayWidth = 22; // 22px effective spacing (21px + 1px gap)
-              
-              // Use modulo to get position within the current week
-              const holidayStartInCurrentWeek = holiday.startIndex % 7; // Day of week (0-6)
-              const leftOffset = holidayStartInCurrentWeek * dayWidth;
-              
-              // Calculate the width based on how many days the holiday spans
-              const width = holiday.dayCount * dayWidth;
-              
-              return {
-                left: `${leftOffset}px`,
-                width: `${width}px`,
-              };
-            } else {
-              // Days mode: Handle holidays that extend beyond viewport
-              // Calculate how far into the holiday this dayIndex is
-              const dayIntoHoliday = dayIndex - holiday.startIndex;
-              
-              // Calculate left offset - if holiday starts before this day, offset left
-              const leftOffset = dayIntoHoliday > 0 ? -dayIntoHoliday * columnWidth : 0;
-              
-              return {
-                left: `${leftOffset}px`,
-                width: `${holiday.dayCount * columnWidth}px`,
-              };
-            }
-          })()}
-          title={`${holiday.title} - Click to edit, drag sides to resize, drag center to move`}
-        >
+      <div
+        className={`absolute top-1/2 -translate-y-1/2 h-10 border border-orange-300/50 rounded-md flex items-center justify-center text-orange-800 text-sm transition-all shadow-sm z-[1] ${
+          isDragging && dragState?.holidayId === holiday.id 
+            ? 'opacity-90 shadow-lg bg-orange-200/80' 
+            : 'hover:bg-orange-300/80 bg-orange-200/80'
+        }`}
+        style={(() => {
+          if (mode === 'weeks') {
+            // For week mode, calculate the precise positioning within week columns
+            const dayWidth = 22; // 22px effective spacing (21px + 1px gap)
+            
+            // Use modulo to get position within the current week
+            const holidayStartInCurrentWeek = holiday.startIndex % 7; // Day of week (0-6)
+            // Add 1px left offset to first day to create gap
+            const leftOffset = holidayStartInCurrentWeek * dayWidth + 1;
+            
+            // Calculate the width based on how many days the holiday spans
+            // Subtract 2px (1px from each end) to create 2px total gap
+            const width = (holiday.dayCount * dayWidth) - 2;
+            
+            return {
+              left: `${leftOffset}px`,
+              width: `${width}px`,
+            };
+          } else {
+            // Days mode: Handle holidays that extend beyond viewport
+            // Calculate how far into the holiday this dayIndex is
+            const dayIntoHoliday = dayIndex - holiday.startIndex;
+            
+            // Calculate left offset - if holiday starts before this day, offset left
+            // Add 1px to create left gap
+            const leftOffset = (dayIntoHoliday > 0 ? -dayIntoHoliday * 52 : 0) + 1;
+            
+            // Subtract 2px (1px from each end) to create 2px total gap between holidays
+            return {
+              left: `${leftOffset}px`,
+              width: `${(holiday.dayCount * 52) - 2}px`,
+            };
+          }
+        })()}
+        title={`${holiday.title} - Click to edit, drag sides to resize, drag center to move`}
+      >
           {/* Holiday title */}
           <span className="truncate px-2 pointer-events-none select-none">
             🏖️ {holiday.title}
@@ -720,7 +735,6 @@ function IndividualHolidayBar({
             title="Click to edit holiday, drag to move"
           />
         </div>
-      )}
-    </div>
+    </>
   );
 }

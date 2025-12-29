@@ -9,7 +9,7 @@
  * @see docs/core/Business Logic.md for complete relationship documentation
  */
 
-import type { Project, Phase, Group, Row, Client, Label } from '@/types/core';
+import type { Project, PhaseDTO, Group, Row, Client, Label } from '@/types/core';
 import { ProjectRules } from './ProjectRules';
 import { PhaseRules } from './PhaseRules';
 
@@ -50,27 +50,27 @@ export class RelationshipRules {
    * RELATIONSHIP 1: Phase dates must be within project range
    * 
    * Business Logic Reference: Rule 2
-   * Formula: project.startDate ≤ milestone.endDate ≤ project.endDate
+   * Formula: project.startDate ≤ phase.endDate ≤ project.endDate
    * 
    * @param milestone - The milestone to validate
    * @param project - The parent project
    * @returns Validation result
    */
   static validateMilestoneBelongsToProject(
-    milestone: Milestone,
+    phase: PhaseDTO,
     project: Project
   ): RelationshipValidation {
     const errors: string[] = [];
     const warnings: string[] = [];
 
     // Check project ID matches
-    if (milestone.projectId !== project.id) {
+    if (phase.projectId !== project.id) {
       errors.push('Milestone does not belong to this project');
       return { isValid: false, errors, warnings };
     }
 
     // Validate milestone dates are within project range
-    const milestoneEndDate = milestone.endDate || milestone.dueDate;
+    const milestoneEndDate = phase.endDate || phase.dueDate;
     const dateValidation = PhaseRules.validateMilestoneDateWithinProject(
       milestoneEndDate,
       project.startDate,
@@ -80,11 +80,11 @@ export class RelationshipRules {
     errors.push(...dateValidation.errors);
 
     // If milestone has start date, validate it too
-    if (milestone.startDate) {
-      if (milestone.startDate < project.startDate) {
+    if (phase.startDate) {
+      if (phase.startDate < project.startDate) {
         errors.push('Milestone start date cannot be before project start date');
       }
-      if (!project.continuous && milestone.startDate > project.endDate) {
+      if (!project.continuous && phase.startDate > project.endDate) {
         errors.push('Milestone start date cannot be after project end date');
       }
     }
@@ -100,14 +100,14 @@ export class RelationshipRules {
    * RELATIONSHIP 2: Phase allocation must fit within project budget
    * 
    * Business Logic Reference: Rule 1
-   * Formula: SUM(milestone.timeAllocationHours) ≤ project.estimatedHours
+   * Formula: SUM(phase.timeAllocationHours) ≤ project.estimatedHours
    * 
    * @param milestones - All project milestones
    * @param project - The parent project
    * @returns Validation result
    */
   static validateProjectMilestoneBudget(
-    phases: Phase[],
+    phases: PhaseDTO[],
     project: Project
   ): RelationshipValidation {
     const errors: string[] = [];
@@ -150,16 +150,16 @@ export class RelationshipRules {
    */
   static validateProjectMilestones(
     project: Project,
-    phases: Phase[]
+    phases: PhaseDTO[]
   ): RelationshipValidation {
     const errors: string[] = [];
     const warnings: string[] = [];
 
     // Validate each milestone individually
-    milestones.forEach((milestone, index) => {
-      const validation = this.validateMilestoneBelongsToProject(milestone, project);
+    phases.forEach((phase, index) => {
+      const validation = this.validateMilestoneBelongsToProject(phase, project);
       if (!validation.isValid) {
-        errors.push(`Milestone ${index + 1} (${milestone.name}): ${validation.errors.join(', ')}`);
+        errors.push(`Milestone ${index + 1} (${phase.name}): ${validation.errors.join(', ')}`);
       }
       warnings.push(...validation.warnings);
     });
@@ -261,13 +261,13 @@ export class RelationshipRules {
    * @returns List of orphaned milestone IDs
    */
   static findOrphanedMilestones(
-    phases: Phase[],
+    phases: PhaseDTO[],
     projects: Project[]
   ): string[] {
     const projectIds = new Set(projects.map(p => p.id));
-    return milestones
-      .filter(p => !projectIds.has(m.projectId))
-      .map(p => m.id);
+    return phases
+      .filter(phase => !projectIds.has(phase.projectId))
+      .map(phase => phase.id);
   }
 
   /**
@@ -321,7 +321,7 @@ export class RelationshipRules {
    */
   static validateSystemIntegrity(context: {
     projects: Project[];
-    phases: Phase[];
+    phases: PhaseDTO[];
     clients: Client[];
     groups: Group[];
     labels?: Label[];
@@ -354,7 +354,7 @@ export class RelationshipRules {
     // Check project-milestone budget constraints
     context.projects.forEach(project => {
       const projectPhases = context.phases.filter(
-        m => m.projectId === project.id
+        phase => phase.projectId === project.id
       );
       
       const budgetValidation = this.validateProjectMilestoneBudget(
@@ -392,11 +392,11 @@ export class RelationshipRules {
    */
   static getProjectDeletionImpact(
     projectId: string,
-    phases: Phase[]
+    phases: PhaseDTO[]
   ): string[] {
-    return milestones
-      .filter(p => m.projectId === projectId)
-      .map(p => m.id);
+    return phases
+      .filter(phase => phase.projectId === projectId)
+      .map(phase => phase.id);
   }
 
   /**
@@ -413,16 +413,16 @@ export class RelationshipRules {
   static getClientDeletionImpact(
     clientId: string,
     projects: Project[],
-    phases: Phase[]
+    phases: PhaseDTO[]
   ): {
     projectIds: string[];
     milestoneIds: string[];
   } {
     const affectedProjects = projects.filter(p => p.clientId === clientId);
     const projectIds = affectedProjects.map(p => p.id);
-    const milestoneIds = milestones
-      .filter(p => projectIds.includes(m.projectId))
-      .map(p => m.id);
+    const milestoneIds = phases
+      .filter(phase => projectIds.includes(phase.projectId))
+      .map(phase => phase.id);
 
     return { projectIds, milestoneIds };
   }
@@ -441,16 +441,16 @@ export class RelationshipRules {
   static getGroupDeletionImpact(
     groupId: string,
     projects: Project[],
-    phases: Phase[]
+    phases: PhaseDTO[]
   ): {
     projectIds: string[];
     milestoneIds: string[];
   } {
     const affectedProjects = projects.filter(p => p.groupId === groupId);
     const projectIds = affectedProjects.map(p => p.id);
-    const milestoneIds = milestones
-      .filter(p => projectIds.includes(m.projectId))
-      .map(p => m.id);
+    const milestoneIds = phases
+      .filter(phase => projectIds.includes(phase.projectId))
+      .map(phase => phase.id);
 
     return { projectIds, milestoneIds };
   }

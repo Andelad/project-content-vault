@@ -26,17 +26,17 @@ import {
 import type { DragState } from '@/services/ui/DragPositioning';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 import { getPhases, type Phase } from '@/domain/rules/PhaseRules';
-import type { Phase, Project } from '@/types/core';
+import type { PhaseDTO, Project } from '@/types/core';
 
 type UpdateMilestoneFn = (
   id: string,
-  updates: Partial<Phase>,
+  updates: Partial<PhaseDTO>,
   options?: { silent?: boolean }
 ) => Promise<unknown>;
 
 interface UsePhaseResizeProps {
   projects: Project[];
-  phases: Phase[];
+  phases: PhaseDTO[];
   dates: Date[];
   viewportStart: Date;
   viewportEnd: Date;
@@ -64,6 +64,7 @@ function initializePhaseResizeDragState(
 ): DragState {
   return {
     projectId,
+    phaseId,
     milestoneId: phaseId,
     action,
     startX,
@@ -79,7 +80,7 @@ function initializePhaseResizeDragState(
  * Calculate bounds for phase resize based on adjacent phases
  */
 function calculatePhaseBounds(
-  phases: Phase[],
+  phases: PhaseDTO[],
   currentPhase: Phase,
   action: 'resize-phase-start' | 'resize-phase-end'
 ): { minDate: Date | null; maxDate: Date | null } {
@@ -139,17 +140,17 @@ export function usePhaseResize({
     e.stopPropagation();
     
     // Get all phases for this project
-    const projectPhases = milestones.filter(p => m.projectId === projectId);
-    const phases = getPhases(projectPhases);
+  const projectPhases = phases.filter(p => p.projectId === projectId);
+  const projectPhaseList = getPhases(projectPhases) as Phase[];
 
     // Find the phase being resized
-    const targetPhase = phases.find(p => m.id === phaseId);
+    const targetPhase = projectPhaseList.find(p => p.id === phaseId);
     if (!targetPhase) {
       return;
     }
     
     // Check if project has recurring template (should be blocked by UI but double-check)
-    const hasRecurring = projectPhases.some(p => m.isRecurring);
+    const hasRecurring = projectPhases.some(p => p.isRecurring);
     if (hasRecurring) {
       toast({
         title: "Cannot adjust phase dates",
@@ -198,7 +199,7 @@ export function usePhaseResize({
           : addDaysToDate(new Date(currentDragStateRef.originalEndDate), daysDelta);
         
         // Get bounds based on adjacent phases
-  const bounds = calculatePhaseBounds(phases, targetPhase, action);
+  const bounds = calculatePhaseBounds(projectPhaseList, targetPhase, action);
         
         // Apply bounds validation
         let constrainedDate = normalizeToMidnight(newDate);
@@ -240,7 +241,7 @@ export function usePhaseResize({
       // Only update if there was actual movement
       if (finalDaysDelta !== 0) {
         // Calculate final dates
-  const updates: Partial<Phase> = {};
+  const updates: Partial<PhaseDTO> = {};
         
         if (action === 'resize-phase-start') {
           const newStartDate = addDaysToDate(new Date(currentDragStateRef.originalStartDate), finalDaysDelta);

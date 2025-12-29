@@ -25,7 +25,7 @@ import { useToast } from '@/hooks/use-toast';
 import { StandardModal } from './StandardModal';
 import { OKLCH_PROJECT_COLORS, PROJECT_ICONS } from '@/constants';
 import { NEUTRAL_COLORS } from '@/constants/colors';
-import type { Project, Phase } from '@/types/core';
+import type { Project, PhaseDTO } from '@/types/core';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 import { TabComponent } from '../shared';
 import { supabase } from '@/integrations/supabase/client';
@@ -332,7 +332,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
           },
           {
             addProject,
-            addPhase: async (data: Partial<Phase>, options?: { silent?: boolean }) => {
+            addPhase: async (data: Partial<PhaseDTO>, options?: { silent?: boolean }) => {
               await addPhase(data as AddMilestoneInput, options);
             }
           }
@@ -744,7 +744,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
     // Get relevant milestones
     const relevantPhases = isCreating
       ? localProjectPhases
-      : milestones.filter(p => projectId && m.projectId === projectId);
+      : phases.filter(p => projectId && p.projectId === projectId);
     // Calculate disabled date ranges based on milestone constraints
     const getDisabledDates = () => {
       if (!relevantPhases || relevantPhases.length === 0) {
@@ -754,18 +754,18 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
         // Start date cannot be on or after any milestone
         return (date: Date) => {
           return relevantPhases.some(p => {
-            const milestoneDate = normalizeToMidnight(new Date(m.dueDate));
+            const phaseDate = normalizeToMidnight(new Date(p.dueDate));
             const normalizedDate = normalizeToMidnight(date);
-            return normalizedDate.getTime() >= milestoneDate.getTime();
+            return normalizedDate.getTime() >= phaseDate.getTime();
           });
         };
       } else if (property === 'endDate') {
         // End date cannot be on or before any milestone
         return (date: Date) => {
           return relevantPhases.some(p => {
-            const milestoneDate = normalizeToMidnight(new Date(m.dueDate));
+            const phaseDate = normalizeToMidnight(new Date(p.dueDate));
             const normalizedDate = normalizeToMidnight(date);
-            return normalizedDate.getTime() <= milestoneDate.getTime();
+            return normalizedDate.getTime() <= phaseDate.getTime();
           });
         };
       }
@@ -803,7 +803,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
                 </div>
                 <div className="text-xs text-gray-500 mt-1">
                   Milestones: {relevantPhases
-                    .map(p => formatDate(new Date(m.dueDate)))
+                    .map(p => formatDate(new Date(p.dueDate)))
                     .join(', ')}
                 </div>
               </div>
@@ -822,7 +822,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
               modifiers={{
                 // Mark milestone dates in red
                 milestone: (date) => relevantPhases.some(p => {
-                  const mDate = new Date(m.dueDate);
+                  const mDate = new Date(p.dueDate);
                   return mDate.toDateString() === date.toDateString();
                 })
               }}

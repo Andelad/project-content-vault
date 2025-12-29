@@ -13,7 +13,7 @@
  * Date: September 10, 2025
  */
 
-import type { Phase, Project, CalendarEvent, Holiday } from '@/types/core';
+import type { PhaseDTO, Project, CalendarEvent, Holiday } from '@/types/core';
 import { getDateKey } from '@/utils/dateFormatUtils';
 import { calculateDurationDays, calculateDurationHours, datesOverlap } from '../general/dateCalculations';
 import { formatDateShort } from '@/utils/dateFormatUtils';
@@ -34,7 +34,7 @@ export interface ProjectEvent extends Pick<CalendarEvent, 'id' | 'startTime' | '
 }
 
 // Extends core Milestone with progress-specific fields
-export interface MilestoneWithProgress extends Milestone {
+export interface MilestoneWithProgress extends PhaseDTO {
   completed?: boolean;
 }
 
@@ -209,11 +209,11 @@ export function getRelevantMilestones(
   startDate?: Date,
   endDate?: Date
 ): MilestoneWithProgress[] {
-  let filtered = milestones.filter(p => m.projectId === projectId);
+  let filtered = phases.filter(p => p.projectId === projectId);
   
   if (startDate && endDate) {
     filtered = filtered.filter(p => {
-      const dueDate = new Date(m.dueDate);
+      const dueDate = new Date(p.dueDate);
       return dueDate >= startDate && dueDate <= endDate;
     });
   }
@@ -307,8 +307,8 @@ export function calculateProjectTimeMetrics(
   const averageHoursPerDay = (durationDays > 0 && durationDays !== -1) ? totalPlannedHours / durationDays : 0;
   
   // Calculate milestone progress
-  const relevantPhases = milestones.filter(p => m.projectId === project.id);
-  const completedMilestones = relevantPhases.filter(p => m.completed === true);
+  const relevantPhases = phases.filter(p => p.projectId === project.id);
+  const completedMilestones = relevantPhases.filter(p => p.completed === true);
   const milestoneProgress = {
     completed: completedMilestones.length,
     total: relevantPhases.length,

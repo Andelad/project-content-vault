@@ -8,28 +8,28 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Phase } from '@/types/core';
+import type { PhaseDTO } from '@/types/core';
 import type { LocalPhase } from '@/hooks/phase';
 
 interface PhaseCardProps {
-  milestone: Phase | LocalPhase;
+  phase: PhaseDTO | LocalPhase;
   projectEstimatedHours: number;
   projectContinuous: boolean;
-  allPhases: (Phase | LocalPhase)[];
+  allPhases: (PhaseDTO | LocalPhase)[];
   isFirst: boolean;
   isLast: boolean;
   editingProperty: string | null;
   onEditPropertyChange: (property: string | null) => void;
-  onUpdateProperty: (milestoneId: string, property: string, value: string | number | Date) => void;
-  onDelete: (milestoneId: string) => void;
+  onUpdateProperty: (phaseId: string, property: string, value: string | number | Date) => void;
+  onDelete: (phaseId: string) => void;
 }
 
 /**
- * Pure UI component for displaying and editing a phase milestone
+ * Pure UI component for displaying and editing a phase phase
  * Phases have start and end dates with constraints based on adjacent phases
  */
 export function PhaseCard({
-  milestone,
+  phase: phase,
   projectEstimatedHours,
   projectContinuous,
   allPhases,
@@ -47,7 +47,7 @@ export function PhaseCard({
   };
 
   const renderDateField = (property: 'startDate' | 'endDate') => {
-    const dateValue = property === 'startDate' ? milestone.startDate : (milestone.endDate || milestone.dueDate);
+    const dateValue = property === 'startDate' ? phase.startDate : (phase.endDate || phase.dueDate);
     const displayValue = dateValue ? format(new Date(dateValue), 'MMM dd') : 'Select date';
     const isFixed = (property === 'startDate' && isFirst) || (property === 'endDate' && isLast);
 
@@ -100,15 +100,15 @@ export function PhaseCard({
               selected={dateValue ? new Date(dateValue) : undefined}
               onSelect={(selectedDate) => {
                 if (selectedDate) {
-                  onUpdateProperty(milestone.id!, property, selectedDate);
+                  onUpdateProperty(phase.id!, property, selectedDate);
                 }
               }}
               disabled={(date) => {
-                const currentIndex = allPhases.findIndex(p => p.id === milestone.id);
+                const currentIndex = allPhases.findIndex(p => p.id === phase.id);
                 
                 if (property === 'startDate') {
                   const prevPhase = currentIndex > 0 ? allPhases[currentIndex - 1] : null;
-                  const currentEnd = new Date(milestone.endDate || milestone.dueDate);
+                  const currentEnd = new Date(phase.endDate || phase.dueDate);
                   
                   if (prevPhase) {
                     const prevEnd = new Date(prevPhase.endDate || prevPhase.dueDate);
@@ -117,7 +117,7 @@ export function PhaseCard({
                   return date >= currentEnd;
                 } else {
                   const nextPhase = currentIndex < allPhases.length - 1 ? allPhases[currentIndex + 1] : null;
-                  const currentStart = new Date(milestone.startDate!);
+                  const currentStart = new Date(phase.startDate!);
                   
                   if (nextPhase) {
                     const nextStart = new Date(nextPhase.startDate!);
@@ -142,17 +142,17 @@ export function PhaseCard({
           {/* Name Field */}
           <div className="min-w-[120px]">
             <Label className="text-xs text-muted-foreground mb-1 block">Name</Label>
-            {editingProperty === `${milestone.id}-name` ? (
+            {editingProperty === `${phase.id}-name` ? (
               <Input
                 type="text"
-                defaultValue={milestone.name}
+                defaultValue={phase.name}
                 placeholder="Phase name"
                 className="h-10 text-sm border-border bg-background"
-                style={{ width: `${Math.max((milestone.name || 'Phase name').length * 8 + 40, 120)}px` }}
+                style={{ width: `${Math.max((phase.name || 'Phase name').length * 8 + 40, 120)}px` }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     const newValue = (e.target as HTMLInputElement).value;
-                    onUpdateProperty(milestone.id!, 'name', newValue);
+                    onUpdateProperty(phase.id!, 'name', newValue);
                     onEditPropertyChange(null);
                   } else if (e.key === 'Escape') {
                     onEditPropertyChange(null);
@@ -160,7 +160,7 @@ export function PhaseCard({
                 }}
                 onBlur={(e) => {
                   const newValue = e.target.value;
-                  onUpdateProperty(milestone.id!, 'name', newValue);
+                  onUpdateProperty(phase.id!, 'name', newValue);
                   onEditPropertyChange(null);
                 }}
                 autoFocus
@@ -169,10 +169,10 @@ export function PhaseCard({
               <Button
                 variant="outline"
                 className="h-10 text-sm justify-start text-left font-normal px-3"
-                style={{ width: `${Math.max((milestone.name || 'Phase name').length * 8 + 40, 120)}px` }}
-                onClick={() => onEditPropertyChange(`${milestone.id}-name`)}
+                style={{ width: `${Math.max((phase.name || 'Phase name').length * 8 + 40, 120)}px` }}
+                onClick={() => onEditPropertyChange(`${phase.id}-name`)}
               >
-                {milestone.name || 'Phase name'}
+                {phase.name || 'Phase name'}
               </Button>
             )}
           </div>
@@ -181,16 +181,16 @@ export function PhaseCard({
           <div className="min-w-[80px]">
             <Label className="text-xs text-muted-foreground mb-1 block">Time Budget</Label>
             <div className="flex items-center gap-1">
-              {editingProperty === `${milestone.id}-timeAllocation` ? (
+              {editingProperty === `${phase.id}-timeAllocation` ? (
                 <Input
                   type="number"
-                  defaultValue={milestone.timeAllocation}
+                  defaultValue={phase.timeAllocation}
                   className="h-10 text-sm border-border bg-background"
-                  style={{ width: `${Math.max(milestone.timeAllocation.toString().length * 12 + 60, 80)}px` }}
+                  style={{ width: `${Math.max(phase.timeAllocation.toString().length * 12 + 60, 80)}px` }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       const newValue = parseFloat((e.target as HTMLInputElement).value) || 0;
-                      onUpdateProperty(milestone.id!, 'timeAllocation', newValue);
+                      onUpdateProperty(phase.id!, 'timeAllocation', newValue);
                       onEditPropertyChange(null);
                     } else if (e.key === 'Escape') {
                       onEditPropertyChange(null);
@@ -198,7 +198,7 @@ export function PhaseCard({
                   }}
                   onBlur={(e) => {
                     const newValue = parseFloat(e.target.value) || 0;
-                    onUpdateProperty(milestone.id!, 'timeAllocation', newValue);
+                    onUpdateProperty(phase.id!, 'timeAllocation', newValue);
                     onEditPropertyChange(null);
                   }}
                   autoFocus
@@ -207,10 +207,10 @@ export function PhaseCard({
                 <Button
                   variant="outline"
                   className="h-10 text-sm justify-start text-left font-normal px-3"
-                  style={{ width: `${Math.max(`${milestone.timeAllocation}h`.length * 8 + 40, 80)}px` }}
-                  onClick={() => onEditPropertyChange(`${milestone.id}-timeAllocation`)}
+                  style={{ width: `${Math.max(`${phase.timeAllocation}h`.length * 8 + 40, 80)}px` }}
+                  onClick={() => onEditPropertyChange(`${phase.id}-timeAllocation`)}
                 >
-                  {milestone.timeAllocation}h
+                  {phase.timeAllocation}h
                 </Button>
               )}
               {!projectContinuous && (
@@ -241,13 +241,13 @@ export function PhaseCard({
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete Phase</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Are you sure you want to delete "{milestone.name}"? This action cannot be undone.
+                  Are you sure you want to delete "{phase.name}"? This action cannot be undone.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction
-                  onClick={() => milestone.id && onDelete(milestone.id)}
+                  onClick={() => phase.id && onDelete(phase.id)}
                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 >
                   Delete Phase

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { calculateProjectDayEstimates } from '../dayEstimateCalculations';
-import type { Project, Phase, Settings, CalendarEvent, Holiday } from '@/types/core';
+import type { Project, PhaseDTO, Phase, Settings, CalendarEvent, Holiday } from '@/types/core';
 
 // Mock TimelineRules to control event breakdown and grouping
 vi.mock('@/domain/rules', () => {

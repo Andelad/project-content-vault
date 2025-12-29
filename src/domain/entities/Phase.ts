@@ -15,7 +15,7 @@
  * @see docs/features/phases/PHASE_DOMAIN_LOGIC.md - Phase domain rules
  */
 
-import type { Phase, RecurringConfig } from '@/types/core';
+import type { PhaseDTO, RecurringConfig } from '@/types/core';
 import { PhaseRules } from '@/domain/rules/PhaseRules';
 import { normalizeToMidnight } from '@/services/calculations/general/dateCalculations';
 import type { DomainResult } from './Project';
@@ -77,7 +77,7 @@ export class Phase {
   private dueDate: Date; // Synchronized with endDate
   private timeAllocation: number; // Synchronized with timeAllocationHours
 
-  private constructor(data: Milestone) {
+  private constructor(data: PhaseDTO) {
     // Direct assignment - validation happens in factory methods
     this.id = data.id;
     this.projectId = data.projectId;
@@ -141,7 +141,7 @@ export class Phase {
       return { success: false, errors };
     }
 
-    const phaseData: Phase = {
+    const phaseData: PhaseDTO = {
       id: crypto.randomUUID(),
       name: params.name.trim(),
       projectId: params.projectId,
@@ -172,10 +172,10 @@ export class Phase {
    * @param data - Phase/Milestone data from database
    * @returns Phase entity
    */
-  static fromDatabase(data: Milestone): Phase {
+  static fromDatabase(data: PhaseDTO): Phase {
     // Ensure we have a startDate for phases
     if (!data.startDate) {
-      throw new Error('Cannot create Phase from Milestone without startDate');
+      throw new Error('Cannot create Phase from PhaseDTO without startDate');
     }
     return new Phase(data);
   }
@@ -334,11 +334,11 @@ export class Phase {
   // ============================================================================
 
   /**
-   * Convert to plain data object for database persistence
+   * Convert to plain data object for database persistence or transfer
    * 
-   * @returns Plain milestone data object
+   * @returns Plain phase data transfer object
    */
-  toData(): Phase {
+  toDTO(): PhaseDTO {
     return {
       id: this.id,
       name: this.name,
@@ -354,6 +354,13 @@ export class Phase {
       createdAt: this.createdAt,
       updatedAt: this.updatedAt
     };
+  }
+  
+  /**
+   * @deprecated Use toDTO() instead. This method exists for backward compatibility.
+   */
+  toData(): PhaseDTO {
+    return this.toDTO();
   }
 
   // ============================================================================

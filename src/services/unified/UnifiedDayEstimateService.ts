@@ -7,7 +7,7 @@
  * @module UnifiedDayEstimateService
  */
 
-import { Project, Phase, DayEstimate, Settings, Holiday, CalendarEvent } from '@/types/core';
+import { Project, PhaseDTO, DayEstimate, Settings, Holiday, CalendarEvent } from '@/types/core';
 import { normalizeToMidnight } from '../calculations/general/dateCalculations';
 
 import * as DayEstimateCalcs from '@/services/calculations/projects/dayEstimateCalculations';
@@ -21,7 +21,7 @@ export class UnifiedDayEstimateService {
    */
   static calculateProjectDayEstimates(
     project: Project,
-    phases: Phase[],
+    phases: PhaseDTO[],
     settings: Settings,
     holidays: Holiday[],
     events: CalendarEvent[] = []
@@ -40,7 +40,7 @@ export class UnifiedDayEstimateService {
    */
   static calculateMultiProjectDayEstimates(
     projects: Project[],
-    phasesMap: Map<string, Milestone[]>,
+    phasesMap: Map<string, PhaseDTO[]>,
     settings: Settings,
     holidays: Holiday[]
   ): Map<string, DayEstimate[]> {
@@ -149,7 +149,7 @@ export class UnifiedDayEstimateService {
    * Calculate milestone-specific day estimates (for detailed views)
    */
   static calculateMilestoneDayEstimates(
-    milestone: Milestone,
+    milestone: PhaseDTO,
     project: Project,
     settings: Settings,
     holidays: Holiday[]
@@ -185,7 +185,7 @@ export class UnifiedDayEstimateService {
   static getDailyProjectSummaries(
     dates: Date[],
     projects: Project[],
-    phasesMap: Map<string, Milestone[]>,
+    phasesMap: Map<string, PhaseDTO[]>,
     events: CalendarEvent[],
     settings: Settings,
     holidays: Holiday[]
@@ -204,17 +204,17 @@ export class UnifiedDayEstimateService {
         const projectEnd = new Date(project.endDate);
 
         // Filter milestones within project bounds
-        let projectPhases = allMilestones.filter((m: Milestone) => {
-          const end = new Date(m.endDate || m.dueDate);
+        let projectPhases = allMilestones.filter((phase: PhaseDTO) => {
+          const end = new Date(phase.endDate || phase.dueDate);
           return end >= projectStart && end <= projectEnd;
         });
 
         // HYBRID SYSTEM: If there's a template milestone (isRecurring=true),
         // exclude old numbered instances to prevent double-counting
-        const hasTemplateMilestone = projectPhases.some((m: Milestone) => m.isRecurring === true);
+        const hasTemplateMilestone = projectPhases.some((phase: PhaseDTO) => phase.isRecurring === true);
         if (hasTemplateMilestone) {
-          projectPhases = projectPhases.filter((m: Milestone) => 
-            m.isRecurring === true || (!m.isRecurring && (!m.name || !/\s\d+$/.test(m.name)))
+          projectPhases = projectPhases.filter((phase: PhaseDTO) => 
+            phase.isRecurring === true || (!phase.isRecurring && (!phase.name || !/\s\d+$/.test(phase.name)))
           );
         }
 

@@ -77,7 +77,7 @@ import {
 } from '../calculations/availability/dailyMetrics';
 // Import WorkHourLike type
 import type { WorkHourLike } from '../calculations/availability/workHourGeneration';
-import type { Project, Phase, DayEstimate, Settings, Holiday, CalendarEvent, WorkHour } from '@/types/core';
+import type { Project, PhaseDTO, DayEstimate, Settings, Holiday, CalendarEvent, WorkHour } from '@/types/core';
 import type { TimelinePositionCalculation } from '@/services/ui/ProjectBarPositioning';
 import type { DragState } from '@/services/ui/DragPositioning';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
@@ -130,11 +130,11 @@ export class UnifiedTimelineService {
    * Get project validation data
    * Delegates to ProjectPhaseOrchestrator
    */
-  static validateProject(project: Project, phases: Phase[] = []) {
+  static validateProject(project: Project, phases: PhaseDTO[] = []) {
     return ProjectPhaseOrchestrator.validateProjectTimeframe(
       new Date(project.startDate),
       new Date(project.endDate),
-      milestones
+      phases
     );
   }
   // ============================================================================
@@ -159,7 +159,7 @@ export class UnifiedTimelineService {
    */
   static calculateProjectDayEstimates(
     project: Project,
-    phases: Phase[],
+    phases: PhaseDTO[],
     settings: Settings,
     holidays: Holiday[],
     events: CalendarEvent[] = []
@@ -177,7 +177,7 @@ export class UnifiedTimelineService {
    * Delegates to existing calculation service
    */
   static calculateMilestoneSegments(
-    phases: Phase[],
+    phases: PhaseDTO[],
     projectStart: Date,
     projectEnd: Date
   ) {
@@ -313,7 +313,7 @@ export class UnifiedTimelineService {
     dates: Date[],
     viewportStart: Date,
     viewportEnd: Date,
-    phases: Phase[],
+    phases: PhaseDTO[],
     holidays: Holiday[],
     settings: Settings,
     isDragging: boolean = false,

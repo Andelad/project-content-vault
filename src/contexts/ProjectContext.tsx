@@ -1,13 +1,12 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useCallback, useMemo, useRef } from 'react';
-import { Project, Group, Row } from '@/types/core';
+import type { PhaseDTO, Project, Group, Row, Phase } from '@/types/core';
 import { useProjects as useProjectsHook } from '@/hooks/useProjects';
 import { useGroups } from '@/hooks/useGroups';
 import { useRows } from '@/hooks/useRows';
 import { usePhases } from '@/hooks/usePhases';
 import { getProjectColor, getGroupColor } from '@/constants';
 import type { Database } from '@/integrations/supabase/types';
-import { Phase } from '@/types/core';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 type SupabaseGroupRow = Database['public']['Tables']['groups']['Row'];
 type SupabaseRowRow = Database['public']['Tables']['rows']['Row'];
@@ -68,7 +67,7 @@ type MilestoneCreateInput = {
   startDate?: Date | string;
   endDate?: Date | string;
   isRecurring?: boolean;
-  recurringConfig?: Phase['recurringConfig'];
+  recurringConfig?: PhaseDTO['recurringConfig'];
   order?: number;
 };
 
@@ -105,11 +104,11 @@ interface ProjectContextType {
   reorderRows: (groupId: string, fromIndex: number, toIndex: number) => void;
 
   // Milestones
-  phases: Phase[];
-  addPhase: (milestone: MilestoneCreateInput, options?: { silent?: boolean }) => Promise<Milestone | undefined>;
+  phases: PhaseDTO[];
+  addPhase: (milestone: MilestoneCreateInput, options?: { silent?: boolean }) => Promise<PhaseDTO | undefined>;
   updatePhase: (id: string, updates: MilestoneUpdateInput, options?: { silent?: boolean }) => Promise<void>;
   deletePhase: (id: string, options?: { silent?: boolean }) => Promise<void>;
-  getMilestonesForProject: (projectId: string) => Milestone[];
+  getMilestonesForProject: (projectId: string) => PhaseDTO[];
   showMilestoneSuccessToast: (message?: string) => void;
   refetchMilestones: () => Promise<void>;
 
@@ -179,7 +178,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   } = useRows();
 
   const {
-    milestones: dbMilestones,
+    phases: dbMilestones,
     loading: milestonesLoading,
     addPhase: dbAddMilestone,
     updatePhase: dbUpdateMilestone,
@@ -188,28 +187,28 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     refetch: refetchMilestones,
   } = usePhases();
 
-  const processedMilestones = useMemo<Milestone[]>(() => {
+  const processedMilestones = useMemo<PhaseDTO[]>(() => {
     if (!dbMilestones) {
       return [];
     }
 
     return dbMilestones
-      .map((milestone): Phase => ({
-        id: milestone.id,
-        name: milestone.name,
-        projectId: milestone.project_id,
-        dueDate: new Date(milestone.due_date),
-        timeAllocation: milestone.time_allocation,
-        endDate: new Date(milestone.due_date),
-        timeAllocationHours: milestone.time_allocation_hours ?? milestone.time_allocation,
-        startDate: milestone.start_date ? new Date(milestone.start_date) : undefined,
-        isRecurring: milestone.is_recurring ?? false,
-        recurringConfig: milestone.recurring_config
-          ? (milestone.recurring_config as unknown as Milestone['recurringConfig'])
+      .map((phase): Phase => ({
+        id: phase.id,
+        name: phase.name,
+        projectId: phase.project_id,
+        dueDate: new Date(phase.due_date),
+        timeAllocation: phase.time_allocation,
+        endDate: new Date(phase.due_date),
+        timeAllocationHours: phase.time_allocation_hours ?? phase.time_allocation,
+        startDate: phase.start_date ? new Date(phase.start_date) : undefined,
+        isRecurring: phase.is_recurring ?? false,
+        recurringConfig: phase.recurring_config
+          ? (phase.recurring_config as unknown as PhaseDTO['recurringConfig'])
           : undefined,
-        userId: milestone.user_id || '',
-        createdAt: milestone.created_at ? new Date(milestone.created_at) : new Date(),
-        updatedAt: milestone.updated_at ? new Date(milestone.updated_at) : new Date(),
+        userId: phase.user_id || '',
+        createdAt: phase.created_at ? new Date(phase.created_at) : new Date(),
+        updatedAt: phase.updated_at ? new Date(phase.updated_at) : new Date(),
       }))
       .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
   }, [dbMilestones]);
@@ -342,33 +341,33 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   }, [dbDeleteRow]);
 
   const getMilestonesForProject = useCallback((projectId: string) => {
-    return processedMilestones.filter(phase => milestone.projectId === projectId);
+    return processedMilestones.filter(phase => phase.projectId === projectId);
   }, [processedMilestones]);
 
-  const addPhase = useCallback(async (milestone: MilestoneCreateInput, options?: { silent?: boolean }) => {
-    const dueDateSource = milestone.dueDate ?? milestone.endDate;
+  const addPhase = useCallback(async (phase: MilestoneCreateInput, options?: { silent?: boolean }) => {
+    const dueDateSource = phase.dueDate ?? phase.endDate;
     if (!dueDateSource) {
       throw new Error('Milestone due date is required.');
     }
 
     const payload: Omit<SupabaseMilestoneInsert, 'user_id'> = {
-      name: milestone.name,
-      project_id: milestone.projectId,
+      name: phase.name,
+      project_id: phase.projectId,
       due_date: dueDateSource instanceof Date ? dueDateSource.toISOString() : dueDateSource,
-      time_allocation: milestone.timeAllocation,
-      time_allocation_hours: milestone.timeAllocationHours ?? milestone.timeAllocation,
+      time_allocation: phase.timeAllocation,
+      time_allocation_hours: phase.timeAllocationHours ?? phase.timeAllocation,
     };
 
-    if (milestone.startDate !== undefined) {
-      payload.start_date = milestone.startDate instanceof Date ? milestone.startDate.toISOString() : milestone.startDate;
+    if (phase.startDate !== undefined) {
+      payload.start_date = phase.startDate instanceof Date ? phase.startDate.toISOString() : phase.startDate;
     }
 
-    if (milestone.isRecurring !== undefined) {
-      payload.is_recurring = milestone.isRecurring;
+    if (phase.isRecurring !== undefined) {
+      payload.is_recurring = phase.isRecurring;
     }
 
-    if (milestone.recurringConfig !== undefined) {
-      payload.recurring_config = milestone.recurringConfig as unknown as SupabaseMilestoneInsert['recurring_config'];
+    if (phase.recurringConfig !== undefined) {
+      payload.recurring_config = phase.recurringConfig as unknown as SupabaseMilestoneInsert['recurring_config'];
     }
 
     const result = await dbAddMilestone(payload, options);
@@ -390,7 +389,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         userId: result.user_id,
         createdAt: new Date(result.created_at),
         updatedAt: new Date(result.updated_at)
-      } satisfies import('@/types/core').Milestone;
+      } satisfies import('@/types/core').PhaseDTO;
     }
     
     return undefined;
@@ -458,7 +457,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     updateRow,
     deleteRow,
     reorderRows: dbReorderRows,
-    milestones: processedMilestones,
+    phases: processedMilestones,
     addPhase,
     updatePhase,
     deletePhase,

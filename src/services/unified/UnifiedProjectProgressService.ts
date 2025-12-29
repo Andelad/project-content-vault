@@ -28,7 +28,7 @@
  * @see UnifiedTimelineService for timeline UI coordination
  */
 
-import { Project, CalendarEvent, Holiday, Settings, Phase } from '@/types/core';
+import { Project, CalendarEvent, Holiday, Settings, PhaseDTO } from '@/types/core';
 import { calculateDurationDays } from '@/services/calculations/general/dateCalculations';
 import {
   ProjectEvent,
@@ -67,7 +67,7 @@ export interface ProjectProgressAnalysis {
   status: ProjectStatus;
   isOnTrack: boolean;
   milestoneProgress: Array<{
-    milestone: MilestoneWithProgress;
+    phase: MilestoneWithProgress;
     isCompleted: boolean;
     daysUntilDue: number;
     progressToward: number;
@@ -78,7 +78,7 @@ export interface ProjectProgressAnalysis {
 export interface ProgressGraphCalculationOptions {
   project: Project;
   events: CalendarEvent[];
-  milestones?: Phase[];
+  phases?: PhaseDTO[];
   includeEventDatePoints?: boolean;
   maxDataPoints?: number;
 }
@@ -135,7 +135,7 @@ export class UnifiedProjectProgressService {
   static getEstimatedProgress(
     targetDate: Date,
     project: Project,
-    phases: Phase[]
+    phases: PhaseDTO[]
   ): number {
     const startDate = new Date(project.startDate);
     const endDate = new Date(project.endDate);
@@ -156,12 +156,12 @@ export class UnifiedProjectProgressService {
     let prevHours = 0;
     
     for (const phase of relevantPhases) {
-      const milestoneDate = milestone.endDate || milestone.dueDate;
-      const timeAllocation = milestone.timeAllocationHours ?? milestone.timeAllocation;
+      const phaseDate = phase.endDate || phase.dueDate;
+      const timeAllocation = phase.timeAllocationHours ?? phase.timeAllocation;
       
-      if (targetDate <= milestoneDate) {
+      if (targetDate <= phaseDate) {
         // Target date is within this segment, interpolate
-        const segmentDays = calculateDurationDays(prevDate, milestoneDate);
+        const segmentDays = calculateDurationDays(prevDate, phaseDate);
         const targetDays = calculateDurationDays(prevDate, targetDate);
         
         if (segmentDays === 0) return prevHours + timeAllocation;
@@ -171,7 +171,7 @@ export class UnifiedProjectProgressService {
       }
       
       // Move to next segment
-      prevDate = milestoneDate;
+      prevDate = phaseDate;
       prevHours += timeAllocation;
     }
     
@@ -197,7 +197,7 @@ export class UnifiedProjectProgressService {
   static calculateProgressData(
     project: Project,
     events: ProjectEvent[],
-    phases: Phase[] = [],
+    phases: PhaseDTO[] = [],
     options: ProgressCalculationOptions = {}
   ): DataPoint[] {
     const startDate = new Date(project.startDate);
@@ -224,18 +224,18 @@ export class UnifiedProjectProgressService {
       // Add milestone points
       let cumulativeEstimatedHours = 0;
       
-      relevantPhases.forEach((milestone) => {
-        const milestoneDate = milestone.endDate || milestone.dueDate;
-        const timeAllocation = milestone.timeAllocationHours ?? milestone.timeAllocation;
+      relevantPhases.forEach((phase) => {
+        const phaseDate = phase.endDate || phase.dueDate;
+        const timeAllocation = phase.timeAllocationHours ?? phase.timeAllocation;
         cumulativeEstimatedHours += timeAllocation;
         
-        const completedTimeAtMilestone = getCompletedTimeUpToDate(projectEvents, project.id, milestoneDate);
+        const completedTimeAtMilestone = getCompletedTimeUpToDate(projectEvents, project.id, phaseDate);
         
         data.push({
-          date: new Date(milestoneDate),
+          date: new Date(phaseDate),
           estimatedProgress: cumulativeEstimatedHours,
           completedTime: completedTimeAtMilestone,
-          plannedTime: getPlannedTimeUpToDate(events, project.id, milestoneDate)
+          plannedTime: getPlannedTimeUpToDate(events, project.id, phaseDate)
         });
       });
     }
@@ -260,10 +260,10 @@ export class UnifiedProjectProgressService {
   static isOnTrack(
     project: Project,
     events: ProjectEvent[],
-    phases: Phase[] = [],
+    phases: PhaseDTO[] = [],
     currentDate: Date = new Date()
   ): boolean {
-    const expectedProgress = this.getEstimatedProgress(currentDate, project, milestones);
+    const expectedProgress = this.getEstimatedProgress(currentDate, project, phases);
     const actualProgress = getCompletedTimeUpToDate(events, project.id, currentDate);
     
     // Consider on track if within 10% of expected progress
@@ -343,23 +343,23 @@ export class UnifiedProjectProgressService {
       }));
 
     const timeMetrics = calculateProjectTimeMetrics(project, projectEvents, holidays, new Date());
-    const progressData = this.calculateProgressData(project, projectEvents, milestones);
+    const progressData = this.calculateProgressData(project, projectEvents, phases);
     const status = this.calculateStatus(project);
-    const isOnTrack = this.isOnTrack(project, projectEvents, milestones);
+    const isOnTrack = this.isOnTrack(project, projectEvents, phases);
 
     // Analyze milestone progress
     const relevantPhases = getRelevantMilestones(phases, project.id);
     const today = new Date();
     
     const milestoneProgress = relevantPhases.map(phase => {
-      const dueDate = milestone.endDate || milestone.dueDate;
-      const timeAllocation = milestone.timeAllocationHours ?? milestone.timeAllocation;
+      const dueDate = phase.endDate || phase.dueDate;
+      const timeAllocation = phase.timeAllocationHours ?? phase.timeAllocation;
       const daysUntilDue = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
       const actualProgress = getCompletedTimeUpToDate(projectEvents, project.id, today);
       
       return {
-        milestone,
-        isCompleted: milestone.completed || false,
+        phase,
+        isCompleted: phase.completed || false,
         daysUntilDue,
         progressToward: timeAllocation > 0 ? (actualProgress / timeAllocation) * 100 : 0
       };
@@ -383,7 +383,7 @@ export class UnifiedProjectProgressService {
    * @deprecated Use analyzeProgress() for new implementations
    */
   static analyzeProgressLegacy(options: ProgressGraphCalculationOptions): LegacyProjectProgressAnalysis {
-  const { project, events, milestones = [] } = options;
+  const { project, events, phases = [] } = options;
   const startDate = new Date(project.startDate);
   const endDate = new Date(project.endDate);
   const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
@@ -419,16 +419,16 @@ export class UnifiedProjectProgressService {
     });
     
     // Add milestone points
-    relevantPhases.forEach(milestone => {
-      const timeAllocation = milestone.timeAllocationHours ?? milestone.timeAllocation;
-      const milestoneDate = milestone.endDate || milestone.dueDate;
+    relevantPhases.forEach(phase => {
+      const timeAllocation = phase.timeAllocationHours ?? phase.timeAllocation;
+      const phaseDate = phase.endDate || phase.dueDate;
       cumulativeHours += timeAllocation;
       
       progressData.push({
-        date: new Date(milestoneDate),
+        date: new Date(phaseDate),
         estimatedProgress: cumulativeHours,
-        completedTime: getCompletedTimeUpToDate(projectEvents, project.id, milestoneDate),
-        plannedTime: getPlannedTimeUpToDate(projectEvents, project.id, milestoneDate)
+        completedTime: getCompletedTimeUpToDate(projectEvents, project.id, phaseDate),
+        plannedTime: getPlannedTimeUpToDate(projectEvents, project.id, phaseDate)
       });
     });
     
@@ -543,9 +543,9 @@ export class UnifiedProjectProgressService {
 export function getEstimatedProgressForDate(
   targetDate: Date,
   project: Project,
-  phases: Phase[]
+  phases: PhaseDTO[]
 ): number {
-  return UnifiedProjectProgressService.getEstimatedProgress(targetDate, project, milestones);
+  return UnifiedProjectProgressService.getEstimatedProgress(targetDate, project, phases);
 }
 
 /**
@@ -554,7 +554,7 @@ export function getEstimatedProgressForDate(
 export function calculateProjectProgressData(
   project: Project,
   events: ProjectEvent[],
-  phases: Phase[] = [],
+  phases: PhaseDTO[] = [],
   options: ProgressCalculationOptions = {}
 ): DataPoint[] {
   return UnifiedProjectProgressService.calculateProgressData(project, events, phases, options);
@@ -566,7 +566,7 @@ export function calculateProjectProgressData(
 export function isProjectOnTrack(
   project: Project,
   events: ProjectEvent[],
-  phases: Phase[] = [],
+  phases: PhaseDTO[] = [],
   currentDate: Date = new Date()
 ): boolean {
   return UnifiedProjectProgressService.isOnTrack(project, events, phases, currentDate);

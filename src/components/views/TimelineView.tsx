@@ -482,10 +482,11 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
       let projectPhases = phases.filter(p => p.projectId === project.id);
       
       // If a phase is being dragged for this project, apply visual dates
-      if (isDragging && dragState?.projectId === project.id && dragState?.milestoneId &&
+      const activePhaseId = dragState?.phaseId ?? dragState?.milestoneId;
+      if (isDragging && dragState?.projectId === project.id && activePhaseId &&
           (dragState?.action === 'resize-phase-start' || dragState?.action === 'resize-phase-end')) {
         projectPhases = projectPhases.map(p => {
-          if (p.id === dragState.milestoneId) {
+          if (p.id === activePhaseId) {
             // Apply visual date changes during drag
             const daysDelta = dragState.lastDaysDelta || 0;
             const msOffset = daysDelta * 24 * 60 * 60 * 1000;
@@ -588,13 +589,16 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
   }, [currentDate, viewportStart, VIEWPORT_DAYS, timelineMode]);
   
   // Handle milestone drag updates
-  const handleMilestoneDrag = useCallback((milestoneId: string, newDate: Date) => {
-    updatePhase(milestoneId, { dueDate: newDate }, { silent: true });
+  const handlePhaseDrag = useCallback((phaseId: string, newDate: Date) => {
+    updatePhase(phaseId, { dueDate: newDate }, { silent: true });
   }, [updatePhase]);
   // Handle milestone drag end
-  const handleMilestoneDragEnd = useCallback(() => {
+  const handlePhaseDragEnd = useCallback(() => {
     showMilestoneSuccessToast("Phase updated successfully");
   }, [showMilestoneSuccessToast]);
+  // Legacy prop naming compatibility
+  const handleMilestoneDrag = handlePhaseDrag;
+  const handleMilestoneDragEnd = handlePhaseDragEnd;
   return (
     <DndProvider backend={HTML5Backend}>
       <TooltipProvider>

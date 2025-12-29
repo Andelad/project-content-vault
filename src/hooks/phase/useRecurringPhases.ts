@@ -74,11 +74,11 @@ export function useRecurringPhases(config: UseRecurringPhasesConfig) {
   // Detect recurring pattern from existing milestones
   useEffect(() => {
     // Check if any milestones have startDate (phases) - if so, don't detect recurring
-    const hasPhases = projectPhases.some(p => m.startDate !== undefined);
+    const hasPhases = projectPhases.some(p => p.startDate !== undefined);
     if (recurringMilestone || !projectId || isDeletingRecurringPhase || hasPhases) return;
 
     // NEW SYSTEM: First check for template milestone with isRecurring=true
-    const templateMilestone = projectPhases.find(p => m.isRecurring === true);
+    const templateMilestone = projectPhases.find(p => p.isRecurring === true);
     if (templateMilestone && templateMilestone.recurringConfig) {
       const config = templateMilestone.recurringConfig;
       setRecurringPhase({
@@ -113,7 +113,7 @@ export function useRecurringPhases(config: UseRecurringPhasesConfig) {
     if (!projectId) {
       // CRITICAL: Clear all local phases first (mutual exclusivity rule)
       if (isCreatingProject && localPhasesState) {
-        localPhasesState.setMilestones([]);
+        localPhasesState.setPhases([]);
       }
       
       // Create a local recurring milestone object for UI display
@@ -206,13 +206,13 @@ export function useRecurringPhases(config: UseRecurringPhasesConfig) {
 
     try {
       if (isCreatingProject && localPhasesState) {
-        localPhasesState.setMilestones([]);
+        localPhasesState.setPhases([]);
       } else {
         const recurringMilestones = projectPhases.filter(p =>
-          m.isRecurring || (m.name && /\s\d+$/.test(m.name) && m.startDate === undefined)
+          p.isRecurring || (p.name && /\s\d+$/.test(p.name) && p.startDate === undefined)
         );
 
-        const template = recurringMilestones.find(p => m.isRecurring);
+        const template = recurringMilestones.find(p => p.isRecurring);
         if (template && template.id && !template.id.startsWith('temp-')) {
           // Delete template (cascade handles instances)
           const { error } = await supabase.from('phases').delete().eq('id', template.id);
@@ -225,8 +225,8 @@ export function useRecurringPhases(config: UseRecurringPhasesConfig) {
         } else {
           // Delete orphaned instances
           const orphanedIds = recurringMilestones
-            .filter(phase => milestone.id && !milestone.id.startsWith('temp-'))
-            .map(p => m.id!);
+            .filter(phase => phase.id && !phase.id.startsWith('temp-'))
+            .map(p => p.id!);
 
           if (orphanedIds.length > 0) {
             const { error } = await supabase.from('phases').delete().in('id', orphanedIds);

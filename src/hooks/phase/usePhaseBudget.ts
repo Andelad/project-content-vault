@@ -76,12 +76,12 @@ export function usePhaseBudget(config: UseMilestoneBudgetConfig) {
 
     const nonRecurringPhases = projectPhases.filter(p => {
       // Exclude temporary/unsaved milestones
-      if ('isNew' in m && (m as LocalPhase).isNew) return false;
-      if (typeof m.id === 'string' && m.id.startsWith('temp-')) return false;
+      if ('isNew' in p && (p as LocalPhase).isNew) return false;
+      if (typeof p.id === 'string' && p.id.startsWith('temp-')) return false;
       // Exclude NEW template milestones
-      if (m.isRecurring) return false;
+      if (p.isRecurring) return false;
       // Exclude OLD numbered instances (but not phases)
-      if (m.name && /\s\d+$/.test(m.name) && m.startDate === undefined) return false;
+      if (p.name && /\s\d+$/.test(p.name) && p.startDate === undefined) return false;
       return true;
     });
 
@@ -99,7 +99,7 @@ export function usePhaseBudget(config: UseMilestoneBudgetConfig) {
 
   // Enhanced project health analysis using domain entities
   const projectHealthAnalysis = useMemo(() => {
-    const validMilestones = projectPhases.filter(p => m.id) as Milestone[];
+    const validPhases = projectPhases.filter(p => p.id) as Phase[];
     const project: Project = {
       id: projectId || 'new',
       name: 'Current Project',
@@ -117,7 +117,7 @@ export function usePhaseBudget(config: UseMilestoneBudgetConfig) {
       updatedAt: new Date()
     };
 
-    return ProjectOrchestrator.analyzeProjectMilestones(project, validMilestones);
+    return ProjectOrchestrator.analyzeProjectMilestones(project, validPhases);
   }, [projectPhases, projectEstimatedHours, projectStartDate, projectEndDate, projectContinuous, projectId]);
 
   return {

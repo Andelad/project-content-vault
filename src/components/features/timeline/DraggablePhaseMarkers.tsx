@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
-import type { Project, Phase } from '@/types/core';
+import type { Project, PhaseDTO } from '@/types/core';
 import { getTimelinePositions, normalizeToMidnight } from '@/services';
 import { getPhasesSortedByEndDate } from '@/domain/rules/PhaseRules';
 import type { DragState } from '@/services/ui/DragPositioning';
@@ -8,7 +8,7 @@ import type { TimelinePositionCalculation } from '@/services/ui/ProjectBarPositi
 
 interface DraggablePhaseMarkersProps {
   project: Project;
-  phases: Phase[];
+  phases: PhaseDTO[];
   viewportStart: Date;
   viewportEnd: Date;
   dates: Date[];
@@ -51,7 +51,7 @@ export function DraggablePhaseMarkers({
   calculateBaselineVisualOffsets,
   onPhaseResizeMouseDown
 }: DraggablePhaseMarkersProps) {
-  // Get phases for this project (milestones with startDate and endDate)
+  // Get phases for this project (each phase has startDate and endDate)
   const sortedPhases = getPhasesSortedByEndDate(phases);
 
   if (sortedPhases.length === 0) {
@@ -99,7 +99,7 @@ export function DraggablePhaseMarkers({
 
         // Check if this phase is being dragged
         const isThisPhaseDragging = isDragging && 
-          dragState?.milestoneId === phase.id && 
+          (dragState?.phaseId ?? dragState?.milestoneId) === phase.id && 
           (dragState?.action === 'resize-phase-start' || dragState?.action === 'resize-phase-end');
 
         // Calculate visual date during drag

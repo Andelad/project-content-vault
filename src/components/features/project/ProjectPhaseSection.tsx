@@ -13,7 +13,7 @@ import {
   RecurringPhase,
   LocalPhase
 } from '@/hooks/phase';
-import type { Phase } from '@/types/core';
+import type { PhaseDTO } from '@/types/core';
 import {
   PhaseCard,
   RecurringPhaseCard,
@@ -53,7 +53,7 @@ interface ProjectPhaseSectionProps {
     setPhases: (phases: LocalPhase[]) => void;
   };
   isCreatingProject?: boolean;
-  trackedAddMilestone?: (milestone: LocalPhase, options?: { silent?: boolean }) => Promise<Milestone | undefined>;
+  trackedAddMilestone?: (milestone: LocalPhase, options?: { silent?: boolean }) => Promise<PhaseDTO | undefined>;
   localValues?: LocalValuesState;
   setLocalValues?: (updater: (prev: LocalValuesState) => LocalValuesState) => void;
   onAutoEstimateDaysChange?: (newAutoEstimateDays: AutoEstimateDays | undefined) => void;
@@ -151,14 +151,14 @@ export function ProjectPhaseSection({
     projectContinuous,
     projectEstimatedHours,
     isDeletingRecurringPhase,
-    refetchPhases,
+    refetchMilestones: refetchPhases,
     isCreatingProject,
     localPhasesState
   });
 
-  const getExclusivityValidation = () => PhaseRules.checkPhaseRecurringExclusivity(projectPhases as Phase[]);
+  const getExclusivityValidation = () => PhaseRules.checkPhaseRecurringExclusivity(projectPhases as PhaseDTO[]);
   const persistedProjectMilestones = projectPhases.filter(
-    (milestone): milestone is Phase => Boolean(milestone.id)
+    (phase): phase is PhaseDTO => Boolean(phase.id)
   );
 
   const { totalRecurringAllocation, budgetAnalysis } = usePhaseBudget({
@@ -181,7 +181,7 @@ export function ProjectPhaseSection({
 
   // Check for overlapping phases and offer to fix them
   const hasOverlappingPhases = React.useMemo(() => {
-    const phases = projectPhases.filter(p => p.startDate !== undefined) as Phase[];
+    const phases = projectPhases.filter(p => p.startDate !== undefined) as PhaseDTO[];
     if (phases.length < 2) return false;
     
     const validation = PhaseRules.validatePhasesContinuity(phases, projectStartDate, projectEndDate);
@@ -189,7 +189,7 @@ export function ProjectPhaseSection({
   }, [projectPhases, projectStartDate, projectEndDate]);
 
   const handleRepairOverlappingPhases = async () => {
-    const phases = projectPhases.filter(p => p.startDate !== undefined) as Phase[];
+    const phases = projectPhases.filter(p => p.startDate !== undefined) as PhaseDTO[];
     const repairs = PhaseRules.repairOverlappingPhases(phases);
     
     if (repairs.length === 0) {
@@ -315,7 +315,7 @@ export function ProjectPhaseSection({
 
       // DOMAIN RULE: Calculate dates for new phase (shrinks last phase)
       const { newPhaseStart, newPhaseEnd, lastPhaseNewEnd } = PhaseRules.calculateNewPhaseDates(
-        existingPhases as Phase[],
+        existingPhases as PhaseDTO[],
         projectEndDate
       );
 
@@ -456,7 +456,7 @@ export function ProjectPhaseSection({
       {
         projectPhases: persistedProjectMilestones,
         recurringMilestone,
-        updatePhase: async (id: string, updates: Partial<Phase>) => {
+        updatePhase: async (id: string, updates: Partial<PhaseDTO>) => {
           await updatePhase(id, updates);
         },
         setRecurringPhase
@@ -709,10 +709,10 @@ export function ProjectPhaseSection({
         )}
 
         {/* Phase Milestones (all milestones are now phases with start/end dates) */}
-        {phases.map((milestone, index) => (
+        {phases.map((phase, index) => (
           <PhaseCard
-            key={milestone.id}
-            milestone={milestone}
+            key={phase.id}
+            phase={phase}
             projectEstimatedHours={projectEstimatedHours}
             projectContinuous={projectContinuous}
             allPhases={phases}

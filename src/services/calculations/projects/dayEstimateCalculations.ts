@@ -9,7 +9,7 @@
  * ✅ Mathematical operations only
  * ✅ Delegates to domain rules for business logic
  */
-import { Phase, Project, DayEstimate, Settings, Holiday, CalendarEvent } from '@/types';
+import { Phase, Project, DayEstimate, Settings, Holiday, CalendarEvent, PhaseDTO } from '@/types';
 import * as DateCalculations from '../general/dateCalculations';
 import { calculatePlannedTimeForDate } from '@/services/unified/UnifiedEventWorkHourService';
 import { TimelineRules } from '@/domain/rules';
@@ -113,23 +113,23 @@ export function getWorkingDaysBetween(
   return workingDays;
 }
 /**
- * Calculate day estimates from a single milestone
- * NOTE: This function should receive milestone.startDate correctly calculated by the caller
- * to represent the segment start (previous milestone's dueDate or project start)
+ * Calculate day estimates from a single phase
+ * NOTE: This function should receive phase.startDate correctly calculated by the caller
+ * to represent the segment start (previous phase's endDate or project start)
  */
-export function calculateMilestoneDayEstimates(
-  milestone: Milestone,
+export function calculatePhaseDayEstimates(
+  phase: PhaseDTO,
   project: Project,
   settings: Settings,
   holidays: Holiday[]
 ): DayEstimate[] {
   const estimates: DayEstimate[] = [];
   // Use new fields if available, fallback to old fields
-  const endDate = milestone.endDate || milestone.dueDate;
-  const timeAllocationHours = milestone.timeAllocationHours ?? milestone.timeAllocation;
-  // Use milestone.startDate if provided (correctly calculated segment start)
+  const endDate = phase.endDate || phase.dueDate;
+  const timeAllocationHours = phase.timeAllocationHours ?? phase.timeAllocation;
+  // Use phase.startDate if provided (correctly calculated segment start)
   // Otherwise fall back to project.startDate (for backward compatibility)
-  const startDate = milestone.startDate || project.startDate;
+  const startDate = phase.startDate || project.startDate;
   // Get working days between start and end
   const workingDays = getWorkingDaysBetween(startDate, endDate, settings, holidays, project);
   if (workingDays.length === 0 || !Number.isFinite(timeAllocationHours) || timeAllocationHours <= 0) {
@@ -142,32 +142,45 @@ export function calculateMilestoneDayEstimates(
       date: new Date(date),
       projectId: project.id,
       hours: hoursPerDay,
-      source: 'milestone-allocation',
-      milestoneId: milestone.id,
+      source: 'milestone-allocation', // Legacy field name; represents phase allocation
+      milestoneId: phase.id, // Legacy field name; represents phaseId
       isWorkingDay: true
     });
   });
   return estimates;
 }
+
 /**
- * Calculate day estimates from recurring milestone configuration
+ * @deprecated Use calculatePhaseDayEstimates instead. Kept for backward compatibility.
+ */
+export function calculateMilestoneDayEstimates(
+  phase: PhaseDTO,
+  project: Project,
+  settings: Settings,
+  holidays: Holiday[]
+): DayEstimate[] {
+  return calculatePhaseDayEstimates(phase, project, settings, holidays);
+}
+
+/**
+ * Calculate day estimates from recurring phase configuration
  */
 export function calculateRecurringPhaseDayEstimates(
-  milestone: Milestone,
+  phase: PhaseDTO,
   project: Project,
   settings: Settings,
   holidays: Holiday[],
   eventsByDate: Map<string, CalendarEvent[]> = new Map()
 ): DayEstimate[] {
-  if (!milestone.isRecurring || !milestone.recurringConfig) {
-    return calculateMilestoneDayEstimates(milestone, project, settings, holidays);
+  if (!phase.isRecurring || !phase.recurringConfig) {
+    return calculatePhaseDayEstimates(phase, project, settings, holidays);
   }
   const estimates: DayEstimate[] = [];
-  const config = milestone.recurringConfig;
-  const timeAllocationHours = milestone.timeAllocationHours ?? milestone.timeAllocation;
+  const config = phase.recurringConfig;
+  const timeAllocationHours = phase.timeAllocationHours ?? phase.timeAllocation;
   // Generate occurrence dates
   const occurrences = generateRecurringOccurrences(
-    milestone,
+    phase,
     project.startDate,
     project.endDate,
     project.continuous || false
@@ -217,8 +230,8 @@ export function calculateRecurringPhaseDayEstimates(
         date: new Date(date),
         projectId: project.id,
         hours: hoursPerDay,
-        source: 'milestone-allocation',
-        milestoneId: milestone.id,
+        source: 'milestone-allocation', // Legacy field name; represents phase allocation
+        milestoneId: phase.id, // Legacy field name; represents phaseId
         isWorkingDay: true
       });
     });
@@ -226,18 +239,18 @@ export function calculateRecurringPhaseDayEstimates(
   return estimates;
 }
 /**
- * Generate recurring milestone occurrence dates
+ * Generate recurring phase occurrence dates
  */
 function generateRecurringOccurrences(
-  milestone: Milestone,
+  phase: PhaseDTO,
   projectStartDate: Date,
   projectEndDate: Date,
   projectContinuous: boolean
 ): Date[] {
-  if (!milestone.isRecurring || !milestone.recurringConfig) {
-    return [milestone.endDate || milestone.dueDate];
+  if (!phase.isRecurring || !phase.recurringConfig) {
+    return [phase.endDate || phase.dueDate];
   }
-  const config = milestone.recurringConfig;
+  const config = phase.recurringConfig;
   const occurrences: Date[] = [];
   const MAX_OCCURRENCES = 120;
 
@@ -346,13 +359,13 @@ function generateRecurringOccurrences(
  */
 export function calculateProjectDayEstimates(
   project: Project,
-  phases: Phase[],
+  phases: PhaseDTO[],
   settings: Settings,
   holidays: Holiday[],
   events: CalendarEvent[] = []
 ): DayEstimate[] {
   const allEstimates: DayEstimate[] = [];
-  // PRIORITY 1 - Handle calendar events FIRST (they take precedence over milestones/auto-estimate)
+  // PRIORITY 1 - Handle calendar events FIRST (they take precedence over phases/auto-estimate)
   // Use domain rules to classify events correctly
   // Filter to only events for this project (CRITICAL: Domain Rule 1)
   const projectEvents = TimelineRules.filterEventsForProject(events, project);
@@ -380,61 +393,61 @@ export function calculateProjectDayEstimates(
       });
     }
   });
-  // PRIORITY 2 - Process milestones (only for dates without planned events)
-  // Sort milestones by due date to calculate segments correctly
+  // PRIORITY 2 - Process phases (only for dates without planned events)
+  // Sort phases by due date to calculate segments correctly
   const sortedPhases = [...phases].sort((a, b) => {
     const dateA = new Date(a.endDate || a.dueDate);
     const dateB = new Date(b.endDate || b.dueDate);
     return dateA.getTime() - dateB.getTime();
   });
-  let totalMilestoneEstimates = 0;
-  let previousMilestoneEnd: Date | null = null;
-  sortedPhases.forEach(milestone => {
-    // CRITICAL: If milestone already has startDate (it's a phase), use it!
-    // Only calculate segment start for pure milestones (no startDate)
-    const segmentStart = milestone.startDate
-      ? new Date(milestone.startDate) // Phase: Use actual phase start date
-      : previousMilestoneEnd 
-        ? new Date(previousMilestoneEnd.getTime() + 24 * 60 * 60 * 1000) // Day after previous
+  let totalPhaseEstimates = 0;
+  let previousPhaseEnd: Date | null = null;
+  sortedPhases.forEach(phase => {
+    // CRITICAL: If phase already has startDate, use it!
+    // Only calculate segment start for deadline-only phases (no startDate)
+    const segmentStart = phase.startDate
+      ? new Date(phase.startDate) // Phase: Use actual phase start date
+      : previousPhaseEnd 
+        ? new Date(previousPhaseEnd.getTime() + 24 * 60 * 60 * 1000) // Day after previous
         : new Date(project.startDate);
     // Normalize end for comparisons
-    const milestoneEnd = new Date(milestone.endDate || milestone.dueDate);
+    const phaseEnd = new Date(phase.endDate || phase.dueDate);
 
     // Determine remaining allocation after subtracting completed hours in this phase range
-    const originalAllocation = milestone.timeAllocationHours ?? milestone.timeAllocation ?? 0;
-    const completedInPhase = sumCompletedEventHoursInRange(eventsByDate, segmentStart, milestoneEnd);
+    const originalAllocation = phase.timeAllocationHours ?? phase.timeAllocation ?? 0;
+    const completedInPhase = sumCompletedEventHoursInRange(eventsByDate, segmentStart, phaseEnd);
     const remainingAllocation = Math.max(0, originalAllocation - completedInPhase);
 
     // If nothing remains, skip auto-estimate generation for this phase
     if (remainingAllocation <= 0) {
-      previousMilestoneEnd = milestoneEnd;
+      previousPhaseEnd = phaseEnd;
       return;
     }
 
-    // Create milestone object with adjusted allocation (no rollover to other phases)
-    const milestoneWithAdjustedAllocation: Phase = {
-      ...milestone,
+    // Create phase object with adjusted allocation (no rollover to other phases)
+    const phaseWithAdjustedAllocation: Phase = {
+      ...phase,
       startDate: segmentStart,
       timeAllocationHours: remainingAllocation,
       timeAllocation: remainingAllocation
     };
-    const milestoneEstimates = milestone.isRecurring
+    const phaseEstimates = phase.isRecurring
       ? calculateRecurringPhaseDayEstimates(
-          milestoneWithAdjustedAllocation,
+          phaseWithAdjustedAllocation,
           project,
           settings,
           holidays,
           eventsByDate
         )
-      : calculateMilestoneDayEstimates(milestoneWithAdjustedAllocation, project, settings, holidays);
-    // Update the previous milestone end for next iteration
-    previousMilestoneEnd = milestoneEnd;
-    // Filter out milestone estimates that conflict with ANY events (planned OR completed)
+      : calculatePhaseDayEstimates(phaseWithAdjustedAllocation, project, settings, holidays);
+    // Update the previous phase end for next iteration
+    previousPhaseEnd = phaseEnd;
+    // Filter out phase estimates that conflict with ANY events (planned OR completed)
     // Use domain rule: Auto-estimates only on days WITHOUT events
     // AND ensure they don't extend beyond project end date (only for non-continuous projects)
     const projectEndDate = new Date(project.endDate);
     projectEndDate.setHours(23, 59, 59, 999);
-    const filteredEstimates = milestoneEstimates.filter(est => {
+    const filteredEstimates = phaseEstimates.filter(est => {
       const dateKey = getDateKey(est.date);
       const estDate = new Date(est.date);
       estDate.setHours(0, 0, 0, 0);
@@ -457,13 +470,13 @@ export function calculateProjectDayEstimates(
       }));
     }
 
-    totalMilestoneEstimates += redistributedEstimates.length;
+    totalPhaseEstimates += redistributedEstimates.length;
     allEstimates.push(...redistributedEstimates);
   });
   // PRIORITY 3 - If no phases, use project's auto-estimate logic
   // Domain Rule: Auto-estimates only on days WITHOUT events
   // Note: Skip auto-estimates for continuous projects or when no budget is defined
-  if (milestones.length === 0 && Number.isFinite(project.estimatedHours) && project.estimatedHours > 0 && !project.continuous) {
+  if (phases.length === 0 && Number.isFinite(project.estimatedHours) && project.estimatedHours > 0 && !project.continuous) {
     const projectStart = new Date(project.startDate);
     const projectEnd = new Date(project.endDate);
 

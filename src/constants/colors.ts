@@ -1,5 +1,5 @@
 // OKLCH color palette - consistent lightness and chroma for harmony
-import { ColorCalculationService } from '@/services';
+import { ColorCalculationService } from '@/services/ui/ColorCalculations';
 
 // Brand colors
 export const BRAND_COLORS = {

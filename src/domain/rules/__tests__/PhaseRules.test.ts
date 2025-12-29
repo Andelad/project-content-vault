@@ -8,7 +8,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   isPhase,
-  isMilestone,
+  isDeadlineOnly,
   getPhases,
   getMilestones,
   sortPhasesByEndDate,
@@ -16,7 +16,7 @@ import {
   getPhasesSortedByEndDate,
   type Phase
 } from '@/domain/rules/PhaseRules';
-import type { Phase } from '@/types/core';
+import type { PhaseDTO } from '@/types/core';
 
 describe('Phase Helpers', () => {
   // Test data
@@ -77,13 +77,13 @@ describe('Phase Helpers', () => {
     });
   });
 
-  describe('isMilestone', () => {
-    it('returns false when milestone has startDate (is a phase)', () => {
-      expect(isMilestone(phase)).toBe(false);
+  describe('isDeadlineOnly', () => {
+    it('returns false when entity has startDate (is a phase)', () => {
+      expect(isDeadlineOnly(phase)).toBe(false);
     });
 
-    it('returns true when milestone has no startDate (pure milestone)', () => {
-      expect(isMilestone(milestone)).toBe(true);
+    it('returns true when entity has no startDate (deadline-only)', () => {
+      expect(isDeadlineOnly(milestone)).toBe(true);
     });
   });
 
@@ -113,7 +113,7 @@ describe('Phase Helpers', () => {
 
     it('returns type-safe Phase array', () => {
       const mixed = [phase, milestone];
-      const result: Phase[] = getPhases(mixed);
+      const result: PhaseDTO[] = getPhases(mixed);
       
       // TypeScript should know these have startDate
       result.forEach(p => {
@@ -148,7 +148,7 @@ describe('Phase Helpers', () => {
 
   describe('sortPhasesByEndDate', () => {
     it('sorts phases by end date ascending', () => {
-      const unsorted: Phase[] = [phase as Phase, phase2 as Phase]; // phase2 ends later
+      const unsorted: PhaseDTO[] = [phase as Phase, phase2 as Phase]; // phase2 ends later
       const result = sortPhasesByEndDate(unsorted);
       
       expect(result[0].id).toBe('phase-1'); // Ends Jan 15
@@ -156,7 +156,7 @@ describe('Phase Helpers', () => {
     });
 
     it('does not mutate original array', () => {
-      const original: Phase[] = [phase2 as Phase, phase as Phase];
+      const original: PhaseDTO[] = [phase2 as Phase, phase as Phase];
       const originalOrder = [original[0].id, original[1].id];
       
       sortPhasesByEndDate(original);
@@ -167,7 +167,7 @@ describe('Phase Helpers', () => {
 
   describe('sortPhasesByStartDate', () => {
     it('sorts phases by start date ascending', () => {
-      const unsorted: Phase[] = [phase2 as Phase, phase as Phase]; // phase2 starts later
+      const unsorted: PhaseDTO[] = [phase2 as Phase, phase as Phase]; // phase2 starts later
       const result = sortPhasesByStartDate(unsorted);
       
       expect(result[0].id).toBe('phase-1'); // Starts Jan 1
@@ -175,7 +175,7 @@ describe('Phase Helpers', () => {
     });
 
     it('does not mutate original array', () => {
-      const original: Phase[] = [phase2 as Phase, phase as Phase];
+      const original: PhaseDTO[] = [phase2 as Phase, phase as Phase];
       const originalOrder = [original[0].id, original[1].id];
       
       sortPhasesByStartDate(original);
@@ -206,7 +206,7 @@ describe('Phase Helpers', () => {
 
     it('returns type-safe sorted Phase array', () => {
       const mixed = [phase2, milestone, phase];
-      const result: Phase[] = getPhasesSortedByEndDate(mixed);
+      const result: PhaseDTO[] = getPhasesSortedByEndDate(mixed);
       
       result.forEach(p => {
         expect(p.startDate).toBeInstanceOf(Date);
@@ -223,7 +223,7 @@ describe('Phase Helpers', () => {
       // OLD WAY (inline in component) - incorrectly checked endDate
       // This would include milestones too since they also have endDate!
       const oldWayIncorrect = filteredProjectMilestones.filter(p => {
-        return m.endDate !== undefined;
+        return p.endDate !== undefined;
       }).sort((a, b) => {
         const aDate = new Date(a.endDate!).getTime();
         const bDate = new Date(b.endDate!).getTime();

@@ -16,12 +16,12 @@ export async function cleanupOrphanedMilestones(projectId: string) {
       .eq('project_id', projectId);
     if (error) throw error;
     // Find recurring templates
-    const templates = allMilestones?.filter(p => m.is_recurring === true) || [];
+    const templates = allMilestones?.filter(p => p.is_recurring === true) || [];
     const templateNames = new Set(templates.map(t => t.name));
     // Find numbered instances
     const numberedInstances = allMilestones?.filter(p => {
-      if (m.is_recurring === true) return false;
-      const match = m.name?.match(/^(.+) \d+$/);
+      if (p.is_recurring === true) return false;
+      const match = p.name?.match(/^(.+) \d+$/);
       return match !== null;
     }) || [];
     // Find orphaned instances (no matching template)
@@ -32,7 +32,7 @@ export async function cleanupOrphanedMilestones(projectId: string) {
         const baseName = match[1];
         return !templateNames.has(baseName);
       })
-      .map(p => m.id);
+      .map(p => p.id);
     if (orphanedIds.length === 0) {
       return { deleted: 0 };
     }

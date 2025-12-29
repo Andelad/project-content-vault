@@ -1,5 +1,5 @@
 /**
- * Phase Business Rules - DEPRECATED
+ * Milestone Business Rules - DEPRECATED
  * 
  * ⚠️ DEPRECATION NOTICE (December 2025):
  * This file is deprecated. All milestone/phase business logic has been consolidated into PhaseRules.
@@ -10,14 +10,14 @@
  * @example
  * ```ts
  * // Old:
- * import { PhaseRules } from './PhaseRules';
+ * import { PhaseRules } from './MilestoneRules';
  * 
  * // New:
  * import { PhaseRules } from './PhaseRules';
  * ```
  * 
  * Migration Path:
- * 1. Update imports from PhaseRules to PhaseRules
+ * 1. Update imports from MilestoneRules to PhaseRules
  * 2. Update method calls (all methods have same names)
  * 3. This wrapper will be removed in a future release
  * 
@@ -26,27 +26,27 @@
  * @see docs/operations/MILESTONE_TO_PHASE_MIGRATION.md
  */
 
-import { PhaseRules as PhaseRulesImpl } from './PhaseRules';
+import { PhaseRules } from './PhaseRules';
 import type { PhaseDTO, Project } from '@/types/core';
 
 export type {
-  MilestoneValidationResult,
-  MilestoneDateValidation,
-  MilestoneTimeValidation,
-  MilestoneBudgetCheck,
-  RecurringPhaseRuleConfig
+  PhaseValidationResult as MilestoneValidationResult,
+  PhaseDateValidation as MilestoneDateValidation,
+  PhaseTimeValidation as MilestoneTimeValidation,
+  PhaseBudgetCheck as MilestoneBudgetCheck,
+  RecurringPhaseRuleConfig as RecurringMilestoneRuleConfig
 } from './PhaseRules';
 
 /**
  * @deprecated Use PhaseRules instead
  */
-export class MilestoneRulesDeprecated {
+export class MilestoneRules {
   
   /**
    * @deprecated Use PhaseRules.validateTimeAllocation instead
    */
   static validateTimeAllocation(timeAllocation: number): boolean {
-    return PhaseRulesImpl.validateTimeAllocation(timeAllocation);
+    return PhaseRules.validateTimeAllocation(timeAllocation);
   }
 
   /**
@@ -58,7 +58,7 @@ export class MilestoneRulesDeprecated {
     projectEndDate: Date,
     continuous: boolean = false
   ) {
-    return PhaseRulesImpl.validateMilestoneDateWithinProject(
+    return PhaseRules.validateMilestoneDateWithinProject(
       milestoneEndDate,
       projectStartDate,
       projectEndDate,
@@ -73,18 +73,18 @@ export class MilestoneRulesDeprecated {
     startDate: Date | undefined,
     endDate: Date
   ) {
-    return PhaseRulesImpl.validateMilestoneDateRange(startDate, endDate);
+    return PhaseRules.validateMilestoneDateRange(startDate, endDate);
   }
 
   /**
    * @deprecated Use PhaseRules.validateRecurringPhase instead
    */
-  static validateRecurringPhase(
+  static validateRecurringMilestone(
     isRecurring: boolean,
     recurringConfig: any,
     timeAllocation: number
   ) {
-    return PhaseRulesImpl.validateRecurringPhase(
+    return PhaseRules.validateRecurringPhase(
       isRecurring,
       recurringConfig,
       timeAllocation
@@ -94,20 +94,20 @@ export class MilestoneRulesDeprecated {
   /**
    * @deprecated Use PhaseRules.calculateTotalAllocation instead
    */
-  static calculateTotalAllocation(phases: PhaseDTO[]): number {
-    return PhaseRulesImpl.calculateTotalAllocation(phases);
+  static calculateTotalAllocation(milestones: PhaseDTO[]): number {
+    return PhaseRules.calculateTotalAllocation(milestones);
   }
 
   /**
    * @deprecated Use PhaseRules.checkBudgetConstraint instead
    */
   static checkBudgetConstraint(
-    phases: PhaseDTO[],
+    milestones: PhaseDTO[],
     projectBudget: number,
     excludeMilestoneId?: string
   ) {
-    return PhaseRulesImpl.checkBudgetConstraint(
-      phases,
+    return PhaseRules.checkBudgetConstraint(
+      milestones,
       projectBudget,
       excludeMilestoneId
     );
@@ -117,12 +117,12 @@ export class MilestoneRulesDeprecated {
    * @deprecated Use PhaseRules.canAccommodateAdditionalMilestone instead
    */
   static canAccommodateAdditionalMilestone(
-    phases: PhaseDTO[],
+    milestones: PhaseDTO[],
     projectBudget: number,
     additionalHours: number
   ): boolean {
-    return PhaseRulesImpl.canAccommodateAdditionalMilestone(
-      phases,
+    return PhaseRules.canAccommodateAdditionalMilestone(
+      milestones,
       projectBudget,
       additionalHours
     );
@@ -135,7 +135,7 @@ export class MilestoneRulesDeprecated {
     timeAllocation: number,
     projectBudget: number
   ) {
-    return PhaseRulesImpl.validateMilestoneTime(timeAllocation, projectBudget);
+    return PhaseRules.validateMilestoneTime(timeAllocation, projectBudget);
   }
 
   /**
@@ -144,63 +144,63 @@ export class MilestoneRulesDeprecated {
   static validateMilestone(
     milestone: PhaseDTO,
     project: Project,
-    existingPhases: PhaseDTO[] = []
+    existingMilestones: PhaseDTO[] = []
   ) {
-    return PhaseRulesImpl.validateMilestone(milestone, project, existingPhases);
+    return PhaseRules.validateMilestone(milestone, project, existingMilestones);
   }
 
   /**
    * @deprecated Use PhaseRules.calculateBudgetUtilization instead
    */
   static calculateBudgetUtilization(
-    phases: PhaseDTO[],
+    milestones: PhaseDTO[],
     projectBudget: number
   ): number {
-    return PhaseRulesImpl.calculateBudgetUtilization(phases, projectBudget);
+    return PhaseRules.calculateBudgetUtilization(milestones, projectBudget);
   }
 
   /**
    * @deprecated Use PhaseRules.calculateRemainingBudget instead
    */
   static calculateRemainingBudget(
-    phases: PhaseDTO[],
+    milestones: PhaseDTO[],
     projectBudget: number
   ): number {
-    return PhaseRulesImpl.calculateRemainingBudget(phases, projectBudget);
+    return PhaseRules.calculateRemainingBudget(milestones, projectBudget);
   }
 
   /**
    * @deprecated Use PhaseRules.calculateBudgetOverage instead
    */
   static calculateBudgetOverage(
-    phases: PhaseDTO[],
+    milestones: PhaseDTO[],
     projectBudget: number
   ): number {
-    return PhaseRulesImpl.calculateBudgetOverage(phases, projectBudget);
+    return PhaseRules.calculateBudgetOverage(milestones, projectBudget);
   }
 
   /**
    * @deprecated Use PhaseRules.calculateAverageMilestoneAllocation instead
    */
-  static calculateAverageMilestoneAllocation(phases: PhaseDTO[]): number {
-    return PhaseRulesImpl.calculateAverageMilestoneAllocation(phases);
+  static calculateAverageMilestoneAllocation(milestones: PhaseDTO[]): number {
+    return PhaseRules.calculateAverageMilestoneAllocation(milestones);
   }
 
   /**
    * @deprecated Use PhaseRules.generateRecommendations instead
    */
   static generateRecommendations(
-    phases: PhaseDTO[],
+    milestones: PhaseDTO[],
     projectBudget: number
   ): string[] {
-    return PhaseRulesImpl.generateRecommendations(phases, projectBudget);
+    return PhaseRules.generateRecommendations(milestones, projectBudget);
   }
 
   /**
    * @deprecated Use PhaseRules.sortMilestonesByDate instead
    */
-  static sortMilestonesByDate(phases: PhaseDTO[]): PhaseDTO[] {
-    return PhaseRulesImpl.sortMilestonesByDate(phases);
+  static sortMilestonesByDate(milestones: PhaseDTO[]): PhaseDTO[] {
+    return PhaseRules.sortMilestonesByDate(milestones);
   }
 
   /**
@@ -213,7 +213,7 @@ export class MilestoneRulesDeprecated {
     otherMilestoneDates: Date[],
     originalDate?: Date
   ) {
-    return PhaseRulesImpl.validateMilestonePosition(
+    return PhaseRules.validateMilestonePosition(
       milestoneDate,
       projectStartDate,
       projectEndDate,
@@ -225,8 +225,8 @@ export class MilestoneRulesDeprecated {
   /**
    * @deprecated Use PhaseRules.isRecurringPhase instead
    */
-  static isRecurringPhase(milestone: PhaseDTO): boolean {
-    return PhaseRulesImpl.isRecurringPhase(milestone);
+  static isRecurringMilestone(milestone: PhaseDTO): boolean {
+    return PhaseRules.isRecurringPhase(milestone);
   }
 
   /**
@@ -236,7 +236,7 @@ export class MilestoneRulesDeprecated {
     phase: PhaseDTO,
     today: Date = new Date()
   ) {
-    return PhaseRulesImpl.validatePhaseEndDateNotInPast(phase, today);
+    return PhaseRules.validatePhaseEndDateNotInPast(phase, today);
   }
 
   /**
@@ -246,7 +246,7 @@ export class MilestoneRulesDeprecated {
     phase: PhaseDTO,
     today: Date = new Date()
   ): Date {
-    return PhaseRulesImpl.calculateMinimumPhaseEndDate(phase, today);
+    return PhaseRules.calculateMinimumPhaseEndDate(phase, today);
   }
 
   /**
@@ -255,7 +255,7 @@ export class MilestoneRulesDeprecated {
   static validatePhaseSpacing(
     phases: PhaseDTO[]
   ) {
-    return PhaseRulesImpl.validatePhaseSpacing(phases);
+    return PhaseRules.validatePhaseSpacing(phases);
   }
 
   /**
@@ -266,6 +266,6 @@ export class MilestoneRulesDeprecated {
     adjustedPhaseId: string,
     newEndDate: Date
   ): PhaseDTO[] {
-    return PhaseRulesImpl.cascadePhaseAdjustments(phases, adjustedPhaseId, newEndDate);
+    return PhaseRules.cascadePhaseAdjustments(phases, adjustedPhaseId, newEndDate);
   }
 }
