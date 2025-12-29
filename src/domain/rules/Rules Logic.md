@@ -1,8 +1,8 @@
-# Business Logic
+# Rules Logic
 ## Detailed Rules, Calculations, and Edge Cases
 
 **Document Version**: 2.0.0  
-**Last Updated**: December 27, 2025  
+**Last Updated**: December 29, 2025  
 **Status**: Foundation Document - Updated for Client-Group-Label System, Phase Terminology  
 
 ---
@@ -11,7 +11,7 @@
 
 This document contains **detailed business rules, calculations, state transitions, and edge cases** for the Time Forecasting Application. 
 
-**For entity definitions and what things ARE, see [App Logic.md](./App%20Logic.md).**
+**For entity definitions and what things ARE, see [Domain Logic.md](../Domain%20Logic.md) in this directory.**
 
 This document focuses on:
 - How entities **behave** and **interact**
@@ -36,7 +36,7 @@ This document focuses on:
 
 ## Entity Relationships (Detailed)
 
-> **Note:** For entity definitions (what each entity IS), see [App Logic.md](./App%20Logic.md#-part-1-core-entities-things-that-exist).
+> **Note:** For entity definitions (what each entity IS), see [Domain Logic.md](../Domain%20Logic.md#-part-1-core-entities-things-that-exist).
 
 ```
 User
@@ -53,7 +53,7 @@ User
   └─ Holidays (capacity overrides - no work on these days)
 ```
 
-> **Entity Definitions:** For what each entity IS (properties, examples), see [App Logic.md](./App%20Logic.md#-part-1-core-entities-things-that-exist).
+> **Entity Definitions:** For what each entity IS (properties, examples), see [Domain Logic.md](../Domain%20Logic.md#-part-1-core-entities-things-that-exist).
 > 
 > This document focuses on HOW entities behave and interact.
 
@@ -334,8 +334,8 @@ ELSE
 ### Rule 9: Daily Time Allocation - Data Coexistence and Display
 
 > **See Also:** 
-> - App Logic Part 3 - Time Concepts (Capacity, Estimated, Auto-Estimated, Planned, Completed)
-> - View Specifications.md - Timeline View (how this data is displayed in different views)
+> - Domain Logic Part 3 - Time Concepts (Capacity, Estimated, Auto-Estimated, Planned, Completed)
+> - Display Logic (`/src/domain/Display Logic.md`) - Timeline View (how this data is displayed in different views)
 
 **Statement**: For any given day and project, multiple types of time data coexist in the domain. How they are displayed depends on the view's capabilities.
 
@@ -355,7 +355,7 @@ These are **different aspects of project time**, not mutually exclusive data:
 
 Different views may display this data differently based on their UI capabilities:
 
-**Timeline View** (see View Specifications.md):
+**Timeline View** (see `/src/domain/Display Logic.md`):
 ```
 FOR each day D and project P:
   IF ∃ calendar_event WHERE date = D AND projectId = P THEN
@@ -572,7 +572,7 @@ Continuous projects have **no end date**, therefore:
 **Domain Rules Layer:**
 - `TimelineRules.ts` - Event filtering (Rule 9.4), data classification
 
-**View Layer:** (See View Specifications.md)
+**View Layer:** (See `/src/domain/Display Logic.md`)
 - Timeline View - Display mutual exclusivity, visual styling
 - Calendar View - Integration with calendar events
 

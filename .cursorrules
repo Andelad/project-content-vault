@@ -8,34 +8,19 @@
 
 ## 📚 DOCUMENTATION GUIDE
 
-| Document | When to Read | Contains |
-|----------|--------------|----------|
-| **`docs/core/App Logic.md`** | Understanding WHAT (domain concepts) | Entity definitions, time concepts, workflows (UI-agnostic) |
-| **`docs/core/Business Logic.md`** | Understanding HOW (domain rules) | Calculations, validation formulas, edge cases (UI-agnostic) |
-| **`docs/core/View Specifications.md`** | Understanding UI constraints | Display rules, view-specific behavior, visual styling |
-| **`docs/core/Architecture Guide.md`** | Understanding WHERE code goes | Hybrid DDD approach, code structure, patterns |
+**Core Documents:**
+- **`.architecture.md`** (root) - WHERE code goes, structural patterns
+- **`Domain Logic.md`** (`/src/domain/`) - WHAT entities are (concepts)
+- **`Rules Logic.md`** (`/src/domain/`) - HOW calculations work (formulas)
+- **`Display Logic.md`** (`/src/domain/`) - Display constraints & view rules
+- **`README.md`** (`/src/components/`) - Component organization
 
-**Quick Reference:**
-- "What is a Phase?" → App Logic.md
-- "How do auto-estimates calculate?" → Business Logic.md
-- "Why can't Timeline show overlapping bars?" → View Specifications.md
-- "Where should I put this code?" → Architecture Guide.md
-- "Can orchestrators mix concerns?" → Architecture Guide.md (yes, by design)
-
-**Document Ownership:**
-
-| Concept | Owner |
-|---------|-------|
-| Domain entities & rules | App Logic.md (concepts) + Business Logic.md (formulas) |
-| UI display constraints | View Specifications.md |
-| Code patterns | Architecture Guide.md |
-| Feature implementation | Code itself (`src/components/features/`) |
-
-**Building Features:**
-1. Read App Logic.md + Business Logic.md for domain truth
-2. Read View Specifications.md for UI-specific constraints
-3. Check Architecture Guide.md for code organization
-4. Explore `src/components/features/` for patterns
+**Quick Navigation:**
+- Domain concepts → `/src/domain/Domain Logic.md`
+- Calculations/formulas → `/src/domain/Rules Logic.md`
+- Display constraints → `/src/domain/Display Logic.md`
+- Code structure → `/.architecture.md`
+- Component files → `/src/components/README.md`
 
 ---
 
@@ -55,7 +40,7 @@
 - ✅ Import from `@/services` only
 - ✅ Types from `/types/core.ts`
 - ✅ Domain rules from `/domain/rules/` for validation & business logic
-- ✅ Domain entities from `/domain/entities/` (Phase 2 - gradual adoption)
+- ✅ Domain entities from `/domain/entities/` when available
 - ✅ `dateCalculations.ts` for all date operations
 - ✅ `ErrorHandlingService` for all errors
 - ✅ Find existing unified services first
@@ -71,12 +56,12 @@ ls src/services/unified/ | grep -i "domain"
 
 ## 2. CODE ORGANIZATION
 
-**Architecture: Hybrid DDD** (see Architecture Guide.md for details)
+**Architecture: Hybrid DDD** (see `.architecture.md` for details)
 
 | Code Type | Location | Purity | Example |
 |-----------|----------|--------|---------|
 | **Domain Rules** | `/domain/rules/*Rules` | 100% pure (no UI/DB) | Validation, business logic |
-| **Domain Entities** | `/domain/entities/*` | 100% pure (no UI/DB) | Rich objects (Phase 2 adoption) |
+| **Domain Entities** | `/domain/entities/*` | 100% pure (no UI/DB) | Rich objects with business methods |
 | **Orchestrators** | `/services/orchestrators/*Orchestrator` | Mixed (by design) | Workflows: validation + DB + UI prep |
 | **Unified Services** | `/services/unified/Unified*Service` | Pure calculations | Business calculations |
 | **UI Components** | `/components` | UI only | Call services, no logic |
@@ -96,23 +81,7 @@ ls src/services/unified/ | grep -i "domain"
 
 ---
 
-## 3. DEVELOPMENT WORKFLOW (VS Code ↔ Lovable ↔ Supabase)
-
-| Tool | Purpose |
-|------|---------|
-| **VS Code** | TypeScript, React, business logic |
-| **Lovable** | Database migrations, Supabase schema |
-| **GitHub** | Sync point between both |
-
-### For Database Changes
-1. ❌ **DO NOT** run SQL migrations directly
-2. ✅ Create `INSTRUCTIONS_FOR_LOVABLE_[FEATURE].md` in project root
-3. ✅ Include SQL, purpose, and verification steps
-4. ✅ Push to GitHub for Lovable to execute
-
----
-
-## 4. PATTERNS
+## 3. PATTERNS
 
 ### Orchestrators (workflows)
 ```typescript
@@ -187,23 +156,13 @@ interface Project { id: string; }
 
 When modifying business rules:
 
-1. **Update `docs/core/App Logic.md`** (entity definitions, domain concepts - UI-agnostic)
-2. **Update `docs/core/Business Logic.md`** (detailed rules, calculations - UI-agnostic)
-3. **Update `docs/core/View Specifications.md`** (if UI-specific display rules changed)
+1. **Update `/src/domain/Domain Logic.md`** (entity definitions, concepts)
+2. **Update `/src/domain/Rules Logic.md`** (detailed rules, calculations)
+3. **Update `/src/domain/Display Logic.md`** (if display rules changed)
 4. **Update `src/domain/rules/*.ts`** (with `@see` references)
 5. **Update orchestrators** (workflows using the rule)
 6. **Update tests**
 7. **Commit with `logic:` prefix**
-
-### Document Ownership
-
-| Change Type | App Logic | Business Logic | View Specs |
-|-------------|-----------|----------------|------------|
-| New entity/property | ✅ Yes | ✅ Yes (TS interface) | ❌ No |
-| Domain validation rule | ✅ Yes (summary) | ✅ Yes (detailed) | ❌ No |
-| Calculation formula | ❌ No | ✅ Yes | ❌ No |
-| UI display constraint | ❌ No | ❌ No | ✅ Yes |
-| New workflow | ✅ Yes | ❌ No | ❌ No |
 
 ### What Requires Doc Updates
 ✅ Validation rules, calculations, entities, relationships, UI display constraints
@@ -217,7 +176,7 @@ When modifying business rules:
 
 | Folder | Purpose | Action |
 |--------|---------|--------|
-| `/docs/core/` | Framework (3 files) | UPDATE existing only |
+| `/src/domain/` | Domain docs (3 files) | UPDATE existing only |
 | `/docs/features/[name]/` | Feature docs | Permanent |
 | `/docs/operations/` | Testing, deployment | Permanent |
 | `/docs/sessions/` | **TEMPORARY** | AI working docs |
@@ -225,7 +184,7 @@ When modifying business rules:
 ### AI Rules
 1. ❌ Don't create docs in `/docs/` root or `/docs/features/`
 2. ✅ Create temporary docs in `/docs/sessions/`
-3. ✅ Update existing core docs when logic changes
+3. ✅ Update existing domain docs when logic changes
 4. ✅ Remind user to delete `/docs/sessions/` files when done
 
 ---
@@ -263,30 +222,6 @@ export function useProjectDrag(config) {
 
 ---
 
-## 8. TYPOGRAPHY
-
-All text colors use CSS variables in `index.css`. **Never hardcode colors.**
-
-| CSS Variable | Usage | Tailwind Class |
-|--------------|-------|----------------|
-| `--foreground` | Primary text | `text-foreground` |
-| `--foreground-secondary` | Secondary text | `text-muted-foreground` |
-| `--foreground-tertiary` | Tertiary text | `text-gray-500` |
-
-```typescript
-// ✅ Use semantic classes
-<div className="text-foreground">Primary</div>
-<div className="text-muted-foreground">Secondary</div>
-
-// ❌ Never hardcode
-<div className="text-[#595956]">Text</div>
-```
-
-### To Change App-Wide Text Color
-Update `--foreground` in `src/index.css` - all derived variables update automatically.
-
----
-
 ## 9. CHECKLIST
 
 Before committing:
@@ -298,6 +233,6 @@ Before committing:
 - [ ] Domain rules in `domain/rules/`, not orchestrators?
 - [ ] Orchestrators coordinate only (no business logic)?
 - [ ] Business logic in services, not components?
-- [ ] If domain logic changed: updated App Logic.md + Business Logic.md?
-- [ ] If UI constraint changed: updated View Specifications.md?
+- [ ] If domain logic changed: updated Domain Logic.md + Rules Logic.md?
+- [ ] If UI constraint changed: updated Display Logic.md?
 - [ ] Commit message has correct prefix?

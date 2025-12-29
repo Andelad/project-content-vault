@@ -3,7 +3,7 @@
 **Last Updated:** December 29, 2025  
 **Purpose:** Document UI-specific display rules and presentation constraints for each view
 
-> **Note:** This document covers **view-specific display rules**. For universal domain calculations, see [Business Logic.md](./Business%20Logic.md). For domain concepts, see [App Logic.md](./App%20Logic.md).
+> **Note:** This document covers **view-specific display rules**. For universal domain calculations, see [Rules Logic.md](/src/domain/rules/Rules%20Logic.md). For domain concepts, see [Domain Logic.md](/src/domain/Domain%20Logic.md).
 
 ---
 
@@ -16,10 +16,10 @@
 - Presentation decisions unique to each view
 
 **What This Document Does NOT Contain:**
-- Universal domain calculations (see Business Logic.md)
-- Domain entity definitions (see App Logic.md)
+- Universal domain calculations (see `/src/domain/rules/Rules Logic.md`)
+- Domain entity definitions (see `/src/domain/Domain Logic.md`)
 - Implementation details (colors, pixels, CSS)
-- Component structure (see code documentation)
+- Component structure (see `README.md` in this directory)
 
 ---
 
@@ -385,7 +385,7 @@ Users can toggle visibility of different event types:
 
 ## Relationship to Domain Logic
 
-**Domain Truth** (from Business Logic.md):
+**Domain Truth** (from `/src/domain/rules/Rules Logic.md`):
 - Auto-estimated, planned, and completed time **all coexist**
 - Calculations run **regardless of view**
 - Data is always available to all views

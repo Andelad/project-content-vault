@@ -15,10 +15,14 @@
 We maintain **strict separation in documentation** while allowing **pragmatic mixing in code**:
 
 ```
-📚 Documentation (3 Layers - Strictly Separated):
-├── App Logic.md        → Domain concepts (100% UI-agnostic)
-├── Business Logic.md   → Domain rules & calculations (UI-agnostic)
-└── View Specifications.md → UI-specific display rules
+📚 Documentation (Co-located with Code):
+├── /.architecture.md           → Overall architecture philosophy
+├── /src/domain/
+│   ├── Domain Logic.md         → Domain concepts (100% UI-agnostic)
+│   ├── Rules Logic.md          → Domain rules & calculations (UI-agnostic)
+│   └── Display Logic.md        → Display-specific business rules
+└── /src/components/
+    └── README.md               → Component organization
 
 💻 Code (Pragmatically Mixed):
 ├── domain/rules/       → Pure domain logic ✅
@@ -27,6 +31,11 @@ We maintain **strict separation in documentation** while allowing **pragmatic mi
 ├── services/unified/   → Business calculations ✅
 └── components/         → UI display ✅
 ```
+
+**Key Principle:** Documentation lives near the code it describes.
+- All domain documentation together in `/src/domain/`
+- Component organization in `/src/components/`
+- Architecture at project root (alongside `.cursorrules`)
 
 ### Where We Stay Pure
 
@@ -88,15 +97,15 @@ async createProject(data: CreateProjectInput) {
 
 ### 1. Three-Layer Documentation Model
 
-**App Logic** defines WHAT exists (domain truth):
+**Domain Logic** (`/src/domain/Domain Logic.md`) defines WHAT exists (domain truth):
 - "Projects have three time types: auto-estimated, planned, completed"
 - "All time types coexist in the domain simultaneously"
 
-**Business Logic** defines HOW calculations work (domain rules):
+**Rules Logic** (`/src/domain/Rules Logic.md`) defines HOW calculations work (domain rules):
 - "Auto-estimate = (Remaining Hours) ÷ (Days without events)"
 - "Events exclude days from auto-estimate distribution"
 
-**View Specifications** defines WHERE UI constraints apply:
+**Display Logic** (`/src/domain/Display Logic.md`) defines WHERE display constraints apply:
 - "Timeline View shows only ONE time type per day (mutual exclusivity)"
 - "Calendar View can show multiple time types (no overlap constraint)"
 
@@ -104,12 +113,12 @@ async createProject(data: CreateProjectInput) {
 
 **Example: Rule 9 (Daily Time Allocation)**
 
-**Domain Truth** (Business Logic):
+**Domain Truth** (Rules Logic):
 - Auto-estimated, planned, and completed time all exist
 - Calculations run regardless of display
 - All time types are always available
 
-**UI Constraint** (View Specifications):
+**Display Constraint** (Display Logic):
 - Timeline bars can't overlap visually
 - Display only ONE type per day in Timeline View
 - Same data shown differently in Calendar View
@@ -241,7 +250,7 @@ entity.isActiveOnDate(today); // Use entity methods
 ### 4. Update Documentation (1 week)
 
 **Effort:**
-- Update Architecture Guide with new layers
+- Update `.architecture.md` with new layers
 - Document repository patterns
 - Update AI decision matrix
 - Add migration notes

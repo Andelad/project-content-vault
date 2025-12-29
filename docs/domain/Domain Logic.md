@@ -1,7 +1,7 @@
-# App Logic - Time Forecasting Application
+# Domain Logic - Time Forecasting Application
 
 **Version:** 1.2  
-**Date:** December 27, 2025  
+**Date:** December 29, 2025  
 **Status:** IN PROGRESS - Foundation Document  
 **Author:** [Your Name]
 
@@ -1272,6 +1272,6 @@ Consolidated validation rules across all entities.
 
 ## 📚 RELATED DOCUMENTS
 
-- **Business Logic.md** - Detailed business rules, edge cases, state transitions, calculations
-- **Architecture Guide.md** - Technical implementation, code structure, data flow
-- **User Guide.md** - End-user documentation
+- **Rules Logic** (`rules/Rules Logic.md`) - Detailed business rules, edge cases, state transitions, calculations
+- **Architecture Guide** (`../Architecture Guide.md`) - Technical implementation, code structure, data flow
+- **User Guide** (`../user/User Guide.md`) - End-user documentation
