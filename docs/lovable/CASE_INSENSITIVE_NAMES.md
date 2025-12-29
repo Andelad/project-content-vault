@@ -1,10 +1,29 @@
 # Case-Insensitive Name Uniqueness (Clients, Groups, Labels)
 
 **Priority**: High (Groups critical - no constraint at all!)  
-**Effort**: Medium (1-2 hours)  
+**Effort**: Medium (2-3 hours)  
 **Status**: 🔴 Not Implemented  
 **Created**: December 29, 2025  
 **Verified**: December 29, 2025 - Requirements confirmed in App Logic & Business Logic
+
+---
+
+## ⚠️ IMPORTANT: Read This First
+
+**This migration requires pre-flight data cleanup!**
+
+### Pre-Migration Steps (CRITICAL):
+1. **Check for duplicates FIRST** (queries below)
+2. **Clean up any duplicates BEFORE running migration**
+3. **Backup database** (just in case)
+4. **Run migration**
+5. **Regenerate TypeScript types** (auto-generated file)
+6. **Update code references** (minimal - mostly validation logic)
+
+### Why This Matters:
+- **Groups has NO uniqueness constraint** - users may have exact duplicates
+- **Migration will FAIL** if duplicates exist (you'll get a database error)
+- **Must clean up manually first**
 
 ---
 
@@ -64,7 +83,104 @@ Users can create multiple labels with the same name but different casing:
 
 ## 🔧 Implementation Steps
 
-### Step 1: Create Database Migration
+### CRITICAL: Three-Phase Approach Required
+
+**Phase 1: Pre-Flight Check (DO THIS FIRST!)**
+- Run duplicate detection queries below
+- Clean up any duplicates found (especially Groups!)
+- Verify cleanup was successful
+
+**Phase 2: Database Migration**
+- Run the SQL migration
+- This creates case-insensitive unique indexes
+- ⚠️ **Will fail if duplicates still exist**
+
+**Phase 3: Code Updates**
+- Regenerate TypeScript types (auto-generated file)
+- Add validation logic to domain rules
+- Update orchestrators for better error messages
+
+---
+
+### Phase 1: Pre-Flight Duplicate Detection & Cleanup
+
+**Run these queries BEFORE the migration to find duplicates:**
+
+```sql
+-- ============================================================
+-- STEP 1: Check for existing duplicates (CRITICAL!)
+-- Run this in Supabase SQL Editor BEFORE migration
+-- ============================================================
+
+-- Check Clients for case-insensitive duplicates
+SELECT 
+  user_id, 
+  LOWER(name) as normalized_name,
+  array_agg(name ORDER BY name) as variations,
+  array_agg(id ORDER BY created_at) as client_ids,
+  COUNT(*) as count
+FROM clients
+GROUP BY user_id, LOWER(name)
+HAVING COUNT(*) > 1
+ORDER BY user_id, normalized_name;
+
+-- Check Groups for ANY duplicates (including exact matches!)
+-- ⚠️ THIS IS MOST CRITICAL - Groups has NO constraint at all
+SELECT 
+  user_id, 
+  LOWER(name) as normalized_name,
+  array_agg(name ORDER BY name) as variations,
+  array_agg(id ORDER BY created_at) as group_ids,
+  COUNT(*) as count
+FROM groups
+GROUP BY user_id, LOWER(name)
+HAVING COUNT(*) > 1
+ORDER BY user_id, normalized_name;
+
+-- Check Labels for case-insensitive duplicates
+SELECT 
+  user_id, 
+  LOWER(name) as normalized_name,
+  array_agg(name ORDER BY name) as variations,
+  array_agg(id ORDER BY created_at) as label_ids,
+  COUNT(*) as count
+FROM labels
+GROUP BY user_id, LOWER(name)
+HAVING COUNT(*) > 1
+ORDER BY user_id, normalized_name;
+```
+
+**If duplicates found, clean them up:**
+
+```sql
+-- Example cleanup for Groups (adapt for Clients/Labels):
+-- Strategy: Keep the oldest one (first in created_at), delete others
+
+-- 1. First, identify which to keep (usually the oldest)
+-- 2. Update all references to point to the one you're keeping
+-- 3. Delete the duplicates
+
+-- Example: If you found duplicate groups with IDs in the array
+-- Keep the FIRST id in the array (oldest), delete the rest
+
+-- Update projects to use the primary group (first/oldest one)
+UPDATE projects 
+SET group_id = 'KEEP_THIS_GROUP_ID'  -- First ID from the array
+WHERE group_id IN ('DELETE_THIS_ID_1', 'DELETE_THIS_ID_2'); -- Other IDs
+
+-- Delete the duplicate groups
+DELETE FROM groups 
+WHERE id IN ('DELETE_THIS_ID_1', 'DELETE_THIS_ID_2');
+
+-- Verify cleanup worked - re-run the detection query
+-- Should return 0 rows now
+```
+
+---
+
+### Phase 2: Database Migration
+
+**Only run this AFTER Phase 1 cleanup is complete!**
 
 Create a new Supabase migration file:
 
@@ -159,11 +275,36 @@ END $$;
 
 ---
 
-### Step 2: Update Domain Rules (Frontend Validation)
+### Phase 3: Code Updates
+
+**Do these steps AFTER the migration is successful.**
+
+---
+
+#### Step 3.1: Regenerate TypeScript Types
+
+**DO NOT manually edit `src/integrations/supabase/types.ts`** - it's auto-generated!
+
+**Method 1 - VS Code (Recommended):**
+1. Open Command Palette (Cmd/Ctrl + Shift + P)
+2. Type "Supabase: Generate Types"
+3. Select your project
+4. File will auto-update
+
+**Method 2 - Terminal:**
+```bash
+npx supabase gen types typescript --project-id YOUR_PROJECT_ID > src/integrations/supabase/types.ts
+```
+
+**Note:** No type changes expected (indexes don't affect types), but regenerating ensures sync.
+
+---
+
+#### Step 3.2: Update Domain Rules (Frontend Validation)
 
 Update validation to match the backend behavior and provide helpful error messages.
 
-#### File: `src/domain/rules/ClientRules.ts`
+##### File: `src/domain/rules/ClientRules.ts`
 
 Add after existing RULE 1:
 
@@ -250,7 +391,7 @@ Update the `validateClient` method:
   }
 ```
 
-#### File: `src/domain/rules/GroupRules.ts`
+##### File: `src/domain/rules/GroupRules.ts`
 
 Create or update with similar pattern:
 
@@ -289,7 +430,7 @@ Create or update with similar pattern:
   }
 ```
 
-#### File: `src/domain/rules/LabelRules.ts`
+##### File: `src/domain/rules/LabelRules.ts`
 
 Create or update with similar pattern:
 
@@ -330,11 +471,11 @@ Create or update with similar pattern:
 
 ---
 
-### Step 3: Update Orchestrators
+#### Step 3.3: Update Orchestrators
 
 Update the create and update workflows to pass existing entities for validation.
 
-#### File: `src/services/orchestrators/ClientOrchestrator.ts`
+##### File: `src/services/orchestrators/ClientOrchestrator.ts`
 
 ```typescript
 static async createClientWorkflow(

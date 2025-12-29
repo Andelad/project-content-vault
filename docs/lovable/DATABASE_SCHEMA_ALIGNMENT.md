@@ -1,9 +1,35 @@
 # Database Schema Alignment with App Logic
 
 **Priority**: High  
-**Effort**: Medium (1-2 hours)  
+**Effort**: Large (4-6 hours - major refactor)  
 **Status**: 🔴 Not Implemented  
-**Created**: December 27, 2025
+**Created**: December 27, 2025  
+**Updated**: December 29, 2025
+
+---
+
+## ⚠️ IMPORTANT: Read This First
+
+**This is a MAJOR codebase refactor, not just a database migration.**
+
+### Scope of Changes:
+- 🔴 **~50+ TypeScript files** need manual updates
+- 🔴 **Breaking changes** - code will fail after migration until updated
+- 🔴 **Multi-step process** - database first, then code updates
+- 🟡 **Types auto-regenerate** - don't edit `src/integrations/supabase/types.ts` directly
+
+### Recommended Approach:
+1. **Do database migration first** (Part 1 below)
+2. **Regenerate TypeScript types** immediately after
+3. **Fix code references** using find-and-replace (Part 2 below)
+4. **Test thoroughly** before deploying
+
+### Alternative: Split Into Smaller PRs
+Consider doing these changes separately:
+- **PR 1**: Drop `work_hours` table only (safe, no code impact)
+- **PR 2**: Rename `work_hour_exceptions` → `work_slot_exceptions` (medium impact)
+- **PR 3**: Rename `auto_estimate_days` → `working_day_overrides` (medium impact)
+- **PR 4**: Rename `milestones` → `phases` (largest impact, ~50 files)
 
 ---
 
@@ -113,7 +139,21 @@ CREATE TABLE public.milestones (
 
 ## 🔧 Implementation Steps
 
-### Step 1: Create Database Migration
+### CRITICAL: Two-Phase Approach Required
+
+**Phase 1: Database Migration (Do This First)**
+- Run the SQL migration below
+- This will rename tables/columns in the database
+- ⚠️ **Code will break temporarily** until Phase 2 is complete
+
+**Phase 2: Code Updates (Do Immediately After)**
+- Regenerate TypeScript types from Supabase
+- Update all code references using find-and-replace
+- Test and verify everything works
+
+---
+
+### Phase 1: Database Migration
 
 Create a new Supabase migration file:
 
