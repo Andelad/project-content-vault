@@ -84,7 +84,7 @@ export function usePhases(projectId?: string) {
       }
     };
   }, [projectId, fetchAllMilestones, fetchMilestones]);
-  const addMilestone = async (milestoneData: MilestoneInput, options: { silent?: boolean } = {}) => {
+  const addPhase = async (milestoneData: MilestoneInput, options: { silent?: boolean } = {}) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
@@ -138,7 +138,7 @@ export function usePhases(projectId?: string) {
       throw error;
     }
   };
-  const updateMilestone = async (id: string, updates: MilestoneUpdate, options: { silent?: boolean } = {}) => {
+  const updatePhase = async (id: string, updates: MilestoneUpdate, options: { silent?: boolean } = {}) => {
     try {
       const { data, error } = await supabase
         .from('phases')
@@ -181,7 +181,7 @@ export function usePhases(projectId?: string) {
       description: message,
     });
   };
-  const deleteMilestone = async (id: string, options: { silent?: boolean } = {}) => {
+  const deletePhase = async (id: string, options: { silent?: boolean } = {}) => {
     try {
       // First, fetch the milestone to check if it's a recurring template
       const phase = milestones.find(p => m.id === id);
@@ -239,9 +239,9 @@ export function usePhases(projectId?: string) {
   return {
     phases,
     loading,
-    addMilestone,
-    updateMilestone,
-    deleteMilestone,
+    addPhase,
+    updatePhase,
+    deletePhase,
     showSuccessToast,
     refetch: projectId ? () => fetchMilestones(projectId) : fetchAllMilestones
   };

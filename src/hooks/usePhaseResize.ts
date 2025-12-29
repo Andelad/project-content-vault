@@ -41,7 +41,7 @@ interface UsePhaseResizeProps {
   viewportStart: Date;
   viewportEnd: Date;
   timelineMode: 'days' | 'weeks';
-  updateMilestone: UpdateMilestoneFn;
+  updatePhase: UpdateMilestoneFn;
   checkAutoScroll: (clientX: number) => void;
   stopAutoScroll: () => void;
   setIsDragging: (dragging: boolean) => void;
@@ -121,7 +121,7 @@ export function usePhaseResize({
   viewportStart,
   viewportEnd,
   timelineMode,
-  updateMilestone,
+  updatePhase,
   checkAutoScroll,
   stopAutoScroll,
   setIsDragging,
@@ -253,7 +253,7 @@ export function usePhaseResize({
         }
         
         // Update database
-        updateMilestone(phaseId, updates, { silent: true })
+        updatePhase(phaseId, updates, { silent: true })
           .then(() => {
             setIsDragging(false);
             setDragState(null);
@@ -290,7 +290,7 @@ export function usePhaseResize({
   }, [
     phases,
     timelineMode,
-    updateMilestone,
+    updatePhase,
     checkAutoScroll,
     stopAutoScroll,
     setIsDragging,

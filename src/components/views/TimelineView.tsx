@@ -83,7 +83,7 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
     updateProject, 
     setSelectedProjectId, 
     addProject, 
-    updateMilestone,
+    updatePhase,
     setCreatingNewProject,
     creatingNewProject,
     showMilestoneSuccessToast,
@@ -543,7 +543,7 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
     viewportStart,
     viewportEnd,
     timelineMode,
-    updateMilestone,
+    updatePhase,
     checkAutoScroll,
     stopAutoScroll,
     setIsDragging,
@@ -589,8 +589,8 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
   
   // Handle milestone drag updates
   const handleMilestoneDrag = useCallback((milestoneId: string, newDate: Date) => {
-    updateMilestone(milestoneId, { dueDate: newDate }, { silent: true });
-  }, [updateMilestone]);
+    updatePhase(milestoneId, { dueDate: newDate }, { silent: true });
+  }, [updatePhase]);
   // Handle milestone drag end
   const handleMilestoneDragEnd = useCallback(() => {
     showMilestoneSuccessToast("Phase updated successfully");

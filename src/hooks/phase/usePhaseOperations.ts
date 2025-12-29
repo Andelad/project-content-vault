@@ -57,17 +57,17 @@ export function usePhaseOperations(config: UseMilestoneOperationsConfig) {
 
   const {
     milestones: contextMilestones,
-    addMilestone: contextAddMilestone,
-    updateMilestone: contextUpdateMilestone,
-    deleteMilestone: contextDeleteMilestone,
-    refetchMilestones
+    addPhase: contextAddMilestone,
+    updatePhase: contextUpdateMilestone,
+    deletePhase: contextDeleteMilestone,
+    refetchPhases
   } = useProjectContext();
 
   const { toast } = useToast();
   const [localPhases, setLocalPhases] = useState<LocalPhase[]>([]);
 
   // Use tracked version if provided (for rollback support), otherwise use context version
-  const addMilestoneToContext = trackedAddMilestone || contextAddMilestone;
+  const addPhaseToContext = trackedAddMilestone || contextAddMilestone;
 
   // Get all milestones for this project
   const projectPhases = useMemo(() => {
@@ -91,7 +91,7 @@ export function usePhaseOperations(config: UseMilestoneOperationsConfig) {
   }, [contextMilestones, isCreatingProject, localPhases, localPhasesState, projectEndDate, projectId, projectStartDate]);
 
   // Create a new milestone
-  const createMilestone = useCallback(async (
+  const createPhase = useCallback(async (
     milestone: LocalPhase,
     options?: { silent?: boolean }
   ): Promise<Phase> => {
@@ -105,8 +105,8 @@ export function usePhaseOperations(config: UseMilestoneOperationsConfig) {
       return milestoneWithId;
     } else if (projectId) {
       try {
-        const created = await addMilestoneToContext(milestone as MilestoneCreateInput, options);
-        await refetchMilestones();
+        const created = await addPhaseToContext(milestone as MilestoneCreateInput, options);
+        await refetchPhases();
         if (!created) {
           throw new Error('Milestone creation returned undefined');
         }
@@ -114,7 +114,7 @@ export function usePhaseOperations(config: UseMilestoneOperationsConfig) {
       } catch (error) {
         ErrorHandlingService.handle(error, {
           source: 'usePhaseOperations',
-          action: 'createMilestone'
+          action: 'createPhase'
         });
         toast({
           title: "Error",
@@ -132,10 +132,10 @@ export function usePhaseOperations(config: UseMilestoneOperationsConfig) {
       setLocalPhases(prev => [...prev, milestoneWithId]);
       return milestoneWithId;
     }
-  }, [isCreatingProject, localPhasesState, projectId, addMilestoneToContext, refetchMilestones, toast]);
+  }, [isCreatingProject, localPhasesState, projectId, addPhaseToContext, refetchPhases, toast]);
 
   // Update an existing milestone
-  const updateMilestone = useCallback(async (milestoneId: string, updates: Partial<Phase>) => {
+  const updatePhase = useCallback(async (milestoneId: string, updates: Partial<Phase>) => {
     if (isCreatingProject && localPhasesState) {
       const updated = localPhasesState.phases.map(p =>
         m.id === milestoneId ? { ...p, ...updates } : m
@@ -149,7 +149,7 @@ export function usePhaseOperations(config: UseMilestoneOperationsConfig) {
       } catch (error) {
         ErrorHandlingService.handle(error, {
           source: 'usePhaseOperations',
-          action: 'updateMilestone',
+          action: 'updatePhase',
           metadata: { milestoneId }
         });
         toast({
@@ -168,7 +168,7 @@ export function usePhaseOperations(config: UseMilestoneOperationsConfig) {
   }, [isCreatingProject, localPhasesState, projectId, contextUpdateMilestone, toast]);
 
   // Delete a milestone
-  const deleteMilestone = useCallback(async (milestoneId: string) => {
+  const deletePhase = useCallback(async (milestoneId: string) => {
     if (isCreatingProject && localPhasesState) {
       const filtered = localPhasesState.phases.filter(p => m.id !== milestoneId);
       localPhasesState.setMilestones(filtered);
@@ -180,7 +180,7 @@ export function usePhaseOperations(config: UseMilestoneOperationsConfig) {
       } catch (error) {
         ErrorHandlingService.handle(error, {
           source: 'usePhaseOperations',
-          action: 'deleteMilestone',
+          action: 'deletePhase',
           metadata: { milestoneId }
         });
         toast({
@@ -197,13 +197,13 @@ export function usePhaseOperations(config: UseMilestoneOperationsConfig) {
   }, [isCreatingProject, localPhasesState, projectId, contextDeleteMilestone, toast]);
 
   // Update milestone property (delegates to orchestrator)
-  const updateMilestoneProperty = useCallback(async <K extends keyof Milestone>(
+  const updatePhaseProperty = useCallback(async <K extends keyof Milestone>(
     milestoneId: string,
     property: K,
     value: Phase[K]
   ) => {
     const validMilestones = projectPhases.filter(p => m.id) as Milestone[];
-    const result = await ProjectPhaseOrchestrator.updateMilestoneProperty(
+    const result = await ProjectPhaseOrchestrator.updatePhaseProperty(
       milestoneId,
       property,
       value,
@@ -213,9 +213,9 @@ export function usePhaseOperations(config: UseMilestoneOperationsConfig) {
         localPhases,
         isCreatingProject,
         localPhasesState,
-        addMilestone: createMilestone,
-        updateMilestone: async (id: string, updates: Partial<Phase>) => {
-          await updateMilestone(id, updates);
+        addPhase: createPhase,
+        updatePhase: async (id: string, updates: Partial<Phase>) => {
+          await updatePhase(id, updates);
         },
         setLocalPhases
       }
@@ -231,16 +231,16 @@ export function usePhaseOperations(config: UseMilestoneOperationsConfig) {
     }
 
     return true;
-  }, [projectPhases, projectEstimatedHours, localPhases, isCreatingProject, localPhasesState, createMilestone, updateMilestone, toast]);
+  }, [projectPhases, projectEstimatedHours, localPhases, isCreatingProject, localPhasesState, createPhase, updatePhase, toast]);
 
   return {
     projectPhases,
     localPhases,
     setLocalPhases,
-    createMilestone,
-    updateMilestone,
-    deleteMilestone,
-    updateMilestoneProperty,
-    refetchMilestones
+    createPhase,
+    updatePhase,
+    deletePhase,
+    updatePhaseProperty,
+    refetchPhases
   };
 }

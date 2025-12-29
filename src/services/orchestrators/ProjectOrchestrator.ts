@@ -466,7 +466,7 @@ export class ProjectOrchestrator {
    * - Error handling and coordination
    * 
    * @param request - Complete project creation request including optional milestones
-   * @param projectContext - Context providing addProject and addMilestone functions
+   * @param projectContext - Context providing addProject and addPhase functions
    * @returns Promise resolving to creation result with project or errors
    * 
    * @example
@@ -485,7 +485,7 @@ export class ProjectOrchestrator {
    *       { name: 'Development', dueDate: new Date('2025-02-28'), timeAllocationHours: 120 }
    *     ]
    *   },
-   *   { addProject, addMilestone }
+   *   { addProject, addPhase }
    * );
    * if (result.success) {
    *   console.log('Project created:', result.project);
@@ -496,7 +496,7 @@ export class ProjectOrchestrator {
     request: ProjectCreationWithMilestonesRequest,
     projectContext: {
       addProject: (data: Partial<Project>) => Promise<Project>;
-      addMilestone: (data: Partial<Phase>, options?: { silent?: boolean }) => Promise<void>;
+      addPhase: (data: Partial<Phase>, options?: { silent?: boolean }) => Promise<void>;
     }
   ): Promise<ProjectCreationResult> {
     try {
@@ -654,7 +654,7 @@ export class ProjectOrchestrator {
         await this.createProjectMilestones(
           createdProject.id,
           request.phases,
-          projectContext.addMilestone
+          projectContext.addPhase
         );
       }
       return {
@@ -677,7 +677,7 @@ export class ProjectOrchestrator {
   private static async createProjectMilestones(
     projectId: string,
     milestones: ProjectMilestone[],
-    addMilestone: (
+    addPhase: (
       data: ProjectMilestoneCreateInput | Partial<Phase>,
       options?: { silent?: boolean }
     ) => Promise<Milestone | void | undefined>
@@ -685,7 +685,7 @@ export class ProjectOrchestrator {
     for (const phase of milestones) {
       if (milestone.name.trim()) {
         try {
-          await addMilestone({
+          await addPhase({
             name: milestone.name,
             dueDate: milestone.dueDate,
             timeAllocation: milestone.timeAllocation,

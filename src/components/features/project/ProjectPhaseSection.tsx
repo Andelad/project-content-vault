@@ -122,11 +122,11 @@ export function ProjectPhaseSection({
     projectPhases,
     localPhases,
     setLocalPhases,
-    createMilestone,
-    updateMilestone,
+    createPhase,
+    updatePhase,
     deletePhase,
-    updateMilestoneProperty,
-    refetchMilestones
+    updatePhaseProperty,
+    refetchPhases
   } = usePhaseOperations({
     projectId,
     projectEstimatedHours,
@@ -151,7 +151,7 @@ export function ProjectPhaseSection({
     projectContinuous,
     projectEstimatedHours,
     isDeletingRecurringPhase,
-    refetchMilestones,
+    refetchPhases,
     isCreatingProject,
     localPhasesState
   });
@@ -204,7 +204,7 @@ export function ProjectPhaseSection({
       // Apply all repairs in parallel
       await Promise.all(
         repairs.map(repair => 
-          updateMilestone(repair.phaseId, repair.updates)
+          updatePhase(repair.phaseId, repair.updates)
         )
       );
 
@@ -295,8 +295,8 @@ export function ProjectPhaseSection({
     } else if (projectId) {
       // Create both phases in parallel for faster response (silent - no toast in modal)
       await Promise.all([
-        createMilestone(phase1, { silent: true }),
-        createMilestone(phase2, { silent: true })
+        createPhase(phase1, { silent: true }),
+        createPhase(phase2, { silent: true })
       ]);
       setIsSplitMode(true);
       setShowSplitWarning(false);
@@ -342,7 +342,7 @@ export function ProjectPhaseSection({
 
       // Update last phase to end where new phase starts
       if (lastPhase && lastPhase.id) {
-        await updateMilestone(lastPhase.id, {
+        await updatePhase(lastPhase.id, {
           endDate: lastPhaseNewEnd,
           dueDate: lastPhaseNewEnd
         });
@@ -361,7 +361,7 @@ export function ProjectPhaseSection({
         }
       } else if (projectId) {
         // Silent - no toast when adding phase in modal
-        await createMilestone(newPhase, { silent: true });
+        await createPhase(newPhase, { silent: true });
       } else {
         setLocalPhases([...localPhases, newPhase]);
       }
@@ -420,7 +420,7 @@ export function ProjectPhaseSection({
       await Promise.all(deletePromises);
       
       // Force refetch to ensure state is in sync
-      await refetchMilestones();
+      await refetchPhases();
       
       setLocalPhases([]);
     }
@@ -456,8 +456,8 @@ export function ProjectPhaseSection({
       {
         projectPhases: persistedProjectMilestones,
         recurringMilestone,
-        updateMilestone: async (id: string, updates: Partial<Phase>) => {
-          await updateMilestone(id, updates);
+        updatePhase: async (id: string, updates: Partial<Phase>) => {
+          await updatePhase(id, updates);
         },
         setRecurringPhase
       }
@@ -631,7 +631,7 @@ export function ProjectPhaseSection({
                       const deletePromises = allMilestones.map(p => deletePhase(p.id!));
                       
                       await Promise.all(deletePromises);
-                      await refetchMilestones();
+                      await refetchPhases();
                       
                       setLocalPhases([]);
                       setRecurringPhase(null);
@@ -720,7 +720,7 @@ export function ProjectPhaseSection({
             isLast={index === phases.length - 1}
             editingProperty={editingProperty}
             onEditPropertyChange={setEditingProperty}
-            onUpdateProperty={updateMilestoneProperty}
+            onUpdateProperty={updatePhaseProperty}
             onDelete={deletePhase}
           />
         ))}
@@ -874,7 +874,7 @@ export function ProjectPhaseSection({
             await Promise.all(deletePromises);
             
             // Force refetch to ensure state is in sync
-            await refetchMilestones();
+            await refetchPhases();
             
             setLocalPhases([]);
           }
@@ -914,7 +914,7 @@ export function ProjectPhaseSection({
             await Promise.all(deletePromises);
             
             // Force refetch to ensure state is in sync
-            await refetchMilestones();
+            await refetchPhases();
             
             setLocalPhases([]);
           }

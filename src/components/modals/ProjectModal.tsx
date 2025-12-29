@@ -45,8 +45,8 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
   // Debug: Identify which modal instance this is
   const modalType = projectId ? 'EDIT' : 'CREATE';
   dlog(`🔍 ${modalType} Modal render:`, { isOpen, projectId, groupId, rowId });
-  const { projects, groups, rows, updateProject, addProject, deleteProject, creatingNewProject, phases, addMilestone, deleteMilestone } = useProjectContext();
-  type AddMilestoneInput = Parameters<typeof addMilestone>[0];
+  const { projects, groups, rows, updateProject, addProject, deleteProject, creatingNewProject, phases, addPhase, deletePhase } = useProjectContext();
+  type AddMilestoneInput = Parameters<typeof addPhase>[0];
   const { setCurrentView } = useTimelineContext();
   const { events, holidays } = usePlannerContext();
   const { settings } = useSettingsContext();
@@ -133,9 +133,9 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
       shouldRollbackRef.current = true; // Reset to rollback by default
     }
   }, [isOpen, isCreating]);
-  // Wrapper for addMilestone that tracks new milestone IDs for rollback
+  // Wrapper for addPhase that tracks new milestone IDs for rollback
   const trackedAddMilestone = useCallback(async (milestone: AddMilestoneInput, options?: { silent?: boolean }) => {
-    const result = await addMilestone(milestone, options);
+    const result = await addPhase(milestone, options);
     // Track the new milestone ID if we're editing (not creating)
     if (!isCreating && result?.id) {
       setMilestonesAddedDuringSession(prev => {
@@ -144,7 +144,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
       });
     }
     return result;
-  }, [addMilestone, isCreating]);
+  }, [addPhase, isCreating]);
   const [localValues, setLocalValues] = useState({
     name: '',
     client: '',
@@ -281,7 +281,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
     if (!isCreating && shouldRollbackRef.current && milestonesAddedDuringSession.length > 0) {
       for (const milestoneId of milestonesAddedDuringSession) {
         try {
-          await deleteMilestone(milestoneId, { silent: true });
+          await deletePhase(milestoneId, { silent: true });
         } catch (error) {
           console.error('[ProjectModal] Failed to rollback milestone:', milestoneId, error);
         }
@@ -291,7 +291,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
     // Reset rollback flag for next open
     shouldRollbackRef.current = true;
     onClose();
-  }, [onClose, isCreating, milestonesAddedDuringSession, deleteMilestone]);
+  }, [onClose, isCreating, milestonesAddedDuringSession, deletePhase]);
   // Handle creating the new project
   const handleCreateProject = useCallback(async () => {
     // Prevent double submission
@@ -332,8 +332,8 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
           },
           {
             addProject,
-            addMilestone: async (data: Partial<Phase>, options?: { silent?: boolean }) => {
-              await addMilestone(data as AddMilestoneInput, options);
+            addPhase: async (data: Partial<Phase>, options?: { silent?: boolean }) => {
+              await addPhase(data as AddMilestoneInput, options);
             }
           }
         );
@@ -376,7 +376,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
         setIsSubmitting(false);
       }
     }
-  }, [resolvedGroupId, groupId, resolvedRowId, rowId, isCreating, localValues.name, localValues.client, localValues.startDate, localValues.endDate, localValues.estimatedHours, localValues.color, localValues.notes, localValues.icon, localValues.continuous, localValues.autoEstimateDays, localProjectPhases, addProject, addMilestone, toast, handleClose, isSubmitting]);
+  }, [resolvedGroupId, groupId, resolvedRowId, rowId, isCreating, localValues.name, localValues.client, localValues.startDate, localValues.endDate, localValues.estimatedHours, localValues.color, localValues.notes, localValues.icon, localValues.continuous, localValues.autoEstimateDays, localProjectPhases, addProject, addPhase, toast, handleClose, isSubmitting]);
   // Handle deleting the project
   const handleDeleteProject = () => {
     if (projectId && projectId !== '') {

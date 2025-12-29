@@ -106,9 +106,9 @@ interface ProjectContextType {
 
   // Milestones
   phases: Phase[];
-  addMilestone: (milestone: MilestoneCreateInput, options?: { silent?: boolean }) => Promise<Milestone | undefined>;
-  updateMilestone: (id: string, updates: MilestoneUpdateInput, options?: { silent?: boolean }) => Promise<void>;
-  deleteMilestone: (id: string, options?: { silent?: boolean }) => Promise<void>;
+  addPhase: (milestone: MilestoneCreateInput, options?: { silent?: boolean }) => Promise<Milestone | undefined>;
+  updatePhase: (id: string, updates: MilestoneUpdateInput, options?: { silent?: boolean }) => Promise<void>;
+  deletePhase: (id: string, options?: { silent?: boolean }) => Promise<void>;
   getMilestonesForProject: (projectId: string) => Milestone[];
   showMilestoneSuccessToast: (message?: string) => void;
   refetchMilestones: () => Promise<void>;
@@ -181,9 +181,9 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const {
     milestones: dbMilestones,
     loading: milestonesLoading,
-    addMilestone: dbAddMilestone,
-    updateMilestone: dbUpdateMilestone,
-    deleteMilestone: dbDeleteMilestone,
+    addPhase: dbAddMilestone,
+    updatePhase: dbUpdateMilestone,
+    deletePhase: dbDeleteMilestone,
     showSuccessToast: showMilestoneSuccessToast,
     refetch: refetchMilestones,
   } = usePhases();
@@ -345,7 +345,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     return processedMilestones.filter(phase => milestone.projectId === projectId);
   }, [processedMilestones]);
 
-  const addMilestone = useCallback(async (milestone: MilestoneCreateInput, options?: { silent?: boolean }) => {
+  const addPhase = useCallback(async (milestone: MilestoneCreateInput, options?: { silent?: boolean }) => {
     const dueDateSource = milestone.dueDate ?? milestone.endDate;
     if (!dueDateSource) {
       throw new Error('Milestone due date is required.');
@@ -396,7 +396,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     return undefined;
   }, [dbAddMilestone, refetchMilestones]);
 
-  const updateMilestone = useCallback(async (id: string, updates: MilestoneUpdateInput, options?: { silent?: boolean }) => {
+  const updatePhase = useCallback(async (id: string, updates: MilestoneUpdateInput, options?: { silent?: boolean }) => {
     const dbUpdates: SupabaseMilestoneUpdate = {};
 
   if (updates.name !== undefined) dbUpdates.name = updates.name;
@@ -435,7 +435,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     await dbUpdateMilestone(id, dbUpdates, options);
   }, [dbUpdateMilestone]);
 
-  const deleteMilestone = useCallback(async (id: string, options?: { silent?: boolean }) => {
+  const deletePhase = useCallback(async (id: string, options?: { silent?: boolean }) => {
     await dbDeleteMilestone(id, options);
   }, [dbDeleteMilestone]);
 
@@ -459,9 +459,9 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     deleteRow,
     reorderRows: dbReorderRows,
     milestones: processedMilestones,
-    addMilestone,
-    updateMilestone,
-    deleteMilestone,
+    addPhase,
+    updatePhase,
+    deletePhase,
     getMilestonesForProject,
     showMilestoneSuccessToast,
     refetchMilestones,
