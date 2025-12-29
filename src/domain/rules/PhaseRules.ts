@@ -36,10 +36,10 @@ import type { Phase, Project } from '@/types/core';
 import { normalizeToMidnight, addDaysToDate } from '@/services/calculations/general/dateCalculations';
 
 /**
- * A Phase is a Milestone with a defined start date
+ * A Phase is a Phase with a defined start date
  * This creates a time period rather than just a deadline
  */
-export type Phase = Milestone & { startDate: Date };
+export type Phase = Phase & { startDate: Date };
 
 // ============================================================================
 // TYPE DEFINITIONS (from PhaseRules)
@@ -272,7 +272,7 @@ export class PhaseRules {
    * - Single milestones: Due date must be within project dates
    * - Recurring milestones: Generated occurrences must be within project dates
    * 
-   * @param milestoneEndDate - Milestone end/due date
+   * @param milestoneEndDate - Phase end/due date
    * @param projectStartDate - Project start date
    * @param projectEndDate - Project end date
    * @param continuous - Whether project is continuous (no end date constraint)
@@ -305,8 +305,8 @@ export class PhaseRules {
   /**
    * Validate milestone start and end date relationship
    * 
-   * @param startDate - Milestone start date (optional)
-   * @param endDate - Milestone end date
+   * @param startDate - Phase start date (optional)
+   * @param endDate - Phase end date
    * @returns Validation result
    */
   static validateMilestoneDateRange(
@@ -470,7 +470,7 @@ export class PhaseRules {
    * - RULE 1: Positive time allocation
    * - Budget utilization warnings
    * 
-   * @param timeAllocation - Milestone time allocation
+   * @param timeAllocation - Phase time allocation
    * @param projectBudget - Project budget
    * @returns Detailed validation result
    */
@@ -509,7 +509,7 @@ export class PhaseRules {
    * - RULE 2B: Recurring pattern validation (if applicable)
    * - RULE 3: Doesn't exceed project budget (with other milestones)
    * 
-   * @param milestone - Milestone to validate
+   * @param milestone - Phase to validate
    * @param project - Parent project
    * @param existingPhases - Other project milestones
    * @returns Comprehensive validation result
@@ -797,7 +797,7 @@ export class PhaseRules {
    * Check if a milestone is part of a recurring pattern (old numbered system)
    * Used to prevent editing of auto-generated recurring instances
    * 
-   * @param milestone - Milestone to check
+   * @param milestone - Phase to check
    * @returns true if milestone is a recurring instance
    */
   static isRecurringPhase(milestone: Milestone): boolean {

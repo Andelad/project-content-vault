@@ -158,7 +158,7 @@ export function ProjectPhaseSection({
 
   const getExclusivityValidation = () => PhaseRules.checkPhaseRecurringExclusivity(projectPhases as Phase[]);
   const persistedProjectMilestones = projectPhases.filter(
-    (milestone): milestone is Milestone => Boolean(milestone.id)
+    (milestone): milestone is Phase => Boolean(milestone.id)
   );
 
   const { totalRecurringAllocation, budgetAnalysis } = usePhaseBudget({

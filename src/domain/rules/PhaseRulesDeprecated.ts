@@ -1,5 +1,5 @@
 /**
- * Milestone Business Rules - DEPRECATED
+ * Phase Business Rules - DEPRECATED
  * 
  * ⚠️ DEPRECATION NOTICE (December 2025):
  * This file is deprecated. All milestone/phase business logic has been consolidated into PhaseRules.
