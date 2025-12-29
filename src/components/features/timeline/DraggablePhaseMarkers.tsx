@@ -41,7 +41,7 @@ interface DraggablePhaseMarkersProps {
  */
 export function DraggablePhaseMarkers({
   project,
-  milestones,
+  phases,
   viewportStart,
   viewportEnd,
   dates,
@@ -52,7 +52,7 @@ export function DraggablePhaseMarkers({
   onPhaseResizeMouseDown
 }: DraggablePhaseMarkersProps) {
   // Get phases for this project (milestones with startDate and endDate)
-  const phases = getPhasesSortedByEndDate(milestones);
+  const phases = getPhasesSortedByEndDate(phases);
 
   if (phases.length === 0) {
     return null;

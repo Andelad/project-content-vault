@@ -116,7 +116,7 @@ function calculatePhaseBounds(
  */
 export function usePhaseResize({
   projects,
-  milestones,
+  phases,
   dates,
   viewportStart,
   viewportEnd,
@@ -288,7 +288,7 @@ export function usePhaseResize({
     document.addEventListener('mouseup', handleMouseUp);
     
   }, [
-    milestones,
+    phases,
     timelineMode,
     updateMilestone,
     checkAutoScroll,

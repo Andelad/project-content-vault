@@ -149,7 +149,7 @@ export class ProjectRules {
    */
   static analyzeBudget(project: Project, phases: Phase[]): ProjectBudgetAnalysis {
     const totalEstimatedHours = project.estimatedHours;
-    const totalAllocatedHours = this.calculateTotalMilestoneAllocation(milestones);
+    const totalAllocatedHours = this.calculateTotalMilestoneAllocation(phases);
     const remainingHours = totalEstimatedHours - totalAllocatedHours;
     const utilizationPercent = totalEstimatedHours > 0 ? 
       (totalAllocatedHours / totalEstimatedHours) * 100 : 0;
@@ -216,7 +216,7 @@ export class ProjectRules {
       errors.push('Project estimated hours must be greater than or equal to 0');
     }
 
-    const totalAllocated = this.calculateTotalMilestoneAllocation(milestones);
+    const totalAllocated = this.calculateTotalMilestoneAllocation(phases);
     if (totalAllocated > estimatedHours) {
       errors.push(`Total milestone allocation (${totalAllocated}h) exceeds project budget (${estimatedHours}h)`);
     }

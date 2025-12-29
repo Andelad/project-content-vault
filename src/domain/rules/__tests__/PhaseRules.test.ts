@@ -99,7 +99,7 @@ describe('Phase Helpers', () => {
 
     it('returns empty array when no phases', () => {
       const phases = [milestone];
-      const result = getPhases(milestones);
+      const result = getPhases(phases);
       
       expect(result).toHaveLength(0);
     });
@@ -140,7 +140,7 @@ describe('Phase Helpers', () => {
 
     it('returns all items when none are phases', () => {
       const phases = [milestone];
-      const result = getMilestones(milestones);
+      const result = getMilestones(phases);
       
       expect(result).toHaveLength(1);
     });

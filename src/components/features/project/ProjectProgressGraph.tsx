@@ -17,7 +17,7 @@ export function ProjectProgressGraph({ project, events, milestones = [] }: Proje
     return analyzeProjectProgress({
       project,
       events,
-      milestones,
+      phases,
       includeEventDatePoints: true,
       maxDataPoints: 20
     });

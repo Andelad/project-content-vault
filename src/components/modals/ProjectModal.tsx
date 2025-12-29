@@ -45,7 +45,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
   // Debug: Identify which modal instance this is
   const modalType = projectId ? 'EDIT' : 'CREATE';
   dlog(`🔍 ${modalType} Modal render:`, { isOpen, projectId, groupId, rowId });
-  const { projects, groups, rows, updateProject, addProject, deleteProject, creatingNewProject, milestones, addMilestone, deleteMilestone } = useProjectContext();
+  const { projects, groups, rows, updateProject, addProject, deleteProject, creatingNewProject, phases, addMilestone, deleteMilestone } = useProjectContext();
   type AddMilestoneInput = Parameters<typeof addMilestone>[0];
   const { setCurrentView } = useTimelineContext();
   const { events, holidays } = usePlannerContext();

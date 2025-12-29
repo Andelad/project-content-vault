@@ -16,7 +16,7 @@ type CamelMilestoneInsert = {
   timeAllocationHours?: number;
   startDate?: string | Date;
   isRecurring?: boolean;
-  recurringConfig?: Milestone['recurring_config'];
+  recurringConfig?: Phase['recurring_config'];
 };
 
 type MilestoneInput = Omit<MilestoneInsert, 'user_id'> & CamelMilestoneInsert;
@@ -237,7 +237,7 @@ export function usePhases(projectId?: string) {
     }
   };
   return {
-    milestones,
+    phases,
     loading,
     addMilestone,
     updateMilestone,

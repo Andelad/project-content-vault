@@ -19,7 +19,7 @@ type MilestoneCreateInput = {
   startDate?: Date | string;
   endDate?: Date | string;
   isRecurring?: boolean;
-  recurringConfig?: Milestone['recurringConfig'];
+  recurringConfig?: Phase['recurringConfig'];
   order?: number;
 };
 
@@ -200,7 +200,7 @@ export function usePhaseOperations(config: UseMilestoneOperationsConfig) {
   const updateMilestoneProperty = useCallback(async <K extends keyof Milestone>(
     milestoneId: string,
     property: K,
-    value: Milestone[K]
+    value: Phase[K]
   ) => {
     const validMilestones = projectPhases.filter(p => m.id) as Milestone[];
     const result = await ProjectPhaseOrchestrator.updateMilestoneProperty(

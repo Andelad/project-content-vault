@@ -114,7 +114,7 @@ export class RelationshipRules {
     const warnings: string[] = [];
 
     const budgetCheck = PhaseRules.checkBudgetConstraint(
-      milestones,
+      phases,
       project.estimatedHours
     );
 
@@ -165,7 +165,7 @@ export class RelationshipRules {
     });
 
     // Validate budget constraint
-    const budgetValidation = this.validateProjectMilestoneBudget(milestones, project);
+    const budgetValidation = this.validateProjectMilestoneBudget(phases, project);
     errors.push(...budgetValidation.errors);
     warnings.push(...budgetValidation.warnings);
 

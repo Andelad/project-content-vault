@@ -460,7 +460,7 @@ export function calculateProjectDayEstimates(
     totalMilestoneEstimates += redistributedEstimates.length;
     allEstimates.push(...redistributedEstimates);
   });
-  // PRIORITY 3 - If no milestones, use project's auto-estimate logic
+  // PRIORITY 3 - If no phases, use project's auto-estimate logic
   // Domain Rule: Auto-estimates only on days WITHOUT events
   // Note: Skip auto-estimates for continuous projects or when no budget is defined
   if (milestones.length === 0 && Number.isFinite(project.estimatedHours) && project.estimatedHours > 0 && !project.continuous) {

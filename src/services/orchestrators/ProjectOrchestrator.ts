@@ -90,7 +90,7 @@ type ProjectMilestoneCreateInput = {
   startDate?: Date | string;
   endDate?: Date | string;
   isRecurring?: boolean;
-  recurringConfig?: Milestone['recurringConfig'];
+  recurringConfig?: Phase['recurringConfig'];
   order?: number;
 };
 
@@ -317,7 +317,7 @@ export class ProjectOrchestrator {
     phases: Phase[]
   ): ProjectMilestoneAnalysis {
     // Use domain rules for budget analysis
-    const budgetCheck = PhaseRules.checkBudgetConstraint(milestones, project.estimatedHours);
+    const budgetCheck = PhaseRules.checkBudgetConstraint(phases, project.estimatedHours);
     const projectBudget: ProjectBudgetAnalysis = {
       totalAllocation: budgetCheck.totalAllocated,
       suggestedBudget: Math.max(project.estimatedHours, budgetCheck.totalAllocated),
@@ -333,7 +333,7 @@ export class ProjectOrchestrator {
       m.timeAllocation > project.estimatedHours
     );
     // Check for date conflicts
-    const hasDateConflicts = this.checkMilestoneDateConflicts(milestones);
+    const hasDateConflicts = this.checkMilestoneDateConflicts(phases);
     // Generate suggestions
     const suggestions: string[] = [];
     if (projectBudget.isOverBudget) {
@@ -372,7 +372,7 @@ export class ProjectOrchestrator {
     reason: string;
   } {
     // Use domain rules to calculate total allocation
-    const budgetCheck = PhaseRules.checkBudgetConstraint(milestones, project.estimatedHours);
+    const budgetCheck = PhaseRules.checkBudgetConstraint(phases, project.estimatedHours);
     const totalAllocated = budgetCheck.totalAllocated;
     // Delegate to calculation function
     return calculateBudgetAdjustment(project.estimatedHours, totalAllocated, targetUtilization);

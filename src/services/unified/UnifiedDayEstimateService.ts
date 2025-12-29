@@ -28,7 +28,7 @@ export class UnifiedDayEstimateService {
   ): DayEstimate[] {
     return DayEstimateCalcs.calculateProjectDayEstimates(
       project,
-      milestones,
+      phases,
       settings,
       holidays,
       events
@@ -50,7 +50,7 @@ export class UnifiedDayEstimateService {
       const phases = phasesMap.get(project.id) || [];
       const estimates = this.calculateProjectDayEstimates(
         project,
-        milestones,
+        phases,
         settings,
         holidays
       );

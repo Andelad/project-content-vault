@@ -31,7 +31,7 @@ interface PhaseMarkersProps {
  */
 export function PhaseMarkers({
   project,
-  milestones,
+  phases,
   viewportStart,
   viewportEnd,
   dates,
@@ -41,7 +41,7 @@ export function PhaseMarkers({
   calculateBaselineVisualOffsets
 }: PhaseMarkersProps) {
   // Get phases for this project (milestones with startDate and endDate)
-  const phases = getPhasesSortedByEndDate(milestones);
+  const phases = getPhasesSortedByEndDate(phases);
 
   if (phases.length === 0) {
     return null;

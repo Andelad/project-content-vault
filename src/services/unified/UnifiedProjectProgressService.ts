@@ -139,7 +139,7 @@ export class UnifiedProjectProgressService {
   ): number {
     const startDate = new Date(project.startDate);
     const endDate = new Date(project.endDate);
-    const relevantPhases = getRelevantMilestones(milestones, project.id);
+    const relevantPhases = getRelevantMilestones(phases, project.id);
     
     if (relevantPhases.length === 0) {
       // No phases, use linear interpolation
@@ -175,7 +175,7 @@ export class UnifiedProjectProgressService {
       prevHours += timeAllocation;
     }
     
-    // Target date is after all milestones, interpolate to end date
+    // Target date is after all phases, interpolate to end date
     const segmentDays = Math.ceil((endDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
     const targetDays = Math.ceil((targetDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
     
@@ -207,7 +207,7 @@ export class UnifiedProjectProgressService {
     if (totalDays <= 0) return [];
     
     const projectEvents = getProjectEvents(events, project.id);
-    const relevantPhases = getRelevantMilestones(milestones, project.id);
+    const relevantPhases = getRelevantMilestones(phases, project.id);
     const data: DataPoint[] = [];
     
     // Add starting point
@@ -348,7 +348,7 @@ export class UnifiedProjectProgressService {
     const isOnTrack = this.isOnTrack(project, projectEvents, milestones);
 
     // Analyze milestone progress
-    const relevantPhases = getRelevantMilestones(milestones, project.id);
+    const relevantPhases = getRelevantMilestones(phases, project.id);
     const today = new Date();
     
     const milestoneProgress = relevantPhases.map(phase => {
@@ -399,7 +399,7 @@ export class UnifiedProjectProgressService {
       completed: event.completed || false
     }));
 
-  const relevantPhases = getRelevantMilestones(milestones, project.id);
+  const relevantPhases = getRelevantMilestones(phases, project.id);
   const progressMethod = relevantPhases.length > 0 ? 'milestone' : 'linear';
   
   // Generate progress data points
@@ -557,7 +557,7 @@ export function calculateProjectProgressData(
   phases: Phase[] = [],
   options: ProgressCalculationOptions = {}
 ): DataPoint[] {
-  return UnifiedProjectProgressService.calculateProgressData(project, events, milestones, options);
+  return UnifiedProjectProgressService.calculateProgressData(project, events, phases, options);
 }
 
 /**
@@ -569,7 +569,7 @@ export function isProjectOnTrack(
   phases: Phase[] = [],
   currentDate: Date = new Date()
 ): boolean {
-  return UnifiedProjectProgressService.isOnTrack(project, events, milestones, currentDate);
+  return UnifiedProjectProgressService.isOnTrack(project, events, phases, currentDate);
 }
 
 /**
@@ -589,7 +589,7 @@ export function analyzeProjectProgress(
   holidays: Holiday[],
   settings: Settings
 ): ProjectProgressAnalysis {
-  return UnifiedProjectProgressService.analyzeProgress(project, events, milestones, holidays, settings);
+  return UnifiedProjectProgressService.analyzeProgress(project, events, phases, holidays, settings);
 }
 
 /**

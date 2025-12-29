@@ -68,7 +68,7 @@ type MilestoneCreateInput = {
   startDate?: Date | string;
   endDate?: Date | string;
   isRecurring?: boolean;
-  recurringConfig?: Milestone['recurringConfig'];
+  recurringConfig?: Phase['recurringConfig'];
   order?: number;
 };
 

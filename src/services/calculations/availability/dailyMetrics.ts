@@ -107,7 +107,7 @@ export function calculateDailyProjectHours(
       });
       
       if (estimateForDate) {
-        // Count ALL project time: events, milestones, and auto-estimates
+        // Count ALL project time: events, phases, and auto-estimates
         totalHours += estimateForDate.hours;
       }
     }

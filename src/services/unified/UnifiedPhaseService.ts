@@ -2,7 +2,7 @@
  * Unified Milestone Service
  * 
  * Consolidates all milestone-related business calculations that are shared
- * across multiple features (projects, milestones, timeline, calendar).
+ * across multiple features (projects, phases, timeline, calendar).
  * 
  * ✅ Single source of truth for milestone calculations
  * ✅ Eliminates duplication across legacy services
@@ -89,7 +89,7 @@ export class UnifiedPhaseService {
     }
     
     if (milestones.length > 0) {
-      const avgAllocation = calculateAverageMilestoneAllocation(milestones);
+      const avgAllocation = calculateAverageMilestoneAllocation(phases);
       if (avgAllocation < 1) {
         recommendations.push('Very small milestone allocations detected. Consider consolidating.');
       } else if (avgAllocation > projectBudget * 0.5) {
@@ -219,9 +219,9 @@ export class UnifiedPhaseService {
    * Used by: Dashboard, insights, project analysis
    */
   static calculateMilestoneMetrics(phases: Phase[], projectBudget: number) {
-    const totalAllocated = calculateTotalAllocation(milestones);
-    const distribution = calculateAllocationDistribution(milestones);
-    const budgetAnalysis = this.validateBudgetAllocation(milestones, projectBudget);
+    const totalAllocated = calculateTotalAllocation(phases);
+    const distribution = calculateAllocationDistribution(phases);
+    const budgetAnalysis = this.validateBudgetAllocation(phases, projectBudget);
     
     return {
       totalAllocated,
@@ -246,7 +246,7 @@ export class UnifiedPhaseService {
     options: WorkingDayOptions = {}
   ): number {
     const distribution = this.calculateTimeDistribution(
-      milestones, 
+      phases, 
       projectStartDate, 
       projectEndDate, 
       options
@@ -349,7 +349,7 @@ export class UnifiedPhaseService {
     let defaultDate = new Date(projectStartDate);
     defaultDate = addDaysToDate(defaultDate, 1);
     
-    // If there are existing milestones, place this one after the last one
+    // If there are existing phases, place this one after the last one
     if (existingPhases.length > 0) {
       const sortedPhases = [...existingPhases]
         .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());

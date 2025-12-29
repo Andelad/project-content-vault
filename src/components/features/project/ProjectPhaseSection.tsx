@@ -399,7 +399,7 @@ export function ProjectPhaseSection({
       return;
     }
     
-    // If has other milestones, warn before deletion
+    // If has other phases, warn before deletion
     if (projectPhases.length > 0) {
       setShowSplitWarning(true);
     } else {

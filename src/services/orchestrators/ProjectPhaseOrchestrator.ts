@@ -90,7 +90,7 @@ type MilestoneCreatePayload = {
   startDate?: Date | string;
   endDate?: Date | string;
   isRecurring?: boolean;
-  recurringConfig?: Milestone['recurringConfig'];
+  recurringConfig?: Phase['recurringConfig'];
   order?: number;
 };
 
@@ -450,7 +450,7 @@ export class ProjectPhaseOrchestrator {
   >(
     milestoneId: string,
     property: K,
-    value: Milestone[K],
+    value: Phase[K],
     context: {
       projectPhases: Phase[];
       projectEstimatedHours: number;
@@ -519,7 +519,7 @@ export class ProjectPhaseOrchestrator {
           // Remove from local state since it's now saved
           context.setLocalPhases((prev) => prev.filter((m) => m.id !== milestoneId));
         } else if (context.updateMilestone) {
-          // For existing milestones, update in database silently
+          // For existing phases, update in database silently
           await context.updateMilestone(milestoneId, { [property]: value }, { silent: true });
         }
       }

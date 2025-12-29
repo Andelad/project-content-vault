@@ -380,7 +380,7 @@ export class UnifiedProjectEntity {
    * @deprecated Use ProjectRules.calculateTotalMilestoneAllocation() instead
    */
   static calculateTotalMilestoneAllocation(phases: Phase[]): number {
-    return ProjectRules.calculateTotalMilestoneAllocation(milestones);
+    return ProjectRules.calculateTotalMilestoneAllocation(phases);
   }
 
   /**
@@ -400,7 +400,7 @@ export class UnifiedProjectEntity {
     phases: Phase[], 
     additionalHours: number
   ): boolean {
-    return ProjectRules.canAccommodateAdditionalHours(project, milestones, additionalHours);
+    return ProjectRules.canAccommodateAdditionalHours(project, phases, additionalHours);
   }
 
   /**
@@ -479,7 +479,7 @@ export class UnifiedProjectEntity {
     
     const dailyCapacity = this.calculateDailyWorkCapacity(project, settings);
     const weeklyCapacity = this.calculateWeeklyWorkCapacity(project, settings);
-    const endDate = this.calculateProjectEndDate(project, milestones, settings);
+    const endDate = this.calculateProjectEndDate(project, phases, settings);
     
     return {
       duration: totalDuration,

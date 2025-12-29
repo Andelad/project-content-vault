@@ -217,11 +217,11 @@ export function sortPhasesByStartDate(phases: Phase[]): Phase[] {
  *   .sort((a, b) => new Date(a.endDate!).getTime() - new Date(b.endDate!).getTime());
  * 
  * // Use:
- * const phases = getPhasesSortedByEndDate(milestones);
+ * const phases = getPhasesSortedByEndDate(phases);
  * ```
  */
 export function getPhasesSortedByEndDate(phases: Phase[]): Phase[] {
-  return sortPhasesByEndDate(getPhases(milestones));
+  return sortPhasesByEndDate(getPhases(phases));
 }
 
 /**
@@ -459,7 +459,7 @@ export class PhaseRules {
     projectBudget: number,
     additionalHours: number
   ): boolean {
-    const check = this.checkBudgetConstraint(milestones, projectBudget);
+    const check = this.checkBudgetConstraint(phases, projectBudget);
     return check.remaining >= additionalHours;
   }
 
@@ -541,7 +541,7 @@ export class PhaseRules {
       );
       errors.push(...recurringValidation.errors);
     } else {
-      // For single milestones, validate dates
+      // For single phases, validate dates
       const dateValidation = this.validateMilestoneDateWithinProject(
         milestone.endDate || milestone.dueDate,
         project.startDate,
@@ -609,7 +609,7 @@ export class PhaseRules {
     projectBudget: number
   ): number {
     if (projectBudget === 0) return 0;
-    const totalAllocated = this.calculateTotalAllocation(milestones);
+    const totalAllocated = this.calculateTotalAllocation(phases);
     return (totalAllocated / projectBudget) * 100;
   }
 
@@ -627,7 +627,7 @@ export class PhaseRules {
     phases: Phase[],
     projectBudget: number
   ): number {
-    const totalAllocated = this.calculateTotalAllocation(milestones);
+    const totalAllocated = this.calculateTotalAllocation(phases);
     return projectBudget - totalAllocated;
   }
 
@@ -645,7 +645,7 @@ export class PhaseRules {
     phases: Phase[],
     projectBudget: number
   ): number {
-    const totalAllocated = this.calculateTotalAllocation(milestones);
+    const totalAllocated = this.calculateTotalAllocation(phases);
     return Math.max(0, totalAllocated - projectBudget);
   }
 
@@ -657,7 +657,7 @@ export class PhaseRules {
    */
   static calculateAverageMilestoneAllocation(phases: Phase[]): number {
     if (milestones.length === 0) return 0;
-    const totalAllocated = this.calculateTotalAllocation(milestones);
+    const totalAllocated = this.calculateTotalAllocation(phases);
     return totalAllocated / milestones.length;
   }
 
@@ -673,7 +673,7 @@ export class PhaseRules {
     projectBudget: number
   ): string[] {
     const recommendations: string[] = [];
-    const budgetCheck = this.checkBudgetConstraint(milestones, projectBudget);
+    const budgetCheck = this.checkBudgetConstraint(phases, projectBudget);
 
     if (!budgetCheck.isValid) {
       recommendations.push(
@@ -691,7 +691,7 @@ export class PhaseRules {
     }
 
     if (milestones.length > 0) {
-      const avgAllocation = this.calculateAverageMilestoneAllocation(milestones);
+      const avgAllocation = this.calculateAverageMilestoneAllocation(phases);
       if (avgAllocation < 1) {
         recommendations.push(
           'Very small milestone allocations detected. Consider consolidating milestones.'

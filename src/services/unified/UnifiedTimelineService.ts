@@ -166,7 +166,7 @@ export class UnifiedTimelineService {
   ): DayEstimate[] {
     return UnifiedDayEstimateService.calculateProjectDayEstimates(
       project,
-      milestones,
+      phases,
       settings,
       holidays,
       events
@@ -181,7 +181,7 @@ export class UnifiedTimelineService {
     projectStart: Date,
     projectEnd: Date
   ) {
-    return calculateMilestoneSegments(milestones, projectStart, projectEnd);
+    return calculateMilestoneSegments(phases, projectStart, projectEnd);
   }
   /**
    * Generate work hours for date range
@@ -338,7 +338,7 @@ export class UnifiedTimelineService {
     // Calculate day estimates using new service (now includes planned events)
     const dayEstimates = this.calculateProjectDayEstimates(
       effectiveProject,
-      milestones,
+      phases,
       settings,
       holidays,
       (events as CalendarEvent[]) || [] // Pass events to calculation
@@ -437,7 +437,7 @@ export class UnifiedTimelineService {
       getPerDateSummary,
       // Milestone segments (DEPRECATED - kept for backward compatibility)
       milestoneSegments: this.calculateMilestoneSegments(
-        milestones,
+        phases,
         new Date(effectiveProject.startDate),
         new Date(effectiveProject.endDate)
       ),

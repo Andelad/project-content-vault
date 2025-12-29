@@ -86,7 +86,7 @@ export const ProjectBar = memo(function ProjectBar({
   onPhaseResizeMouseDown
 }: ProjectBarProps) {
   // Always call ALL hooks first, before any early returns (React Rules of Hooks)
-  const { milestones } = useProjectContext();
+  const {phases} = useProjectContext();
   const { events, holidays } = usePlannerContext();
   const { settings } = useSettingsContext();
   // CRITICAL: Call this hook at top level, NOT inside useMemo
@@ -144,7 +144,7 @@ export const ProjectBar = memo(function ProjectBar({
       dates,
       viewportStart,
       viewportEnd,
-      filteredProjectMilestones, // Use filtered milestones, not all milestones
+      filteredProjectMilestones, // Use filtered phases, not all milestones
       holidays,
       settings,
       isDragging,

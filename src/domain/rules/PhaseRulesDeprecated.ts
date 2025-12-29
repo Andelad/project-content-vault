@@ -95,7 +95,7 @@ export class PhaseRules {
    * @deprecated Use PhaseRules.calculateTotalAllocation instead
    */
   static calculateTotalAllocation(phases: Phase[]): number {
-    return PhaseRules.calculateTotalAllocation(milestones);
+    return PhaseRules.calculateTotalAllocation(phases);
   }
 
   /**
@@ -107,7 +107,7 @@ export class PhaseRules {
     excludeMilestoneId?: string
   ) {
     return PhaseRules.checkBudgetConstraint(
-      milestones,
+      phases,
       projectBudget,
       excludeMilestoneId
     );
@@ -122,7 +122,7 @@ export class PhaseRules {
     additionalHours: number
   ): boolean {
     return PhaseRules.canAccommodateAdditionalMilestone(
-      milestones,
+      phases,
       projectBudget,
       additionalHours
     );
@@ -156,7 +156,7 @@ export class PhaseRules {
     phases: Phase[],
     projectBudget: number
   ): number {
-    return PhaseRules.calculateBudgetUtilization(milestones, projectBudget);
+    return PhaseRules.calculateBudgetUtilization(phases, projectBudget);
   }
 
   /**
@@ -166,7 +166,7 @@ export class PhaseRules {
     phases: Phase[],
     projectBudget: number
   ): number {
-    return PhaseRules.calculateRemainingBudget(milestones, projectBudget);
+    return PhaseRules.calculateRemainingBudget(phases, projectBudget);
   }
 
   /**
@@ -176,14 +176,14 @@ export class PhaseRules {
     phases: Phase[],
     projectBudget: number
   ): number {
-    return PhaseRules.calculateBudgetOverage(milestones, projectBudget);
+    return PhaseRules.calculateBudgetOverage(phases, projectBudget);
   }
 
   /**
    * @deprecated Use PhaseRules.calculateAverageMilestoneAllocation instead
    */
   static calculateAverageMilestoneAllocation(phases: Phase[]): number {
-    return PhaseRules.calculateAverageMilestoneAllocation(milestones);
+    return PhaseRules.calculateAverageMilestoneAllocation(phases);
   }
 
   /**
@@ -193,14 +193,14 @@ export class PhaseRules {
     phases: Phase[],
     projectBudget: number
   ): string[] {
-    return PhaseRules.generateRecommendations(milestones, projectBudget);
+    return PhaseRules.generateRecommendations(phases, projectBudget);
   }
 
   /**
    * @deprecated Use PhaseRules.sortMilestonesByDate instead
    */
   static sortMilestonesByDate(phases: Phase[]): Phase[] {
-    return PhaseRules.sortMilestonesByDate(milestones);
+    return PhaseRules.sortMilestonesByDate(phases);
   }
 
   /**

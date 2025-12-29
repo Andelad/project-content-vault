@@ -79,7 +79,7 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
     groups, 
     rows, 
     selectedProjectId, 
-    milestones,
+    phases,
     updateProject, 
     setSelectedProjectId, 
     addProject, 
@@ -517,7 +517,7 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
       estimates.push(...projectEstimates);
     });
     return estimates;
-  }, [projects, milestones, settings, holidays, events, isDragging, dragState]);
+  }, [projects, phases, settings, holidays, events, isDragging, dragState]);
   
   // Project resize handler extracted to custom hook
   const { handleProjectResizeMouseDown } = useProjectResize({
@@ -538,7 +538,7 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
   // Phase boundary resize handler
   const { handlePhaseResizeMouseDown } = usePhaseResize({
     projects,
-    milestones,
+    phases,
     dates,
     viewportStart,
     viewportEnd,

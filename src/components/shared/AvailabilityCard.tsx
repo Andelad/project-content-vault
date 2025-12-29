@@ -163,7 +163,7 @@ export const AvailabilityCard = memo(function AvailabilityCard({
           projects, 
           settings, 
           holidays, 
-          milestones,
+          phases,
           events
         );
         
@@ -187,7 +187,7 @@ export const AvailabilityCard = memo(function AvailabilityCard({
         netAvailability
       };
     });
-  }, [context, dates, holidays, settings, events, projects, milestones, mode, getWeekDates]);
+  }, [context, dates, holidays, settings, events, projects, phases, mode, getWeekDates]);
 
   const maxAbsValue = useMemo(() => {
     const absValues = graphData.map(d => Math.abs(d.netAvailability));

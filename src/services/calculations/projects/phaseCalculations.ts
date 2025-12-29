@@ -65,7 +65,7 @@ export function calculateMilestoneDensity(
  */
 export function calculateAverageMilestoneAllocation(phases: Phase[]): number {
   if (milestones.length === 0) return 0;
-  return calculateTotalAllocation(milestones) / milestones.length;
+  return calculateTotalAllocation(phases) / milestones.length;
 }
 
 /**
@@ -84,7 +84,7 @@ export function calculateAllocationDistribution(phases: Phase[]): {
   const allocations = milestones.map(p => m.timeAllocation || 0).sort((a, b) => a - b);
   const min = allocations[0];
   const max = allocations[allocations.length - 1];
-  const avg = calculateAverageMilestoneAllocation(milestones);
+  const avg = calculateAverageMilestoneAllocation(phases);
   
   const medianIndex = Math.floor(allocations.length / 2);
   const median = allocations.length % 2 === 0
@@ -607,7 +607,7 @@ export function calculateMilestoneDistribution(
   projectEndDate: Date
 ): MilestoneDistributionEntry[] {
   const distribution: MilestoneDistributionEntry[] = [];
-  const segments = calculateMilestoneSegments(milestones, projectStartDate, projectEndDate);
+  const segments = calculateMilestoneSegments(phases, projectStartDate, projectEndDate);
   
   const currentDate = new Date(projectStartDate);
   let dayIndex = 0;
