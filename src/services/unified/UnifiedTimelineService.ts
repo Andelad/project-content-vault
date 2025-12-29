@@ -18,7 +18,7 @@
     return dayHours && dayHours.hours > 0;
   }nterface for timeline components
  */
-import { ProjectMilestoneOrchestrator } from '../orchestrators/ProjectMilestoneOrchestrator';
+import { ProjectPhaseOrchestrator } from '../orchestrators/ProjectPhaseOrchestrator';
 import { normalizeToMidnight } from '../calculations/general/dateCalculations';
 
 import { UnifiedDayEstimateService } from './UnifiedDayEstimateService';
@@ -77,7 +77,7 @@ import {
 } from '../calculations/availability/dailyMetrics';
 // Import WorkHourLike type
 import type { WorkHourLike } from '../calculations/availability/workHourGeneration';
-import type { Project, Milestone, DayEstimate, Settings, Holiday, CalendarEvent, WorkHour } from '@/types/core';
+import type { Project, Phase, DayEstimate, Settings, Holiday, CalendarEvent, WorkHour } from '@/types/core';
 import type { TimelinePositionCalculation } from '@/services/ui/ProjectBarPositioning';
 import type { DragState } from '@/services/ui/DragPositioning';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
@@ -109,8 +109,8 @@ export class UnifiedTimelineService {
     return {
       project,
       duration: calculateProjectDuration(project),
-      isActiveOnDate: (date: Date) => ProjectMilestoneOrchestrator.isProjectActiveOnDate(project, date),
-      validation: ProjectMilestoneOrchestrator.validateProjectTimeframe(
+      isActiveOnDate: (date: Date) => ProjectPhaseOrchestrator.isProjectActiveOnDate(project, date),
+      validation: ProjectPhaseOrchestrator.validateProjectTimeframe(
         new Date(project.startDate),
         new Date(project.endDate)
       )
@@ -123,15 +123,15 @@ export class UnifiedTimelineService {
   static calculateProjectDuration = calculateProjectDuration;
   /**
    * Check if project is active on date
-   * Delegates to ProjectMilestoneOrchestrator
+   * Delegates to ProjectPhaseOrchestrator
    */
-  static isProjectActiveOnDate = ProjectMilestoneOrchestrator.isProjectActiveOnDate;
+  static isProjectActiveOnDate = ProjectPhaseOrchestrator.isProjectActiveOnDate;
   /**
    * Get project validation data
-   * Delegates to ProjectMilestoneOrchestrator
+   * Delegates to ProjectPhaseOrchestrator
    */
-  static validateProject(project: Project, milestones: Milestone[] = []) {
-    return ProjectMilestoneOrchestrator.validateProjectTimeframe(
+  static validateProject(project: Project, milestones: Phase[] = []) {
+    return ProjectPhaseOrchestrator.validateProjectTimeframe(
       new Date(project.startDate),
       new Date(project.endDate),
       milestones
@@ -159,7 +159,7 @@ export class UnifiedTimelineService {
    */
   static calculateProjectDayEstimates(
     project: Project,
-    milestones: Milestone[],
+    milestones: Phase[],
     settings: Settings,
     holidays: Holiday[],
     events: CalendarEvent[] = []
@@ -177,7 +177,7 @@ export class UnifiedTimelineService {
    * Delegates to existing calculation service
    */
   static calculateMilestoneSegments(
-    milestones: Milestone[],
+    milestones: Phase[],
     projectStart: Date,
     projectEnd: Date
   ) {
@@ -313,7 +313,7 @@ export class UnifiedTimelineService {
     dates: Date[],
     viewportStart: Date,
     viewportEnd: Date,
-    milestones: Milestone[],
+    milestones: Phase[],
     holidays: Holiday[],
     settings: Settings,
     isDragging: boolean = false,

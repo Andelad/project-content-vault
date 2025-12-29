@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Milestone, Project } from '@/types/core';
-import { ProjectMilestoneOrchestrator, detectRecurringPattern, UnifiedMilestoneService } from '@/services';
+import { Phase, Project } from '@/types/core';
+import { ProjectPhaseOrchestrator, detectRecurringPattern, UnifiedPhaseService } from '@/services';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
-import type { LocalMilestone } from './useMilestoneOperations';
+import type { LocalPhase } from './usePhaseOperations';
 
-export interface RecurringMilestone {
+export interface RecurringPhase {
   id: string;
   name: string;
   timeAllocation: number;
@@ -21,7 +21,7 @@ export interface RecurringMilestone {
   monthlyDayOfWeek?: number;
 }
 
-export interface RecurringMilestoneConfig {
+export interface RecurringPhaseConfig {
   name: string;
   timeAllocation: number;
   recurringType: 'daily' | 'weekly' | 'monthly';
@@ -33,28 +33,28 @@ export interface RecurringMilestoneConfig {
   monthlyDayOfWeek?: number;
 }
 
-interface UseRecurringMilestonesConfig {
+interface UseRecurringPhasesConfig {
   projectId?: string;
-  projectMilestones: (Milestone | LocalMilestone)[];
+  projectMilestones: (Milestone | LocalPhase)[];
   projectStartDate: Date;
   projectEndDate: Date;
   projectContinuous: boolean;
   projectEstimatedHours: number;
-  isDeletingRecurringMilestone: boolean;
+  isDeletingRecurringPhase: boolean;
   refetchMilestones: () => Promise<void>;
   isCreatingProject?: boolean;
-  localMilestonesState?: {
-    milestones: LocalMilestone[];
-    setMilestones: (milestones: LocalMilestone[]) => void;
+  localPhasesState?: {
+    milestones: LocalPhase[];
+    setMilestones: (milestones: LocalPhase[]) => void;
   };
 }
 
 /**
  * Hook for managing recurring milestone patterns
- * Coordinates React state with ProjectMilestoneOrchestrator for recurring operations
+ * Coordinates React state with ProjectPhaseOrchestrator for recurring operations
  * Handles pattern detection, auto-generation, and deletion
  */
-export function useRecurringMilestones(config: UseRecurringMilestonesConfig) {
+export function useRecurringPhases(config: UseRecurringPhasesConfig) {
   const {
     projectId,
     projectMilestones,
@@ -62,26 +62,26 @@ export function useRecurringMilestones(config: UseRecurringMilestonesConfig) {
     projectEndDate,
     projectContinuous,
     projectEstimatedHours,
-    isDeletingRecurringMilestone,
+    isDeletingRecurringPhase,
     refetchMilestones,
     isCreatingProject,
-    localMilestonesState
+    localPhasesState
   } = config;
 
   const { toast } = useToast();
-  const [recurringMilestone, setRecurringMilestone] = useState<RecurringMilestone | null>(null);
+  const [recurringMilestone, setRecurringPhase] = useState<RecurringPhase | null>(null);
 
   // Detect recurring pattern from existing milestones
   useEffect(() => {
     // Check if any milestones have startDate (phases) - if so, don't detect recurring
     const hasPhases = projectMilestones.some(m => m.startDate !== undefined);
-    if (recurringMilestone || !projectId || isDeletingRecurringMilestone || hasPhases) return;
+    if (recurringMilestone || !projectId || isDeletingRecurringPhase || hasPhases) return;
 
     // NEW SYSTEM: First check for template milestone with isRecurring=true
     const templateMilestone = projectMilestones.find(m => m.isRecurring === true);
     if (templateMilestone && templateMilestone.recurringConfig) {
       const config = templateMilestone.recurringConfig;
-      setRecurringMilestone({
+      setRecurringPhase({
         id: templateMilestone.id || 'recurring-milestone',
         name: templateMilestone.name,
         timeAllocation: templateMilestone.timeAllocationHours ?? templateMilestone.timeAllocation,
@@ -97,10 +97,10 @@ export function useRecurringMilestones(config: UseRecurringMilestonesConfig) {
       });
       return;
     }
-  }, [projectMilestones, recurringMilestone, projectId, isDeletingRecurringMilestone]);
+  }, [projectMilestones, recurringMilestone, projectId, isDeletingRecurringPhase]);
 
   // Simple placeholder - recurring templates expand at runtime, not stored
-  const ensureRecurringMilestonesAvailable = useCallback(async (targetDate?: Date) => {
+  const ensureRecurringPhasesAvailable = useCallback(async (targetDate?: Date) => {
     // No-op: NEW SYSTEM uses single template that expands at runtime
     // The template milestone (is_recurring=true) is detected above and instances
     // are generated dynamically when needed by calculation services
@@ -108,16 +108,16 @@ export function useRecurringMilestones(config: UseRecurringMilestonesConfig) {
   }, []);
 
   // Create recurring milestones
-  const createRecurringMilestones = useCallback(async (config: RecurringMilestoneConfig) => {
+  const createRecurringPhases = useCallback(async (config: RecurringPhaseConfig) => {
     // For new projects being created, store config to create later when project is saved
     if (!projectId) {
       // CRITICAL: Clear all local phases first (mutual exclusivity rule)
-      if (isCreatingProject && localMilestonesState) {
-        localMilestonesState.setMilestones([]);
+      if (isCreatingProject && localPhasesState) {
+        localPhasesState.setMilestones([]);
       }
       
       // Create a local recurring milestone object for UI display
-      const localRecurringMilestone: RecurringMilestone = {
+      const localRecurringPhase: RecurringPhase = {
         id: `temp-recurring-${Date.now()}`,
         name: config.name,
         timeAllocation: config.timeAllocation,
@@ -132,7 +132,7 @@ export function useRecurringMilestones(config: UseRecurringMilestonesConfig) {
         monthlyDayOfWeek: config.monthlyDayOfWeek
       };
       
-      setRecurringMilestone(localRecurringMilestone);
+      setRecurringPhase(localRecurringPhase);
       
       // No toast needed - the card appearing is sufficient visual feedback
       // and the modal's Save/Cancel buttons make persistence behavior clear
@@ -158,7 +158,7 @@ export function useRecurringMilestones(config: UseRecurringMilestonesConfig) {
         updatedAt: new Date()
       };
 
-      const result = await ProjectMilestoneOrchestrator.createRecurringMilestones(
+      const result = await ProjectPhaseOrchestrator.createRecurringPhases(
         projectId,
         project,
         config,
@@ -166,7 +166,7 @@ export function useRecurringMilestones(config: UseRecurringMilestonesConfig) {
       );
 
       if (result.success && result.recurringMilestone) {
-        setRecurringMilestone(result.recurringMilestone);
+        setRecurringPhase(result.recurringMilestone);
 
         toast({
           title: "Recurring template created",
@@ -179,8 +179,8 @@ export function useRecurringMilestones(config: UseRecurringMilestonesConfig) {
       }
     } catch (error) {
       ErrorHandlingService.handle(error, {
-        source: 'useRecurringMilestones',
-        action: 'createRecurringMilestones'
+        source: 'useRecurringPhases',
+        action: 'createRecurringPhases'
       });
       toast({
         title: "Error",
@@ -189,12 +189,12 @@ export function useRecurringMilestones(config: UseRecurringMilestonesConfig) {
       });
       return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
-  }, [projectId, projectStartDate, projectEndDate, projectContinuous, projectEstimatedHours, refetchMilestones, toast, isCreatingProject, localMilestonesState]);
+  }, [projectId, projectStartDate, projectEndDate, projectContinuous, projectEstimatedHours, refetchMilestones, toast, isCreatingProject, localPhasesState]);
 
   // Delete recurring milestones
-  const deleteRecurringMilestones = useCallback(async (
+  const deleteRecurringPhases = useCallback(async (
     isCreatingProject: boolean,
-    localMilestonesState?: { milestones: LocalMilestone[]; setMilestones: (m: LocalMilestone[]) => void }
+    localPhasesState?: { milestones: LocalPhase[]; setMilestones: (m: LocalPhase[]) => void }
   ) => {
     // Clear local storage first to prevent restoration
     if (projectId) {
@@ -202,11 +202,11 @@ export function useRecurringMilestones(config: UseRecurringMilestonesConfig) {
     }
 
     // Instantly clear UI state
-    setRecurringMilestone(null);
+    setRecurringPhase(null);
 
     try {
-      if (isCreatingProject && localMilestonesState) {
-        localMilestonesState.setMilestones([]);
+      if (isCreatingProject && localPhasesState) {
+        localPhasesState.setMilestones([]);
       } else {
         const recurringMilestones = projectMilestones.filter(m =>
           m.isRecurring || (m.name && /\s\d+$/.test(m.name) && m.startDate === undefined)
@@ -243,8 +243,8 @@ export function useRecurringMilestones(config: UseRecurringMilestonesConfig) {
       }
     } catch (error) {
       ErrorHandlingService.handle(error, {
-        source: 'useRecurringMilestones',
-        action: 'deleteRecurringMilestones'
+        source: 'useRecurringPhases',
+        action: 'deleteRecurringPhases'
       });
       toast({
         title: "Error",
@@ -256,9 +256,9 @@ export function useRecurringMilestones(config: UseRecurringMilestonesConfig) {
 
   return {
     recurringMilestone,
-    setRecurringMilestone,
-    ensureRecurringMilestonesAvailable,
-    createRecurringMilestones,
-    deleteRecurringMilestones
+    setRecurringPhase,
+    ensureRecurringPhasesAvailable,
+    createRecurringPhases,
+    deleteRecurringPhases
   };
 }

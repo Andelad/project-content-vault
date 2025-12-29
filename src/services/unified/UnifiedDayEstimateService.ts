@@ -7,7 +7,7 @@
  * @module UnifiedDayEstimateService
  */
 
-import { Project, Milestone, DayEstimate, Settings, Holiday, CalendarEvent } from '@/types/core';
+import { Project, Phase, DayEstimate, Settings, Holiday, CalendarEvent } from '@/types/core';
 import { normalizeToMidnight } from '../calculations/general/dateCalculations';
 
 import * as DayEstimateCalcs from '@/services/calculations/projects/dayEstimateCalculations';
@@ -21,7 +21,7 @@ export class UnifiedDayEstimateService {
    */
   static calculateProjectDayEstimates(
     project: Project,
-    milestones: Milestone[],
+    milestones: Phase[],
     settings: Settings,
     holidays: Holiday[],
     events: CalendarEvent[] = []
@@ -47,7 +47,7 @@ export class UnifiedDayEstimateService {
     const resultMap = new Map<string, DayEstimate[]>();
 
     projects.forEach(project => {
-      const milestones = milestonesMap.get(project.id) || [];
+      const phases = milestonesMap.get(project.id) || [];
       const estimates = this.calculateProjectDayEstimates(
         project,
         milestones,
@@ -155,7 +155,7 @@ export class UnifiedDayEstimateService {
     holidays: Holiday[]
   ): DayEstimate[] {
     if (milestone.isRecurring) {
-      return DayEstimateCalcs.calculateRecurringMilestoneDayEstimates(
+      return DayEstimateCalcs.calculateRecurringPhaseDayEstimates(
         milestone,
         project,
         settings,

@@ -9,7 +9,7 @@
  * ✅ Mathematical operations only
  * ✅ Delegates to domain rules for business logic
  */
-import { Milestone, Project, DayEstimate, Settings, Holiday, CalendarEvent } from '@/types';
+import { Phase, Project, DayEstimate, Settings, Holiday, CalendarEvent } from '@/types';
 import * as DateCalculations from '../general/dateCalculations';
 import { calculatePlannedTimeForDate } from '@/services/unified/UnifiedEventWorkHourService';
 import { TimelineRules } from '@/domain/rules';
@@ -152,7 +152,7 @@ export function calculateMilestoneDayEstimates(
 /**
  * Calculate day estimates from recurring milestone configuration
  */
-export function calculateRecurringMilestoneDayEstimates(
+export function calculateRecurringPhaseDayEstimates(
   milestone: Milestone,
   project: Project,
   settings: Settings,
@@ -346,7 +346,7 @@ function generateRecurringOccurrences(
  */
 export function calculateProjectDayEstimates(
   project: Project,
-  milestones: Milestone[],
+  milestones: Phase[],
   settings: Settings,
   holidays: Holiday[],
   events: CalendarEvent[] = []
@@ -382,7 +382,7 @@ export function calculateProjectDayEstimates(
   });
   // PRIORITY 2 - Process milestones (only for dates without planned events)
   // Sort milestones by due date to calculate segments correctly
-  const sortedMilestones = [...milestones].sort((a, b) => {
+  const sortedMilestones = [...phases].sort((a, b) => {
     const dateA = new Date(a.endDate || a.dueDate);
     const dateB = new Date(b.endDate || b.dueDate);
     return dateA.getTime() - dateB.getTime();
@@ -412,14 +412,14 @@ export function calculateProjectDayEstimates(
     }
 
     // Create milestone object with adjusted allocation (no rollover to other phases)
-    const milestoneWithAdjustedAllocation: Milestone = {
+    const milestoneWithAdjustedAllocation: Phase = {
       ...milestone,
       startDate: segmentStart,
       timeAllocationHours: remainingAllocation,
       timeAllocation: remainingAllocation
     };
     const milestoneEstimates = milestone.isRecurring
-      ? calculateRecurringMilestoneDayEstimates(
+      ? calculateRecurringPhaseDayEstimates(
           milestoneWithAdjustedAllocation,
           project,
           settings,

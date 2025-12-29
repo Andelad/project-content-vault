@@ -44,7 +44,7 @@ import '@/components/features/planner/fullcalendar-overrides.css';
 const EventModal = React.lazy(() => import('../modals/EventModal').then(module => ({ default: module.EventModal })));
 const HelpModal = React.lazy(() => import('../modals/HelpModal').then(module => ({ default: module.HelpModal })));
 import { WorkHourScopeDialog } from '@/components/modals';
-import type { Milestone } from '@/types/core';
+import type { Phase } from '@/types/core';
 /**
  * PlannerView - FullCalendar-based planner with keyboard shortcuts
  * 

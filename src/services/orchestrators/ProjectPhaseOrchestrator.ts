@@ -4,25 +4,25 @@
  * Coordinates complex project-milestone workflows that were previously in UI components.
  * Extracts recurring milestone creation, batch operations, and milestone lifecycle management.
  * 
- * ✅ Delegates to UnifiedMilestoneService for core calculations
+ * ✅ Delegates to UnifiedPhaseService for core calculations
  * ✅ Coordinates with ProjectOrchestrator for project-milestone relationships
  * ✅ Handles complex multi-step workflows
  * ✅ Provides clean API for UI components
  */
 
-import { Project, Milestone } from '@/types/core';
+import { Project, Phase } from '@/types/core';
 import { supabase } from '@/integrations/supabase/client';
-import { UnifiedMilestoneService } from '../unified/UnifiedMilestoneService';
+import { UnifiedPhaseService } from '../unified/UnifiedPhaseService';
 import { ProjectOrchestrator } from './ProjectOrchestrator';
 import { calculateDurationDays, addDaysToDate } from '../calculations/general/dateCalculations';
-import { RecurringMilestoneConfig as BaseRecurringMilestoneConfig } from '../calculations/projects/milestoneCalculations';
+import { RecurringPhaseConfig as BaseRecurringPhaseConfig } from '../calculations/projects/milestoneCalculations';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
-export interface ProjectRecurringMilestoneConfig extends BaseRecurringMilestoneConfig {
+export interface ProjectRecurringPhaseConfig extends BaseRecurringPhaseConfig {
   name: string;
 }
 
-export interface RecurringMilestone {
+export interface RecurringPhase {
   id: string;
   name: string;
   // OLD fields (for backward compatibility)
@@ -54,9 +54,9 @@ export interface GeneratedMilestone {
   isRecurring?: boolean;
 }
 
-export interface RecurringMilestoneCreationResult {
+export interface RecurringPhaseCreationResult {
   success: boolean;
-  recurringMilestone?: RecurringMilestone;
+  recurringMilestone?: RecurringPhase;
   generatedCount: number;
   estimatedTotalCount: number;
   error?: string;
@@ -112,7 +112,7 @@ type MilestoneUpdatePayload = Partial<MilestoneCreatePayload> & {
  * - Project timeline validation (merged from ProjectTimelineOrchestrator)
  * - Budget allocation validation
  */
-export class ProjectMilestoneOrchestrator {
+export class ProjectPhaseOrchestrator {
 
   // ============================================================================
   // PROJECT TIMELINE VALIDATION
@@ -125,7 +125,7 @@ export class ProjectMilestoneOrchestrator {
   static validateProjectTimeframe(
     startDate: Date,
     endDate: Date,
-    milestones: Milestone[] = [],
+    milestones: Phase[] = [],
     continuous: boolean = false
   ): { isValid: boolean; errors: string[]; warnings: string[]; schedulingIssues?: string[] } {
     const errors: string[] = [];
@@ -174,9 +174,9 @@ export class ProjectMilestoneOrchestrator {
    * Validate milestone scheduling within project context
    */
   static validateMilestoneScheduling(
-    milestone: Partial<Milestone>,
+    milestone: Partial<Phase>,
     project: Project,
-    existingMilestones: Milestone[]
+    existingMilestones: Phase[]
   ): { canSchedule: boolean; conflicts: string[] } {
     const conflicts: string[] = [];
     
@@ -220,14 +220,14 @@ export class ProjectMilestoneOrchestrator {
   // ============================================================================
   /**
    * Create recurring milestones for a project
-   * DELEGATES to UnifiedMilestoneService for calculations and domain logic
+   * DELEGATES to UnifiedPhaseService for calculations and domain logic
    */
-  static async createRecurringMilestones(
+  static async createRecurringPhases(
     projectId: string,
     project: Project,
-    recurringConfig: ProjectRecurringMilestoneConfig,
+    recurringConfig: ProjectRecurringPhaseConfig,
     options: MilestoneOrchestrationOptions = {}
-  ): Promise<RecurringMilestoneCreationResult> {
+  ): Promise<RecurringPhaseCreationResult> {
     try {
       // NEW SYSTEM: Create a SINGLE template milestone instead of multiple numbered instances
       const { data: { user } } = await supabase.auth.getUser();
@@ -292,7 +292,7 @@ export class ProjectMilestoneOrchestrator {
       );
 
       // Create recurring milestone object for UI state (no longer saved to localStorage)
-      const recurringMilestone: RecurringMilestone = {
+      const recurringMilestone: RecurringPhase = {
         id: insertedMilestone.id,
         name: recurringConfig.name,
         timeAllocation: recurringConfig.timeAllocation,
@@ -318,7 +318,7 @@ export class ProjectMilestoneOrchestrator {
       };
 
     } catch (error) {
-      ErrorHandlingService.handle(error, { source: 'ProjectMilestoneOrchestrator', action: 'Error in createRecurringMilestones:' });
+      ErrorHandlingService.handle(error, { source: 'ProjectPhaseOrchestrator', action: 'Error in createRecurringPhases:' });
       return {
         success: false,
         generatedCount: 0,
@@ -332,9 +332,9 @@ export class ProjectMilestoneOrchestrator {
    * Delete all recurring milestones for a project
    * Deletes the single template milestone with is_recurring=true
    */
-  static async deleteRecurringMilestones(
+  static async deleteRecurringPhases(
     projectId: string,
-    projectMilestones: Milestone[],
+    projectMilestones: Phase[],
     options: MilestoneOrchestrationOptions = {}
   ): Promise<{ success: boolean; deletedCount: number; error?: string }> {
     try {
@@ -354,7 +354,7 @@ export class ProjectMilestoneOrchestrator {
       };
 
     } catch (error) {
-      ErrorHandlingService.handle(error, { source: 'ProjectMilestoneOrchestrator', action: 'Error in deleteRecurringMilestones:' });
+      ErrorHandlingService.handle(error, { source: 'ProjectPhaseOrchestrator', action: 'Error in deleteRecurringPhases:' });
       return {
         success: false,
         deletedCount: 0,
@@ -368,7 +368,7 @@ export class ProjectMilestoneOrchestrator {
    * PRIVATE helper that delegates to domain calculations
    */
   private static calculateEstimatedMilestoneCount(
-    config: ProjectRecurringMilestoneConfig,
+    config: ProjectRecurringPhaseConfig,
     projectDurationDays: number
   ): number {
     switch (config.recurringType) {
@@ -435,40 +435,40 @@ export class ProjectMilestoneOrchestrator {
       if (error) throw error;
     } catch (error) {
       if (!options.silent) {
-        ErrorHandlingService.handle(error, { source: 'ProjectMilestoneOrchestrator', action: 'Error deleting milestone:' });
+        ErrorHandlingService.handle(error, { source: 'ProjectPhaseOrchestrator', action: 'Error deleting milestone:' });
       }
     }
   }
 
   /**
    * Update milestone property with budget validation and state management
-   * DELEGATES to UnifiedMilestoneService for validation (AI Rule)
+   * DELEGATES to UnifiedPhaseService for validation (AI Rule)
    */
   static async updateMilestoneProperty<
     K extends keyof Milestone,
-    LocalMilestoneType extends Partial<Milestone> & { id?: string; isNew?: boolean }
+    LocalPhaseType extends Partial<Phase> & { id?: string; isNew?: boolean }
   >(
     milestoneId: string,
     property: K,
     value: Milestone[K],
     context: {
-      projectMilestones: Milestone[];
+      projectMilestones: Phase[];
       projectEstimatedHours: number;
       isCreatingProject?: boolean;
-      localMilestonesState?: {
-        milestones: LocalMilestoneType[];
-        setMilestones: (milestones: LocalMilestoneType[]) => void;
+      localPhasesState?: {
+        milestones: LocalPhaseType[];
+        setMilestones: (milestones: LocalPhaseType[]) => void;
       };
-      updateMilestone?: (id: string, updates: Partial<Milestone>, options?: { silent?: boolean }) => Promise<void>;
-      addMilestone?: (milestone: Partial<Milestone>) => Promise<Milestone | LocalMilestoneType>;
-      localMilestones: LocalMilestoneType[];
-      setLocalMilestones: (setter: (prev: LocalMilestoneType[]) => LocalMilestoneType[]) => void;
+      updateMilestone?: (id: string, updates: Partial<Phase>, options?: { silent?: boolean }) => Promise<void>;
+      addMilestone?: (milestone: Partial<Phase>) => Promise<Milestone | LocalPhaseType>;
+      localPhases: LocalPhaseType[];
+      setLocalPhases: (setter: (prev: LocalPhaseType[]) => LocalPhaseType[]) => void;
     }
   ): Promise<{ success: boolean; error?: string }> {
     try {
       // Budget validation for time allocation changes using existing service (AI Rule)
       if (property === 'timeAllocation') {
-        const budgetValidation = UnifiedMilestoneService.validateBudgetAllocation(
+        const budgetValidation = UnifiedPhaseService.validateBudgetAllocation(
           context.projectMilestones,
           context.projectEstimatedHours,
           milestoneId
@@ -483,19 +483,19 @@ export class ProjectMilestoneOrchestrator {
       }
 
       // Handle different update contexts
-      if (context.isCreatingProject && context.localMilestonesState) {
+      if (context.isCreatingProject && context.localPhasesState) {
         // For new projects, update local state
-        const updatedMilestones = context.localMilestonesState.milestones.map((m) =>
+        const updatedMilestones = context.localPhasesState.phases.map((m) =>
           m.id === milestoneId ? { ...m, [property]: value } : m
         );
-        context.localMilestonesState.setMilestones(updatedMilestones);
+        context.localPhasesState.setMilestones(updatedMilestones);
       } else {
         // Check if this is a new milestone that needs to be saved first
-        const localMilestone = context.localMilestones.find(m => m.id === milestoneId);
+        const localMilestone = context.localPhases.find(m => m.id === milestoneId);
         if (localMilestone && localMilestone.isNew && context.addMilestone) {
           // Budget validation for new milestones
           const additionalHours = property === 'timeAllocation' ? value : localMilestone.timeAllocation;
-          const budgetValidation = UnifiedMilestoneService.validateBudgetAllocation(
+          const budgetValidation = UnifiedPhaseService.validateBudgetAllocation(
             context.projectMilestones,
             context.projectEstimatedHours
           );
@@ -517,7 +517,7 @@ export class ProjectMilestoneOrchestrator {
           });
           
           // Remove from local state since it's now saved
-          context.setLocalMilestones((prev) => prev.filter((m) => m.id !== milestoneId));
+          context.setLocalPhases((prev) => prev.filter((m) => m.id !== milestoneId));
         } else if (context.updateMilestone) {
           // For existing milestones, update in database silently
           await context.updateMilestone(milestoneId, { [property]: value }, { silent: true });
@@ -526,7 +526,7 @@ export class ProjectMilestoneOrchestrator {
 
       return { success: true };
     } catch (error) {
-      ErrorHandlingService.handle(error, { source: 'ProjectMilestoneOrchestrator', action: 'ProjectMilestoneOrchestrator: Failed to update milestone property:' });
+      ErrorHandlingService.handle(error, { source: 'ProjectPhaseOrchestrator', action: 'ProjectPhaseOrchestrator: Failed to update milestone property:' });
       return {
         success: false,
         error: 'Failed to update milestone. Please try again.'
@@ -538,18 +538,18 @@ export class ProjectMilestoneOrchestrator {
    * Update recurring milestone load across all instances
    * COORDINATES with database operations and state management
    */
-  static async updateRecurringMilestoneLoad(
+  static async updateRecurringPhaseLoad(
     projectId: string,
     newLoadValue: number,
     context: {
-      projectMilestones: Milestone[];
-      recurringMilestone: RecurringMilestone;
+      projectMilestones: Phase[];
+      recurringMilestone: RecurringPhase;
       updateMilestone: (
         id: string,
         updates: MilestoneUpdatePayload,
         options?: { silent?: boolean }
       ) => Promise<void>;
-      setRecurringMilestone: (milestone: RecurringMilestone) => void;
+      setRecurringPhase: (milestone: RecurringPhase) => void;
     }
   ): Promise<{ success: boolean; error?: string }> {
     try {
@@ -580,11 +580,11 @@ export class ProjectMilestoneOrchestrator {
         timeAllocationHours: newLoadValue
       };
 
-      context.setRecurringMilestone(updatedMilestone as RecurringMilestone);
+      context.setRecurringPhase(updatedMilestone as RecurringPhase);
 
       return { success: true };
     } catch (error) {
-      ErrorHandlingService.handle(error, { source: 'ProjectMilestoneOrchestrator', action: 'ProjectMilestoneOrchestrator: Failed to update recurring milestone load:' });
+      ErrorHandlingService.handle(error, { source: 'ProjectPhaseOrchestrator', action: 'ProjectPhaseOrchestrator: Failed to update recurring milestone load:' });
       return {
         success: false,
         error: 'Failed to update recurring milestones'
@@ -594,27 +594,27 @@ export class ProjectMilestoneOrchestrator {
 
   /**
    * Save new milestone with validation and state management
-   * DELEGATES to UnifiedMilestoneService for validation (AI Rule)
+   * DELEGATES to UnifiedPhaseService for validation (AI Rule)
    */
   static async saveNewMilestone(
     milestoneIndex: number,
     context: {
-      localMilestones: MilestoneDraft[];
-      projectMilestones: Milestone[];
+      localPhases: MilestoneDraft[];
+      projectMilestones: Phase[];
       projectEstimatedHours: number;
       projectId: string;
       addMilestone: (milestone: MilestoneCreatePayload) => Promise<void>;
-      setLocalMilestones: (setter: (prev: MilestoneDraft[]) => MilestoneDraft[]) => void;
+      setLocalPhases: (setter: (prev: MilestoneDraft[]) => MilestoneDraft[]) => void;
     }
   ): Promise<{ success: boolean; error?: string }> {
     try {
-      const milestone = context.localMilestones[milestoneIndex];
+      const phase = context.localPhases[milestoneIndex];
       if (!milestone) {
         return { success: false, error: 'Milestone not found' };
       }
 
       // Simulate adding the new milestone to existing ones
-      const simulatedMilestones: Milestone[] = [
+      const simulatedMilestones: Phase[] = [
         ...context.projectMilestones,
         {
           id: 'temp-validation',
@@ -631,7 +631,7 @@ export class ProjectMilestoneOrchestrator {
       ];
 
       // Validate milestone before saving - check if adding this milestone would exceed budget
-      const budgetValidation = UnifiedMilestoneService.validateBudgetAllocation(
+      const budgetValidation = UnifiedPhaseService.validateBudgetAllocation(
         simulatedMilestones,
         context.projectEstimatedHours
       );
@@ -652,11 +652,11 @@ export class ProjectMilestoneOrchestrator {
       });
 
       // Remove from local state
-  context.setLocalMilestones((prev) => prev.filter((_, i) => i !== milestoneIndex));
+  context.setLocalPhases((prev) => prev.filter((_, i) => i !== milestoneIndex));
 
       return { success: true };
     } catch (error) {
-      ErrorHandlingService.handle(error, { source: 'ProjectMilestoneOrchestrator', action: 'ProjectMilestoneOrchestrator: Failed to save new milestone:' });
+      ErrorHandlingService.handle(error, { source: 'ProjectPhaseOrchestrator', action: 'ProjectPhaseOrchestrator: Failed to save new milestone:' });
       return {
         success: false,
         error: 'Failed to save milestone. Please try again.'

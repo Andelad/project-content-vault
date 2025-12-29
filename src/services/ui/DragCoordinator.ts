@@ -16,7 +16,7 @@ import { calculateWorkHoursTotal, calculateDayWorkHours } from '../calculations/
 import { TimelineViewport as TimelineViewportService } from './TimelineViewportService';
 import * as ProjectBarResizeService from './ProjectBarResizeService';
 import { normalizeToMidnight, addDaysToDate } from '../calculations/general/dateCalculations';
-import type { Project, Milestone, DayEstimate } from '@/types/core';
+import type { Project, Phase, DayEstimate } from '@/types/core';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 export interface TimelineContext {
@@ -50,7 +50,7 @@ export interface DragCompletionResult {
 
 export interface DragUpdateCallbacks {
   onProjectUpdate?: (projectId: string, updates: Partial<Project>, options?: { silent?: boolean }) => void;
-  onMilestoneUpdate?: (milestoneId: string, updates: Partial<Milestone>, options?: { silent?: boolean }) => void;
+  onMilestoneUpdate?: (milestoneId: string, updates: Partial<Phase>, options?: { silent?: boolean }) => void;
   onSuccessToast?: (message: string) => void;
 }
 

@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
-import { Milestone, Project } from '@/types/core';
+import { Phase, Project } from '@/types/core';
 import { ProjectOrchestrator, calculateRecurringTotalAllocation } from '@/services';
-import type { LocalMilestone } from './useMilestoneOperations';
+import type { LocalPhase } from './usePhaseOperations';
 
-interface RecurringMilestone {
+interface RecurringPhase {
   id: string;
   name: string;
   timeAllocation: number;
@@ -19,13 +19,13 @@ interface RecurringMilestone {
 }
 
 interface UseMilestoneBudgetConfig {
-  projectMilestones: (Milestone | LocalMilestone)[];
+  projectMilestones: (Milestone | LocalPhase)[];
   projectEstimatedHours: number;
   projectStartDate: Date;
   projectEndDate: Date;
   projectContinuous: boolean;
   projectId?: string;
-  recurringMilestone: RecurringMilestone | null;
+  recurringMilestone: RecurringPhase | null;
 }
 
 /**
@@ -33,7 +33,7 @@ interface UseMilestoneBudgetConfig {
  * Coordinates React state with existing budget calculation services
  * Returns budget metrics and validation status
  */
-export function useMilestoneBudget(config: UseMilestoneBudgetConfig) {
+export function usePhaseBudget(config: UseMilestoneBudgetConfig) {
   const {
     projectMilestones,
     projectEstimatedHours,
@@ -74,9 +74,9 @@ export function useMilestoneBudget(config: UseMilestoneBudgetConfig) {
       };
     }
 
-    const nonRecurringMilestones = projectMilestones.filter(m => {
+    const nonRecurringPhases = projectMilestones.filter(m => {
       // Exclude temporary/unsaved milestones
-      if ('isNew' in m && (m as LocalMilestone).isNew) return false;
+      if ('isNew' in m && (m as LocalPhase).isNew) return false;
       if (typeof m.id === 'string' && m.id.startsWith('temp-')) return false;
       // Exclude NEW template milestones
       if (m.isRecurring) return false;
@@ -85,7 +85,7 @@ export function useMilestoneBudget(config: UseMilestoneBudgetConfig) {
       return true;
     });
 
-    const totalAllocated = nonRecurringMilestones.reduce((sum, m) => sum + m.timeAllocation, 0);
+    const totalAllocated = nonRecurringPhases.reduce((sum, m) => sum + m.timeAllocation, 0);
     const remainingBudget = projectEstimatedHours - totalAllocated;
     const isOverBudget = totalAllocated > projectEstimatedHours;
 

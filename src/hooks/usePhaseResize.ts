@@ -26,17 +26,17 @@ import {
 import type { DragState } from '@/services/ui/DragPositioning';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 import { getPhases, type Phase } from '@/domain/rules/PhaseRules';
-import type { Milestone, Project } from '@/types/core';
+import type { Phase, Project } from '@/types/core';
 
 type UpdateMilestoneFn = (
   id: string,
-  updates: Partial<Milestone>,
+  updates: Partial<Phase>,
   options?: { silent?: boolean }
 ) => Promise<unknown>;
 
 interface UsePhaseResizeProps {
   projects: Project[];
-  milestones: Milestone[];
+  milestones: Phase[];
   dates: Date[];
   viewportStart: Date;
   viewportEnd: Date;
@@ -240,7 +240,7 @@ export function usePhaseResize({
       // Only update if there was actual movement
       if (finalDaysDelta !== 0) {
         // Calculate final dates
-  const updates: Partial<Milestone> = {};
+  const updates: Partial<Phase> = {};
         
         if (action === 'resize-phase-start') {
           const newStartDate = addDaysToDate(new Date(currentDragStateRef.originalStartDate), finalDaysDelta);

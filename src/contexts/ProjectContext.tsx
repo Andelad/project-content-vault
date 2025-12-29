@@ -4,10 +4,10 @@ import { Project, Group, Row } from '@/types/core';
 import { useProjects as useProjectsHook } from '@/hooks/useProjects';
 import { useGroups } from '@/hooks/useGroups';
 import { useRows } from '@/hooks/useRows';
-import { useMilestones } from '@/hooks/useMilestones';
+import { usePhases } from '@/hooks/usePhases';
 import { getProjectColor, getGroupColor } from '@/constants';
 import type { Database } from '@/integrations/supabase/types';
-import { Milestone } from '@/types/core';
+import { Phase } from '@/types/core';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 type SupabaseGroupRow = Database['public']['Tables']['groups']['Row'];
 type SupabaseRowRow = Database['public']['Tables']['rows']['Row'];
@@ -105,7 +105,7 @@ interface ProjectContextType {
   reorderRows: (groupId: string, fromIndex: number, toIndex: number) => void;
 
   // Milestones
-  milestones: Milestone[];
+  milestones: Phase[];
   addMilestone: (milestone: MilestoneCreateInput, options?: { silent?: boolean }) => Promise<Milestone | undefined>;
   updateMilestone: (id: string, updates: MilestoneUpdateInput, options?: { silent?: boolean }) => Promise<void>;
   deleteMilestone: (id: string, options?: { silent?: boolean }) => Promise<void>;
@@ -194,7 +194,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }
 
     return dbMilestones
-      .map((milestone): Milestone => ({
+      .map((milestone): Phase => ({
         id: milestone.id,
         name: milestone.name,
         projectId: milestone.project_id,

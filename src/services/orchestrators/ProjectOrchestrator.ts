@@ -13,9 +13,9 @@
  * 
  * @module ProjectOrchestrator
  */
-import { Project, Milestone, ClientStatus } from '@/types/core';
+import { Project, Phase, ClientStatus } from '@/types/core';
 import { ProjectRules } from '@/domain/rules/ProjectRules';
-import { MilestoneRules } from '@/domain/rules/MilestoneRules';
+import { PhaseRules } from '@/domain/rules/PhaseRules';
 import { getDateKey } from '@/utils/dateFormatUtils';
 import { calculateBudgetAdjustment } from '@/services/calculations';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
@@ -189,7 +189,7 @@ export class ProjectOrchestrator {
    */
   static validateProjectCreation(
     request: ProjectCreationRequest,
-    existingMilestones: Milestone[] = []
+    existingMilestones: Phase[] = []
   ): ProjectValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -261,7 +261,7 @@ export class ProjectOrchestrator {
   static validateProjectUpdate(
     request: ProjectUpdateRequest,
     currentProject: Project,
-    currentMilestones: Milestone[]
+    currentMilestones: Phase[]
   ): ProjectValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -282,7 +282,7 @@ export class ProjectOrchestrator {
       }
       // Check milestone date compatibility using domain rules
       const incompatibleMilestones = currentMilestones.filter(m => {
-        const validation = MilestoneRules.validateMilestoneDateWithinProject(
+        const validation = PhaseRules.validateMilestoneDateWithinProject(
           m.dueDate,
           updatedProject.startDate,
           updatedProject.endDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
@@ -295,7 +295,7 @@ export class ProjectOrchestrator {
     }
     // Validate budget changes using domain rules
     if (request.estimatedHours !== undefined) {
-      const budgetCheck = MilestoneRules.checkBudgetConstraint(currentMilestones, updatedProject.estimatedHours);
+      const budgetCheck = PhaseRules.checkBudgetConstraint(currentMilestones, updatedProject.estimatedHours);
       if (!budgetCheck.isValid) {
         errors.push(`Reducing budget would result in ${budgetCheck.overage}h over-allocation`);
       }
@@ -314,10 +314,10 @@ export class ProjectOrchestrator {
    */
   static analyzeProjectMilestones(
     project: Project,
-    milestones: Milestone[]
+    milestones: Phase[]
   ): ProjectMilestoneAnalysis {
     // Use domain rules for budget analysis
-    const budgetCheck = MilestoneRules.checkBudgetConstraint(milestones, project.estimatedHours);
+    const budgetCheck = PhaseRules.checkBudgetConstraint(milestones, project.estimatedHours);
     const projectBudget: ProjectBudgetAnalysis = {
       totalAllocation: budgetCheck.totalAllocated,
       suggestedBudget: Math.max(project.estimatedHours, budgetCheck.totalAllocated),
@@ -363,7 +363,7 @@ export class ProjectOrchestrator {
    */
   static calculateBudgetAdjustment(
     project: Project,
-    milestones: Milestone[],
+    milestones: Phase[],
     targetUtilization: number = 0.9 // 90% utilization target
   ): {
     currentBudget: number;
@@ -372,7 +372,7 @@ export class ProjectOrchestrator {
     reason: string;
   } {
     // Use domain rules to calculate total allocation
-    const budgetCheck = MilestoneRules.checkBudgetConstraint(milestones, project.estimatedHours);
+    const budgetCheck = PhaseRules.checkBudgetConstraint(milestones, project.estimatedHours);
     const totalAllocated = budgetCheck.totalAllocated;
     // Delegate to calculation function
     return calculateBudgetAdjustment(project.estimatedHours, totalAllocated, targetUtilization);
@@ -380,7 +380,7 @@ export class ProjectOrchestrator {
   /**
    * Check for milestone date conflicts
    */
-  private static checkMilestoneDateConflicts(milestones: Milestone[]): boolean {
+  private static checkMilestoneDateConflicts(milestones: Phase[]): boolean {
     const dateMap = new Map<string, number>();
     for (const milestone of milestones) {
       const dateKey = getDateKey(milestone.dueDate);
@@ -397,7 +397,7 @@ export class ProjectOrchestrator {
    */
   static generateProjectStatus(
     project: Project,
-    milestones: Milestone[]
+    milestones: Phase[]
   ): {
     status: 'healthy' | 'warning' | 'critical';
     summary: string;
@@ -496,7 +496,7 @@ export class ProjectOrchestrator {
     request: ProjectCreationWithMilestonesRequest,
     projectContext: {
       addProject: (data: Partial<Project>) => Promise<Project>;
-      addMilestone: (data: Partial<Milestone>, options?: { silent?: boolean }) => Promise<void>;
+      addMilestone: (data: Partial<Phase>, options?: { silent?: boolean }) => Promise<void>;
     }
   ): Promise<ProjectCreationResult> {
     try {
@@ -576,13 +576,13 @@ export class ProjectOrchestrator {
       }
       // Step 4: Apply Phase Time Domain Rules auto-adjustments
       const warnings: string[] = validation.warnings || [];
-      if (request.milestones && request.milestones.length > 0) {
-        const phases = request.milestones.filter(m => m.endDate !== undefined);
+      if (request.phases && request.phases.length > 0) {
+        const phases = request.phases.filter(m => m.endDate !== undefined);
         if (phases.length > 0) {
           // Convert to Milestone objects for domain rule processing
           const today = new Date();
           today.setHours(0, 0, 0, 0);
-          let phaseObjects: Milestone[] = phases.map((p, index) => ({
+          let phaseObjects: Phase[] = phases.map((p, index) => ({
             id: `temp-${index}`, // Temporary ID for processing
             projectId: createdProject.id,
             userId: '', // Will be set on actual save
@@ -598,7 +598,7 @@ export class ProjectOrchestrator {
           let needsCascade = false;
           phaseObjects = phaseObjects.map((phase) => {
             if ((phase.timeAllocation ?? 0) > 0 && phase.endDate && phase.endDate < today) {
-              const minimumEndDate = MilestoneRules.calculateMinimumPhaseEndDate(phase, today);
+              const minimumEndDate = PhaseRules.calculateMinimumPhaseEndDate(phase, today);
               if (minimumEndDate > phase.endDate) {
                 warnings.push(
                   `Phase "${phase.name}" end date auto-adjusted from ${phase.endDate.toLocaleDateString()} to ${minimumEndDate.toLocaleDateString()} (cannot end in past with estimated time)`
@@ -618,7 +618,7 @@ export class ProjectOrchestrator {
             });
             if (firstAdjustedIndex >= 0) {
               const adjustedPhase = phaseObjects[firstAdjustedIndex];
-              phaseObjects = MilestoneRules.cascadePhaseAdjustments(
+              phaseObjects = PhaseRules.cascadePhaseAdjustments(
                 phaseObjects,
                 adjustedPhase.id,
                 adjustedPhase.endDate!
@@ -639,7 +639,7 @@ export class ProjectOrchestrator {
               }
             }
             // Update request milestones with adjusted values
-            request.milestones = request.milestones.map((m, idx) => {
+            request.phases = request.phases.map((m, idx) => {
               const adjusted = phaseObjects.find(p => p.id === `temp-${idx}`);
               if (adjusted && adjusted.endDate && m.endDate) {
                 return { ...m, endDate: adjusted.endDate };
@@ -650,10 +650,10 @@ export class ProjectOrchestrator {
         }
       }
       // Step 5: Handle milestone creation if provided
-      if (request.milestones && request.milestones.length > 0) {
+      if (request.phases && request.phases.length > 0) {
         await this.createProjectMilestones(
           createdProject.id,
-          request.milestones,
+          request.phases,
           projectContext.addMilestone
         );
       }
@@ -678,7 +678,7 @@ export class ProjectOrchestrator {
     projectId: string,
     milestones: ProjectMilestone[],
     addMilestone: (
-      data: ProjectMilestoneCreateInput | Partial<Milestone>,
+      data: ProjectMilestoneCreateInput | Partial<Phase>,
       options?: { silent?: boolean }
     ) => Promise<Milestone | void | undefined>
   ): Promise<void> {
@@ -792,7 +792,7 @@ export class ProjectOrchestrator {
     projectId: string,
     updates: Partial<Project>,
     currentProject: Project,
-    currentMilestones: Milestone[] = [],
+    currentMilestones: Phase[] = [],
     options: { silent?: boolean } = {}
   ): Promise<{ success: boolean; project?: Project; errors?: string[]; warnings?: string[] }> {
     try {

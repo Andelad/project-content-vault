@@ -13,7 +13,7 @@
  * Date: September 10, 2025
  */
 
-import type { Milestone, Project, CalendarEvent, Holiday } from '@/types/core';
+import type { Phase, Project, CalendarEvent, Holiday } from '@/types/core';
 import { getDateKey } from '@/utils/dateFormatUtils';
 import { calculateDurationDays, calculateDurationHours, datesOverlap } from '../general/dateCalculations';
 import { formatDateShort } from '@/utils/dateFormatUtils';
@@ -278,7 +278,7 @@ export function calculateProjectTimeMetrics(
   milestonesOrHolidays?: MilestoneWithProgress[] | Holiday[],
   currentDate: Date = new Date()
 ): ComprehensiveProjectTimeMetrics {
-  const milestones = Array.isArray(milestonesOrHolidays)
+  const phases = Array.isArray(milestonesOrHolidays)
     ? milestonesOrHolidays.filter((item): item is MilestoneWithProgress =>
         typeof item === 'object' && item !== null && 'projectId' in item)
     : [];

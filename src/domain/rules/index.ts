@@ -10,7 +10,7 @@
  */
 
 export * from './ProjectRules';
-export * from './MilestoneRules';
+export * from './PhaseRules';
 export * from './PhaseRules';
 export * from './RelationshipRules';
 export * from './EventClassificationRules'; // Pure domain event classification

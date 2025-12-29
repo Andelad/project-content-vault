@@ -7,7 +7,7 @@
  */
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { Project, Milestone, CalendarEvent, Settings, Holiday } from '@/types/core';
+import { Project, Phase, CalendarEvent, Settings, Holiday } from '@/types/core';
 import { UnifiedDayEstimateService } from '@/services';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';

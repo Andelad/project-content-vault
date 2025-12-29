@@ -9,7 +9,7 @@
  * @see docs/core/Business Logic.md for complete relationship documentation
  */
 
-import type { Project, Milestone, Group, Row, Client, Label } from '@/types/core';
+import type { Project, Phase, Group, Row, Client, Label } from '@/types/core';
 import { ProjectRules } from './ProjectRules';
 import { PhaseRules } from './PhaseRules';
 
@@ -47,7 +47,7 @@ export class RelationshipRules {
   // ==========================================================================
   
   /**
-   * RELATIONSHIP 1: Milestone dates must be within project range
+   * RELATIONSHIP 1: Phase dates must be within project range
    * 
    * Business Logic Reference: Rule 2
    * Formula: project.startDate ≤ milestone.endDate ≤ project.endDate
@@ -97,7 +97,7 @@ export class RelationshipRules {
   }
 
   /**
-   * RELATIONSHIP 2: Milestone allocation must fit within project budget
+   * RELATIONSHIP 2: Phase allocation must fit within project budget
    * 
    * Business Logic Reference: Rule 1
    * Formula: SUM(milestone.timeAllocationHours) ≤ project.estimatedHours
@@ -107,7 +107,7 @@ export class RelationshipRules {
    * @returns Validation result
    */
   static validateProjectMilestoneBudget(
-    milestones: Milestone[],
+    milestones: Phase[],
     project: Project
   ): RelationshipValidation {
     const errors: string[] = [];
@@ -150,7 +150,7 @@ export class RelationshipRules {
    */
   static validateProjectMilestones(
     project: Project,
-    milestones: Milestone[]
+    milestones: Phase[]
   ): RelationshipValidation {
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -261,7 +261,7 @@ export class RelationshipRules {
    * @returns List of orphaned milestone IDs
    */
   static findOrphanedMilestones(
-    milestones: Milestone[],
+    milestones: Phase[],
     projects: Project[]
   ): string[] {
     const projectIds = new Set(projects.map(p => p.id));
@@ -321,7 +321,7 @@ export class RelationshipRules {
    */
   static validateSystemIntegrity(context: {
     projects: Project[];
-    milestones: Milestone[];
+    milestones: Phase[];
     clients: Client[];
     groups: Group[];
     labels?: Label[];
@@ -332,7 +332,7 @@ export class RelationshipRules {
 
     // Find orphaned entities
     const orphanedMilestones = this.findOrphanedMilestones(
-      context.milestones,
+      context.phases,
       context.projects
     );
     const orphanedProjects = this.findOrphanedProjects(
@@ -353,7 +353,7 @@ export class RelationshipRules {
 
     // Check project-milestone budget constraints
     context.projects.forEach(project => {
-      const projectMilestones = context.milestones.filter(
+      const projectMilestones = context.phases.filter(
         m => m.projectId === project.id
       );
       
@@ -392,7 +392,7 @@ export class RelationshipRules {
    */
   static getProjectDeletionImpact(
     projectId: string,
-    milestones: Milestone[]
+    milestones: Phase[]
   ): string[] {
     return milestones
       .filter(m => m.projectId === projectId)
@@ -413,7 +413,7 @@ export class RelationshipRules {
   static getClientDeletionImpact(
     clientId: string,
     projects: Project[],
-    milestones: Milestone[]
+    milestones: Phase[]
   ): {
     projectIds: string[];
     milestoneIds: string[];
@@ -441,7 +441,7 @@ export class RelationshipRules {
   static getGroupDeletionImpact(
     groupId: string,
     projects: Project[],
-    milestones: Milestone[]
+    milestones: Phase[]
   ): {
     projectIds: string[];
     milestoneIds: string[];

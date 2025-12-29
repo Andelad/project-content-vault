@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { calculateProjectDayEstimates } from '../dayEstimateCalculations';
-import type { Project, Milestone, Settings, CalendarEvent, Holiday } from '@/types/core';
+import type { Project, Phase, Settings, CalendarEvent, Holiday } from '@/types/core';
 
 // Mock TimelineRules to control event breakdown and grouping
 vi.mock('@/domain/rules', () => {
@@ -76,7 +76,7 @@ describe('dayEstimateCalculations redistribution', () => {
       updatedAt: NOW
     };
 
-    const milestone: Milestone = {
+    const milestone: Phase = {
       id: 'm1',
       name: 'Phase',
       projectId: project.id,
@@ -149,7 +149,7 @@ describe('auto-estimate clamps when planned+completed exceed allocation', () => 
       updatedAt: NOW
     };
 
-    const phase: Milestone = {
+    const phase: Phase = {
       id: 'm-overrun',
       name: 'Phase',
       projectId: project.id,
@@ -230,7 +230,7 @@ describe('recurring milestone intervals within project window', () => {
       updatedAt: NOW
     };
 
-    const milestone: Milestone = {
+    const milestone: Phase = {
       id: 'm2',
       name: 'Recurring Phase',
       projectId: project.id,
@@ -281,7 +281,7 @@ describe('recurring milestone intervals within project window', () => {
       updatedAt: NOW
     };
 
-    const milestone: Milestone = {
+    const milestone: Phase = {
       id: 'm3',
       name: 'Weekly Phase',
       projectId: project.id,

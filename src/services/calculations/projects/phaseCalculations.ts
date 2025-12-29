@@ -9,13 +9,13 @@
  * ✅ Mathematical operations only
  */
 
-import { Holiday, Milestone, Settings } from '@/types/core';
+import { Holiday, Phase, Settings } from '@/types/core';
 import * as DateCalculations from '../general/dateCalculations';
 
 /**
  * Calculate total time allocation across milestones
  */
-export function calculateTotalAllocation(milestones: Milestone[]): number {
+export function calculateTotalAllocation(milestones: Phase[]): number {
   return milestones.reduce((sum, milestone) => {
     const hours = milestone.timeAllocationHours ?? milestone.timeAllocation ?? 0;
     return sum + hours;
@@ -47,7 +47,7 @@ export function calculateOverageAmount(totalAllocated: number, projectBudget: nu
  * Calculate milestone density (milestones per day) for a date range
  */
 export function calculateMilestoneDensity(
-  milestones: Milestone[],
+  milestones: Phase[],
   startDate: Date,
   endDate: Date
 ): number {
@@ -63,7 +63,7 @@ export function calculateMilestoneDensity(
 /**
  * Calculate average milestone allocation
  */
-export function calculateAverageMilestoneAllocation(milestones: Milestone[]): number {
+export function calculateAverageMilestoneAllocation(milestones: Phase[]): number {
   if (milestones.length === 0) return 0;
   return calculateTotalAllocation(milestones) / milestones.length;
 }
@@ -71,7 +71,7 @@ export function calculateAverageMilestoneAllocation(milestones: Milestone[]): nu
 /**
  * Calculate milestone allocation distribution (min, max, avg)
  */
-export function calculateAllocationDistribution(milestones: Milestone[]): {
+export function calculateAllocationDistribution(milestones: Phase[]): {
   min: number;
   max: number;
   avg: number;
@@ -151,7 +151,7 @@ export function calculateBusinessDaySpacing(
  * Calculate milestone timeline pressure (how tightly packed milestones are)
  */
 export function calculateTimelinePressure(
-  milestones: Milestone[],
+  milestones: Phase[],
   projectStartDate: Date,
   projectEndDate: Date
 ): {
@@ -165,7 +165,7 @@ export function calculateTimelinePressure(
   }
 
   // Sort milestones by date
-  const sortedMilestones = [...milestones].sort((a, b) => {
+  const sortedMilestones = [...phases].sort((a, b) => {
     const dateA = a.endDate || a.dueDate;
     const dateB = b.endDate || b.dueDate;
     return dateA.getTime() - dateB.getTime();
@@ -210,8 +210,8 @@ export function calculateTimelinePressure(
  * Calculate milestone completion velocity (for tracking progress)
  */
 export function calculateMilestoneVelocity(
-  completedMilestones: Milestone[],
-  totalMilestones: Milestone[],
+  completedMilestones: Phase[],
+  totalMilestones: Phase[],
   projectStartDate: Date,
   currentDate: Date = new Date()
 ): {
@@ -272,8 +272,8 @@ export function calculateSuggestedMilestoneBudget(
 /**
  * Sort milestones by due date
  */
-export function sortMilestonesByDate(milestones: Milestone[]): Milestone[] {
-  return [...milestones].sort((a, b) => {
+export function sortMilestonesByDate(milestones: Phase[]): Phase[] {
+  return [...phases].sort((a, b) => {
     const dateA = a.endDate || a.dueDate;
     const dateB = b.endDate || b.dueDate;
     return dateA.getTime() - dateB.getTime();
@@ -284,7 +284,7 @@ export function sortMilestonesByDate(milestones: Milestone[]): Milestone[] {
  * Find appropriate gap between milestones for positioning
  */
 export function findMilestoneGap(
-  sortedMilestones: Milestone[], 
+  sortedMilestones: Phase[], 
   targetDate: Date
 ): { startDate: Date; endDate: Date } | null {
   if (sortedMilestones.length === 0) {
@@ -317,7 +317,7 @@ export function findMilestoneGap(
 // RECURRING MILESTONE CALCULATIONS
 // ============================================================================
 
-export interface RecurringMilestoneConfig {
+export interface RecurringPhaseConfig {
   recurringType: 'daily' | 'weekly' | 'monthly';
   recurringInterval: number;
   timeAllocation: number;
@@ -328,8 +328,8 @@ export interface RecurringMilestoneConfig {
   monthlyDayOfWeek?: number; // 0-6 for day of week in monthly pattern
 }
 
-export interface RecurringMilestoneCalculationParams {
-  config: RecurringMilestoneConfig;
+export interface RecurringPhaseCalculationParams {
+  config: RecurringPhaseConfig;
   projectStartDate: Date;
   projectEndDate: Date;
   projectContinuous?: boolean;
@@ -338,7 +338,7 @@ export interface RecurringMilestoneCalculationParams {
 /**
  * Calculate how many milestones a recurring configuration would generate
  */
-export function calculateRecurringMilestoneCount(params: RecurringMilestoneCalculationParams): number {
+export function calculateRecurringPhaseCount(params: RecurringPhaseCalculationParams): number {
   const { config, projectStartDate, projectEndDate, projectContinuous = false } = params;
   
   let count = 0;
@@ -372,15 +372,15 @@ export function calculateRecurringMilestoneCount(params: RecurringMilestoneCalcu
 /**
  * Calculate total time allocation for recurring milestones
  */
-export function calculateRecurringTotalAllocation(params: RecurringMilestoneCalculationParams): number {
-  const count = calculateRecurringMilestoneCount(params);
+export function calculateRecurringTotalAllocation(params: RecurringPhaseCalculationParams): number {
+  const count = calculateRecurringPhaseCount(params);
   return count * params.config.timeAllocation;
 }
 
 /**
  * Generate milestone dates for a recurring configuration
  */
-export function generateRecurringMilestoneDates(params: RecurringMilestoneCalculationParams): Date[] {
+export function generateRecurringPhaseDates(params: RecurringPhaseCalculationParams): Date[] {
   const { config, projectStartDate, projectEndDate, projectContinuous = false } = params;
   
   const dates: Date[] = [];
@@ -484,7 +484,7 @@ export interface MilestoneDistributionEntry {
  * Calculate milestone segments for timeline visualization
  */
 export function calculateMilestoneSegments(
-  milestones: Milestone[],
+  milestones: Phase[],
   projectStartDate: Date,
   projectEndDate: Date
 ): MilestoneSegment[] {
@@ -493,7 +493,7 @@ export function calculateMilestoneSegments(
   }
 
   const segments: MilestoneSegment[] = [];
-  const sortedMilestones = [...milestones].sort((a, b) => {
+  const sortedMilestones = [...phases].sort((a, b) => {
     const dateA = a.endDate || a.dueDate;
     const dateB = b.endDate || b.dueDate;
     return dateA.getTime() - dateB.getTime();
@@ -501,7 +501,7 @@ export function calculateMilestoneSegments(
 
   // Create segments between milestones
   for (let i = 0; i < sortedMilestones.length; i++) {
-    const milestone = sortedMilestones[i];
+    const phase = sortedMilestones[i];
     const milestoneDate = milestone.endDate || milestone.dueDate;
     
     let segmentStart: Date;
@@ -602,7 +602,7 @@ export function calculateProjectWorkingDays(
  * Calculate milestone distribution over timeline (for visualization)
  */
 export function calculateMilestoneDistribution(
-  milestones: Milestone[],
+  milestones: Phase[],
   projectStartDate: Date,
   projectEndDate: Date
 ): MilestoneDistributionEntry[] {
@@ -640,7 +640,7 @@ export function calculateMilestoneDistribution(
 /**
  * Calculate total allocated hours from milestones
  */
-export function calculateTotalAllocatedHours(milestones: Milestone[]): number {
+export function calculateTotalAllocatedHours(milestones: Phase[]): number {
   return milestones.reduce((total, milestone) => {
     const hours = milestone.timeAllocationHours ?? milestone.timeAllocation;
     return total + hours;
@@ -677,7 +677,7 @@ export function validateMilestoneBudget(
  */
 export function calculateRemainingProjectHours(
   projectEstimatedHours: number,
-  existingMilestones: Milestone[]
+  existingMilestones: Phase[]
 ): number {
   const currentTotal = existingMilestones.reduce((total, milestone) => {
     const hours = milestone.timeAllocationHours ?? milestone.timeAllocation;
@@ -691,7 +691,7 @@ export function calculateRemainingProjectHours(
  */
 export function validateMilestoneOrder(
   newMilestoneDate: Date,
-  existingMilestones: Milestone[],
+  existingMilestones: Phase[],
   projectStartDate: Date,
   projectEndDate: Date
 ): {
@@ -728,7 +728,7 @@ export function validateMilestoneOrder(
  */
 export function findNextAvailableMilestoneDate(
   startSearchDate: Date,
-  existingMilestones: Milestone[],
+  existingMilestones: Phase[],
   projectEndDate: Date
 ): Date {
   const currentDate = new Date(startSearchDate);
@@ -752,7 +752,7 @@ export function findNextAvailableMilestoneDate(
 /**
  * Calculate milestone statistics for a project
  */
-export function calculateMilestoneStatistics(milestones: Milestone[]): {
+export function calculateMilestoneStatistics(milestones: Phase[]): {
   count: number;
   totalHours: number;
   averageHours: number;

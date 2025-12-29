@@ -5,7 +5,7 @@ import { useProjectContext } from '@/contexts/ProjectContext';
 import { usePlannerContext } from '@/contexts/PlannerContext';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import { isSameDate } from '@/utils/dateFormatUtils';
-import type { Project, Milestone } from '@/types/core';
+import type { Project, Phase } from '@/types/core';
 import { UnifiedTimelineService } from '@/services';
 import { ColorCalculationService } from '@/services/ui/ColorCalculations';
 import type { TimelineAllocationType } from '@/constants/styles';

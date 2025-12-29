@@ -10,7 +10,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Project, CreateProjectParams } from '@/domain/entities/Project';
-import type { Project as ProjectData, Milestone } from '@/types/core';
+import type { Project as ProjectData, Phase } from '@/types/core';
 
 describe('Project Entity', () => {
   // Test data factories
@@ -733,7 +733,7 @@ describe('Project Entity', () => {
 
     describe('setPhases()', () => {
       it('should set phases', () => {
-        const phases: Milestone[] = [
+        const phases: Phase[] = [
           {
             id: 'phase-1',
             name: 'Phase 1',
@@ -750,7 +750,7 @@ describe('Project Entity', () => {
 
         project.setPhases(phases);
         const data = project.toData();
-        expect(data.milestones).toEqual(phases);
+        expect(data.phases).toEqual(phases);
       });
     });
 

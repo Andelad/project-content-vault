@@ -10,7 +10,7 @@
  * ✅ Optimized for performance and caching
  */
 
-import { Milestone, Settings, Holiday, Project } from '@/types/core';
+import { Phase, Settings, Holiday, Project } from '@/types/core';
 import { normalizeToMidnight, addDaysToDate } from '../calculations/general/dateCalculations';
 
 import { 
@@ -22,7 +22,7 @@ import {
   calculateAllocationDistribution,
   calculateAutoEstimateWorkingDays 
 } from '@/services';
-import { MilestoneRules } from '@/domain/rules/MilestoneRules';
+import { PhaseRules } from '@/domain/rules/PhaseRules';
 // TODO: Import UnifiedWorkingDayService when created
 // import { UnifiedWorkingDayService } from './UnifiedWorkingDayService';
 
@@ -54,14 +54,14 @@ export interface WorkingDayOptions {
  * 
  * Consolidates all cross-feature milestone calculations
  */
-export class UnifiedMilestoneService {
+export class UnifiedPhaseService {
   
   /**
    * Validate milestone budget allocation (replaces duplicate functions)
    * Used by: Project management, milestone creation, budget analysis
    */
   static validateBudgetAllocation(
-    milestones: Milestone[], 
+    milestones: Phase[], 
     projectBudget: number,
     excludeMilestoneId?: string
   ): MilestoneValidationResult {
@@ -112,7 +112,7 @@ export class UnifiedMilestoneService {
    * Used by: Timeline rendering, project scheduling, milestone planning
    */
   static calculateTimeDistribution(
-    milestones: Milestone[],
+    milestones: Phase[],
     projectStartDate: Date,
     projectEndDate: Date,
     options: WorkingDayOptions = {}
@@ -122,7 +122,7 @@ export class UnifiedMilestoneService {
     }
 
     // Expand recurring milestones into their occurrences
-    const expandedMilestones: Milestone[] = [];
+    const expandedMilestones: Phase[] = [];
     milestones.forEach(m => {
       if (m.isRecurring && m.recurringConfig) {
         // Generate occurrence dates for recurring milestone
@@ -159,7 +159,7 @@ export class UnifiedMilestoneService {
     currentDate = normalizeToMidnight(currentDate);
 
     for (let i = 0; i < sortedMilestones.length; i++) {
-      const milestone = sortedMilestones[i];
+      const phase = sortedMilestones[i];
       const milestoneDate = normalizeToMidnight(milestone.endDate || milestone.dueDate);
 
           // Calculate working days using unified service (when available)
@@ -218,7 +218,7 @@ export class UnifiedMilestoneService {
    * Calculate milestone metrics for analytics and reporting
    * Used by: Dashboard, insights, project analysis
    */
-  static calculateMilestoneMetrics(milestones: Milestone[], projectBudget: number) {
+  static calculateMilestoneMetrics(milestones: Phase[], projectBudget: number) {
     const totalAllocated = calculateTotalAllocation(milestones);
     const distribution = calculateAllocationDistribution(milestones);
     const budgetAnalysis = this.validateBudgetAllocation(milestones, projectBudget);
@@ -240,7 +240,7 @@ export class UnifiedMilestoneService {
    */
   static getEstimatedHoursForDate(
     date: Date,
-    milestones: Milestone[],
+    milestones: Phase[],
     projectStartDate: Date,
     projectEndDate: Date,
     options: WorkingDayOptions = {}
@@ -260,7 +260,7 @@ export class UnifiedMilestoneService {
 
   /**
    * Calculate valid date range for milestone positioning
-   * Used by: Milestone date picker, milestone validation
+   * Used by: Phase date picker, milestone validation
    * Migrated from legacy MilestoneManagementService
    */
   static calculateMilestoneDateRange(params: {
@@ -310,7 +310,7 @@ export class UnifiedMilestoneService {
     let reason: string | undefined;
     
     if (params.currentMilestone) {
-      const validation = MilestoneRules.validateMilestoneDateWithinProject(
+      const validation = PhaseRules.validateMilestoneDateWithinProject(
         params.currentMilestone.dueDate,
         params.projectStartDate,
         params.projectEndDate
@@ -335,7 +335,7 @@ export class UnifiedMilestoneService {
 
   /**
    * Calculate appropriate default date for new milestone
-   * Used by: Milestone creation, milestone suggestions
+   * Used by: Phase creation, milestone suggestions
    * Migrated from legacy MilestoneManagementService
    */
   static calculateDefaultMilestoneDate(params: {
@@ -509,7 +509,7 @@ export class UnifiedMilestoneEntity {
   }
 
   /**
-   * Domain Rule: Milestone due date must be within project bounds
+   * Domain Rule: Phase due date must be within project bounds
    */
   static isDateWithinProject(
     milestoneDate: Date, 
@@ -523,7 +523,7 @@ export class UnifiedMilestoneEntity {
    * Domain Rule: Calculate total budget utilization across milestones
    */
   static calculateBudgetUtilization(
-    milestones: Milestone[], 
+    milestones: Phase[], 
     projectBudget: number
   ): number {
     const totalAllocated = milestones.reduce(
@@ -537,7 +537,7 @@ export class UnifiedMilestoneEntity {
    * Domain Rule: Check if adding a milestone would exceed project budget
    */
   static wouldExceedBudget(
-    existingMilestones: Milestone[],
+    existingMilestones: Phase[],
     additionalHours: number,
     projectBudget: number
   ): MilestoneBudgetValidation {
@@ -561,7 +561,7 @@ export class UnifiedMilestoneEntity {
    * Domain Rule: Check if updating a specific milestone would exceed budget
    */
   static wouldUpdateExceedBudget(
-    milestones: Milestone[],
+    milestones: Phase[],
     milestoneId: string,
     newTimeAllocation: number,
     projectBudget: number
@@ -617,7 +617,7 @@ export class UnifiedMilestoneEntity {
    */
   static hasDateConflict(
     proposedDate: Date,
-    existingMilestones: Milestone[],
+    existingMilestones: Phase[],
     excludeMilestoneId?: string
   ): boolean {
     return existingMilestones
@@ -632,7 +632,7 @@ export class UnifiedMilestoneEntity {
     proposedDate: Date,
     projectStart: Date,
     projectEnd: Date,
-    existingMilestones: Milestone[],
+    existingMilestones: Phase[],
     excludeMilestoneId?: string
   ): MilestoneDateValidation {
     const errors: string[] = [];
@@ -676,7 +676,7 @@ export class UnifiedMilestoneEntity {
    * Domain Rule: Check if milestone is recurring type (by name pattern)
    * Recurring milestones follow the pattern "Name N" where N is a number
    */
-  static isRecurringMilestone(milestone: Milestone): boolean {
+  static isRecurringPhase(milestone: Milestone): boolean {
     return milestone.name ? /\s\d+$/.test(milestone.name) : false;
   }
 
@@ -684,6 +684,6 @@ export class UnifiedMilestoneEntity {
    * Domain Rule: Check if milestone is regular (non-recurring) type
    */
   static isRegularMilestone(milestone: Milestone): boolean {
-    return !this.isRecurringMilestone(milestone);
+    return !this.isRecurringPhase(milestone);
   }
 }

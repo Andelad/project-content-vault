@@ -4,7 +4,7 @@
  * Single source of truth for phase-related business logic.
  * 
  * MIGRATION NOTE (December 2025):
- * This file consolidates both PhaseRules and MilestoneRules.
+ * This file consolidates both PhaseRules and PhaseRules.
  * The term "phase" is now preferred, but "milestone" terminology is preserved
  * for backward compatibility and database field names (milestone.endDate, etc.)
  * 
@@ -26,13 +26,13 @@
  * Services and components should delegate to these rules.
  * 
  * Created: 2025-11-10 (PhaseRules)
- * Consolidated: 2025-12-29 (merged with MilestoneRules)
+ * Consolidated: 2025-12-29 (merged with PhaseRules)
  * 
  * @see docs/MILESTONE_TO_PHASE_MIGRATION_ASSESSMENT.md
  * @see docs/core/Business Logic.md
  */
 
-import type { Milestone, Project } from '@/types/core';
+import type { Phase, Project } from '@/types/core';
 import { normalizeToMidnight, addDaysToDate } from '@/services/calculations/general/dateCalculations';
 
 /**
@@ -42,7 +42,7 @@ import { normalizeToMidnight, addDaysToDate } from '@/services/calculations/gene
 export type Phase = Milestone & { startDate: Date };
 
 // ============================================================================
-// TYPE DEFINITIONS (from MilestoneRules)
+// TYPE DEFINITIONS (from PhaseRules)
 // ============================================================================
 
 export interface MilestoneValidationResult {
@@ -71,7 +71,7 @@ export interface MilestoneBudgetCheck {
   utilizationPercentage: number;
 }
 
-export interface RecurringMilestoneRuleConfig {
+export interface RecurringPhaseRuleConfig {
   type: 'daily' | 'weekly' | 'monthly';
   interval: number;
   weeklyDayOfWeek?: number;
@@ -113,7 +113,7 @@ export function isPhase(milestone: Milestone): milestone is Phase {
  * @example
  * ```ts
  * const items = [phase1, milestone1, phase2];
- * const milestones = items.filter(isMilestone); // Pure milestones only
+ * const phases = items.filter(isMilestone); // Pure milestones only
  * ```
  */
 export function isMilestone(milestone: Milestone): boolean {
@@ -135,12 +135,12 @@ export function isMilestone(milestone: Milestone): boolean {
  * 
  * @example
  * ```ts
- * const projectItems = project.milestones;
+ * const projectItems = project.phases;
  * const phases = getPhases(projectItems);
  * // phases is Phase[] - TypeScript knows they have startDate
  * ```
  */
-export function getPhases(milestones: Milestone[]): Phase[] {
+export function getPhases(milestones: Phase[]): Phase[] {
   return milestones.filter(isPhase);
 }
 
@@ -154,12 +154,12 @@ export function getPhases(milestones: Milestone[]): Phase[] {
  * 
  * @example
  * ```ts
- * const projectItems = project.milestones;
+ * const projectItems = project.phases;
  * const pureMilestones = getMilestones(projectItems);
  * // These are deadline-only milestones
  * ```
  */
-export function getMilestones(milestones: Milestone[]): Milestone[] {
+export function getMilestones(milestones: Phase[]): Phase[] {
   return milestones.filter(isMilestone);
 }
 
@@ -220,7 +220,7 @@ export function sortPhasesByStartDate(phases: Phase[]): Phase[] {
  * const phases = getPhasesSortedByEndDate(milestones);
  * ```
  */
-export function getPhasesSortedByEndDate(milestones: Milestone[]): Phase[] {
+export function getPhasesSortedByEndDate(milestones: Phase[]): Phase[] {
   return sortPhasesByEndDate(getPhases(milestones));
 }
 
@@ -228,7 +228,7 @@ export function getPhasesSortedByEndDate(milestones: Milestone[]): Phase[] {
  * Phase Business Rules Class
  * 
  * Contains validation and business rules for phases and milestones.
- * Consolidated from PhaseRules and MilestoneRules (December 2025).
+ * Consolidated from PhaseRules and PhaseRules (December 2025).
  * 
  * See docs/PHASE_DOMAIN_LOGIC.md for complete phase model documentation.
  * See docs/core/Business Logic.md for business rules reference.
@@ -246,11 +246,11 @@ export function getPhasesSortedByEndDate(milestones: Milestone[]): Phase[] {
 export class PhaseRules {
 
   // ==========================================================================
-  // MILESTONE VALIDATION RULES (from MilestoneRules)
+  // MILESTONE VALIDATION RULES (from PhaseRules)
   // ==========================================================================
   
   /**
-   * RULE 1: Milestone time allocation must be non-negative
+   * RULE 1: Phase time allocation must be non-negative
    * 
    * Business Logic Reference: Rule 4
    * Formula: milestone.timeAllocationHours >= 0
@@ -263,7 +263,7 @@ export class PhaseRules {
   }
 
   /**
-   * RULE 2: Milestone dates must fall within project date range
+   * RULE 2: Phase dates must fall within project date range
    * 
    * Business Logic Reference: Rule 2
    * Formula: project.startDate ≤ milestone.endDate ≤ project.endDate
@@ -338,9 +338,9 @@ export class PhaseRules {
    * @param timeAllocation - Hours per occurrence
    * @returns Validation result with errors
    */
-  static validateRecurringMilestone(
+  static validateRecurringPhase(
     isRecurring: boolean,
-    recurringConfig: RecurringMilestoneRuleConfig,
+    recurringConfig: RecurringPhaseRuleConfig,
     timeAllocation: number
   ): MilestoneDateValidation {
     const errors: string[] = [];
@@ -402,7 +402,7 @@ export class PhaseRules {
    * @param milestones - Array of milestones
    * @returns Total hours allocated
    */
-  static calculateTotalAllocation(milestones: Milestone[]): number {
+  static calculateTotalAllocation(milestones: Phase[]): number {
     return milestones.reduce((sum, milestone) => {
       const hours = milestone.timeAllocationHours ?? milestone.timeAllocation ?? 0;
       return sum + hours;
@@ -421,7 +421,7 @@ export class PhaseRules {
    * @returns Budget check result
    */
   static checkBudgetConstraint(
-    milestones: Milestone[],
+    milestones: Phase[],
     projectBudget: number,
     excludeMilestoneId?: string
   ): MilestoneBudgetCheck {
@@ -455,7 +455,7 @@ export class PhaseRules {
    * @returns true if budget can accommodate, false otherwise
    */
   static canAccommodateAdditionalMilestone(
-    milestones: Milestone[],
+    milestones: Phase[],
     projectBudget: number,
     additionalHours: number
   ): boolean {
@@ -517,7 +517,7 @@ export class PhaseRules {
   static validateMilestone(
     milestone: Milestone,
     project: Project,
-    existingMilestones: Milestone[] = []
+    existingMilestones: Phase[] = []
   ): MilestoneValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -534,7 +534,7 @@ export class PhaseRules {
 
     // For recurring milestones, validate pattern
     if (milestone.isRecurring) {
-      const recurringValidation = this.validateRecurringMilestone(
+      const recurringValidation = this.validateRecurringPhase(
         milestone.isRecurring,
         milestone.recurringConfig,
         milestoneHours
@@ -605,7 +605,7 @@ export class PhaseRules {
    * @returns Utilization percentage (0-100+)
    */
   static calculateBudgetUtilization(
-    milestones: Milestone[],
+    milestones: Phase[],
     projectBudget: number
   ): number {
     if (projectBudget === 0) return 0;
@@ -624,7 +624,7 @@ export class PhaseRules {
    * @returns Remaining hours (can be negative if over budget)
    */
   static calculateRemainingBudget(
-    milestones: Milestone[],
+    milestones: Phase[],
     projectBudget: number
   ): number {
     const totalAllocated = this.calculateTotalAllocation(milestones);
@@ -642,7 +642,7 @@ export class PhaseRules {
    * @returns Overage hours (0 if not over budget)
    */
   static calculateBudgetOverage(
-    milestones: Milestone[],
+    milestones: Phase[],
     projectBudget: number
   ): number {
     const totalAllocated = this.calculateTotalAllocation(milestones);
@@ -655,7 +655,7 @@ export class PhaseRules {
    * @param milestones - Array of milestones
    * @returns Average hours per milestone
    */
-  static calculateAverageMilestoneAllocation(milestones: Milestone[]): number {
+  static calculateAverageMilestoneAllocation(milestones: Phase[]): number {
     if (milestones.length === 0) return 0;
     const totalAllocated = this.calculateTotalAllocation(milestones);
     return totalAllocated / milestones.length;
@@ -669,7 +669,7 @@ export class PhaseRules {
    * @returns Array of recommendation strings
    */
   static generateRecommendations(
-    milestones: Milestone[],
+    milestones: Phase[],
     projectBudget: number
   ): string[] {
     const recommendations: string[] = [];
@@ -713,7 +713,7 @@ export class PhaseRules {
    * @param milestones - Array of milestones
    * @returns Sorted milestones
    */
-  static sortMilestonesByDate(milestones: Milestone[]): Milestone[] {
+  static sortMilestonesByDate(milestones: Phase[]): Phase[] {
     return milestones.sort((a, b) => {
       const dateA = a.endDate || a.dueDate;
       const dateB = b.endDate || b.dueDate;
@@ -722,7 +722,7 @@ export class PhaseRules {
   }
 
   /**
-   * RULE: Milestone position constraints for drag operations
+   * RULE: Phase position constraints for drag operations
    * 
    * Business rules:
    * 1. Milestones must be at least 1 day after project start
@@ -800,7 +800,7 @@ export class PhaseRules {
    * @param milestone - Milestone to check
    * @returns true if milestone is a recurring instance
    */
-  static isRecurringMilestone(milestone: Milestone): boolean {
+  static isRecurringPhase(milestone: Milestone): boolean {
     return milestone.name ? /\s\d+$/.test(milestone.name) : false;
   }
 
@@ -885,7 +885,7 @@ export class PhaseRules {
    * @returns Validation result with errors
    */
   static validatePhaseSpacing(
-    phases: Milestone[]
+    phases: Phase[]
   ): { isValid: boolean; errors: string[] } {
     const errors: string[] = [];
     
@@ -933,10 +933,10 @@ export class PhaseRules {
    * @returns Updated array of phases with cascaded adjustments
    */
   static cascadePhaseAdjustments(
-    phases: Milestone[],
+    phases: Phase[],
     adjustedPhaseId: string,
     newEndDate: Date
-  ): Milestone[] {
+  ): Phase[] {
     // Sort phases by end date
     const sortedPhases = [...phases].sort((a, b) => {
       const aEnd = new Date(a.endDate || a.dueDate).getTime();
@@ -1003,7 +1003,7 @@ export class PhaseRules {
    * 
    * @see docs/PHASE_DOMAIN_LOGIC.md - Rule 4: Mutual Exclusivity
    */
-  static checkPhaseRecurringExclusivity(milestones: Milestone[]): {
+  static checkPhaseRecurringExclusivity(milestones: Phase[]): {
     hasSplitPhases: boolean;
     hasRecurringTemplate: boolean;
     isValid: boolean;

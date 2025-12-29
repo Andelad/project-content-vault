@@ -12,7 +12,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
 import { RichTextEditor } from '../ui/rich-text-editor';
-import { ProjectMilestoneSection, ProjectInsightsSection, ProjectNotesSection } from '@/components/features/project';
+import { ProjectPhaseSection, ProjectInsightsSection, ProjectNotesSection } from '@/components/features/project';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
@@ -25,7 +25,7 @@ import { useToast } from '@/hooks/use-toast';
 import { StandardModal } from './StandardModal';
 import { OKLCH_PROJECT_COLORS, PROJECT_ICONS } from '@/constants';
 import { NEUTRAL_COLORS } from '@/constants/colors';
-import type { Project, Milestone } from '@/types/core';
+import type { Project, Phase } from '@/types/core';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 import { TabComponent } from '../shared';
 import { supabase } from '@/integrations/supabase/client';
@@ -116,7 +116,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
     isNew?: boolean;
   }>>([]);
   // State to track recurring milestone from MilestoneManager
-  const [recurringMilestoneInfo, setRecurringMilestoneInfo] = useState<{
+  const [recurringMilestoneInfo, setRecurringPhaseInfo] = useState<{
     totalAllocation: number;
     hasRecurring: boolean;
   }>({ totalAllocation: 0, hasRecurring: false });
@@ -175,8 +175,8 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
       updateProject(projectId, { estimatedHours: newBudget }, { silent: true });
     }
   }, [isCreating, projectId, updateProject]);
-  const handleRecurringMilestoneChange = useCallback((info: { totalAllocation: number; hasRecurring: boolean; }) => {
-    setRecurringMilestoneInfo(prev => {
+  const handleRecurringPhaseChange = useCallback((info: { totalAllocation: number; hasRecurring: boolean; }) => {
+    setRecurringPhaseInfo(prev => {
       if (prev.totalAllocation === info.totalAllocation && prev.hasRecurring === info.hasRecurring) return prev;
       return info;
     });
@@ -187,7 +187,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
       ...updater({ autoEstimateDays: prev.autoEstimateDays }),
     }));
   }, [setLocalValues]);
-  const localMilestonesStateMemo = useMemo(() => (
+  const localPhasesStateMemo = useMemo(() => (
     isCreating ? {
       milestones: localProjectMilestones,
       setMilestones: setLocalProjectMilestones
@@ -332,7 +332,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
           },
           {
             addProject,
-            addMilestone: async (data: Partial<Milestone>, options?: { silent?: boolean }) => {
+            addMilestone: async (data: Partial<Phase>, options?: { silent?: boolean }) => {
               await addMilestone(data as AddMilestoneInput, options);
             }
           }
@@ -456,7 +456,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
       createdAt: project?.createdAt ?? new Date(),
       updatedAt: project?.updatedAt ?? new Date(),
   status: project?.status ?? 'current',
-  milestones: project?.milestones ?? [],
+  milestones: project?.phases ?? [],
     };
     const currentProject = project ?? fallbackProject;
     const projectEvents: ProjectEvent[] = events
@@ -1232,15 +1232,15 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
           <div className="px-8 py-6" style={{ backgroundColor: NEUTRAL_COLORS.gray25 }}>
             {/* Estimate Hours Tab */}
             {activeTab === 'estimate' && (
-              <ProjectMilestoneSection
+              <ProjectPhaseSection
                 projectId={!isCreating ? projectId : undefined}
                 projectEstimatedHours={localValues.estimatedHours}
                 projectStartDate={localValues.startDate}
                 projectEndDate={localValues.endDate}
                 projectContinuous={localValues.continuous}
                 onUpdateProjectBudget={handleUpdateProjectBudget}
-                onRecurringMilestoneChange={handleRecurringMilestoneChange}
-                localMilestonesState={localMilestonesStateMemo}
+                onRecurringPhaseChange={handleRecurringPhaseChange}
+                localPhasesState={localPhasesStateMemo}
                 isCreatingProject={isCreating}
                 trackedAddMilestone={!isCreating ? trackedAddMilestone : undefined}
                 localValues={localValues}

@@ -8,14 +8,14 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Milestone } from '@/types/core';
-import type { LocalMilestone } from '@/hooks/milestone';
+import { Phase } from '@/types/core';
+import type { LocalPhase } from '@/hooks/phase';
 
 interface PhaseCardProps {
-  milestone: Milestone | LocalMilestone;
+  milestone: Phase | LocalPhase;
   projectEstimatedHours: number;
   projectContinuous: boolean;
-  allPhases: (Milestone | LocalMilestone)[];
+  allPhases: (Milestone | LocalPhase)[];
   isFirst: boolean;
   isLast: boolean;
   editingProperty: string | null;

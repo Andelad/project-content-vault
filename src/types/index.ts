@@ -8,8 +8,5 @@
 // Re-export all types from core.ts - single source of truth
 export * from './core';
 
-// Preferred terminology exports (use these in new code)
-export type { Phase } from './core'; // ✅ Use this instead of Milestone
-
 // Legacy re-exports for compatibility
 export type { ViewType } from './core';

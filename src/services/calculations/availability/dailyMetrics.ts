@@ -30,7 +30,7 @@ import {
 } from './capacityAnalysis';
 import { calculateWorkHoursTotal } from './workHourGeneration';
 import { calculateProjectDayEstimates } from '../projects/dayEstimateCalculations';
-import type { Project, CalendarEvent, Milestone, Settings, Holiday } from '@/types/core';
+import type { Project, CalendarEvent, Phase, Settings, Holiday } from '@/types/core';
 
 /**
  * Get total work hours for a specific day
@@ -60,7 +60,7 @@ export function calculateDailyProjectHours(
   projects: Project[],
   settings: Settings,
   holidays: Holiday[],
-  milestones: Milestone[] = [],
+  milestones: Phase[] = [],
   events: CalendarEvent[] = []
 ): number {
   let totalHours = 0;

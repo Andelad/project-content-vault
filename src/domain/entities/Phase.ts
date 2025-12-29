@@ -15,7 +15,7 @@
  * @see docs/features/phases/PHASE_DOMAIN_LOGIC.md - Phase domain rules
  */
 
-import type { Milestone, RecurringConfig } from '@/types/core';
+import type { Phase, RecurringConfig } from '@/types/core';
 import { PhaseRules } from '@/domain/rules/PhaseRules';
 import { normalizeToMidnight } from '@/services/calculations/general/dateCalculations';
 import type { DomainResult } from './Project';
@@ -141,7 +141,7 @@ export class Phase {
       return { success: false, errors };
     }
 
-    const phaseData: Milestone = {
+    const phaseData: Phase = {
       id: crypto.randomUUID(),
       name: params.name.trim(),
       projectId: params.projectId,
@@ -338,7 +338,7 @@ export class Phase {
    * 
    * @returns Plain milestone data object
    */
-  toData(): Milestone {
+  toData(): Phase {
     return {
       id: this.id,
       name: this.name,

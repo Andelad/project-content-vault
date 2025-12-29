@@ -10,14 +10,14 @@
  * @example
  * ```ts
  * // Old:
- * import { MilestoneRules } from './MilestoneRules';
+ * import { PhaseRules } from './PhaseRules';
  * 
  * // New:
  * import { PhaseRules } from './PhaseRules';
  * ```
  * 
  * Migration Path:
- * 1. Update imports from MilestoneRules to PhaseRules
+ * 1. Update imports from PhaseRules to PhaseRules
  * 2. Update method calls (all methods have same names)
  * 3. This wrapper will be removed in a future release
  * 
@@ -27,20 +27,20 @@
  */
 
 import { PhaseRules } from './PhaseRules';
-import type { Milestone, Project } from '@/types/core';
+import type { Phase, Project } from '@/types/core';
 
 export type {
   MilestoneValidationResult,
   MilestoneDateValidation,
   MilestoneTimeValidation,
   MilestoneBudgetCheck,
-  RecurringMilestoneRuleConfig
+  RecurringPhaseRuleConfig
 } from './PhaseRules';
 
 /**
  * @deprecated Use PhaseRules instead
  */
-export class MilestoneRules {
+export class PhaseRules {
   
   /**
    * @deprecated Use PhaseRules.validateTimeAllocation instead
@@ -77,14 +77,14 @@ export class MilestoneRules {
   }
 
   /**
-   * @deprecated Use PhaseRules.validateRecurringMilestone instead
+   * @deprecated Use PhaseRules.validateRecurringPhase instead
    */
-  static validateRecurringMilestone(
+  static validateRecurringPhase(
     isRecurring: boolean,
     recurringConfig: any,
     timeAllocation: number
   ) {
-    return PhaseRules.validateRecurringMilestone(
+    return PhaseRules.validateRecurringPhase(
       isRecurring,
       recurringConfig,
       timeAllocation
@@ -94,7 +94,7 @@ export class MilestoneRules {
   /**
    * @deprecated Use PhaseRules.calculateTotalAllocation instead
    */
-  static calculateTotalAllocation(milestones: Milestone[]): number {
+  static calculateTotalAllocation(milestones: Phase[]): number {
     return PhaseRules.calculateTotalAllocation(milestones);
   }
 
@@ -102,7 +102,7 @@ export class MilestoneRules {
    * @deprecated Use PhaseRules.checkBudgetConstraint instead
    */
   static checkBudgetConstraint(
-    milestones: Milestone[],
+    milestones: Phase[],
     projectBudget: number,
     excludeMilestoneId?: string
   ) {
@@ -117,7 +117,7 @@ export class MilestoneRules {
    * @deprecated Use PhaseRules.canAccommodateAdditionalMilestone instead
    */
   static canAccommodateAdditionalMilestone(
-    milestones: Milestone[],
+    milestones: Phase[],
     projectBudget: number,
     additionalHours: number
   ): boolean {
@@ -142,9 +142,9 @@ export class MilestoneRules {
    * @deprecated Use PhaseRules.validateMilestone instead
    */
   static validateMilestone(
-    milestone: Milestone,
+    milestone: Phase,
     project: Project,
-    existingMilestones: Milestone[] = []
+    existingMilestones: Phase[] = []
   ) {
     return PhaseRules.validateMilestone(milestone, project, existingMilestones);
   }
@@ -153,7 +153,7 @@ export class MilestoneRules {
    * @deprecated Use PhaseRules.calculateBudgetUtilization instead
    */
   static calculateBudgetUtilization(
-    milestones: Milestone[],
+    milestones: Phase[],
     projectBudget: number
   ): number {
     return PhaseRules.calculateBudgetUtilization(milestones, projectBudget);
@@ -163,7 +163,7 @@ export class MilestoneRules {
    * @deprecated Use PhaseRules.calculateRemainingBudget instead
    */
   static calculateRemainingBudget(
-    milestones: Milestone[],
+    milestones: Phase[],
     projectBudget: number
   ): number {
     return PhaseRules.calculateRemainingBudget(milestones, projectBudget);
@@ -173,7 +173,7 @@ export class MilestoneRules {
    * @deprecated Use PhaseRules.calculateBudgetOverage instead
    */
   static calculateBudgetOverage(
-    milestones: Milestone[],
+    milestones: Phase[],
     projectBudget: number
   ): number {
     return PhaseRules.calculateBudgetOverage(milestones, projectBudget);
@@ -182,7 +182,7 @@ export class MilestoneRules {
   /**
    * @deprecated Use PhaseRules.calculateAverageMilestoneAllocation instead
    */
-  static calculateAverageMilestoneAllocation(milestones: Milestone[]): number {
+  static calculateAverageMilestoneAllocation(milestones: Phase[]): number {
     return PhaseRules.calculateAverageMilestoneAllocation(milestones);
   }
 
@@ -190,7 +190,7 @@ export class MilestoneRules {
    * @deprecated Use PhaseRules.generateRecommendations instead
    */
   static generateRecommendations(
-    milestones: Milestone[],
+    milestones: Phase[],
     projectBudget: number
   ): string[] {
     return PhaseRules.generateRecommendations(milestones, projectBudget);
@@ -199,7 +199,7 @@ export class MilestoneRules {
   /**
    * @deprecated Use PhaseRules.sortMilestonesByDate instead
    */
-  static sortMilestonesByDate(milestones: Milestone[]): Milestone[] {
+  static sortMilestonesByDate(milestones: Phase[]): Phase[] {
     return PhaseRules.sortMilestonesByDate(milestones);
   }
 
@@ -223,17 +223,17 @@ export class MilestoneRules {
   }
 
   /**
-   * @deprecated Use PhaseRules.isRecurringMilestone instead
+   * @deprecated Use PhaseRules.isRecurringPhase instead
    */
-  static isRecurringMilestone(milestone: Milestone): boolean {
-    return PhaseRules.isRecurringMilestone(milestone);
+  static isRecurringPhase(milestone: Phase): boolean {
+    return PhaseRules.isRecurringPhase(milestone);
   }
 
   /**
    * @deprecated Use PhaseRules.validatePhaseEndDateNotInPast instead
    */
   static validatePhaseEndDateNotInPast(
-    phase: Milestone,
+    phase: Phase,
     today: Date = new Date()
   ) {
     return PhaseRules.validatePhaseEndDateNotInPast(phase, today);
@@ -243,7 +243,7 @@ export class MilestoneRules {
    * @deprecated Use PhaseRules.calculateMinimumPhaseEndDate instead
    */
   static calculateMinimumPhaseEndDate(
-    phase: Milestone,
+    phase: Phase,
     today: Date = new Date()
   ): Date {
     return PhaseRules.calculateMinimumPhaseEndDate(phase, today);
@@ -253,7 +253,7 @@ export class MilestoneRules {
    * @deprecated Use PhaseRules.validatePhaseSpacing instead
    */
   static validatePhaseSpacing(
-    phases: Milestone[]
+    phases: Phase[]
   ) {
     return PhaseRules.validatePhaseSpacing(phases);
   }
@@ -262,10 +262,10 @@ export class MilestoneRules {
    * @deprecated Use PhaseRules.cascadePhaseAdjustments instead
    */
   static cascadePhaseAdjustments(
-    phases: Milestone[],
+    phases: Phase[],
     adjustedPhaseId: string,
     newEndDate: Date
-  ): Milestone[] {
+  ): Phase[] {
     return PhaseRules.cascadePhaseAdjustments(phases, adjustedPhaseId, newEndDate);
   }
 }

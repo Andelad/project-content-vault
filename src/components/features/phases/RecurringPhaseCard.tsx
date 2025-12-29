@@ -6,22 +6,22 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { getDayName, getOrdinalNumber, getWeekOfMonthName } from '@/utils/dateFormatUtils';
-import type { RecurringMilestone } from '@/hooks/milestone';
+import type { RecurringPhase } from '@/hooks/phase';
 
 interface RecurringPhaseCardProps {
-  recurringMilestone: RecurringMilestone;
+  recurringMilestone: RecurringPhase;
   projectEstimatedHours: number;
   projectContinuous: boolean;
   projectStartDate: Date;
   onUpdateLoad: (newLoad: number) => Promise<void>;
-  onUpdatePattern: (updates: Partial<RecurringMilestone>) => Promise<void>;
+  onUpdatePattern: (updates: Partial<RecurringPhase>) => Promise<void>;
   onDelete: () => void;
 }
 
 /**
  * Pure UI component for displaying and editing a recurring phase template
  * Handles pattern editing (daily/weekly/monthly) and load editing
- * Note: Database still uses RecurringMilestone type for backward compatibility
+ * Note: Database still uses RecurringPhase type for backward compatibility
  */
 export function RecurringPhaseCard({
   recurringMilestone,

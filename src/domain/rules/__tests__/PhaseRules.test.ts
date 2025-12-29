@@ -16,7 +16,7 @@ import {
   getPhasesSortedByEndDate,
   type Phase
 } from '@/domain/rules/PhaseRules';
-import type { Milestone } from '@/types/core';
+import type { Phase } from '@/types/core';
 
 describe('Phase Helpers', () => {
   // Test data
@@ -33,7 +33,7 @@ describe('Phase Helpers', () => {
     updatedAt: new Date()
   };
 
-  const phase: Milestone = {
+  const phase: Phase = {
     ...baseProps,
     id: 'phase-1',
     name: 'Design Phase',
@@ -41,7 +41,7 @@ describe('Phase Helpers', () => {
     endDate: new Date('2025-01-15')
   };
 
-  const milestone: Milestone = {
+  const milestone: Phase = {
     ...baseProps,
     id: 'milestone-1',
     name: 'Launch Deadline',
@@ -49,7 +49,7 @@ describe('Phase Helpers', () => {
     endDate: new Date('2025-01-20')
   };
 
-  const phase2: Milestone = {
+  const phase2: Phase = {
     ...baseProps,
     id: 'phase-2',
     name: 'Development Phase',
@@ -67,7 +67,7 @@ describe('Phase Helpers', () => {
     });
 
     it('provides type narrowing', () => {
-      const item: Milestone = phase;
+      const item: Phase = phase;
       
       if (isPhase(item)) {
         // TypeScript should know item.startDate exists
@@ -98,7 +98,7 @@ describe('Phase Helpers', () => {
     });
 
     it('returns empty array when no phases', () => {
-      const milestones = [milestone];
+      const phases = [milestone];
       const result = getPhases(milestones);
       
       expect(result).toHaveLength(0);
@@ -139,7 +139,7 @@ describe('Phase Helpers', () => {
     });
 
     it('returns all items when none are phases', () => {
-      const milestones = [milestone];
+      const phases = [milestone];
       const result = getMilestones(milestones);
       
       expect(result).toHaveLength(1);

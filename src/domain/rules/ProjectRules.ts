@@ -10,7 +10,7 @@
  * @see docs/core/Business Logic.md for complete rule documentation
  */
 
-import type { Project, Milestone } from '@/types/core';
+import type { Project, Phase } from '@/types/core';
 import { normalizeToMidnight } from '@/services';
 
 // ============================================================================
@@ -130,7 +130,7 @@ export class ProjectRules {
    * @param milestones - Array of milestones to sum
    * @returns Total hours allocated across all milestones
    */
-  static calculateTotalMilestoneAllocation(milestones: Milestone[]): number {
+  static calculateTotalMilestoneAllocation(milestones: Phase[]): number {
     return milestones.reduce((sum, milestone) => {
       const hours = milestone.timeAllocationHours ?? milestone.timeAllocation ?? 0;
       return sum + hours;
@@ -147,7 +147,7 @@ export class ProjectRules {
    * @param milestones - The project's milestones
    * @returns Comprehensive budget analysis
    */
-  static analyzeBudget(project: Project, milestones: Milestone[]): ProjectBudgetAnalysis {
+  static analyzeBudget(project: Project, milestones: Phase[]): ProjectBudgetAnalysis {
     const totalEstimatedHours = project.estimatedHours;
     const totalAllocatedHours = this.calculateTotalMilestoneAllocation(milestones);
     const remainingHours = totalEstimatedHours - totalAllocatedHours;
@@ -183,7 +183,7 @@ export class ProjectRules {
    */
   static canAccommodateAdditionalHours(
     project: Project, 
-    milestones: Milestone[], 
+    milestones: Phase[], 
     additionalHours: number
   ): boolean {
     const analysis = this.analyzeBudget(project, milestones);
@@ -199,7 +199,7 @@ export class ProjectRules {
    * 
    * Combines multiple time-related rules:
    * - RULE 4: Positive estimated hours
-   * - RULE 1: Milestone allocation ≤ project budget
+   * - RULE 1: Phase allocation ≤ project budget
    * 
    * @param estimatedHours - Project estimated hours
    * @param milestones - Project milestones
@@ -207,7 +207,7 @@ export class ProjectRules {
    */
   static validateProjectTime(
     estimatedHours: number,
-    milestones: Milestone[]
+    milestones: Phase[]
   ): ProjectTimeValidation {
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -402,7 +402,7 @@ export class ProjectRules {
    */
   static validateProjectNotFullyInPast(
     project: Project,
-    phases: Milestone[],
+    phases: Phase[],
     today: Date = new Date()
   ): { isValid: boolean; errors: string[] } {
     const errors: string[] = [];
@@ -454,7 +454,7 @@ export class ProjectRules {
    * @returns Minimum required project end date
    */
   static calculateMinimumProjectEndDate(
-    phases: Milestone[],
+    phases: Phase[],
     today: Date = new Date()
   ): Date {
     if (phases.length === 0) {
@@ -483,7 +483,7 @@ export class ProjectRules {
    */
   static adjustProjectEndDateForPhases(
     project: Project,
-    phases: Milestone[],
+    phases: Phase[],
     today: Date = new Date()
   ): Date {
     // Don't adjust continuous projects

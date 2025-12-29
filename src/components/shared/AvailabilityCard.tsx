@@ -8,7 +8,7 @@ import { usePlannerContext } from '../../contexts/PlannerContext';
 import { UnifiedTimelineService, formatDuration } from '@/services';
 import { formatWeekdayDate, formatDateShort, formatWeekRange } from '@/utils/dateFormatUtils';
 import { NEUTRAL_COLORS } from '@/constants/colors';
-import type { Project, Settings, Milestone } from '@/types/core';
+import type { Project, Settings, Phase } from '@/types/core';
 import { TabComponent } from './TabComponent';
 import { AvailabilityCardSettingsButton } from './AvailabilityCardSettingsButton';
 import { AvailabilityCardModal } from '../modals/AvailabilityCardModal';
@@ -49,7 +49,7 @@ interface AvailabilityCardProps {
   context?: 'timeline' | 'planner';
   timeGutterWidth?: number;
   scrollbarWidth?: number;
-  milestones?: Milestone[]; // Optional for now to maintain backward compatibility
+  milestones?: Phase[]; // Optional for now to maintain backward compatibility
 }
 
 export const AvailabilityCard = memo(function AvailabilityCard({

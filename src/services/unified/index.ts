@@ -5,6 +5,6 @@ export * from './UnifiedEventWorkHourService';
 export * from './UnifiedTimeTrackerService';
 export * from './UnifiedCalendarService';
 export * from './UnifiedDayEstimateService';
-export * from './UnifiedMilestoneService';
+export * from './UnifiedPhaseService';
 export * from './UnifiedTimelineService';
 export * from './UnifiedRRuleService';

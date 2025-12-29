@@ -2,7 +2,7 @@
 
 // Project modal section components
 export { ProjectInsightsSection } from './ProjectInsightsSection';
-export { ProjectMilestoneSection } from './ProjectMilestoneSection';
+export { ProjectPhaseSection } from './ProjectPhaseSection';
 export { ProjectNotesSection } from './ProjectNotesSection';
 export { ProjectProgressGraph } from './ProjectProgressGraph';
 

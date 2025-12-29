@@ -10,7 +10,7 @@
  * @see docs/core/Business Logic.md - Detailed business rules
  */
 
-import type { Project as ProjectData, Milestone, Client, ProjectStatus } from '@/types/core';
+import type { Project as ProjectData, Phase, Client, ProjectStatus } from '@/types/core';
 import { ProjectRules } from '@/domain/rules/ProjectRules';
 import { normalizeToMidnight } from '@/services/calculations/general/dateCalculations';
 
@@ -68,7 +68,7 @@ export class Project {
   private updatedAt: Date;
   
   // Relationships (loaded separately)
-  private phases: Milestone[];
+  private phases: Phase[];
   private clientData?: Client;
 
   private constructor(data: ProjectData) {
@@ -88,7 +88,7 @@ export class Project {
     this.icon = data.icon;
     this.createdAt = new Date(data.createdAt);
     this.updatedAt = new Date(data.updatedAt);
-    this.phases = data.milestones ?? [];
+    this.phases = data.phases ?? [];
     this.clientData = data.clientData;
   }
 
@@ -456,7 +456,7 @@ export class Project {
   /**
    * Set phases (typically loaded from database)
    */
-  setPhases(phases: Milestone[]): void {
+  setPhases(phases: Phase[]): void {
     this.phases = phases;
   }
 
@@ -492,7 +492,7 @@ export class Project {
       userId: this.userId,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
-      milestones: this.phases,
+      phases: this.phases,
       clientData: this.clientData,
     };
   }

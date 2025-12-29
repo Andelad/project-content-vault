@@ -10,7 +10,7 @@ export * from './useProjects';
 export * from './useClients';
 export * from './useEvents';
 export * from './useHabits';
-export * from './useMilestones';
+export * from './usePhases';
 export * from './useGroups';
 export * from './useRows';
 export * from './useHolidays';

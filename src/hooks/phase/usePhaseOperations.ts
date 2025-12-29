@@ -1,11 +1,11 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useProjectContext } from '@/contexts/ProjectContext';
-import { ProjectMilestoneOrchestrator } from '@/services';
-import { Milestone } from '@/types/core';
+import { ProjectPhaseOrchestrator } from '@/services';
+import { Phase } from '@/types/core';
 import { useToast } from '@/hooks/use-toast';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
-export interface LocalMilestone extends Omit<Milestone, 'id'> {
+export interface LocalPhase extends Omit<Milestone, 'id'> {
   id?: string;
   isNew?: boolean;
 }
@@ -29,29 +29,29 @@ interface UseMilestoneOperationsConfig {
   projectStartDate: Date;
   projectEndDate: Date;
   isCreatingProject?: boolean;
-  localMilestonesState?: {
-    milestones: LocalMilestone[];
-    setMilestones: (milestones: LocalMilestone[]) => void;
+  localPhasesState?: {
+    milestones: LocalPhase[];
+    setMilestones: (milestones: LocalPhase[]) => void;
   };
   trackedAddMilestone?: (
-    milestone: LocalMilestone | MilestoneCreateInput,
+    milestone: LocalPhase | MilestoneCreateInput,
     options?: { silent?: boolean }
   ) => Promise<Milestone | undefined>;
 }
 
 /**
  * Hook for managing milestone CRUD operations
- * Coordinates React state with ProjectMilestoneOrchestrator service
+ * Coordinates React state with ProjectPhaseOrchestrator service
  * Handles both local state (new projects) and database operations (existing projects)
  */
-export function useMilestoneOperations(config: UseMilestoneOperationsConfig) {
+export function usePhaseOperations(config: UseMilestoneOperationsConfig) {
   const {
     projectId,
     projectEstimatedHours,
     projectStartDate,
     projectEndDate,
     isCreatingProject = false,
-    localMilestonesState,
+    localPhasesState,
     trackedAddMilestone
   } = config;
 
@@ -64,15 +64,15 @@ export function useMilestoneOperations(config: UseMilestoneOperationsConfig) {
   } = useProjectContext();
 
   const { toast } = useToast();
-  const [localMilestones, setLocalMilestones] = useState<LocalMilestone[]>([]);
+  const [localPhases, setLocalPhases] = useState<LocalPhase[]>([]);
 
   // Use tracked version if provided (for rollback support), otherwise use context version
   const addMilestoneToContext = trackedAddMilestone || contextAddMilestone;
 
   // Get all milestones for this project
   const projectMilestones = useMemo(() => {
-    if (isCreatingProject && localMilestonesState) {
-      return localMilestonesState.milestones || [];
+    if (isCreatingProject && localPhasesState) {
+      return localPhasesState.phases || [];
     }
 
     if (projectId) {
@@ -83,25 +83,25 @@ export function useMilestoneOperations(config: UseMilestoneOperationsConfig) {
             m.dueDate <= projectEndDate
           )
         : [];
-      const localNew = localMilestones.filter(m => 'isNew' in m && m.isNew);
+      const localNew = localPhases.filter(m => 'isNew' in m && m.isNew);
       return [...contextList, ...localNew];
     }
 
-    return localMilestones || [];
-  }, [contextMilestones, isCreatingProject, localMilestones, localMilestonesState, projectEndDate, projectId, projectStartDate]);
+    return localPhases || [];
+  }, [contextMilestones, isCreatingProject, localPhases, localPhasesState, projectEndDate, projectId, projectStartDate]);
 
   // Create a new milestone
   const createMilestone = useCallback(async (
-    milestone: LocalMilestone,
+    milestone: LocalPhase,
     options?: { silent?: boolean }
-  ): Promise<Milestone> => {
-    if (isCreatingProject && localMilestonesState) {
+  ): Promise<Phase> => {
+    if (isCreatingProject && localPhasesState) {
       // For local creation, generate a temporary id if not present
-      const milestoneWithId: Milestone = {
+      const milestoneWithId: Phase = {
         ...milestone,
         id: milestone.id || `temp-${Date.now()}`,
       } as Milestone;
-      localMilestonesState.setMilestones([...localMilestonesState.milestones, milestoneWithId]);
+      localPhasesState.setMilestones([...localPhasesState.phases, milestoneWithId]);
       return milestoneWithId;
     } else if (projectId) {
       try {
@@ -113,7 +113,7 @@ export function useMilestoneOperations(config: UseMilestoneOperationsConfig) {
         return created;
       } catch (error) {
         ErrorHandlingService.handle(error, {
-          source: 'useMilestoneOperations',
+          source: 'usePhaseOperations',
           action: 'createMilestone'
         });
         toast({
@@ -125,22 +125,22 @@ export function useMilestoneOperations(config: UseMilestoneOperationsConfig) {
       }
     } else {
       // For standalone local creation, generate a temporary id if not present
-      const milestoneWithId: Milestone = {
+      const milestoneWithId: Phase = {
         ...milestone,
         id: milestone.id || `temp-${Date.now()}`,
       } as Milestone;
-      setLocalMilestones(prev => [...prev, milestoneWithId]);
+      setLocalPhases(prev => [...prev, milestoneWithId]);
       return milestoneWithId;
     }
-  }, [isCreatingProject, localMilestonesState, projectId, addMilestoneToContext, refetchMilestones, toast]);
+  }, [isCreatingProject, localPhasesState, projectId, addMilestoneToContext, refetchMilestones, toast]);
 
   // Update an existing milestone
-  const updateMilestone = useCallback(async (milestoneId: string, updates: Partial<Milestone>) => {
-    if (isCreatingProject && localMilestonesState) {
-      const updated = localMilestonesState.milestones.map(m =>
+  const updateMilestone = useCallback(async (milestoneId: string, updates: Partial<Phase>) => {
+    if (isCreatingProject && localPhasesState) {
+      const updated = localPhasesState.phases.map(m =>
         m.id === milestoneId ? { ...m, ...updates } : m
       );
-      localMilestonesState.setMilestones(updated);
+      localPhasesState.setMilestones(updated);
       return true;
     } else if (projectId) {
       try {
@@ -148,7 +148,7 @@ export function useMilestoneOperations(config: UseMilestoneOperationsConfig) {
         return true;
       } catch (error) {
         ErrorHandlingService.handle(error, {
-          source: 'useMilestoneOperations',
+          source: 'usePhaseOperations',
           action: 'updateMilestone',
           metadata: { milestoneId }
         });
@@ -160,18 +160,18 @@ export function useMilestoneOperations(config: UseMilestoneOperationsConfig) {
         return false;
       }
     } else {
-      setLocalMilestones(prev => prev.map(m =>
+      setLocalPhases(prev => prev.map(m =>
         m.id === milestoneId ? { ...m, ...updates } : m
       ));
       return true;
     }
-  }, [isCreatingProject, localMilestonesState, projectId, contextUpdateMilestone, toast]);
+  }, [isCreatingProject, localPhasesState, projectId, contextUpdateMilestone, toast]);
 
   // Delete a milestone
   const deleteMilestone = useCallback(async (milestoneId: string) => {
-    if (isCreatingProject && localMilestonesState) {
-      const filtered = localMilestonesState.milestones.filter(m => m.id !== milestoneId);
-      localMilestonesState.setMilestones(filtered);
+    if (isCreatingProject && localPhasesState) {
+      const filtered = localPhasesState.phases.filter(m => m.id !== milestoneId);
+      localPhasesState.setMilestones(filtered);
       return true;
     } else if (projectId) {
       try {
@@ -179,7 +179,7 @@ export function useMilestoneOperations(config: UseMilestoneOperationsConfig) {
         return true;
       } catch (error) {
         ErrorHandlingService.handle(error, {
-          source: 'useMilestoneOperations',
+          source: 'usePhaseOperations',
           action: 'deleteMilestone',
           metadata: { milestoneId }
         });
@@ -191,10 +191,10 @@ export function useMilestoneOperations(config: UseMilestoneOperationsConfig) {
         return false;
       }
     } else {
-      setLocalMilestones(prev => prev.filter(m => m.id !== milestoneId));
+      setLocalPhases(prev => prev.filter(m => m.id !== milestoneId));
       return true;
     }
-  }, [isCreatingProject, localMilestonesState, projectId, contextDeleteMilestone, toast]);
+  }, [isCreatingProject, localPhasesState, projectId, contextDeleteMilestone, toast]);
 
   // Update milestone property (delegates to orchestrator)
   const updateMilestoneProperty = useCallback(async <K extends keyof Milestone>(
@@ -203,21 +203,21 @@ export function useMilestoneOperations(config: UseMilestoneOperationsConfig) {
     value: Milestone[K]
   ) => {
     const validMilestones = projectMilestones.filter(m => m.id) as Milestone[];
-    const result = await ProjectMilestoneOrchestrator.updateMilestoneProperty(
+    const result = await ProjectPhaseOrchestrator.updateMilestoneProperty(
       milestoneId,
       property,
       value,
       {
         projectMilestones: validMilestones,
         projectEstimatedHours,
-        localMilestones,
+        localPhases,
         isCreatingProject,
-        localMilestonesState,
+        localPhasesState,
         addMilestone: createMilestone,
-        updateMilestone: async (id: string, updates: Partial<Milestone>) => {
+        updateMilestone: async (id: string, updates: Partial<Phase>) => {
           await updateMilestone(id, updates);
         },
-        setLocalMilestones
+        setLocalPhases
       }
     );
 
@@ -231,12 +231,12 @@ export function useMilestoneOperations(config: UseMilestoneOperationsConfig) {
     }
 
     return true;
-  }, [projectMilestones, projectEstimatedHours, localMilestones, isCreatingProject, localMilestonesState, createMilestone, updateMilestone, toast]);
+  }, [projectMilestones, projectEstimatedHours, localPhases, isCreatingProject, localPhasesState, createMilestone, updateMilestone, toast]);
 
   return {
     projectMilestones,
-    localMilestones,
-    setLocalMilestones,
+    localPhases,
+    setLocalPhases,
     createMilestone,
     updateMilestone,
     deleteMilestone,

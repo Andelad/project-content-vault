@@ -28,7 +28,7 @@
  * @see UnifiedTimelineService for timeline UI coordination
  */
 
-import { Project, CalendarEvent, Holiday, Settings, Milestone } from '@/types/core';
+import { Project, CalendarEvent, Holiday, Settings, Phase } from '@/types/core';
 import { calculateDurationDays } from '@/services/calculations/general/dateCalculations';
 import {
   ProjectEvent,
@@ -78,7 +78,7 @@ export interface ProjectProgressAnalysis {
 export interface ProgressGraphCalculationOptions {
   project: Project;
   events: CalendarEvent[];
-  milestones?: Milestone[];
+  milestones?: Phase[];
   includeEventDatePoints?: boolean;
   maxDataPoints?: number;
 }
@@ -135,7 +135,7 @@ export class UnifiedProjectProgressService {
   static getEstimatedProgress(
     targetDate: Date,
     project: Project,
-    milestones: Milestone[]
+    milestones: Phase[]
   ): number {
     const startDate = new Date(project.startDate);
     const endDate = new Date(project.endDate);
@@ -197,7 +197,7 @@ export class UnifiedProjectProgressService {
   static calculateProgressData(
     project: Project,
     events: ProjectEvent[],
-    milestones: Milestone[] = [],
+    milestones: Phase[] = [],
     options: ProgressCalculationOptions = {}
   ): DataPoint[] {
     const startDate = new Date(project.startDate);
@@ -260,7 +260,7 @@ export class UnifiedProjectProgressService {
   static isOnTrack(
     project: Project,
     events: ProjectEvent[],
-    milestones: Milestone[] = [],
+    milestones: Phase[] = [],
     currentDate: Date = new Date()
   ): boolean {
     const expectedProgress = this.getEstimatedProgress(currentDate, project, milestones);
@@ -543,7 +543,7 @@ export class UnifiedProjectProgressService {
 export function getEstimatedProgressForDate(
   targetDate: Date,
   project: Project,
-  milestones: Milestone[]
+  milestones: Phase[]
 ): number {
   return UnifiedProjectProgressService.getEstimatedProgress(targetDate, project, milestones);
 }
@@ -554,7 +554,7 @@ export function getEstimatedProgressForDate(
 export function calculateProjectProgressData(
   project: Project,
   events: ProjectEvent[],
-  milestones: Milestone[] = [],
+  milestones: Phase[] = [],
   options: ProgressCalculationOptions = {}
 ): DataPoint[] {
   return UnifiedProjectProgressService.calculateProgressData(project, events, milestones, options);
@@ -566,7 +566,7 @@ export function calculateProjectProgressData(
 export function isProjectOnTrack(
   project: Project,
   events: ProjectEvent[],
-  milestones: Milestone[] = [],
+  milestones: Phase[] = [],
   currentDate: Date = new Date()
 ): boolean {
   return UnifiedProjectProgressService.isOnTrack(project, events, milestones, currentDate);

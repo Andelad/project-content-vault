@@ -26,7 +26,7 @@ const toIsoString = (value?: string | Date | null): string | null | undefined =>
   return value;
 };
 export function useMilestones(projectId?: string) {
-  const [milestones, setMilestones] = useState<Milestone[]>([]);
+  const [phases, setPhases] = useState<Milestone[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   // Debouncing for update success toasts
@@ -184,7 +184,7 @@ export function useMilestones(projectId?: string) {
   const deleteMilestone = async (id: string, options: { silent?: boolean } = {}) => {
     try {
       // First, fetch the milestone to check if it's a recurring template
-      const milestone = milestones.find(m => m.id === id);
+      const phase = milestones.find(m => m.id === id);
       if (milestone?.is_recurring === true) {
         // This is a recurring template - delete all numbered instances first
         // Numbered instances have names like "Sprint 1", "Sprint 2", etc.

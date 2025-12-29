@@ -20,12 +20,12 @@
  */
 
 // 🎯 Core Architecture Layers (New Structure)
-export * from './unified';           // Main API - UnifiedProjectService, UnifiedMilestoneService, etc. (includes ProjectBudgetAnalysis)
+export * from './unified';           // Main API - UnifiedProjectService, UnifiedPhaseService, etc. (includes ProjectBudgetAnalysis)
 export { UnifiedRRuleService, type RRuleConfig, type EventException } from './unified/UnifiedRRuleService';
 // Export orchestrators
 export { ProjectOrchestrator } from './orchestrators/ProjectOrchestrator';
 export type { ProjectValidationResult, ProjectMilestoneAnalysis, ProjectCreationRequest, ProjectCreationResult, ProjectMilestone, ProjectCreationWithMilestonesRequest, ProjectUpdateRequest } from './orchestrators/ProjectOrchestrator';
-export * from './orchestrators/ProjectMilestoneOrchestrator';
+export * from './orchestrators/ProjectPhaseOrchestrator';
 export * from './orchestrators/EventModalOrchestrator';
 export * from './orchestrators/SettingsOrchestrator';
 export * from './orchestrators/GroupOrchestrator';
@@ -48,7 +48,7 @@ export { WorkHourCalculationService } from './calculations/availability/workHour
 
 // 🎯 Unified Services (Main API Layer)
 export { UnifiedTimeTrackerService } from './unified/UnifiedTimeTrackerService';
-export { UnifiedMilestoneService } from './unified/UnifiedMilestoneService';
+export { UnifiedPhaseService } from './unified/UnifiedPhaseService';
 export { UnifiedWorkHoursService } from './unified/UnifiedWorkHoursService';
 export { UnifiedWorkHourRecurrenceService } from './unified/UnifiedWorkHourRecurrenceService';
 export { UnifiedCalendarService, type LayerVisibility, type BusinessHoursConfig, type CalendarView, type ViewportSize, type ExternalEvent, type ImportResult } from './unified/UnifiedCalendarService';
@@ -107,7 +107,7 @@ export {
 // Modern calculation services (replacing legacy timeline business logic)
 // These functions are now available directly as exports from their respective calculation modules
 
-// MilestoneManagementService migrated to unified/UnifiedMilestoneService.ts + orchestrators/MilestoneOrchestrator.ts
+// MilestoneManagementService migrated to unified/UnifiedPhaseService.ts + orchestrators/MilestoneOrchestrator.ts
 // TimelineCalculationService migrated to calculations/timelineCalculations.ts
 
 // New architecture services - maintain backward compatibility
@@ -227,10 +227,10 @@ export {
   validateWorkSchedule
 } from './calculations/general/settingsCalculations';
 export { 
-  calculateRecurringMilestoneCount, 
+  calculateRecurringPhaseCount, 
   calculateRecurringTotalAllocation, 
   detectRecurringPattern,
-  generateRecurringMilestoneDates,
+  generateRecurringPhaseDates,
   getMilestoneSegmentForDate,
   calculateMilestoneSegments,
   type MilestoneSegment

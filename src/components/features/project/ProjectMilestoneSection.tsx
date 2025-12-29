@@ -6,20 +6,20 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import {
-  useMilestoneOperations,
-  useMilestoneBudget,
-  useRecurringMilestones,
-  RecurringMilestoneConfig,
-  RecurringMilestone,
-  LocalMilestone
-} from '@/hooks/milestone';
-import type { Milestone } from '@/types/core';
+  usePhaseOperations,
+  usePhaseBudget,
+  useRecurringPhases,
+  RecurringPhaseConfig,
+  RecurringPhase,
+  LocalPhase
+} from '@/hooks/phase';
+import type { Phase } from '@/types/core';
 import {
   PhaseCard,
   RecurringPhaseCard,
   PhaseConfigDialog
 } from '../phases';
-import { UnifiedMilestoneService, ProjectMilestoneOrchestrator, addDaysToDate } from '@/services';
+import { UnifiedPhaseService, ProjectPhaseOrchestrator, addDaysToDate } from '@/services';
 import { PhaseRules, type Phase } from '@/domain/rules/PhaseRules';
 
 type AutoEstimateDays = {
@@ -36,24 +36,24 @@ type LocalValuesState = {
   autoEstimateDays?: AutoEstimateDays;
 };
 
-interface ProjectMilestoneSectionProps {
+interface ProjectPhaseSectionProps {
   projectId?: string;
   projectEstimatedHours: number;
   projectStartDate: Date;
   projectEndDate: Date;
   projectContinuous?: boolean;
   onUpdateProjectBudget?: (newBudget: number) => void;
-  onRecurringMilestoneChange?: (info: {
+  onRecurringPhaseChange?: (info: {
     totalAllocation: number;
     hasRecurring: boolean;
     ensureMilestonesAvailable?: (targetDate?: Date) => Promise<void>;
   }) => void;
-  localMilestonesState?: {
-    milestones: LocalMilestone[];
-    setMilestones: (milestones: LocalMilestone[]) => void;
+  localPhasesState?: {
+    milestones: LocalPhase[];
+    setMilestones: (milestones: LocalPhase[]) => void;
   };
   isCreatingProject?: boolean;
-  trackedAddMilestone?: (milestone: LocalMilestone, options?: { silent?: boolean }) => Promise<Milestone | undefined>;
+  trackedAddMilestone?: (milestone: LocalPhase, options?: { silent?: boolean }) => Promise<Milestone | undefined>;
   localValues?: LocalValuesState;
   setLocalValues?: (updater: (prev: LocalValuesState) => LocalValuesState) => void;
   onAutoEstimateDaysChange?: (newAutoEstimateDays: AutoEstimateDays | undefined) => void;
@@ -72,15 +72,15 @@ interface ProjectMilestoneSectionProps {
  * Following .cursorrules: thin orchestration layer, delegates to hooks and services
  * Note: Database still uses 'milestones' table for backward compatibility
  */
-export function ProjectMilestoneSection({
+export function ProjectPhaseSection({
   projectId,
   projectEstimatedHours,
   projectStartDate,
   projectEndDate,
   projectContinuous = false,
   onUpdateProjectBudget,
-  onRecurringMilestoneChange,
-  localMilestonesState,
+  onRecurringPhaseChange,
+  localPhasesState,
   isCreatingProject = false,
   trackedAddMilestone,
   localValues,
@@ -90,13 +90,13 @@ export function ProjectMilestoneSection({
   setEditingProperty: externalSetEditingProperty,
   handleSaveProperty: externalHandleSaveProperty,
   recurringMilestoneInfo
-}: ProjectMilestoneSectionProps) {
+}: ProjectPhaseSectionProps) {
   const { toast } = useToast();
 
   // State management for UI interactions
   const [editingProperty, setEditingProperty] = useState<string | null>(null);
   const [isSplitMode, setIsSplitMode] = useState(false);
-  const [isDeletingRecurringMilestone, setIsDeletingRecurringMilestone] = useState(false);
+  const [isDeletingRecurringPhase, setIsDeletingRecurringPhase] = useState(false);
 
   // Dialog state
   const [showRecurringConfig, setShowRecurringConfig] = useState(false);
@@ -105,7 +105,7 @@ export function ProjectMilestoneSection({
   const [showRecurringFromSplitWarning, setShowRecurringFromSplitWarning] = useState(false);
 
   // Recurring configuration state
-  const [recurringConfig, setRecurringConfig] = useState<RecurringMilestoneConfig>({
+  const [recurringConfig, setRecurringConfig] = useState<RecurringPhaseConfig>({
     name: 'Milestone',
     timeAllocation: 8,
     recurringType: 'weekly',
@@ -120,40 +120,40 @@ export function ProjectMilestoneSection({
   // Use hooks for business logic coordination
   const {
     projectMilestones,
-    localMilestones,
-    setLocalMilestones,
+    localPhases,
+    setLocalPhases,
     createMilestone,
     updateMilestone,
     deleteMilestone,
     updateMilestoneProperty,
     refetchMilestones
-  } = useMilestoneOperations({
+  } = usePhaseOperations({
     projectId,
     projectEstimatedHours,
     projectStartDate,
     projectEndDate,
     isCreatingProject,
-    localMilestonesState,
+    localPhasesState,
     trackedAddMilestone
   });
 
   const {
     recurringMilestone,
-    setRecurringMilestone,
-    ensureRecurringMilestonesAvailable,
-    createRecurringMilestones,
-    deleteRecurringMilestones
-  } = useRecurringMilestones({
+    setRecurringPhase,
+    ensureRecurringPhasesAvailable,
+    createRecurringPhases,
+    deleteRecurringPhases
+  } = useRecurringPhases({
     projectId,
     projectMilestones,
     projectStartDate,
     projectEndDate,
     projectContinuous,
     projectEstimatedHours,
-    isDeletingRecurringMilestone,
+    isDeletingRecurringPhase,
     refetchMilestones,
     isCreatingProject,
-    localMilestonesState
+    localPhasesState
   });
 
   const getExclusivityValidation = () => PhaseRules.checkPhaseRecurringExclusivity(projectMilestones as Milestone[]);
@@ -161,7 +161,7 @@ export function ProjectMilestoneSection({
     (milestone): milestone is Milestone => Boolean(milestone.id)
   );
 
-  const { totalRecurringAllocation, budgetAnalysis } = useMilestoneBudget({
+  const { totalRecurringAllocation, budgetAnalysis } = usePhaseBudget({
     projectMilestones,
     projectEstimatedHours,
     projectStartDate,
@@ -223,14 +223,14 @@ export function ProjectMilestoneSection({
 
   // Notify parent of recurring milestone changes
   useEffect(() => {
-    if (onRecurringMilestoneChange) {
-      onRecurringMilestoneChange({
+    if (onRecurringPhaseChange) {
+      onRecurringPhaseChange({
         totalAllocation: totalRecurringAllocation,
         hasRecurring: !!recurringMilestone,
-        ensureMilestonesAvailable: ensureRecurringMilestonesAvailable
+        ensureMilestonesAvailable: ensureRecurringPhasesAvailable
       });
     }
-  }, [totalRecurringAllocation, recurringMilestone, onRecurringMilestoneChange, ensureRecurringMilestonesAvailable]);
+  }, [totalRecurringAllocation, recurringMilestone, onRecurringPhaseChange, ensureRecurringPhasesAvailable]);
 
   // Filter milestones for display
   const displayMilestones = projectMilestones.filter(milestone => {
@@ -256,7 +256,7 @@ export function ProjectMilestoneSection({
     const phase1EndDate = midpointDate;
     const phase2StartDate = new Date(midpointDate.getTime() + (24 * 60 * 60 * 1000));
 
-    const phase1: LocalMilestone = {
+    const phase1: LocalPhase = {
       id: isCreatingProject ? `phase-1-${Date.now()}` : undefined,
       name: 'Phase 1',
       projectId: projectId || '',
@@ -272,7 +272,7 @@ export function ProjectMilestoneSection({
       isNew: true
     };
 
-    const phase2: LocalMilestone = {
+    const phase2: LocalPhase = {
       id: isCreatingProject ? `phase-2-${Date.now() + 1}` : undefined,
       name: 'Phase 2',
       projectId: projectId || '',
@@ -288,8 +288,8 @@ export function ProjectMilestoneSection({
       isNew: true
     };
 
-    if (isCreatingProject && localMilestonesState) {
-      localMilestonesState.setMilestones([phase1, phase2]);
+    if (isCreatingProject && localPhasesState) {
+      localPhasesState.setMilestones([phase1, phase2]);
       setIsSplitMode(true);
       setShowSplitWarning(false);
     } else if (projectId) {
@@ -301,7 +301,7 @@ export function ProjectMilestoneSection({
       setIsSplitMode(true);
       setShowSplitWarning(false);
     } else {
-      setLocalMilestones([phase1, phase2]);
+      setLocalPhases([phase1, phase2]);
       setIsSplitMode(true);
       setShowSplitWarning(false);
     }
@@ -324,7 +324,7 @@ export function ProjectMilestoneSection({
       );
       const lastPhase = sortedPhases[sortedPhases.length - 1];
 
-      const newPhase: LocalMilestone = {
+      const newPhase: LocalPhase = {
         id: isCreatingProject ? `phase-${nextPhaseNumber}-${Date.now()}` : undefined,
         name: `Phase ${nextPhaseNumber}`,
         projectId: projectId || '',
@@ -349,21 +349,21 @@ export function ProjectMilestoneSection({
       }
 
       // Create new phase
-      if (isCreatingProject && localMilestonesState) {
+      if (isCreatingProject && localPhasesState) {
         // Also update last phase in local state
         if (lastPhase) {
-          const updatedPhases = localMilestonesState.milestones.map(m =>
+          const updatedPhases = localPhasesState.phases.map(m =>
             m.id === lastPhase.id ? { ...m, endDate: lastPhaseNewEnd, dueDate: lastPhaseNewEnd } : m
           );
-          localMilestonesState.setMilestones([...updatedPhases, newPhase]);
+          localPhasesState.setMilestones([...updatedPhases, newPhase]);
         } else {
-          localMilestonesState.setMilestones([...localMilestonesState.milestones, newPhase]);
+          localPhasesState.setMilestones([...localPhasesState.phases, newPhase]);
         }
       } else if (projectId) {
         // Silent - no toast when adding phase in modal
         await createMilestone(newPhase, { silent: true });
       } else {
-        setLocalMilestones([...localMilestones, newPhase]);
+        setLocalPhases([...localPhases, newPhase]);
       }
     } catch (error) {
       toast({
@@ -409,8 +409,8 @@ export function ProjectMilestoneSection({
 
   // Handle deleting existing milestones before split
   const handleDeleteAndSplit = async () => {
-    if (isCreatingProject && localMilestonesState) {
-      localMilestonesState.setMilestones([]);
+    if (isCreatingProject && localPhasesState) {
+      localPhasesState.setMilestones([]);
     } else {
       // Delete all milestones in parallel for faster response
       const deletePromises = projectMilestones
@@ -422,17 +422,17 @@ export function ProjectMilestoneSection({
       // Force refetch to ensure state is in sync
       await refetchMilestones();
       
-      setLocalMilestones([]);
+      setLocalPhases([]);
     }
 
-    setRecurringMilestone(null);
-    setIsDeletingRecurringMilestone(false);
+    setRecurringPhase(null);
+    setIsDeletingRecurringPhase(false);
     await handleSplitEstimate();
   };
 
   // Handle confirming recurring milestone creation
-  const handleConfirmRecurringMilestone = async () => {
-    const result = await createRecurringMilestones(recurringConfig);
+  const handleConfirmRecurringPhase = async () => {
+    const result = await createRecurringPhases(recurringConfig);
     if (result.success) {
       setShowRecurringConfig(false);
       setShowRecurringWarning(false);
@@ -440,26 +440,26 @@ export function ProjectMilestoneSection({
   };
 
   // Handle deleting recurring milestones
-  const handleDeleteRecurringMilestones = async () => {
-    setIsDeletingRecurringMilestone(true);
-    await deleteRecurringMilestones(isCreatingProject, localMilestonesState);
-    setIsDeletingRecurringMilestone(false);
+  const handleDeleteRecurringPhases = async () => {
+    setIsDeletingRecurringPhase(true);
+    await deleteRecurringPhases(isCreatingProject, localPhasesState);
+    setIsDeletingRecurringPhase(false);
   };
 
   // Handle updating recurring milestone load
   const handleUpdateRecurringLoad = async (newLoad: number) => {
     if (!recurringMilestone || !projectId) return;
 
-    const result = await ProjectMilestoneOrchestrator.updateRecurringMilestoneLoad(
+    const result = await ProjectPhaseOrchestrator.updateRecurringPhaseLoad(
       projectId,
       newLoad,
       {
         projectMilestones: persistedProjectMilestones,
         recurringMilestone,
-        updateMilestone: async (id: string, updates: Partial<Milestone>) => {
+        updateMilestone: async (id: string, updates: Partial<Phase>) => {
           await updateMilestone(id, updates);
         },
-        setRecurringMilestone
+        setRecurringPhase
       }
     );
 
@@ -473,16 +473,16 @@ export function ProjectMilestoneSection({
   };
 
   // Handle updating recurring milestone pattern
-  const handleUpdateRecurringPattern = async (updates: Partial<RecurringMilestone>) => {
+  const handleUpdateRecurringPattern = async (updates: Partial<RecurringPhase>) => {
     if (!recurringMilestone) return;
 
     const updatedMilestone = { ...recurringMilestone, ...updates };
-    setRecurringMilestone(updatedMilestone);
+    setRecurringPhase(updatedMilestone);
 
     // Delete and recreate with new pattern
-    await handleDeleteRecurringMilestones();
+    await handleDeleteRecurringPhases();
 
-    const newConfig: RecurringMilestoneConfig = {
+    const newConfig: RecurringPhaseConfig = {
       name: recurringMilestone.name,
       timeAllocation: recurringMilestone.timeAllocation,
       recurringType: updates.recurringType || recurringMilestone.recurringType,
@@ -494,7 +494,7 @@ export function ProjectMilestoneSection({
       monthlyDayOfWeek: updates.monthlyDayOfWeek
     };
 
-    await createRecurringMilestones(newConfig);
+    await createRecurringPhases(newConfig);
   };
 
   return (
@@ -603,7 +603,7 @@ export function ProjectMilestoneSection({
                                    (validation.hasRecurringTemplate && !recurringMilestone);
           
           // Don't show warning during deletion operations - state is transitioning
-          if (hasInconsistency && !isDeletingRecurringMilestone) {
+          if (hasInconsistency && !isDeletingRecurringPhase) {
             return (
               <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
                 <div className="flex items-center justify-between">
@@ -633,8 +633,8 @@ export function ProjectMilestoneSection({
                       await Promise.all(deletePromises);
                       await refetchMilestones();
                       
-                      setLocalMilestones([]);
-                      setRecurringMilestone(null);
+                      setLocalPhases([]);
+                      setRecurringPhase(null);
                       setIsSplitMode(false);
                       
                       toast({
@@ -734,7 +734,7 @@ export function ProjectMilestoneSection({
             projectStartDate={projectStartDate}
             onUpdateLoad={handleUpdateRecurringLoad}
             onUpdatePattern={handleUpdateRecurringPattern}
-            onDelete={handleDeleteRecurringMilestones}
+            onDelete={handleDeleteRecurringPhases}
           />
         )}
 
@@ -850,7 +850,7 @@ export function ProjectMilestoneSection({
         type="recurring"
         open={showRecurringConfig}
         onOpenChange={setShowRecurringConfig}
-        onConfirm={handleConfirmRecurringMilestone}
+        onConfirm={handleConfirmRecurringPhase}
         projectStartDate={projectStartDate}
         projectContinuous={projectContinuous}
         config={recurringConfig}
@@ -863,8 +863,8 @@ export function ProjectMilestoneSection({
         onOpenChange={setShowRecurringWarning}
         onConfirm={async () => {
           // Delete ALL phases/milestones before creating recurring template
-          if (isCreatingProject && localMilestonesState) {
-            localMilestonesState.setMilestones([]);
+          if (isCreatingProject && localPhasesState) {
+            localPhasesState.setMilestones([]);
           } else {
             // Delete all milestones in parallel for faster response
             const deletePromises = projectMilestones
@@ -876,9 +876,9 @@ export function ProjectMilestoneSection({
             // Force refetch to ensure state is in sync
             await refetchMilestones();
             
-            setLocalMilestones([]);
+            setLocalPhases([]);
           }
-          setRecurringMilestone(null);
+          setRecurringPhase(null);
           setIsSplitMode(false); // Ensure split mode is off
           setShowRecurringConfig(true);
           setShowRecurringWarning(false);
@@ -903,8 +903,8 @@ export function ProjectMilestoneSection({
         onOpenChange={setShowRecurringFromSplitWarning}
         onConfirm={async () => {
           // Delete existing split phases before showing recurring config
-          if (isCreatingProject && localMilestonesState) {
-            localMilestonesState.setMilestones([]);
+          if (isCreatingProject && localPhasesState) {
+            localPhasesState.setMilestones([]);
           } else {
             // Delete all milestones in parallel for faster response
             const deletePromises = projectMilestones
@@ -916,10 +916,10 @@ export function ProjectMilestoneSection({
             // Force refetch to ensure state is in sync
             await refetchMilestones();
             
-            setLocalMilestones([]);
+            setLocalPhases([]);
           }
-          setRecurringMilestone(null);
-          setIsDeletingRecurringMilestone(false);
+          setRecurringPhase(null);
+          setIsDeletingRecurringPhase(false);
           setIsSplitMode(false);
           setShowRecurringConfig(true);
           setShowRecurringFromSplitWarning(false);

@@ -4,7 +4,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { getDayName, getOrdinalNumber, getWeekOfMonthName } from '@/utils/dateFormatUtils';
-import type { RecurringMilestoneConfig } from '@/hooks/milestone';
+import type { RecurringPhaseConfig } from '@/hooks/phase';
 
 interface PhaseConfigDialogProps {
   type: 'recurring' | 'split' | 'recurring-warning' | 'split-warning' | 'recurring-from-split-warning';
@@ -14,8 +14,8 @@ interface PhaseConfigDialogProps {
   projectStartDate: Date;
   projectContinuous: boolean;
   // For recurring config
-  config?: RecurringMilestoneConfig;
-  onConfigChange?: (config: RecurringMilestoneConfig) => void;
+  config?: RecurringPhaseConfig;
+  onConfigChange?: (config: RecurringPhaseConfig) => void;
   // For budget replacement warning
   projectEstimatedHours?: number;
 }

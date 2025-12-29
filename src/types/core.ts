@@ -33,14 +33,10 @@ export interface RecurringConfig {
  * Represents a time-bounded allocation of work within a project.
  * Can be explicit (fixed dates) or recurring (pattern-based).
  * 
- * NOTE: Currently named "Milestone" in database and much of the codebase.
- * Migration to "Phase" terminology is in progress.
- * 
  * @see {@link /docs/core/App Logic.md#4-phase} - Phase entity definition
  * @see {@link /docs/core/Business Logic.md} - Phase business rules
- * @see {@link /docs/operations/MILESTONE_TO_PHASE_MIGRATION.md} - Migration plan
  */
-export interface Milestone {
+export interface Phase {
   id: string;
   name: string;
   projectId: string; // Maps to project_id in database
@@ -65,14 +61,6 @@ export interface Milestone {
   createdAt: Date; // Converted from created_at string in repository layer
   updatedAt: Date; // Converted from updated_at string in repository layer
 }
-
-/**
- * Phase type alias - preferred terminology.
- * Use this in new code instead of Milestone.
- * 
- * @see {@link /docs/core/App Logic.md#4-phase} - Phase entity definition
- */
-export type Phase = Milestone;
 
 /**
  * Project entity - a piece of work with time estimate and deadline.
@@ -113,7 +101,7 @@ export interface Project {
   status?: ProjectStatus; // 'current' | 'future' | 'archived'
   
   // PHASES (time periods within project)
-  milestones?: Milestone[]; // TODO: Rename to phases after migration
+  phases?: Phase[];
   
   // WORKING DAY OVERRIDES
   // TODO: Document in App Logic.md or remove if unused

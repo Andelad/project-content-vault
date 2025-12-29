@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { AlertTriangle, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useProjectContext } from '@/contexts/ProjectContext';
-export function OrphanedMilestonesCleaner() {
+export function OrphanedPhasesCleaner() {
   const [isScanning, setIsScanning] = useState(false);
   const [isCleaning, setIsCleaning] = useState(false);
   const [orphanedCount, setOrphanedCount] = useState<number | null>(null);
