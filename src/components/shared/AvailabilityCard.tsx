@@ -64,7 +64,7 @@ export const AvailabilityCard = memo(function AvailabilityCard({
   scrollbarWidth = 0,
   phases = []
 }: AvailabilityCardProps) {
-  const [activeTab, setActiveTab] = useState<'time-spent' | 'availability-graph' | 'availability-graph-2'>('availability-graph-2');
+  const [activeTab, setActiveTab] = useState<'time-spent' | 'availability-graph' | 'availability-graph-old' | 'availability-graph-3'>('availability-graph-3');
   const [hoveredColumnIndex, setHoveredColumnIndex] = useState<number | null>(null);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   
@@ -105,7 +105,7 @@ export const AvailabilityCard = memo(function AvailabilityCard({
     }
   ];
 
-  const isGraphTab = activeTab === 'availability-graph' || activeTab === 'availability-graph-2';
+  const isGraphTab = activeTab === 'availability-graph' || activeTab === 'availability-graph-old' || activeTab === 'availability-graph-3';
 
   // ===== HELPER FUNCTIONS =====
   // Helper function to get week dates
@@ -245,9 +245,12 @@ export const AvailabilityCard = memo(function AvailabilityCard({
   }, [context, dates, holidays, settings, events, projects, phases, mode, getWeekDates]);
 
   // Max value for graph 2 (capacity vs committed) - scale dynamically
+  // Ensure the scale is at least capacity + 4 hours so capacity line is never at the top
   const maxGraph2Value = useMemo(() => {
-    const maxValues = graphData2.map(d => Math.max(d.capacity, d.committed));
-    return Math.ceil(Math.max(...maxValues, 1));
+    const maxCapacity = Math.max(...graphData2.map(d => d.capacity), 0);
+    const maxCommitted = Math.max(...graphData2.map(d => d.committed), 0);
+    const minScale = maxCapacity + 4; // Capacity + 4 hours buffer
+    return Math.ceil(Math.max(maxCommitted, minScale, 1));
   }, [graphData2]);
 
   const maxAbsValue = useMemo(() => {
@@ -461,167 +464,183 @@ export const AvailabilityCard = memo(function AvailabilityCard({
     );
   };
 
-  // ===== CAPACITY VS COMMITTED GRAPH (Availability 2) =====
-  const renderCapacityVsCommittedGraph = () => {
+  // ===== AVAILABILITY 3 GRAPH (baseline at very bottom, invisible, STRAIGHT lines) =====
+  const renderCapacityVsCommittedGraph3 = () => {
     if (context === 'planner' && plannerColumnWidth === 0) {
       return <div style={{ height: '96px' }} />;
     }
 
-    // Y-axis conversion: 0 at bottom, maxGraph2Value at top
-    const valueToY = (value: number) => {
-      if (maxGraph2Value === 0) return plotHeight;
-      return plotHeight - (value / maxGraph2Value) * plotHeight;
+    // Y-axis conversion: 0 at 8px from bottom, maxGraph2Value at top with 6px padding
+    const graph3TopPadding = 6;
+    const graph3BottomPadding = 8;
+    const graph3PlotHeight = graphHeight - graph3TopPadding - graph3BottomPadding;
+    const valueToY3 = (value: number) => {
+      if (maxGraph2Value === 0) return graphHeight - graph3BottomPadding; // baseline at 8px from bottom
+      return graph3TopPadding + graph3PlotHeight - (value / maxGraph2Value) * graph3PlotHeight;
     };
 
-    // Generate fill paths for areas between committed and capacity lines
-    const generateCapacityFillPaths = () => {
-      if (graphData2.length < 2) return { greenPath: '', redPath: '' };
-      
-      const points = graphData2.map((d, i) => ({
-        x: i * columnWidth + columnWidth / 2,
-        yCommitted: valueToY(d.committed),
-        yCapacity: valueToY(d.capacity),
-        committed: d.committed,
-        capacity: d.capacity
-      }));
+    const baselineY = graphHeight - graph3BottomPadding; // 8px up from the bottom of the card
 
-      const greenSegments: string[] = [];
-      const redSegments: string[] = [];
+    // Build points array
+    const points = graphData2.map((d, i) => ({
+      x: i * columnWidth + columnWidth / 2,
+      yCommitted: valueToY3(d.committed),
+      yCapacity: valueToY3(d.capacity),
+      committed: d.committed,
+      capacity: d.capacity
+    }));
 
-      for (let i = 0; i < points.length - 1; i++) {
-        const p1 = points[i];
-        const p2 = points[i + 1];
-        
-        // In SVG Y coordinates: lower Y = higher on screen
-        // committed > capacity means overcommitted (red) - committed line is ABOVE capacity line (lower Y)
-        // committed < capacity means available (green) - committed line is BELOW capacity line (higher Y)
-        const isP1Over = p1.committed > p1.capacity;
-        const isP2Over = p2.committed > p2.capacity;
-        
-        if (!isP1Over && !isP2Over) {
-          // Both points: committed under/at capacity - green zone between lines
-          greenSegments.push(`M ${p1.x},${p1.yCommitted} L ${p2.x},${p2.yCommitted} L ${p2.x},${p2.yCapacity} L ${p1.x},${p1.yCapacity} Z`);
-        } else if (isP1Over && isP2Over) {
-          // Both points: committed over capacity - red zone between lines
-          redSegments.push(`M ${p1.x},${p1.yCommitted} L ${p2.x},${p2.yCommitted} L ${p2.x},${p2.yCapacity} L ${p1.x},${p1.yCapacity} Z`);
-        } else {
-          // Lines cross - find intersection and create two triangular segments
-          const diff1 = p1.committed - p1.capacity;
-          const diff2 = p2.committed - p2.capacity;
-          const t = Math.abs(diff1) / (Math.abs(diff1) + Math.abs(diff2));
-          
-          const intersectX = p1.x + t * (p2.x - p1.x);
-          const intersectY = p1.yCommitted + t * (p2.yCommitted - p1.yCommitted); // Same point on both lines at intersection
-          
-          if (isP1Over) {
-            // P1 is over (red), P2 is under (green)
-            // Red triangle: p1 committed -> intersection -> p1 capacity
-            redSegments.push(`M ${p1.x},${p1.yCommitted} L ${intersectX},${intersectY} L ${p1.x},${p1.yCapacity} Z`);
-            // Green triangle: intersection -> p2 committed -> p2 capacity
-            greenSegments.push(`M ${intersectX},${intersectY} L ${p2.x},${p2.yCommitted} L ${p2.x},${p2.yCapacity} Z`);
-          } else {
-            // P1 is under (green), P2 is over (red)
-            // Green triangle: p1 committed -> intersection -> p1 capacity
-            greenSegments.push(`M ${p1.x},${p1.yCommitted} L ${intersectX},${intersectY} L ${p1.x},${p1.yCapacity} Z`);
-            // Red triangle: intersection -> p2 committed -> p2 capacity
-            redSegments.push(`M ${intersectX},${intersectY} L ${p2.x},${p2.yCommitted} L ${p2.x},${p2.yCapacity} Z`);
-          }
-        }
+    // Generate straight line path
+    const generateLinePath3 = (yKey: 'yCommitted' | 'yCapacity') => {
+      if (points.length === 0) return '';
+      let path = `M ${points[0].x},${points[0][yKey]}`;
+      for (let i = 1; i < points.length; i++) {
+        path += ` L ${points[i].x},${points[i][yKey]}`;
       }
+      return path;
+    };
 
-      return { 
-        greenPath: greenSegments.join(' '), 
-        redPath: redSegments.join(' ') 
+    // Helper to find intersection point between two line segments
+    const findIntersection = (i: number) => {
+      const prevComm = points[i - 1].yCommitted;
+      const currComm = points[i].yCommitted;
+      const prevCap = points[i - 1].yCapacity;
+      const currCap = points[i].yCapacity;
+      
+      const prevDiff = prevComm - prevCap;
+      const currDiff = currComm - currCap;
+      
+      // Check if lines actually cross
+      if (Math.sign(prevDiff) === Math.sign(currDiff) && prevDiff !== 0 && currDiff !== 0) {
+        return null;
+      }
+      
+      const t = Math.abs(prevDiff) / (Math.abs(prevDiff) + Math.abs(currDiff));
+      return {
+        x: points[i - 1].x + t * (points[i].x - points[i - 1].x),
+        y: prevComm + t * (currComm - prevComm)
       };
     };
 
-    // Generate stone fill path (between baseline and committed line, but only up to capacity when overcommitted)
-    // This excludes the red area (committed above capacity)
-    const generateStoneFillPath = () => {
-      if (graphData2.length < 2) return '';
+    // Generate stone fill (area under the minimum of committed and capacity, from baseline)
+    const generateStoneFillPath3 = () => {
+      if (points.length < 2) return '';
       
-      const baselineY = valueToY(0); // Y position for 0 hours (bottom)
-      const stoneSegments: string[] = [];
+      // Build an array of points along the "lower" line (higher Y value = lower on screen)
+      // This needs to handle intersections properly
+      const lowerLinePoints: { x: number; y: number }[] = [];
       
-      const points = graphData2.map((d, i) => ({
-        x: i * columnWidth + columnWidth / 2,
-        yCommitted: valueToY(d.committed),
-        yCapacity: valueToY(d.capacity),
-        committed: d.committed,
-        capacity: d.capacity
-      }));
+      for (let i = 0; i < points.length; i++) {
+        // Check for intersection before this point
+        if (i > 0) {
+          const prevCommLower = points[i - 1].yCommitted > points[i - 1].yCapacity;
+          const currCommLower = points[i].yCommitted > points[i].yCapacity;
+          
+          if (prevCommLower !== currCommLower) {
+            // Lines cross - add intersection point
+            const intersection = findIntersection(i);
+            if (intersection) {
+              lowerLinePoints.push(intersection);
+            }
+          }
+        }
+        
+        // Add the lower point at this index
+        const lowerY = Math.max(points[i].yCommitted, points[i].yCapacity);
+        lowerLinePoints.push({ x: points[i].x, y: lowerY });
+      }
+      
+      // Build path from baseline, up to lower line, along it, back down to baseline
+      let path = `M ${lowerLinePoints[0].x},${baselineY}`;
+      path += ` L ${lowerLinePoints[0].x},${lowerLinePoints[0].y}`;
+      
+      for (let i = 1; i < lowerLinePoints.length; i++) {
+        path += ` L ${lowerLinePoints[i].x},${lowerLinePoints[i].y}`;
+      }
+      
+      path += ` L ${lowerLinePoints[lowerLinePoints.length - 1].x},${baselineY} Z`;
+      
+      return path;
+    };
 
+    // Generate fill paths for green (under capacity) and red (over capacity) regions
+    const generateFillPaths3 = () => {
+      if (points.length < 2) return { greenPath: '', redPath: '' };
+      
+      const greenRegions: string[] = [];
+      const redRegions: string[] = [];
+      
+      // Process each segment between consecutive points
       for (let i = 0; i < points.length - 1; i++) {
         const p1 = points[i];
         const p2 = points[i + 1];
         
-        const isP1Over = p1.committed > p1.capacity;
-        const isP2Over = p2.committed > p2.capacity;
+        const p1Over = p1.yCommitted < p1.yCapacity; // committed higher (lower Y) = over capacity
+        const p2Over = p2.yCommitted < p2.yCapacity;
         
-        // Determine the top Y for stone fill (capacity line when over, committed line when under)
-        const p1TopY = isP1Over ? p1.yCapacity : p1.yCommitted;
-        const p2TopY = isP2Over ? p2.yCapacity : p2.yCommitted;
-        
-        if (!isP1Over && !isP2Over) {
-          // Both under capacity - stone goes from baseline to committed
-          stoneSegments.push(`M ${p1.x},${baselineY} L ${p1.x},${p1.yCommitted} L ${p2.x},${p2.yCommitted} L ${p2.x},${baselineY} Z`);
-        } else if (isP1Over && isP2Over) {
-          // Both over capacity - stone goes from baseline to capacity (excluding red area)
-          stoneSegments.push(`M ${p1.x},${baselineY} L ${p1.x},${p1.yCapacity} L ${p2.x},${p2.yCapacity} L ${p2.x},${baselineY} Z`);
-        } else {
-          // Lines cross - find intersection and create appropriate segments
-          const diff1 = p1.committed - p1.capacity;
-          const diff2 = p2.committed - p2.capacity;
-          const t = Math.abs(diff1) / (Math.abs(diff1) + Math.abs(diff2));
+        if (p1Over === p2Over) {
+          // Same state throughout segment - simple quad
+          // Skip if lines are equal (no area)
+          if (p1.yCommitted === p1.yCapacity && p2.yCommitted === p2.yCapacity) continue;
           
-          const intersectX = p1.x + t * (p2.x - p1.x);
-          const intersectY = p1.yCommitted + t * (p2.yCommitted - p1.yCommitted);
+          const path = `M ${p1.x},${p1.yCommitted} L ${p2.x},${p2.yCommitted} L ${p2.x},${p2.yCapacity} L ${p1.x},${p1.yCapacity} Z`;
           
-          if (isP1Over) {
-            // P1 is over (stone to capacity), P2 is under (stone to committed)
-            stoneSegments.push(`M ${p1.x},${baselineY} L ${p1.x},${p1.yCapacity} L ${intersectX},${intersectY} L ${p2.x},${p2.yCommitted} L ${p2.x},${baselineY} Z`);
+          if (p1Over) {
+            redRegions.push(path);
           } else {
-            // P1 is under (stone to committed), P2 is over (stone to capacity)
-            stoneSegments.push(`M ${p1.x},${baselineY} L ${p1.x},${p1.yCommitted} L ${intersectX},${intersectY} L ${p2.x},${p2.yCapacity} L ${p2.x},${baselineY} Z`);
+            greenRegions.push(path);
+          }
+        } else {
+          // Lines cross - find intersection and create two triangles
+          const intersection = findIntersection(i + 1);
+          if (!intersection) continue;
+          
+          // First triangle: from p1 to intersection
+          const path1 = `M ${p1.x},${p1.yCommitted} L ${intersection.x},${intersection.y} L ${p1.x},${p1.yCapacity} Z`;
+          if (p1Over) {
+            redRegions.push(path1);
+          } else {
+            greenRegions.push(path1);
+          }
+          
+          // Second triangle: from intersection to p2
+          const path2 = `M ${intersection.x},${intersection.y} L ${p2.x},${p2.yCommitted} L ${p2.x},${p2.yCapacity} Z`;
+          if (p2Over) {
+            redRegions.push(path2);
+          } else {
+            greenRegions.push(path2);
           }
         }
       }
       
-      return stoneSegments.join(' ');
+      return {
+        greenPath: greenRegions.join(' '),
+        redPath: redRegions.join(' ')
+      };
     };
 
-    // Generate capacity line path (dotted)
-    const generateCapacityLinePath = () => {
-      if (graphData2.length === 0) return '';
-      return graphData2.map((d, i) => {
-        const x = i * columnWidth + columnWidth / 2;
-        const y = valueToY(d.capacity);
-        return i === 0 ? `M ${x},${y}` : `L ${x},${y}`;
-      }).join(' ');
-    };
-
-    // Generate committed line path
-    const generateCommittedLinePath = () => {
-      if (graphData2.length === 0) return '';
-      return graphData2.map((d, i) => {
-        const x = i * columnWidth + columnWidth / 2;
-        const y = valueToY(d.committed);
-        return i === 0 ? `M ${x},${y}` : `L ${x},${y}`;
-      }).join(' ');
-    };
-
-    const { greenPath, redPath } = generateCapacityFillPaths();
+    const capacityLinePath3 = generateLinePath3('yCapacity');
+    const committedLinePath3 = generateLinePath3('yCommitted');
+    const { greenPath, redPath } = generateFillPaths3();
+    const stoneFillPath3 = generateStoneFillPath3();
 
     return (
       <TooltipProvider delayDuration={100}>
-        <div className="relative flex items-center" style={{ width: context === 'planner' ? '100%' : `${dates.length * columnWidth}px`, height: '96px' }}>
+        <div className="relative flex items-center" style={{ width: context === 'planner' ? '100%' : `${dates.length * columnWidth}px`, height: '96px', overflow: 'visible' }}>
           <svg width={(dates.length + 2) * columnWidth} height={graphHeight} className="absolute top-0" style={{ overflow: 'visible', pointerEvents: 'none', zIndex: 20, left: `-${columnWidth}px` }}>
-            <g transform={`translate(0, ${graphPadding.top})`}>
-              {/* Baseline at 0 hours (bottom) */}
-              <line x1={0} y1={plotHeight} x2={(dates.length + 2) * columnWidth} y2={plotHeight} stroke={NEUTRAL_COLORS.gray400} strokeWidth={1} />
+            <g>
+              {/* Baseline - light gray line */}
+              <line 
+                x1={0} 
+                y1={baselineY} 
+                x2={(dates.length + 2) * columnWidth} 
+                y2={baselineY} 
+                stroke={NEUTRAL_COLORS.gray200} 
+                strokeWidth={1}
+              />
               
               {/* Stone fill: between baseline and committed/capacity line (excluding red areas) */}
-              <path d={generateStoneFillPath()} fill="oklch(0.91 0.008 90)" fillOpacity={0.65} />
+              <path d={stoneFillPath3} fill="oklch(0.91 0.008 90)" fillOpacity={0.65} />
               
               {/* Green fill: committed under capacity */}
               <path d={greenPath} fill="rgb(34, 197, 94)" fillOpacity={0.3} />
@@ -631,7 +650,7 @@ export const AvailabilityCard = memo(function AvailabilityCard({
               
               {/* Capacity line (dotted) */}
               <path 
-                d={generateCapacityLinePath()} 
+                d={capacityLinePath3} 
                 fill="none" 
                 stroke={NEUTRAL_COLORS.gray500} 
                 strokeWidth={2} 
@@ -640,7 +659,7 @@ export const AvailabilityCard = memo(function AvailabilityCard({
               
               {/* Committed line (solid) */}
               <path 
-                d={generateCommittedLinePath()} 
+                d={committedLinePath3} 
                 fill="none" 
                 stroke={NEUTRAL_COLORS.gray400} 
                 strokeWidth={2} 
@@ -648,15 +667,15 @@ export const AvailabilityCard = memo(function AvailabilityCard({
             </g>
           </svg>
           
-          {/* Data point circles on committed line */}
-          <div className="absolute top-0 left-0 pointer-events-none" style={{ zIndex: 22 }}>
+          {/* Data point circles on committed line - hover effects only (no default dots) */}
+          <div className="absolute top-0 left-0 pointer-events-none" style={{ zIndex: 22, overflow: 'visible' }}>
             {dates.map((_, dateIndex) => {
               const graphDataIndex = dateIndex + 1;
               const d = graphData2[graphDataIndex];
               if (!d) return null;
               
               const x = dateIndex * columnWidth + columnWidth / 2;
-              const y = valueToY(d.committed) + graphPadding.top;
+              const y = valueToY3(d.committed);
               const isOvercommitted = d.committed > d.capacity;
               const isUnderCapacity = d.committed < d.capacity;
               
@@ -676,15 +695,7 @@ export const AvailabilityCard = memo(function AvailabilityCard({
                   }}
                 >
                   <svg width="22" height="22" viewBox="0 0 22 22" className="overflow-visible">
-                    {/* Default grey dot - always visible */}
-                    <circle
-                      cx="11"
-                      cy="11"
-                      r="3"
-                      fill={NEUTRAL_COLORS.gray400}
-                      className={`transition-opacity duration-200 ${hoveredColumnIndex === dateIndex ? 'opacity-0' : 'opacity-100'}`}
-                    />
-                    {/* Hover effects */}
+                    {/* Hover effects only - no default grey dot */}
                     <circle
                       cx="11"
                       cy="11"
@@ -809,14 +820,9 @@ export const AvailabilityCard = memo(function AvailabilityCard({
       {/* Tabs Container */}
       <div className="flex items-end">
         <TabComponent
-          label="Availability 2"
-          isActive={activeTab === 'availability-graph-2'}
-          onClick={() => setActiveTab('availability-graph-2')}
-        />
-        <TabComponent
           label="Availability"
-          isActive={activeTab === 'availability-graph'}
-          onClick={() => setActiveTab('availability-graph')}
+          isActive={activeTab === 'availability-graph-3'}
+          onClick={() => setActiveTab('availability-graph-3')}
         />
         <TabComponent
           label="Time Spent"
@@ -830,7 +836,7 @@ export const AvailabilityCard = memo(function AvailabilityCard({
       </div>
 
       {/* Card Content */}
-      <Card className="overflow-hidden shadow-sm border-x border-b border-t border-gray-200 relative bg-gray-50" style={{ borderTopLeftRadius: 0, borderTopRightRadius: '0.5rem' }}>
+      <Card className="shadow-sm border-x border-b border-t border-gray-200 relative bg-gray-50" style={{ borderTopLeftRadius: 0, borderTopRightRadius: '0.5rem', overflow: 'visible' }}>
         {/* Column Markers Overlay - positioned inside card */}
         {columnMarkersOverlay && (
           <div 
@@ -852,8 +858,8 @@ export const AvailabilityCard = memo(function AvailabilityCard({
             
             {/* Content area - grows to fill space */}
             <div ref={setContainerRef} className="flex-1 flex flex-col relative">
-              {activeTab === 'availability-graph' && renderWorkloadGraph()}
-              {activeTab === 'availability-graph-2' && renderCapacityVsCommittedGraph()}
+              {activeTab === 'availability-graph-old' && renderWorkloadGraph()}
+              {activeTab === 'availability-graph-3' && renderCapacityVsCommittedGraph3()}
               {activeTab === 'time-spent' && renderTimeSpentRows()}
             </div>
             
@@ -877,8 +883,8 @@ export const AvailabilityCard = memo(function AvailabilityCard({
               borderTopRightRadius: '8px',
             }}
           >
-            {activeTab === 'availability-graph' && renderWorkloadGraph()}
-            {activeTab === 'availability-graph-2' && renderCapacityVsCommittedGraph()}
+            {activeTab === 'availability-graph-old' && renderWorkloadGraph()}
+            {activeTab === 'availability-graph-3' && renderCapacityVsCommittedGraph3()}
             {activeTab === 'time-spent' && renderTimeSpentRows()}
           </div>
         )}
