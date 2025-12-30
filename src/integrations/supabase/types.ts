@@ -494,12 +494,13 @@ export type Database = {
         Row: {
           created_at: string
           due_date: string
+          end_date: string
           id: string
           is_recurring: boolean | null
           name: string
           project_id: string
           recurring_config: Json | null
-          start_date: string | null
+          start_date: string
           time_allocation: number
           time_allocation_hours: number | null
           updated_at: string
@@ -508,12 +509,13 @@ export type Database = {
         Insert: {
           created_at?: string
           due_date: string
+          end_date: string
           id?: string
           is_recurring?: boolean | null
           name: string
           project_id: string
           recurring_config?: Json | null
-          start_date?: string | null
+          start_date: string
           time_allocation: number
           time_allocation_hours?: number | null
           updated_at?: string
@@ -522,12 +524,13 @@ export type Database = {
         Update: {
           created_at?: string
           due_date?: string
+          end_date?: string
           id?: string
           is_recurring?: boolean | null
           name?: string
           project_id?: string
           recurring_config?: Json | null
-          start_date?: string | null
+          start_date?: string
           time_allocation?: number
           time_allocation_hours?: number | null
           updated_at?: string
