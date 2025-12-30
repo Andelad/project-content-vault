@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useProjectContext } from '@/contexts/ProjectContext';
-import { ProjectPhaseOrchestrator } from '@/services';
+import { PhaseOrchestrator } from '@/services';
 import type { PhaseDTO, Phase } from '@/types/core';
 import { useToast } from '@/hooks/use-toast';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
@@ -77,11 +77,15 @@ export function usePhaseOperations(config: UseMilestoneOperationsConfig) {
 
     if (projectId) {
       const contextList = Array.isArray(contextMilestones)
-        ? contextMilestones.filter(p =>
-            p.projectId === projectId &&
-            p.dueDate >= projectStartDate &&
-            p.dueDate <= projectEndDate
-          )
+        ? contextMilestones.filter(p => {
+            // Always include recurring templates regardless of date range
+            if (p.isRecurring === true) return p.projectId === projectId;
+            
+            // For regular phases, filter by project and date range
+            return p.projectId === projectId &&
+              p.dueDate >= projectStartDate &&
+              p.dueDate <= projectEndDate;
+          })
         : [];
       const localNew = localPhases.filter(p => 'isNew' in p && p.isNew);
       return [...contextList, ...localNew];
@@ -203,7 +207,7 @@ export function usePhaseOperations(config: UseMilestoneOperationsConfig) {
     value: PhaseDTO[K]
   ) => {
     const validMilestones = projectPhases.filter(p => p.id) as PhaseDTO[];
-    const result = await ProjectPhaseOrchestrator.updatePhaseProperty(
+    const result = await PhaseOrchestrator.updatePhaseProperty(
       milestoneId,
       property,
       value,

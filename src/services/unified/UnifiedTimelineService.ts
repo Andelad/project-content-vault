@@ -18,7 +18,7 @@
     return dayHours && dayHours.hours > 0;
   }nterface for timeline components
  */
-import { ProjectPhaseOrchestrator } from '../orchestrators/ProjectPhaseOrchestrator';
+import { PhaseOrchestrator } from '../orchestrators/PhaseOrchestrator';
 import { normalizeToMidnight } from '../calculations/general/dateCalculations';
 
 import { UnifiedDayEstimateService } from './UnifiedDayEstimateService';
@@ -63,6 +63,7 @@ import {
   // Import isWorkingDay from dateCalculations (authoritative source)
   isWorkingDay as isWorkingDayDateCalc
 } from '../index';
+import { getDateKey } from '@/utils/dateFormatUtils';
 // Import timeline row calculations
 import { 
   calculateTimelineRows as calculateTimelineRowsCalc,
@@ -109,8 +110,8 @@ export class UnifiedTimelineService {
     return {
       project,
       duration: calculateProjectDuration(project),
-      isActiveOnDate: (date: Date) => ProjectPhaseOrchestrator.isProjectActiveOnDate(project, date),
-      validation: ProjectPhaseOrchestrator.validateProjectTimeframe(
+      isActiveOnDate: (date: Date) => PhaseOrchestrator.isProjectActiveOnDate(project, date),
+      validation: PhaseOrchestrator.validateProjectTimeframe(
         new Date(project.startDate),
         new Date(project.endDate)
       )
@@ -123,15 +124,15 @@ export class UnifiedTimelineService {
   static calculateProjectDuration = calculateProjectDuration;
   /**
    * Check if project is active on date
-   * Delegates to ProjectPhaseOrchestrator
+   * Delegates to PhaseOrchestrator
    */
-  static isProjectActiveOnDate = ProjectPhaseOrchestrator.isProjectActiveOnDate;
+  static isProjectActiveOnDate = PhaseOrchestrator.isProjectActiveOnDate;
   /**
    * Get project validation data
-   * Delegates to ProjectPhaseOrchestrator
+   * Delegates to PhaseOrchestrator
    */
   static validateProject(project: Project, phases: PhaseDTO[] = []) {
-    return ProjectPhaseOrchestrator.validateProjectTimeframe(
+    return PhaseOrchestrator.validateProjectTimeframe(
       new Date(project.startDate),
       new Date(project.endDate),
       phases
@@ -345,22 +346,18 @@ export class UnifiedTimelineService {
     );
     
     // Pre-aggregate per-date summaries to avoid per-render filtering in components
-    // Key: midnight timestamp of the date (number) for stable lookup
-    const summariesByDate = new Map<number, {
+    // Key: date key 'YYYY-MM-DD' (timezone-safe)
+    const summariesByDate = new Map<string, {
       dailyHours: number;
       allocationType: 'planned' | 'completed' | 'auto-estimate' | 'none';
       isPlannedTime: boolean;
       isCompletedTime: boolean;
     }>();
     try {
-      const getMidnightTime = (d: Date) => {
-        const n = normalizeToMidnight(new Date(d));
-        return n.getTime();
-      };
-      // Group estimates by date
-  const grouped = new Map<number, Array<DayEstimate>>();
+      // Group estimates by date key
+      const grouped = new Map<string, Array<DayEstimate>>();
       for (const est of dayEstimates) {
-        const key = getMidnightTime(new Date(est.date));
+        const key = getDateKey(new Date(est.date));
         if (!grouped.has(key)) grouped.set(key, []);
         grouped.get(key)!.push(est);
       }
@@ -404,8 +401,7 @@ export class UnifiedTimelineService {
     
     // Helper accessor for components: get summary for a date without re-filtering arrays
     const getPerDateSummary = (date: Date) => {
-      const keyDate = normalizeToMidnight(new Date(date));
-      const key = keyDate.getTime();
+      const key = getDateKey(normalizeToMidnight(new Date(date)));
       return (
         summariesByDate.get(key) || {
           dailyHours: 0,

@@ -685,6 +685,13 @@ IF recurring.type === 'monthly' AND recurring.monthlyPattern === 'dayOfWeek' THE
   recurring.monthlyDayOfWeek must be 0-6
 ```
 
+### Rule 10b: Recurring phases (RRule + continuous projects)
+**Statements**:
+- A recurring phase is represented as a **single template** (`isRecurring=true`) with its RFC 5545 RRule stored in `recurring_config.rrule` (no numbered instances are persisted).
+- **Continuous projects** disallow manual phases; only recurring templates are allowed. Occurrences are generated at runtime from the RRule within a rolling/viewport window (continuous: rolling around “now”; bounded projects: up to project end/UNTIL).
+- **Work interval per occurrence**: Anchor day is inclusive; the interval ends the day **before** the next anchor (weekly → 7 days). `timeAllocationHours` is spread across working days in that interval; completed/planned event hours in that window reduce the remaining allocation; allocations are **not re-redistributed across occurrences**.
+- **Safety limits**: Bounded projects cap occurrences; continuous projects cap by viewport/rolling window to avoid thousands of dates while preserving upcoming anchors.
+
 ---
 
 ## Invariants (Always True)

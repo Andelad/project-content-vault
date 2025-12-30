@@ -4,3 +4,5 @@
 - archive projects or groups? What if a group becomes a past consideration, like finishing university? How does that affect the timeline?
 - can a planned and completed calendar event be represented on the timeline onthe same day?
 - how far back does the timeline show? Allow archived groups - means timeline isn't a complete historic record. Allow to show archived groups in timeline?
+- unallocated events on calendar? Where does their time show? Reduced availability? Extra project row?
+- what if someone changes a phase recurrence pattern in the middle of a project? Say they move it to start on a monday from a Wednesday? What happens.

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, AlertTriangle, SquareSplitHorizontal, RefreshCw } from 'lucide-react';
+import { Plus, AlertTriangle, SquareSplitHorizontal, RefreshCw, ExternalLink } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -19,7 +19,7 @@ import {
   RecurringPhaseCard,
   PhaseConfigDialog
 } from '../phases';
-import { UnifiedPhaseService, ProjectPhaseOrchestrator, addDaysToDate } from '@/services';
+import { UnifiedPhaseService, PhaseOrchestrator, addDaysToDate } from '@/services';
 import { PhaseRules } from '@/domain/rules/PhaseRules';
 
 type AutoEstimateDays = {
@@ -97,16 +97,31 @@ export function ProjectPhaseSection({
   const [editingProperty, setEditingProperty] = useState<string | null>(null);
   const [isSplitMode, setIsSplitMode] = useState(false);
   const [isDeletingRecurringPhase, setIsDeletingRecurringPhase] = useState(false);
+  const [showSplitFromRecurringWarning, setShowSplitFromRecurringWarning] = useState(false);
 
   // Dialog state
   const [showRecurringConfig, setShowRecurringConfig] = useState(false);
+  const [showRecurringEdit, setShowRecurringEdit] = useState(false);
   const [showRecurringWarning, setShowRecurringWarning] = useState(false);
   const [showSplitWarning, setShowSplitWarning] = useState(false);
   const [showRecurringFromSplitWarning, setShowRecurringFromSplitWarning] = useState(false);
 
   // Recurring configuration state
   const [recurringConfig, setRecurringConfig] = useState<RecurringPhaseConfig>({
-    name: 'Milestone',
+    name: 'Weekly',
+    timeAllocation: 8,
+    recurringType: 'weekly',
+    recurringInterval: 1,
+    weeklyDayOfWeek: projectStartDate ? projectStartDate.getDay() : 1,
+    monthlyPattern: 'date',
+    monthlyDate: projectStartDate ? projectStartDate.getDate() : 1,
+    monthlyWeekOfMonth: 1,
+    monthlyDayOfWeek: projectStartDate ? projectStartDate.getDay() : 1
+  });
+
+  // Separate config state for editing (to avoid conflicts with create modal)
+  const [editRecurringConfig, setEditRecurringConfig] = useState<RecurringPhaseConfig>({
+    name: 'Weekly',
     timeAllocation: 8,
     recurringType: 'weekly',
     recurringInterval: 1,
@@ -138,7 +153,7 @@ export function ProjectPhaseSection({
   });
 
   const {
-    recurringMilestone,
+    recurringMilestone: legacyRecurringMilestone,
     setRecurringPhase,
     ensureRecurringPhasesAvailable,
     createRecurringPhases,
@@ -155,6 +170,24 @@ export function ProjectPhaseSection({
     isCreatingProject,
     localPhasesState
   });
+
+  // Get recurring phase directly from projectPhases (single source of truth)
+  const recurringPhaseData = projectPhases.find(p => p.isRecurring === true);
+  
+  const recurringMilestone = recurringPhaseData && recurringPhaseData.recurringConfig ? {
+    id: recurringPhaseData.id || 'recurring',
+    name: recurringPhaseData.name,
+    timeAllocation: recurringPhaseData.timeAllocationHours ?? recurringPhaseData.timeAllocation ?? 0,
+    recurringType: recurringPhaseData.recurringConfig.type,
+    recurringInterval: recurringPhaseData.recurringConfig.interval,
+    projectId: recurringPhaseData.projectId,
+    isRecurring: true as const,
+    weeklyDayOfWeek: recurringPhaseData.recurringConfig.weeklyDayOfWeek,
+    monthlyPattern: recurringPhaseData.recurringConfig.monthlyPattern,
+    monthlyDate: recurringPhaseData.recurringConfig.monthlyDate,
+    monthlyWeekOfMonth: recurringPhaseData.recurringConfig.monthlyWeekOfMonth,
+    monthlyDayOfWeek: recurringPhaseData.recurringConfig.monthlyDayOfWeek
+  } : null;
 
   const getExclusivityValidation = () => PhaseRules.checkPhaseRecurringExclusivity(projectPhases as PhaseDTO[]);
   const persistedProjectMilestones = projectPhases.filter(
@@ -246,70 +279,138 @@ export function ProjectPhaseSection({
 
   // Handle splitting estimate into phases
   const handleSplitEstimate = async () => {
-    const projectDuration = projectEndDate.getTime() - projectStartDate.getTime();
-    const midpointTime = projectStartDate.getTime() + (projectDuration / 2);
-    const midpointDate = new Date(midpointTime);
+    try {
+      if (isCreatingProject && localPhasesState) {
+        // For local creation (new project modal), use domain rule directly
+        const split = PhaseRules.calculatePhaseSplit(
+          projectStartDate,
+          projectEndDate,
+          projectEstimatedHours
+        );
 
-    const halfBudget = projectEstimatedHours / 2;
+        const phase1: LocalPhase = {
+          id: `phase-1-${Date.now()}`,
+          name: split.phase1.name,
+          projectId: projectId || '',
+          startDate: split.phase1.startDate,
+          endDate: split.phase1.endDate,
+          dueDate: split.phase1.endDate,
+          timeAllocation: split.phase1.timeAllocation,
+          timeAllocationHours: split.phase1.timeAllocation,
+          isRecurring: false,
+          userId: '',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          isNew: true
+        };
 
-    // Phase 1 ends on midpoint, Phase 2 starts the day AFTER (no overlap)
-    const phase1EndDate = midpointDate;
-    const phase2StartDate = new Date(midpointDate.getTime() + (24 * 60 * 60 * 1000));
+        const phase2: LocalPhase = {
+          id: `phase-2-${Date.now() + 1}`,
+          name: split.phase2.name,
+          projectId: projectId || '',
+          startDate: split.phase2.startDate,
+          endDate: split.phase2.endDate,
+          dueDate: split.phase2.endDate,
+          timeAllocation: split.phase2.timeAllocation,
+          timeAllocationHours: split.phase2.timeAllocation,
+          isRecurring: false,
+          userId: '',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          isNew: true
+        };
 
-    const phase1: LocalPhase = {
-      id: isCreatingProject ? `phase-1-${Date.now()}` : undefined,
-      name: 'Phase 1',
-      projectId: projectId || '',
-      startDate: projectStartDate,
-      endDate: phase1EndDate,
-      dueDate: phase1EndDate,
-      timeAllocation: halfBudget,
-      timeAllocationHours: halfBudget,
-      isRecurring: false,
-      userId: '',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      isNew: true
-    };
+        localPhasesState.setPhases([phase1, phase2]);
+        setIsSplitMode(true);
+        setShowSplitWarning(false);
+      } else if (projectId) {
+        // For existing projects, use orchestrator
+        const result = await PhaseOrchestrator.createSplitPhases(
+          projectId,
+          {
+            startDate: projectStartDate,
+            endDate: projectEndDate,
+            estimatedHours: projectEstimatedHours
+          },
+          { silent: true }
+        );
 
-    const phase2: LocalPhase = {
-      id: isCreatingProject ? `phase-2-${Date.now() + 1}` : undefined,
-      name: 'Phase 2',
-      projectId: projectId || '',
-      startDate: phase2StartDate,
-      endDate: projectEndDate,
-      dueDate: projectEndDate,
-      timeAllocation: halfBudget,
-      timeAllocationHours: halfBudget,
-      isRecurring: false,
-      userId: '',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      isNew: true
-    };
+        if (result.success) {
+          setIsSplitMode(true);
+          setShowSplitWarning(false);
+        } else {
+          toast({
+            title: "Error",
+            description: "Failed to create phases. Please try again.",
+            variant: "destructive",
+          });
+        }
+      } else {
+        // Fallback for standalone local state
+        const split = PhaseRules.calculatePhaseSplit(
+          projectStartDate,
+          projectEndDate,
+          projectEstimatedHours
+        );
 
-    if (isCreatingProject && localPhasesState) {
-      localPhasesState.setPhases([phase1, phase2]);
-      setIsSplitMode(true);
-      setShowSplitWarning(false);
-    } else if (projectId) {
-      // Create both phases in parallel for faster response (silent - no toast in modal)
-      await Promise.all([
-        createPhase(phase1, { silent: true }),
-        createPhase(phase2, { silent: true })
-      ]);
-      setIsSplitMode(true);
-      setShowSplitWarning(false);
-    } else {
-      setLocalPhases([phase1, phase2]);
-      setIsSplitMode(true);
-      setShowSplitWarning(false);
+        const phase1: LocalPhase = {
+          id: `phase-1-${Date.now()}`,
+          name: split.phase1.name,
+          projectId: projectId || '',
+          startDate: split.phase1.startDate,
+          endDate: split.phase1.endDate,
+          dueDate: split.phase1.endDate,
+          timeAllocation: split.phase1.timeAllocation,
+          timeAllocationHours: split.phase1.timeAllocation,
+          isRecurring: false,
+          userId: '',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          isNew: true
+        };
+
+        const phase2: LocalPhase = {
+          id: `phase-2-${Date.now() + 1}`,
+          name: split.phase2.name,
+          projectId: projectId || '',
+          startDate: split.phase2.startDate,
+          endDate: split.phase2.endDate,
+          dueDate: split.phase2.endDate,
+          timeAllocation: split.phase2.timeAllocation,
+          timeAllocationHours: split.phase2.timeAllocation,
+          isRecurring: false,
+          userId: '',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          isNew: true
+        };
+
+        setLocalPhases([phase1, phase2]);
+        setIsSplitMode(true);
+        setShowSplitWarning(false);
+      }
+    } catch (error) {
+      // Error already handled by orchestrator with toast
+      console.error('Failed to create phases:', error);
     }
   };
 
   // Handle adding a new phase
   const handleAddPhase = async () => {
     try {
+      // DOMAIN RULE: Check mutual exclusivity before adding phase
+      const validation = getExclusivityValidation();
+      
+      // Block if project has recurring template (don't allow mix)
+      if (validation.hasRecurringTemplate) {
+        toast({
+          title: "Cannot add phase",
+          description: "Project has a recurring phase template. Delete it first to create manual phases.",
+          variant: "destructive"
+        });
+        return;
+      }
+
       const existingPhases = projectPhases.filter(p => p.startDate !== undefined);
       const nextPhaseNumber = existingPhases.length + 1;
 
@@ -376,16 +477,23 @@ export function ProjectPhaseSection({
 
   // Handle initiating split (with warning if milestones exist)
   const handleInitiateSplit = () => {
+    // DOMAIN RULE: Continuous projects can only have recurring phases, not manual phases
+    if (projectContinuous) {
+      // Show error toast for continuous projects
+      toast({
+        title: "Cannot create manual phases",
+        description: "Continuous projects require recurring phases. Add an end date to create manual phases.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     // DOMAIN RULE: Check mutual exclusivity before creating phases
     const validation = getExclusivityValidation();
     
-    // Block if already has recurring template (don't allow mix)
+    // Block if already has recurring template (don't allow mix) - show modal to delete
     if (validation.hasRecurringTemplate) {
-      toast({
-        title: "Cannot create phases",
-        description: "Project already has a recurring template. Delete it first to create split phases.",
-        variant: "destructive"
-      });
+      setShowSplitFromRecurringWarning(true);
       return;
     }
     
@@ -450,7 +558,7 @@ export function ProjectPhaseSection({
   const handleUpdateRecurringLoad = async (newLoad: number) => {
     if (!recurringMilestone || !projectId) return;
 
-    const result = await ProjectPhaseOrchestrator.updateRecurringPhaseLoad(
+    const result = await PhaseOrchestrator.updateRecurringPhaseLoad(
       projectId,
       newLoad,
       {
@@ -497,13 +605,52 @@ export function ProjectPhaseSection({
     await createRecurringPhases(newConfig);
   };
 
+  // Handle opening the edit pattern modal
+  const handleEditRecurringPattern = () => {
+    if (!recurringMilestone) return;
+    
+    // Populate the EDIT config state with current values
+    const editConfig = {
+      name: recurringMilestone.name,
+      timeAllocation: recurringMilestone.timeAllocation,
+      recurringType: recurringMilestone.recurringType,
+      recurringInterval: recurringMilestone.recurringInterval,
+      weeklyDayOfWeek: recurringMilestone.weeklyDayOfWeek ?? projectStartDate.getDay(),
+      monthlyPattern: recurringMilestone.monthlyPattern ?? 'date',
+      monthlyDate: recurringMilestone.monthlyDate ?? projectStartDate.getDate(),
+      monthlyWeekOfMonth: recurringMilestone.monthlyWeekOfMonth ?? 1,
+      monthlyDayOfWeek: recurringMilestone.monthlyDayOfWeek ?? projectStartDate.getDay()
+    };
+    
+    setEditRecurringConfig(editConfig);
+    setShowRecurringEdit(true);
+  };
+
+  // Handle confirming the pattern edit from modal
+  const handleConfirmRecurringEdit = async () => {
+    await handleUpdateRecurringPattern({
+      recurringType: editRecurringConfig.recurringType,
+      recurringInterval: editRecurringConfig.recurringInterval,
+      weeklyDayOfWeek: editRecurringConfig.weeklyDayOfWeek,
+      monthlyPattern: editRecurringConfig.monthlyPattern,
+      monthlyDate: editRecurringConfig.monthlyDate,
+      monthlyWeekOfMonth: editRecurringConfig.monthlyWeekOfMonth,
+      monthlyDayOfWeek: editRecurringConfig.monthlyDayOfWeek
+    });
+    
+    // Force refetch to update the UI
+    await refetchPhases();
+    
+    setShowRecurringEdit(false);
+  };
+
   return (
     <div>
       <div className="pb-6">
         {/* Time Budget Field */}
         {externalEditingProperty !== undefined && externalSetEditingProperty && externalHandleSaveProperty && recurringMilestoneInfo && (
           <div className="mb-6 pb-4 border-b border-gray-200">
-            <Label className="text-xs text-muted-foreground mb-1 block">Time Budget</Label>
+            <Label className="text-xs text-muted-foreground mb-1 block">Estimate (hrs)</Label>
             <div className="flex items-center gap-4">
               {externalEditingProperty === 'estimatedHours' ? (
                 <Input
@@ -549,7 +696,7 @@ export function ProjectPhaseSection({
               <Button
                 variant="outline"
                 onClick={handleInitiateSplit}
-                className="flex items-center gap-2 h-10 shadow-sm"
+                className={`flex items-center gap-2 h-10 shadow-sm ${projectContinuous ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <SquareSplitHorizontal className="w-4 h-4" />
                 Create Phases
@@ -577,10 +724,8 @@ export function ProjectPhaseSection({
                     return;
                   }
                   
-                  // Show warning if:
-                  // 1. There are existing milestones/phases to delete, OR
-                  // 2. There's a project budget set (recurring will replace it)
-                  if (projectPhases.length > 0 || projectEstimatedHours > 0) {
+                  // Show warning only if there are existing phases to delete
+                  if (projectPhases.length > 0) {
                     setShowRecurringWarning(true);
                   } else {
                     setShowRecurringConfig(true);
@@ -589,7 +734,7 @@ export function ProjectPhaseSection({
                 className="flex items-center gap-2 h-10 shadow-sm"
               >
                 <RefreshCw className="w-4 h-4" />
-                Recurring Estimate
+                Recurring Phase
               </Button>
             </div>
           </div>
@@ -599,8 +744,9 @@ export function ProjectPhaseSection({
         {(() => {
           const validation = getExclusivityValidation();
           const visiblePhases = phases.length;
+          const visibleRecurringPhase = projectPhases.find(p => p.isRecurring === true);
           const hasInconsistency = (validation.hasSplitPhases && visiblePhases === 0) || 
-                                   (validation.hasRecurringTemplate && !recurringMilestone);
+                                   (validation.hasRecurringTemplate && !visibleRecurringPhase);
           
           // Don't show warning during deletion operations - state is transitioning
           if (hasInconsistency && !isDeletingRecurringPhase) {
@@ -733,13 +879,13 @@ export function ProjectPhaseSection({
             projectContinuous={projectContinuous}
             projectStartDate={projectStartDate}
             onUpdateLoad={handleUpdateRecurringLoad}
-            onUpdatePattern={handleUpdateRecurringPattern}
+            onEditPattern={handleEditRecurringPattern}
             onDelete={handleDeleteRecurringPhases}
           />
         )}
 
-        {/* Add Phase Button */}
-        {isSplitMode && (
+        {/* Add Phase Button - only show when in split mode AND no recurring phase */}
+        {isSplitMode && !recurringMilestone && (
           <div className="mt-4">
             <Button
               variant="outline"
@@ -755,10 +901,23 @@ export function ProjectPhaseSection({
         {/* Auto-Estimate Days Section */}
         {localValues && setLocalValues && (
           <div className="mt-6 pt-6 border-t border-gray-200">
-            <h4 className="text-sm font-medium text-gray-900 mb-3">Auto-Estimate Days</h4>
-            <div className="text-sm text-muted-foreground mb-4">
-              Select which days of the week to include when auto-estimating project time.
-              Unchecked days will be excluded from receiving auto-estimated time, similar to weekends or holidays.
+            <h4 className="text-sm font-medium text-gray-900 mb-3">Project Working Days</h4>
+            <div className="text-sm text-muted-foreground mb-4 flex items-start gap-2">
+              <span>
+                Set which days you'll work on this project. Your time load will be spread across these days. Defaults to your{' '}
+                <a 
+                  href="/settings" 
+                  className="text-primary hover:underline inline-flex items-center gap-1"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    window.location.href = '/settings';
+                  }}
+                >
+                  work days
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+                .
+              </span>
             </div>
             {(() => {
               const autoEstimateDays = localValues.autoEstimateDays || {
@@ -818,29 +977,9 @@ export function ProjectPhaseSection({
                       </p>
                     </div>
                   )}
-                  <div className="text-xs text-muted-foreground mt-4">
-                    {enabledDaysCount} day{enabledDaysCount !== 1 ? 's' : ''} enabled for auto-estimation
-                  </div>
                 </>
               );
             })()}
-          </div>
-        )}
-
-        {/* Progress Summary */}
-        {(projectPhases.length > 0 || recurringMilestone) && (
-          <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-            <div className="flex justify-between items-center text-sm">
-              <span className="font-medium">Total Allocation:</span>
-              <span className={`font-medium ${budgetAnalysis.isOverBudget && !projectContinuous ? 'text-orange-600' : 'text-gray-900'}`}>
-                {budgetAnalysis.totalAllocated}h / {projectContinuous && recurringMilestone ? 'N/A' : `${projectEstimatedHours}h`}
-              </span>
-            </div>
-            {budgetAnalysis.isOverBudget && !projectContinuous && (
-              <div className="text-xs text-orange-600 mt-1">
-                Phase allocations exceed project budget. Consider updating the project budget.
-              </div>
-            )}
           </div>
         )}
       </div>
@@ -855,6 +994,19 @@ export function ProjectPhaseSection({
         projectContinuous={projectContinuous}
         config={recurringConfig}
         onConfigChange={setRecurringConfig}
+      />
+
+      <PhaseConfigDialog
+        type="recurring"
+        open={showRecurringEdit}
+        onOpenChange={setShowRecurringEdit}
+        onConfirm={handleConfirmRecurringEdit}
+        projectStartDate={projectStartDate}
+        projectContinuous={projectContinuous}
+        config={editRecurringConfig}
+        onConfigChange={setEditRecurringConfig}
+        zIndex={60}
+        isEditing={true}
       />
 
       <PhaseConfigDialog
@@ -927,6 +1079,23 @@ export function ProjectPhaseSection({
         projectStartDate={projectStartDate}
         projectContinuous={projectContinuous}
         projectEstimatedHours={projectEstimatedHours}
+      />
+
+      <PhaseConfigDialog
+        type="split-from-recurring-warning"
+        open={showSplitFromRecurringWarning}
+        onOpenChange={setShowSplitFromRecurringWarning}
+        onConfirm={async () => {
+          // Delete recurring phase template before creating split phases
+          await handleDeleteRecurringPhases();
+          setShowSplitFromRecurringWarning(false);
+          setIsSplitMode(true);
+          
+          // Now proceed with split
+          await handleSplitEstimate();
+        }}
+        projectStartDate={projectStartDate}
+        projectContinuous={projectContinuous}
       />
     </div>
   );

@@ -18,6 +18,12 @@
 export * from './rules';
 
 // ============================================================================
+// DOMAIN SERVICES - Pure Domain Logic
+// ============================================================================
+
+export * from './domain-services';
+
+// ============================================================================
 // DOMAIN ENTITIES - Phase 3 (Future)
 // ============================================================================
 
@@ -25,8 +31,7 @@ export * from './rules';
 // export * from './entities';
 
 // ============================================================================
-// VALUE OBJECTS - Phase 3 (Future)
+// VALUE OBJECTS - Immutable Domain Primitives
 // ============================================================================
 
-// TODO: Phase 3 - Immutable value types
-// export * from './value-objects';
+export * from './value-objects';

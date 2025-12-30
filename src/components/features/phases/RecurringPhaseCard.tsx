@@ -3,7 +3,6 @@ import { Trash2, RefreshCw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { getDayName, getOrdinalNumber, getWeekOfMonthName } from '@/utils/dateFormatUtils';
 import type { RecurringPhase } from '@/hooks/phase';
@@ -14,7 +13,7 @@ interface RecurringPhaseCardProps {
   projectContinuous: boolean;
   projectStartDate: Date;
   onUpdateLoad: (newLoad: number) => Promise<void>;
-  onUpdatePattern: (updates: Partial<RecurringPhase>) => Promise<void>;
+  onEditPattern: () => void;
   onDelete: () => void;
 }
 
@@ -29,21 +28,11 @@ export function RecurringPhaseCard({
   projectContinuous,
   projectStartDate,
   onUpdateLoad,
-  onUpdatePattern,
+  onEditPattern,
   onDelete
 }: RecurringPhaseCardProps) {
   const [editingRecurringLoad, setEditingRecurringLoad] = useState(false);
   const [editingLoadValue, setEditingLoadValue] = useState(0);
-  const [editingRecurringPattern, setEditingRecurringPattern] = useState(false);
-  
-  // Pattern editing state
-  const [editingRecurringType, setEditingRecurringType] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
-  const [editingRecurringInterval, setEditingRecurringInterval] = useState(1);
-  const [editingWeeklyDayOfWeek, setEditingWeeklyDayOfWeek] = useState<number>(1);
-  const [editingMonthlyPattern, setEditingMonthlyPattern] = useState<'date' | 'dayOfWeek'>('date');
-  const [editingMonthlyDate, setEditingMonthlyDate] = useState<number>(1);
-  const [editingMonthlyWeekOfMonth, setEditingMonthlyWeekOfMonth] = useState<number>(1);
-  const [editingMonthlyDayOfWeek, setEditingMonthlyDayOfWeek] = useState<number>(1);
 
   const handleStartLoadEdit = () => {
     setEditingRecurringLoad(true);
@@ -53,30 +42,6 @@ export function RecurringPhaseCard({
   const handleSaveLoad = async () => {
     await onUpdateLoad(editingLoadValue);
     setEditingRecurringLoad(false);
-  };
-
-  const handleStartPatternEdit = () => {
-    setEditingRecurringPattern(true);
-    setEditingRecurringType(recurringMilestone.recurringType);
-    setEditingRecurringInterval(recurringMilestone.recurringInterval);
-    setEditingWeeklyDayOfWeek(recurringMilestone.weeklyDayOfWeek ?? projectStartDate.getDay());
-    setEditingMonthlyPattern(recurringMilestone.monthlyPattern ?? 'date');
-    setEditingMonthlyDate(recurringMilestone.monthlyDate ?? projectStartDate.getDate());
-    setEditingMonthlyWeekOfMonth(recurringMilestone.monthlyWeekOfMonth ?? 1);
-    setEditingMonthlyDayOfWeek(recurringMilestone.monthlyDayOfWeek ?? projectStartDate.getDay());
-  };
-
-  const handleSavePattern = async () => {
-    await onUpdatePattern({
-      recurringType: editingRecurringType,
-      recurringInterval: editingRecurringInterval,
-      weeklyDayOfWeek: editingWeeklyDayOfWeek,
-      monthlyPattern: editingMonthlyPattern,
-      monthlyDate: editingMonthlyDate,
-      monthlyWeekOfMonth: editingMonthlyWeekOfMonth,
-      monthlyDayOfWeek: editingMonthlyDayOfWeek
-    });
-    setEditingRecurringPattern(false);
   };
 
   const getPatternDisplay = () => {
@@ -108,7 +73,7 @@ export function RecurringPhaseCard({
 
           {/* Budget Field (editable) */}
           <div className="min-w-[80px]">
-            <Label className="text-xs text-muted-foreground mb-1 block">Time Budget</Label>
+            <Label className="text-xs text-muted-foreground mb-1 block">Estimate (hrs)</Label>
             <div className="flex items-center gap-1">
               {editingRecurringLoad ? (
                 <Input
@@ -156,133 +121,13 @@ export function RecurringPhaseCard({
           {/* Pattern Field */}
           <div className="min-w-[180px]">
             <Label className="text-xs text-muted-foreground mb-1 block">Pattern</Label>
-            {editingRecurringPattern ? (
-              <div className="space-y-2">
-                <Select 
-                  value={editingRecurringType} 
-                  onValueChange={(value: 'daily' | 'weekly' | 'monthly') => setEditingRecurringType(value)}
-                >
-                  <SelectTrigger className="w-full h-9">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="daily">Daily</SelectItem>
-                    <SelectItem value="weekly">Weekly</SelectItem>
-                    <SelectItem value="monthly">Monthly</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                {/* Weekly day selection */}
-                {editingRecurringType === 'weekly' && (
-                  <Select 
-                    value={editingWeeklyDayOfWeek.toString()} 
-                    onValueChange={(value) => setEditingWeeklyDayOfWeek(parseInt(value))}
-                  >
-                    <SelectTrigger className="w-full h-9">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="0">Sunday</SelectItem>
-                      <SelectItem value="1">Monday</SelectItem>
-                      <SelectItem value="2">Tuesday</SelectItem>
-                      <SelectItem value="3">Wednesday</SelectItem>
-                      <SelectItem value="4">Thursday</SelectItem>
-                      <SelectItem value="5">Friday</SelectItem>
-                      <SelectItem value="6">Saturday</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-
-                {/* Monthly pattern selection */}
-                {editingRecurringType === 'monthly' && (
-                  <div className="space-y-2">
-                    <Select 
-                      value={editingMonthlyPattern} 
-                      onValueChange={(value: 'date' | 'dayOfWeek') => setEditingMonthlyPattern(value)}
-                    >
-                      <SelectTrigger className="w-full h-9">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="date">Specific date</SelectItem>
-                        <SelectItem value="dayOfWeek">Day of week pattern</SelectItem>
-                      </SelectContent>
-                    </Select>
-
-                    {editingMonthlyPattern === 'date' ? (
-                      <Select 
-                        value={editingMonthlyDate.toString()} 
-                        onValueChange={(value) => setEditingMonthlyDate(parseInt(value))}
-                      >
-                        <SelectTrigger className="w-full h-9">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Array.from({ length: 31 }, (_, i) => i + 1).map(date => (
-                            <SelectItem key={date} value={date.toString()}>
-                              {getOrdinalNumber(date)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <div className="space-y-1">
-                        <Select 
-                          value={editingMonthlyWeekOfMonth.toString()} 
-                          onValueChange={(value) => setEditingMonthlyWeekOfMonth(parseInt(value))}
-                        >
-                          <SelectTrigger className="w-full h-9">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="1">1st week</SelectItem>
-                            <SelectItem value="2">2nd week</SelectItem>
-                            <SelectItem value="3">3rd week</SelectItem>
-                            <SelectItem value="4">4th week</SelectItem>
-                            <SelectItem value="5">2nd last week</SelectItem>
-                            <SelectItem value="6">Last week</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Select 
-                          value={editingMonthlyDayOfWeek.toString()} 
-                          onValueChange={(value) => setEditingMonthlyDayOfWeek(parseInt(value))}
-                        >
-                          <SelectTrigger className="w-full h-9">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="0">Sunday</SelectItem>
-                            <SelectItem value="1">Monday</SelectItem>
-                            <SelectItem value="2">Tuesday</SelectItem>
-                            <SelectItem value="3">Wednesday</SelectItem>
-                            <SelectItem value="4">Thursday</SelectItem>
-                            <SelectItem value="5">Friday</SelectItem>
-                            <SelectItem value="6">Saturday</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={handleSavePattern}>
-                    Save
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => setEditingRecurringPattern(false)}>
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <Button
-                variant="outline"
-                className="h-9 text-sm justify-start text-left font-normal px-3 w-full"
-                onClick={handleStartPatternEdit}
-              >
-                {getPatternDisplay()}
-              </Button>
-            )}
+            <Button
+              variant="outline"
+              className="h-9 text-sm justify-start text-left font-normal px-3 w-full"
+              onClick={onEditPattern}
+            >
+              {getPatternDisplay()}
+            </Button>
           </div>
 
           {/* Delete Button */}
@@ -315,15 +160,6 @@ export function RecurringPhaseCard({
             </AlertDialogContent>
           </AlertDialog>
         </div>
-      </div>
-
-      {/* Status info */}
-      <div className="mt-4 pt-4 border-t border-gray-200">
-        <p className="text-xs text-gray-500">
-          {projectContinuous
-            ? 'Milestones are generated automatically as needed'
-            : 'Based on project timeline and recurrence pattern'}
-        </p>
       </div>
     </div>
   );

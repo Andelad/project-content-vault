@@ -1,10 +1,20 @@
 /**
- * Value Objects - Export Barrel
+ * Value Objects
  * 
- * Placeholder for future value objects.
- * Phase 3 will implement immutable value types for complex domain concepts.
+ * Value Objects represent primitive domain concepts that are:
+ * - Immutable
+ * - Defined by their value, not identity
+ * - Self-validating
+ * - Side-effect free
+ * 
+ * Examples:
+ * - DateRange: A range between two dates with validation
+ * - EmailAddress: A validated email address
+ * - PhoneNumber: A validated phone number
+ * - Color: A validated hex color with manipulation methods
  */
 
-// TODO: Phase 3 - Implement value objects
-// export * from './TimeAllocation';
-// export * from './DateRange';
+export { DateRange } from './DateRange';
+export { EmailAddress } from './EmailAddress';
+export { PhoneNumber } from './PhoneNumber';
+export { Color } from './Color';

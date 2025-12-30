@@ -14,6 +14,7 @@ import * as DateCalculations from '../general/dateCalculations';
 import { calculatePlannedTimeForDate } from '@/services/unified/UnifiedEventWorkHourService';
 import { TimelineRules } from '@/domain/rules';
 import { getDateKey } from '@/utils/dateFormatUtils';
+import { PhaseRecurrenceService } from '@/domain/domain-services/PhaseRecurrenceService';
 
 /**
  * Sum planned + completed event hours within an inclusive date range
@@ -175,9 +176,12 @@ export function calculateRecurringPhaseDayEstimates(
   if (!phase.isRecurring || !phase.recurringConfig) {
     return calculatePhaseDayEstimates(phase, project, settings, holidays);
   }
+  
   const estimates: DayEstimate[] = [];
   const config = phase.recurringConfig;
   const timeAllocationHours = phase.timeAllocationHours ?? phase.timeAllocation;
+  
+  
   // Generate occurrence dates
   const occurrences = generateRecurringOccurrences(
     phase,
@@ -185,15 +189,17 @@ export function calculateRecurringPhaseDayEstimates(
     project.endDate,
     project.continuous || false
   );
+  
   // Distribute hours across intervals between consecutive anchors, clamped to project window
   for (let i = 1; i < occurrences.length; i++) {
     const anchorBefore = new Date(occurrences[i - 1]);
     const anchorEnd = new Date(occurrences[i]);
 
-    // Work period is the days between anchors (exclusive of anchorBefore, inclusive of anchorEnd)
-    const rawStart = new Date(anchorBefore);
-    rawStart.setDate(rawStart.getDate() + 1);
-    const rawEnd = anchorEnd;
+    // Work period: FROM anchor (inclusive) TO day before next anchor (inclusive)
+    // This gives exactly 7 days for weekly patterns
+    const rawStart = anchorBefore; // Start ON the anchor, not day after
+    const rawEnd = new Date(anchorEnd);
+    rawEnd.setDate(rawEnd.getDate() - 1); // Day BEFORE next anchor
 
     // Clamp to project window
     const periodStart = rawStart < project.startDate ? new Date(project.startDate) : rawStart;
@@ -210,6 +216,7 @@ export function calculateRecurringPhaseDayEstimates(
       holidays,
       project
     );
+    
     if (workingDays.length === 0) {
       continue;
     }
@@ -225,6 +232,8 @@ export function calculateRecurringPhaseDayEstimates(
     }
 
     const hoursPerDay = remainingAllocation / workingDays.length;
+    
+    
     workingDays.forEach(date => {
       estimates.push({
         date: new Date(date),
@@ -236,12 +245,19 @@ export function calculateRecurringPhaseDayEstimates(
       });
     });
   }
+  
   return estimates;
 }
 /**
  * Generate recurring phase occurrence dates
  */
-function generateRecurringOccurrences(
+/**
+ * Generate recurring occurrence dates for a phase
+ * 
+ * Delegates to PhaseRecurrenceService for RRule-based recurrence logic.
+ * Includes previous anchor to form the first interval.
+ */
+export function generateRecurringOccurrences(
   phase: PhaseDTO,
   projectStartDate: Date,
   projectEndDate: Date,
@@ -250,109 +266,57 @@ function generateRecurringOccurrences(
   if (!phase.isRecurring || !phase.recurringConfig) {
     return [phase.endDate || phase.dueDate];
   }
-  const config = phase.recurringConfig;
-  const occurrences: Date[] = [];
-  const MAX_OCCURRENCES = 120;
 
-  const clampMonthlyDate = (date: Date, targetDay: number) => {
-    const lastDayOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
-    return Math.min(targetDay, lastDayOfMonth);
-  };
+  // Use PhaseRecurrenceService for RRule-based occurrence generation
+  const occurrences = PhaseRecurrenceService.generateOccurrences({
+    config: phase.recurringConfig,
+    projectStartDate,
+    projectEndDate,
+    projectContinuous
+  });
 
-  const addInterval = (date: Date, direction: 1 | -1 = 1) => {
-    const next = new Date(date);
-    switch (config.type) {
-      case 'daily':
-        next.setDate(next.getDate() + direction * config.interval);
-        return next;
-      case 'weekly':
-        next.setDate(next.getDate() + direction * (7 * config.interval));
-        return next;
-      case 'monthly':
-        if (config.monthlyPattern === 'date' && config.monthlyDate) {
-          next.setMonth(next.getMonth() + direction * config.interval);
-          next.setDate(clampMonthlyDate(next, config.monthlyDate));
-          return next;
-        }
-        if (config.monthlyPattern === 'dayOfWeek' && config.monthlyWeekOfMonth && config.monthlyDayOfWeek !== undefined) {
-          next.setMonth(next.getMonth() + direction * config.interval);
-          const firstDay = new Date(next.getFullYear(), next.getMonth(), 1);
-          const offset = (config.monthlyDayOfWeek - firstDay.getDay() + 7) % 7;
-          const target = 1 + offset + (config.monthlyWeekOfMonth - 1) * 7;
-          next.setDate(target);
-          return next;
-        }
-        next.setMonth(next.getMonth() + direction * config.interval);
-        return next;
-    }
-  };
+  // Extract dates from occurrence objects
+  const dates = occurrences.map(occ => occ.date);
 
-  const findFirstOccurrenceOnOrAfter = (start: Date) => {
-    const first = new Date(start);
-    first.setHours(0, 0, 0, 0);
-    switch (config.type) {
-      case 'daily':
-        return addInterval(first, 1);
-      case 'weekly': {
-        if (config.weeklyDayOfWeek !== undefined) {
-          const currentDow = first.getDay();
-          const diff = (config.weeklyDayOfWeek - currentDow + 7) % 7;
-          first.setDate(first.getDate() + diff);
-          return first;
-        }
-        return addInterval(first, 1);
+  // ALWAYS include previous anchor to form the first interval
+  // The work period is "day after anchor0 to anchor1", so anchor0 should be the project start
+  // when the first RRule occurrence falls on project start.
+  if (dates.length > 0) {
+    const firstOccurrence = dates[0];
+    
+    // Check if first occurrence is ON the project start date
+    const firstOccurrenceOnStart = 
+      firstOccurrence.toISOString().split('T')[0] === projectStartDate.toISOString().split('T')[0];
+    
+    if (firstOccurrenceOnStart) {
+      // First occurrence IS project start - use it as the anchor
+      // This creates: anchor0=projectStart, anchor1=nextOccurrence
+      // Work period: day after projectStart → nextOccurrence (7 days for weekly)
+      // No need to add previous anchor - first occurrence IS the starting anchor
+    } else {
+      // First occurrence is AFTER project start - calculate previous anchor
+      const previousOccurrence = new Date(firstOccurrence);
+      
+      // Calculate previous occurrence based on pattern
+      const config = phase.recurringConfig;
+      switch (config.type) {
+        case 'daily':
+          previousOccurrence.setDate(previousOccurrence.getDate() - config.interval);
+          break;
+        case 'weekly':
+          previousOccurrence.setDate(previousOccurrence.getDate() - (7 * config.interval));
+          break;
+        case 'monthly':
+          previousOccurrence.setMonth(previousOccurrence.getMonth() - config.interval);
+          break;
       }
-      case 'monthly': {
-        if (config.monthlyPattern === 'date' && config.monthlyDate) {
-          first.setDate(clampMonthlyDate(first, config.monthlyDate));
-          if (first < start) {
-            first.setMonth(first.getMonth() + 1);
-            first.setDate(clampMonthlyDate(first, config.monthlyDate));
-          }
-          return first;
-        }
-        if (config.monthlyPattern === 'dayOfWeek' && config.monthlyWeekOfMonth && config.monthlyDayOfWeek !== undefined) {
-          const firstDay = new Date(first.getFullYear(), first.getMonth(), 1);
-          const offset = (config.monthlyDayOfWeek - firstDay.getDay() + 7) % 7;
-          const target = 1 + offset + (config.monthlyWeekOfMonth - 1) * 7;
-          first.setDate(target);
-          if (first < start) {
-            first.setMonth(first.getMonth() + 1);
-            const nextFirstDay = new Date(first.getFullYear(), first.getMonth(), 1);
-            const nextOffset = (config.monthlyDayOfWeek - nextFirstDay.getDay() + 7) % 7;
-            first.setDate(1 + nextOffset + (config.monthlyWeekOfMonth - 1) * 7);
-          }
-          return first;
-        }
-        return addInterval(first, 1);
-      }
+      
+      // Prepend previous anchor
+      dates.unshift(previousOccurrence);
     }
-  };
-
-  const firstOccurrence = findFirstOccurrenceOnOrAfter(projectStartDate);
-  if (!firstOccurrence) return occurrences;
-
-  // Include previous anchor to form the first interval
-  const previousOccurrence = addInterval(firstOccurrence, -1);
-  if (previousOccurrence) {
-    occurrences.push(previousOccurrence);
   }
 
-  occurrences.push(new Date(firstOccurrence));
-
-  // Generate forward until we pass project end by at least one interval (to close the final interval)
-  let next = addInterval(firstOccurrence, 1);
-  let safety = 0;
-  const endLimit = projectContinuous
-    ? new Date(projectStartDate.getTime() + 365 * 24 * 60 * 60 * 1000)
-    : addInterval(projectEndDate, 1);
-  while (next && next <= endLimit && safety < MAX_OCCURRENCES) {
-    occurrences.push(new Date(next));
-    next = addInterval(next, 1);
-    safety++;
-  }
-
-  return occurrences.sort((a, b) => a.getTime() - b.getTime());
+  return dates.sort((a, b) => a.getTime() - b.getTime());
 }
 /**
  * Calculate all day estimates for a project
@@ -460,9 +424,10 @@ export function calculateProjectDayEstimates(
       return shouldInclude;
     });
 
-    // REDISTRIBUTE: If some days were filtered out, spread remaining allocation evenly
+    // REDISTRIBUTE: Only apply to non-recurring phases. For recurring phases, each occurrence
+    // already allocates per-period hours; re-spreading across all occurrences collapses hours.
     let redistributedEstimates = filteredEstimates;
-    if (filteredEstimates.length > 0) {
+    if (!phase.isRecurring && filteredEstimates.length > 0) {
       const redistributedHoursPerDay = remainingAllocation / filteredEstimates.length;
       redistributedEstimates = filteredEstimates.map(est => ({
         ...est,

@@ -24,15 +24,6 @@ export function prepareEventsForFullCalendar(
 ): EventInput[] {
   const { selectedEventId, projects = [], exceptions = [] } = options;
   const fcEvents: EventInput[] = [];
-  
-  // Debug: Log RRULE events being prepared
-  const rruleEvents = events.filter(e => e.rrule);
-  if (rruleEvents.length > 0) {
-    console.log('📅 prepareEventsForFullCalendar: Preparing', rruleEvents.length, 'RRULE master events for FullCalendar');
-    rruleEvents.forEach(e => {
-      console.log('  🔁', e.title, '- RRULE:', e.rrule, '- Start:', new Date(e.startTime).toISOString());
-    });
-  }
 
   // Add calendar events (all categories: events, habits, tasks)
   if (layerMode === 'events' || layerMode === 'both') {
@@ -96,16 +87,6 @@ export function transformCalendarEventToFullCalendar(event: CalendarEvent, optio
   const baseColor = event.category === 'habit' 
     ? OKLCH_HABIT_BROWN 
     : (event.color || (project ? project.color : OKLCH_FALLBACK_GRAY));
-  
-  // Debug: Log color selection for unallocated events
-  if (!event.projectId && event.category !== 'habit') {
-    console.warn('⚠️ ========= UNALLOCATED EVENT COLOR DEBUG =========');
-    console.warn('Event Title:', event.title);
-    console.warn('Stored Color:', event.color);
-    console.warn('OKLCH_FALLBACK_GRAY constant:', OKLCH_FALLBACK_GRAY);
-    console.warn('Final Base Color:', baseColor);
-    console.warn('=================================================');
-  }
   
   // Check if event is in the future (non-completed)
   const now = new Date();

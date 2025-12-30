@@ -6,7 +6,7 @@
 > 
 > **For business rules:** See `/src/domain/` documentation
 
-**Last Updated:** December 29, 2025  
+**Last Updated:** December 30, 2025  
 **Architecture:** Hybrid DDD (pragmatic domain-driven design)
 
 ---
@@ -18,7 +18,8 @@ All documentation lives near the code it describes:
 | Document | Location | Purpose |
 |----------|----------|---------|
 | **`.cursorrules`** | Project root | AI quick reference - what to do/not do |
-| **`.architecture.md`** | Project root | This file - codebase map and structure |
+| **`.architecture`** | Project root | This file - codebase map and structure |
+| **`.dhybrid`** | Project root | Hybrid DDD philosophy & architecture evolution |
 | **`Domain Logic.md`** | `/src/domain/` | What entities are, domain concepts |
 | **`Rules Logic.md`** | `/src/domain/` | How rules work, calculations, formulas |
 | **`Display Logic.md`** | `/src/domain/` | View-specific display constraints |
@@ -64,20 +65,27 @@ src/
 │   ├── Domain Logic.md             # What entities ARE
 │   ├── Rules Logic.md              # How rules WORK
 │   ├── Display Logic.md            # Where display constraints apply
+│   ├── domain-services/            # 🆕 Pure domain logic (NEW CODE GOES HERE)
+│   │   ├── PhaseRecurrenceService.ts      # Recurring phase logic
+│   │   ├── ProjectBudgetService.ts        # Budget calculations & analysis
+│   │   └── PhaseDistributionService.ts    # Time distribution & spacing
 │   ├── entities/                   # Rich domain models (Phase, Project, etc.)
 │   │   └── Project.ts              # Example: Project entity with methods
-│   └── rules/                      # Pure business rules (validation, constraints)
-│       ├── ProjectRules.ts         # Project-specific validation
-│       ├── PhaseRules.ts           # Phase-specific validation
-│       └── RelationshipRules.ts    # Cross-entity relationships
+│   ├── rules/                      # Pure business rules (validation, constraints)
+│   │   ├── ProjectRules.ts         # Project-specific validation
+│   │   ├── PhaseRules.ts           # Phase-specific validation
+│   │   └── RelationshipRules.ts    # Cross-entity relationships
+│   └── value-objects/              # Immutable value types
+│       ├── DateRange.ts            # Date range with validation
+│       └── EmailAddress.ts         # Email with validation
 │
 ├── services/                        # 🔧 Application services
 │   ├── orchestrators/              # Workflows (CREATE/UPDATE/DELETE)
 │   │   ├── ProjectOrchestrator.ts  # Project CRUD workflows
 │   │   └── PhaseOrchestrator.ts    # Phase CRUD workflows
-│   ├── unified/                    # Business calculations (READ/TRANSFORM)
-│   │   ├── UnifiedProjectService.ts
-│   │   └── UnifiedPhaseService.ts
+│   ├── unified/                    # ⚠️ LEGACY: Prefer domain-services for new logic
+│   │   ├── UnifiedProjectService.ts      # Delegates to domain-services
+│   │   └── UnifiedPhaseService.ts        # Delegates to domain-services
 │   ├── calculations/               # Pure math (no business context)
 │   │   └── general/
 │   │       └── dateCalculations.ts
@@ -110,10 +118,11 @@ src/
 
 | Layer | What It Does | What It Doesn't Do |
 |-------|--------------|-------------------|
+| **Domain Services** | Pure domain logic (calculations, algorithms) | No UI, no DB, no side effects |
 | **Domain Rules** | Business validation, domain logic | No UI, no DB, no presentation |
 | **Domain Entities** | Rich objects with behavior | No UI concerns, no DB calls |
 | **Orchestrators** | Workflows, coordination, DB access, UI prep | No business logic implementation |
-| **Unified Services** | Business calculations (delegates to domain/calculations) | No DB access, no side effects |
+| **Unified Services** | Delegates to domain-services (LEGACY) | ⚠️ Prefer domain-services for new logic |
 | **Calculations** | Pure math | No business context, no DB, no UI |
 | **Hooks** | React state + service coordination | No business logic |
 | **Components** | Display only | No logic, no calculations |
@@ -178,6 +187,66 @@ Our documentation intentionally separates three concerns that code often mixes:
 
 ## 🔧 Services Architecture
 
+### Domain Services (Pure Domain Logic) 🆕
+
+**Purpose:** Complex domain logic that doesn't fit in a single entity (multi-entity algorithms, pure calculations)
+
+**Location:** `/src/domain/domain-services/`
+
+**Characteristics:**
+- 100% pure (no UI, no DB, no side effects)
+- Fully testable without mocks
+- Stateless static methods
+- Rich domain logic (not simple validation)
+
+**When to use domain-services vs unified services:**
+```
+Pure domain logic (calculations, algorithms, business rules)
+  → domain/domain-services/  ✅ NEW CODE GOES HERE
+
+UI coordination, FullCalendar integration, CSS classes
+  → services/unified/ or services/ui/  ✅ KEEP HERE
+
+Simple delegation or legacy code
+  → services/unified/  ⚠️ MIGRATE GRADUALLY
+```
+
+**Example:**
+```typescript
+// ✅ Domain service (pure logic, 100% testable)
+export class PhaseRecurrenceService {
+  static generateOccurrences(
+    config: RecurringConfig, 
+    range: DateRange
+  ): Date[] {
+    // Pure RRule-based logic
+    // No DB, no UI, no side effects
+    return rrule.all();
+  }
+  
+  static validateRecurringConfig(
+    config: RecurringConfig
+  ): ValidationResult {
+    // Pure validation logic
+    if (config.frequency === 'WEEKLY' && !config.byweekday) {
+      return { isValid: false, errors: ['Weekly requires days'] };
+    }
+    return { isValid: true };
+  }
+}
+```
+
+**Current domain services:**
+- `PhaseRecurrenceService` - All recurring phase logic (~430 lines)
+- `ProjectBudgetService` - Budget calculations & analysis (~400 lines)
+- `PhaseDistributionService` - Time distribution & spacing (~460 lines)
+
+**Migration strategy from unified/ to domain-services:**
+- No rush - current structure works
+- When touching unified services, consider extraction
+- Use delegation pattern (unified → domain-services)
+- See "Future Cleanup" section in `.dhybrid`
+
 ### Orchestrators (Workflows)
 
 **Purpose:** Coordinate complex workflows involving validation + DB + side effects + UI prep
@@ -218,36 +287,52 @@ class ProjectOrchestrator {
 - Repository would just delegate with no added value
 - Reduces boilerplate and development time
 
-### Unified Services (Business Calculations)
+### Unified Services (Legacy - Delegates to Domain)
 
-**Purpose:** Business-aware calculations that delegate to pure math
+**Purpose:** Business-aware calculations that delegate to domain services (LEGACY - prefer domain-services for new code)
 
-**Location:** `/src/services/unified/`
+**Location:** `/services/unified/`
 
 **Characteristics:**
 - READ-only operations
 - No side effects
 - No database access
-- Delegates to `calculations/` and `domain/rules/`
+- **Should delegate to `domain/domain-services/`** (not implement logic directly)
+
+**Current state:**
+- ⚠️ Mix of pure domain logic and UI coordination
+- ⚠️ Some overlap with domain-services
+- ✅ Gradually migrating pure logic to domain-services
 
 **Example Pattern:**
 ```typescript
+// ✅ GOOD: Delegates to domain service
 class UnifiedProjectService {
-  static calculateRemainingHours(project: Project): number {
-    // Delegates to domain rules
-    return ProjectRules.calculateRemaining(project);
+  static calculateBudget(project: Project, phases: Phase[]) {
+    return ProjectBudgetService.analyzeBudget(project, phases);
   }
-  
-  static getDailyAllocation(project: Project): number {
-    // Combines pure math + business rules
-    const days = DateCalculations.calculateWorkingDays(
-      project.startDate, 
-      project.endDate
-    );
-    return project.estimatedHours / days;
+}
+
+// ⚠️ ACCEPTABLE: UI coordination (keep here)
+class UnifiedCalendarService {
+  static transformForFullCalendar(events: CalendarEvent[]) {
+    // FullCalendar-specific transformation (UI concern)
+    return events.map(e => ({ title: e.name, ... }));
+  }
+}
+
+// ❌ BAD: Pure domain logic (move to domain-services)
+class UnifiedWorkHoursService {
+  static calculateWeeklyHours(workDays: number[]) {
+    // This should be in domain-services, not here
   }
 }
 ```
+
+**What to keep vs migrate:**
+- **Keep:** UI coordination, FullCalendar integration, presentation logic
+- **Migrate:** Pure calculations, RRule logic, business algorithms
+- **See:** `docs/sessions/services-architecture-analysis.md` for detailed guidance
 
 ### Calculations (Pure Math)
 
@@ -365,7 +450,7 @@ class Project {
 - ❌ Test additions
 - ❌ UI styling changes
 
-### Update This File (.architecture.md) When:
+### Update This File (.architecture) When:
 - Adding new layers or directories
 - Changing architectural patterns
 - Adding new service types
@@ -425,10 +510,16 @@ See `/src/components/README.md` for detailed component organization guide.
 
 ### Adding Business Logic
 
+**For complex domain logic (calculations, algorithms):**
+1. **Create in `/src/domain/domain-services/`** (pure, stateless)
+2. **Update `/src/domain/Rules Logic.md`** with formulas
+3. **Use from orchestrators** (call the service directly)
+4. **Never implement in orchestrators, unified services, or components**
+
+**For simple validation:**
 1. **Update `/src/domain/Rules Logic.md`** first
 2. **Implement in `/src/domain/rules/`**
-3. **Use from orchestrators/unified services**
-4. **Never implement in components or hooks**
+3. **Use from orchestrators/domain-services**
 
 ### Adding a Calculation
 
@@ -485,9 +576,11 @@ interface Project { id: string; name: string; } // NO!
 
 | I need to... | Location | Reason |
 |--------------|----------|--------|
+| **Pure domain logic** | `domain/domain-services/` | **🆕 NEW CODE GOES HERE** |
 | Validate a project | `domain/rules/ProjectRules.ts` | Business rule |
 | Create a project | `orchestrators/ProjectOrchestrator.ts` | Workflow |
-| Calculate remaining hours | `unified/UnifiedProjectService.ts` | Business calculation |
+| Calculate budget/recurrence | `domain/domain-services/` | Pure domain logic |
+| Legacy calculation | `unified/UnifiedProjectService.ts` | ⚠️ Delegates to domain-services |
 | Add days to a date | `calculations/general/dateCalculations.ts` | Pure math |
 | Fetch projects | `hooks/useProjects.ts` | Data fetching |
 | Display a project | `components/features/projects/` | UI |
@@ -497,6 +590,7 @@ interface Project { id: string; name: string; } // NO!
 
 ## 📚 Further Reading
 
+- **Hybrid DDD philosophy:** `.dhybrid` (root)
 - **Domain concepts & entities:** `/src/domain/Domain Logic.md`
 - **Business rules & formulas:** `/src/domain/Rules Logic.md`
 - **Display constraints:** `/src/domain/Display Logic.md`

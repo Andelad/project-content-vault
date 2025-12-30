@@ -3,7 +3,7 @@ import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { CalendarEvent } from '../../types';
 import { calculateDurationHours, formatDuration, addHoursToDate } from '@/services';
-import { eventModalOrchestrator, type EventFormData, type EventFormErrors } from '@/services/orchestrators/EventModalOrchestrator';
+import { calendarEventOrchestrator, type EventFormData, type EventFormErrors } from '@/services/orchestrators/CalendarEventOrchestrator';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -327,7 +327,7 @@ export function EventModal({
   }, [formData.projectId, projects]);
 
   const validateForm = () => {
-    const validationErrors = eventModalOrchestrator.validateEventForm(formData);
+    const validationErrors = calendarEventOrchestrator.validateEventForm(formData);
     setErrors(validationErrors);
     return Object.keys(validationErrors).length === 0;
   };
@@ -349,7 +349,7 @@ export function EventModal({
     try {
       if (isEditing && existingEvent) {
         // Update existing event using orchestrator
-        const result = await eventModalOrchestrator.updateEventWorkflow(
+        const result = await calendarEventOrchestrator.updateEventWorkflow(
           formData,
           existingEvent,
           eventId || existingEvent.id,
@@ -361,7 +361,7 @@ export function EventModal({
           handleClose();
         } else if (result.needsRecurringDialog) {
           // Store the update data and show the recurring update dialog
-          const eventData = eventModalOrchestrator.transformFormToEventData(formData, existingEvent);
+          const eventData = calendarEventOrchestrator.transformFormToEventData(formData, existingEvent);
           setPendingUpdateData(eventData);
           setShowUpdateDialog(true);
           setIsSubmitting(false);
@@ -371,7 +371,7 @@ export function EventModal({
         }
       } else {
         // Create new event using orchestrator
-        const result = await eventModalOrchestrator.createEventWorkflow(
+        const result = await calendarEventOrchestrator.createEventWorkflow(
           formData, 
           async (eventData) => {
             await addEvent(eventData);
@@ -404,7 +404,7 @@ export function EventModal({
   const handleDeleteThis = async () => {
     if (!existingEvent) return;
     
-    const result = await eventModalOrchestrator.deleteEventWorkflow(
+    const result = await calendarEventOrchestrator.deleteEventWorkflow(
       existingEvent,
       eventId || existingEvent.id,
       deleteEvent
@@ -422,7 +422,7 @@ export function EventModal({
   const handleDeleteFuture = async () => {
     if (!existingEvent) return;
     
-    const result = await eventModalOrchestrator.deleteRecurringEventWorkflow(
+    const result = await calendarEventOrchestrator.deleteRecurringEventWorkflow(
       'future',
       existingEvent,
       eventId || existingEvent.id,
@@ -443,7 +443,7 @@ export function EventModal({
   const handleDeleteAll = async () => {
     if (!existingEvent) return;
     
-    const result = await eventModalOrchestrator.deleteRecurringEventWorkflow(
+    const result = await calendarEventOrchestrator.deleteRecurringEventWorkflow(
       'all',
       existingEvent,
       eventId || existingEvent.id,
@@ -464,7 +464,7 @@ export function EventModal({
   const handleUpdateThis = async () => {
     if (!existingEvent || !pendingUpdateData) return;
     
-    const result = await eventModalOrchestrator.updateRecurringEventWorkflow(
+    const result = await calendarEventOrchestrator.updateRecurringEventWorkflow(
       'this',
       existingEvent,
       eventId || existingEvent.id,
@@ -487,7 +487,7 @@ export function EventModal({
   const handleUpdateFuture = async () => {
     if (!existingEvent || !pendingUpdateData) return;
     
-    const result = await eventModalOrchestrator.updateRecurringEventWorkflow(
+    const result = await calendarEventOrchestrator.updateRecurringEventWorkflow(
       'future',
       existingEvent,
       eventId || existingEvent.id,
@@ -510,7 +510,7 @@ export function EventModal({
   const handleUpdateAll = async () => {
     if (!existingEvent || !pendingUpdateData) return;
     
-    const result = await eventModalOrchestrator.updateRecurringEventWorkflow(
+    const result = await calendarEventOrchestrator.updateRecurringEventWorkflow(
       'all',
       existingEvent,
       eventId || existingEvent.id,

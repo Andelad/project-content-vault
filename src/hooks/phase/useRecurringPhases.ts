@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Phase, Project } from '@/types/core';
-import { ProjectPhaseOrchestrator, detectRecurringPattern, UnifiedPhaseService } from '@/services';
+import { PhaseOrchestrator, detectRecurringPattern, UnifiedPhaseService } from '@/services';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
@@ -73,9 +73,12 @@ export function useRecurringPhases(config: UseRecurringPhasesConfig) {
 
   // Detect recurring pattern from existing milestones
   useEffect(() => {
-    // Check if any milestones have startDate (phases) - if so, don't detect recurring
-    const hasPhases = projectPhases.some(p => p.startDate !== undefined);
-    if (recurringMilestone || !projectId || isDeletingRecurringPhase || hasPhases) return;
+    // Don't re-detect if already have recurring milestone or if deleting
+    if (recurringMilestone || !projectId || isDeletingRecurringPhase) return;
+    
+    // Check if any NON-RECURRING milestones have startDate (regular phases) - if so, don't detect recurring
+    const hasRegularPhases = projectPhases.some(p => p.startDate !== undefined && p.isRecurring !== true);
+    if (hasRegularPhases) return;
 
     // NEW SYSTEM: First check for template milestone with isRecurring=true
     const templateMilestone = projectPhases.find(p => p.isRecurring === true);
@@ -158,7 +161,7 @@ export function useRecurringPhases(config: UseRecurringPhasesConfig) {
         updatedAt: new Date()
       };
 
-      const result = await ProjectPhaseOrchestrator.createRecurringPhases(
+      const result = await PhaseOrchestrator.createRecurringPhases(
         projectId,
         project,
         config,
@@ -168,10 +171,7 @@ export function useRecurringPhases(config: UseRecurringPhasesConfig) {
       if (result.success && result.recurringMilestone) {
         setRecurringPhase(result.recurringMilestone);
 
-        toast({
-          title: "Recurring template created",
-          description: `Template will repeat ${result.estimatedTotalCount} times over project duration`,
-        });
+        // No toast needed - the phases appearing is sufficient visual feedback
 
         return { success: true };
       } else {
@@ -180,8 +180,16 @@ export function useRecurringPhases(config: UseRecurringPhasesConfig) {
     } catch (error) {
       ErrorHandlingService.handle(error, {
         source: 'useRecurringPhases',
-        action: 'createRecurringPhases'
+        action: 'createRecurringPhases',
+        metadata: {
+          projectId,
+          hasProjectId: !!projectId,
+          configType: config.recurringType
+        }
       });
+      
+      console.error('Error creating recurring phases:', error);
+      
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to create recurring phases",
@@ -218,9 +226,11 @@ export function useRecurringPhases(config: UseRecurringPhasesConfig) {
           const { error } = await supabase.from('phases').delete().eq('id', template.id);
           if (error) throw error;
 
+          await refetchMilestones();
+
           toast({
             title: "Success",
-            description: "Recurring milestone deleted successfully",
+            description: "Recurring phase deleted successfully",
           });
         } else {
           // Delete orphaned instances
@@ -236,7 +246,7 @@ export function useRecurringPhases(config: UseRecurringPhasesConfig) {
 
             toast({
               title: "Success",
-              description: `Deleted ${orphanedIds.length} orphaned milestones`,
+              description: `Deleted ${orphanedIds.length} orphaned phases`,
             });
           }
         }
@@ -248,7 +258,7 @@ export function useRecurringPhases(config: UseRecurringPhasesConfig) {
       });
       toast({
         title: "Error",
-        description: "Failed to delete some milestones. Please try again.",
+        description: "Failed to delete some phases. Please try again.",
         variant: "destructive",
       });
     }

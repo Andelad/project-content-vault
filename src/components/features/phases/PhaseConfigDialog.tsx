@@ -4,10 +4,11 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { getDayName, getOrdinalNumber, getWeekOfMonthName } from '@/utils/dateFormatUtils';
+import { cn } from '@/lib/utils';
 import type { RecurringPhaseConfig } from '@/hooks/phase';
 
 interface PhaseConfigDialogProps {
-  type: 'recurring' | 'split' | 'recurring-warning' | 'split-warning' | 'recurring-from-split-warning';
+  type: 'recurring' | 'split' | 'recurring-warning' | 'split-warning' | 'recurring-from-split-warning' | 'split-from-recurring-warning';
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: () => void;
@@ -18,6 +19,10 @@ interface PhaseConfigDialogProps {
   onConfigChange?: (config: RecurringPhaseConfig) => void;
   // For budget replacement warning
   projectEstimatedHours?: number;
+  // Optional z-index override
+  zIndex?: number;
+  // Is this editing an existing config or creating new?
+  isEditing?: boolean;
 }
 
 /**
@@ -33,13 +38,19 @@ export function PhaseConfigDialog({
   projectContinuous,
   config,
   onConfigChange,
-  projectEstimatedHours
+  projectEstimatedHours,
+  zIndex,
+  isEditing
 }: PhaseConfigDialogProps) {
   // Recurring configuration dialog
   if (type === 'recurring' && config && onConfigChange) {
     return (
       <AlertDialog open={open} onOpenChange={onOpenChange}>
-        <AlertDialogContent className="max-w-md">
+        <AlertDialogContent 
+          className="max-w-md"
+          style={zIndex ? { zIndex } : undefined}
+          overlayStyle={zIndex ? { zIndex: zIndex - 1 } : undefined}
+        >
           <AlertDialogHeader>
             <AlertDialogTitle>Configure Recurring Template</AlertDialogTitle>
             <AlertDialogDescription>
@@ -47,16 +58,6 @@ export function PhaseConfigDialog({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="milestone-name">Template Name</Label>
-              <Input
-                id="milestone-name"
-                value={config.name}
-                onChange={(e) => onConfigChange({ ...config, name: e.target.value })}
-                placeholder="e.g., Weekly Review"
-              />
-            </div>
-
             <div>
               <Label htmlFor="time-allocation">Time Allocation (hours)</Label>
               <Input
@@ -69,12 +70,28 @@ export function PhaseConfigDialog({
             </div>
 
             <div>
+              <Label htmlFor="phase-name">Phase Name</Label>
+              <Input
+                id="phase-name"
+                value={config.name}
+                onChange={(e) => onConfigChange({ ...config, name: e.target.value })}
+                placeholder={`e.g., ${config.recurringType.charAt(0).toUpperCase() + config.recurringType.slice(1)}`}
+              />
+            </div>
+
+            <div>
               <Label htmlFor="recurring-type">Repeat</Label>
               <Select
                 value={config.recurringType}
-                onValueChange={(value: 'daily' | 'weekly' | 'monthly') =>
-                  onConfigChange({ ...config, recurringType: value })
-                }
+                onValueChange={(value: 'daily' | 'weekly' | 'monthly') => {
+                  // Auto-update name when pattern changes
+                  const patternName = value.charAt(0).toUpperCase() + value.slice(1);
+                  onConfigChange({ 
+                    ...config, 
+                    recurringType: value,
+                    name: patternName
+                  });
+                }}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -111,13 +128,14 @@ export function PhaseConfigDialog({
               <div>
                 <Label htmlFor="weekly-day">On day</Label>
                 <Select
-                  value={config.weeklyDayOfWeek?.toString()}
-                  onValueChange={(value) =>
-                    onConfigChange({ ...config, weeklyDayOfWeek: parseInt(value) })
-                  }
+                  key={`weekly-day-${config.weeklyDayOfWeek}-${open}`}
+                  value={config.weeklyDayOfWeek?.toString() || "1"}
+                  onValueChange={(value) => {
+                    onConfigChange({ ...config, weeklyDayOfWeek: parseInt(value) });
+                  }}
                 >
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="Select day" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="0">Sunday</SelectItem>
@@ -252,7 +270,9 @@ export function PhaseConfigDialog({
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={onConfirm}>Create Recurring Template</AlertDialogAction>
+            <AlertDialogAction onClick={onConfirm}>
+              {isEditing ? 'Update Recurring Template' : 'Create Recurring Template'}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -269,19 +289,29 @@ export function PhaseConfigDialog({
       title: 'Replace Budget with Recurring Template?',
       description:
         `Creating a recurring template will replace your fixed project budget${budgetText} with a recurring allocation. Any existing phases will be deleted.`,
-      confirmText: 'Replace Budget & Continue'
+      confirmText: 'Replace Budget & Continue',
+      isDestructive: true
     },
     'split-warning': {
       title: 'Delete Existing Phases?',
       description:
         'This project has existing phases. Splitting the estimate will delete all existing phases and create new phases. This action cannot be undone.',
-      confirmText: 'Delete & Split'
+      confirmText: 'Delete & Split',
+      isDestructive: true
     },
     'recurring-from-split-warning': {
       title: 'Replace Budget with Recurring Template?',
       description:
         `Creating a recurring template will delete manual phases and replace your fixed project budget.${budgetText} This action cannot be undone.`,
-      confirmText: 'Replace Budget & Continue'
+      confirmText: 'Replace Budget & Continue',
+      isDestructive: true
+    },
+    'split-from-recurring-warning': {
+      title: 'Replace Recurring Phase with Manual Phases?',
+      description:
+        'This project has a recurring phase template. Creating manual phases will delete the recurring template and all generated phases. This action cannot be undone.',
+      confirmText: 'Delete Recurring & Create Phases',
+      isDestructive: true
     }
   };
 

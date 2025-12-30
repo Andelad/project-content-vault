@@ -14,6 +14,7 @@ type MilestoneUpdate = Database['public']['Tables']['phases']['Update'];
 type CamelMilestoneInsert = {
   projectId?: string;
   dueDate?: string | Date;
+  endDate?: string | Date;
   timeAllocation?: number;
   timeAllocationHours?: number;
   startDate?: string | Date;
@@ -91,7 +92,8 @@ export function usePhases(projectId?: string) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
       
-      const endDateIso = toIsoString(milestoneData.dueDate);
+      // Support both endDate and dueDate (dueDate is deprecated but still used in some places)
+      const endDateIso = toIsoString(milestoneData.endDate || milestoneData.end_date || milestoneData.dueDate);
       const startDateValue = milestoneData.startDate || milestoneData.start_date;
       const startDateIso = startDateValue ? toIsoString(startDateValue) : endDateIso;
       

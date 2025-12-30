@@ -179,7 +179,7 @@ export function PhaseCard({
 
           {/* Budget Field */}
           <div className="min-w-[80px]">
-            <Label className="text-xs text-muted-foreground mb-1 block">Time Budget</Label>
+            <Label className="text-xs text-muted-foreground mb-1 block">Estimate (hrs)</Label>
             <div className="flex items-center gap-1">
               {editingProperty === `${phase.id}-timeAllocation` ? (
                 <Input

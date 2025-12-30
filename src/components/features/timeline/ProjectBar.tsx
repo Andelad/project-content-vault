@@ -23,6 +23,7 @@ import { getPhasesSortedByEndDate } from '@/domain/rules/PhaseRules';
 import { ProjectIconIndicator } from './ProjectIconIndicator';
 import { DraggablePhaseMarkers } from './DraggablePhaseMarkers';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import { PhaseRecurrenceService } from '@/domain/domain-services/PhaseRecurrenceService';
 import type { DragState } from '@/services/ui/DragPositioning';
 import type { TimelinePositionCalculation } from '@/services/ui/ProjectBarPositioning';
 
@@ -100,13 +101,13 @@ export const ProjectBar = memo(function ProjectBar({
   const filteredProjectMilestones = useMemo<PhaseDTO[]>(() => {
     if (!project) return [];
     const projectStart = new Date(project.startDate);
-    const projectEnd = project.continuous ? null : new Date(project.endDate);
+    const projectEnd = project.continuous || !project.endDate ? null : new Date(project.endDate);
     let projectPhases = phases.filter(p => {
       if (p.projectId !== project.id) return false;
       const phaseDate = new Date(p.endDate || p.dueDate);
       if (phaseDate < projectStart) return false;
-      if (project.continuous) return true;
-      return phaseDate <= projectEnd!;
+      if (project.continuous || !projectEnd) return true;
+      return phaseDate <= projectEnd;
     });
     const hasTemplateMilestone = projectPhases.some(p => p.isRecurring === true);
     if (hasTemplateMilestone) {
@@ -171,6 +172,7 @@ export const ProjectBar = memo(function ProjectBar({
   // Extract data for use in component
   const {
     projectDays,
+    dayEstimates,
     workHoursForPeriod,
     milestoneSegments, // DEPRECATED: kept for backward compatibility
     projectMetrics,
@@ -180,6 +182,9 @@ export const ProjectBar = memo(function ProjectBar({
     getPerDateSummary
   } = timelineData;
   const { exactDailyHours, dailyHours, dailyMinutes, heightInPixels, workingDaysCount } = projectMetrics;
+  
+  // Debug logging removed
+  
   // Now we can do early returns - AFTER all hooks
   if (!project) {
     return null;
@@ -201,7 +206,328 @@ export const ProjectBar = memo(function ProjectBar({
           const sortedPhases = getPhasesSortedByEndDate(filteredProjectMilestones);
           const hasPhases = sortedPhases.length > 0;
           
-          // If project has phases, render a segment for each phase
+          // For continuous projects with recurring phases, generate segments from occurrence dates
+          if (project.continuous && hasPhases && sortedPhases.some(p => p.isRecurring)) {
+            
+            // Get the recurring phase
+            const recurringPhase = sortedPhases.find(p => p.isRecurring);
+            
+            if (recurringPhase) {
+              // Only generate occurrences for visible viewport + buffer
+              const viewportStartNormalized = normalizeToMidnight(new Date(viewportStart));
+              const viewportEndNormalized = normalizeToMidnight(new Date(viewportEnd));
+              
+              // Add buffer: 1 occurrence before and after viewport
+              const bufferStart = new Date(viewportStartNormalized);
+              bufferStart.setDate(bufferStart.getDate() - 90); // ~3 months buffer before
+              
+              const bufferEnd = new Date(viewportEndNormalized);
+              bufferEnd.setDate(bufferEnd.getDate() + 90); // ~3 months buffer after
+              
+              const effectiveStart = bufferStart < new Date(project.startDate) ? new Date(project.startDate) : bufferStart;
+              const effectiveEnd = project.continuous ? bufferEnd : (project.endDate ? new Date(project.endDate) : bufferEnd);
+              
+              // Generate occurrence dates only for buffered viewport (not all ~1000 occurrences!)
+              // Use RRule directly to generate only visible occurrences
+              const rruleString = recurringPhase.recurringConfig.rrule || 
+                PhaseRecurrenceService.generateRRuleFromConfig(
+                  recurringPhase.recurringConfig,
+                  effectiveStart,
+                  effectiveEnd,
+                  false // Don't use continuous flag here - we want limited range
+                );
+              
+              const viewportOccurrences = PhaseRecurrenceService.generateOccurrencesFromRRule(
+                rruleString,
+                effectiveStart,
+                effectiveEnd,
+                undefined // No max limit - the date range is already constrained
+              );
+              
+              const occurrenceDates = viewportOccurrences.map(occ => occ.date);
+              
+              // Convert occurrence dates to occurrence ranges (from one occurrence to the next)
+              const phaseOccurrences: Array<{ startDate: Date; endDate: Date }> = [];
+              
+              // Handle FIRST occurrence specially - it may extend from before the viewport
+              if (occurrenceDates.length > 0) {
+                const firstOccurrence = new Date(occurrenceDates[0]);
+                const secondOccurrence = occurrenceDates.length > 1 ? new Date(occurrenceDates[1]) : null;
+                
+                // CRITICAL: First segment ALWAYS starts from project start, not from first occurrence
+                // This ensures we don't skip days before the first weekly/monthly anchor
+                const periodStart = new Date(project.startDate);
+                
+                // First segment ends the day BEFORE the first occurrence (the anchor)
+                let periodEnd: Date = new Date(firstOccurrence);
+                periodEnd.setDate(periodEnd.getDate() - 1); // Day BEFORE first anchor
+                
+                // Only add if valid period (project start might be same as first occurrence)
+                if (periodStart <= periodEnd) {
+                  phaseOccurrences.push({
+                    startDate: periodStart,
+                    endDate: periodEnd
+                  });
+                }
+              }
+              
+              // Handle remaining occurrences (from FIRST occurrence onwards, not second)
+              for (let i = 1; i < occurrenceDates.length; i++) {
+                const prevOccurrence = new Date(occurrenceDates[i - 1]);
+                const currentOccurrence = new Date(occurrenceDates[i]);
+                
+                // Work period: FROM anchor (inclusive) TO day before next anchor (inclusive)
+                // This matches the logic in dayEstimateCalculations.ts and gives exactly 7 days for weekly
+                const rawStart = prevOccurrence; // Start ON the anchor, not day after
+                const rawEnd = new Date(currentOccurrence);
+                rawEnd.setDate(rawEnd.getDate() - 1); // Day BEFORE next anchor
+                
+                // Clamp to project window (for first occurrence when anchor is before project start)
+                const periodStart = rawStart < new Date(project.startDate) 
+                  ? new Date(project.startDate) 
+                  : rawStart;
+                const periodEnd = rawEnd;
+                
+                // Skip if period is invalid
+                if (periodStart > periodEnd) {
+                  continue;
+                }
+                
+                phaseOccurrences.push({
+                  startDate: periodStart,
+                  endDate: periodEnd
+                });
+              }
+              
+              
+              // Render segments for each occurrence
+              return (
+              <>
+                {phaseOccurrences.map((occurrence, index) => {
+                  const positions = (() => {
+                    try {
+                      return getTimelinePositions(
+                        occurrence.startDate,
+                        occurrence.endDate,
+                        viewportStart,
+                        viewportEnd,
+                        dates,
+                        mode
+                      );
+                    } catch (error) {
+                      ErrorHandlingService.handle(error, { source: 'ProjectBar', action: 'Error getting phase occurrence positions:' });
+                      return null;
+                    }
+                  })();
+                  
+                  if (index === 0) {
+                    console.log('🔍 DEBUG - First segment positions check:', {
+                      index,
+                      startDate: occurrence.startDate.toISOString().split('T')[0],
+                      endDate: occurrence.endDate.toISOString().split('T')[0],
+                      viewportStart,
+                      viewportEnd,
+                      positions,
+                      positionsIsNull: positions === null
+                    });
+                  }
+                  
+                  if (!positions) return null;
+                  
+                  const adjustedPositions = calculateBaselineVisualOffsets(
+                    positions, isDragging, dragState, project.id, mode
+                  );
+                  
+                  let leftPx = adjustedPositions.baselineStartPx;
+                  let widthPx = adjustedPositions.baselineWidthPx ?? positions.baselineWidthPx;
+                  
+                  // In weeks mode, reduce width to prevent overlap between segments
+                  if (mode === 'weeks' && index < phaseOccurrences.length - 1) {
+                    widthPx = Math.max(0, widthPx - 5); // Reduce by 5px so segments just touch
+                  }
+                  
+                  if (widthPx <= 0) return null;
+                  
+                  // Determine if this occurrence extends beyond viewport
+                  const normalizedViewportStart = normalizeToMidnight(new Date(viewportStart));
+                  const normalizedViewportEnd = normalizeToMidnight(new Date(viewportEnd));
+                  const extendsLeft = occurrence.startDate < normalizedViewportStart;
+                  const extendsRight = index === phaseOccurrences.length - 1 && occurrence.endDate >= normalizedViewportEnd;
+                  
+                  // Calculate border radius
+                  let borderRadius = '6px';
+                  if (extendsLeft && extendsRight) {
+                    borderRadius = '0px';
+                  } else if (extendsLeft) {
+                    borderRadius = '0px 6px 6px 0px';
+                  } else if (extendsRight) {
+                    borderRadius = '6px 0px 0px 6px';
+                  }
+                  
+                  // Calculate borders
+                  const borderLeft = (index === 0 && !extendsLeft) ? `1px solid ${NEUTRAL_COLORS.gray200}` : 'none';
+                  const borderRight = (index === phaseOccurrences.length - 1 && !extendsRight) ? `1px solid ${NEUTRAL_COLORS.gray200}` : 'none';
+                  const borderTop = `1px solid ${NEUTRAL_COLORS.gray200}`;
+                  const borderBottom = `1px solid ${NEUTRAL_COLORS.gray200}`;
+                  
+                  return (
+                    <div
+                      key={`phase-occurrence-${index}`}
+                      className="absolute pointer-events-none"
+                      style={{
+                        backgroundColor: 'rgba(255, 255, 255, 0.75)',
+                        left: `${leftPx}px`,
+                        width: `${widthPx}px`,
+                        top: '0px',
+                        height: '48px',
+                        zIndex: 1,
+                        borderLeft,
+                        borderRight,
+                        borderTop,
+                        borderBottom,
+                        borderRadius,
+                        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)'
+                      }}
+                    />
+                  );
+                })}
+                
+                {/* Draw connecting lines and curves between occurrences */}
+                {phaseOccurrences.map((occurrence, index) => {
+                  if (index === phaseOccurrences.length - 1) return null; // No line after last occurrence
+                  
+                  const currentOccurrenceEnd = normalizeToMidnight(new Date(occurrence.endDate));
+                  const nextOccurrence = phaseOccurrences[index + 1];
+                  const nextOccurrenceStart = normalizeToMidnight(new Date(nextOccurrence.startDate));
+                  
+                  // Check if there's a gap between occurrences
+                  const daysBetween = Math.floor((nextOccurrenceStart.getTime() - currentOccurrenceEnd.getTime()) / (24 * 60 * 60 * 1000)) - 1;
+                  
+                  if (daysBetween > 0) {
+                    // Calculate line position
+                    const endPositions = (() => {
+                      try {
+                        return getTimelinePositions(
+                          currentOccurrenceEnd,
+                          currentOccurrenceEnd,
+                          viewportStart,
+                          viewportEnd,
+                          dates,
+                          mode
+                        );
+                      } catch (error) {
+                        return null;
+                      }
+                    })();
+                    
+                    const startPositions = (() => {
+                      try {
+                        return getTimelinePositions(
+                          nextOccurrenceStart,
+                          nextOccurrenceStart,
+                          viewportStart,
+                          viewportEnd,
+                          dates,
+                          mode
+                        );
+                      } catch (error) {
+                        return null;
+                      }
+                    })();
+                    
+                    if (!endPositions || !startPositions) return null;
+                    
+                    const adjustedEndPos = calculateBaselineVisualOffsets(
+                      endPositions, isDragging, dragState, project.id, mode
+                    );
+                    const adjustedStartPos = calculateBaselineVisualOffsets(
+                      startPositions, isDragging, dragState, project.id, mode
+                    );
+                    
+                    // Position line from end of current occurrence to start of next occurrence
+                    const dayRectWidth = mode === 'weeks' ? 21 : 50;
+                    const weeksModeOffset = mode === 'weeks' ? 4 : 0;
+                    const lineStart = adjustedEndPos.baselineStartPx + dayRectWidth + weeksModeOffset;
+                    const lineEnd = adjustedStartPos.baselineStartPx;
+                    const lineWidth = lineEnd - lineStart;
+                    
+                    if (lineWidth <= 0) return null;
+                    
+                    const barHeight = 48;
+                    const lineHeight = 3;
+                    const lineTop = (barHeight - lineHeight) / 2;
+                    
+                    const curveSquareSize = lineTop - 0;
+                    const curveWidth = curveSquareSize;
+                    const curveHeight = curveSquareSize * 2;
+                    const curveTop = (barHeight - curveHeight) / 2;
+                    
+                    return (
+                      <React.Fragment key={`occurrence-connector-${index}`}>
+                        {/* Right curve from end of current occurrence */}
+                        <svg
+                          className="absolute pointer-events-none"
+                          style={{
+                            left: `${lineStart}px`,
+                            top: `${curveTop}px`,
+                            width: `${curveWidth}px`,
+                            height: `${curveHeight}px`,
+                            zIndex: 1,
+                          }}
+                        >
+                          <path
+                            d={`M 0 0 Q 0 ${curveSquareSize} ${curveWidth} ${curveSquareSize} L ${curveWidth} ${curveSquareSize + lineHeight} Q 0 ${curveSquareSize + lineHeight} 0 ${curveHeight} Z`}
+                            fill="rgba(255, 255, 255, 0.75)"
+                            stroke={NEUTRAL_COLORS.gray200}
+                            strokeWidth="1"
+                          />
+                        </svg>
+                        
+                        {/* Connecting line */}
+                        <div
+                          className="absolute pointer-events-none"
+                          style={{
+                            backgroundColor: NEUTRAL_COLORS.gray300,
+                            left: `${lineStart + curveWidth}px`,
+                            width: `${lineWidth - (curveWidth * 2)}px`,
+                            top: `${lineTop}px`,
+                            height: `${lineHeight}px`,
+                            zIndex: 1,
+                            borderTop: `1px solid ${NEUTRAL_COLORS.gray200}`,
+                            borderBottom: `1px solid ${NEUTRAL_COLORS.gray200}`,
+                            boxShadow: '0 0.5px 1.5px 0 rgba(0, 0, 0, 0.1), 0 0.5px 1px 0 rgba(0, 0, 0, 0.06)'
+                          }}
+                        />
+                        
+                        {/* Left curve into start of next occurrence */}
+                        <svg
+                          className="absolute pointer-events-none"
+                          style={{
+                            left: `${lineEnd - curveWidth}px`,
+                            top: `${curveTop}px`,
+                            width: `${curveWidth}px`,
+                            height: `${curveHeight}px`,
+                            zIndex: 1,
+                          }}
+                        >
+                          <path
+                            d={`M 0 ${curveSquareSize} Q ${curveWidth} ${curveSquareSize} ${curveWidth} 0 L ${curveWidth} ${curveHeight} Q ${curveWidth} ${curveSquareSize + lineHeight} 0 ${curveSquareSize + lineHeight} Z`}
+                            fill="rgba(255, 255, 255, 0.75)"
+                            stroke={NEUTRAL_COLORS.gray200}
+                            strokeWidth="1"
+                          />
+                        </svg>
+                      </React.Fragment>
+                    );
+                  }
+                  return null;
+                })}
+              </>
+            );
+            }
+          }
+          
+          // If project has phases (non-continuous or non-recurring), render a segment for each phase
           if (hasPhases) {
             return (
               <>
@@ -240,7 +566,7 @@ export const ProjectBar = memo(function ProjectBar({
                   const normalizedViewportStart = normalizeToMidnight(new Date(viewportStart));
                   const normalizedViewportEnd = normalizeToMidnight(new Date(viewportEnd));
                   const extendsLeft = phaseStartDate < normalizedViewportStart;
-                  const extendsRight = index === sortedPhases.length - 1 && project.continuous;
+                  const extendsRight = phaseEndDate > normalizedViewportEnd;
                   
                   // Calculate border radius - all corners rounded like project bar
                   let borderRadius = '6px';
@@ -459,12 +785,26 @@ export const ProjectBar = memo(function ProjectBar({
           const leftPx = adjustedPositions.baselineStartPx;
           let widthPx = adjustedPositions.baselineWidthPx ?? positions.baselineWidthPx;
           
-          // Extend width for continuous projects
-          if (extendsRight) {
+          // For continuous projects, calculate width based on furthest day with estimates
+          if (extendsRight && dayEstimates && dayEstimates.length > 0) {
             const columnWidth = mode === 'weeks' ? 153 : 52;
-            const bufferWidth = mode === 'days' ? columnWidth : 0;
-            const totalViewportWidth = dates.length * columnWidth + bufferWidth;
-            widthPx = totalViewportWidth - leftPx + 100;
+            
+            // Find the furthest date with day estimates
+            const furthestEstimateDate = dayEstimates.reduce((latest, estimate) => {
+              const estDate = new Date(estimate.date);
+              return estDate > latest ? estDate : latest;
+            }, new Date(dayEstimates[0].date));
+            
+            // Find the index of this date in the dates array (or calculate if beyond)
+            const furthestDateNormalized = normalizeToMidnight(furthestEstimateDate);
+            const viewportStartNormalized = normalizeToMidnight(viewportStart);
+            
+            // Calculate days from viewport start to furthest estimate
+            const daysDiff = Math.ceil((furthestDateNormalized.getTime() - viewportStartNormalized.getTime()) / (1000 * 60 * 60 * 24));
+            const furthestColumnPx = daysDiff * columnWidth;
+            
+            // Extend a bit beyond the furthest estimate to show continuation
+            widthPx = Math.max(widthPx, furthestColumnPx - leftPx + (columnWidth * 10));
           }
           
           // Calculate border radius

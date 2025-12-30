@@ -1,6 +1,6 @@
 /**
- * Event Modal Orchestrator
- * Handles complex event creation, editing, and deletion workflows for the event modal
+ * Calendar Event Orchestrator
+ * Handles complex event creation, editing, and deletion workflows
  * 
  * Following AI Development Rules - orchestrators handle multi-step processes with database operations
  * Extracted from EventModal.tsx following Phase 3B Modal Component Orchestration
@@ -49,7 +49,7 @@ export interface EventModalWorkflowResult {
   errors?: EventFormErrors;
 }
 
-export class EventModalOrchestrator {
+export class CalendarEventOrchestrator {
   constructor() {
     // No instance variables needed - using static validator methods
   }
@@ -191,7 +191,7 @@ export class EventModalOrchestrator {
       await addEvent(eventData);
       return { success: true };
     } catch (error) {
-      ErrorHandlingService.handle(error, { source: 'EventModalOrchestrator', action: 'EventModalOrchestrator: Failed to create event:' });
+      ErrorHandlingService.handle(error, { source: 'CalendarEventOrchestrator', action: 'Failed to create event:' });
       return { 
         success: false, 
         errors: { submit: 'Failed to create event. Please try again.' }
@@ -239,7 +239,7 @@ export class EventModalOrchestrator {
         return { success: true };
       }
     } catch (error) {
-      ErrorHandlingService.handle(error, { source: 'EventModalOrchestrator', action: 'EventModalOrchestrator: Failed to update event:' });
+      ErrorHandlingService.handle(error, { source: 'CalendarEventOrchestrator', action: 'Failed to update event:' });
       return { 
         success: false, 
         errors: { submit: 'Failed to update event. Please try again.' }
@@ -264,7 +264,7 @@ export class EventModalOrchestrator {
       await deleteEvent(originalEventId);
       return { success: true };
     } catch (error) {
-      ErrorHandlingService.handle(error, { source: 'EventModalOrchestrator', action: 'EventModalOrchestrator: Failed to delete event:' });
+      ErrorHandlingService.handle(error, { source: 'CalendarEventOrchestrator', action: 'Failed to delete event:' });
       return { 
         success: false, 
         errors: { submit: 'Failed to delete event. Please try again.' }
@@ -305,7 +305,7 @@ export class EventModalOrchestrator {
 
       return { success: true };
     } catch (error) {
-      ErrorHandlingService.handle(error, { source: 'EventModalOrchestrator', action: 'EventModalOrchestrator: Failed to update ${updateType} recurring events:' });
+      ErrorHandlingService.handle(error, { source: 'CalendarEventOrchestrator', action: `Failed to update ${updateType} recurring events:` });
       return { 
         success: false, 
         errors: { submit: `Failed to update ${updateType} recurring events. Please try again.` }
@@ -344,7 +344,7 @@ export class EventModalOrchestrator {
 
       return { success: true };
     } catch (error) {
-      ErrorHandlingService.handle(error, { source: 'EventModalOrchestrator', action: 'EventModalOrchestrator: Failed to delete ${deleteType} recurring events:' });
+      ErrorHandlingService.handle(error, { source: 'CalendarEventOrchestrator', action: `Failed to delete ${deleteType} recurring events:` });
       return { 
         success: false, 
         errors: { submit: `Failed to delete ${deleteType} recurring events. Please try again.` }
@@ -368,4 +368,4 @@ export class EventModalOrchestrator {
 }
 
 // Export singleton instance
-export const eventModalOrchestrator = new EventModalOrchestrator();
+export const calendarEventOrchestrator = new CalendarEventOrchestrator();

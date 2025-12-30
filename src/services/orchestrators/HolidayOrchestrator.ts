@@ -41,7 +41,7 @@ export interface HolidayModalResult {
   error?: string;
 }
 
-export class HolidayModalOrchestrator {
+export class HolidayOrchestrator {
   private existingHolidays: Holiday[];
   private currentHolidayId?: string;
 
@@ -160,7 +160,7 @@ export class HolidayModalOrchestrator {
 
       return { success: true };
     } catch (error) {
-      ErrorHandlingService.handle(error, { source: 'HolidayModalOrchestrator', action: 'HolidayModalOrchestrator: Failed to create holiday:' });
+      ErrorHandlingService.handle(error, { source: 'HolidayOrchestrator', action: 'HolidayOrchestrator: Failed to create holiday:' });
       return {
         success: false,
         error: 'Failed to create holiday. Please try again.'
@@ -211,7 +211,7 @@ export class HolidayModalOrchestrator {
 
       return { success: true };
     } catch (error) {
-      ErrorHandlingService.handle(error, { source: 'HolidayModalOrchestrator', action: 'HolidayModalOrchestrator: Failed to update holiday:' });
+      ErrorHandlingService.handle(error, { source: 'HolidayOrchestrator', action: 'HolidayOrchestrator: Failed to update holiday:' });
       return {
         success: false,
         error: 'Failed to update holiday. Please try again.'
@@ -296,9 +296,9 @@ export class HolidayModalOrchestrator {
 }
 
 // Export factory function for creating orchestrator instances
-export const createHolidayModalOrchestrator = (
+export const createHolidayOrchestrator = (
   existingHolidays: Holiday[], 
   currentHolidayId?: string
-): HolidayModalOrchestrator => {
-  return new HolidayModalOrchestrator(existingHolidays, currentHolidayId);
+): HolidayOrchestrator => {
+  return new HolidayOrchestrator(existingHolidays, currentHolidayId);
 };

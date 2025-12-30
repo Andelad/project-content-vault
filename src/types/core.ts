@@ -17,10 +17,13 @@ export interface RecurringConfig {
   type: 'daily' | 'weekly' | 'monthly';
   interval: number; // Every X days/weeks/months
   
-  // Weekly recurrence options
+  // RFC 5545 RRule string for infinite recurrence (NEW - preferred)
+  rrule?: string; // e.g., "FREQ=WEEKLY;INTERVAL=1;BYDAY=MO"
+  
+  // Weekly recurrence options (LEGACY - used to generate rrule)
   weeklyDayOfWeek?: number; // 0-6 (Sunday=0, Monday=1, ..., Saturday=6)
   
-  // Monthly recurrence options
+  // Monthly recurrence options (LEGACY - used to generate rrule)
   monthlyPattern?: 'date' | 'dayOfWeek'; // Repeat by specific date or day of week
   monthlyDate?: number; // 1-31 for specific date of month
   monthlyWeekOfMonth?: number; // 1-4 for which week of the month

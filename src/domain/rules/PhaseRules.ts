@@ -34,6 +34,8 @@
 
 import type { PhaseDTO, Project } from '@/types/core';
 import { normalizeToMidnight, addDaysToDate } from '@/services/calculations/general/dateCalculations';
+import { PhaseRecurrenceService } from '../domain-services/PhaseRecurrenceService';
+import { ProjectBudgetService } from '../domain-services/ProjectBudgetService';
 
 /**
  * A Phase is a PhaseDTO with a defined start date
@@ -348,60 +350,17 @@ export class PhaseRules {
    * @param recurringConfig - Recurrence pattern configuration
    * @param timeAllocation - Hours per occurrence
    * @returns Validation result with errors
+   * 
+   * @deprecated Use PhaseRecurrenceService.validateRecurringConfig instead
+   * Kept for backward compatibility during migration
    */
   static validateRecurringPhase(
     isRecurring: boolean,
     recurringConfig: RecurringPhaseRuleConfig,
     timeAllocation: number
   ): MilestoneDateValidation {
-    const errors: string[] = [];
-
-    if (!isRecurring) {
-      return { isValid: true, errors: [] };
-    }
-
-    // Validate recurring config exists
-    if (!recurringConfig) {
-      errors.push('Recurring milestone must have recurrence configuration');
-      return { isValid: false, errors };
-    }
-
-    // Validate pattern type
-    const validTypes = ['daily', 'weekly', 'monthly'];
-    if (!validTypes.includes(recurringConfig.type)) {
-      errors.push(`Invalid recurrence type: ${recurringConfig.type}. Must be daily, weekly, or monthly`);
-    }
-
-    // Validate interval
-    if (!recurringConfig.interval || recurringConfig.interval < 1) {
-      errors.push('Recurrence interval must be at least 1');
-    }
-
-    // Validate type-specific fields
-    if (recurringConfig.type === 'weekly' && recurringConfig.weeklyDayOfWeek === undefined) {
-      errors.push('Weekly recurrence must specify day of week (0-6)');
-    }
-
-    if (recurringConfig.type === 'monthly') {
-      if (!recurringConfig.monthlyPattern) {
-        errors.push('Monthly recurrence must specify pattern (date or dayOfWeek)');
-      } else if (recurringConfig.monthlyPattern === 'date' && !recurringConfig.monthlyDate) {
-        errors.push('Monthly date pattern must specify date (1-31)');
-      } else if (recurringConfig.monthlyPattern === 'dayOfWeek' && 
-                 (recurringConfig.monthlyWeekOfMonth === undefined || recurringConfig.monthlyDayOfWeek === undefined)) {
-        errors.push('Monthly dayOfWeek pattern must specify week of month and day of week');
-      }
-    }
-
-    // Validate time allocation
-    if (timeAllocation <= 0) {
-      errors.push('Recurring milestone must have positive time allocation per occurrence');
-    }
-
-    return {
-      isValid: errors.length === 0,
-      errors
-    };
+    // Delegate to domain service
+    return PhaseRecurrenceService.validateRecurringConfig(isRecurring, recurringConfig, timeAllocation);
   }
 
   /**
@@ -412,12 +371,12 @@ export class PhaseRules {
    * 
    * @param milestones - Array of milestones
    * @returns Total hours allocated
+   * 
+   * @deprecated Use ProjectBudgetService.calculateTotalAllocation instead
+   * Kept for backward compatibility during migration
    */
   static calculateTotalAllocation(phases: PhaseDTO[]): number {
-    return phases.reduce((sum, phase) => {
-      const hours = phase.timeAllocationHours ?? phase.timeAllocation ?? 0;
-      return sum + hours;
-    }, 0);
+    return ProjectBudgetService.calculateTotalAllocation(phases);
   }
 
   /**
@@ -430,31 +389,16 @@ export class PhaseRules {
    * @param projectBudget - Project estimated hours
    * @param excludeMilestoneId - Optional milestone to exclude (for updates)
    * @returns Budget check result
+   * 
+   * @deprecated Use ProjectBudgetService.checkBudgetConstraint instead
+   * Kept for backward compatibility during migration
    */
   static checkBudgetConstraint(
     phases: PhaseDTO[],
     projectBudget: number,
     excludeMilestoneId?: string
   ): MilestoneBudgetCheck {
-    // Filter out excluded milestone if provided
-    const relevantPhases = excludeMilestoneId
-      ? phases.filter(p => p.id !== excludeMilestoneId)
-      : phases;
-
-    const totalAllocated = this.calculateTotalAllocation(relevantPhases);
-    const remaining = projectBudget - totalAllocated;
-    const overage = Math.max(0, totalAllocated - projectBudget);
-    const utilizationPercentage = projectBudget > 0 ? (totalAllocated / projectBudget) * 100 : 0;
-    const isValid = totalAllocated <= projectBudget;
-
-    return {
-      isValid,
-      totalAllocated,
-      projectBudget,
-      remaining,
-      overage,
-      utilizationPercentage
-    };
+    return ProjectBudgetService.checkBudgetConstraint(phases, projectBudget, excludeMilestoneId);
   }
 
   /**
@@ -464,14 +408,16 @@ export class PhaseRules {
    * @param projectBudget - Project estimated hours
    * @param additionalHours - Hours to add
    * @returns true if budget can accommodate, false otherwise
+   * 
+   * @deprecated Use ProjectBudgetService.canAccommodateAdditionalPhase instead
+   * Kept for backward compatibility during migration
    */
   static canAccommodateAdditionalMilestone(
     phases: PhaseDTO[],
     projectBudget: number,
     additionalHours: number
   ): boolean {
-    const check = this.checkBudgetConstraint(phases, projectBudget);
-    return check.remaining >= additionalHours;
+    return ProjectBudgetService.canAccommodateAdditionalPhase(phases, projectBudget, additionalHours);
   }
 
   /**
@@ -484,31 +430,15 @@ export class PhaseRules {
    * @param timeAllocation - Phase time allocation
    * @param projectBudget - Project budget
    * @returns Detailed validation result
+   * 
+   * @deprecated Use ProjectBudgetService.validatePhaseTime instead
+   * Kept for backward compatibility during migration
    */
   static validateMilestoneTime(
     timeAllocation: number,
     projectBudget: number
   ): MilestoneTimeValidation {
-    const errors: string[] = [];
-    const warnings: string[] = [];
-
-    if (!this.validateTimeAllocation(timeAllocation)) {
-      errors.push('Milestone time allocation cannot be negative');
-    } else if (timeAllocation === 0) {
-      warnings.push('Milestone has 0h allocated — work will not be distributed until hours are set');
-    }
-
-    if (timeAllocation > projectBudget) {
-      errors.push(`Milestone allocation (${timeAllocation}h) exceeds project budget (${projectBudget}h)`);
-    } else if (timeAllocation > projectBudget * 0.5) {
-      warnings.push('Milestone allocation is over 50% of project budget');
-    }
-
-    return {
-      isValid: errors.length === 0,
-      errors,
-      warnings
-    };
+    return ProjectBudgetService.validatePhaseTime(timeAllocation, projectBudget);
   }
 
   /**
@@ -614,14 +544,15 @@ export class PhaseRules {
    * @param milestones - Array of milestones
    * @param projectBudget - Project estimated hours
    * @returns Utilization percentage (0-100+)
+   * 
+   * @deprecated Use ProjectBudgetService.calculateBudgetUtilization instead
+   * Kept for backward compatibility during migration
    */
   static calculateBudgetUtilization(
     phases: PhaseDTO[],
     projectBudget: number
   ): number {
-    if (projectBudget === 0) return 0;
-    const totalAllocated = this.calculateTotalAllocation(phases);
-    return (totalAllocated / projectBudget) * 100;
+    return ProjectBudgetService.calculateBudgetUtilization(phases, projectBudget);
   }
 
   /**
@@ -633,13 +564,15 @@ export class PhaseRules {
    * @param milestones - Array of milestones
    * @param projectBudget - Project estimated hours
    * @returns Remaining hours (can be negative if over budget)
+   * 
+   * @deprecated Use ProjectBudgetService.calculateRemainingBudget instead
+   * Kept for backward compatibility during migration
    */
   static calculateRemainingBudget(
     phases: PhaseDTO[],
     projectBudget: number
   ): number {
-    const totalAllocated = this.calculateTotalAllocation(phases);
-    return projectBudget - totalAllocated;
+    return ProjectBudgetService.calculateRemainingBudget(phases, projectBudget);
   }
 
   /**
@@ -651,13 +584,15 @@ export class PhaseRules {
    * @param milestones - Array of milestones
    * @param projectBudget - Project estimated hours
    * @returns Overage hours (0 if not over budget)
+   * 
+   * @deprecated Use ProjectBudgetService.calculateBudgetOverage instead
+   * Kept for backward compatibility during migration
    */
   static calculateBudgetOverage(
     phases: PhaseDTO[],
     projectBudget: number
   ): number {
-    const totalAllocated = this.calculateTotalAllocation(phases);
-    return Math.max(0, totalAllocated - projectBudget);
+    return ProjectBudgetService.calculateBudgetOverage(phases, projectBudget);
   }
 
   /**
@@ -665,11 +600,12 @@ export class PhaseRules {
    * 
    * @param milestones - Array of milestones
    * @returns Average hours per milestone
+   * 
+   * @deprecated Use ProjectBudgetService.calculateAveragePhaseAllocation instead
+   * Kept for backward compatibility during migration
    */
   static calculateAverageMilestoneAllocation(phases: PhaseDTO[]): number {
-    if (phases.length === 0) return 0;
-    const totalAllocated = this.calculateTotalAllocation(phases);
-    return totalAllocated / phases.length;
+    return ProjectBudgetService.calculateAveragePhaseAllocation(phases);
   }
 
   /**
@@ -678,43 +614,15 @@ export class PhaseRules {
    * @param milestones - Project milestones
    * @param projectBudget - Project estimated hours
    * @returns Array of recommendation strings
+   * 
+   * @deprecated Use ProjectBudgetService.generateRecommendations instead
+   * Kept for backward compatibility during migration
    */
   static generateRecommendations(
     phases: PhaseDTO[],
     projectBudget: number
   ): string[] {
-    const recommendations: string[] = [];
-    const budgetCheck = this.checkBudgetConstraint(phases, projectBudget);
-
-    if (!budgetCheck.isValid) {
-      recommendations.push(
-        `Budget exceeded by ${budgetCheck.overage.toFixed(1)}h. ` +
-        `Consider reducing milestone allocations or increasing project budget.`
-      );
-    } else if (budgetCheck.utilizationPercentage > 90) {
-      recommendations.push(
-        'Budget utilization high (>90%). Consider adding buffer time for unexpected work.'
-      );
-    } else if (budgetCheck.utilizationPercentage < 50) {
-      recommendations.push(
-        'Budget utilization low (<50%). Consider adding more milestones or increasing detail.'
-      );
-    }
-
-    if (phases.length > 0) {
-      const avgAllocation = this.calculateAverageMilestoneAllocation(phases);
-      if (avgAllocation < 1) {
-        recommendations.push(
-          'Very small milestone allocations detected. Consider consolidating milestones.'
-        );
-      } else if (avgAllocation > projectBudget * 0.5) {
-        recommendations.push(
-          'Large milestone allocations detected. Consider breaking down into smaller milestones.'
-        );
-      }
-    }
-
-    return recommendations;
+    return ProjectBudgetService.generateRecommendations(phases, projectBudget);
   }
 
   /**
@@ -1020,7 +928,8 @@ export class PhaseRules {
     isValid: boolean;
     error?: string;
   } {
-    const splitPhases = phases.filter(p => p.startDate !== undefined);
+    // Split phases are regular phases with startDate (exclude recurring templates)
+    const splitPhases = phases.filter(p => p.startDate !== undefined && p.isRecurring !== true);
     const recurringTemplate = phases.find(p => p.isRecurring === true);
     
     const hasSplitPhases = splitPhases.length > 0;
@@ -1039,6 +948,50 @@ export class PhaseRules {
       hasSplitPhases,
       hasRecurringTemplate,
       isValid: true
+    };
+  }
+  
+  /**
+   * RULE: Calculate initial phase split for a project
+   * 
+   * When splitting a project estimate into phases, divide project timeline at midpoint
+   * and allocate budget evenly. Phase 2 starts the day after Phase 1 ends (no overlap).
+   * 
+   * @param projectStartDate - Project start date
+   * @param projectEndDate - Project end date
+   * @param totalBudget - Total project budget in hours
+   * @returns Two phase configurations ready for creation
+   */
+  static calculatePhaseSplit(
+    projectStartDate: Date,
+    projectEndDate: Date,
+    totalBudget: number
+  ): {
+    phase1: { name: string; startDate: Date; endDate: Date; timeAllocation: number };
+    phase2: { name: string; startDate: Date; endDate: Date; timeAllocation: number };
+  } {
+    const projectDuration = projectEndDate.getTime() - projectStartDate.getTime();
+    const midpointTime = projectStartDate.getTime() + (projectDuration / 2);
+    const midpointDate = new Date(midpointTime);
+    const halfBudget = totalBudget / 2;
+
+    // Phase 1 ends on midpoint, Phase 2 starts the day AFTER (no overlap)
+    const phase1EndDate = midpointDate;
+    const phase2StartDate = new Date(midpointDate.getTime() + (24 * 60 * 60 * 1000));
+
+    return {
+      phase1: {
+        name: 'Phase 1',
+        startDate: projectStartDate,
+        endDate: phase1EndDate,
+        timeAllocation: halfBudget
+      },
+      phase2: {
+        name: 'Phase 2',
+        startDate: phase2StartDate,
+        endDate: projectEndDate,
+        timeAllocation: halfBudget
+      }
     };
   }
   

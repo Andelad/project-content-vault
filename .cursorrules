@@ -9,7 +9,8 @@
 ## 📚 DOCUMENTATION GUIDE
 
 **Core Documents:**
-- **`.architecture.md`** (root) - WHERE code goes, structural patterns
+- **`.dhybrid`** (root) - Hybrid DDD philosophy & architecture evolution
+- **`.architecture`** (root) - WHERE code goes, structural patterns
 - **`Domain Logic.md`** (`/src/domain/`) - WHAT entities are (concepts)
 - **`Rules Logic.md`** (`/src/domain/`) - HOW calculations work (formulas)
 - **`Display Logic.md`** (`/src/domain/`) - Display constraints & view rules
@@ -19,7 +20,8 @@
 - Domain concepts → `/src/domain/Domain Logic.md`
 - Calculations/formulas → `/src/domain/Rules Logic.md`
 - Display constraints → `/src/domain/Display Logic.md`
-- Code structure → `/.architecture.md`
+- Code structure → `/.architecture`
+- Hybrid DDD philosophy → `/.dhybrid`
 - Component files → `/src/components/README.md`
 
 ---
@@ -39,11 +41,12 @@
 ### Always Use
 - ✅ Import from `@/services` only
 - ✅ Types from `/types/core.ts`
+- ✅ Domain services from `/domain/domain-services/` for pure domain logic
 - ✅ Domain rules from `/domain/rules/` for validation & business logic
 - ✅ Domain entities from `/domain/entities/` when available
 - ✅ `dateCalculations.ts` for all date operations
 - ✅ `ErrorHandlingService` for all errors
-- ✅ Find existing unified services first
+- ✅ Find existing domain-services first, then unified services
 - ✅ Delegation pattern in unified services
 
 ### Before Writing Code
@@ -60,10 +63,11 @@ ls src/services/unified/ | grep -i "domain"
 
 | Code Type | Location | Purity | Example |
 |-----------|----------|--------|---------|
+| **Domain Services** | `/domain/domain-services/*Service` | 100% pure (no UI/DB) | Pure domain logic (budget, recurrence) |
 | **Domain Rules** | `/domain/rules/*Rules` | 100% pure (no UI/DB) | Validation, business logic |
 | **Domain Entities** | `/domain/entities/*` | 100% pure (no UI/DB) | Rich objects with business methods |
 | **Orchestrators** | `/services/orchestrators/*Orchestrator` | Mixed (by design) | Workflows: validation + DB + UI prep |
-| **Unified Services** | `/services/unified/Unified*Service` | Pure calculations | Business calculations |
+| **Unified Services** | `/services/unified/Unified*Service` | Delegates to domain | **PREFER domain-services** for new logic |
 | **UI Components** | `/components` | UI only | Call services, no logic |
 | Date Math | `/services/calculations/general/dateCalculations` | Pure math | `normalizeToMidnight()` |
 | Error Handling | `ErrorHandlingService` | Infrastructure | Structured logging |
@@ -71,13 +75,15 @@ ls src/services/unified/ | grep -i "domain"
 | Generic Utils | `/utils` or `/lib` | Pure helpers | `cn()`, `formatCurrency()` |
 
 **Orchestrator Scope (Hybrid DDD - Mixed by Design):**
+- ✅ Call domain services (`PhaseRecurrenceService.generateOccurrences()`)
 - ✅ Call domain rules (`ProjectRules.validate()`)
 - ✅ Call Supabase directly (no repository layer)
 - ✅ Transform data for database
 - ✅ Enrich data for UI display
 - ✅ Coordinate workflows & side effects
 - ❌ NEVER implement business rules (use `domain/rules/`)
-- ❌ NEVER implement calculations (use `unified/` services)
+- ❌ NEVER implement domain logic (use `domain/domain-services/`)
+- ❌ NEVER implement calculations (use `domain/domain-services/` or `unified/`)
 
 ---
 
@@ -107,12 +113,28 @@ export class ProjectOrchestrator {
 }
 ```
 
-### Unified Services (calculations)
+### Domain Services (pure domain logic - NEW CODE GOES HERE)
 ```typescript
-// ✅ Always delegate to domain layer
+// ✅ Pure domain logic (no DB, no UI, no side effects)
+export class PhaseRecurrenceService {
+  static generateOccurrences(config: RecurringConfig, range: DateRange): Date[] {
+    // Pure RRule-based logic, 100% testable
+  }
+  
+  static validateRecurringConfig(config: RecurringConfig): ValidationResult {
+    // Pure validation logic
+  }
+}
+```
+
+### Unified Services (delegate to domain-services)
+```typescript
+// ⚠️ LEGACY: Prefer domain-services for new logic
+// ✅ OK: Keep for UI coordination or delegate to domain-services
 export class UnifiedProjectService {
   static calculateDuration(project: Project): number {
-    return DateCalculations.calculateProjectDuration(project);
+    // Delegates to domain service
+    return ProjectBudgetService.calculateDuration(project);
   }
 }
 ```
@@ -230,9 +252,10 @@ Before committing:
 - [ ] Using `core.ts` types?
 - [ ] Using `dateCalculations` for dates?
 - [ ] Using `ErrorHandlingService` for errors?
+- [ ] Pure domain logic in `domain/domain-services/`, not unified/?
 - [ ] Domain rules in `domain/rules/`, not orchestrators?
 - [ ] Orchestrators coordinate only (no business logic)?
-- [ ] Business logic in services, not components?
+- [ ] Business logic in domain layer, not components?
 - [ ] If domain logic changed: updated Domain Logic.md + Rules Logic.md?
 - [ ] If UI constraint changed: updated Display Logic.md?
 - [ ] Commit message has correct prefix?

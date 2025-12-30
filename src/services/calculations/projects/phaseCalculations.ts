@@ -11,6 +11,7 @@
 
 import { Holiday, PhaseDTO, Settings } from '@/types/core';
 import * as DateCalculations from '../general/dateCalculations';
+import { PhaseRecurrenceService, RecurringPhaseConfig as DomainRecurringConfig, RecurringOccurrenceParams } from '@/domain/domain-services/PhaseRecurrenceService';
 
 /**
  * Calculate total time allocation across milestones
@@ -317,6 +318,10 @@ export function findMilestoneGap(
 // RECURRING MILESTONE CALCULATIONS
 // ============================================================================
 
+/**
+ * @deprecated Use PhaseRecurrenceService types directly
+ * Kept for backward compatibility during migration
+ */
 export interface RecurringPhaseConfig {
   recurringType: 'daily' | 'weekly' | 'monthly';
   recurringInterval: number;
@@ -336,81 +341,70 @@ export interface RecurringPhaseCalculationParams {
 }
 
 /**
+ * Convert legacy config to domain service config
+ */
+function toDomainConfig(config: RecurringPhaseConfig): DomainRecurringConfig {
+  return {
+    type: config.recurringType,
+    interval: config.recurringInterval,
+    weeklyDayOfWeek: config.weeklyDayOfWeek,
+    monthlyPattern: config.monthlyPattern,
+    monthlyDate: config.monthlyDate,
+    monthlyWeekOfMonth: config.monthlyWeekOfMonth,
+    monthlyDayOfWeek: config.monthlyDayOfWeek,
+  };
+}
+
+/**
  * Calculate how many milestones a recurring configuration would generate
+ * 
+ * @deprecated Use PhaseRecurrenceService.calculateOccurrenceCount instead
+ * Kept for backward compatibility during migration
  */
 export function calculateRecurringPhaseCount(params: RecurringPhaseCalculationParams): number {
-  const { config, projectStartDate, projectEndDate, projectContinuous = false } = params;
+  const domainParams: RecurringOccurrenceParams = {
+    config: toDomainConfig(params.config),
+    projectStartDate: params.projectStartDate,
+    projectEndDate: params.projectEndDate,
+    projectContinuous: params.projectContinuous,
+  };
   
-  let count = 0;
-  const currentDate = new Date(projectStartDate);
-  currentDate.setDate(currentDate.getDate() + 1); // Start day after project start
-  
-  const endDate = projectContinuous ? 
-    new Date(currentDate.getTime() + 365 * 24 * 60 * 60 * 1000) : // 1 year for continuous
-    new Date(projectEndDate);
-  endDate.setDate(endDate.getDate() - 1); // End day before project end
-
-  while (currentDate <= endDate && count < 100) { // Safety limit of 100
-    count++;
-    
-    switch (config.recurringType) {
-      case 'daily':
-        currentDate.setDate(currentDate.getDate() + config.recurringInterval);
-        break;
-      case 'weekly':
-        currentDate.setDate(currentDate.getDate() + (7 * config.recurringInterval));
-        break;
-      case 'monthly':
-        currentDate.setMonth(currentDate.getMonth() + config.recurringInterval);
-        break;
-    }
-  }
-  
-  return count;
+  return PhaseRecurrenceService.calculateOccurrenceCount(domainParams);
 }
 
 /**
  * Calculate total time allocation for recurring phases
+ * 
+ * @deprecated Use PhaseRecurrenceService.calculateTotalAllocation instead
+ * Kept for backward compatibility during migration
  */
 export function calculateRecurringTotalAllocation(params: RecurringPhaseCalculationParams): number {
-  const count = calculateRecurringPhaseCount(params);
-  return count * params.config.timeAllocation;
+  const domainParams: RecurringOccurrenceParams = {
+    config: toDomainConfig(params.config),
+    projectStartDate: params.projectStartDate,
+    projectEndDate: params.projectEndDate,
+    projectContinuous: params.projectContinuous,
+  };
+  
+  return PhaseRecurrenceService.calculateTotalAllocation(domainParams, params.config.timeAllocation);
 }
 
 /**
  * Generate milestone dates for a recurring configuration
+ * 
+ * @deprecated Use PhaseRecurrenceService.generateOccurrences instead
+ * Kept for backward compatibility during migration
  */
 export function generateRecurringPhaseDates(params: RecurringPhaseCalculationParams): Date[] {
-  const { config, projectStartDate, projectEndDate, projectContinuous = false } = params;
+  const domainParams: RecurringOccurrenceParams = {
+    config: toDomainConfig(params.config),
+    projectStartDate: params.projectStartDate,
+    projectEndDate: params.projectEndDate,
+    projectContinuous: params.projectContinuous,
+  };
   
-  const dates: Date[] = [];
-  const currentDate = new Date(projectStartDate);
-  currentDate.setDate(currentDate.getDate() + 1);
-  
-  const endDate = projectContinuous ? 
-    new Date(currentDate.getTime() + 365 * 24 * 60 * 60 * 1000) :
-    new Date(projectEndDate);
-  endDate.setDate(endDate.getDate() - 1);
-
-  let count = 0;
-  while (currentDate <= endDate && count < 100) {
-    dates.push(new Date(currentDate));
-    count++;
-    
-    switch (config.recurringType) {
-      case 'daily':
-        currentDate.setDate(currentDate.getDate() + config.recurringInterval);
-        break;
-      case 'weekly':
-        currentDate.setDate(currentDate.getDate() + (7 * config.recurringInterval));
-        break;
-      case 'monthly':
-        currentDate.setMonth(currentDate.getMonth() + config.recurringInterval);
-        break;
-    }
-  }
-  
-  return dates;
+  const occurrences = PhaseRecurrenceService.generateOccurrences(domainParams);
+  return occurrences.map(occ => occ.date);
 }
 
 /**

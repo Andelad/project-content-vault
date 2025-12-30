@@ -214,6 +214,34 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
       sunday: true,
     }
   });
+  
+  // Helper function to get default auto-estimate days from user settings
+  const getDefaultAutoEstimateDays = useCallback(() => {
+    if (!settings?.weeklyWorkHours) {
+      // If no settings, default to weekdays
+      return {
+        monday: true,
+        tuesday: true,
+        wednesday: true,
+        thursday: true,
+        friday: true,
+        saturday: false,
+        sunday: false,
+      };
+    }
+    
+    // Convert user's work hours to auto-estimate days
+    const dayNames: Array<keyof typeof settings.weeklyWorkHours> = [
+      'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'
+    ];
+    
+    return dayNames.reduce((acc, day) => {
+      const workSlots = settings.weeklyWorkHours[day] || [];
+      acc[day] = Array.isArray(workSlots) && workSlots.length > 0;
+      return acc;
+    }, {} as Project['autoEstimateDays']);
+  }, [settings]);
+  
   useEffect(() => {
     if (project) {
       const projectValues = {
@@ -258,15 +286,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
         color: OKLCH_PROJECT_COLORS[0],
         icon: 'folder',
         continuous: false,
-        autoEstimateDays: {
-          monday: true,
-          tuesday: true,
-          wednesday: true,
-          thursday: true,
-          friday: true,
-          saturday: true,
-          sunday: true,
-        }
+        autoEstimateDays: getDefaultAutoEstimateDays()
       };
       setLocalValues(defaultValues);
       setOriginalValues(defaultValues);
@@ -274,7 +294,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
       // Reset milestones for new projects
       setLocalProjectPhases([]);
     }
-  }, [project, isCreating, creatingNewProject]);
+  }, [project, isCreating, creatingNewProject, getDefaultAutoEstimateDays]);
   // Handle smooth modal closing - just call onClose, AnimatePresence will handle the animation
   const handleClose = useCallback(async () => {
     // If editing (not creating) and should rollback, delete milestones added during this session
@@ -854,7 +874,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
              recurringMilestoneInfo.totalAllocation > value;
     return (
       <div className="min-w-[100px]">
-        <Label className="text-xs text-muted-foreground mb-1 block">Time Budget</Label>
+        <Label className="text-xs text-muted-foreground mb-1 block">Estimate (hrs)</Label>
   {isEditing ? (
           <Input
             type="number"
@@ -1202,7 +1222,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
             }}
           >
             <TabComponent
-              label="Add Time Est"
+              label="Time Load"
               value="estimate"
               isActive={activeTab === 'estimate'}
               onClick={() => setActiveTab('estimate')}

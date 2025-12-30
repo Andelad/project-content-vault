@@ -1,11 +1,11 @@
 /**
- * Project Milestone Orchestrator
+ * Phase Orchestrator
  * 
- * Coordinates complex project-milestone workflows that were previously in UI components.
- * Extracts recurring milestone creation, batch operations, and milestone lifecycle management.
+ * Coordinates complex phase workflows that were previously in UI components.
+ * Extracts recurring phase creation, batch operations, and phase lifecycle management.
  * 
  * ✅ Delegates to UnifiedPhaseService for core calculations
- * ✅ Coordinates with ProjectOrchestrator for project-milestone relationships
+ * ✅ Coordinates with ProjectOrchestrator for project-phase relationships
  * ✅ Handles complex multi-step workflows
  * ✅ Provides clean API for UI components
  */
@@ -18,6 +18,8 @@ import { calculateDurationDays, addDaysToDate } from '../calculations/general/da
 import { RecurringPhaseConfig as BaseRecurringPhaseConfig } from '../calculations/projects/phaseCalculations';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 import { Phase as PhaseEntity } from '@/domain/entities/Phase';
+import { PhaseRecurrenceService } from '@/domain/domain-services/PhaseRecurrenceService';
+import { PhaseRules } from '@/domain/rules/PhaseRules';
 
 export interface ProjectRecurringPhaseConfig extends BaseRecurringPhaseConfig {
   name: string;
@@ -102,18 +104,18 @@ type MilestoneUpdatePayload = Partial<MilestoneCreatePayload> & {
 };
 
 /**
- * Project Milestone Orchestrator
+ * Phase Orchestrator
  * 
- * Extracts complex milestone workflows from UI components and coordinates
- * with domain services for milestone lifecycle management.
+ * Extracts complex phase workflows from UI components and coordinates
+ * with domain services for phase lifecycle management.
  * 
  * CONSOLIDATED RESPONSIBILITIES (Phase 7):
- * - Milestone CRUD operations
- * - Milestone validation and scheduling
+ * - Phase CRUD operations
+ * - Phase validation and scheduling
  * - Project timeline validation (merged from ProjectTimelineOrchestrator)
  * - Budget allocation validation
  */
-export class ProjectPhaseOrchestrator {
+export class PhaseOrchestrator {
 
   // ============================================================================
   // PROJECT TIMELINE VALIDATION
@@ -230,6 +232,36 @@ export class ProjectPhaseOrchestrator {
     options: MilestoneOrchestrationOptions = {}
   ): Promise<RecurringPhaseCreationResult> {
     try {
+      // DOMAIN RULE: Check mutual exclusivity before creating recurring phase
+      // Fetch existing phases to validate
+      const { data: existingPhases } = await supabase
+        .from('phases')
+        .select('*')
+        .eq('project_id', projectId);
+      
+      if (existingPhases && existingPhases.length > 0) {
+        const phaseDTOs = existingPhases.map(p => PhaseEntity.fromDatabase(p));
+        const validation = PhaseRules.checkPhaseRecurringExclusivity(phaseDTOs);
+        
+        if (validation.hasSplitPhases) {
+          return {
+            success: false,
+            generatedCount: 0,
+            estimatedTotalCount: 0,
+            error: 'Cannot create recurring phase: project has split phases. Delete them first.'
+          };
+        }
+        
+        if (validation.hasRecurringTemplate) {
+          return {
+            success: false,
+            generatedCount: 0,
+            estimatedTotalCount: 0,
+            error: 'Cannot create recurring phase: project already has a recurring phase template.'
+          };
+        }
+      }
+
       // NEW SYSTEM: Create a SINGLE template milestone instead of multiple numbered instances
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
@@ -253,7 +285,24 @@ export class ProjectPhaseOrchestrator {
         }
       }
 
+      // Generate RRule string for accurate recurrence calculation
+      // This enables infinite recurrence for continuous projects
+      const rruleString = PhaseRecurrenceService.generateRRuleFromConfig(
+        recurringConfigJson as any, // RecurringConfigJson is compatible with RecurringConfig
+        new Date(project.startDate),
+        project.continuous ? undefined : new Date(project.endDate),
+        project.continuous || false
+      );
+      
+      // Store RRule in config for future use
+      recurringConfigJson.rrule = rruleString;
+
       // Create the TEMPLATE milestone in the database
+      // For continuous projects, end_date is still set (for display) but RRule drives recurrence
+      const endDate = project.continuous 
+        ? new Date(new Date(project.startDate).getTime() + 365 * 24 * 60 * 60 * 1000)
+        : new Date(project.endDate);
+      
       const templateMilestone = {
         name: recurringConfig.name, // No number suffix - this is the template
         project_id: projectId,
@@ -267,10 +316,9 @@ export class ProjectPhaseOrchestrator {
         // DUAL-WRITE for backward compatibility (optional)
         time_allocation: recurringConfig.timeAllocation,
         
-        // Use project start as the template due_date (not really used for rendering)
-        due_date: new Date(project.startDate).toISOString(),
+        // Recurring phase spans the entire project timeline
         start_date: new Date(project.startDate).toISOString(),
-        end_date: new Date(project.startDate).toISOString() // end_date mirrors due_date
+        end_date: endDate.toISOString()
       };
 
       // Insert the template milestone
@@ -320,7 +368,21 @@ export class ProjectPhaseOrchestrator {
       };
 
     } catch (error) {
-      ErrorHandlingService.handle(error, { source: 'ProjectPhaseOrchestrator', action: 'Error in createRecurringPhases:' });
+      ErrorHandlingService.handle(error, { 
+        source: 'PhaseOrchestrator', 
+        action: 'Error in createRecurringPhases:',
+        metadata: {
+          projectId,
+          projectStartDate: project?.startDate,
+          projectEndDate: project?.endDate,
+          projectContinuous: project?.continuous,
+          recurringType: recurringConfig?.recurringType
+        }
+      });
+      
+      // Log the full error for debugging
+      console.error('Recurring phase creation error:', error);
+      
       return {
         success: false,
         generatedCount: 0,
@@ -356,10 +418,107 @@ export class ProjectPhaseOrchestrator {
       };
 
     } catch (error) {
-      ErrorHandlingService.handle(error, { source: 'ProjectPhaseOrchestrator', action: 'Error in deleteRecurringPhases:' });
+      ErrorHandlingService.handle(error, { source: 'PhaseOrchestrator', action: 'Error in deleteRecurringPhases:' });
       return {
         success: false,
         deletedCount: 0,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
+
+  /**
+   * Create initial split phases for a project
+   * Divides project timeline at midpoint with equal budget allocation
+   * 
+   * Workflow:
+   * 1. Call domain rule to calculate phase split
+   * 2. Transform data for database
+   * 3. Insert phases to database
+   * 4. Coordinate post-creation actions
+   */
+  static async createSplitPhases(
+    projectId: string,
+    project: { startDate: Date; endDate: Date; estimatedHours: number },
+    options: MilestoneOrchestrationOptions = {}
+  ): Promise<{ success: boolean; phases?: PhaseDTO[]; error?: string }> {
+    try {
+      // DOMAIN RULE: Check mutual exclusivity before creating split phases
+      // Fetch existing phases to validate
+      const { data: existingPhases } = await supabase
+        .from('phases')
+        .select('*')
+        .eq('project_id', projectId);
+      
+      if (existingPhases && existingPhases.length > 0) {
+        const phaseDTOs = existingPhases.map(p => PhaseEntity.fromDatabase(p));
+        const validation = PhaseRules.checkPhaseRecurringExclusivity(phaseDTOs);
+        
+        if (validation.hasRecurringTemplate) {
+          return {
+            success: false,
+            error: 'Cannot create split phases: project has a recurring phase template. Delete it first.'
+          };
+        }
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      // DOMAIN RULE: Calculate phase split (pure domain logic)
+      const split = PhaseRules.calculatePhaseSplit(
+        project.startDate,
+        project.endDate,
+        project.estimatedHours
+      );
+
+      // Transform for database insertion
+      const phase1Data = {
+        name: split.phase1.name,
+        project_id: projectId,
+        user_id: user.id,
+        start_date: split.phase1.startDate.toISOString(),
+        end_date: split.phase1.endDate.toISOString(),
+        time_allocation: split.phase1.timeAllocation,
+        time_allocation_hours: split.phase1.timeAllocation,
+        is_recurring: false
+      };
+
+      const phase2Data = {
+        name: split.phase2.name,
+        project_id: projectId,
+        user_id: user.id,
+        start_date: split.phase2.startDate.toISOString(),
+        end_date: split.phase2.endDate.toISOString(),
+        time_allocation: split.phase2.timeAllocation,
+        time_allocation_hours: split.phase2.timeAllocation,
+        is_recurring: false
+      };
+
+      // Insert both phases to database
+      const { data: phases, error } = await supabase
+        .from('phases')
+        .insert([phase1Data, phase2Data])
+        .select();
+
+      if (error) throw error;
+
+      // Coordinate post-insertion actions
+      await this.coordinatePostInsertActions(projectId, 2, options);
+
+      return {
+        success: true,
+        phases: phases.map(p => PhaseEntity.fromDatabase(p))
+      };
+
+    } catch (error) {
+      ErrorHandlingService.handle(error, {
+        source: 'PhaseOrchestrator',
+        action: 'Error in createSplitPhases:',
+        metadata: { projectId }
+      });
+      return {
+        success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
       };
     }
@@ -437,7 +596,7 @@ export class ProjectPhaseOrchestrator {
       if (error) throw error;
     } catch (error) {
       if (!options.silent) {
-        ErrorHandlingService.handle(error, { source: 'ProjectPhaseOrchestrator', action: 'Error deleting milestone:' });
+        ErrorHandlingService.handle(error, { source: 'PhaseOrchestrator', action: 'Error deleting milestone:' });
       }
     }
   }
@@ -528,7 +687,7 @@ export class ProjectPhaseOrchestrator {
 
       return { success: true };
     } catch (error) {
-      ErrorHandlingService.handle(error, { source: 'ProjectPhaseOrchestrator', action: 'ProjectPhaseOrchestrator: Failed to update phase property:' });
+      ErrorHandlingService.handle(error, { source: 'PhaseOrchestrator', action: 'Failed to update phase property:' });
       return {
         success: false,
         error: 'Failed to update phase. Please try again.'
@@ -586,7 +745,7 @@ export class ProjectPhaseOrchestrator {
 
       return { success: true };
     } catch (error) {
-      ErrorHandlingService.handle(error, { source: 'ProjectPhaseOrchestrator', action: 'ProjectPhaseOrchestrator: Failed to update recurring milestone load:' });
+      ErrorHandlingService.handle(error, { source: 'PhaseOrchestrator', action: 'Failed to update recurring milestone load:' });
       return {
         success: false,
         error: 'Failed to update recurring phases'
@@ -686,7 +845,7 @@ export class ProjectPhaseOrchestrator {
 
       return { success: true };
     } catch (error) {
-      ErrorHandlingService.handle(error, { source: 'ProjectPhaseOrchestrator', action: 'ProjectPhaseOrchestrator: Failed to save new milestone:' });
+      ErrorHandlingService.handle(error, { source: 'PhaseOrchestrator', action: 'Failed to save new milestone:' });
       return {
         success: false,
         error: 'Failed to save phase. Please try again.'

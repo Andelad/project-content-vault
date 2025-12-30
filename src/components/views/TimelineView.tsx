@@ -701,7 +701,7 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
                     className="pointer-events-none absolute left-0 right-0 bottom-0"
                     style={{
                       height: '6px',
-                      zIndex: 80,
+                      zIndex: 45,
                       background: 'linear-gradient(to top, rgba(64,64,64,0.06) 0%, rgba(64,64,64,0.03) 25%, rgba(64,64,64,0.01) 70%, rgba(64,64,64,0) 100%)'
                     }}
                   />

@@ -8,7 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Calendar } from '../ui/calendar';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { StandardModal } from './StandardModal';
-import { HolidayModalOrchestrator } from '@/services/orchestrators/HolidayModalOrchestrator';
+import { HolidayOrchestrator } from '@/services/orchestrators/HolidayOrchestrator';
 
 interface HolidayModalProps {
   isOpen: boolean;
@@ -105,8 +105,8 @@ export function HolidayModal({ isOpen, onClose, holidayId, defaultStartDate, def
   const handleSave = async () => {
     if (!title.trim() || !startDate || !endDate) return;
 
-    // Delegate to HolidayModalOrchestrator (AI Rule: use existing orchestrator)
-    const orchestrator = new HolidayModalOrchestrator(holidays, holidayId);
+    // Delegate to HolidayOrchestrator (AI Rule: use existing orchestrator)
+    const orchestrator = new HolidayOrchestrator(holidays, holidayId);
     
     const formData = {
       title: title.trim(),

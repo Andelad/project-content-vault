@@ -17,7 +17,7 @@ export * from './EventClassificationRules'; // Pure domain event classification
 export * from './TimelineRules';            // Timeline View-specific display rules
 export * from './ClientRules';
 export * from './LabelRules';
-export * from './GroupRules';
+// GroupRules.ts deleted - Group entity self-validates (Phase 4 cleanup)
 export * from './CalendarEventRules';
 export * from './WorkSlotRules';
-export * from './HolidayRules';
+// HolidayRules.ts deleted - Holiday entity self-validates (Phase 4 cleanup)

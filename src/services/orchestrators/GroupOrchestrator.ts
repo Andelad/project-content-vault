@@ -81,29 +81,6 @@ export interface GroupValidationResult {
 export class GroupOrchestrator {
 
   /**
-   * Validate group creation
-   */
-  static validateGroupCreation(request: GroupCreationRequest): GroupValidationResult {
-    const errors: string[] = [];
-    const warnings: string[] = [];
-
-    // Business rule: Validate name requirements
-    if (!request.name || request.name.trim().length === 0) {
-      errors.push('Group name is required');
-    }
-
-    if (request.name && request.name.trim().length > 100) {
-      errors.push('Group name cannot exceed 100 characters');
-    }
-
-    return {
-      isValid: errors.length === 0,
-      errors,
-      warnings
-    };
-  }
-
-  /**
    * Validate group updates
    */
   static validateGroupUpdate(

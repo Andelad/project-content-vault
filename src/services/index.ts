@@ -25,8 +25,8 @@ export { UnifiedRRuleService, type RRuleConfig, type EventException } from './un
 // Export orchestrators
 export { ProjectOrchestrator } from './orchestrators/ProjectOrchestrator';
 export type { ProjectValidationResult, ProjectMilestoneAnalysis, ProjectCreationRequest, ProjectCreationResult, ProjectMilestone, ProjectCreationWithMilestonesRequest, ProjectUpdateRequest } from './orchestrators/ProjectOrchestrator';
-export * from './orchestrators/ProjectPhaseOrchestrator';
-export * from './orchestrators/EventModalOrchestrator';
+export * from './orchestrators/PhaseOrchestrator';
+export * from './orchestrators/CalendarEventOrchestrator';
 export * from './orchestrators/SettingsOrchestrator';
 export * from './orchestrators/GroupOrchestrator';
 export * from './orchestrators/PlannerViewOrchestrator';

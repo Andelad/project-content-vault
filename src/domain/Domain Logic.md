@@ -128,6 +128,14 @@ Instead of managing hundreds of tasks, users work with the big picture:
 
 **All core entities are implemented as rich domain objects** in `/src/domain/entities/`. These provide validation, business methods, and type safety.
 
+### Recurring phases (RRule-backed)
+
+- **Single template**: A recurring phase is stored as one template phase (`isRecurring=true`) with its RFC 5545 RRule saved in `recurring_config.rrule`; we no longer create numbered instances.
+- **Continuous projects**: Manual phases are blocked; continuous projects use recurring templates only. Occurrences are generated on-the-fly from the RRule.
+- **Work interval per occurrence**: Each anchor defines a work period from the anchor day (inclusive) to the day **before** the next anchor (inclusive); weekly rules yield a 7-day window. The phase `timeAllocationHours` is distributed across the working days in that interval—no cross-occurrence redistribution.
+- **Generation window**: RRule generation is viewport/rolling-window scoped (continuous projects use a rolling window around “now” to avoid thousands of dates while still showing upcoming anchors).
+- **Validation**: Recurring configs follow the same validity checks as events (type-specific fields, interval ≥ 1, weekly day/monthly pattern rules).
+
 ### Quick Usage Pattern
 
 ```typescript
@@ -1316,5 +1324,5 @@ Consolidated validation rules across all entities.
 ## 📚 RELATED DOCUMENTS
 
 - **Rules Logic** (`Rules Logic.md`) - Detailed business rules, edge cases, state transitions, calculations
-- **Architecture Guide** (`/.architecture.md`) - Technical implementation, code structure, data flow
+- **Architecture Guide** (`/.architecture`) - Technical implementation, code structure, data flow
 - **User Guide** (`/docs/user/User Guide.md`) - End-user documentation
