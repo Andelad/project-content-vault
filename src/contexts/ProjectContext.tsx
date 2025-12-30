@@ -350,17 +350,20 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       throw new Error('Milestone due date is required.');
     }
 
+    const dueDateIso = dueDateSource instanceof Date ? dueDateSource.toISOString() : dueDateSource;
+    const startDateIso = phase.startDate 
+      ? (phase.startDate instanceof Date ? phase.startDate.toISOString() : phase.startDate)
+      : dueDateIso; // Default start_date to due_date if not provided
+
     const payload: Omit<SupabaseMilestoneInsert, 'user_id'> = {
       name: phase.name,
       project_id: phase.projectId,
-      due_date: dueDateSource instanceof Date ? dueDateSource.toISOString() : dueDateSource,
+      due_date: dueDateIso,
+      end_date: dueDateIso, // end_date mirrors due_date for phase concept
+      start_date: startDateIso,
       time_allocation: phase.timeAllocation,
       time_allocation_hours: phase.timeAllocationHours ?? phase.timeAllocation,
     };
-
-    if (phase.startDate !== undefined) {
-      payload.start_date = phase.startDate instanceof Date ? phase.startDate.toISOString() : phase.startDate;
-    }
 
     if (phase.isRecurring !== undefined) {
       payload.is_recurring = phase.isRecurring;

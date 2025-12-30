@@ -91,20 +91,21 @@ export function usePhases(projectId?: string) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
       
+      const dueDateIso = toIsoString(milestoneData.dueDate ?? milestoneData.due_date);
+      const startDateValue = milestoneData.startDate || milestoneData.start_date;
+      const startDateIso = startDateValue ? toIsoString(startDateValue) : dueDateIso;
+      
       // Transform camelCase to snake_case for database insertion
       const dbMilestoneData: MilestoneInsert = {
         user_id: user.id,
         name: milestoneData.name,
         project_id: milestoneData.projectId ?? milestoneData.project_id,
-        due_date: toIsoString(milestoneData.dueDate ?? milestoneData.due_date),
+        due_date: dueDateIso,
+        end_date: dueDateIso, // end_date mirrors due_date for phase concept
+        start_date: startDateIso,
         time_allocation: milestoneData.timeAllocation ?? milestoneData.time_allocation,
         time_allocation_hours: milestoneData.timeAllocationHours ?? milestoneData.timeAllocation ?? milestoneData.time_allocation,
       };
-      // Add optional fields if provided
-      if (milestoneData.startDate || milestoneData.start_date) {
-        const startDateValue = milestoneData.startDate || milestoneData.start_date;
-        dbMilestoneData.start_date = toIsoString(startDateValue);
-      }
       if (milestoneData.isRecurring !== undefined || milestoneData.is_recurring !== undefined) {
         dbMilestoneData.is_recurring = milestoneData.isRecurring ?? milestoneData.is_recurring;
       }

@@ -268,7 +268,8 @@ export class ProjectPhaseOrchestrator {
         
         // Use project start as the template due_date (not really used for rendering)
         due_date: new Date(project.startDate).toISOString(),
-        start_date: new Date(project.startDate).toISOString()
+        start_date: new Date(project.startDate).toISOString(),
+        end_date: new Date(project.startDate).toISOString() // end_date mirrors due_date
       };
 
       // Insert the template milestone
