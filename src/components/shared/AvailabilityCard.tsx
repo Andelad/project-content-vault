@@ -64,7 +64,7 @@ export const AvailabilityCard = memo(function AvailabilityCard({
   scrollbarWidth = 0,
   phases = []
 }: AvailabilityCardProps) {
-  const [activeTab, setActiveTab] = useState<'time-spent' | 'availability-graph' | 'availability-graph-2'>('availability-graph');
+  const [activeTab, setActiveTab] = useState<'time-spent' | 'availability-graph' | 'availability-graph-2'>('availability-graph-2');
   const [hoveredColumnIndex, setHoveredColumnIndex] = useState<number | null>(null);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   
@@ -809,14 +809,14 @@ export const AvailabilityCard = memo(function AvailabilityCard({
       {/* Tabs Container */}
       <div className="flex items-end">
         <TabComponent
-          label="Availability"
-          isActive={activeTab === 'availability-graph'}
-          onClick={() => setActiveTab('availability-graph')}
-        />
-        <TabComponent
           label="Availability 2"
           isActive={activeTab === 'availability-graph-2'}
           onClick={() => setActiveTab('availability-graph-2')}
+        />
+        <TabComponent
+          label="Availability"
+          isActive={activeTab === 'availability-graph'}
+          onClick={() => setActiveTab('availability-graph')}
         />
         <TabComponent
           label="Time Spent"
