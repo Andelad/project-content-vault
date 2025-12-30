@@ -9,6 +9,7 @@
 import { Holiday } from '@/types/core';
 import { addDaysToDate } from '../calculations/general/dateCalculations';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import { Holiday as HolidayEntity } from '@/domain/entities/Holiday';
 
 export interface HolidayFormData {
   title: string;
@@ -111,34 +112,48 @@ export class HolidayModalOrchestrator {
     addHoliday: (holidayData: Omit<Holiday, 'id'>) => void
   ): Promise<HolidayModalResult> {
     try {
-      const validation = this.validateHolidayData(formData);
-      
-      if (!validation.isValid) {
-        if (validation.hasOverlaps && validation.adjustedDates) {
-          // Return adjusted dates for user confirmation
-          return {
-            success: false,
-            needsUserConfirmation: true,
-            adjustedDates: {
-              startDate: validation.adjustedDates.startDate,
-              endDate: validation.adjustedDates.endDate,
-              message: this.generateOverlapMessage(validation.overlappingHolidays!, validation.adjustedDates.adjustmentMessage)
-            }
-          };
-        }
-        
+      // Use Holiday entity for validation
+      const entityResult = HolidayEntity.create({
+        title: formData.title,
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        notes: formData.notes,
+        userId: '' // Will be set by addHoliday
+      });
+
+      if (!entityResult.success) {
         return {
           success: false,
-          error: validation.error
+          error: entityResult.errors?.join(', ')
         };
       }
 
+      // Check for overlaps (orchestrator responsibility per entity design)
+      const validation = this.validateHolidayData(formData);
+      
+      if (validation.hasOverlaps && validation.adjustedDates) {
+        // Return adjusted dates for user confirmation
+        return {
+          success: false,
+          needsUserConfirmation: true,
+          adjustedDates: {
+            startDate: validation.adjustedDates.startDate,
+            endDate: validation.adjustedDates.endDate,
+            message: this.generateOverlapMessage(validation.overlappingHolidays!, validation.adjustedDates.adjustmentMessage)
+          }
+        };
+      }
+
+      // Extract validated data from entity
+      const holidayEntity = entityResult.data!;
+      const validatedData = holidayEntity.toData();
+
       // Create holiday data
       const holidayData = {
-        title: formData.title.trim(),
-        startDate: formData.startDate,
-        endDate: formData.endDate,
-        notes: formData.notes.trim()
+        title: validatedData.title,
+        startDate: validatedData.startDate,
+        endDate: validatedData.endDate,
+        notes: validatedData.notes
       };
 
       addHoliday(holidayData);

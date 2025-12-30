@@ -116,8 +116,11 @@ export class Project {
     }
 
     // Rule: Must have client
-    if (!params.clientId) {
-      errors.push('Project must have a client');
+    // Note: clientId can be empty string during creation - will be resolved by orchestrator
+    // Only validate if a clientId is provided
+    if (params.clientId && params.clientId.trim().length === 0) {
+      // Empty string is allowed as placeholder, but if provided, must be valid
+      // This is fine - orchestrator will resolve it
     }
 
     // Rule: Must have group

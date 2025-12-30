@@ -11,6 +11,7 @@ import { Client, ClientStatus } from '@/types/core';
 import { ClientRules } from '@/domain/rules/ClientRules';
 import { supabase } from '@/integrations/supabase/client';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import { Client as ClientEntity } from '@/domain/entities/Client';
 
 export interface ClientValidationResult {
   isValid: boolean;
@@ -94,15 +95,6 @@ export class ClientOrchestrator {
     clientData: Partial<Client>
   ): Promise<ClientCreationResult> {
     try {
-      // Validate client data
-      const validation = ClientRules.validateClient(clientData);
-      if (!validation.isValid) {
-        return {
-          success: false,
-          errors: validation.errors
-        };
-      }
-
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         return {
@@ -111,16 +103,53 @@ export class ClientOrchestrator {
         };
       }
 
+      // Fetch existing clients for duplicate name validation
+      const existingClients = await this.getAllClients();
+
+      // Use Client entity for validation
+      const entityResult = ClientEntity.create({
+        name: clientData.name || '',
+        userId: user.id,
+        status: (clientData.status as ClientStatus) || 'active',
+        contactEmail: clientData.contactEmail,
+        contactPhone: clientData.contactPhone,
+        billingAddress: clientData.billingAddress,
+        notes: clientData.notes,
+        existingClients: existingClients.map(c => ({
+          id: c.id,
+          userId: c.userId,
+          name: c.name,
+          status: c.status,
+          contactEmail: c.contactEmail,
+          contactPhone: c.contactPhone,
+          billingAddress: c.billingAddress,
+          notes: c.notes,
+          createdAt: c.createdAt,
+          updatedAt: c.updatedAt
+        }))
+      });
+
+      if (!entityResult.success) {
+        return {
+          success: false,
+          errors: entityResult.errors
+        };
+      }
+
+      // Extract validated data from entity
+      const clientEntity = entityResult.data!;
+      const validatedData = clientEntity.toData();
+
       const { data, error } = await supabase
         .from('clients')
         .insert([{
-          user_id: user.id,
-          name: clientData.name!,
-          status: clientData.status || 'active',
-          contact_email: clientData.contactEmail,
-          contact_phone: clientData.contactPhone,
-          billing_address: clientData.billingAddress,
-          notes: clientData.notes,
+          user_id: validatedData.userId,
+          name: validatedData.name,
+          status: validatedData.status,
+          contact_email: validatedData.contactEmail,
+          contact_phone: validatedData.contactPhone,
+          billing_address: validatedData.billingAddress,
+          notes: validatedData.notes,
         }])
         .select()
         .single();

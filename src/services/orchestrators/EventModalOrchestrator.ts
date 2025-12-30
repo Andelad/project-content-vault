@@ -8,6 +8,7 @@
 
 import { CalendarEvent } from '@/types/core';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import { CalendarEvent as CalendarEventEntity } from '@/domain/entities/CalendarEvent';
 
 export interface EventFormData {
   description: string;
@@ -155,7 +156,7 @@ export class EventModalOrchestrator {
     addEvent: (eventData: Omit<CalendarEvent, 'id'>) => Promise<void>
   ): Promise<EventModalWorkflowResult> {
     try {
-      // Validate form
+      // Validate form first (UI-level validation)
       const errors = this.validateEventForm(formData);
       if (Object.keys(errors).length > 0) {
         return { success: false, errors };
@@ -164,9 +165,26 @@ export class EventModalOrchestrator {
       // Transform form data to event data
       const eventData = this.transformFormToEventData(formData);
 
-      // For basic event validation, we'll skip the full context validation
-      // and rely on form validation. Full validation would require context setup.
-      // TODO: Add full context validation if needed
+      // Use CalendarEvent entity for validation
+      const entityResult = CalendarEventEntity.create({
+        title: eventData.title,
+        startTime: eventData.startTime,
+        endTime: eventData.endTime,
+        projectId: eventData.projectId,
+        color: eventData.color,
+        completed: eventData.completed,
+        description: eventData.description,
+        category: eventData.category,
+        rrule: eventData.recurring ? undefined : undefined, // TODO: Convert recurring to rrule
+        recurring: eventData.recurring
+      });
+
+      if (!entityResult.success) {
+        return { 
+          success: false, 
+          errors: { submit: entityResult.errors?.join(', ') }
+        };
+      }
 
       // Pass the camelCase eventData directly to PlannerContext's addEvent
       // PlannerContext will handle the transformation to database format

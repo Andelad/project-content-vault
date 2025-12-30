@@ -59,7 +59,12 @@ export function ClientModal({ isOpen, onClose, clientId }: ClientModalProps) {
     setIsSubmitting(true);
     try {
       if (isCreating) {
-        await addClient({ name: localName.trim() });
+        const createdClient = await addClient({ name: localName.trim() });
+        if (!createdClient) {
+          // Validation failed - error toast already shown by useClients
+          setIsSubmitting(false);
+          return;
+        }
         toast({
           title: "Success",
           description: "Client created successfully"

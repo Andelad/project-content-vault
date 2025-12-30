@@ -4,6 +4,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { Database, Json } from '@/integrations/supabase/types';
 import type { PhaseDTO } from '@/types/core';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import { Phase as PhaseEntity } from '@/domain/entities/Phase';
 // Note: Database types still use 'milestones' key but table is now 'phases'
 // TODO: After types regenerate, update to use 'phases' key
 type Milestone = Database['public']['Tables']['phases']['Row'];
@@ -89,6 +90,7 @@ export function usePhases(projectId?: string) {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
+      
       // Transform camelCase to snake_case for database insertion
       const dbMilestoneData: MilestoneInsert = {
         user_id: user.id,

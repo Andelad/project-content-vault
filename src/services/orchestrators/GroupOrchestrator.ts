@@ -15,6 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 import { calculateGroupStatistics } from '@/services/calculations';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import { Group as GroupEntity } from '@/domain/entities/Group';
 
 type GroupRow = Database['public']['Tables']['groups']['Row'];
 type GroupInsert = Database['public']['Tables']['groups']['Insert'];
@@ -181,22 +182,26 @@ export class GroupOrchestrator {
     userId: string
   ): Promise<GroupOperationResult> {
     try {
-      // Step 1: Validate inputs
-      const validation = this.validateGroupCreation(request);
-      if (!validation.isValid) {
+      // Step 1: Use Group entity for validation (except uniqueness)
+      const entityResult = GroupEntity.create({
+        name: request.name,
+        userId: userId
+      });
+
+      if (!entityResult.success) {
         return {
           success: false,
-          errors: validation.errors,
-          warnings: validation.warnings
+          errors: entityResult.errors,
+          warnings: entityResult.warnings
         };
       }
 
-      // Step 2: Check name uniqueness (inline database check)
+      // Step 2: Check name uniqueness (orchestrator responsibility per entity design)
       const { data: existingGroups, error: checkError } = await supabase
         .from('groups')
         .select('id')
         .eq('user_id', userId)
-        .eq('name', request.name.trim());
+        .ilike('name', request.name.trim()); // Case-insensitive
 
       if (checkError) throw checkError;
       
@@ -204,20 +209,20 @@ export class GroupOrchestrator {
         return {
           success: false,
           errors: ['A group with this name already exists'],
-          warnings: validation.warnings
+          warnings: entityResult.warnings
         };
       }
 
-      // Step 3: Prepare group data following AI Development Rules
-      const preparedGroup = this.prepareGroupForCreation(request);
+      // Step 3: Extract validated data from entity
+      const groupEntity = entityResult.data!;
+      const validatedData = groupEntity.toData();
 
       // Step 4: Create group (direct database call)
-      const groupToCreate: Omit<Group, 'id' | 'createdAt' | 'updatedAt'> = {
-        name: preparedGroup.name,
-        userId: userId
-      };
+      const dbData = transformToDatabase({
+        name: validatedData.name,
+        userId: validatedData.userId
+      });
       
-      const dbData = transformToDatabase(groupToCreate);
       const { data: createdData, error: createError } = await supabase
         .from('groups')
         .insert(dbData)
@@ -237,7 +242,7 @@ export class GroupOrchestrator {
       return {
         success: true,
         group: createdGroup,
-        warnings: validation.warnings,
+        warnings: entityResult.warnings,
         metadata: {
           fromCache: false,
           offlineMode: false,
