@@ -21,6 +21,7 @@ export interface DomainResult<T> {
   success: boolean;
   data?: T;
   errors?: string[];
+  warnings?: string[];
 }
 
 /**
@@ -28,7 +29,7 @@ export interface DomainResult<T> {
  */
 export interface CreateProjectParams {
   name: string;
-  clientId: string;
+  clientId: string; // UUID of existing client (orchestrators must resolve client name → clientId first)
   startDate: Date;
   endDate?: Date; // Required for time-limited, null for continuous
   estimatedHours: number;
@@ -39,6 +40,7 @@ export interface CreateProjectParams {
   notes?: string;
   icon?: string;
   userId: string;
+  existingPhases?: Phase[]; // Optional: for validating project not fully in past
 }
 
 /**
@@ -104,6 +106,7 @@ export class Project {
    */
   static create(params: CreateProjectParams): DomainResult<Project> {
     const errors: string[] = [];
+    const warnings: string[] = [];
 
     // Rule: Name required (1-100 characters)
     if (!params.name || params.name.trim().length === 0) {
@@ -132,6 +135,11 @@ export class Project {
       errors.push('Estimated hours must be 0 or greater');
     }
 
+    // Rule: Large hours warning (matches orchestrator)
+    if (params.estimatedHours > 10000) {
+      warnings.push('Project estimated hours is very large (>10,000 hours)');
+    }
+
     // Rule: Time-limited projects must have end date after start date
     if (!params.continuous) {
       if (!params.endDate) {
@@ -146,8 +154,45 @@ export class Project {
       errors.push('Continuous projects should not have an end date');
     }
 
+    // Rule: Projects with estimated hours cannot be fully in the past (matches orchestrator)
+    if (params.estimatedHours > 0 && params.startDate && !errors.length) {
+      // Create temporary project data for validation
+      const tempProjectData: ProjectData = {
+        id: 'temp',
+        name: params.name,
+        client: '', // Deprecated field
+        clientId: params.clientId,
+        startDate: params.startDate,
+        endDate: params.continuous ? new Date() : (params.endDate || new Date()),
+        estimatedHours: params.estimatedHours,
+        groupId: params.groupId,
+        color: params.color,
+        continuous: params.continuous ?? false,
+        status: params.status ?? 'current',
+        notes: params.notes,
+        icon: params.icon ?? 'folder',
+        userId: params.userId,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        phases: []
+      };
+
+      const pastValidation = ProjectRules.validateProjectNotFullyInPast(
+        tempProjectData,
+        params.existingPhases || []
+      );
+
+      if (!pastValidation.isValid) {
+        errors.push(...pastValidation.errors);
+      }
+    }
+
     if (errors.length > 0) {
-      return { success: false, errors };
+      return { 
+        success: false, 
+        errors,
+        warnings: warnings.length > 0 ? warnings : undefined
+      };
     }
 
     // Construct with valid data
@@ -173,6 +218,7 @@ export class Project {
     return {
       success: true,
       data: new Project(projectData),
+      warnings: warnings.length > 0 ? warnings : undefined
     };
   }
 

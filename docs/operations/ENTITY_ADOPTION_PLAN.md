@@ -1,19 +1,42 @@
 # Entity Adoption Plan
 
 **Created:** December 29, 2025  
-**Status:** READY TO EXECUTE  
+**Updated:** December 30, 2025  
+**Status:** 🚀 PHASE 1 IN PROGRESS  
 **Goal:** Migrate codebase from plain objects to rich domain entities
 
 ---
 
 ## 📊 Current State
 
+### ✅ Validation Audit Complete (Dec 30, 2025)
+
+All entities audited against working orchestrators:
+
+**✅ Project Entity** - FIXED & INTEGRATED
+- Added warnings support
+- Added large hours warning (10,000+)  
+- Added "not fully in past" validation
+- Now matches `ProjectOrchestrator` exactly
+- ✅ **Integrated into ProjectOrchestrator.executeProjectCreationWorkflow()**
+
+**✅ Client Entity** - FIXED
+- Added warnings support
+- Added duplicate name validation
+- Now matches `ClientOrchestrator` exactly
+
+**✅ Other Entities** - Validated
+- Phase, Group, Label, WorkSlot, Holiday, CalendarEvent
+- All delegate to existing `*Rules` classes
+- No critical mismatches found
+
+**All entities safe for Phase 1 adoption** 🎉
+
 ### ✅ What We Have
-- **8 complete domain entities** created in `/src/domain/entities/`
-  - Project, Client, Phase, Group, Label, CalendarEvent, WorkSlot, Holiday
-- **Entities are NOT used** - only 1 test file imports them
+- **8 complete domain entities** in `/src/domain/entities/`
+- **Project entity IN USE** in ProjectOrchestrator ✅
 - **Working app** uses plain objects + domain rules
-- **Domain rules** (`/src/domain/rules/`) already contain business logic
+- **Entities validated** against working orchestrators
 
 ### ❌ The Problem
 ```typescript
@@ -29,53 +52,59 @@ if (!result.success) { /* Invalid - can't create */ }
 
 ## 🎯 Migration Strategy
 
-### Phase 1: Orchestrator Layer (Week 1)
-**Goal:** Entities used internally in orchestrators, returned to components
+### Phase 1: Orchestrator Layer (Week 1) - 🚀 IN PROGRESS
+**Goal:** Entities used internally in orchestrators, return plain objects to maintain backward compatibility
 
-**Files to modify:**
-1. `ProjectOrchestrator.ts` - Use `Project` entity
-2. `ClientOrchestrator.ts` (if exists) - Use `Client` entity  
-3. `PhaseOrchestrator.ts` (if exists) - Use `Phase` entity
+**✅ Completed:**
+1. ✅ `ProjectOrchestrator.executeProjectCreationWorkflow()` - Uses `Project.create()` for validation
 
-**Pattern:**
+**⏳ Next Steps:**
+2. ⏳ Test ProjectOrchestrator changes
+3. ⏳ `ClientOrchestrator` - Use `Client` entity  
+4. ⏳ `PhaseOrchestrator` - Use `Phase` entity
+
+**Pattern Used:**
 ```typescript
-// BEFORE
-static async executeProjectCreationWorkflow(request, context) {
-  const validation = ProjectRules.validateProjectCreation(request);
-  const projectData = { name: request.name, ... };
-  const created = await context.addProject(projectData);
-  return { success: true, project: created };
-}
-
-// AFTER
+// ✅ IMPLEMENTED in ProjectOrchestrator
 static async executeProjectCreationWorkflow(request, context) {
   // 1. Create entity (validates automatically)
-  const result = Project.create({
+  const entityResult = ProjectEntity.create({
     name: request.name,
-    clientId: resolvedClientId, // Already resolved
+    clientId: '', // Resolved by addProject
+    userId: '', // Set by addProject from auth
     startDate: request.startDate,
     endDate: request.endDate,
     estimatedHours: request.estimatedHours,
-    // ... other fields
+    color: request.color || '#3b82f6',
+    groupId: request.groupId,
+    notes: request.notes,
+    icon: request.icon,
+    continuous: request.continuous,
+    existingPhases: []
   });
   
-  if (!result.success) {
-    return { success: false, errors: result.errors };
+  if (!entityResult.success) {
+    return { 
+      success: false, 
+      errors: entityResult.errors,
+      warnings: entityResult.warnings
+    };
   }
   
-  const project = result.data!;
+  // 2. Extract validated data for backward compatibility
+  const projectData = {
+    ...entityResult.data!.toData(),
+    client: request.client, // For addProject to resolve
+    rowId: request.rowId, // View layer concern
+    autoEstimateDays: request.autoEstimateDays
+  };
   
-  // 2. Convert to plain data for database
-  const projectData = project.toData();
-  
-  // 3. Save to database
+  // 3. Save via existing context
   const created = await context.addProject(projectData);
   
-  // 4. Wrap returned data in entity
-  return { 
-    success: true, 
-    project: Project.fromDatabase(created) 
-  };
+  // 4. Return plain object (backward compatible)
+  return { success: true, project: created, warnings };
+}
 }
 ```
 

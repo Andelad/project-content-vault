@@ -25,6 +25,7 @@ export interface CreateClientParams {
   billingAddress?: string;
   notes?: string;
   userId: string;
+  existingClients?: ClientData[]; // Optional: for duplicate name validation
 }
 
 /**
@@ -89,24 +90,45 @@ export class Client {
    */
   static create(params: CreateClientParams): DomainResult<Client> {
     const errors: string[] = [];
+    const warnings: string[] = [];
 
     // RULE 1: Client name must be valid
     if (!ClientRules.validateClientName(params.name)) {
       errors.push('Client name must be between 1 and 100 characters');
     }
 
-    // RULE 2: Email must be valid format (if provided)
+    // RULE 2: Check for duplicate names (matches orchestrator behavior)
+    if (params.name && params.existingClients) {
+      const { available, conflictingClient } = ClientRules.isClientNameAvailable(
+        params.name,
+        params.existingClients,
+        undefined // New client, no existing ID
+      );
+      
+      if (!available && conflictingClient) {
+        errors.push(
+          `A client named "${conflictingClient.name}" already exists. ` +
+          `Client names must be unique (case-insensitive).`
+        );
+      }
+    }
+
+    // RULE 3: Email must be valid format (if provided)
     if (params.contactEmail && !ClientRules.validateClientEmail(params.contactEmail)) {
       errors.push('Contact email must be a valid email address');
     }
 
-    // RULE 3: Phone must be valid format (if provided)
+    // RULE 4: Phone must be valid format (if provided)
     if (params.contactPhone && !ClientRules.validateClientPhone(params.contactPhone)) {
       errors.push('Contact phone must contain only valid characters (digits, spaces, hyphens, parentheses, plus)');
     }
 
     if (errors.length > 0) {
-      return { success: false, errors };
+      return { 
+        success: false, 
+        errors,
+        warnings: warnings.length > 0 ? warnings : undefined
+      };
     }
 
     const clientData: ClientData = {
@@ -124,7 +146,8 @@ export class Client {
 
     return {
       success: true,
-      data: new Client(clientData)
+      data: new Client(clientData),
+      warnings: warnings.length > 0 ? warnings : undefined
     };
   }
 

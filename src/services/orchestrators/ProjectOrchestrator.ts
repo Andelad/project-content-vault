@@ -18,6 +18,7 @@ import { ProjectRules } from '@/domain/rules/ProjectRules';
 import { PhaseRules } from '@/domain/rules/PhaseRules';
 import { getDateKey } from '@/utils/dateFormatUtils';
 import { calculateBudgetAdjustment } from '@/services/calculations';
+import { Project as ProjectEntity } from '@/domain/entities/Project';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 import { supabase } from '@/integrations/supabase/client';
 import { normalizeProjectColor } from '@/utils/normalizeProjectColor';
@@ -510,16 +511,8 @@ export class ProjectOrchestrator {
           client: request.client
         }
       });
-      // Step 1: Validate inputs
-      const validation = this.validateProjectCreation(request);
-      if (!validation.isValid) {
-        console.error('❌ ProjectOrchestrator: Validation failed:', validation.errors);
-        return {
-          success: false,
-          errors: validation.errors,
-          warnings: validation.warnings
-        };
-      }
+
+      // Validate groupId requirement
       if (!request.groupId || request.groupId === '') {
         ErrorHandlingService.handle('❌ ProjectOrchestrator: Missing groupId', { source: 'ProjectOrchestrator' });
         return {
@@ -527,24 +520,40 @@ export class ProjectOrchestrator {
           errors: ['Group ID is required for project creation']
         };
       }
-      // Note: rowId is optional (deprecated in Phase 5B)
-      // Projects can be created without a specific row assignment
-      // Step 2: Prepare project data following AI Development Rules
-      const preparedProject = this.prepareProjectForCreation(request);
-      // Provide defaults following the component logic
+
+      // Step 1: Use Project entity for validation and creation
+      // Note: Entity requires userId and clientId which addProject will resolve
+      const entityResult = ProjectEntity.create({
+        name: request.name,
+        clientId: '', // Will be resolved by ensureClientExists in addProject
+        userId: '', // Will be set by addProject from auth context
+        startDate: request.startDate,
+        endDate: request.endDate,
+        estimatedHours: request.estimatedHours,
+        color: request.color || '#3b82f6',
+        groupId: request.groupId,
+        notes: request.notes,
+        icon: request.icon,
+        continuous: request.continuous,
+        existingPhases: [] // Phases will be created after project
+      });
+
+      if (!entityResult.success) {
+        console.error('❌ ProjectOrchestrator: Entity validation failed:', entityResult.errors);
+        return {
+          success: false,
+          errors: entityResult.errors,
+          warnings: entityResult.warnings
+        };
+      }
+
+      // Step 2: Extract validated data from entity for backward compatibility
+      const projectEntity = entityResult.data!;
       const projectData = {
-        name: preparedProject.name || 'New Project',
-        client: preparedProject.client || 'N/A',
-        startDate: preparedProject.startDate,
-        endDate: preparedProject.endDate,
-        estimatedHours: preparedProject.estimatedHours,
-        groupId: preparedProject.groupId,
-        rowId: preparedProject.rowId,
-        color: preparedProject.color,
-        notes: preparedProject.notes,
-        icon: preparedProject.icon,
-        continuous: preparedProject.continuous,
-        autoEstimateDays: preparedProject.autoEstimateDays
+        ...projectEntity.toData(),
+        client: request.client, // Restore client name for addProject to resolve
+        rowId: request.rowId, // View layer concern (deprecated but still used)
+        autoEstimateDays: request.autoEstimateDays // Not in entity, but used by addProject
       };
       // Step 3: Create project via context (delegates to existing project creation logic)
       let createdProject: Project;
@@ -576,7 +585,7 @@ export class ProjectOrchestrator {
         };
       }
       // Step 4: Apply Phase Time Domain Rules auto-adjustments
-      const warnings: string[] = validation.warnings || [];
+      const warnings: string[] = entityResult.warnings || [];
       if (request.phases && request.phases.length > 0) {
         const phases = request.phases.filter(p => p.endDate !== undefined);
         if (phases.length > 0) {
