@@ -39,7 +39,7 @@ export function usePhases(projectId?: string) {
         .from('phases')
         .select('*')
         .eq('project_id', targetProjectId)
-        .order('due_date', { ascending: true });
+        .order('end_date', { ascending: true });
       if (error) throw error;
       setPhases(data || []);
     } catch (error) {
@@ -58,7 +58,7 @@ export function usePhases(projectId?: string) {
       const { data, error } = await supabase
         .from('phases')
         .select('*')
-        .order('due_date', { ascending: true });
+        .order('end_date', { ascending: true });
       if (error) throw error;
       setPhases(data || []);
     } catch (error) {
@@ -91,18 +91,17 @@ export function usePhases(projectId?: string) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
       
-      const dueDateIso = toIsoString(milestoneData.dueDate ?? milestoneData.due_date);
+      const endDateIso = toIsoString(milestoneData.dueDate);
       const startDateValue = milestoneData.startDate || milestoneData.start_date;
-      const startDateIso = startDateValue ? toIsoString(startDateValue) : dueDateIso;
+      const startDateIso = startDateValue ? toIsoString(startDateValue) : endDateIso;
       
       // Transform camelCase to snake_case for database insertion
       const dbMilestoneData: MilestoneInsert = {
         user_id: user.id,
         name: milestoneData.name,
         project_id: milestoneData.projectId ?? milestoneData.project_id,
-        due_date: dueDateIso,
-        end_date: dueDateIso, // end_date mirrors due_date for phase concept
-        start_date: startDateIso,
+        end_date: endDateIso!,
+        start_date: startDateIso!,
         time_allocation: milestoneData.timeAllocation ?? milestoneData.time_allocation,
         time_allocation_hours: milestoneData.timeAllocationHours ?? milestoneData.timeAllocation ?? milestoneData.time_allocation,
       };
@@ -121,8 +120,8 @@ export function usePhases(projectId?: string) {
         ErrorHandlingService.handle(error, { source: 'useMilestones', action: '[useMilestones] Database error:' });
         throw error;
       }
-      // Insert locally and sort by due_date
-      setPhases(prev => [...prev, data].sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime()));
+      // Insert locally and sort by end_date
+      setPhases(prev => [...prev, data].sort((a, b) => new Date(a.end_date).getTime() - new Date(b.end_date).getTime()));
       // Only show toast if not in silent mode
       if (!options.silent) {
         toast({
@@ -153,7 +152,7 @@ export function usePhases(projectId?: string) {
       if (error) throw error;
       setPhases(prev => prev.map(phase => 
         phase.id === id ? data : phase
-      ).sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime()));
+      ).sort((a, b) => new Date(a.end_date).getTime() - new Date(b.end_date).getTime()));
   // Only show toast if not in silent mode
       if (!options.silent) {
         // Debounce success toast

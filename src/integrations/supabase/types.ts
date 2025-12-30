@@ -493,7 +493,6 @@ export type Database = {
       phases: {
         Row: {
           created_at: string
-          due_date: string
           end_date: string
           id: string
           is_recurring: boolean | null
@@ -508,7 +507,6 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          due_date: string
           end_date: string
           id?: string
           is_recurring?: boolean | null
@@ -523,7 +521,6 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          due_date?: string
           end_date?: string
           id?: string
           is_recurring?: boolean | null

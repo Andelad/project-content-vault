@@ -197,9 +197,9 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         id: phase.id,
         name: phase.name,
         projectId: phase.project_id,
-        dueDate: new Date(phase.due_date),
+        dueDate: new Date(phase.end_date),
         timeAllocation: phase.time_allocation,
-        endDate: new Date(phase.due_date),
+        endDate: new Date(phase.end_date),
         timeAllocationHours: phase.time_allocation_hours ?? phase.time_allocation,
         startDate: phase.start_date ? new Date(phase.start_date) : undefined,
         isRecurring: phase.is_recurring ?? false,
@@ -210,7 +210,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         createdAt: phase.created_at ? new Date(phase.created_at) : new Date(),
         updatedAt: phase.updated_at ? new Date(phase.updated_at) : new Date(),
       }))
-      .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+      .sort((a, b) => a.endDate.getTime() - b.endDate.getTime());
   }, [dbMilestones]);
 
   const processedGroups = useMemo<ProjectGroup[]>(() => {
@@ -350,16 +350,15 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       throw new Error('Milestone due date is required.');
     }
 
-    const dueDateIso = dueDateSource instanceof Date ? dueDateSource.toISOString() : dueDateSource;
+    const endDateIso = dueDateSource instanceof Date ? dueDateSource.toISOString() : dueDateSource;
     const startDateIso = phase.startDate 
       ? (phase.startDate instanceof Date ? phase.startDate.toISOString() : phase.startDate)
-      : dueDateIso; // Default start_date to due_date if not provided
+      : endDateIso; // Default start_date to end_date if not provided
 
     const payload: Omit<SupabaseMilestoneInsert, 'user_id'> = {
       name: phase.name,
       project_id: phase.projectId,
-      due_date: dueDateIso,
-      end_date: dueDateIso, // end_date mirrors due_date for phase concept
+      end_date: endDateIso,
       start_date: startDateIso,
       time_allocation: phase.timeAllocation,
       time_allocation_hours: phase.timeAllocationHours ?? phase.timeAllocation,
@@ -382,11 +381,11 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         id: result.id,
         name: result.name,
         projectId: result.project_id,
-        endDate: new Date(result.due_date),
-        dueDate: new Date(result.due_date),
+        endDate: new Date(result.end_date),
+        dueDate: new Date(result.end_date),
         timeAllocation: result.time_allocation,
         timeAllocationHours: result.time_allocation_hours ?? result.time_allocation,
-        startDate: result.start_date ? new Date(result.start_date) : new Date(result.due_date),
+        startDate: result.start_date ? new Date(result.start_date) : new Date(result.end_date),
         isRecurring: result.is_recurring ?? false,
         recurringConfig: (result.recurring_config as unknown) as import('@/types/core').RecurringConfig | undefined,
         userId: result.user_id,
@@ -415,11 +414,11 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (updates.dueDate !== undefined) {
-      dbUpdates.due_date = updates.dueDate instanceof Date ? updates.dueDate.toISOString() : updates.dueDate;
+      dbUpdates.end_date = updates.dueDate instanceof Date ? updates.dueDate.toISOString() : updates.dueDate;
     }
 
     if (updates.endDate !== undefined) {
-      dbUpdates.due_date = updates.endDate instanceof Date ? updates.endDate.toISOString() : updates.endDate;
+      dbUpdates.end_date = updates.endDate instanceof Date ? updates.endDate.toISOString() : updates.endDate;
     }
 
     if (updates.startDate !== undefined) {
