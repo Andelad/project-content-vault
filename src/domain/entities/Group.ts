@@ -11,7 +11,10 @@
  */
 
 import type { Group as GroupData } from '@/types/core';
+import type { Database } from '@/integrations/supabase/types';
 import type { DomainResult } from './Project';
+
+type GroupRow = Database['public']['Tables']['groups']['Row'];
 
 /**
  * Group creation parameters
@@ -40,21 +43,31 @@ export interface UpdateGroupParams {
  */
 export class Group {
   // Immutable core properties
-  private readonly id: string;
-  private readonly userId: string;
-  private readonly createdAt: Date;
+  private readonly _id: string;
+  private readonly _userId: string;
+  private readonly _createdAt: Date;
   
   // Mutable business properties
-  private name: string;
-  private updatedAt: Date;
+  private _name: string;
+  private _updatedAt: Date;
+
+  // ============================================================================
+  // PUBLIC GETTERS - Backward compatibility for migration (Phase 2a)
+  // ============================================================================
+  
+  get id(): string { return this._id; }
+  get userId(): string { return this._userId; }
+  get name(): string { return this._name; }
+  get createdAt(): Date { return this._createdAt; }
+  get updatedAt(): Date { return this._updatedAt; }
 
   private constructor(data: GroupData) {
     // Direct assignment - validation happens in factory methods
-    this.id = data.id;
-    this.userId = data.userId;
-    this.name = data.name;
-    this.createdAt = new Date(data.createdAt);
-    this.updatedAt = new Date(data.updatedAt);
+    this._id = data.id;
+    this._userId = data.userId;
+    this._name = data.name;
+    this._createdAt = new Date(data.createdAt);
+    this._updatedAt = new Date(data.updatedAt);
   }
 
   // ============================================================================
@@ -108,11 +121,19 @@ export class Group {
    * Use this when loading existing groups from the database.
    * Assumes data is already valid (was validated on creation).
    * 
-   * @param data - Group data from database
+   * @param data - Group data from database (snake_case)
    * @returns Group entity
    */
-  static fromDatabase(data: GroupData): Group {
-    return new Group(data);
+  static fromDatabase(data: GroupRow): Group {
+    // Convert database format (snake_case) to entity format (camelCase)
+    const groupData: GroupData = {
+      id: data.id,
+      name: data.name,
+      userId: data.user_id,
+      createdAt: new Date(data.created_at),
+      updatedAt: new Date(data.updated_at),
+    };
+    return new Group(groupData);
   }
 
   // ============================================================================
@@ -149,8 +170,8 @@ export class Group {
 
     // Apply updates
     if (params.name !== undefined) {
-      this.name = params.name.trim();
-      this.updatedAt = new Date();
+      this._name = params.name.trim();
+      this._updatedAt = new Date();
     }
 
     return { success: true };
@@ -165,7 +186,7 @@ export class Group {
    * Groups are unique by case-insensitive name
    */
   getNormalizedName(): string {
-    return this.name.toLowerCase();
+    return this._name.toLowerCase();
   }
 
   /**
@@ -189,11 +210,11 @@ export class Group {
    */
   toData(): GroupData {
     return {
-      id: this.id,
-      name: this.name,
-      userId: this.userId,
-      createdAt: this.createdAt,
-      updatedAt: this.updatedAt
+      id: this._id,
+      name: this._name,
+      userId: this._userId,
+      createdAt: this._createdAt,
+      updatedAt: this._updatedAt
     };
   }
 

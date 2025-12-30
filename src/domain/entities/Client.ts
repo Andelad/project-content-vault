@@ -11,8 +11,11 @@
  */
 
 import type { Client as ClientData, ClientStatus } from '@/types/core';
+import type { Database } from '@/integrations/supabase/types';
 import { ClientRules } from '@/domain/rules/ClientRules';
 import type { DomainResult } from './Project';
+
+type ClientRow = Database['public']['Tables']['clients']['Row'];
 
 /**
  * Client creation parameters
@@ -48,31 +51,46 @@ export interface UpdateClientParams {
  */
 export class Client {
   // Immutable core properties
-  private readonly id: string;
-  private readonly userId: string;
-  private readonly createdAt: Date;
+  private readonly _id: string;
+  private readonly _userId: string;
+  private readonly _createdAt: Date;
   
   // Mutable business properties
-  private name: string;
-  private status: ClientStatus;
-  private contactEmail?: string;
-  private contactPhone?: string;
-  private billingAddress?: string;
-  private notes?: string;
-  private updatedAt: Date;
+  private _name: string;
+  private _status: ClientStatus;
+  private _contactEmail?: string;
+  private _contactPhone?: string;
+  private _billingAddress?: string;
+  private _notes?: string;
+  private _updatedAt: Date;
+
+  // ============================================================================
+  // PUBLIC GETTERS - Backward compatibility for migration (Phase 2a)
+  // ============================================================================
+  
+  get id(): string { return this._id; }
+  get userId(): string { return this._userId; }
+  get name(): string { return this._name; }
+  get status(): ClientStatus { return this._status; }
+  get contactEmail(): string | undefined { return this._contactEmail; }
+  get contactPhone(): string | undefined { return this._contactPhone; }
+  get billingAddress(): string | undefined { return this._billingAddress; }
+  get notes(): string | undefined { return this._notes; }
+  get createdAt(): Date { return this._createdAt; }
+  get updatedAt(): Date { return this._updatedAt; }
 
   private constructor(data: ClientData) {
     // Direct assignment - validation happens in factory methods
-    this.id = data.id;
-    this.userId = data.userId;
-    this.name = data.name;
-    this.status = data.status;
-    this.contactEmail = data.contactEmail;
-    this.contactPhone = data.contactPhone;
-    this.billingAddress = data.billingAddress;
-    this.notes = data.notes;
-    this.createdAt = new Date(data.createdAt);
-    this.updatedAt = new Date(data.updatedAt);
+    this._id = data.id;
+    this._userId = data.userId;
+    this._name = data.name;
+    this._status = data.status;
+    this._contactEmail = data.contactEmail;
+    this._contactPhone = data.contactPhone;
+    this._billingAddress = data.billingAddress;
+    this._notes = data.notes;
+    this._createdAt = new Date(data.createdAt);
+    this._updatedAt = new Date(data.updatedAt);
   }
 
   // ============================================================================
@@ -152,16 +170,29 @@ export class Client {
   }
 
   /**
-   * Reconstitute a client from database data
+   * Create from database data
    * 
    * Use this when loading existing clients from the database.
    * Assumes data is already valid (was validated on creation).
    * 
-   * @param data - Client data from database
+   * @param data - Client data from database (snake_case)
    * @returns Client entity
    */
-  static fromDatabase(data: ClientData): Client {
-    return new Client(data);
+  static fromDatabase(data: ClientRow): Client {
+    // Convert database format (snake_case) to entity format (camelCase)
+    const clientData: ClientData = {
+      id: data.id,
+      userId: data.user_id,
+      name: data.name,
+      status: data.status as ClientStatus,
+      contactEmail: data.contact_email ?? undefined,
+      contactPhone: data.contact_phone ?? undefined,
+      billingAddress: data.billing_address ?? undefined,
+      notes: data.notes ?? undefined,
+      createdAt: new Date(data.created_at),
+      updatedAt: new Date(data.updated_at),
+    };
+    return new Client(clientData);
   }
 
   // ============================================================================
@@ -199,13 +230,13 @@ export class Client {
     }
 
     // Apply updates
-    if (params.name !== undefined) this.name = params.name.trim();
-    if (params.status !== undefined) this.status = params.status;
-    if (params.contactEmail !== undefined) this.contactEmail = params.contactEmail?.trim();
-    if (params.contactPhone !== undefined) this.contactPhone = params.contactPhone?.trim();
-    if (params.billingAddress !== undefined) this.billingAddress = params.billingAddress?.trim();
-    if (params.notes !== undefined) this.notes = params.notes?.trim();
-    this.updatedAt = new Date();
+    if (params.name !== undefined) this._name = params.name.trim();
+    if (params.status !== undefined) this._status = params.status;
+    if (params.contactEmail !== undefined) this._contactEmail = params.contactEmail?.trim();
+    if (params.contactPhone !== undefined) this._contactPhone = params.contactPhone?.trim();
+    if (params.billingAddress !== undefined) this._billingAddress = params.billingAddress?.trim();
+    if (params.notes !== undefined) this._notes = params.notes?.trim();
+    this._updatedAt = new Date();
 
     return { success: true };
   }
@@ -214,24 +245,24 @@ export class Client {
    * Activate the client
    */
   activate(): void {
-    this.status = 'active';
-    this.updatedAt = new Date();
+    this._status = 'active';
+    this._updatedAt = new Date();
   }
 
   /**
    * Deactivate the client
    */
   deactivate(): void {
-    this.status = 'inactive';
-    this.updatedAt = new Date();
+    this._status = 'inactive';
+    this._updatedAt = new Date();
   }
 
   /**
    * Archive the client
    */
   archive(): void {
-    this.status = 'archived';
-    this.updatedAt = new Date();
+    this._status = 'archived';
+    this._updatedAt = new Date();
   }
 
   // ============================================================================
@@ -242,28 +273,28 @@ export class Client {
    * Check if client is active
    */
   isActive(): boolean {
-    return this.status === 'active';
+    return this._status === 'active';
   }
 
   /**
    * Check if client is archived
    */
   isArchived(): boolean {
-    return this.status === 'archived';
+    return this._status === 'archived';
   }
 
   /**
    * Get client's display name
    */
   getDisplayName(): string {
-    return this.name;
+    return this._name;
   }
 
   /**
    * Check if client has contact information
    */
   hasContactInfo(): boolean {
-    return !!(this.contactEmail || this.contactPhone);
+    return !!(this._contactEmail || this._contactPhone);
   }
 
   // ============================================================================
@@ -277,16 +308,16 @@ export class Client {
    */
   toData(): ClientData {
     return {
-      id: this.id,
-      name: this.name,
-      status: this.status,
-      contactEmail: this.contactEmail,
-      contactPhone: this.contactPhone,
-      billingAddress: this.billingAddress,
-      notes: this.notes,
-      userId: this.userId,
-      createdAt: this.createdAt,
-      updatedAt: this.updatedAt
+      id: this._id,
+      name: this._name,
+      status: this._status,
+      contactEmail: this._contactEmail,
+      contactPhone: this._contactPhone,
+      billingAddress: this._billingAddress,
+      notes: this._notes,
+      userId: this._userId,
+      createdAt: this._createdAt,
+      updatedAt: this._updatedAt
     };
   }
 

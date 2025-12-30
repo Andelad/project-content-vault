@@ -278,17 +278,6 @@ export class ClientOrchestrator {
    * Transform database client to frontend format
    */
   private static transformDatabaseClient(dbClient: DbClientRow): Client {
-    return {
-      id: dbClient.id,
-      userId: dbClient.user_id,
-      name: dbClient.name,
-      status: dbClient.status as ClientStatus,
-      contactEmail: dbClient.contact_email,
-      contactPhone: dbClient.contact_phone,
-      billingAddress: dbClient.billing_address,
-      notes: dbClient.notes,
-      createdAt: new Date(dbClient.created_at),
-      updatedAt: new Date(dbClient.updated_at),
-    };
+    return ClientEntity.fromDatabase(dbClient).toData();
   }
 }

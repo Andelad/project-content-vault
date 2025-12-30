@@ -19,6 +19,7 @@ import { PhaseRules } from '@/domain/rules/PhaseRules';
 import { getDateKey } from '@/utils/dateFormatUtils';
 import { calculateBudgetAdjustment } from '@/services/calculations';
 import { Project as ProjectEntity } from '@/domain/entities/Project';
+import { Client as ClientEntity } from '@/domain/entities/Client';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 import { supabase } from '@/integrations/supabase/client';
 import { normalizeProjectColor } from '@/utils/normalizeProjectColor';
@@ -755,32 +756,20 @@ export class ProjectOrchestrator {
         // Add client data if available
         if (dbProject.clients && typeof dbProject.clients === 'object' && !Array.isArray(dbProject.clients)) {
           const clientData = dbProject.clients as {
-            id?: string;
-            name?: string;
-            status?: ClientStatus | string | null;
-            contact_email?: string | null;
-            contact_phone?: string | null;
-            billing_address?: string | null;
-            notes?: string | null;
-            created_at?: string;
-            updated_at?: string;
-          } | null;
-          const rawStatus = clientData.status;
-          const normalizedStatus: ClientStatus | undefined = rawStatus === 'active' || rawStatus === 'inactive' || rawStatus === 'archived'
-            ? rawStatus
-            : undefined;
-          transformed.clientData = {
-            id: clientData.id,
-            name: clientData.name,
-            status: normalizedStatus,
-            contactEmail: clientData.contact_email ?? undefined,
-            contactPhone: clientData.contact_phone ?? undefined,
-            billingAddress: clientData.billing_address ?? undefined,
-            notes: clientData.notes ?? undefined,
-            userId: dbProject.user_id || '',
-            createdAt: clientData.created_at ? new Date(clientData.created_at) : new Date(),
-            updatedAt: clientData.updated_at ? new Date(clientData.updated_at) : new Date(),
+            id: string;
+            name: string;
+            status: string | null;
+            contact_email: string | null;
+            contact_phone: string | null;
+            billing_address: string | null;
+            notes: string | null;
+            user_id: string;
+            created_at: string;
+            updated_at: string;
           };
+          
+          // Use ClientEntity to convert database format to frontend format
+          transformed.clientData = ClientEntity.fromDatabase(clientData).toData();
         }
         
         return transformed;

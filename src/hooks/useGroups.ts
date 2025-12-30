@@ -3,13 +3,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import { Group as GroupEntity } from '@/domain/entities/Group';
 
-type Group = Database['public']['Tables']['groups']['Row'];
+type DatabaseGroup = Database['public']['Tables']['groups']['Row'];
 type GroupInsert = Database['public']['Tables']['groups']['Insert'];
 type GroupUpdate = Database['public']['Tables']['groups']['Update'];
 
 export function useGroups() {
-  const [groups, setGroups] = useState<Group[]>([]);
+  const [groups, setGroups] = useState<DatabaseGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -79,12 +80,13 @@ export function useGroups() {
         .single();
 
       if (error) throw error;
-      setGroups(prev => [...prev, data]);
+      const groupEntity = GroupEntity.fromDatabase(data);
+      setGroups(prev => [...prev, data as DatabaseGroup]);
       toast({
         title: "Success",
         description: "Group created successfully",
       });
-      return data;
+      return groupEntity;
     } catch (error) {
       ErrorHandlingService.handle(error, { source: 'useGroups', action: 'Error adding group:' });
       toast({
@@ -106,12 +108,13 @@ export function useGroups() {
         .single();
 
       if (error) throw error;
-      setGroups(prev => prev.map(group => group.id === id ? data : group));
+      const groupEntity = GroupEntity.fromDatabase(data);
+      setGroups(prev => prev.map(group => group.id === id ? data as DatabaseGroup : group));
       toast({
         title: "Success",
         description: "Group updated successfully",
       });
-      return data;
+      return groupEntity;
     } catch (error) {
       ErrorHandlingService.handle(error, { source: 'useGroups', action: 'Error updating group:' });
       toast({

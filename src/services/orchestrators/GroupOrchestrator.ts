@@ -25,14 +25,12 @@ type GroupUpdate = Database['public']['Tables']['groups']['Update'];
 // DATABASE HELPERS (inline - no repository layer)
 // =====================================================================================
 
+/**
+ * Transform database row to plain Group object using entity
+ * This delegates the conversion logic to the entity's fromDatabase method
+ */
 function transformFromDatabase(dbGroup: GroupRow): Group {
-  return {
-    id: dbGroup.id,
-    name: dbGroup.name,
-    userId: dbGroup.user_id,
-    createdAt: new Date(dbGroup.created_at),
-    updatedAt: new Date(dbGroup.updated_at)
-  };
+  return GroupEntity.fromDatabase(dbGroup).toData();
 }
 
 function transformToDatabase(group: Omit<Group, 'id' | 'createdAt' | 'updatedAt'>): GroupInsert {

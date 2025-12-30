@@ -17,6 +17,7 @@ import { ProjectOrchestrator } from './ProjectOrchestrator';
 import { calculateDurationDays, addDaysToDate } from '../calculations/general/dateCalculations';
 import { RecurringPhaseConfig as BaseRecurringPhaseConfig } from '../calculations/projects/phaseCalculations';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import { Phase as PhaseEntity } from '@/domain/entities/Phase';
 
 export interface ProjectRecurringPhaseConfig extends BaseRecurringPhaseConfig {
   name: string;
@@ -595,7 +596,7 @@ export class ProjectPhaseOrchestrator {
 
   /**
    * Save new milestone with validation and state management
-   * DELEGATES to UnifiedPhaseService for validation (AI Rule)
+   * DELEGATES to Phase Entity for validation (Entity Adoption Phase 1)
    */
   static async saveNewMilestone(
     milestoneIndex: number,
@@ -614,7 +615,30 @@ export class ProjectPhaseOrchestrator {
         return { success: false, error: 'Milestone not found' };
       }
 
-      // Simulate adding the new milestone to existing ones
+      // ✅ PHASE 1: Use Phase entity for validation
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        return { success: false, error: 'User not authenticated' };
+      }
+
+      const entityResult = PhaseEntity.create({
+        name: phase.name,
+        projectId: context.projectId,
+        startDate: phase.dueDate || phase.endDate || new Date(),
+        endDate: phase.endDate || phase.dueDate || new Date(),
+        timeAllocationHours: phase.timeAllocationHours || phase.timeAllocation || 0,
+        isRecurring: false,
+        userId: user.id
+      });
+
+      if (!entityResult.success) {
+        return {
+          success: false,
+          error: entityResult.errors?.join(', ') || 'Validation failed'
+        };
+      }
+
+      // Simulate adding the new milestone to existing ones for budget check
       const simulatedMilestones: PhaseDTO[] = [
         ...context.projectPhases,
         {
@@ -625,7 +649,7 @@ export class ProjectPhaseOrchestrator {
           endDate: phase.endDate || phase.dueDate,
           timeAllocation: phase.timeAllocation,
           timeAllocationHours: phase.timeAllocationHours || phase.timeAllocation,
-          userId: '',
+          userId: user.id,
           createdAt: new Date(),
           updatedAt: new Date()
         } as PhaseDTO
@@ -644,16 +668,21 @@ export class ProjectPhaseOrchestrator {
         };
       }
 
+      // ✅ Extract validated data from entity for backward compatibility
+      const phaseData = entityResult.data!.toData();
+
       // Save to database
       await context.addPhase({
-        name: phase.name,
-        dueDate: phase.dueDate || phase.endDate,
-        timeAllocation: phase.timeAllocationHours || phase.timeAllocation,
+        name: phaseData.name,
+        dueDate: phaseData.endDate, // Map endDate to dueDate for database compatibility
+        endDate: phaseData.endDate,
+        timeAllocation: phaseData.timeAllocationHours,
+        timeAllocationHours: phaseData.timeAllocationHours,
         projectId: context.projectId
       });
 
       // Remove from local state
-  context.setLocalPhases((prev) => prev.filter((_, i) => i !== milestoneIndex));
+      context.setLocalPhases((prev) => prev.filter((_, i) => i !== milestoneIndex));
 
       return { success: true };
     } catch (error) {

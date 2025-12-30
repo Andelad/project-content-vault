@@ -11,8 +11,11 @@
  */
 
 import type { Holiday as HolidayData } from '@/types/core';
+import type { Database } from '@/integrations/supabase/types';
 import { normalizeToMidnight } from '@/services/calculations/general/dateCalculations';
 import type { DomainResult } from './Project';
+
+type HolidayRow = Database['public']['Tables']['holidays']['Row'];
 
 /**
  * Holiday creation parameters
@@ -49,27 +52,40 @@ export interface UpdateHolidayParams {
  */
 export class Holiday {
   // Immutable core properties
-  private readonly id: string;
-  private readonly userId: string;
-  private readonly createdAt: Date;
+  private readonly _id: string;
+  private readonly _userId: string;
+  private readonly _createdAt: Date;
   
   // Mutable business properties
-  private title: string;
-  private startDate: Date;
-  private endDate: Date;
-  private notes?: string;
-  private updatedAt: Date;
+  private _title: string;
+  private _startDate: Date;
+  private _endDate: Date;
+  private _notes?: string;
+  private _updatedAt: Date;
+
+  // ============================================================================
+  // PUBLIC GETTERS - Backward compatibility for migration (Phase 2a)
+  // ============================================================================
+  
+  get id(): string { return this._id; }
+  get userId(): string { return this._userId; }
+  get title(): string { return this._title; }
+  get startDate(): Date { return this._startDate; }
+  get endDate(): Date { return this._endDate; }
+  get notes(): string | undefined { return this._notes; }
+  get createdAt(): Date { return this._createdAt; }
+  get updatedAt(): Date { return this._updatedAt; }
 
   private constructor(data: HolidayData & { created_at: string; updated_at: string; user_id: string }) {
     // Direct assignment - validation happens in factory methods
-    this.id = data.id;
-    this.userId = data.user_id;
-    this.title = data.title;
-    this.startDate = normalizeToMidnight(new Date(data.startDate));
-    this.endDate = normalizeToMidnight(new Date(data.endDate));
-    this.notes = data.notes;
-    this.createdAt = new Date(data.created_at);
-    this.updatedAt = new Date(data.updated_at);
+    this._id = data.id;
+    this._userId = data.user_id;
+    this._title = data.title;
+    this._startDate = normalizeToMidnight(new Date(data.startDate));
+    this._endDate = normalizeToMidnight(new Date(data.endDate));
+    this._notes = data.notes;
+    this._createdAt = new Date(data.created_at);
+    this._updatedAt = new Date(data.updated_at);
   }
 
   // ============================================================================
@@ -138,11 +154,22 @@ export class Holiday {
    * Use this when loading existing holidays from the database.
    * Assumes data is already valid (was validated on creation).
    * 
-   * @param data - Holiday data from database
+   * @param data - Holiday data from database (snake_case)
    * @returns Holiday entity
    */
-  static fromDatabase(data: HolidayData & { created_at: string; updated_at: string; user_id: string }): Holiday {
-    return new Holiday(data);
+  static fromDatabase(data: HolidayRow): Holiday {
+    // Convert database format (snake_case) to entity format (mixed for constructor)
+    const holidayData: HolidayData & { created_at: string; updated_at: string; user_id: string } = {
+      id: data.id,
+      title: data.title,
+      startDate: new Date(data.start_date),
+      endDate: new Date(data.end_date),
+      notes: data.notes || undefined,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+      user_id: data.user_id,
+    };
+    return new Holiday(holidayData);
   }
 
   // ============================================================================
@@ -171,8 +198,8 @@ export class Holiday {
 
     // Validate date range if either date is provided
     if (params.startDate || params.endDate) {
-      const newStart = params.startDate ? normalizeToMidnight(params.startDate) : this.startDate;
-      const newEnd = params.endDate ? normalizeToMidnight(params.endDate) : this.endDate;
+      const newStart = params.startDate ? normalizeToMidnight(params.startDate) : this._startDate;
+      const newEnd = params.endDate ? normalizeToMidnight(params.endDate) : this._endDate;
 
       if (params.startDate && isNaN(newStart.getTime())) {
         errors.push('Invalid start date');
@@ -191,11 +218,11 @@ export class Holiday {
     }
 
     // Apply updates
-    if (params.title !== undefined) this.title = params.title.trim();
-    if (params.startDate !== undefined) this.startDate = normalizeToMidnight(params.startDate);
-    if (params.endDate !== undefined) this.endDate = normalizeToMidnight(params.endDate);
-    if (params.notes !== undefined) this.notes = params.notes?.trim();
-    this.updatedAt = new Date();
+    if (params.title !== undefined) this._title = params.title.trim();
+    if (params.startDate !== undefined) this._startDate = normalizeToMidnight(params.startDate);
+    if (params.endDate !== undefined) this._endDate = normalizeToMidnight(params.endDate);
+    if (params.notes !== undefined) this._notes = params.notes?.trim();
+    this._updatedAt = new Date();
 
     return { success: true };
   }
@@ -208,7 +235,7 @@ export class Holiday {
    * Check if holiday is a single day
    */
   isSingleDay(): boolean {
-    return this.startDate.getTime() === this.endDate.getTime();
+    return this._startDate.getTime() === this._endDate.getTime();
   }
 
   /**
@@ -216,7 +243,7 @@ export class Holiday {
    */
   getDurationDays(): number {
     const msPerDay = 1000 * 60 * 60 * 24;
-    return Math.ceil((this.endDate.getTime() - this.startDate.getTime()) / msPerDay) + 1;
+    return Math.ceil((this._endDate.getTime() - this._startDate.getTime()) / msPerDay) + 1;
   }
 
   /**
@@ -227,7 +254,7 @@ export class Holiday {
    */
   containsDate(date: Date): boolean {
     const normalized = normalizeToMidnight(date);
-    return normalized >= this.startDate && normalized <= this.endDate;
+    return normalized >= this._startDate && normalized <= this._endDate;
   }
 
   /**
@@ -237,7 +264,7 @@ export class Holiday {
    * @returns True if holidays overlap
    */
   overlaps(other: Holiday): boolean {
-    return this.startDate <= other.endDate && this.endDate >= other.startDate;
+    return this._startDate <= other.endDate && this._endDate >= other.startDate;
   }
 
   /**
@@ -250,7 +277,7 @@ export class Holiday {
   overlapsDateRange(startDate: Date, endDate: Date): boolean {
     const normalizedStart = normalizeToMidnight(startDate);
     const normalizedEnd = normalizeToMidnight(endDate);
-    return this.startDate <= normalizedEnd && this.endDate >= normalizedStart;
+    return this._startDate <= normalizedEnd && this._endDate >= normalizedStart;
   }
 
   /**
@@ -260,9 +287,9 @@ export class Holiday {
    */
   getDates(): Date[] {
     const dates: Date[] = [];
-    const current = new Date(this.startDate);
+    const current = new Date(this._startDate);
     
-    while (current <= this.endDate) {
+    while (current <= this._endDate) {
       dates.push(new Date(current));
       current.setDate(current.getDate() + 1);
     }
@@ -279,11 +306,11 @@ export class Holiday {
     const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' };
     
     if (this.isSingleDay()) {
-      return this.startDate.toLocaleDateString('en-US', options);
+      return this._startDate.toLocaleDateString('en-US', options);
     }
     
-    const startStr = this.startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    const endStr = this.endDate.toLocaleDateString('en-US', options);
+    const startStr = this._startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const endStr = this._endDate.toLocaleDateString('en-US', options);
     
     return `${startStr} - ${endStr}`;
   }
@@ -292,7 +319,7 @@ export class Holiday {
    * Check if holiday has notes
    */
   hasNotes(): boolean {
-    return !!(this.notes && this.notes.length > 0);
+    return !!(this._notes && this._notes.length > 0);
   }
 
   // ============================================================================
@@ -306,11 +333,11 @@ export class Holiday {
    */
   toData(): HolidayData {
     return {
-      id: this.id,
-      title: this.title,
-      startDate: this.startDate,
-      endDate: this.endDate,
-      notes: this.notes
+      id: this._id,
+      title: this._title,
+      startDate: this._startDate,
+      endDate: this._endDate,
+      notes: this._notes
     };
   }
 
@@ -330,14 +357,14 @@ export class Holiday {
     updated_at: string;
   } {
     return {
-      id: this.id,
-      title: this.title,
-      start_date: this.startDate.toISOString(),
-      end_date: this.endDate.toISOString(),
-      notes: this.notes,
-      user_id: this.userId,
-      created_at: this.createdAt.toISOString(),
-      updated_at: this.updatedAt.toISOString()
+      id: this._id,
+      title: this._title,
+      start_date: this._startDate.toISOString(),
+      end_date: this._endDate.toISOString(),
+      notes: this._notes,
+      user_id: this._userId,
+      created_at: this._createdAt.toISOString(),
+      updated_at: this._updatedAt.toISOString()
     };
   }
 

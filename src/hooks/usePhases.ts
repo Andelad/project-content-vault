@@ -129,7 +129,8 @@ export function usePhases(projectId?: string) {
           description: "Phase created successfully",
         });
       }
-      return data;
+      
+      return PhaseEntity.fromDatabase(data);
     } catch (error) {
       ErrorHandlingService.handle(error, { source: 'useMilestones', action: 'Error adding milestone:' });
       // Always show error toasts immediately
@@ -164,9 +165,10 @@ export function usePhases(projectId?: string) {
             title: "Success",
             description: "Phase updated successfully",
           });
-        }, 500);
+          }, 500);
       }
-      return data;
+      
+      return PhaseEntity.fromDatabase(data);
     } catch (error) {
       ErrorHandlingService.handle(error, { source: 'useMilestones', action: 'Error updating milestone:' });
       // Always show error toasts immediately

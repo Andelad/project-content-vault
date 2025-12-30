@@ -43,19 +43,28 @@ export interface UpdateWorkSlotParams {
  */
 export class WorkSlot {
   // Immutable core properties
-  private readonly id: string;
+  private readonly _id: string;
   
   // Mutable business properties
-  private startTime: string; // HH:MM format
-  private endTime: string;   // HH:MM format
-  private duration: number;  // Hours (calculated)
+  private _startTime: string; // HH:MM format
+  private _endTime: string;   // HH:MM format
+  private _duration: number;  // Hours (calculated)
+
+  // ============================================================================
+  // PUBLIC GETTERS - Backward compatibility for migration (Phase 2a)
+  // ============================================================================
+  
+  get id(): string { return this._id; }
+  get startTime(): string { return this._startTime; }
+  get endTime(): string { return this._endTime; }
+  get duration(): number { return this._duration; }
 
   private constructor(data: WorkSlotData) {
     // Direct assignment - validation happens in factory methods
-    this.id = data.id;
-    this.startTime = data.startTime;
-    this.endTime = data.endTime;
-    this.duration = data.duration;
+    this._id = data.id;
+    this._startTime = data.startTime;
+    this._endTime = data.endTime;
+    this._duration = data.duration;
   }
 
   // ============================================================================
@@ -188,8 +197,8 @@ export class WorkSlot {
     }
 
     // Calculate new times
-    const newStart = params.startTime ?? this.startTime;
-    const newEnd = params.endTime ?? this.endTime;
+    const newStart = params.startTime ?? this._startTime;
+    const newEnd = params.endTime ?? this._endTime;
 
     const startMinutes = WorkSlot.timeToMinutes(newStart);
     const endMinutes = WorkSlot.timeToMinutes(newEnd);
@@ -208,11 +217,11 @@ export class WorkSlot {
     }
 
     // Apply updates
-    if (params.startTime !== undefined) this.startTime = params.startTime;
-    if (params.endTime !== undefined) this.endTime = params.endTime;
+    if (params.startTime !== undefined) this._startTime = params.startTime;
+    if (params.endTime !== undefined) this._endTime = params.endTime;
     
     // Recalculate duration
-    this.duration = (WorkSlot.timeToMinutes(this.endTime) - WorkSlot.timeToMinutes(this.startTime)) / 60;
+    this._duration = (WorkSlot.timeToMinutes(this._endTime) - WorkSlot.timeToMinutes(this._startTime)) / 60;
 
     return { success: true };
   }
@@ -225,14 +234,14 @@ export class WorkSlot {
    * Get duration in hours
    */
   getDurationHours(): number {
-    return this.duration;
+    return this._duration;
   }
 
   /**
    * Get duration in minutes
    */
   getDurationMinutes(): number {
-    return this.duration * 60;
+    return this._duration * 60;
   }
 
   /**
@@ -241,21 +250,21 @@ export class WorkSlot {
    * @returns String like "09:00 - 17:00"
    */
   getTimeRangeDisplay(): string {
-    return `${this.startTime} - ${this.endTime}`;
+    return `${this._startTime} - ${this._endTime}`;
   }
 
   /**
    * Check if work slot is a full day (8+ hours)
    */
   isFullDay(): boolean {
-    return this.duration >= 8;
+    return this._duration >= 8;
   }
 
   /**
    * Check if work slot is a half day (4-7.99 hours)
    */
   isHalfDay(): boolean {
-    return this.duration >= 4 && this.duration < 8;
+    return this._duration >= 4 && this._duration < 8;
   }
 
   /**
@@ -265,8 +274,8 @@ export class WorkSlot {
    * @returns True if slots overlap
    */
   overlaps(other: WorkSlot): boolean {
-    const thisStart = WorkSlot.timeToMinutes(this.startTime);
-    const thisEnd = WorkSlot.timeToMinutes(this.endTime);
+    const thisStart = WorkSlot.timeToMinutes(this._startTime);
+    const thisEnd = WorkSlot.timeToMinutes(this._endTime);
     const otherStart = WorkSlot.timeToMinutes(other.startTime);
     const otherEnd = WorkSlot.timeToMinutes(other.endTime);
 
@@ -280,7 +289,7 @@ export class WorkSlot {
    * @returns Date object with start time
    */
   getStartTimeForDate(date: Date): Date {
-    const [hours, minutes] = this.startTime.split(':').map(Number);
+    const [hours, minutes] = this._startTime.split(':').map(Number);
     const result = new Date(date);
     result.setHours(hours, minutes, 0, 0);
     return result;
@@ -293,7 +302,7 @@ export class WorkSlot {
    * @returns Date object with end time
    */
   getEndTimeForDate(date: Date): Date {
-    const [hours, minutes] = this.endTime.split(':').map(Number);
+    const [hours, minutes] = this._endTime.split(':').map(Number);
     const result = new Date(date);
     result.setHours(hours, minutes, 0, 0);
     return result;
@@ -310,10 +319,10 @@ export class WorkSlot {
    */
   toData(): WorkSlotData {
     return {
-      id: this.id,
-      startTime: this.startTime,
-      endTime: this.endTime,
-      duration: this.duration
+      id: this._id,
+      startTime: this._startTime,
+      endTime: this._endTime,
+      duration: this._duration
     };
   }
 

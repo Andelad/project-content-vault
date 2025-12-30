@@ -51,47 +51,69 @@ export interface CreateProjectParams {
  */
 export class Project {
   // Immutable core properties
-  private readonly id: string;
-  private readonly userId: string;
-  private readonly createdAt: Date;
+  private readonly _id: string;
+  private readonly _userId: string;
+  private readonly _createdAt: Date;
   
   // Mutable business properties
-  private name: string;
-  private clientId: string;
-  private startDate: Date;
-  private endDate: Date | null;
-  private estimatedHours: number;
-  private groupId: string;
-  private color: string;
-  private continuous: boolean;
-  private status: ProjectStatus;
-  private notes?: string;
-  private icon?: string;
-  private updatedAt: Date;
+  private _name: string;
+  private _clientId: string;
+  private _startDate: Date;
+  private _endDate: Date | null;
+  private _estimatedHours: number;
+  private _groupId: string;
+  private _color: string;
+  private _continuous: boolean;
+  private _status: ProjectStatus;
+  private _notes?: string;
+  private _icon?: string;
+  private _updatedAt: Date;
   
   // Relationships (loaded separately)
-  private phases: Phase[];
-  private clientData?: Client;
+  private _phases: Phase[];
+  private _clientData?: Client;
+
+  // ============================================================================
+  // PUBLIC GETTERS - Backward compatibility for migration (Phase 2a)
+  // ============================================================================
+  
+  get id(): string { return this._id; }
+  get userId(): string { return this._userId; }
+  get name(): string { return this._name; }
+  get clientId(): string { return this._clientId; }
+  get startDate(): Date { return this._startDate; }
+  get endDate(): Date | null { return this._endDate; }
+  get estimatedHours(): number { return this._estimatedHours; }
+  get groupId(): string { return this._groupId; }
+  get color(): string { return this._color; }
+  get continuous(): boolean { return this._continuous; }
+  get status(): ProjectStatus { return this._status; }
+  get notes(): string | undefined { return this._notes; }
+  get icon(): string | undefined { return this._icon; }
+  get createdAt(): Date { return this._createdAt; }
+  get updatedAt(): Date { return this._updatedAt; }
+  get phases(): Phase[] { return this._phases; }
+  get clientData(): Client | undefined { return this._clientData; }
 
   private constructor(data: ProjectData) {
     // Direct assignment - validation happens in factory methods
-    this.id = data.id;
-    this.userId = data.userId;
-    this.name = data.name;
-    this.clientId = data.clientId;
-    this.startDate = normalizeToMidnight(new Date(data.startDate));
-    this.endDate = data.endDate ? normalizeToMidnight(new Date(data.endDate)) : null;
-    this.estimatedHours = data.estimatedHours;
-    this.groupId = data.groupId;
-    this.color = data.color;
-    this.continuous = data.continuous ?? false;
-    this.status = data.status ?? 'current';
-    this.notes = data.notes;
-    this.icon = data.icon;
-    this.createdAt = new Date(data.createdAt);
-    this.updatedAt = new Date(data.updatedAt);
-    this.phases = data.phases ?? [];
-    this.clientData = data.clientData;
+    this._id = data.id;
+    this._userId = data.userId;
+    this._name = data.name;
+    this._clientId = data.clientId;
+    this._startDate = normalizeToMidnight(new Date(data.startDate));
+    this._endDate = data.endDate ? normalizeToMidnight(new Date(data.endDate)) : null;
+    this._estimatedHours = data.estimatedHours;
+    this._groupId = data.groupId;
+    this._color = data.color;
+    this._continuous = data.continuous ?? false;
+    this._status = data.status ?? 'current';
+    this._notes = data.notes;
+    this._icon = data.icon;
+    this._createdAt = new Date(data.createdAt);
+    this._updatedAt = new Date(data.updatedAt);
+    this._phases = data.phases ?? [];
+    this._clientData = data.clientData;
   }
 
   // ============================================================================
@@ -266,9 +288,9 @@ export class Project {
     }
 
     // Validate against phases if they exist
-    if (this.phases.length > 0 && endDate) {
+    if (this._phases.length > 0 && endDate) {
       // Check that phases fit within new project dates
-      for (const phase of this.phases) {
+      for (const phase of this._phases) {
         const phaseEndDate = phase.endDate || phase.dueDate;
         if (phaseEndDate < startDate || phaseEndDate > endDate) {
           return {
@@ -279,9 +301,9 @@ export class Project {
       }
     }
 
-    this.startDate = normalizeToMidnight(startDate);
-    this.endDate = endDate ? normalizeToMidnight(endDate) : null;
-    this.updatedAt = new Date();
+    this._startDate = normalizeToMidnight(startDate);
+    this._endDate = endDate ? normalizeToMidnight(endDate) : null;
+    this._updatedAt = new Date();
 
     return { success: true };
   }
@@ -301,8 +323,8 @@ export class Project {
     }
 
     // Validate against phase allocations
-    if (this.phases.length > 0) {
-      const validation = ProjectRules.validateProjectTime(hours, this.phases);
+    if (this._phases.length > 0) {
+      const validation = ProjectRules.validateProjectTime(hours, this._phases);
       if (!validation.isValid) {
         return {
           success: false,
@@ -311,8 +333,8 @@ export class Project {
       }
     }
 
-    this.estimatedHours = hours;
-    this.updatedAt = new Date();
+    this._estimatedHours = hours;
+    this._updatedAt = new Date();
 
     return { success: true };
   }
@@ -323,7 +345,7 @@ export class Project {
    * @see App Logic.md - Continuous vs Time-Limited Projects
    */
   convertToContinuous(): DomainResult<void> {
-    if (this.continuous) {
+    if (this._continuous) {
       return {
         success: false,
         errors: ['Project is already continuous'],
@@ -331,14 +353,14 @@ export class Project {
     }
 
     // Check if phases would be invalid
-    if (this.phases.length > 0) {
+    if (this._phases.length > 0) {
       // Continuous projects can still have phases with deadlines
       // No validation needed - phases keep their absolute end dates
     }
 
-    this.continuous = true;
-    this.endDate = null;
-    this.updatedAt = new Date();
+    this._continuous = true;
+    this._endDate = null;
+    this._updatedAt = new Date();
 
     return { success: true };
   }
@@ -348,14 +370,14 @@ export class Project {
    * Requires providing an end date
    */
   convertToTimeLimited(endDate: Date): DomainResult<void> {
-    if (!this.continuous) {
+    if (!this._continuous) {
       return {
         success: false,
         errors: ['Project is already time-limited'],
       };
     }
 
-    if (!ProjectRules.validateDateRange(this.startDate, endDate)) {
+    if (!ProjectRules.validateDateRange(this._startDate, endDate)) {
       return {
         success: false,
         errors: ['End date must be after start date'],
@@ -363,11 +385,11 @@ export class Project {
     }
 
     // Validate against phases
-    if (this.phases.length > 0) {
+    if (this._phases.length > 0) {
       // Check that phases fit within new end date
-      for (const phase of this.phases) {
+      for (const phase of this._phases) {
         const phaseEndDate = phase.endDate || phase.dueDate;
-        if (phaseEndDate < this.startDate || phaseEndDate > endDate) {
+        if (phaseEndDate < this._startDate || phaseEndDate > endDate) {
           return {
             success: false,
             errors: [`Phase "${phase.name || 'Unnamed'}" falls outside project date range`],
@@ -376,9 +398,9 @@ export class Project {
       }
     }
 
-    this.continuous = false;
-    this.endDate = normalizeToMidnight(endDate);
-    this.updatedAt = new Date();
+    this._continuous = false;
+    this._endDate = normalizeToMidnight(endDate);
+    this._updatedAt = new Date();
 
     return { success: true };
   }
@@ -387,8 +409,8 @@ export class Project {
    * Change project status
    */
   updateStatus(status: ProjectStatus): void {
-    this.status = status;
-    this.updatedAt = new Date();
+    this._status = status;
+    this._updatedAt = new Date();
   }
 
   /**
@@ -414,11 +436,11 @@ export class Project {
       return { success: false, errors };
     }
 
-    if (updates.name) this.name = updates.name.trim();
-    if (updates.notes !== undefined) this.notes = updates.notes;
-    if (updates.color) this.color = updates.color;
-    if (updates.icon) this.icon = updates.icon;
-    this.updatedAt = new Date();
+    if (updates.name) this._name = updates.name.trim();
+    if (updates.notes !== undefined) this._notes = updates.notes;
+    if (updates.color) this._color = updates.color;
+    if (updates.icon) this._icon = updates.icon;
+    this._updatedAt = new Date();
 
     return { success: true };
   }
@@ -431,14 +453,14 @@ export class Project {
    * Check if project is time-limited (has deadline)
    */
   isTimeLimited(): boolean {
-    return !this.continuous && this.endDate !== null;
+    return !this._continuous && this._endDate !== null;
   }
 
   /**
    * Check if project is continuous (no deadline)
    */
   isContinuous(): boolean {
-    return this.continuous;
+    return this._continuous;
   }
 
   /**
@@ -446,12 +468,12 @@ export class Project {
    * Returns null for continuous projects
    */
   getDurationDays(): number | null {
-    if (this.continuous || !this.endDate) {
+    if (this._continuous || !this._endDate) {
       return null;
     }
 
-    const start = this.startDate.getTime();
-    const end = this.endDate.getTime();
+    const start = this._startDate.getTime();
+    const end = this._endDate.getTime();
     return Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
   }
 
@@ -464,7 +486,7 @@ export class Project {
     if (duration === null || duration === 0) {
       return null;
     }
-    return this.estimatedHours / duration;
+    return this._estimatedHours / duration;
   }
 
   /**
@@ -473,15 +495,15 @@ export class Project {
   isActiveOnDate(date: Date): boolean {
     const checkDate = normalizeToMidnight(date);
     
-    if (checkDate < this.startDate) {
+    if (checkDate < this._startDate) {
       return false;
     }
 
-    if (this.continuous) {
+    if (this._continuous) {
       return true; // Continuous projects are always active after start
     }
 
-    return this.endDate ? checkDate <= this.endDate : false;
+    return this._endDate ? checkDate <= this._endDate : false;
   }
 
   /**
@@ -495,7 +517,7 @@ export class Project {
    * Get budget analysis vs phase allocations
    */
   getBudgetAnalysis(): ReturnType<typeof ProjectRules.analyzeBudget> {
-    return ProjectRules.analyzeBudget(this.toData(), this.phases);
+    return ProjectRules.analyzeBudget(this.toData(), this._phases);
   }
 
   // ============================================================================
@@ -506,14 +528,14 @@ export class Project {
    * Set phases (typically loaded from database)
    */
   setPhases(phases: Phase[]): void {
-    this.phases = phases;
+    this._phases = phases;
   }
 
   /**
    * Set client data (from join)
    */
   setClientData(client: Client): void {
-    this.clientData = client;
+    this._clientData = client;
   }
 
   // ============================================================================
@@ -525,24 +547,24 @@ export class Project {
    */
   toData(): ProjectData {
     return {
-      id: this.id,
-      name: this.name,
+      id: this._id,
+      name: this._name,
       client: '', // Deprecated field - kept for backward compatibility
-      clientId: this.clientId,
-      startDate: this.startDate,
-      endDate: this.continuous ? new Date(0) : (this.endDate ?? new Date(0)), // Use epoch for continuous or null
-      estimatedHours: this.estimatedHours,
-      groupId: this.groupId,
-      color: this.color,
-      continuous: this.continuous,
-      status: this.status,
-      notes: this.notes,
-      icon: this.icon,
-      userId: this.userId,
-      createdAt: this.createdAt,
-      updatedAt: this.updatedAt,
-      phases: this.phases,
-      clientData: this.clientData,
+      clientId: this._clientId,
+      startDate: this._startDate,
+      endDate: this._continuous ? new Date(0) : (this._endDate ?? new Date(0)), // Use epoch for continuous or null
+      estimatedHours: this._estimatedHours,
+      groupId: this._groupId,
+      color: this._color,
+      continuous: this._continuous,
+      status: this._status,
+      notes: this._notes,
+      icon: this._icon,
+      userId: this._userId,
+      createdAt: this._createdAt,
+      updatedAt: this._updatedAt,
+      phases: this._phases,
+      clientData: this._clientData,
     };
   }
 
@@ -551,24 +573,24 @@ export class Project {
    */
   getSnapshot() {
     return {
-      id: this.id,
-      name: this.name,
-      clientId: this.clientId,
-      startDate: new Date(this.startDate),
-      endDate: this.continuous ? null : (this.endDate ? new Date(this.endDate) : null),
-      estimatedHours: this.estimatedHours,
-      groupId: this.groupId,
-      color: this.color,
-      continuous: this.continuous,
-      status: this.status,
-      notes: this.notes,
-      icon: this.icon,
+      id: this._id,
+      name: this._name,
+      clientId: this._clientId,
+      startDate: new Date(this._startDate),
+      endDate: this._continuous ? null : (this._endDate ? new Date(this._endDate) : null),
+      estimatedHours: this._estimatedHours,
+      groupId: this._groupId,
+      color: this._color,
+      continuous: this._continuous,
+      status: this._status,
+      notes: this._notes,
+      icon: this._icon,
       isTimeLimited: this.isTimeLimited(),
       isContinuous: this.isContinuous(),
       durationDays: this.getDurationDays(),
       dailyAllocationHours: this.getDailyAllocationHours(),
-      createdAt: new Date(this.createdAt),
-      updatedAt: new Date(this.updatedAt),
+      createdAt: new Date(this._createdAt),
+      updatedAt: new Date(this._updatedAt),
     };
   }
 }

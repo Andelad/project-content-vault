@@ -4,6 +4,7 @@ import { useSettingsContext } from '@/contexts/SettingsContext';
 import { WorkHourCalculationService } from '@/services/calculations/availability/workHourGeneration';
 import { UnifiedWorkHourRecurrenceService } from '@/services/unified/UnifiedWorkHourRecurrenceService';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import { WorkSlotOrchestrator, DayOfWeek } from '@/services/orchestrators/WorkSlotOrchestrator';
 
 interface UseWorkHoursReturn {
   workHours: WorkHour[];
@@ -33,8 +34,9 @@ interface PendingChange {
   isFromSettings: boolean;
 }
 
-// Week-specific storage for calendar overrides - now managed by service
-const weekOverrideManager = WorkHourCalculationService.createWeekOverrideManager();
+// TODO Phase 2: Implement work slot exceptions using work_slot_exceptions table
+// Current exception handling (weekOverrideManager) is broken and has been removed
+// Will be reimplemented using WorkSlotOrchestrator.createException() etc.
 
 export const useWorkHours = (): UseWorkHoursReturn => {
   const { settings, updateSettings } = useSettingsContext();
@@ -46,41 +48,22 @@ export const useWorkHours = (): UseWorkHoursReturn => {
   const [currentViewDate, setCurrentViewDate] = useState(new Date());
   const [exceptions, setExceptions] = useState<WorkHourException[]>([]);
 
-  // Helper functions now delegate to service
-  const getWeekOverrides = useCallback((weekStart: Date): WorkHour[] => {
-    const overrides = weekOverrideManager.getWeekOverrides(weekStart);
-    return overrides;
-  }, []);
+  // TODO Phase 2: Restore week override functionality using work_slot_exceptions table
+  // Previous implementation (weekOverrideManager) was broken and has been removed
 
-  const setWeekOverrides = useCallback((weekStart: Date, overrides: WorkHour[]) => { 
-    weekOverrideManager.setWeekOverrides(weekStart, overrides);
-  }, []);
-
-  const addWeekOverride = useCallback((weekStart: Date, override: WorkHour) => {
-    weekOverrideManager.addWeekOverride(weekStart, override);
-  }, []);
-
-  const updateWeekOverride = useCallback((weekStart: Date, overrideId: string, updatedOverride: WorkHour) => {
-    weekOverrideManager.updateWeekOverride(weekStart, overrideId, updatedOverride);
-  }, []);
-
-  const removeWeekOverride = useCallback((weekStart: Date, overrideId: string) => {
-    weekOverrideManager.removeWeekOverride(weekStart, overrideId);
-  }, []);
-
-  // Get the start date for any given week (Monday) - now uses service
+  // Get the start date for any given week (Monday)
   const getWeekStart = useCallback((date: Date) => {
     const weekStart = WorkHourCalculationService.getWeekStart(date);
     return weekStart;
   }, []);
 
-  // Get the current week's start date (Monday) - now uses service
+  // Get the current week's start date (Monday)
   const getCurrentWeekStart = useCallback(() => {
     const weekStart = WorkHourCalculationService.getCurrentWeekStart();
     return weekStart;
   }, []);
 
-  // Convert settings work slots to calendar work hours for specified week - now uses service
+  // Convert settings work slots to calendar work hours for specified week
   const generateWorkHoursFromSettings = useCallback((weekStartDate: Date) => {
     if (!settings?.weeklyWorkHours) return [];
     
@@ -117,8 +100,9 @@ export const useWorkHours = (): UseWorkHoursReturn => {
       if (exceptionsResult.success && exceptionsResult.exceptions) {
         setExceptions(exceptionsResult.exceptions);
         
-        // Convert exceptions to override work hours
-        // Deleted exceptions: create invisible placeholder (FullCalendar will hide via EXDATE)
+        // TODO Phase 2: Convert exceptions to override work hours
+        // Previous implementation below is broken - will be reimplemented
+        
         // Modified exceptions: create single-instance work hour with new times
         const exceptionWorkHours: WorkHour[] = [];
         
@@ -318,6 +302,10 @@ export const useWorkHours = (): UseWorkHoursReturn => {
     }
   };
 
+  /**
+   * Update a template work slot (settings-based)
+   * Uses WorkSlotOrchestrator for entity validation
+   */
   const updateSettingsWorkHour = async (id: string, updates: Partial<Omit<WorkHour, 'id'>>) => {
     try {
       // Extract day and slot ID from settings work hour ID (format: settings-dayName-slotId)
@@ -327,103 +315,105 @@ export const useWorkHours = (): UseWorkHoursReturn => {
       }
       
       const [, dayName, slotId] = match;
-  const weeklyWorkHours = settings.weeklyWorkHours;
-  const daySlots = weeklyWorkHours[dayName as keyof Settings['weeklyWorkHours']] || [];
       
-      const updatedSlots = daySlots.map((slot: WorkSlot) => {
-        if (slot.id === slotId) {
-          const result = { ...slot };
-          
-          if (updates.startTime) {
-            const startDate = new Date(updates.startTime);
-            result.startTime = `${startDate.getHours().toString().padStart(2, '0')}:${startDate.getMinutes().toString().padStart(2, '0')}`;
-          }
-          
-          if (updates.endTime) {
-            const endDate = new Date(updates.endTime);
-            result.endTime = `${endDate.getHours().toString().padStart(2, '0')}:${endDate.getMinutes().toString().padStart(2, '0')}`;
-          }
-          
-          // Recalculate duration
-          const [startHour, startMin] = result.startTime.split(':').map(Number);
-          const [endHour, endMin] = result.endTime.split(':').map(Number);
-          result.duration = (endHour + endMin / 60) - (startHour + startMin / 60);
-          
-          return result;
-        }
-        return slot;
-      });
+      // Convert WorkHour times (Date strings) to HH:MM format
+      const startTime = updates.startTime 
+        ? (() => {
+            const d = new Date(updates.startTime);
+            return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+          })()
+        : undefined;
+        
+      const endTime = updates.endTime
+        ? (() => {
+            const d = new Date(updates.endTime);
+            return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+          })()
+        : undefined;
 
-      const newWeeklyWorkHours = {
-        ...weeklyWorkHours,
-        [dayName]: updatedSlots
-      };
+      // Use orchestrator for validation and update
+      const result = await WorkSlotOrchestrator.updateTemplateSlot(
+        {
+          dayOfWeek: dayName as DayOfWeek,
+          slotId,
+          startTime,
+          endTime
+        },
+        async (updates) => { await updateSettings(updates); },
+        settings
+      );
 
-      const result = await updateSettings({
-        weeklyWorkHours: newWeeklyWorkHours
-      });
+      if (!result.success) {
+        throw new Error(result.error || result.errors?.join(', ') || 'Failed to update work slot');
+      }
     } catch (error) {
       ErrorHandlingService.handle(error, { source: 'useWorkHours', action: 'Error in updateSettingsWorkHour:' });
       throw error;
     }
   };
 
+  /**
+   * Add a new template work slot (settings-based)
+   * Uses WorkSlotOrchestrator for entity validation
+   */
   const addToSettingsPermanently = async (workHourData: Omit<WorkHour, 'id'>): Promise<WorkHour> => {
     // Determine which day this work hour is for
     const startDate = new Date(workHourData.startTime);
     const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    const dayName = dayNames[startDate.getDay()];
+    const dayName = dayNames[startDate.getDay()] as DayOfWeek;
     
-    // Create a new work slot
-    const newSlot: WorkSlot = {
-      id: Date.now().toString(),
-      startTime: `${startDate.getHours().toString().padStart(2, '0')}:${startDate.getMinutes().toString().padStart(2, '0')}`,
-      endTime: (() => {
-        const endDate = new Date(workHourData.endTime);
-        return `${endDate.getHours().toString().padStart(2, '0')}:${endDate.getMinutes().toString().padStart(2, '0')}`;
-      })(),
-      duration: (new Date(workHourData.endTime).getTime() - new Date(workHourData.startTime).getTime()) / (1000 * 60 * 60)
-    };
+    // Convert WorkHour times (Date strings) to HH:MM format
+    const startTime = `${startDate.getHours().toString().padStart(2, '0')}:${startDate.getMinutes().toString().padStart(2, '0')}`;
+    const endDate = new Date(workHourData.endTime);
+    const endTime = `${endDate.getHours().toString().padStart(2, '0')}:${endDate.getMinutes().toString().padStart(2, '0')}`;
 
-    // Update settings
-  const weeklyWorkHours = settings?.weeklyWorkHours || ({} as Settings['weeklyWorkHours']);
-    const currentDaySlots = weeklyWorkHours[dayName] || [];
-    
-    await updateSettings({
-      weeklyWorkHours: {
-        ...weeklyWorkHours,
-        [dayName]: [...currentDaySlots, newSlot]
-      }
-    });
+    // Use orchestrator for validation and save
+    const result = await WorkSlotOrchestrator.saveTemplateSlot(
+      { dayOfWeek: dayName, startTime, endTime },
+      async (updates) => { await updateSettings(updates); },
+      settings
+    );
 
-    // Return the new work hour (it will be regenerated from settings)
+    if (!result.success) {
+      throw new Error(result.error || result.errors?.join(', ') || 'Failed to add work slot');
+    }
+
+    const newSlot = result.slot!;
+
+    // Return the new work hour (formatted for calendar display)
     return {
       id: `settings-${dayName}-${newSlot.id}`,
       title: workHourData.title,
       description: workHourData.description || '',
       startTime: workHourData.startTime,
       endTime: workHourData.endTime,
-      duration: workHourData.duration || newSlot.duration,
+      duration: newSlot.duration,
       type: workHourData.type || 'work'
     };
   };
 
+  /**
+   * Delete a template work slot (settings-based)
+   * Uses WorkSlotOrchestrator
+   */
   const deleteSettingsWorkHour = async (id: string) => {
     const match = id.match(/^settings-(\w+)-([^-]+)$/);
     if (!match || !settings?.weeklyWorkHours) return;
     
     const [, dayName, slotId] = match;
-  const weeklyWorkHours = settings.weeklyWorkHours;
-  const daySlots = weeklyWorkHours[dayName as keyof Settings['weeklyWorkHours']] || [];
-    
-    const updatedSlots = daySlots.filter((slot: WorkSlot) => slot.id !== slotId);
 
-    await updateSettings({
-      weeklyWorkHours: {
-        ...weeklyWorkHours,
-        [dayName]: updatedSlots
-      }
-    });
+    const result = await WorkSlotOrchestrator.deleteTemplateSlot(
+      {
+        dayOfWeek: dayName as DayOfWeek,
+        slotId
+      },
+      async (updates) => { await updateSettings(updates); },
+      settings
+    );
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to delete work slot');
+    }
   };
 
   const confirmWorkHourChange = async (scope: 'this-day' | 'all-future') => {
@@ -453,9 +443,8 @@ export const useWorkHours = (): UseWorkHoursReturn => {
   };
 
   const revertToSettings = async () => {
-    // Clear all overrides for current week and refresh from settings using service
-    const currentWeekStart = getCurrentWeekStart();
-    weekOverrideManager.clearWeekOverrides(currentWeekStart);
+    // TODO Phase 2: Clear all exceptions for current week when implemented
+    // For now, just refresh to show template slots
     await fetchWorkHours();
   };
 

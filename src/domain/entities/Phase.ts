@@ -16,9 +16,12 @@
  */
 
 import type { PhaseDTO, RecurringConfig } from '@/types/core';
+import type { Database, Json } from '@/integrations/supabase/types';
 import { PhaseRules } from '@/domain/rules/PhaseRules';
 import { normalizeToMidnight } from '@/services/calculations/general/dateCalculations';
 import type { DomainResult } from './Project';
+
+type PhaseRow = Database['public']['Tables']['phases']['Row'];
 
 /**
  * Phase creation parameters
@@ -59,41 +62,59 @@ export interface UpdatePhaseParams {
  */
 export class Phase {
   // Immutable core properties
-  private readonly id: string;
-  private readonly projectId: string;
-  private readonly userId: string;
-  private readonly createdAt: Date;
+  private readonly _id: string;
+  private readonly _projectId: string;
+  private readonly _userId: string;
+  private readonly _createdAt: Date;
   
   // Mutable business properties
-  private name: string;
-  private startDate: Date;
-  private endDate: Date;
-  private timeAllocationHours: number;
-  private isRecurring: boolean;
-  private recurringConfig?: RecurringConfig;
-  private updatedAt: Date;
+  private _name: string;
+  private _startDate: Date;
+  private _endDate: Date;
+  private _timeAllocationHours: number;
+  private _isRecurring: boolean;
+  private _recurringConfig?: RecurringConfig;
+  private _updatedAt: Date;
 
   // Legacy fields (for backward compatibility)
-  private dueDate: Date; // Synchronized with endDate
-  private timeAllocation: number; // Synchronized with timeAllocationHours
+  private _dueDate: Date; // Synchronized with endDate
+  private _timeAllocation: number; // Synchronized with timeAllocationHours
+
+  // ============================================================================
+  // PUBLIC GETTERS - Backward compatibility for migration (Phase 2a)
+  // ============================================================================
+  
+  get id(): string { return this._id; }
+  get projectId(): string { return this._projectId; }
+  get userId(): string { return this._userId; }
+  get name(): string { return this._name; }
+  get startDate(): Date { return this._startDate; }
+  get endDate(): Date { return this._endDate; }
+  get timeAllocationHours(): number { return this._timeAllocationHours; }
+  get isRecurring(): boolean { return this._isRecurring; }
+  get recurringConfig(): RecurringConfig | undefined { return this._recurringConfig; }
+  get createdAt(): Date { return this._createdAt; }
+  get updatedAt(): Date { return this._updatedAt; }
+  get dueDate(): Date { return this._dueDate; } // Legacy
+  get timeAllocation(): number { return this._timeAllocation; } // Legacy
 
   private constructor(data: PhaseDTO) {
     // Direct assignment - validation happens in factory methods
-    this.id = data.id;
-    this.projectId = data.projectId;
-    this.userId = data.userId;
-    this.name = data.name;
-    this.startDate = normalizeToMidnight(new Date(data.startDate!));
-    this.endDate = normalizeToMidnight(new Date(data.endDate));
-    this.timeAllocationHours = data.timeAllocationHours;
-    this.isRecurring = data.isRecurring ?? false;
-    this.recurringConfig = data.recurringConfig;
-    this.createdAt = new Date(data.createdAt);
-    this.updatedAt = new Date(data.updatedAt);
+    this._id = data.id;
+    this._projectId = data.projectId;
+    this._userId = data.userId;
+    this._name = data.name;
+    this._startDate = normalizeToMidnight(new Date(data.startDate!));
+    this._endDate = normalizeToMidnight(new Date(data.endDate));
+    this._timeAllocationHours = data.timeAllocationHours;
+    this._isRecurring = data.isRecurring ?? false;
+    this._recurringConfig = data.recurringConfig;
+    this._createdAt = new Date(data.createdAt);
+    this._updatedAt = new Date(data.updatedAt);
 
     // Legacy fields (synchronized)
-    this.dueDate = this.endDate;
-    this.timeAllocation = this.timeAllocationHours;
+    this._dueDate = this._endDate;
+    this._timeAllocation = this._timeAllocationHours;
   }
 
   // ============================================================================
@@ -169,15 +190,29 @@ export class Phase {
    * Use this when loading existing phases from the database.
    * Assumes data is already valid (was validated on creation).
    * 
-   * @param data - Phase/Milestone data from database
+   * @param data - Phase/Milestone data from database (snake_case)
    * @returns Phase entity
    */
-  static fromDatabase(data: PhaseDTO): Phase {
-    // Ensure we have a startDate for phases
-    if (!data.startDate) {
-      throw new Error('Cannot create Phase from PhaseDTO without startDate');
-    }
-    return new Phase(data);
+  static fromDatabase(data: PhaseRow): Phase {
+    // Convert database format (snake_case) to entity format (camelCase)
+    const phaseData: PhaseDTO = {
+      id: data.id,
+      projectId: data.project_id,
+      userId: data.user_id,
+      name: data.name,
+      startDate: new Date(data.start_date),
+      endDate: new Date(data.end_date),
+      timeAllocationHours: data.time_allocation_hours,
+      isRecurring: data.is_recurring,
+      recurringConfig: data.recurring_config ? (data.recurring_config as unknown as RecurringConfig) : undefined,
+      createdAt: new Date(data.created_at),
+      updatedAt: new Date(data.updated_at),
+      // Legacy fields for backward compatibility
+      dueDate: new Date(data.end_date),
+      timeAllocation: data.time_allocation,
+    };
+    
+    return new Phase(phaseData);
   }
 
   // ============================================================================
@@ -224,18 +259,18 @@ export class Phase {
     }
 
     // Apply updates
-    if (params.name !== undefined) this.name = params.name.trim();
-    if (params.startDate !== undefined) this.startDate = normalizeToMidnight(params.startDate);
+    if (params.name !== undefined) this._name = params.name.trim();
+    if (params.startDate !== undefined) this._startDate = normalizeToMidnight(params.startDate);
     if (params.endDate !== undefined) {
-      this.endDate = normalizeToMidnight(params.endDate);
-      this.dueDate = this.endDate; // Keep legacy field synchronized
+      this._endDate = normalizeToMidnight(params.endDate);
+      this._dueDate = this._endDate; // Keep legacy field synchronized
     }
     if (params.timeAllocationHours !== undefined) {
-      this.timeAllocationHours = params.timeAllocationHours;
-      this.timeAllocation = params.timeAllocationHours; // Keep legacy field synchronized
+      this._timeAllocationHours = params.timeAllocationHours;
+      this._timeAllocation = params.timeAllocationHours; // Keep legacy field synchronized
     }
-    if (params.recurringConfig !== undefined) this.recurringConfig = params.recurringConfig;
-    this.updatedAt = new Date();
+    if (params.recurringConfig !== undefined) this._recurringConfig = params.recurringConfig;
+    this._updatedAt = new Date();
 
     return { success: true };
   }
@@ -246,18 +281,18 @@ export class Phase {
    * @param config - Recurring pattern configuration
    */
   convertToRecurring(config: RecurringConfig): void {
-    this.isRecurring = true;
-    this.recurringConfig = config;
-    this.updatedAt = new Date();
+    this._isRecurring = true;
+    this._recurringConfig = config;
+    this._updatedAt = new Date();
   }
 
   /**
    * Convert recurring template back to fixed phase
    */
   convertToFixed(): void {
-    this.isRecurring = false;
-    this.recurringConfig = undefined;
-    this.updatedAt = new Date();
+    this._isRecurring = false;
+    this._recurringConfig = undefined;
+    this._updatedAt = new Date();
   }
 
   // ============================================================================
@@ -268,7 +303,7 @@ export class Phase {
    * Check if this is a recurring phase template
    */
   isRecurringTemplate(): boolean {
-    return this.isRecurring;
+    return this._isRecurring;
   }
 
   /**
@@ -276,7 +311,7 @@ export class Phase {
    */
   getDurationDays(): number {
     const msPerDay = 1000 * 60 * 60 * 24;
-    return Math.ceil((this.endDate.getTime() - this.startDate.getTime()) / msPerDay);
+    return Math.ceil((this._endDate.getTime() - this._startDate.getTime()) / msPerDay);
   }
 
   /**
@@ -284,7 +319,7 @@ export class Phase {
    */
   getAverageHoursPerDay(): number {
     const days = this.getDurationDays();
-    return days > 0 ? this.timeAllocationHours / days : 0;
+    return days > 0 ? this._timeAllocationHours / days : 0;
   }
 
   /**
@@ -295,7 +330,7 @@ export class Phase {
    */
   containsDate(date: Date): boolean {
     const normalized = normalizeToMidnight(date);
-    return normalized >= this.startDate && normalized <= this.endDate;
+    return normalized >= this._startDate && normalized <= this._endDate;
   }
 
   /**
@@ -305,16 +340,16 @@ export class Phase {
    * @returns True if phases overlap
    */
   overlaps(other: Phase): boolean {
-    return this.startDate < other.endDate && this.endDate > other.startDate;
+    return this._startDate < other.endDate && this._endDate > other.startDate;
   }
 
   /**
    * Get recurring pattern summary (for recurring phases)
    */
   getRecurringPattern(): string | null {
-    if (!this.isRecurring || !this.recurringConfig) return null;
+    if (!this._isRecurring || !this._recurringConfig) return null;
 
-    const { type, interval } = this.recurringConfig;
+    const { type, interval } = this._recurringConfig;
     const intervalText = interval === 1 ? '' : `every ${interval} `;
 
     switch (type) {
@@ -340,19 +375,19 @@ export class Phase {
    */
   toDTO(): PhaseDTO {
     return {
-      id: this.id,
-      name: this.name,
-      projectId: this.projectId,
-      startDate: this.startDate,
-      endDate: this.endDate,
-      dueDate: this.dueDate, // Legacy
-      timeAllocationHours: this.timeAllocationHours,
-      timeAllocation: this.timeAllocation, // Legacy
-      isRecurring: this.isRecurring,
-      recurringConfig: this.recurringConfig,
-      userId: this.userId,
-      createdAt: this.createdAt,
-      updatedAt: this.updatedAt
+      id: this._id,
+      name: this._name,
+      projectId: this._projectId,
+      startDate: this._startDate,
+      endDate: this._endDate,
+      dueDate: this._dueDate, // Legacy
+      timeAllocationHours: this._timeAllocationHours,
+      timeAllocation: this._timeAllocation, // Legacy
+      isRecurring: this._isRecurring,
+      recurringConfig: this._recurringConfig,
+      userId: this._userId,
+      createdAt: this._createdAt,
+      updatedAt: this._updatedAt
     };
   }
   
@@ -367,19 +402,19 @@ export class Phase {
   // GETTERS - Read-only access to properties
   // ============================================================================
 
-  getId(): string { return this.id; }
-  getName(): string { return this.name; }
-  getProjectId(): string { return this.projectId; }
-  getStartDate(): Date { return this.startDate; }
-  getEndDate(): Date { return this.endDate; }
-  getTimeAllocationHours(): number { return this.timeAllocationHours; }
-  getIsRecurring(): boolean { return this.isRecurring; }
-  getRecurringConfig(): RecurringConfig | undefined { return this.recurringConfig; }
-  getUserId(): string { return this.userId; }
-  getCreatedAt(): Date { return this.createdAt; }
-  getUpdatedAt(): Date { return this.updatedAt; }
+  getId(): string { return this._id; }
+  getName(): string { return this._name; }
+  getProjectId(): string { return this._projectId; }
+  getStartDate(): Date { return this._startDate; }
+  getEndDate(): Date { return this._endDate; }
+  getTimeAllocationHours(): number { return this._timeAllocationHours; }
+  getIsRecurring(): boolean { return this._isRecurring; }
+  getRecurringConfig(): RecurringConfig | undefined { return this._recurringConfig; }
+  getUserId(): string { return this._userId; }
+  getCreatedAt(): Date { return this._createdAt; }
+  getUpdatedAt(): Date { return this._updatedAt; }
 
   // Legacy getters (for backward compatibility)
-  getDueDate(): Date { return this.dueDate; }
-  getTimeAllocation(): number { return this.timeAllocation; }
+  getDueDate(): Date { return this._dueDate; }
+  getTimeAllocation(): number { return this._timeAllocation; }
 }

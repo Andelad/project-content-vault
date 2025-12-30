@@ -16,7 +16,10 @@
  */
 
 import type { CalendarEvent as CalendarEventData } from '@/types/core';
+import type { Database } from '@/integrations/supabase/types';
 import type { DomainResult } from './Project';
+
+type CalendarEventRow = Database['public']['Tables']['calendar_events']['Row'];
 
 /**
  * Event category types
@@ -88,43 +91,63 @@ export interface UpdateCalendarEventParams {
  */
 export class CalendarEvent {
   // Immutable core properties
-  private readonly id: string;
+  private readonly _id: string;
   
   // Mutable business properties
-  private title: string;
-  private startTime: Date;
-  private endTime: Date;
-  private projectId?: string;
-  private color: string;
-  private completed: boolean;
-  private description?: string;
-  private category: EventCategory;
-  private type?: EventType;
-  private rrule?: string;
-  private recurring?: LegacyRecurringConfig;
-  private recurringGroupId?: string;
+  private _title: string;
+  private _startTime: Date;
+  private _endTime: Date;
+  private _projectId?: string;
+  private _color: string;
+  private _completed: boolean;
+  private _description?: string;
+  private _category: EventCategory;
+  private _type?: EventType;
+  private _rrule?: string;
+  private _recurring?: LegacyRecurringConfig;
+  private _recurringGroupId?: string;
   
   // Midnight-crossing event properties
-  private originalEventId?: string;
-  private isSplitEvent?: boolean;
+  private _originalEventId?: string;
+  private _isSplitEvent?: boolean;
+
+  // ============================================================================
+  // PUBLIC GETTERS - Backward compatibility for migration (Phase 2a)
+  // ============================================================================
+  
+  get id(): string { return this._id; }
+  get title(): string { return this._title; }
+  get startTime(): Date { return this._startTime; }
+  get endTime(): Date { return this._endTime; }
+  get projectId(): string | undefined { return this._projectId; }
+  get color(): string { return this._color; }
+  get completed(): boolean { return this._completed; }
+  get description(): string | undefined { return this._description; }
+  get category(): EventCategory { return this._category; }
+  get type(): EventType | undefined { return this._type; }
+  get rrule(): string | undefined { return this._rrule; }
+  get recurring(): LegacyRecurringConfig | undefined { return this._recurring; }
+  get recurringGroupId(): string | undefined { return this._recurringGroupId; }
+  get originalEventId(): string | undefined { return this._originalEventId; }
+  get isSplitEvent(): boolean | undefined { return this._isSplitEvent; }
 
   private constructor(data: CalendarEventData) {
     // Direct assignment - validation happens in factory methods
-    this.id = data.id;
-    this.title = data.title;
-    this.startTime = new Date(data.startTime);
-    this.endTime = new Date(data.endTime);
-    this.projectId = data.projectId;
-    this.color = data.color;
-    this.completed = data.completed ?? false;
-    this.description = data.description;
-    this.category = data.category ?? 'event';
-    this.type = data.type;
-    this.rrule = data.rrule;
-    this.recurring = data.recurring;
-    this.recurringGroupId = data.recurringGroupId;
-    this.originalEventId = data.originalEventId;
-    this.isSplitEvent = data.isSplitEvent;
+    this._id = data.id;
+    this._title = data.title;
+    this._startTime = new Date(data.startTime);
+    this._endTime = new Date(data.endTime);
+    this._projectId = data.projectId;
+    this._color = data.color;
+    this._completed = data.completed ?? false;
+    this._description = data.description;
+    this._category = data.category ?? 'event';
+    this._type = data.type;
+    this._rrule = data.rrule;
+    this._recurring = data.recurring;
+    this._recurringGroupId = data.recurringGroupId;
+    this._originalEventId = data.originalEventId;
+    this._isSplitEvent = data.isSplitEvent;
   }
 
   // ============================================================================
@@ -208,11 +231,39 @@ export class CalendarEvent {
    * Use this when loading existing events from the database.
    * Assumes data is already valid (was validated on creation).
    * 
-   * @param data - Calendar event data from database
+   * @param data - Calendar event data from database (snake_case)
    * @returns CalendarEvent entity
    */
-  static fromDatabase(data: CalendarEventData): CalendarEvent {
-    return new CalendarEvent(data);
+  static fromDatabase(data: CalendarEventRow): CalendarEvent {
+    // Convert database format (snake_case) to entity format (camelCase)
+    // Build recurring config from flat database fields if they exist
+    let recurring = undefined;
+    if (data.recurring_type) {
+      recurring = {
+        type: data.recurring_type as 'daily' | 'weekly' | 'monthly' | 'yearly',
+        interval: data.recurring_interval || 1,
+        endDate: data.recurring_end_date ? new Date(data.recurring_end_date) : undefined,
+        count: data.recurring_count || undefined,
+      };
+    }
+    
+    const eventData: CalendarEventData = {
+      id: data.id,
+      title: data.title,
+      startTime: new Date(data.start_time),
+      endTime: new Date(data.end_time),
+      projectId: data.project_id || undefined,
+      color: data.color,
+      completed: data.completed || undefined,
+      description: data.description || undefined,
+      duration: data.duration || undefined,
+      type: (data.event_type as EventType) || undefined,
+      category: (data.category as EventCategory) || undefined,
+      rrule: data.rrule || undefined,
+      recurring,
+      recurringGroupId: data.recurring_group_id || undefined,
+    };
+    return new CalendarEvent(eventData);
   }
 
   // ============================================================================
@@ -257,29 +308,29 @@ export class CalendarEvent {
 
     // Validate time range if either time is provided
     if (params.startTime || params.endTime) {
-      const newStart = params.startTime ?? this.startTime;
-      const newEnd = params.endTime ?? this.endTime;
+      const newStart = params.startTime ?? this._startTime;
+      const newEnd = params.endTime ?? this._endTime;
       
-      if (this.category !== 'task' && newEnd <= newStart) {
+      if (this._category !== 'task' && newEnd <= newStart) {
         errors.push('Event end time must be after start time');
       }
       
-      if (this.category === 'task' && newStart.getTime() !== newEnd.getTime()) {
+      if (this._category === 'task' && newStart.getTime() !== newEnd.getTime()) {
         errors.push('Tasks cannot have duration - start and end time must be the same');
       }
     }
 
     // Validate category change
     if (params.category !== undefined) {
-      if ((params.category === 'habit' || params.category === 'task') && this.projectId) {
+      if ((params.category === 'habit' || params.category === 'task') && this._projectId) {
         errors.push(`Cannot change to ${params.category} - event is linked to a project`);
       }
     }
 
     // Validate project link
     if (params.projectId !== undefined) {
-      if ((this.category === 'habit' || this.category === 'task') && params.projectId) {
-        errors.push(`${this.category === 'habit' ? 'Habits' : 'Tasks'} cannot be linked to projects`);
+      if ((this._category === 'habit' || this._category === 'task') && params.projectId) {
+        errors.push(`${this._category === 'habit' ? 'Habits' : 'Tasks'} cannot be linked to projects`);
       }
     }
 
@@ -293,15 +344,15 @@ export class CalendarEvent {
     }
 
     // Apply updates
-    if (params.title !== undefined) this.title = params.title.trim();
-    if (params.startTime !== undefined) this.startTime = params.startTime;
-    if (params.endTime !== undefined) this.endTime = params.endTime;
-    if (params.projectId !== undefined) this.projectId = params.projectId;
-    if (params.color !== undefined) this.color = params.color;
-    if (params.completed !== undefined) this.completed = params.completed;
-    if (params.description !== undefined) this.description = params.description?.trim();
-    if (params.category !== undefined) this.category = params.category;
-    if (params.rrule !== undefined) this.rrule = params.rrule;
+    if (params.title !== undefined) this._title = params.title.trim();
+    if (params.startTime !== undefined) this._startTime = params.startTime;
+    if (params.endTime !== undefined) this._endTime = params.endTime;
+    if (params.projectId !== undefined) this._projectId = params.projectId;
+    if (params.color !== undefined) this._color = params.color;
+    if (params.completed !== undefined) this._completed = params.completed;
+    if (params.description !== undefined) this._description = params.description?.trim();
+    if (params.category !== undefined) this._category = params.category;
+    if (params.rrule !== undefined) this._rrule = params.rrule;
 
     return { success: true };
   }
@@ -310,15 +361,15 @@ export class CalendarEvent {
    * Mark event as completed
    */
   markCompleted(): void {
-    this.completed = true;
-    this.type = 'completed';
+    this._completed = true;
+    this._type = 'completed';
   }
 
   /**
    * Mark event as incomplete
    */
   markIncomplete(): void {
-    this.completed = false;
+    this._completed = false;
   }
 
   /**
@@ -328,14 +379,14 @@ export class CalendarEvent {
    * @returns Result indicating success or validation errors
    */
   linkToProject(projectId: string): DomainResult<void> {
-    if (this.category === 'habit' || this.category === 'task') {
+    if (this._category === 'habit' || this._category === 'task') {
       return {
         success: false,
-        errors: [`${this.category === 'habit' ? 'Habits' : 'Tasks'} cannot be linked to projects`]
+        errors: [`${this._category === 'habit' ? 'Habits' : 'Tasks'} cannot be linked to projects`]
       };
     }
 
-    this.projectId = projectId;
+    this._projectId = projectId;
     return { success: true };
   }
 
@@ -343,7 +394,7 @@ export class CalendarEvent {
    * Unlink event from project
    */
   unlinkFromProject(): void {
-    this.projectId = undefined;
+    this._projectId = undefined;
   }
 
   // ============================================================================
@@ -354,7 +405,7 @@ export class CalendarEvent {
    * Check if event is linked to a project
    */
   isLinkedToProject(): boolean {
-    return !!this.projectId;
+    return !!this._projectId;
   }
 
   /**
@@ -362,51 +413,51 @@ export class CalendarEvent {
    * Only events (not habits or tasks) count toward project time
    */
   countsTowardProjectTime(): boolean {
-    return this.category === 'event' && !!this.projectId;
+    return this._category === 'event' && !!this._projectId;
   }
 
   /**
    * Check if event is completed
    */
   isCompleted(): boolean {
-    return this.completed;
+    return this._completed;
   }
 
   /**
    * Check if event is a task
    */
   isTask(): boolean {
-    return this.category === 'task';
+    return this._category === 'task';
   }
 
   /**
    * Check if event is a habit
    */
   isHabit(): boolean {
-    return this.category === 'habit';
+    return this._category === 'habit';
   }
 
   /**
    * Check if event is recurring
    */
   isRecurring(): boolean {
-    return !!(this.rrule || this.recurring);
+    return !!(this._rrule || this._recurring);
   }
 
   /**
    * Get event duration in hours
    */
   getDurationHours(): number {
-    if (this.category === 'task') return 0;
-    return (this.endTime.getTime() - this.startTime.getTime()) / (1000 * 60 * 60);
+    if (this._category === 'task') return 0;
+    return (this._endTime.getTime() - this._startTime.getTime()) / (1000 * 60 * 60);
   }
 
   /**
    * Get event duration in minutes
    */
   getDurationMinutes(): number {
-    if (this.category === 'task') return 0;
-    return (this.endTime.getTime() - this.startTime.getTime()) / (1000 * 60);
+    if (this._category === 'task') return 0;
+    return (this._endTime.getTime() - this._startTime.getTime()) / (1000 * 60);
   }
 
   /**
@@ -416,7 +467,7 @@ export class CalendarEvent {
    * @returns True if event occurs on this date
    */
   occursOnDate(date: Date): boolean {
-    const eventDate = new Date(this.startTime);
+    const eventDate = new Date(this._startTime);
     return eventDate.toDateString() === date.toDateString();
   }
 
@@ -424,8 +475,8 @@ export class CalendarEvent {
    * Check if event crosses midnight
    */
   crossesMidnight(): boolean {
-    const startDate = this.startTime.toDateString();
-    const endDate = this.endTime.toDateString();
+    const startDate = this._startTime.toDateString();
+    const endDate = this._endTime.toDateString();
     return startDate !== endDate;
   }
 
@@ -440,22 +491,22 @@ export class CalendarEvent {
    */
   toData(): CalendarEventData {
     return {
-      id: this.id,
-      title: this.title,
-      startTime: this.startTime,
-      endTime: this.endTime,
-      projectId: this.projectId,
-      color: this.color,
-      completed: this.completed,
-      description: this.description,
+      id: this._id,
+      title: this._title,
+      startTime: this._startTime,
+      endTime: this._endTime,
+      projectId: this._projectId,
+      color: this._color,
+      completed: this._completed,
+      description: this._description,
       duration: this.getDurationHours(),
-      type: this.type,
-      category: this.category,
-      rrule: this.rrule,
-      recurring: this.recurring,
-      recurringGroupId: this.recurringGroupId,
-      originalEventId: this.originalEventId,
-      isSplitEvent: this.isSplitEvent
+      type: this._type,
+      category: this._category,
+      rrule: this._rrule,
+      recurring: this._recurring,
+      recurringGroupId: this._recurringGroupId,
+      originalEventId: this._originalEventId,
+      isSplitEvent: this._isSplitEvent
     };
   }
 
@@ -463,19 +514,19 @@ export class CalendarEvent {
   // GETTERS - Read-only access to properties
   // ============================================================================
 
-  getId(): string { return this.id; }
-  getTitle(): string { return this.title; }
-  getStartTime(): Date { return this.startTime; }
-  getEndTime(): Date { return this.endTime; }
-  getProjectId(): string | undefined { return this.projectId; }
-  getColor(): string { return this.color; }
-  getCompleted(): boolean { return this.completed; }
-  getDescription(): string | undefined { return this.description; }
-  getCategory(): EventCategory { return this.category; }
-  getType(): EventType | undefined { return this.type; }
-  getRRule(): string | undefined { return this.rrule; }
-  getRecurring(): LegacyRecurringConfig | undefined { return this.recurring; }
-  getRecurringGroupId(): string | undefined { return this.recurringGroupId; }
-  getOriginalEventId(): string | undefined { return this.originalEventId; }
-  getIsSplitEvent(): boolean | undefined { return this.isSplitEvent; }
+  getId(): string { return this._id; }
+  getTitle(): string { return this._title; }
+  getStartTime(): Date { return this._startTime; }
+  getEndTime(): Date { return this._endTime; }
+  getProjectId(): string | undefined { return this._projectId; }
+  getColor(): string { return this._color; }
+  getCompleted(): boolean { return this._completed; }
+  getDescription(): string | undefined { return this._description; }
+  getCategory(): EventCategory { return this._category; }
+  getType(): EventType | undefined { return this._type; }
+  getRRule(): string | undefined { return this._rrule; }
+  getRecurring(): LegacyRecurringConfig | undefined { return this._recurring; }
+  getRecurringGroupId(): string | undefined { return this._recurringGroupId; }
+  getOriginalEventId(): string | undefined { return this._originalEventId; }
+  getIsSplitEvent(): boolean | undefined { return this._isSplitEvent; }
 }

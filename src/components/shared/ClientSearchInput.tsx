@@ -4,6 +4,7 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { Client } from '@/types/core';
+import { Client as ClientEntity } from '@/domain/entities/Client';
 
 interface ClientSearchInputProps {
   value: string;
@@ -44,19 +45,10 @@ export function ClientSearchInput({
         .order('name');
       
       if (!error && data) {
-        // Transform database format to Client type
-        const transformedClients: Client[] = data.map(dbClient => ({
-          id: dbClient.id,
-          name: dbClient.name,
-          status: dbClient.status as 'active' | 'inactive' | 'archived',
-          contactEmail: dbClient.contact_email,
-          contactPhone: dbClient.contact_phone,
-          billingAddress: dbClient.billing_address,
-          notes: dbClient.notes,
-          userId: dbClient.user_id,
-          createdAt: new Date(dbClient.created_at),
-          updatedAt: new Date(dbClient.updated_at)
-        }));
+        // Transform database format to Client type using ClientEntity
+        const transformedClients: Client[] = data.map(dbClient => 
+          ClientEntity.fromDatabase(dbClient).toData()
+        );
         setAllClients(transformedClients);
       }
     };

@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import { Holiday as HolidayEntity } from '@/domain/entities/Holiday';
 
 type HolidayRow = Database['public']['Tables']['holidays']['Row'];
 type HolidayInsert = Database['public']['Tables']['holidays']['Insert'];
@@ -144,7 +145,7 @@ export function useHolidays() {
         title: "Success",
         description: "Holiday created successfully",
       });
-      return data;
+      return HolidayEntity.fromDatabase(data);
     } catch (error) {
       ErrorHandlingService.handle(error, { source: 'useHolidays', action: 'Error adding holiday:' });
       toast({
@@ -224,7 +225,7 @@ export function useHolidays() {
         }, 500); // 500ms debounce delay
       }
       
-      return data;
+      return HolidayEntity.fromDatabase(data);
     } catch (error) {
       ErrorHandlingService.handle(error, { source: 'useHolidays', action: 'Error updating holiday:' });
       // Clear any pending success toast when there's an error

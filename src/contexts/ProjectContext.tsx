@@ -8,6 +8,7 @@ import { usePhases } from '@/hooks/usePhases';
 import { getProjectColor, getGroupColor } from '@/constants';
 import type { Database } from '@/integrations/supabase/types';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import { Group as GroupEntity } from '@/domain/entities/Group';
 type SupabaseGroupRow = Database['public']['Tables']['groups']['Row'];
 type SupabaseRowRow = Database['public']['Tables']['rows']['Row'];
 // Note: Table renamed from 'milestones' to 'phases' in database
@@ -218,14 +219,13 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       return [];
     }
 
-    return dbGroups.map((group: SupabaseGroupRow & { color?: string }): ProjectGroup => ({
-      id: group.id,
-      name: group.name,
-      userId: group.user_id,
-      createdAt: new Date(group.created_at),
-      updatedAt: new Date(group.updated_at),
-      color: assignGroupColor(group.id, group.color),
-    }));
+    return dbGroups.map((group: SupabaseGroupRow & { color?: string }): ProjectGroup => {
+      const groupData = GroupEntity.fromDatabase(group).toData();
+      return {
+        ...groupData,
+        color: assignGroupColor(group.id, group.color),
+      };
+    });
   }, [dbGroups, assignGroupColor]);
 
   const processedRows = useMemo<Row[]>(() => {
@@ -286,9 +286,9 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     return {
       id: created.id,
       name: created.name,
-      userId: created.user_id,
-      createdAt: new Date(created.created_at),
-      updatedAt: new Date(created.updated_at),
+      userId: created.userId,
+      createdAt: new Date(created.createdAt),
+      updatedAt: new Date(created.updatedAt),
       color,
     };
   }, [dbAddGroup, assignGroupColor]);
@@ -304,9 +304,9 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     return {
       id: updated.id,
       name: updated.name,
-      userId: updated.user_id,
-      createdAt: new Date(updated.created_at),
-      updatedAt: new Date(updated.updated_at),
+      userId: updated.userId,
+      createdAt: new Date(updated.createdAt),
+      updatedAt: new Date(updated.updatedAt),
       color,
     };
   }, [dbUpdateGroup, assignGroupColor]);
@@ -380,17 +380,17 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       return {
         id: result.id,
         name: result.name,
-        projectId: result.project_id,
-        endDate: new Date(result.end_date),
-        dueDate: new Date(result.end_date),
-        timeAllocation: result.time_allocation,
-        timeAllocationHours: result.time_allocation_hours ?? result.time_allocation,
-        startDate: result.start_date ? new Date(result.start_date) : new Date(result.end_date),
-        isRecurring: result.is_recurring ?? false,
-        recurringConfig: (result.recurring_config as unknown) as import('@/types/core').RecurringConfig | undefined,
-        userId: result.user_id,
-        createdAt: new Date(result.created_at),
-        updatedAt: new Date(result.updated_at)
+        projectId: result.projectId,
+        endDate: new Date(result.endDate),
+        dueDate: new Date(result.endDate),
+        timeAllocation: result.timeAllocation,
+        timeAllocationHours: result.timeAllocationHours ?? result.timeAllocation,
+        startDate: result.startDate ? new Date(result.startDate) : new Date(result.endDate),
+        isRecurring: result.isRecurring ?? false,
+        recurringConfig: result.recurringConfig,
+        userId: result.userId,
+        createdAt: new Date(result.createdAt),
+        updatedAt: new Date(result.updatedAt)
       } satisfies import('@/types/core').PhaseDTO;
     }
     

@@ -13,6 +13,7 @@ import { Label } from '@/types/core';
 import { useToast } from '@/hooks/use-toast';
 import { LabelRules } from '@/domain/rules/LabelRules';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import { Label as LabelEntity } from '@/domain/entities/Label';
 
 export interface UseLabelsReturn {
   labels: Label[];
@@ -57,15 +58,10 @@ export function useLabels(): UseLabelsReturn {
 
       if (fetchError) throw fetchError;
 
-      // Map snake_case to camelCase
-      const mappedLabels: Label[] = (data || []).map(row => ({
-        id: row.id,
-        userId: row.user_id,
-        name: row.name,
-        color: row.color,
-        createdAt: new Date(row.created_at),
-        updatedAt: new Date(row.updated_at),
-      }));
+      // Convert database rows to Label entities then to plain objects
+      const mappedLabels: Label[] = (data || []).map(row => 
+        LabelEntity.fromDatabase(row).toData()
+      );
 
       setLabels(mappedLabels);
     } catch (err) {
@@ -115,14 +111,7 @@ export function useLabels(): UseLabelsReturn {
 
       if (insertError) throw insertError;
 
-      const newLabel: Label = {
-        id: data.id,
-        userId: data.user_id,
-        name: data.name,
-        color: data.color,
-        createdAt: new Date(data.created_at),
-        updatedAt: new Date(data.updated_at),
-      };
+      const newLabel: Label = LabelEntity.fromDatabase(data).toData();
 
       setLabels(prev => [...prev, newLabel]);
 
@@ -131,7 +120,7 @@ export function useLabels(): UseLabelsReturn {
         description: `Label "${newLabel.name}" has been added successfully.`,
       });
 
-      return newLabel;
+      return LabelEntity.fromDatabase(data);
     } catch (err) {
       const error = err as Error;
       ErrorHandlingService.handle(error, { source: 'useLabels', action: 'Error adding label:' });
@@ -307,21 +296,21 @@ export function useLabels(): UseLabelsReturn {
       // Map to Label objects
       type ProjectLabelRow = {
         label_id: string;
-        labels: Label & { user_id: string; created_at: string; updated_at: string };
+        labels: {
+          id: string;
+          name: string;
+          color: string;
+          user_id: string;
+          created_at: string;
+          updated_at: string;
+        };
       };
 
       const projectLabels: Label[] = (data as ProjectLabelRow[] | null || [])
         .filter((row): row is ProjectLabelRow => Boolean(row.labels))
         .map(row => {
           const labelData = row.labels;
-          return {
-            id: labelData.id,
-            userId: labelData.user_id,
-            name: labelData.name,
-            color: labelData.color,
-            createdAt: new Date(labelData.created_at),
-            updatedAt: new Date(labelData.updated_at),
-          };
+          return LabelEntity.fromDatabase(labelData).toData();
         });
 
       return projectLabels;

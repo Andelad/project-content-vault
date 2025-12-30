@@ -11,7 +11,10 @@
  */
 
 import type { Label as LabelData } from '@/types/core';
+import type { Database } from '@/integrations/supabase/types';
 import type { DomainResult } from './Project';
+
+type LabelRow = Database['public']['Tables']['labels']['Row'];
 
 /**
  * Label creation parameters
@@ -43,23 +46,34 @@ export interface UpdateLabelParams {
  */
 export class Label {
   // Immutable core properties
-  private readonly id: string;
-  private readonly userId: string;
-  private readonly createdAt: Date;
+  private readonly _id: string;
+  private readonly _userId: string;
+  private readonly _createdAt: Date;
   
   // Mutable business properties
-  private name: string;
-  private color?: string;
-  private updatedAt: Date;
+  private _name: string;
+  private _color?: string;
+  private _updatedAt: Date;
+
+  // ============================================================================
+  // PUBLIC GETTERS - Backward compatibility for migration (Phase 2a)
+  // ============================================================================
+  
+  get id(): string { return this._id; }
+  get userId(): string { return this._userId; }
+  get name(): string { return this._name; }
+  get color(): string | undefined { return this._color; }
+  get createdAt(): Date { return this._createdAt; }
+  get updatedAt(): Date { return this._updatedAt; }
 
   private constructor(data: LabelData) {
     // Direct assignment - validation happens in factory methods
-    this.id = data.id;
-    this.userId = data.userId;
-    this.name = data.name;
-    this.color = data.color;
-    this.createdAt = new Date(data.createdAt);
-    this.updatedAt = new Date(data.updatedAt);
+    this._id = data.id;
+    this._userId = data.userId;
+    this._name = data.name;
+    this._color = data.color;
+    this._createdAt = new Date(data.createdAt);
+    this._updatedAt = new Date(data.updatedAt);
   }
 
   // ============================================================================
@@ -119,11 +133,20 @@ export class Label {
    * Use this when loading existing labels from the database.
    * Assumes data is already valid (was validated on creation).
    * 
-   * @param data - Label data from database
+   * @param data - Label data from database (snake_case)
    * @returns Label entity
    */
-  static fromDatabase(data: LabelData): Label {
-    return new Label(data);
+  static fromDatabase(data: LabelRow): Label {
+    // Convert database format (snake_case) to entity format (camelCase)
+    const labelData: LabelData = {
+      id: data.id,
+      name: data.name,
+      color: data.color,
+      userId: data.user_id,
+      createdAt: new Date(data.created_at),
+      updatedAt: new Date(data.updated_at),
+    };
+    return new Label(labelData);
   }
 
   // ============================================================================
@@ -181,12 +204,12 @@ export class Label {
 
     // Apply updates
     if (params.name !== undefined) {
-      this.name = params.name.trim();
+      this._name = params.name.trim();
     }
     if (params.color !== undefined) {
-      this.color = params.color?.trim();
+      this._color = params.color?.trim();
     }
-    this.updatedAt = new Date();
+    this._updatedAt = new Date();
 
     return { success: true };
   }
@@ -195,8 +218,8 @@ export class Label {
    * Remove color from label
    */
   removeColor(): void {
-    this.color = undefined;
-    this.updatedAt = new Date();
+    this._color = undefined;
+    this._updatedAt = new Date();
   }
 
   // ============================================================================
@@ -208,7 +231,7 @@ export class Label {
    * Labels are unique by case-insensitive name
    */
   getNormalizedName(): string {
-    return this.name.toLowerCase();
+    return this._name.toLowerCase();
   }
 
   /**
@@ -225,14 +248,14 @@ export class Label {
    * Check if label has a color assigned
    */
   hasColor(): boolean {
-    return !!this.color;
+    return !!this._color;
   }
 
   /**
    * Get display name (with optional # prefix convention)
    */
   getDisplayName(): string {
-    return this.name.startsWith('#') ? this.name : `#${this.name}`;
+    return this._name.startsWith('#') ? this._name : `#${this._name}`;
   }
 
   // ============================================================================
@@ -246,12 +269,12 @@ export class Label {
    */
   toData(): LabelData {
     return {
-      id: this.id,
-      name: this.name,
-      color: this.color,
-      userId: this.userId,
-      createdAt: this.createdAt,
-      updatedAt: this.updatedAt
+      id: this._id,
+      name: this._name,
+      color: this._color,
+      userId: this._userId,
+      createdAt: this._createdAt,
+      updatedAt: this._updatedAt
     };
   }
 

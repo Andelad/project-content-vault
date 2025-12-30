@@ -4,6 +4,8 @@ import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 import type { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
+import { CalendarEvent as CalendarEventEntity } from '@/domain/entities/CalendarEvent';
+
 type CalendarEvent = Database['public']['Tables']['calendar_events']['Row'];
 type CalendarEventInsert = Database['public']['Tables']['calendar_events']['Insert'];
 type CalendarEventUpdate = Database['public']['Tables']['calendar_events']['Update'];
@@ -173,7 +175,7 @@ export function useEvents() {
         });
       }
 
-      return data;
+      return CalendarEventEntity.fromDatabase(data);
     } catch (error) {
       ErrorHandlingService.handle(error, { source: 'useEvents', action: 'Error updating event:' });
       if (!options?.silent) {
