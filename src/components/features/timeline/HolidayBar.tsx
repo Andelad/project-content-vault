@@ -593,7 +593,7 @@ function IndividualHolidayBar({
     <>
       {/* Existing holiday display - show if holiday exists for this column */}
       <div
-        className={`absolute top-1/2 -translate-y-1/2 h-10 border border-orange-300/50 rounded-md flex items-center justify-center text-orange-800 text-sm transition-all shadow-sm z-[1] ${
+        className={`absolute top-1/2 -translate-y-1/2 h-10 border border-orange-300/50 rounded-md flex items-center justify-center text-orange-800 text-sm shadow-sm z-[1] ${
           isDragging && dragState?.holidayId === holiday.id 
             ? 'opacity-90 shadow-lg bg-orange-200/80' 
             : 'hover:bg-orange-300/80 bg-orange-200/80'
