@@ -20,8 +20,8 @@ All documentation lives near the code it describes:
 | **`.cursorrules`** | Project root | AI quick reference - what to do/not do |
 | **`.architecture`** | Project root | This file - codebase map and structure |
 | **`.ddd`** | Project root | Hybrid DDD philosophy & architecture evolution |
-| **`Domain Logic.md`** | `/src/domain/` | What entities are, domain concepts |
-| **`Rules Logic.md`** | `/src/domain/` | How rules work, calculations, formulas |
+| **`App Logic.md`** | `/src/domain/` | What entities are, domain concepts |
+| **`Business Rules.md`** | `/src/domain/` | How rules work, calculations, formulas |
 | **`Display Logic.md`** | `/src/domain/` | View-specific display constraints |
 | **`README.md`** | `/src/components/` | Component file organization |
 
@@ -61,69 +61,92 @@ This codebase uses **Hybrid Domain-Driven Design** - a pragmatic middle ground:
 
 ```
 src/
-├── domain/                          # 📖 Domain layer (business rules)
-│   ├── Domain Logic.md             # What entities ARE
-│   ├── Rules Logic.md              # How rules WORK
-│   ├── Display Logic.md            # Where display constraints apply
-│   ├── domain-services/            # 🆕 Pure domain logic (NEW CODE GOES HERE)
-│   │   ├── PhaseRecurrenceService.ts      # Recurring phase logic
-│   │   ├── ProjectBudgetService.ts        # Budget calculations & analysis
-│   │   └── PhaseDistributionService.ts    # Time distribution & spacing
-│   ├── entities/                   # Rich domain models (Phase, Project, etc.)
-│   │   └── Project.ts              # Example: Project entity with methods
-│   ├── rules/                      # Pure business rules (validation, constraints)
-│   │   ├── ProjectRules.ts         # Project-specific validation
-│   │   ├── PhaseRules.ts           # Phase-specific validation
-│   │   └── RelationshipRules.ts    # Cross-entity relationships
+├── domain/                          # 📖 Layer 1: Pure business logic
+│   ├── App Logic.md                # What entities ARE
+│   ├── Business Rules.md           # How rules WORK
+│   ├── Display Logic.md            # Display constraints
+│   ├── rules/                      # ✅ ALL business logic (validation + calculations)
+│   │   ├── phases/                 # Phase-specific rules
+│   │   ├── projects/               # Project-specific rules
+│   │   ├── sync/                   # Cross-cutting sync logic
+│   │   ├── events/                 # Event rules
+│   │   ├── availability/           # Capacity & work hours
+│   │   ├── clients/                # Client validation
+│   │   ├── holidays/               # Holiday calculations
+│   │   ├── work-slots/             # Work slot rules
+│   │   ├── time-tracking/          # Time tracker logic
+│   │   ├── timeline/               # Timeline display rules
+│   │   ├── integrity/              # Cross-entity validation
+│   │   ├── cascade/                # Deletion impact
+│   │   └── ... (18 subdirectories total)
+│   ├── entities/                   # Rich domain models
+│   │   ├── Project.ts
+│   │   ├── Phase.ts
+│   │   └── Client.ts
 │   └── value-objects/              # Immutable value types
-│       ├── DateRange.ts            # Date range with validation
-│       └── EmailAddress.ts         # Email with validation
+│       ├── DateRange.ts
+│       └── EmailAddress.ts
 │
-├── services/                        # 🔧 Application services
-│   ├── orchestrators/              # Workflows (CREATE/UPDATE/DELETE)
-│   │   ├── ProjectOrchestrator.ts  # Project CRUD workflows
-│   │   └── PhaseOrchestrator.ts    # Phase CRUD workflows
-│   ├── unified/                    # ⚠️ LEGACY: Prefer domain-services for new logic
-│   │   ├── UnifiedProjectService.ts      # Delegates to domain-services
-│   │   └── UnifiedPhaseService.ts        # Delegates to domain-services
-│   ├── calculations/               # Pure math (no business context)
-│   │   └── general/
-│   │       └── dateCalculations.ts
-│   └── ui/                         # UI-specific calculations
-│       └── positioning/
+├── services/                        # 🔧 Layer 2: Application & infrastructure services
+│   ├── orchestrators/              # Workflows (coordination ONLY)
+│   │   ├── ProjectOrchestrator.ts
+│   │   ├── PhaseOrchestrator.ts
+│   │   └── CalendarEventOrchestrator.ts
+│   ├── data/                       # Data transformation & aggregation
+│   │   ├── mappers/                # DB↔Domain translation
+│   │   │   ├── ProjectMapper.ts
+│   │   │   └── PhaseMapper.ts
+│   │   └── aggregators/            # Multi-table queries
+│   │       └── ProjectAggregate.ts
+│   ├── infrastructure/             # Cross-cutting technical concerns
+│   │   ├── ErrorHandlingService.ts
+│   │   ├── TimeTrackerStorage.ts
+│   │   └── caching/
+│   └── ui/                         # View positioning & layout
+│       ├── ProjectBarPositioning.ts
+│       ├── TimelineViewportService.ts
+│       └── DragCoordinator.ts
 │
-├── components/                      # 🎨 UI components
+├── components/                      # 🎨 Layer 3: React UI
 │   ├── README.md                   # Component organization guide
+│   ├── shadcn/                     # Design system components (shadcn/ui)
 │   ├── views/                      # Page-level components
 │   ├── features/                   # Feature-specific components
 │   │   ├── timeline/
 │   │   ├── planner/
 │   │   └── projects/
-│   ├── shared/                     # Reusable generic components
-│   └── ui/                         # Design system primitives (shadcn)
+│   ├── shared/                     # Reusable components
+│   ├── modals/                     # Modal dialogs
+│   └── layout/                     # Layout components
 │
-├── hooks/                           # ⚛️ React hooks
-│   ├── useProjects.ts              # Data fetching hooks
-│   └── useProjectDrag.ts           # Interaction hooks
+├── hooks/                           # ⚛️ React hooks (organized by concern)
+│   ├── data/                       # Data fetching hooks
+│   ├── ui/                         # UI interaction hooks
+│   ├── phase/                      # Phase-specific hooks
+│   ├── calendar/                   # Calendar hooks
+│   ├── timeline/                   # Timeline hooks
+│   └── settings/                   # Settings hooks
 │
 ├── types/                           # 📝 Type definitions
-│   └── core.ts                     # Central type definitions (SINGLE SOURCE)
+│   └── core.ts                     # Central type definitions
 │
 └── utils/                           # 🛠️ Generic utilities
-    └── dateFormatUtils.ts          # Display formatting
-
+    ├── dateCalculations.ts         # Pure date math
+    ├── dateFormatUtils.ts          # Display formatting
+    └── timeCalculations.ts         # Time utilities
 ```
 
 ### Layer Responsibilities
 
 | Layer | What It Does | What It Doesn't Do |
 |-------|--------------|-------------------|
-| **Domain Services** | Pure domain logic (calculations, algorithms) | No UI, no DB, no side effects |
-| **Domain Rules** | Business validation, domain logic | No UI, no DB, no presentation |
+| **Domain Rules** | ALL business logic (validation + calculations inline) | No UI, no DB, no presentation |
 | **Domain Entities** | Rich objects with behavior | No UI concerns, no DB calls |
-| **Orchestrators** | Workflows, coordination, DB access, UI prep | No business logic implementation |
-| **Unified Services** | Delegates to domain-services (LEGACY) | ⚠️ Prefer domain-services for new logic |
-| **Calculations** | Pure math | No business context, no DB, no UI |
+| **Value Objects** | Immutable primitives with validation | No side effects, no mutations |
+| **Orchestrators** | Workflows, coordination, DB access, UI prep | No business logic (use domain/rules) |
+| **Data Services** | DB↔Domain transformation, multi-table aggregation | No business logic, no UI |
+| **Infrastructure** | Error handling, storage, caching | No business logic, no UI |
+| **UI Services** | View positioning, layout calculations | No business logic |
 | **Hooks** | React state + service coordination | No business logic |
 | **Components** | Display only | No logic, no calculations |
 
@@ -133,8 +156,8 @@ src/
 
 Our documentation intentionally separates three concerns that code often mixes:
 
-### 1. Domain Logic - WHAT (Concepts)
-**File:** `/src/domain/Domain Logic.md`
+### 1. App Logic - WHAT (Concepts)
+**File:** `/src/domain/App Logic.md`
 
 **Contains:**
 - Entity definitions (Project, Client, Phase, etc.)
@@ -146,8 +169,8 @@ Our documentation intentionally separates three concerns that code often mixes:
 **Example:**
 > "Projects have three time types: auto-estimated, planned, and completed. All three coexist simultaneously in the domain."
 
-### 2. Rules Logic - HOW (Calculations)
-**File:** `/src/domain/Rules Logic.md`
+### 2. Business Rules - HOW (Calculations)
+**File:** `/src/domain/Business Rules.md`
 
 **Contains:**
 - Calculation formulas
@@ -187,47 +210,53 @@ Our documentation intentionally separates three concerns that code often mixes:
 
 ## 🔧 Services Architecture
 
-### Domain Services (Pure Domain Logic) 🆕
+### Domain Rules (ALL Business Logic) ✅
 
-**Purpose:** Complex domain logic that doesn't fit in a single entity (multi-entity algorithms, pure calculations)
+**Purpose:** ALL business logic - validation + calculations + algorithms
 
-**Location:** `/src/domain/domain-services/`
+**Location:** `/src/domain/rules/`
 
 **Characteristics:**
 - 100% pure (no UI, no DB, no side effects)
 - Fully testable without mocks
-- Stateless static methods
-- Rich domain logic (not simple validation)
+- Stateless static methods or pure functions
+- Calculations inline (co-located with business logic)
 
-**When to use domain-services vs unified services:**
+**Organization:** 18 subdirectories by domain concern
 ```
-Pure domain logic (calculations, algorithms, business rules)
-  → domain/domain-services/  ✅ NEW CODE GOES HERE
-
-UI coordination, FullCalendar integration, CSS classes
-  → services/unified/ or services/ui/  ✅ KEEP HERE
-
-Simple delegation or legacy code
-  → services/unified/  ⚠️ MIGRATE GRADUALLY
+domain/rules/
+├── phases/          # Phase-specific rules (validation, recurrence, distribution, budget)
+├── projects/        # Project-specific rules (validation, budget, metrics)
+├── sync/            # Cross-cutting synchronization (date sync, budget sync)
+├── events/          # Calendar event rules
+├── availability/    # Capacity calculations & work hours
+├── clients/         # Client validation
+├── holidays/        # Holiday calculations
+├── work-slots/      # Work slot rules
+├── time-tracking/   # Time tracking logic
+├── timeline/        # Timeline display rules
+├── integrity/       # Cross-entity validation
+├── cascade/         # Deletion impact analysis
+└── ... (18 total)
 ```
 
 **Example:**
 ```typescript
-// ✅ Domain service (pure logic, 100% testable)
-export class PhaseRecurrenceService {
+// ✅ Domain rule (pure logic, calculations inline)
+export class PhaseRecurrence {
   static generateOccurrences(
     config: RecurringConfig, 
     range: DateRange
   ): Date[] {
-    // Pure RRule-based logic
-    // No DB, no UI, no side effects
+    // RRule logic + calculations inline
+    // No separate MathUtils needed
     return rrule.all();
   }
   
   static validateRecurringConfig(
     config: RecurringConfig
   ): ValidationResult {
-    // Pure validation logic
+    // Validation logic
     if (config.frequency === 'WEEKLY' && !config.byweekday) {
       return { isValid: false, errors: ['Weekly requires days'] };
     }
@@ -236,18 +265,7 @@ export class PhaseRecurrenceService {
 }
 ```
 
-**Current domain services:**
-- `PhaseRecurrenceService` - All recurring phase logic (~430 lines)
-- `ProjectBudgetService` - Budget calculations & analysis (~400 lines)
-- `PhaseDistributionService` - Time distribution & spacing (~460 lines)
-
-**Migration strategy from unified/ to domain-services:**
-- No rush - current structure works
-- When touching unified services, consider extraction
-- Use delegation pattern (unified → domain-services)
-- See "Future Cleanup" section in `.ddd`
-
-### Orchestrators (Workflows)
+### Orchestrators (Workflows ONLY)
 
 **Purpose:** Coordinate complex workflows involving validation + DB + side effects + UI prep
 

@@ -1,87 +1,101 @@
 # Architecture Philosophy: Hybrid DDD
 
 **Last Updated:** January 7, 2026  
-**Current Approach:** Hybrid Domain-Driven Design (DDD) - Three-Layer Simplification  
-**Migration Status:** In Progress - See `/docs/operations/ARCHITECTURE_REBUILD_PLAN.md`
+**Current Approach:** Hybrid Domain-Driven Design (DDD) - Three-Layer Architecture  
+**Migration Status:** ✅ SUBSTANTIALLY COMPLETE - See `/docs/operations/ARCHITECTURE_REBUILD_PLAN.md`
 
 ---
 
-## 🚧 ARCHITECTURE SIMPLIFICATION (January 2026)
+## ✅ ARCHITECTURE SIMPLIFICATION COMPLETE (January 2026)
 
-### The Problem We're Solving
+### The Problem We Solved
 
 Business logic was scattered across 5+ layers:
 - `domain/rules/` (validation)
-- `domain/domain-services/` (pure algorithms)
-- `services/unified/` (mixed logic + data)
-- `services/calculations/` (pure math)
+- `domain/domain-services/` (pure algorithms) ← **DELETED**
+- `services/unified/` (mixed logic + data) ← **DELETED**
+- `services/calculations/` (pure math) ← **DELETED**
 - `services/orchestrators/` (coordination + logic leakage)
 
 **Result:** "Where does this go?" had multiple correct answers.
 
-### The Solution: Three Clear Layers
+### The Solution: Three Clear Layers (IMPLEMENTED)
 
 ```
-📐 Target Architecture (THREE LAYERS):
+📐 Current Architecture (THREE LAYERS):
 
-Layer 1: domain/rules/              ← ALL business logic (validation + calculations)
-├── phases/                         ← Phase rules organized by concern
-│   ├── PhaseValidation.ts
-│   ├── PhaseRecurrence.ts          ← (merged from domain-services)
-│   ├── PhaseDistribution.ts        ← (merged from domain-services)
-│   ├── PhaseBudget.ts              ← (merged from domain-services)
-│   └── PhaseHierarchy.ts
-├── projects/                       ← Project rules organized by concern
-│   ├── ProjectValidation.ts
-│   ├── ProjectBudget.ts            ← (merged from domain-services)
-│   ├── ProjectPhaseManager.ts
-│   └── ProjectHierarchy.ts
-├── sync/                           ← Cross-cutting concerns
-│   ├── DateSync.ts                 ← Phase/project date synchronization
-│   └── BudgetSync.ts               ← Phase/project budget synchronization
-├── calendar-events/
-├── holidays/
-├── feedback/
-├── clients/
-├── time-tracker/
-└── notifications/
+Layer 1: domain/                    ← Pure business logic (NO UI, NO DB)
+├── rules/                          ← ALL business logic (validation + calculations)
+│   ├── phases/                     ← Phase rules organized by concern
+│   ├── projects/                   ← Project rules
+│   ├── sync/                       ← Cross-cutting (date/budget sync)
+│   ├── events/                     ← Calendar event rules
+│   ├── availability/               ← Capacity & work hours
+│   ├── clients/                    ← Client validation
+│   ├── holidays/                   ← Holiday calculations
+│   ├── work-slots/                 ← Work slot rules
+│   ├── time-tracking/              ← Time tracker logic
+│   ├── timeline/                   ← Timeline display rules
+│   ├── integrity/                  ← Cross-entity validation
+│   └── cascade/                    ← Deletion impact rules
+├── entities/                       ← Rich domain models
+└── value-objects/                  ← Immutable primitives (DateRange, etc.)
 
-Layer 2: services/orchestrators/    ← Workflows only (NO business logic)
-├── PhaseOrchestrator.ts            ← Calls rules, coordinates DB + UI
-├── ProjectOrchestrator.ts
-├── CalendarEventOrchestrator.ts
-└── ...
+Layer 2: services/                  ← Application & infrastructure services
+├── orchestrators/                  ← Workflows (coordination ONLY)
+├── data/                           ← Data transformation & aggregation
+│   ├── mappers/                    ← DB↔Domain translation
+│   └── aggregators/                ← Multi-table queries
+├── infrastructure/                 ← Cross-cutting technical concerns
+│   ├── ErrorHandlingService.ts
+│   ├── TimeTrackerStorage.ts
+│   └── caching/                    ← Performance optimization
+└── ui/                             ← View-specific positioning & layout
+    ├── ProjectBarPositioning.ts
+    ├── TimelineViewportService.ts
+    ├── DragCoordinator.ts
+    └── CalendarLayout.ts
 
-Layer 3: services/data/             ← Data transformation only (NO business logic)
-├── mappers/                        ← DB↔UI field translation
-│   ├── PhaseMapper.ts
-│   └── ProjectMapper.ts
-└── aggregators/                    ← Multi-table queries
-    ├── PhaseAggregator.ts
-    └── ProjectAggregator.ts
+Layer 3: components/                ← React UI (depends on services)
+├── shadcn/                         ← Design system components (shadcn/ui)
+├── features/                       ← Feature-specific components
+├── views/                          ← Page-level components
+├── shared/                         ← Reusable components
+├── modals/                         ← Modal dialogs
+└── layout/                         ← Layout components
 ```
 
 ### Key Decisions (January 7, 2026)
 
-| Decision | Rationale |
-|----------|-----------|
-| **Merge domain-services → rules** | Same purity, fewer folders to navigate |
-| **NO MathUtils** | Keep calculations inline with business logic |
-| **NO separate calculations layer** | Math belongs with the rules that use it |
-| **Split unified services** | Business logic → rules, data transformation → services/data |
-| **Cross-cutting in sync/** | Explicit home for phase↔project interactions |
+| Decision | Status | Rationale |
+|----------|--------|-----------|
+| **Merge domain-services → rules** | ✅ DONE | Same purity, fewer folders to navigate |
+| **NO MathUtils** | ✅ DONE | Keep calculations inline with business logic |
+| **NO separate calculations layer** | ✅ DONE | Math belongs with the rules that use it |
+| **Split unified services** | ✅ DONE | Logic → rules, data → services/data |
+| **Cross-cutting in sync/** | ✅ DONE | Explicit home for phase↔project interactions |
+| **Infrastructure in services/** | ✅ DONE | Error handling, storage, caching consolidated |
+| **UI services in services/ui/** | ✅ DONE | View positioning separate from components |
+| **Rename components/ui → shadcn** | ✅ DONE | Clear distinction from services/ui |
 
-### What Gets Deleted
+### What Got Deleted/Moved
 
 ```
-❌ domain/domain-services/          → Merged into domain/rules/
-❌ services/calculations/           → Merged into domain/rules/
-❌ services/unified/                → Split: logic→rules, data→services/data/
+✅ domain/domain-services/          → MERGED into domain/rules/
+✅ services/calculations/           → MERGED into domain/rules/
+✅ services/unified/                → SPLIT: logic→rules, data→services/data/
+✅ infrastructure/                  → MOVED to services/infrastructure/
+✅ ui/                              → MOVED to services/ui/
+✅ components/ui/                   → RENAMED to components/shadcn/
 ```
 
-### Migration Status
+### Current Status
 
-See `/docs/operations/ARCHITECTURE_REBUILD_PLAN.md` for detailed progress.
+✅ **Architecture rebuild SUBSTANTIALLY COMPLETE**
+- Three-layer structure enforced
+- Zero naming ambiguity
+- All business logic in domain/rules/
+- Clear separation of concerns
 
 ---
 
@@ -96,36 +110,29 @@ We maintain **strict separation in documentation** while allowing **pragmatic mi
 ```
 📚 Documentation (Co-located with Code):
 ├── /.architecture              → Overall architecture philosophy
-├── /.ddd                   → This file - Hybrid DDD evolution
+├── /.ddd                       → This file - Hybrid DDD evolution
 ├── /src/domain/
-│   ├── App Logic.md         → Domain concepts (100% UI-agnostic)
-│   ├── Business Rules.md          → Domain rules & calculations (UI-agnostic)
+│   ├── App Logic.md            → Domain concepts (100% UI-agnostic)
+│   ├── Business Rules.md       → Domain rules & calculations (UI-agnostic)
 │   └── Display Logic.md        → Display-specific business rules
 └── /src/components/
     └── README.md               → Component organization
 
-💻 Code (Three Layers - Target State):
-├── domain/
-│   ├── entities/        → Rich domain models ✅
-│   ├── rules/           → ALL business logic (validation + calculations) ✅
-│   └── value-objects/   → Immutable domain primitives ✅
-├── services/
-│   ├── orchestrators/   → Workflows only (NO logic) ✅
-│   └── data/            → Transformation + aggregation ✅
-└── components/          → UI display ✅
-
-💻 Code (Current State - Being Migrated):
-├── domain/
-│   ├── entities/        → Rich domain models ✅
-│   ├── rules/           → Validation + some business logic ✅
-│   ├── value-objects/   → Immutable domain primitives ✅
-│   └── domain-services/ → Pure algorithms ⚠️ MIGRATING → rules/
-├── services/
-│   ├── orchestrators/   → Workflows (some logic leakage) ⚠️
-│   ├── unified/         → Mixed concerns ⚠️ MIGRATING → rules/ + data/
-│   ├── calculations/    → Pure math ⚠️ MIGRATING → rules/
-│   └── infrastructure/  → Cross-cutting concerns ✅
-└── components/          → UI display ✅
+💻 Code (Three Layers - CURRENT STATE):
+├── domain/                     → Layer 1: Pure business logic
+│   ├── entities/               → Rich domain models ✅
+│   ├── rules/                  → ALL business logic (validation + calculations) ✅
+│   └── value-objects/          → Immutable domain primitives ✅
+├── services/                   → Layer 2: Application & infrastructure services
+│   ├── orchestrators/          → Workflows only (NO logic) ✅
+│   ├── data/                   → Transformation + aggregation ✅
+│   ├── infrastructure/         → Error handling, storage, caching ✅
+│   └── ui/                     → View positioning & layout ✅
+└── components/                 → Layer 3: React UI
+    ├── shadcn/                 → Design system components (shadcn/ui) ✅
+    ├── features/               → Feature components ✅
+    ├── views/                  → Page components ✅
+    └── shared/                 → Reusable components ✅
 ```
 
 **Key Principle:** Documentation lives near the code it describes.
@@ -298,19 +305,19 @@ src/domain/value-objects/
 
 ---
 
-## Domain Services (December 2025 → Merging January 2026)
+## Domain Services - Migration Complete (January 2026)
 
-### ⚠️ Migration Status
+### ✅ Migration Complete
 
-**Domain services are being MERGED into `domain/rules/`** as part of the three-layer simplification.
+**Domain services have been MERGED into `domain/rules/`** as part of the three-layer simplification.
 
-| Current Location | Target Location |
-|------------------|-----------------|
-| `domain/domain-services/PhaseRecurrenceService.ts` | `domain/rules/phases/PhaseRecurrence.ts` |
-| `domain/domain-services/ProjectBudgetService.ts` | `domain/rules/projects/ProjectBudget.ts` |
-| `domain/domain-services/PhaseDistributionService.ts` | `domain/rules/phases/PhaseDistribution.ts` |
+| Previous Location | Current Location | Status |
+|-------------------|------------------|--------|
+| `domain/domain-services/PhaseRecurrenceService.ts` | `domain/rules/phases/PhaseRecurrence.ts` | ✅ MERGED |
+| `domain/domain-services/ProjectBudgetService.ts` | `domain/rules/projects/ProjectBudget.ts` | ✅ MERGED |
+| `domain/domain-services/PhaseDistributionService.ts` | `domain/rules/phases/PhaseDistribution.ts` | ✅ MERGED |
 
-**Why merge?**
+**Why we merged:**
 - Same purity guarantees (no UI, no DB)
 - Fewer folders to navigate
 - One answer to "where does business logic go?"
@@ -603,39 +610,55 @@ These are standard DDD patterns we may adopt when needed:
 
 ---
 
-## Decision: Three-Layer Simplification (January 2026)
+## Decision: Three-Layer Simplification (January 2026) - COMPLETE
 
 **Previous State (December 2025):**
 - Business logic in 5+ locations (rules, domain-services, unified, calculations, orchestrators)
 - "Where does this go?" had multiple correct answers
 - Good purity, but too many folders
 
-**Current Migration (January 2026):**
-- Simplifying to THREE clear layers
-- See `/docs/operations/ARCHITECTURE_REBUILD_PLAN.md` for detailed plan
+**Current State (January 2026) - ✅ COMPLETE:**
+- Simplified to THREE clear layers
+- ALL business logic in ONE place (domain/rules/)
+- Clear, enforced hierarchy
 
-**Target Architecture:**
+**Current Architecture:**
 ```
 Layer 1: domain/rules/           ← ALL business logic (validation + calculations inline)
-Layer 2: services/orchestrators/ ← Workflows only (NO logic)
-Layer 3: services/data/          ← Transformation + aggregation only
+Layer 2: services/               ← Application services (4 subdirectories)
+         ├── orchestrators/      ← Workflows (coordination only)
+         ├── data/               ← Transformation + aggregation
+         ├── infrastructure/     ← Error handling, storage, caching
+         └── ui/                 ← View positioning & layout
+Layer 3: components/             ← React UI
+         ├── shadcn/             ← Design system (shadcn/ui)
+         ├── features/
+         ├── views/
+         └── shared/
 ```
 
 **Key Changes:**
-| What | From | To |
-|------|------|-----|
-| Domain Services | `domain/domain-services/` | Merge → `domain/rules/` |
-| Calculations | `services/calculations/` | Merge → `domain/rules/` (inline) |
-| Unified Services | `services/unified/` | Split → `domain/rules/` + `services/data/` |
-| Math Utilities | Separate files | Inline with business logic |
+| What | From | To | Status |
+|------|------|-----|--------|
+| Domain Services | `domain/domain-services/` | `domain/rules/` | ✅ MERGED |
+| Calculations | `services/calculations/` | `domain/rules/` (inline) | ✅ MERGED |
+| Unified Services | `services/unified/` | `domain/rules/` + `services/data/` | ✅ SPLIT |
+| Math Utilities | Separate files | Inline with business logic | ✅ DONE |
+| Infrastructure | `/infrastructure/` | `services/infrastructure/` | ✅ MOVED |
+| UI Services | `/ui/` | `services/ui/` | ✅ MOVED |
+| Shadcn Components | `components/ui/` | `components/shadcn/` | ✅ RENAMED |
 
-**Progress (January 2026):**
+**Progress (January 2026) - ✅ SUBSTANTIALLY COMPLETE:**
 - ✅ Architecture plan created
 - ✅ Audit completed (documented bypass of domain rules)
-- ✅ Three-layer structure designed
-- ⏳ Phase 1: Merge domain-services → rules (In Progress)
-- ⏳ Phase 2: Create services/data/ layer
-- ⏳ Phase 3-6: Migrate orchestrators, UI, cleanup
+- ✅ Three-layer structure designed and implemented
+- ✅ Domain-services merged into rules/
+- ✅ Calculations merged into rules/ (inline)
+- ✅ Unified services deleted (split into rules/ + data/)
+- ✅ Infrastructure consolidated into services/infrastructure/
+- ✅ UI services consolidated into services/ui/
+- ✅ Components/ui renamed to components/shadcn/
+- ⏳ Future: Further consolidation of domain/rules/ subdirectories (optional)
 
 **Review Triggers for Strict DDD:**
 - Team grows beyond 7 developers
@@ -646,7 +669,7 @@ Layer 3: services/data/          ← Transformation + aggregation only
 
 ## Quick Reference
 
-**Target Architecture (Three-Layer Hybrid DDD):**
+**Current Architecture (Three-Layer Hybrid DDD) - ✅ IMPLEMENTED:**
 ```
 Components → Orchestrators (coordination) → Domain Rules (ALL business logic)
                       ↓
@@ -655,27 +678,32 @@ Components → Orchestrators (coordination) → Domain Rules (ALL business logic
                Supabase (direct calls)
 
 Domain Layer (Pure):
-  domain/rules/
-  ├── phases/ (PhaseValidation, PhaseRecurrence, PhaseDistribution, PhaseBudget)
-  ├── projects/ (ProjectValidation, ProjectBudget, ProjectPhaseManager)
-  ├── sync/ (DateSync, BudgetSync) ← Cross-cutting
-  ├── calendar-events/
-  └── ...
-       ↑
-  domain/value-objects/ (DateRange, EmailAddress, etc.)
-       ↑
-  domain/entities/ (Project, Phase, Client)
-```
+  domain/
+  ├── rules/                        ← ALL business logic
+  │   ├── phases/
+  │   ├── projects/
+  │   ├── sync/                     ← Cross-cutting
+  │   ├── events/
+  │   ├── availability/
+  │   └── ... (18 subdirectories)
+  ├── entities/                     ← Rich domain models
+  └── value-objects/                ← Immutable primitives
 
-**Current Architecture (Being Migrated):**
-```
-Components → Orchestrators → Entities + Rules + Domain Services + Unified + Supabase
+Services Layer (Application):
+  services/
+  ├── orchestrators/                ← Workflows (coordination ONLY)
+  ├── data/                         ← Data transformation
+  │   ├── mappers/
+  │   └── aggregators/
+  ├── infrastructure/               ← Error, storage, caching
+  └── ui/                           ← View positioning & layout
 
-⚠️ Too many paths for business logic:
-  - domain/rules/
-  - domain/domain-services/  ← Merging into rules
-  - services/unified/        ← Splitting
-  - services/calculations/   ← Merging into rules
+Components Layer (UI):
+  components/
+  ├── shadcn/                       ← Design system
+  ├── features/
+  ├── views/
+  └── shared/
 ```
 
 **Documentation (Never Changes):**
@@ -686,4 +714,4 @@ App Logic.md → Business Rules.md → Display Logic.md
 
 ---
 
-**Bottom Line:** We simplified from 5+ layers to 3 clear layers. Same purity, fewer folders, one answer to "where does this go?"
+**Bottom Line:** We simplified from 5+ overlapping layers to 3 clear layers with ONE answer to "where does this go?"
