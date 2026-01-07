@@ -4,7 +4,7 @@ import type { TimeTrackingState, SerializedTimeTrackingState, TimeTrackingSyncMe
 import type { CalendarEvent } from '../../types/core';
 import { supabase } from '../../integrations/supabase/client';
 import type { RealtimeChannel } from '@supabase/supabase-js';
-import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 type SelectedProject = NonNullable<TimeTrackingState['selectedProject']>;
 

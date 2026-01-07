@@ -12,7 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Label } from '@/types/core';
 import { useToast } from '@/hooks/ui/use-toast';
 import { LabelRules } from '@/domain/rules/clients/LabelValidation';
-import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 import { Label as LabelEntity } from '@/domain/entities/Label';
 
 export interface UseLabelsReturn {

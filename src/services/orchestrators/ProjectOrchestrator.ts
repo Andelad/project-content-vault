@@ -20,7 +20,7 @@ import { getDateKey } from '@/utils/dateFormatUtils';
 import { calculateBudgetAdjustment } from '@/services';
 import { Project as ProjectEntity } from '@/domain/entities/Project';
 import { Client as ClientEntity } from '@/domain/entities/Client';
-import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 import { supabase } from '@/integrations/supabase/client';
 import { normalizeProjectColor } from '@/utils/normalizeProjectColor';
 export interface ProjectBudgetAnalysis {

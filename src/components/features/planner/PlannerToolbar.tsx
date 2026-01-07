@@ -1,6 +1,6 @@
 import React from 'react';
-import { Button } from '@/components/ui/button';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Button } from '@/components/shadcn/button';
+import { ToggleGroup, ToggleGroupItem } from '@/components/shadcn/toggle-group';
 import { DatePickerButton } from '@/components/shared/DatePickerButton';
 import { HelpButton } from '@/components/shared/HelpButton';
 import { ChevronLeft, ChevronRight, MapPin, ChevronsDownUp, ChevronsUpDown } from 'lucide-react';

@@ -17,7 +17,7 @@ import { TimelineViewport as TimelineViewportService } from './TimelineViewportS
 import * as ProjectBarResizeService from './ProjectBarResizeService';
 import { normalizeToMidnight, addDaysToDate } from '@/utils/dateCalculations';
 import type { Project, PhaseDTO, DayEstimate } from '@/types/core';
-import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 export interface TimelineContext {
   projects: Project[];

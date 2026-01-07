@@ -3,14 +3,14 @@ import { StandardModal, MODAL_BUTTON_LABELS } from './StandardModal';
 import { ProjectModal } from './ProjectModal';
 import { useClients } from '@/hooks/data/useClients';
 import { useProjectContext } from '@/contexts/ProjectContext';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Badge } from '../ui/badge';
-import { Card, CardContent } from '../ui/card';
+import { Input } from '../shadcn/input';
+import { Label } from '../shadcn/label';
+import { Badge } from '../shadcn/badge';
+import { Card, CardContent } from '../shadcn/card';
 import { Building2, Folder, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/ui/use-toast';
 import type { Client } from '@/types/core';
-import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 interface ClientModalProps {
   isOpen: boolean;

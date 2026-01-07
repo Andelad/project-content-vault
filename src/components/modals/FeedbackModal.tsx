@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent } from '../ui/dialog';
-import { Button } from '../ui/button';
-import { Label } from '../ui/label';
-import { Textarea } from '../ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Dialog, DialogContent } from '../shadcn/dialog';
+import { Button } from '../shadcn/button';
+import { Label } from '../shadcn/label';
+import { Textarea } from '../shadcn/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../shadcn/select';
 import { useToast } from '@/hooks/ui/use-toast';
 import { Paperclip, X, Send } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 interface FeedbackModalProps {
   open: boolean;

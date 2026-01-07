@@ -1,13 +1,13 @@
 import { useCallback } from 'react';
 import { toast } from '@/hooks/ui/use-toast';
-import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 import {
   TimelineDragCoordinatorService,
   initializeHolidayDragState,
   addDaysToDate
 } from '@/services';
 import type { Holiday, Project } from '@/types/core';
-import type { DragState } from '@/ui/DragPositioning';
+import type { DragState } from '@/services/ui/DragPositioning';
 
 interface UseHolidayDragProps {
   holidays: Holiday[];

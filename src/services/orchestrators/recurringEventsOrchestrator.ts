@@ -10,7 +10,7 @@ import { CalendarEvent } from '@/types/core';
 import { supabase } from '@/integrations/supabase/client';
 import { generateRecurringEvents } from '@/domain/rules/events/EventCalculations';
 import { addDaysToDate } from '@/utils/dateCalculations';
-import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 /**
  * Checks if a recurring series needs more events generated and creates them if necessary

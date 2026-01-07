@@ -2,7 +2,7 @@ import { supabase } from '../../integrations/supabase/client';
 import type { TimeTrackingState, SerializedTimeTrackingState } from '../../types/timeTracking';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { Json } from '@/integrations/supabase/types';
-import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 /**
  * Time Tracking Repository
  * 

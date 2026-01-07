@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/shadcn/card';
+import { Badge } from '@/components/shadcn/badge';
+import { Button } from '@/components/shadcn/button';
 import { Calendar, Clock, Trash2, Users, Search, Folder, Building2, Tag } from 'lucide-react';
 import { Project, Group } from '@/types';
 import { getEffectiveProjectStatus, DurationFormattingService } from '@/services';

@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ResponsiveBar } from '@nivo/bar';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/shadcn/card';
+import { Button } from '@/components/shadcn/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shadcn/select';
 import { ChevronLeft, ChevronRight, GraduationCap } from 'lucide-react';
 import { NEUTRAL_COLORS } from '@/constants/colors';
 import { formatMonthYear, formatMonthLongYear, formatMonth, APP_LOCALE } from '@/utils/dateFormatUtils';

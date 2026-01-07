@@ -7,7 +7,7 @@ import { useRows } from '@/hooks/data/useRows';
 import { usePhases } from '@/hooks/data/usePhases';
 import { getProjectColor, getGroupColor } from '@/constants';
 import type { Database } from '@/integrations/supabase/types';
-import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 import { Group as GroupEntity } from '@/domain/entities/Group';
 type SupabaseGroupRow = Database['public']['Tables']['groups']['Row'];
 type SupabaseRowRow = Database['public']['Tables']['rows']['Row'];

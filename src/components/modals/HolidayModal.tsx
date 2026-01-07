@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar as CalendarIcon } from 'lucide-react';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Textarea } from '../ui/textarea';
-import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
-import { Calendar } from '../ui/calendar';
+import { Button } from '../shadcn/button';
+import { Input } from '../shadcn/input';
+import { Label } from '../shadcn/label';
+import { Textarea } from '../shadcn/textarea';
+import { Popover, PopoverContent, PopoverTrigger } from '../shadcn/popover';
+import { Calendar } from '../shadcn/calendar';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { StandardModal } from './StandardModal';
 import { HolidayOrchestrator } from '@/services/orchestrators/HolidayOrchestrator';

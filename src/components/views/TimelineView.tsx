@@ -1,8 +1,8 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
-import { TooltipProvider } from '../ui/tooltip';
-import { Card } from '../ui/card';
+import { TooltipProvider } from '../shadcn/tooltip';
+import { Card } from '../shadcn/card';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { useTimelineContext } from '../../contexts/TimelineContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
@@ -33,7 +33,7 @@ import { AvailabilityCard } from '../shared/AvailabilityCard';
 import { HolidayBar } from '@/components/features/timeline/HolidayBar';
 import { AppPageLayout } from '../layout/AppPageLayout';
 import { TimelineToolbar } from '@/components/features/timeline/TimelineToolbar';
-import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 import type { DayEstimate, Project } from '@/types/core';
 // Lazy load heavy modals
 const ProjectModal = React.lazy(() => import('../modals/ProjectModal').then(module => ({ default: module.ProjectModal })));

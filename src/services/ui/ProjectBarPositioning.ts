@@ -30,7 +30,7 @@ import {
 } from '@/domain/rules/availability/WorkHourGeneration';
 import { formatDateShort, formatWeekdayDate } from '@/utils/dateFormatUtils';
 import type { Holiday } from '@/types/core';
-import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 import type { DragState } from './DragPositioning';
 
 // Re-export date calculation functions for backwards compatibility

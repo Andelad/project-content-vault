@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar as CalendarIcon, Clock, User, Palette, Trash2, Info, ChevronDown, ChevronRight, Folder, Infinity as InfinityIcon, LineChart, StickyNote } from 'lucide-react';
-import { Input } from '../ui/input';
-import { Button } from '../ui/button';
-import { Label } from '../ui/label';
-import { Badge } from '../ui/badge';
-import { Card } from '../ui/card';
-import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
-import { Calendar } from '../ui/calendar';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
-import { RichTextEditor } from '../ui/rich-text-editor';
+import { Input } from '../shadcn/input';
+import { Button } from '../shadcn/button';
+import { Label } from '../shadcn/label';
+import { Badge } from '../shadcn/badge';
+import { Card } from '../shadcn/card';
+import { Popover, PopoverContent, PopoverTrigger } from '../shadcn/popover';
+import { Calendar } from '../shadcn/calendar';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../shadcn/tooltip';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../shadcn/select';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../shadcn/alert-dialog';
+import { RichTextEditor } from '../shadcn/rich-text-editor';
 import { ProjectPhaseSection, ProjectInsightsSection, ProjectNotesSection } from '@/components/features/project';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
@@ -26,7 +26,7 @@ import { StandardModal } from './StandardModal';
 import { OKLCH_PROJECT_COLORS, PROJECT_ICONS } from '@/constants';
 import { NEUTRAL_COLORS } from '@/constants/colors';
 import type { Project, PhaseDTO } from '@/types/core';
-import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 import { TabComponent } from '../shared';
 
 interface ProjectModalProps {

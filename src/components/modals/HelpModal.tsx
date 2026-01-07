@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Dialog, DialogContent } from '../ui/dialog';
-import { Input } from '../ui/input';
-import { Badge } from '../ui/badge';
-import { Button } from '../ui/button';
+import { Dialog, DialogContent } from '../shadcn/dialog';
+import { Input } from '../shadcn/input';
+import { Badge } from '../shadcn/badge';
+import { Button } from '../shadcn/button';
 import { Search, BookOpen, Calendar, PieChart, Folders, Settings as SettingsIcon, Zap, Menu, ChevronLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 

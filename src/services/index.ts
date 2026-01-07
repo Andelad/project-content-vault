@@ -28,9 +28,9 @@ export * from './orchestrators/recurringEventsOrchestrator';
 export * from './data';             // Data transformation & aggregation
 
 // 🔄 Re-export from other top-level folders for backward compatibility
-export * from '@/ui';                      // View positioning & UI helpers
-export * from '@/infrastructure/caching';  // Performance optimization
-export * from '@/infrastructure/ErrorHandlingService';  // Centralized error handling
+export * from '@/services/ui';                      // View positioning & UI helpers
+export * from '@/services/infrastructure/caching';  // Performance optimization
+export * from '@/services/infrastructure/ErrorHandlingService';  // Centralized error handling
 
 // 🚧 Legacy Services (Temporary - During Migration)
 // These will be removed once migration to new architecture is complete
@@ -46,7 +46,7 @@ export { WorkHourCalculationService } from '@/domain/rules/availability/WorkHour
 
 // Time tracking - migrated to domain/rules/timeTracking and orchestrators
 export type { SearchResult, TrackingEventData } from '@/domain/rules/time-tracking/TimeTrackerHelpers';
-export type { TrackingState } from '@/infrastructure/TimeTrackerStorage';
+export type { TrackingState } from '@/services/infrastructure/TimeTrackerStorage';
 
 // Event-Work Hour integration - migrated to calculations/availability/eventWorkHourIntegration
 export { 
@@ -65,7 +65,7 @@ export {
   transformCalendarEventToFullCalendar,
   transformWorkHourToFullCalendar,
   transformFullCalendarToCalendarEvent
-} from '@/ui/EventTransformations';
+} from '@/services/ui/EventTransformations';
 
 // 🔧 Frequently Used Functions (Stable API)
 export { 
@@ -88,8 +88,8 @@ export {
   type BusinessHoursConfig,
   type CalendarView,
   type ViewportSize
-} from '@/ui/FullCalendarConfig';
-export { throttledDragUpdate as throttleDragUpdate } from '@/infrastructure/caching/dragPerformanceService';
+} from '@/services/ui/FullCalendarConfig';
+export { throttledDragUpdate as throttleDragUpdate } from '@/services/infrastructure/caching/dragPerformanceService';
 
 // 📊 Calculation Functions (Business Logic)
 export {
@@ -121,12 +121,12 @@ export {
 // TimelineCalculationService migrated to calculations/timelineCalculations.ts
 
 // New architecture services - maintain backward compatibility
-export { TimelineViewport, TimelineViewport as TimelineViewportService } from '@/ui/TimelineViewportService';
+export { TimelineViewport, TimelineViewport as TimelineViewportService } from '@/services/ui/TimelineViewportService';
 
 // ================================================================================
 
 // Legacy calculation functions (to be migrated)
-export { calculateTimeFromPosition } from '@/ui/workHourInteraction';
+export { calculateTimeFromPosition } from '@/services/ui/workHourInteraction';
 export { 
   calculateDurationMinutes,
   normalizeToMidnight,
@@ -246,7 +246,7 @@ export {
 } from '@/domain/rules/phases/PhaseBudget';
 // Legacy project progress analysis - migrated to unified service with compatibility wrapper
 export { wouldOverlapHolidays, isHolidayDateCapacity, calculateCommittedHoursForDate, hasWorkHoursConfigured, dayHasWorkHoursConfigured } from '@/domain/rules/availability/CapacityAnalysis';
-export { calculateProjectDays } from '@/ui/ProjectBarPositioning';
+export { calculateProjectDays } from '@/services/ui/ProjectBarPositioning';
 export { calculateWorkHoursTotal, calculateDayWorkHours, calculateTotalDayWorkHours } from '@/domain/rules/availability/WorkHourGeneration';
 export { calculateDailyCapacity } from '@/domain/rules/insights/AnalyticsCalculations';
 export { calculateProjectTimeMetrics as calculateLegacyProjectMetrics } from '@/domain/rules/projects/ProjectMetrics';
@@ -265,14 +265,14 @@ export {
   debounceDragUpdate, 
   initializeHolidayDragState,
   type SmoothAnimationConfig 
-} from '@/ui/DragPositioning';
-export { handleWorkHourCreationStart, handleWorkHourCreationMove, handleWorkHourCreationComplete } from '@/ui/workHourInteraction';
-export { getWorkHourOverlapInfo, generateWorkHourPreviewStyle, getWorkHourCreationCursor, shouldAllowWorkHourCreation, type WorkHourCreateState } from '@/ui/workHourInteraction';
+} from '@/services/ui/DragPositioning';
+export { handleWorkHourCreationStart, handleWorkHourCreationMove, handleWorkHourCreationComplete } from '@/services/ui/workHourInteraction';
+export { getWorkHourOverlapInfo, generateWorkHourPreviewStyle, getWorkHourCreationCursor, shouldAllowWorkHourCreation, type WorkHourCreateState } from '@/services/ui/workHourInteraction';
 // PositionCalculation type migrated to ui/TimelinePositioning.ts
 export { type ComprehensiveProjectTimeMetrics, type ProjectEvent as ProgressProjectEvent } from '@/domain/rules/projects/ProjectMetrics';
 // Timeline positioning now handled by ui/TimelinePositioning.ts
 // All UI positioning functions consolidated there
-export { formatWorkSlotDurationDisplay } from '@/ui/workHourInteraction';
+export { formatWorkSlotDurationDisplay } from '@/services/ui/workHourInteraction';
 export { checkProjectOverlap, adjustProjectDatesForDrag, detectLiveDragConflicts, resolveDragConflicts, datesOverlap, calculateOverlapPercentage, type ConflictDetectionResult, type DateAdjustmentResult, type Project } from '@/domain/rules/projects/ProjectMetrics';
 
 /**
@@ -290,7 +290,7 @@ export { checkProjectOverlap, adjustProjectDatesForDrag, detectLiveDragConflicts
 // 🔄 Compatibility Wrappers for Migrated /lib Functionality
 // These provide the same interface as the old /lib files but use the new services architecture
 
-import { CalculationCacheService, WorkingDayCache } from '@/infrastructure/caching';
+import { CalculationCacheService, WorkingDayCache } from '@/services/infrastructure/caching';
 import * as React from 'react';
 import type { CalendarEvent, Holiday, Settings, WorkSlot } from '@/types';
 

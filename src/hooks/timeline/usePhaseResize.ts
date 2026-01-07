@@ -23,8 +23,8 @@ import {
   normalizeToMidnight,
   calculateDaysDeltaFromPixels
 } from '@/services';
-import type { DragState } from '@/ui/DragPositioning';
-import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
+import type { DragState } from '@/services/ui/DragPositioning';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 import { getPhases, type Phase } from '@/domain/rules/phases/PhaseRules';
 import type { PhaseDTO, Project } from '@/types/core';
 

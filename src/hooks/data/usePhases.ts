@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/ui/use-toast';
 import type { Database, Json } from '@/integrations/supabase/types';
 import type { PhaseDTO } from '@/types/core';
-import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 import { Phase as PhaseEntity } from '@/domain/entities/Phase';
 // Note: Database types still use 'milestones' key but table is now 'phases'
 // TODO: After types regenerate, update to use 'phases' key

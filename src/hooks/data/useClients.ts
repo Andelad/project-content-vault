@@ -11,7 +11,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Client } from '@/types/core';
 import { useToast } from '@/hooks/ui/use-toast';
 import { ClientOrchestrator } from '@/services/orchestrators/ClientOrchestrator';
-import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 export interface UseClientsReturn {
   clients: Client[];

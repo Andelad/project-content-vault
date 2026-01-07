@@ -1,6 +1,6 @@
 import React from 'react';
 import { Clock, Calendar, BarChart3, Clock3, Zap, Shield } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/shadcn/button';
 import { useAuth } from '@/contexts/AuthContext';
 
 const LandingPage = () => {

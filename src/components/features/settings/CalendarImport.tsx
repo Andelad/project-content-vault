@@ -1,18 +1,18 @@
 import React, { useState, useRef } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Progress } from '@/components/ui/progress';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/shadcn/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/shadcn/card';
+import { Label } from '@/components/shadcn/label';
+import { Input } from '@/components/shadcn/input';
+import { Progress } from '@/components/shadcn/progress';
+import { Alert, AlertDescription } from '@/components/shadcn/alert';
+import { Badge } from '@/components/shadcn/badge';
+import { Separator } from '@/components/shadcn/separator';
 import { Upload, Calendar, CheckCircle, XCircle, Clock, FileText } from 'lucide-react';
 import { parseICalFile, type ImportResult } from '@/services';
 import { CalendarImportOrchestrator } from '@/services/orchestrators/CalendarImportOrchestrator';
 import { useCalendarConnections } from '@/hooks/calendar/useCalendarConnections';
 import { useToast } from '@/hooks/ui/use-toast';
-import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 export function CalendarImport() {
   const [importing, setImporting] = useState(false);

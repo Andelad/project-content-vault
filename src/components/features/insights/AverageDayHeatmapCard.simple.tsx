@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/shadcn/card';
 import { Sun } from 'lucide-react';
 import { CalendarEvent, Group, Project } from '@/types';
 interface AverageDayHeatmapCardProps {

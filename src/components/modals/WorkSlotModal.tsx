@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Textarea } from '../ui/textarea';
+import { Button } from '../shadcn/button';
+import { Input } from '../shadcn/input';
+import { Label } from '../shadcn/label';
+import { Textarea } from '../shadcn/textarea';
 import { StandardModal } from '../modals/StandardModal';
 import { WorkHour } from '../../types/core';
 import { calculateDurationHours } from '@/services';

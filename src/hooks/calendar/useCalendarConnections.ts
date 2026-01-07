@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/ui/use-toast';
 import type { Database } from '@/integrations/supabase/types';
-import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 type CalendarConnection = Database['public']['Tables']['calendar_connections']['Row'];
 type CalendarConnectionInsert = Database['public']['Tables']['calendar_connections']['Insert'];

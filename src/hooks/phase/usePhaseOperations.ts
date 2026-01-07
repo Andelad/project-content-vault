@@ -3,7 +3,7 @@ import { useProjectContext } from '@/contexts/ProjectContext';
 import { PhaseOrchestrator } from '@/services';
 import type { PhaseDTO, Phase } from '@/types/core';
 import { useToast } from '@/hooks/ui/use-toast';
-import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 export interface LocalPhase extends Omit<PhaseDTO, 'id'> {
   id?: string;

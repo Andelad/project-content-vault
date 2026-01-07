@@ -20,7 +20,7 @@
 
 import { WorkSlot as WorkSlotEntity } from '@/domain/entities/WorkSlot';
 import { WorkSlot, Settings } from '@/types/core';
-import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 export type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
 

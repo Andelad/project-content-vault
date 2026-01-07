@@ -43,10 +43,10 @@ const timelineCalculationAllocationCache = timelineCalculationCache as Parameter
 import { calculateAutoEstimateWorkingDays, calculateEventDurationOnDateLegacy as calculateEventDurationOnDate } from '@/services';
 // TODO: Fix these imports after performance and ui services migration
 // import { memoizeExpensiveCalculation, timelineCalculationCache } from '../../performance/cachePerformanceService';
-import { memoizeExpensiveCalculation, timelineCalculationCache } from '@/infrastructure/caching/cachePerformanceService';
+import { memoizeExpensiveCalculation, timelineCalculationCache } from '@/services/infrastructure/caching/cachePerformanceService';
 import { getCalendarEventBackgroundColor, getCalendarEventTextColor } from '@/constants/colors';
 // TODO: Fix this import after ui services migration
-// import { ColorCalculationService } from '../../ui/ColorCalculations';
+// import { ColorCalculationService } from '../../shadcn/ColorCalculations';
 import { ColorCalculationService } from '@/domain/rules/ui/ColorCalculations';
 
 /**

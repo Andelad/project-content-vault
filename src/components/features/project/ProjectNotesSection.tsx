@@ -1,7 +1,7 @@
 import React from 'react';
 import { Save } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { RichTextEditor } from '@/components/ui/rich-text-editor';
+import { Button } from '@/components/shadcn/button';
+import { RichTextEditor } from '@/components/shadcn/rich-text-editor';
 
 interface ProjectNotesSectionProps {
   projectId: string;

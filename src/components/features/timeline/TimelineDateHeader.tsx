@@ -10,7 +10,7 @@ import {
   formatWeekDateRange
 } from '@/services';
 import { useTimelineContext } from '@/contexts/TimelineContext';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/shadcn/tooltip';
 
 interface TimelineDateHeaderProps {
   dates: Date[];

@@ -26,7 +26,7 @@ import {
   calculateVisualProjectDates,
   getTimelinePositions,
   calculateTimelineColumnMarkerData
-} from '@/ui/ProjectBarPositioning';
+} from '@/services/ui/ProjectBarPositioning';
 
 import { 
   calculateProjectDuration,
@@ -80,9 +80,9 @@ import {
 // Import WorkHourLike type
 import type { WorkHourLike } from '@/domain/rules/availability/WorkHourGeneration';
 import type { Project, PhaseDTO, DayEstimate, Settings, Holiday, CalendarEvent, WorkHour } from '@/types/core';
-import type { TimelinePositionCalculation } from '@/ui/ProjectBarPositioning';
-import type { DragState } from '@/ui/DragPositioning';
-import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
+import type { TimelinePositionCalculation } from '@/services/ui/ProjectBarPositioning';
+import type { DragState } from '@/services/ui/DragPositioning';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 export interface TimelineProjectData {
   project: Project;
   duration: number;

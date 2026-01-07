@@ -3,7 +3,7 @@ import { Phase, Project } from '@/types/core';
 import { PhaseOrchestrator, detectRecurringPattern } from '@/services';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/ui/use-toast';
-import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 import type { LocalPhase } from './usePhaseOperations';
 
 export interface RecurringPhase {

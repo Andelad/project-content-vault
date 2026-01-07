@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Switch } from '../ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Separator } from '../ui/separator';
-import { Badge } from '../ui/badge';
+import { Button } from '../shadcn/button';
+import { Input } from '../shadcn/input';
+import { Label } from '../shadcn/label';
+import { Switch } from '../shadcn/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../shadcn/select';
+import { Separator } from '../shadcn/separator';
+import { Badge } from '../shadcn/badge';
 import { cn } from '@/lib/utils';
 
 import { Bell, Palette, Clock, Globe, Shield, Trash2, User, Plus, X, Calendar, FolderKanban, Download, RefreshCw } from 'lucide-react';

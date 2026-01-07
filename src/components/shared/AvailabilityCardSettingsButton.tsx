@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button } from '../ui/button';
+import { Button } from '../shadcn/button';
 import { Settings } from 'lucide-react';
 
 interface AvailabilityCardSettingsButtonProps {

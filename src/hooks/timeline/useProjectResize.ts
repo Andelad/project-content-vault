@@ -17,8 +17,8 @@ import {
   TimelineDragCoordinatorService,
   addDaysToDate
 } from '@/services';
-import type { DragState } from '@/ui/DragPositioning';
-import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
+import type { DragState } from '@/services/ui/DragPositioning';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 import type { DayEstimate, Project } from '@/types/core';
 type UpdateProjectFn = (
   id: string,

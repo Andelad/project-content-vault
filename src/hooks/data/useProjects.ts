@@ -5,7 +5,7 @@ import { normalizeProjectColor } from '@/utils/normalizeProjectColor';
 import { Project } from '@/types/core';
 import type { Database } from '@/integrations/supabase/types';
 import { ProjectOrchestrator } from '@/services/orchestrators/ProjectOrchestrator';
-import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 type SupabaseProjectInsert = Database['public']['Tables']['projects']['Insert'];
 type SupabaseProjectRow = Database['public']['Tables']['projects']['Row'];

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/ui/use-toast';
 import type { Database } from '@/integrations/supabase/types';
-import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 type Settings = Database['public']['Tables']['settings']['Row'];
 type SettingsUpdate = Database['public']['Tables']['settings']['Update'];

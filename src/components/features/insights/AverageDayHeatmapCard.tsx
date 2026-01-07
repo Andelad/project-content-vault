@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/shadcn/card';
+import { Button } from '@/components/shadcn/button';
 import { Filter, Calendar, GraduationCap, Layers } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shadcn/select';
 import { CalendarEvent, Group, Project } from '@/types';
 import { FilterModal } from './FilterModal';
 import { formatDuration, normalizeToMidnight, addDaysToDate } from '@/services';

@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/ui/use-toast';
 import type { Database } from '@/integrations/supabase/types';
 import { OKLCH_HABIT_BROWN } from '@/constants/colors';
-import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 type CalendarEvent = Database['public']['Tables']['calendar_events']['Row'];
 type CalendarEventInsert = Database['public']['Tables']['calendar_events']['Insert'];

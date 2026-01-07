@@ -1,7 +1,7 @@
 import React from 'react';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/shadcn/button';
+import { Label } from '@/components/shadcn/label';
+import { Badge } from '@/components/shadcn/badge';
 import { Download, Check, Smartphone } from 'lucide-react';
 import { usePWAInstall } from '@/hooks/ui/usePWAInstall';
 import { useToast } from '@/hooks/ui/use-toast';

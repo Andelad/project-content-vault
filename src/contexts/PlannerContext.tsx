@@ -15,7 +15,7 @@ import { generateRecurringEvents } from '@/services';
 import { ensureRecurringEventsExist } from '@/services';
 import { timeTrackingOrchestrator } from '@/services/orchestrators/timeTrackingOrchestrator';
 import { useSettingsContext } from './SettingsContext';
-import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 type HabitRow = Database['public']['Tables']['calendar_events']['Row'];
 type HabitInsert = Database['public']['Tables']['calendar_events']['Insert'];
 type HabitUpdate = Database['public']['Tables']['calendar_events']['Update'];

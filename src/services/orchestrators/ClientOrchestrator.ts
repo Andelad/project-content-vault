@@ -10,7 +10,7 @@
 import { Client, ClientStatus } from '@/types/core';
 import { ClientRules } from '@/domain/rules/clients/ClientValidation';
 import { supabase } from '@/integrations/supabase/client';
-import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 import { Client as ClientEntity } from '@/domain/entities/Client';
 
 export interface ClientValidationResult {

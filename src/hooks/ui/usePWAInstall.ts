@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;

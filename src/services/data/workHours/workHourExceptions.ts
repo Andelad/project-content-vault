@@ -24,7 +24,7 @@
 import { WorkHour, WorkHourException, WorkSlot, Settings } from '@/types/core';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
-import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 export interface CreateWorkHourExceptionParams {
   exceptionDate: Date;

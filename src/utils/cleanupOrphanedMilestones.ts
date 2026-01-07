@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 /**
  * Removes orphaned milestone instances that no longer have a recurring template.
  * These are milestones with:

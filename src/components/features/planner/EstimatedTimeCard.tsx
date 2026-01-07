@@ -9,8 +9,8 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Project, PhaseDTO, CalendarEvent, Settings, Holiday } from '@/types/core';
 import { getDailyProjectSummaries } from '@/services/data/DayEstimateAggregate';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/shadcn/popover';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/shadcn/tooltip';
 //
 import { ClockArrowDown } from 'lucide-react';
 import { NEUTRAL_COLORS } from '@/constants/colors';

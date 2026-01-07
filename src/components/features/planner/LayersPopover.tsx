@@ -1,6 +1,6 @@
 import React from 'react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/shadcn/popover';
+import { Button } from '@/components/shadcn/button';
 import { Layers2, CalendarDays, Eye, EyeOff, Clock } from 'lucide-react';
 import { HABIT_ICON, TASK_ICON } from '@/constants/icons';
 

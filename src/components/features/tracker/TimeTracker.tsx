@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Play, Square, Search, Plus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/shadcn/button';
+import { Input } from '@/components/shadcn/input';
+import { Card, CardContent } from '@/components/shadcn/card';
 import { useProjectContext } from '@/contexts/ProjectContext';
 import { usePlannerContext } from '@/contexts/PlannerContext';
 import { useSettingsContext } from '@/contexts/SettingsContext';
@@ -23,14 +23,14 @@ import {
   type SearchResult,
   type TrackingEventData
 } from '@/domain/rules/time-tracking/TimeTrackerHelpers';
-import type { TrackingState } from '@/infrastructure/TimeTrackerStorage';
+import type { TrackingState } from '@/services/infrastructure/TimeTrackerStorage';
 import type { TimeTrackerWorkflowContext } from '@/services/orchestrators/timeTrackingOrchestrator';
 import { supabase } from '@/integrations/supabase/client'; // Used for event existence check in DB sync
 import { ConflictDialog } from './ConflictDialog';
 import type { TimeTrackingState } from '@/types/timeTracking';
 import { toast } from '@/hooks/ui/use-toast';
 import { ProjectModal } from '@/components/modals/ProjectModal';
-import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 interface TimeTrackerProps {
   className?: string;
   isExpanded?: boolean;

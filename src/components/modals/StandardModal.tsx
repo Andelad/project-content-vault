@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import React from 'react';
-import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
-import { Button } from '../ui/button';
+import { Dialog, DialogContent, DialogTitle } from '../shadcn/dialog';
+import { Button } from '../shadcn/button';
 import { cn } from '@/lib/utils';
 
 /**

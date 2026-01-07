@@ -11,8 +11,8 @@ import {
   convertIndicesToDates
 } from '@/services';
 import type { Holiday } from '@/types/core';
-import type { DragState } from '@/ui/DragPositioning';
-import type { TimelinePositionCalculation } from '@/ui/ProjectBarPositioning';
+import type { DragState } from '@/services/ui/DragPositioning';
+import type { TimelinePositionCalculation } from '@/services/ui/ProjectBarPositioning';
 
 type HolidayDragAction = 'move' | 'resize-start-date' | 'resize-end-date';
 

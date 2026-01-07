@@ -1,9 +1,9 @@
 import React, { memo, useState, useMemo, useEffect, useCallback } from 'react';
 import { Info } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
-import { Button } from '../ui/button';
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '../ui/tooltip';
-import { Card } from '../ui/card';
+import { Popover, PopoverContent, PopoverTrigger } from '../shadcn/popover';
+import { Button } from '../shadcn/button';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '../shadcn/tooltip';
+import { Card } from '../shadcn/card';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { 
   formatDuration,

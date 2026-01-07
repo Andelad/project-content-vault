@@ -4,7 +4,7 @@ import { Settings, WorkHour, WorkHourOverride, TimelineEntry } from '@/types/cor
 import { useSettings as useSettingsHook } from '@/hooks/settings/useSettings';
 import { timeTrackingOrchestrator } from '@/services/orchestrators/timeTrackingOrchestrator';
 import { supabase } from '@/integrations/supabase/client';
-import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 import type { Database } from '@/integrations/supabase/types';
 
 type SettingsRow = (Database['public']['Tables']['settings']['Row']) & {

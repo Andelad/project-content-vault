@@ -2,7 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ContextProviders } from './contexts/ContextProviders';
-import { Toaster } from './components/ui/toaster';
+import { Toaster } from './components/shadcn/toaster';
 import { ErrorBoundary } from './components/debug/ErrorBoundary';
 
 // Pages

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Search, Building2, Mail, Phone, MapPin, FileText } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/shadcn/card';
+import { Badge } from '@/components/shadcn/badge';
 import { ClientModal } from '@/components/modals/ClientModal';
 import { useClients } from '@/hooks/data/useClients';
 import { useProjectContext } from '@/contexts/ProjectContext';

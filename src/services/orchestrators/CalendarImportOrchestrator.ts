@@ -7,7 +7,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { calculateDurationHours } from '@/services';
-import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 export interface ExternalEvent {
   title: string;

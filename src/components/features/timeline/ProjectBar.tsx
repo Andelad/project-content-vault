@@ -1,6 +1,6 @@
 import React, { memo, useMemo } from 'react';
 
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/shadcn/tooltip';
 import { useProjectContext } from '@/contexts/ProjectContext';
 import { usePlannerContext } from '@/contexts/PlannerContext';
 import { useSettingsContext } from '@/contexts/SettingsContext';
@@ -27,10 +27,10 @@ import {
 import { getPhasesSortedByEndDate } from '@/domain/rules/phases/PhaseRules';
 import { ProjectIconIndicator } from './ProjectIconIndicator';
 import { DraggablePhaseMarkers } from './DraggablePhaseMarkers';
-import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 import { PhaseRecurrenceService } from '@/domain/rules/phases/PhaseRecurrence';
-import type { DragState } from '@/ui/DragPositioning';
-import type { TimelinePositionCalculation } from '@/ui/ProjectBarPositioning';
+import type { DragState } from '@/services/ui/DragPositioning';
+import type { TimelinePositionCalculation } from '@/services/ui/ProjectBarPositioning';
 
 interface ProjectBarProps {
   project: Project;

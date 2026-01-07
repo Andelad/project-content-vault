@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../shadcn/dialog';
 import { TabComponent } from '../shared/TabComponent';
 import { NEUTRAL_COLORS } from '@/constants/colors';
 

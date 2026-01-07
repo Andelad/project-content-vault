@@ -7,5 +7,5 @@ export { ProjectNotesSection } from './ProjectNotesSection';
 export { ProjectProgressGraph } from './ProjectProgressGraph';
 
 // UI Components (shared)
-export { RichTextEditor } from '@/components/ui/rich-text-editor';
-export { TextFormattingToolbar } from '@/components/ui/text-formatting-toolbar';
+export { RichTextEditor } from '@/components/shadcn/rich-text-editor';
+export { TextFormattingToolbar } from '@/components/shadcn/text-formatting-toolbar';

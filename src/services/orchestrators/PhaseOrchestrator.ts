@@ -15,7 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { ProjectOrchestrator } from './ProjectOrchestrator';
 import { calculateDurationDays, addDaysToDate } from '@/utils/dateCalculations';
 import { RecurringPhaseConfig as BaseRecurringPhaseConfig } from '@/domain/rules/phases/PhaseRecurrence';
-import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 import { Phase as PhaseEntity } from '@/domain/entities/Phase';
 import { PhaseRecurrenceService } from '@/domain/rules/phases/PhaseRecurrence';
 import { PhaseRules, PhaseBudgetRules } from '@/domain/rules/phases/PhaseRules';

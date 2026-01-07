@@ -1,6 +1,6 @@
 import React, { useMemo, useEffect, useState } from 'react';
 import moment from 'moment';
-import { Card } from '@/components/ui/card';
+import { Card } from '@/components/shadcn/card';
 import { CalendarEvent } from '@/types';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import { calculateEventDurationOnDate, aggregateEventDurationsByDate } from '@/services';

@@ -8,7 +8,7 @@ import {
   deleteWorkHourForDate,
   applyExceptionsToWorkHours
 } from '@/services/data/workHours/workHourExceptions';
-import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 import { WorkSlotOrchestrator, DayOfWeek } from '@/services/orchestrators/WorkSlotOrchestrator';
 
 interface UseWorkHoursReturn {

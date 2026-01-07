@@ -12,7 +12,7 @@
  * - Workflow coordination (orchestrators handle this)
  */
 import ICAL from 'ical.js';
-import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 
 export interface ExternalEvent {
   title: string;

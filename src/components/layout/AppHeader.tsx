@@ -3,7 +3,7 @@ import { TimeTracker } from '../features/tracker/TimeTracker';
 import { TimeTrackerBookmark } from '../features/tracker/TimeTrackerBookmark';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 import { useTimelineContext } from '../../contexts/TimelineContext';
-import { Button } from '../ui/button';
+import { Button } from '../shadcn/button';
 import { Menu } from 'lucide-react';
 
 import { CalendarEvent } from '@/types';

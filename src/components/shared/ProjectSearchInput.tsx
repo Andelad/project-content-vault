@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Search, Plus } from 'lucide-react';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Button } from '../ui/button';
+import { Input } from '../shadcn/input';
+import { Label } from '../shadcn/label';
+import { Button } from '../shadcn/button';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 import { filterSearchResults, type SearchResult } from '@/domain/rules/time-tracking/TimeTrackerHelpers';
