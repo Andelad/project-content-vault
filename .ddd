@@ -98,8 +98,8 @@ We maintain **strict separation in documentation** while allowing **pragmatic mi
 ├── /.architecture              → Overall architecture philosophy
 ├── /.ddd                   → This file - Hybrid DDD evolution
 ├── /src/domain/
-│   ├── Domain Logic.md         → Domain concepts (100% UI-agnostic)
-│   ├── Rules Logic.md          → Domain rules & calculations (UI-agnostic)
+│   ├── App Logic.md         → Domain concepts (100% UI-agnostic)
+│   ├── Business Rules.md          → Domain rules & calculations (UI-agnostic)
 │   └── Display Logic.md        → Display-specific business rules
 └── /src/components/
     └── README.md               → Component organization
@@ -406,11 +406,11 @@ const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
 
 ### 1. Three-Layer Documentation Model
 
-**Domain Logic** (`/src/domain/Domain Logic.md`) defines WHAT exists (domain truth):
+**App Logic** (`/src/domain/App Logic.md`) defines WHAT exists (domain truth):
 - "Projects have three time types: auto-estimated, planned, completed"
 - "All time types coexist in the domain simultaneously"
 
-**Rules Logic** (`/src/domain/Rules Logic.md`) defines HOW calculations work (domain rules):
+**Business Rules** (`/src/domain/Business Rules.md`) defines HOW calculations work (domain rules):
 - "Auto-estimate = (Remaining Hours) ÷ (Days without events)"
 - "Events exclude days from auto-estimate distribution"
 
@@ -422,7 +422,7 @@ const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
 
 **Example: Rule 9 (Daily Time Allocation)**
 
-**Domain Truth** (Rules Logic):
+**Domain Truth** (Business Rules):
 - Auto-estimated, planned, and completed time all exist
 - Calculations run regardless of display
 - All time types are always available
@@ -680,7 +680,7 @@ Components → Orchestrators → Entities + Rules + Domain Services + Unified + 
 
 **Documentation (Never Changes):**
 ```
-Domain Logic.md → Rules Logic.md → Display Logic.md
+App Logic.md → Business Rules.md → Display Logic.md
 (Pure domain truth, regardless of code approach)
 ```
 

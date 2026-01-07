@@ -378,8 +378,8 @@ Based on Architecture Analysis Phase Plan:
 ## 🔗 RELATED DOCUMENTATION
 
 ### Domain Documentation
-- `/src/domain/Domain Logic.md` - Business rules (user-facing)
-- `/src/domain/Rules Logic.md` - Technical rules
+- `/src/domain/App Logic.md` - Business rules (user-facing)
+- `/src/domain/Business Rules.md` - Technical rules
 
 ### Operation Guides
 - `/docs/operations/PHASE_MIGRATION_INSTRUCTIONS.md`

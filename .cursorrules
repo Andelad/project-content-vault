@@ -25,14 +25,14 @@
 **Core Documents:**
 - **`.ddd`** (root) - Hybrid DDD philosophy & architecture evolution
 - **`.architecture`** (root) - WHERE code goes, structural patterns
-- **`Domain Logic.md`** (`/src/domain/`) - WHAT entities are (concepts)
-- **`Rules Logic.md`** (`/src/domain/`) - HOW calculations work (formulas)
+- **`App Logic.md`** (`/src/domain/`) - WHAT entities are (concepts)
+- **`Business Rules.md`** (`/src/domain/`) - HOW calculations work (formulas)
 - **`Display Logic.md`** (`/src/domain/`) - Display constraints & view rules
 - **`README.md`** (`/src/components/`) - Component organization
 
 **Quick Navigation:**
-- Domain concepts → `/src/domain/Domain Logic.md`
-- Calculations/formulas → `/src/domain/Rules Logic.md`
+- Domain concepts → `/src/domain/App Logic.md`
+- Calculations/formulas → `/src/domain/Business Rules.md`
 - Display constraints → `/src/domain/Display Logic.md`
 - Code structure → `/.architecture`
 - Hybrid DDD philosophy → `/.ddd`
@@ -241,8 +241,8 @@ interface Project { id: string; }
 
 When modifying business rules:
 
-1. **Update `/src/domain/Domain Logic.md`** (entity definitions, concepts)
-2. **Update `/src/domain/Rules Logic.md`** (detailed rules, calculations)
+1. **Update `/src/domain/App Logic.md`** (entity definitions, concepts)
+2. **Update `/src/domain/Business Rules.md`** (detailed rules, calculations)
 3. **Update `/src/domain/Display Logic.md`** (if display rules changed)
 4. **Update `src/domain/rules/*.ts`** (with `@see` references)
 5. **Update orchestrators** (workflows using the rule)

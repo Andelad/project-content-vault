@@ -443,8 +443,8 @@ When implementing date sync operations, verify:
 ## 🔗 RELATED DOCUMENTS
 
 - `/docs/analysis/PHASE_PROJECT_DATE_FLOW_ANALYSIS.md` - Architecture analysis
-- `/src/domain/Domain Logic.md` - Business rules
-- `/src/domain/Rules Logic.md` - Technical rules
+- `/src/domain/App Logic.md` - Business rules
+- `/src/domain/Business Rules.md` - Technical rules
 - `/docs/features/phases/PHASE_TIME_DOMAIN_RULES.md` - Phase-specific rules
 
 ---

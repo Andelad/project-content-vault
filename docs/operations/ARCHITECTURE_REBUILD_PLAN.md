@@ -550,7 +550,7 @@ Data Services (transformation + aggregation only)
 - ✅ Pure domain layer (entities, rules, services)
 - ✅ Pragmatic orchestrators (mixed concerns by design)
 - ✅ Direct Supabase calls (NO repository classes)
-- ✅ Documentation separation (Domain Logic.md, Rules Logic.md)
+- ✅ Documentation separation (App Logic.md, Business Rules.md)
 
 **NOT changing this decision.**
 
@@ -1671,8 +1671,8 @@ if (syncResult.changed) {
 #### 7.4 Final Documentation Update
 
 **Tasks:**
-- [ ] Update Domain Logic.md with implemented behavior
-- [ ] Update Rules Logic.md with any new formulas
+- [ ] Update App Logic.md with implemented behavior
+- [ ] Update Business Rules.md with any new formulas
 - [ ] Update .architecture with new patterns
 - [ ] Update .cursorrules with new guidelines
 - [ ] Archive old session docs

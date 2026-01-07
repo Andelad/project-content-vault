@@ -110,7 +110,7 @@ Path 5: UI → Legacy Service → Database (bypassing rules!)
 **Symptom:** Project end dates don't always match last phase end date
 
 **Root Cause:**
-- **Domain Logic says:** "If has phases: end date IS the last phase's end date (auto-synced)"
+- **App Logic says:** "If has phases: end date IS the last phase's end date (auto-synced)"
 - **Implementation:** Multiple places TRY to enforce this, but coordination is unclear
 - No single "source of truth" for the sync operation
 
@@ -460,7 +460,7 @@ describe('Phase-Project Date Integration', () => {
 ### Phase 4: Validation (Prove It Works)
 1. Run full test suite
 2. Manual QA of date flows
-3. Update Domain Logic.md with implemented behavior
+3. Update App Logic.md with implemented behavior
 4. Archive old/duplicate code
 
 ---
@@ -508,8 +508,8 @@ const result = await ProjectOrchestrator.updateProjectDates(projectId, { endDate
 
 ## 📚 RELATED DOCUMENTS
 
-- `/src/domain/Domain Logic.md` - Business rules (what should happen)
-- `/src/domain/Rules Logic.md` - Technical rules (how to enforce)
+- `/src/domain/App Logic.md` - Business rules (what should happen)
+- `/src/domain/Business Rules.md` - Technical rules (how to enforce)
 - `/docs/operations/PHASE_MIGRATION_INSTRUCTIONS.md` - Migration context
 - `/docs/features/phases/PHASE_TIME_DOMAIN_RULES.md` - Phase-specific rules
 

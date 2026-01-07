@@ -357,7 +357,7 @@ class PhaseRepository {
 3. **Create:** DateSyncService (implementation)
 4. **Write:** Integration tests (prove it works)
 5. **Refactor:** Remove duplicate paths (clean up)
-6. **Document:** Update Domain Logic.md (finalize)
+6. **Document:** Update App Logic.md (finalize)
 
 ---
 

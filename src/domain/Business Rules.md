@@ -1,4 +1,4 @@
-# Rules Logic
+# Business Rules
 ## Detailed Rules, Calculations, and Edge Cases
 
 **Document Version**: 2.0.0  
@@ -11,7 +11,7 @@
 
 This document contains **detailed business rules, calculations, state transitions, and edge cases** for the Time Forecasting Application. 
 
-**For entity definitions and what things ARE, see [Domain Logic.md](Domain%20Logic.md) in this directory.**
+**For entity definitions and what things ARE, see [App Logic.md](App%20Logic.md) in this directory.**
 
 This document focuses on:
 - How entities **behave** and **interact**
@@ -36,7 +36,7 @@ This document focuses on:
 
 ## Entity Relationships (Detailed)
 
-> **Note:** For entity definitions (what each entity IS), see [Domain Logic.md](Domain%20Logic.md#-part-1-core-entities-things-that-exist).
+> **Note:** For entity definitions (what each entity IS), see [App Logic.md](Domain%20Logic.md#-part-1-core-entities-things-that-exist).
 
 ```
 User
@@ -53,7 +53,7 @@ User
   └─ Holidays (capacity overrides - no work on these days)
 ```
 
-> **Entity Definitions:** For what each entity IS (properties, examples), see [Domain Logic.md](Domain%20Logic.md#-part-1-core-entities-things-that-exist).
+> **Entity Definitions:** For what each entity IS (properties, examples), see [App Logic.md](Domain%20Logic.md#-part-1-core-entities-things-that-exist).
 > 
 > This document focuses on HOW entities behave and interact.
 
@@ -334,7 +334,7 @@ ELSE
 ### Rule 9: Daily Time Allocation - Data Coexistence and Display
 
 > **See Also:** 
-> - Domain Logic Part 3 - Time Concepts (Capacity, Estimated, Auto-Estimated, Planned, Completed)
+> - App Logic Part 3 - Time Concepts (Capacity, Estimated, Auto-Estimated, Planned, Completed)
 > - Display Logic (`Display Logic.md`) - Timeline View (how this data is displayed in different views)
 
 **Statement**: For any given day and project, multiple types of time data coexist in the domain. How they are displayed depends on the view's capabilities.
@@ -583,7 +583,7 @@ Continuous projects have **no end date**, therefore:
 
 ---
 
-### Examples (Domain Logic)
+### Examples (App Logic)
 
 **Scenario 1: No calendar events yet**
 ```
@@ -1268,7 +1268,7 @@ overage = MAX(0, SUM(phase.timeAllocationHours) - project.estimatedHours)
 - **Business Rule**: A constraint or calculation that enforces business requirements
 - **Invariant**: A condition that must always be true
 - **Validation Rule**: A check performed before persisting data
-- **Domain Logic**: Core business logic independent of UI/database concerns
+- **App Logic**: Core business logic independent of UI/database concerns
 - **Continuous Project**: A project with no end date (ongoing work)
 - **Time-Limited Project**: A project with a definite end date (deadline)
 
