@@ -14,14 +14,32 @@ import { Project, PhaseDTO } from '@/types/core';
 import { supabase } from '@/integrations/supabase/client';
 import { ProjectOrchestrator } from './ProjectOrchestrator';
 import { calculateDurationDays, addDaysToDate } from '@/utils/dateCalculations';
-import { RecurringPhaseConfig as BaseRecurringPhaseConfig } from '@/domain/rules/phases/PhaseRecurrence';
+import { RecurringPhaseConfig as DomainRecurringPhaseConfig } from '@/domain/rules/phases/PhaseRecurrence';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 import { Phase as PhaseEntity } from '@/domain/entities/Phase';
 import { PhaseRecurrenceService } from '@/domain/rules/phases/PhaseRecurrence';
 import { PhaseRules, PhaseBudgetRules } from '@/domain/rules/phases/PhaseRules';
 
-export interface ProjectRecurringPhaseConfig extends BaseRecurringPhaseConfig {
+/**
+ * Orchestration-layer recurring phase configuration
+ * Includes UI/project-specific concerns (name, timeAllocation, recurringType)
+ * Contains domain recurrence pattern (type, interval, weeklyDayOfWeek, etc.)
+ */
+export interface ProjectRecurringPhaseConfig {
+  // Orchestration layer fields
   name: string;
+  timeAllocation: number;
+  recurringType: 'daily' | 'weekly' | 'monthly';
+  recurringInterval: number;
+  // Domain recurrence pattern fields (for RRule generation)
+  type?: 'daily' | 'weekly' | 'monthly';
+  interval?: number;
+  weeklyDayOfWeek?: number;
+  monthlyPattern?: 'date' | 'dayOfWeek';
+  monthlyDate?: number;
+  monthlyWeekOfMonth?: number;
+  monthlyDayOfWeek?: number;
+  rrule?: string;
 }
 
 export interface RecurringPhase {

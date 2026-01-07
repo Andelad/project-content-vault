@@ -12,7 +12,7 @@ import {
   createWorkingDayChecker
 } from '@/services';
 import { getTimelineBarData } from '@/services/orchestrators/TimelineOrchestrator';
-import { ColorCalculationService } from '@/domain/rules/ui/ColorCalculations';
+import { ColorCalculationService } from '@/services/ui/ColorCalculations';
 import type { TimelineAllocationType } from '@/constants/styles';
 import { NEUTRAL_COLORS } from '@/constants/colors';
 import { 

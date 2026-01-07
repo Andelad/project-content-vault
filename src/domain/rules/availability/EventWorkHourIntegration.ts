@@ -47,7 +47,7 @@ import { memoizeExpensiveCalculation, timelineCalculationCache } from '@/service
 import { getCalendarEventBackgroundColor, getCalendarEventTextColor } from '@/constants/colors';
 // TODO: Fix this import after ui services migration
 // import { ColorCalculationService } from '../../shadcn/ColorCalculations';
-import { ColorCalculationService } from '@/domain/rules/ui/ColorCalculations';
+import { ColorCalculationService } from '@/services/ui/ColorCalculations';
 
 /**
  * Clear the timeline calculation cache - useful when project settings change

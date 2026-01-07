@@ -20,7 +20,7 @@
  */
 import { PhaseOrchestrator } from '../orchestrators/PhaseOrchestrator';
 import { normalizeToMidnight } from '@/utils/dateCalculations';
-import { ColorCalculationService } from '@/domain/rules/ui/ColorCalculations';
+import { ColorCalculationService } from '@/services/ui/ColorCalculations';
 import { 
   calculateBaselineVisualOffsets,
   calculateVisualProjectDates,
