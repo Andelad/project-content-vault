@@ -6,16 +6,39 @@
 
 ---
 
-## � ARCHITECTURE MIGRATION IN PROGRESS
+## ✅ ARCHITECTURE - THREE LAYERS COMPLETE
 
-**Current State:** Migrating to simplified three-layer architecture  
-**Plan:** See `/docs/operations/ARCHITECTURE_REBUILD_PLAN.md`  
-**Target:** THREE layers only - `domain/rules/`, `services/orchestrators/`, `services/data/`
+**Current State:** Three-layer architecture ✅ SUBSTANTIALLY COMPLETE  
+**Plan:** See `/docs/operations/ARCHITECTURE_REBUILD_PLAN.md` for details  
+**Structure:** THREE layers - `domain/`, `services/`, `components/`
 
-**During Migration:**
-- New business logic → `domain/rules/` (organized by concern: phases/, projects/, sync/)
-- New orchestrator code → `services/orchestrators/` (coordination only)
+**Architecture (CURRENT):**
+```
+Layer 1: domain/                 ← Pure business logic (NO UI, NO DB)
+├── rules/                       ← ALL business logic (18 subdirectories)
+├── entities/                    ← Rich domain models
+└── value-objects/               ← Immutable primitives
+
+Layer 2: services/               ← Application & infrastructure services
+├── orchestrators/               ← Workflows (coordination ONLY)
+├── data/                        ← Data transformation & aggregation
+├── infrastructure/              ← Error handling, storage, caching
+└── ui/                          ← View positioning & layout
+
+Layer 3: components/             ← React UI
+├── shadcn/                      ← Design system components
+├── features/                    ← Feature components
+├── views/                       ← Page components
+└── shared/                      ← Reusable components
+```
+
+**Code Placement:**
+- New business logic → `domain/rules/{concern}/` (organized by: phases/, projects/, sync/, etc.)
+- New workflows → `services/orchestrators/` (coordination only, NO business logic)
 - New data transformation → `services/data/mappers/` or `services/data/aggregators/`
+- View positioning → `services/ui/`
+- Infrastructure → `services/infrastructure/`
+- UI components → `components/`
 - Keep math inline with business logic (no separate MathUtils)
 
 ---
@@ -49,10 +72,10 @@
 - ❌ Duplicate types (use `/types/core.ts`)
 - ❌ Manual date math (use `dateCalculations.ts` for generic, inline for business-specific)
 - ❌ Validator wrapper files (call domain rules directly)
-- ❌ Repository wrapper files (call Supabase directly, except `timeTrackingRepository`)
+- ❌ Repository wrapper files (call Supabase directly)
 - ❌ Domain/business logic in orchestrators (put in `domain/rules/`)
 - ❌ Separate MathUtils files (keep math inline with business logic)
-- ❌ New unified services (use `domain/rules/` or `services/data/` instead)
+- ❌ New folders in `/src` root (use domain/, services/, or components/)
 
 ### Always Use
 - ✅ Import from `@/services` only
@@ -60,7 +83,8 @@
 - ✅ Domain rules from `/domain/rules/` for ALL business logic (validation + calculations)
 - ✅ Domain entities from `/domain/entities/` when available
 - ✅ `dateCalculations.ts` for generic date operations
-- ✅ `ErrorHandlingService` for all errors
+- ✅ `ErrorHandlingService` from `@/services/infrastructure` for all errors
+- ✅ Shadcn components from `@/components/shadcn/`
 - ✅ Find existing domain rules first, then check orchestrators
 - ✅ Keep calculations co-located with business logic that uses them
 
@@ -84,18 +108,13 @@ grep -r "functionName" src/services/
 | **Orchestrators** | `/services/orchestrators/*Orchestrator` | Mixed (by design) | Workflows: validation + DB + UI prep |
 | **Data Mappers** | `/services/data/mappers/*` | Pure transformation | DB↔UI field translation |
 | **Data Aggregators** | `/services/data/aggregators/*` | Queries only | Multi-table queries + rollups |
-| **UI Components** | `/components` | UI only | Call services, no logic |
-| Date Math | `/services/calculations/general/dateCalculations` | Pure math | `normalizeToMidnight()` |
-| Error Handling | `ErrorHandlingService` | Infrastructure | Structured logging |
-| React State | `/hooks/use*.ts` | Coordination | State + service calls |
+| **Infrastructure** | `/services/infrastructure/*` | Cross-cutting | ErrorHandlingService, caching |
+| **UI Services** | `/services/ui/*` | View-specific | Positioning, layout calculations |
+| **UI Components** | `/components/shadcn/*` | Primitives | Design system (shadcn/ui) |
+| **UI Components** | `/components/features/*` | Feature-specific | Timeline, Planner, Projects |
+| Date Math | `/utils/dateCalculations.ts` | Pure math | `normalizeToMidnight()` |
+| React State | `/hooks/{concern}/` | Coordination | State + service calls |
 | Generic Utils | `/utils` or `/lib` | Pure helpers | `cn()`, `formatCurrency()` |
-
-**⚠️ Legacy (Being Migrated):**
-| Code Type | Location | Status |
-|-----------|----------|--------|
-| Domain Services | `/domain/domain-services/*` | → Merging into `domain/rules/` |
-| Unified Services | `/services/unified/*` | → Splitting into `domain/rules/` + `services/data/` |
-| Calculations | `/services/calculations/*` | → Merging into `domain/rules/` |
 
 **Orchestrator Scope (Hybrid DDD - Mixed by Design):**
 - ✅ Call domain rules (`PhaseValidation.validate()`, `DateSync.synchronize()`)
@@ -105,7 +124,6 @@ grep -r "functionName" src/services/
 - ✅ Coordinate workflows & side effects
 - ❌ NEVER implement business rules (use `domain/rules/`)
 - ❌ NEVER implement calculations (put in `domain/rules/` inline)
-- ❌ NEVER create new unified services (use `domain/rules/` or `services/data/`)
 
 ---
 
