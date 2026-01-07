@@ -22,7 +22,7 @@ All documentation lives near the code it describes:
 | **`.ddd`** | Project root | Hybrid DDD philosophy & architecture evolution |
 | **`App Logic.md`** | `/src/domain/` | What entities are, domain concepts |
 | **`Business Rules.md`** | `/src/domain/` | How rules work, calculations, formulas |
-| **`Display Logic.md`** | `/src/domain/` | View-specific display constraints |
+| **`Display Logic.md`** | `/src/services/ui/` | View-specific display constraints |
 | **`README.md`** | `/src/components/` | Component file organization |
 
 ---
@@ -64,7 +64,6 @@ src/
 ├── domain/                          # 📖 Layer 1: Pure business logic
 │   ├── App Logic.md                # What entities ARE
 │   ├── Business Rules.md           # How rules WORK
-│   ├── Display Logic.md            # Display constraints
 │   ├── rules/                      # ✅ ALL business logic (validation + calculations)
 │   │   ├── phases/                 # Phase-specific rules
 │   │   ├── projects/               # Project-specific rules
@@ -103,6 +102,7 @@ src/
 │   │   ├── TimeTrackerStorage.ts
 │   │   └── caching/
 │   └── ui/                         # View positioning & layout
+│       ├── Display Logic.md        # View-specific display constraints
 │       ├── ProjectBarPositioning.ts
 │       ├── TimelineViewportService.ts
 │       └── DragCoordinator.ts
@@ -183,7 +183,7 @@ Our documentation intentionally separates three concerns that code often mixes:
 > "Auto-estimate = (Remaining Hours) ÷ (Days without events)"
 
 ### 3. Display Logic - WHERE (UI Constraints)
-**File:** `/src/domain/Display Logic.md`
+**File:** `/src/services/ui/Display Logic.md`
 
 **Contains:**
 - View-specific display rules
@@ -455,11 +455,11 @@ class Project {
 ## 📖 When to Update Documentation
 
 ### Update Domain Docs When:
-- ✅ Entity definitions change (Domain Logic.md)
-- ✅ Business rules change (Rules Logic.md)
-- ✅ Calculations/formulas change (Rules Logic.md)
-- ✅ View display constraints change (Display Logic.md)
-- ✅ Relationships between entities change (Domain Logic.md)
+- ✅ Entity definitions change (App Logic.md)
+- ✅ Business rules change (Business Rules.md)
+- ✅ Calculations/formulas change (Business Rules.md)
+- ✅ View display constraints change (services/ui/Display Logic.md)
+- ✅ Relationships between entities change (App Logic.md)
 
 ### Don't Update Domain Docs For:
 - ❌ Bug fixes
@@ -609,8 +609,8 @@ interface Project { id: string; name: string; } // NO!
 ## 📚 Further Reading
 
 - **Hybrid DDD philosophy:** `.ddd` (root)
-- **Domain concepts & entities:** `/src/domain/Domain Logic.md`
-- **Business rules & formulas:** `/src/domain/Rules Logic.md`
-- **Display constraints:** `/src/domain/Display Logic.md`
+- **Domain concepts & entities:** `/src/domain/App Logic.md`
+- **Business rules & formulas:** `/src/domain/Business Rules.md`
+- **Display constraints:** `/src/services/ui/Display Logic.md`
 - **Component organization:** `/src/components/README.md`
 - **AI quick reference:** `.cursorrules`

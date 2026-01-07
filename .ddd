@@ -113,8 +113,9 @@ We maintain **strict separation in documentation** while allowing **pragmatic mi
 ├── /.ddd                       → This file - Hybrid DDD evolution
 ├── /src/domain/
 │   ├── App Logic.md            → Domain concepts (100% UI-agnostic)
-│   ├── Business Rules.md       → Domain rules & calculations (UI-agnostic)
-│   └── Display Logic.md        → Display-specific business rules
+│   └── Business Rules.md       → Domain rules & calculations (UI-agnostic)
+├── /src/services/ui/
+│   └── Display Logic.md        → View-specific display rules & constraints
 └── /src/components/
     └── README.md               → Component organization
 
@@ -421,7 +422,7 @@ const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
 - "Auto-estimate = (Remaining Hours) ÷ (Days without events)"
 - "Events exclude days from auto-estimate distribution"
 
-**Display Logic** (`/src/domain/Display Logic.md`) defines WHERE display constraints apply:
+**Display Logic** (`/src/services/ui/Display Logic.md`) defines WHERE display constraints apply:
 - "Timeline View shows only ONE time type per day (mutual exclusivity)"
 - "Calendar View can show multiple time types (no overlap constraint)"
 

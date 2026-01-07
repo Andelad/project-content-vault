@@ -335,7 +335,7 @@ ELSE
 
 > **See Also:** 
 > - App Logic Part 3 - Time Concepts (Capacity, Estimated, Auto-Estimated, Planned, Completed)
-> - Display Logic (`Display Logic.md`) - Timeline View (how this data is displayed in different views)
+> - Display Logic (`/src/services/ui/Display Logic.md`) - Timeline View (how this data is displayed in different views)
 
 **Statement**: For any given day and project, multiple types of time data coexist in the domain. How they are displayed depends on the view's capabilities.
 
@@ -355,7 +355,7 @@ These are **different aspects of project time**, not mutually exclusive data:
 
 Different views may display this data differently based on their UI capabilities:
 
-**Timeline View** (see `Display Logic.md`):
+**Timeline View** (see `/src/services/ui/Display Logic.md`):
 ```
 FOR each day D and project P:
   IF ∃ calendar_event WHERE date = D AND projectId = P THEN
@@ -572,7 +572,7 @@ Continuous projects have **no end date**, therefore:
 **Domain Rules Layer:**
 - `TimelineRules.ts` - Event filtering (Rule 9.4), data classification
 
-**View Layer:** (See `Display Logic.md`)
+**View Layer:** (See `/src/services/ui/Display Logic.md`)
 - Timeline View - Display mutual exclusivity, visual styling
 - Calendar View - Integration with calendar events
 

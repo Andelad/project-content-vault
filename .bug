@@ -50,9 +50,9 @@ Use the template at the end of this document.
    - `.cursorrules` - Quick reference for patterns
    - `.architecture` - Code organization
    - `.ddd` - Hybrid DDD philosophy
-   - `/src/domain/Domain Logic.md` - Entity definitions
-   - `/src/domain/Rules Logic.md` - Business rules
-   - `/src/domain/Display Logic.md` - Display constraints
+   - `/src/domain/App Logic.md` - Entity definitions
+   - `/src/domain/Business Rules.md` - Business rules
+   - `/src/services/ui/Display Logic.md` - Display constraints
    - `/src/components/README.md` - Component patterns
 
 2. **Find relevant code:**
