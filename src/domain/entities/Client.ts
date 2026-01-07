@@ -12,7 +12,7 @@
 
 import type { Client as ClientData, ClientStatus } from '@/types/core';
 import type { Database } from '@/integrations/supabase/types';
-import { ClientRules } from '@/domain/rules/ClientRules';
+import { ClientRules } from '@/domain/rules/clients/ClientValidation';
 import type { DomainResult } from './Project';
 
 type ClientRow = Database['public']['Tables']['clients']['Row'];

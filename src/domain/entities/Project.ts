@@ -11,8 +11,8 @@
  */
 
 import type { Project as ProjectData, Phase, Client, ProjectStatus } from '@/types/core';
-import { ProjectRules } from '@/domain/rules/ProjectRules';
-import { normalizeToMidnight } from '@/services/calculations/general/dateCalculations';
+import { ProjectRules } from '@/domain/rules/projects/ProjectValidation';
+import { normalizeToMidnight } from '@/utils/dateCalculations';
 
 /**
  * Result of domain operations - success or validation errors

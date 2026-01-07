@@ -1,0 +1,12 @@
+src/services//orchestrators/CalendarEventOrchestrator.ts:60:  validateEventForm(formData: EventFormData): EventFormErrors {
+src/services//orchestrators/CalendarEventOrchestrator.ts:160:      const errors = this.validateEventForm(formData);
+src/services//orchestrators/CalendarEventOrchestrator.ts:214:      const errors = this.validateEventForm(formData);
+src/services//orchestrators/CalendarEventOrchestrator.ts:222:      // For basic event validation, we'll skip the full context validation
+src/services//orchestrators/PlannerViewOrchestrator.ts:57:      const validationResult = this.validateEventUpdate(eventId, updates);
+src/services//orchestrators/PlannerViewOrchestrator.ts:113:      const validationResult = this.validateEventResize(eventId, updates);
+src/services//orchestrators/PlannerViewOrchestrator.ts:200:  private validateEventUpdate(eventId: string, updates: EventUpdateData): { isValid: boolean; error?: string } {
+src/services//orchestrators/PlannerViewOrchestrator.ts:228:  private validateEventResize(eventId: string, updates: EventUpdateData): { isValid: boolean; error?: string } {
+src/services//orchestrators/PlannerViewOrchestrator.ts:230:    return this.validateEventUpdate(eventId, updates);
+src/services//calculations/events/eventSplittingCalculations.ts:160:export function validateEventForSplit(event: Event, trackingRange: TimeRange): boolean {
+src/services//calculations/events/eventSplittingCalculations.ts:165:  // Basic validation - events must have valid time ranges
+src/services//index.ts:209:export { processEventOverlaps, calculateElapsedTime, createTimeRange, validateEventForSplit, type EventSplitResult, type Event, type TimeRange } from './calculations/events/eventSplittingCalculations';

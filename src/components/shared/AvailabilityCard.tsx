@@ -5,7 +5,16 @@ import { Button } from '../ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '../ui/tooltip';
 import { Card } from '../ui/card';
 import { usePlannerContext } from '../../contexts/PlannerContext';
-import { UnifiedTimelineService, formatDuration } from '@/services';
+import { 
+  formatDuration,
+  generateWorkHoursForDate,
+  calculateWorkHoursTotal,
+  calculateHabitTimeWithinWorkSlots,
+  calculatePlannedTimeNotOverlappingHabits,
+  calculateDailyProjectHours,
+  calculateTotalPlannedHours,
+  calculateOtherTime
+} from '@/services';
 import { formatWeekdayDate, formatDateShort, formatWeekRange } from '@/utils/dateFormatUtils';
 import { NEUTRAL_COLORS } from '@/constants/colors';
 import type { Project, Settings, PhaseDTO } from '@/types/core';
@@ -148,17 +157,17 @@ export const AvailabilityCard = memo(function AvailabilityCard({
       
       datesToProcess.forEach(d => {
         // Generate work hours for this date (holidays override work hours)
-        const workHoursForDate = UnifiedTimelineService.generateWorkHoursForDate(d, settings, holidays);
-        totalWorkHours += UnifiedTimelineService.calculateWorkHoursTotal(workHoursForDate);
+        const workHoursForDate = generateWorkHoursForDate(d, settings, holidays);
+        totalWorkHours += calculateWorkHoursTotal(workHoursForDate);
         
         // Calculate habit time within work slots (excluding portion covered by planned events)
-        totalHabitTime += UnifiedTimelineService.calculateHabitTimeWithinWorkSlots(d, events, workHoursForDate);
+        totalHabitTime += calculateHabitTimeWithinWorkSlots(d, events, workHoursForDate);
         
         // Calculate ALL planned/completed project event time (even outside work hours)
-        totalPlannedTime += UnifiedTimelineService.calculatePlannedTimeNotOverlappingHabits(d, events, workHoursForDate);
+        totalPlannedTime += calculatePlannedTimeNotOverlappingHabits(d, events, workHoursForDate);
         
         // Calculate total project hours (includes both planned events and auto-estimates)
-        const totalProjectHours = UnifiedTimelineService.calculateDailyProjectHours(
+        const totalProjectHours = calculateDailyProjectHours(
           d, 
           projects, 
           settings, 
@@ -168,7 +177,7 @@ export const AvailabilityCard = memo(function AvailabilityCard({
         );
         
         // Get ONLY auto-estimate hours (total project hours minus planned event hours for this day)
-        const dailyPlannedTime = UnifiedTimelineService.calculatePlannedTimeNotOverlappingHabits(d, events, workHoursForDate);
+        const dailyPlannedTime = calculatePlannedTimeNotOverlappingHabits(d, events, workHoursForDate);
         totalEstimatedHours += Math.max(0, totalProjectHours - dailyPlannedTime);
       });
       
@@ -214,14 +223,14 @@ export const AvailabilityCard = memo(function AvailabilityCard({
       
       datesToProcess.forEach(d => {
         // Capacity = work hours for this date
-        const workHoursForDate = UnifiedTimelineService.generateWorkHoursForDate(d, settings, holidays);
-        capacity += UnifiedTimelineService.calculateWorkHoursTotal(workHoursForDate);
+        const workHoursForDate = generateWorkHoursForDate(d, settings, holidays);
+        capacity += calculateWorkHoursTotal(workHoursForDate);
         
         // Committed = habit time + planned time + estimated time
-        const habitTime = UnifiedTimelineService.calculateHabitTimeWithinWorkSlots(d, events, workHoursForDate);
-        const plannedTime = UnifiedTimelineService.calculatePlannedTimeNotOverlappingHabits(d, events, workHoursForDate);
+        const habitTime = calculateHabitTimeWithinWorkSlots(d, events, workHoursForDate);
+        const plannedTime = calculatePlannedTimeNotOverlappingHabits(d, events, workHoursForDate);
         
-        const totalProjectHours = UnifiedTimelineService.calculateDailyProjectHours(
+        const totalProjectHours = calculateDailyProjectHours(
           d, 
           projects, 
           settings, 
@@ -229,7 +238,7 @@ export const AvailabilityCard = memo(function AvailabilityCard({
           phases,
           events
         );
-        const dailyPlannedTime = UnifiedTimelineService.calculatePlannedTimeNotOverlappingHabits(d, events, workHoursForDate);
+        const dailyPlannedTime = calculatePlannedTimeNotOverlappingHabits(d, events, workHoursForDate);
         const estimatedHours = Math.max(0, totalProjectHours - dailyPlannedTime);
         
         committed += habitTime + plannedTime + estimatedHours;
@@ -323,9 +332,10 @@ export const AvailabilityCard = memo(function AvailabilityCard({
   // ===== TIME SPENT CALCULATION =====
   const getHours = (date: Date, type: 'total-planned' | 'other-time') => {
     const getDailyHours = (d: Date) => {
+      const workHoursForDate = generateWorkHoursForDate(d, settings, holidays);
       return type === 'total-planned'
-        ? UnifiedTimelineService.calculateTotalPlannedHours(d, events)
-        : UnifiedTimelineService.calculateOtherTime(d, events);
+        ? calculateTotalPlannedHours(d, events)
+        : calculateOtherTime(d, events, workHoursForDate);
     };
 
     // For timeline view in weeks mode, aggregate the week

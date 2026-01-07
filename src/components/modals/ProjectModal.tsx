@@ -19,16 +19,15 @@ import { useSettingsContext } from '../../contexts/SettingsContext';
 import { useTimelineContext } from '../../contexts/TimelineContext';
 import { ClientSearchInput } from '../shared';
 import { calculateProjectTimeMetrics, calculateAutoEstimateHoursPerDay, expandHolidayDates, calculateTotalWorkingDays, clearTimelineCache, ProjectOrchestrator, formatDuration, normalizeToMidnight } from '@/services';
-import type { ProjectEvent } from '@/services/calculations/projects/projectEntityCalculations';
+import type { ProjectEvent } from '@/domain/rules/projects/ProjectMetrics';
 import { formatDate, formatDateForInput } from '@/utils/dateFormatUtils';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/ui/use-toast';
 import { StandardModal } from './StandardModal';
 import { OKLCH_PROJECT_COLORS, PROJECT_ICONS } from '@/constants';
 import { NEUTRAL_COLORS } from '@/constants/colors';
 import type { Project, PhaseDTO } from '@/types/core';
-import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
 import { TabComponent } from '../shared';
-import { supabase } from '@/integrations/supabase/client';
 
 interface ProjectModalProps {
   isOpen: boolean;

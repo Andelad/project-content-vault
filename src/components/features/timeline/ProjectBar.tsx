@@ -6,8 +6,13 @@ import { usePlannerContext } from '@/contexts/PlannerContext';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import { isSameDate } from '@/utils/dateFormatUtils';
 import type { Project, PhaseDTO } from '@/types/core';
-import { UnifiedTimelineService } from '@/services';
-import { ColorCalculationService } from '@/services/ui/ColorCalculations';
+import { 
+  calculateBaselineVisualOffsets as baselineOffsets,
+  calculateVisualProjectDates as visualDates,
+  createWorkingDayChecker
+} from '@/services';
+import { getTimelineBarData } from '@/services/orchestrators/TimelineOrchestrator';
+import { ColorCalculationService } from '@/domain/rules/ui/ColorCalculations';
 import type { TimelineAllocationType } from '@/constants/styles';
 import { NEUTRAL_COLORS } from '@/constants/colors';
 import { 
@@ -19,13 +24,13 @@ import {
   calculateRectangleHeight,
   normalizeToMidnight
 } from '@/services';
-import { getPhasesSortedByEndDate } from '@/domain/rules/PhaseRules';
+import { getPhasesSortedByEndDate } from '@/domain/rules/phases/PhaseRules';
 import { ProjectIconIndicator } from './ProjectIconIndicator';
 import { DraggablePhaseMarkers } from './DraggablePhaseMarkers';
-import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
-import { PhaseRecurrenceService } from '@/domain/domain-services/PhaseRecurrenceService';
-import type { DragState } from '@/services/ui/DragPositioning';
-import type { TimelinePositionCalculation } from '@/services/ui/ProjectBarPositioning';
+import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
+import { PhaseRecurrenceService } from '@/domain/rules/phases/PhaseRecurrence';
+import type { DragState } from '@/ui/DragPositioning';
+import type { TimelinePositionCalculation } from '@/ui/ProjectBarPositioning';
 
 interface ProjectBarProps {
   project: Project;
@@ -51,7 +56,7 @@ function calculateBaselineVisualOffsets(
   mode: 'days' | 'weeks' = 'days'
 ) {
   try {
-    return UnifiedTimelineService.calculateBaselineVisualOffsets(positions, isDragging, dragState, projectId, mode);
+    return baselineOffsets(positions, isDragging, dragState, projectId, mode);
   } catch (error) {
     ErrorHandlingService.handle(error, { source: 'ProjectBar', action: 'Error in calculateBaselineVisualOffsets:' });
     return positions; // fallback to original positions
@@ -64,7 +69,7 @@ function calculateVisualProjectDates(
   dragState: DragState | null
 ) {
   try {
-    return UnifiedTimelineService.calculateVisualProjectDates(project, isDragging, dragState);
+    return visualDates(project, isDragging, dragState);
   } catch (error) {
     ErrorHandlingService.handle(error, { source: 'ProjectBar', action: 'Error in calculateVisualProjectDates:' });
     return { visualProjectStart: new Date(project.startDate), visualProjectEnd: new Date(project.endDate) }; // fallback
@@ -93,7 +98,7 @@ export const ProjectBar = memo(function ProjectBar({
   const { settings } = useSettingsContext();
   // CRITICAL: Call this hook at top level, NOT inside useMemo
   // This was causing "Do not call Hooks inside useMemo" error
-  const isWorkingDayChecker = UnifiedTimelineService.getCachedWorkingDayChecker(
+  const isWorkingDayChecker = createWorkingDayChecker(
     settings.weeklyWorkHours, 
     holidays
   );
@@ -130,8 +135,8 @@ export const ProjectBar = memo(function ProjectBar({
 
     return calculateVisualProjectDates(project, isDragging, dragState);
   }, [project, isDragging, dragState]);
-  // Get comprehensive timeline bar data from UnifiedTimelineService - MUST be before early returns
-  const timelineData = useMemo<ReturnType<typeof UnifiedTimelineService.getTimelineBarData>>(() => {
+  // Get comprehensive timeline bar data - MUST be before early returns
+  const timelineData = useMemo<ReturnType<typeof getTimelineBarData>>(() => {
     const options = visualProjectDates
       ? {
           visualProjectDates: {
@@ -141,7 +146,7 @@ export const ProjectBar = memo(function ProjectBar({
         }
       : undefined;
 
-    return UnifiedTimelineService.getTimelineBarData(
+    return getTimelineBarData(
       project,
       dates,
       viewportStart,

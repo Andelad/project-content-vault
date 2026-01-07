@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { StandardModal, MODAL_BUTTON_LABELS } from './StandardModal';
 import { ProjectModal } from './ProjectModal';
-import { useClients } from '@/hooks/useClients';
+import { useClients } from '@/hooks/data/useClients';
 import { useProjectContext } from '@/contexts/ProjectContext';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Badge } from '../ui/badge';
 import { Card, CardContent } from '../ui/card';
 import { Building2, Folder, AlertTriangle } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/ui/use-toast';
 import type { Client } from '@/types/core';
-import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
 
 interface ClientModalProps {
   isOpen: boolean;

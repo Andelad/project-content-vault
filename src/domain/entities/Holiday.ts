@@ -12,7 +12,7 @@
 
 import type { Holiday as HolidayData } from '@/types/core';
 import type { Database } from '@/integrations/supabase/types';
-import { normalizeToMidnight } from '@/services/calculations/general/dateCalculations';
+import { normalizeToMidnight } from '@/utils/dateCalculations';
 import type { DomainResult } from './Project';
 
 type HolidayRow = Database['public']['Tables']['holidays']['Row'];

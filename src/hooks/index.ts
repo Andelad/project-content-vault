@@ -1,35 +1,20 @@
-// UI/Interaction Hooks
-export * from './use-mobile';
-export * from './use-toast';
-export * from './useFavicon';
-export * from './usePWAInstall';
-export * from './useSwipeNavigation';
+// Data Management Hooks - CRUD operations for all entities
+export * from './data';
 
-// Data Management Hooks
-export * from './useProjects';
-export * from './useClients';
-export * from './useEvents';
-export * from './useHabits';
-export * from './usePhases';
-export * from './useGroups';
-export * from './useRows';
-export * from './useHolidays';
-export * from './useLabels';
-export * from './useSettings';
+// Phase Operations Hooks - Phase-specific business logic
+export * from './phase';
 
-// Calendar/Timeline Hooks
-export * from './useCalendarConnections';
-export * from './useCalendarDragDrop';
-export * from './useCalendarKeyboardShortcuts';
-export * from './useHolidayDrag';
-export * from './useHoverableDateHeaders';
-export * from './useDynamicViewportDays';
-export * from './useTimelineData';
+// Timeline View Hooks - Timeline-specific interactions and layout
+export * from './timeline';
 
-// Project-Specific Hooks
-export * from './useProjectModalState';
-export * from './useProjectResize';
+// Calendar View Hooks - Calendar/Planner-specific interactions
+export * from './calendar';
 
-// Performance/Calculation Hooks
-export * from './usePerformance';
-export * from './useWorkHours';
+// UI Utility Hooks - UI/UX interactions and utilities
+export * from './ui';
+
+// Settings Hooks - Application settings management
+export * from './settings';
+
+// Performance Hooks - Performance monitoring and optimization
+export * from './performance';

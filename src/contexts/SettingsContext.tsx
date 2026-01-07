@@ -1,10 +1,10 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { Settings, WorkHour, WorkHourOverride, TimelineEntry } from '@/types/core';
-import { useSettings as useSettingsHook } from '@/hooks/useSettings';
-import { UnifiedTimeTrackerService } from '@/services';
+import { useSettings as useSettingsHook } from '@/hooks/settings/useSettings';
+import { timeTrackingOrchestrator } from '@/services/orchestrators/timeTrackingOrchestrator';
 import { supabase } from '@/integrations/supabase/client';
-import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
 import type { Database } from '@/integrations/supabase/types';
 
 type SettingsRow = (Database['public']['Tables']['settings']['Row']) & {
@@ -71,10 +71,10 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (user?.id) {
-        UnifiedTimeTrackerService.setUserId(user.id);
+        timeTrackingOrchestrator.setUserId(user.id);
         
         // Set up callback to sync state changes from other windows
-        UnifiedTimeTrackerService.setOnStateChangeCallback(async (syncedState) => {
+        timeTrackingOrchestrator.setOnStateChangeCallback(async (syncedState) => {
           setIsTimeTracking(syncedState.isTracking);
           setCurrentTrackingEventId(syncedState.eventId || null);
           
@@ -89,7 +89,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         });
 
         // Load initial state from database
-        const dbState = await UnifiedTimeTrackerService.loadState();
+        const dbState = await timeTrackingOrchestrator.loadState();
         if (dbState) {
           // Only set tracking to true if we have COMPLETE state with all required fields
           // This prevents the flash of incomplete tracking state when opening a new window
@@ -109,7 +109,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
               hasSelectedProject: !!dbState.selectedProject
             });
             // Clean up the incomplete state
-            await UnifiedTimeTrackerService.stopTracking().catch(err => {
+            await timeTrackingOrchestrator.stopTracking().catch(err => {
               ErrorHandlingService.handle(err, { source: 'SettingsContext', action: 'Failed to clean up incomplete tracking state:' });
             });
             setIsTimeTracking(false);
@@ -122,7 +122,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         }
 
         // Set up real-time subscription
-        const subscription = await UnifiedTimeTrackerService.setupRealtimeSubscription();
+        const subscription = await timeTrackingOrchestrator.setupRealtimeSubscription();
         setRealtimeSubscription(subscription);
       }
     };

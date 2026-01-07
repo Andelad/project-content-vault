@@ -21,7 +21,7 @@ import { RecurringUpdateDialog } from './RecurringUpdateDialog';
 import { StandardModal } from './StandardModal';
 import { ProjectSearchInput } from '../shared/ProjectSearchInput';
 import { ProjectModal } from './ProjectModal';
-import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
 
 // Habit color constant
 const HABIT_BROWN_COLOR = OKLCH_HABIT_BROWN;

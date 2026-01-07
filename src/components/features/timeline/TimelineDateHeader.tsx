@@ -1,7 +1,14 @@
 import React, { memo, useState } from 'react';
 import { Calendar } from 'lucide-react';
 import { formatMonthYear } from '@/utils/dateFormatUtils';
-import { UnifiedTimelineService, addDaysToDate } from '@/services';
+import { 
+  addDaysToDate,
+  groupDatesByMonth,
+  isTodayInWeek,
+  isToday as isTodayDate,
+  isWeekendDate,
+  formatWeekDateRange
+} from '@/services';
 import { useTimelineContext } from '@/contexts/TimelineContext';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -89,16 +96,16 @@ export const TimelineDateHeader = memo(function TimelineDateHeader({ dates, mode
 
   if (mode === 'weeks') {
     // Group dates by month to create sticky headers using service
-    const monthGroups = UnifiedTimelineService.groupDatesByMonth(dates);
+    const monthGroups = groupDatesByMonth(dates);
 
     return (
       <div className="h-12 border-b border-gray-200 bg-gray-50 relative">
         {/* Sticky month labels layer - positioned at top */}
         <div className="absolute top-0 left-0 right-0 h-6 overflow-hidden">
           {monthGroups.map((group, groupIndex) => {
-            const isToday = dates.some((weekStart, index) => {
+            const hasToday = dates.some((weekStart, index) => {
               if (index >= group.startIndex && index <= group.endIndex) {
-                return UnifiedTimelineService.isTodayInWeek(weekStart);
+                return isTodayInWeek(weekStart);
               }
               return false;
             });
@@ -125,8 +132,8 @@ export const TimelineDateHeader = memo(function TimelineDateHeader({ dates, mode
                   }}
                 >
                   <div 
-                    className={`text-xs pl-4 pr-4 py-1 whitespace-nowrap ${isToday ? 'font-medium' : 'text-gray-600'}`}
-                    style={isToday ? { color: 'oklch(0.50 0.127 232)' } : undefined}
+                    className={`text-xs pl-4 pr-4 py-1 whitespace-nowrap ${hasToday ? 'font-medium' : 'text-gray-600'}`}
+                    style={hasToday ? { color: 'oklch(0.50 0.127 232)' } : undefined}
                   >
                     {group.monthName}
                   </div>
@@ -139,10 +146,10 @@ export const TimelineDateHeader = memo(function TimelineDateHeader({ dates, mode
         {/* Week date ranges layer - aligned to bottom */}
         <div className="flex h-full items-end pb-2" style={{ minWidth: 'fit-content', gap: 0 }}>
           {dates.map((weekStart, index) => {
-            const isCurrentWeek = UnifiedTimelineService.isTodayInWeek(weekStart);
+            const isCurrentWeek = isTodayInWeek(weekStart);
             
             // Format the date range using service
-            const dateRange = UnifiedTimelineService.formatWeekDateRange(weekStart);
+            const dateRange = formatWeekDateRange(weekStart);
             
             // Add 1px to first column to account for alignment offset
             const columnWidth = index === 0 ? 154 : 153;
@@ -166,21 +173,21 @@ export const TimelineDateHeader = memo(function TimelineDateHeader({ dates, mode
   }
 
   // Original days mode logic using service
-  const monthGroups = UnifiedTimelineService.groupDatesByMonth(dates);
+  const monthGroups = groupDatesByMonth(dates);
 
   return (
     <div className="h-12 border-b border-gray-200 bg-gray-50 relative">
       {/* Sticky month labels layer - positioned at top */}
       <div className="absolute top-0 left-0 right-0 h-6 overflow-hidden">
         {monthGroups.map((group, groupIndex) => {
-          const isToday = dates.some((date, index) => 
+          const hasToday = dates.some((date, index) => 
             index >= group.startIndex && 
             index <= group.endIndex && 
-            UnifiedTimelineService.isTodayDate(date)
+            isTodayDate(date)
           );
           const hasWeekend = dates.some((date, index) => {
             if (index >= group.startIndex && index <= group.endIndex) {
-              return UnifiedTimelineService.isWeekendDate(date);
+              return isWeekendDate(date);
             }
             return false;
           });
@@ -207,8 +214,8 @@ export const TimelineDateHeader = memo(function TimelineDateHeader({ dates, mode
                 }}
               >
                 <div 
-                  className={`text-xs pl-4 pr-4 py-1 whitespace-nowrap ${isToday ? 'font-medium' : hasWeekend ? 'text-gray-400' : 'text-gray-600'}`}
-                  style={isToday ? { color: 'oklch(0.50 0.127 232)' } : undefined}
+                  className={`text-xs pl-4 pr-4 py-1 whitespace-nowrap ${hasToday ? 'font-medium' : hasWeekend ? 'text-gray-400' : 'text-gray-600'}`}
+                  style={hasToday ? { color: 'oklch(0.50 0.127 232)' } : undefined}
                 >
                   {group.monthName}
                 </div>
@@ -221,15 +228,15 @@ export const TimelineDateHeader = memo(function TimelineDateHeader({ dates, mode
       {/* Date numbers layer - aligned to bottom */}
       <div className="flex h-full items-end pb-2" style={{ minWidth: 'fit-content', gap: 0 }}>
         {dates.map((date, index) => {
-          const isToday = UnifiedTimelineService.isTodayDate(date);
-          const isWeekend = UnifiedTimelineService.isWeekendDate(date);
+          const todayCheck = isTodayDate(date);
+          const isWeekend = isWeekendDate(date);
           
           return (
             <div key={index} className="text-center" style={{ minWidth: '52px', width: '52px' }}>
               {renderDateCell(date, index, 52,
                 <div 
-                  className={`text-xs ${isToday ? 'font-medium rounded-full w-5 h-5 flex items-center justify-center mx-auto' : isWeekend ? 'text-gray-400' : 'text-gray-700'}`}
-                  style={isToday ? { color: 'oklch(0.50 0.127 232)', backgroundColor: 'oklch(0.92 0.05 232 / 0.5)' } : undefined}
+                  className={`text-xs ${todayCheck ? 'font-medium rounded-full w-5 h-5 flex items-center justify-center mx-auto' : isWeekend ? 'text-gray-400' : 'text-gray-700'}`}
+                  style={todayCheck ? { color: 'oklch(0.50 0.127 232)', backgroundColor: 'oklch(0.92 0.05 232 / 0.5)' } : undefined}
                 >
                   {date.getDate()}
                 </div>

@@ -18,10 +18,15 @@
 export * from './rules';
 
 // ============================================================================
-// DOMAIN SERVICES - Pure Domain Logic
+// DOMAIN SERVICES - Pure Domain Logic (MIGRATED TO domain/rules/)
 // ============================================================================
 
-export * from './domain-services';
+// MIGRATION NOTE (January 2026): Domain services have been merged into domain/rules/
+// - PhaseRecurrenceService → domain/rules/phases/PhaseRecurrence
+// - ProjectBudgetService → domain/rules/projects/ProjectBudget
+// - PhaseDistributionService → domain/rules/phases/PhaseDistribution
+// These are now re-exported through the rules modules
+// export * from './domain-services'; // DEPRECATED - will be deleted
 
 // ============================================================================
 // DOMAIN ENTITIES - Phase 3 (Future)

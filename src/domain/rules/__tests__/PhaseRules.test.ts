@@ -15,7 +15,7 @@ import {
   sortPhasesByStartDate,
   getPhasesSortedByEndDate,
   type Phase
-} from '@/domain/rules/PhaseRules';
+} from '@/domain/rules/phases/PhaseRules';
 import type { PhaseDTO } from '@/types/core';
 
 describe('Phase Helpers', () => {

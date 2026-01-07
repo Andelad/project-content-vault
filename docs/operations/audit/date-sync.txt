@@ -1,0 +1,23 @@
+src/services//unified/UnifiedProjectService.ts:114:    const endDate = new Date(project.endDate);
+src/services//unified/UnifiedProjectService.ts:178:    const endDate = new Date(project.endDate);
+src/services//unified/UnifiedProjectService.ts:503:    const endDate = this.calculateProjectEndDate(project, phases, settings);
+src/services//unified/UnifiedProjectService.ts:699:    if (!project1.startDate || !project1.endDate || !project2.startDate || !project2.endDate) {
+src/services//unified/UnifiedProjectProgressService.ts:141:    const endDate = new Date(project.endDate);
+src/services//unified/UnifiedProjectProgressService.ts:204:    const endDate = new Date(project.endDate);
+src/services//unified/UnifiedProjectProgressService.ts:280:    const endDate = new Date(project.endDate);
+src/services//unified/UnifiedProjectProgressService.ts:388:  const endDate = new Date(project.endDate);
+src/services//unified/UnifiedTimeTrackerService.ts:84:  static async startTracking(projectId: string): Promise<void> {
+src/services//unified/UnifiedTimelineService.ts:227:      endDate: project.endDate,
+src/services//orchestrators/timeTrackingOrchestrator.ts:315:  async startTracking(projectId: string): Promise<void> {
+src/services//orchestrators/timeTrackingOrchestrator.ts:971:  static async getTrackingSessionsByProject(projectId: string): Promise<{
+src/services//orchestrators/PhaseOrchestrator.ts:172:    const endDate = new Date(project.endDate);
+src/services//orchestrators/PhaseOrchestrator.ts:302:      const endDate = project.continuous 
+src/services//orchestrators/PhaseOrchestrator.ts:336:        new Date(project.endDate).getTime() - new Date(project.startDate).getTime();
+src/services//calculations/projects/phaseCalculations.ts:546:      endDate: projectEndDate,
+src/services//calculations/projects/dayEstimateCalculations.ts:119: * to represent the segment start (previous phase's endDate or project start)
+src/services//calculations/projects/dayEstimateCalculations.ts:135:  const workingDays = getWorkingDaysBetween(startDate, endDate, settings, holidays, project);
+src/services//calculations/projects/dayEstimateCalculations.ts:206:    const periodEnd = project.continuous ? rawEnd : (rawEnd > project.endDate ? new Date(project.endDate) : rawEnd);
+src/services//calculations/projects/projectCalculations.ts:126:  const endDate = project.continuous ? new Date() : new Date(project.endDate);
+src/services//calculations/projects/projectEntityCalculations.ts:527:      if (endDate >= projectStart) {
+src/services//calculations/projects/projectEntityCalculations.ts:541:    if (datesOverlap(startDate, endDate, projectStart, new Date(project.endDate))) {
+src/services//performance/calculationCache.ts:259:    const projectHash = project ? `${project.id}-${project.startDate}-${project.endDate}-${project.estimatedHours}` : 'null';

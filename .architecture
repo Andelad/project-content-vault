@@ -19,7 +19,7 @@ All documentation lives near the code it describes:
 |----------|----------|---------|
 | **`.cursorrules`** | Project root | AI quick reference - what to do/not do |
 | **`.architecture`** | Project root | This file - codebase map and structure |
-| **`.dhybrid`** | Project root | Hybrid DDD philosophy & architecture evolution |
+| **`.ddd`** | Project root | Hybrid DDD philosophy & architecture evolution |
 | **`Domain Logic.md`** | `/src/domain/` | What entities are, domain concepts |
 | **`Rules Logic.md`** | `/src/domain/` | How rules work, calculations, formulas |
 | **`Display Logic.md`** | `/src/domain/` | View-specific display constraints |
@@ -245,7 +245,7 @@ export class PhaseRecurrenceService {
 - No rush - current structure works
 - When touching unified services, consider extraction
 - Use delegation pattern (unified → domain-services)
-- See "Future Cleanup" section in `.dhybrid`
+- See "Future Cleanup" section in `.ddd`
 
 ### Orchestrators (Workflows)
 
@@ -590,7 +590,7 @@ interface Project { id: string; name: string; } // NO!
 
 ## 📚 Further Reading
 
-- **Hybrid DDD philosophy:** `.dhybrid` (root)
+- **Hybrid DDD philosophy:** `.ddd` (root)
 - **Domain concepts & entities:** `/src/domain/Domain Logic.md`
 - **Business rules & formulas:** `/src/domain/Rules Logic.md`
 - **Display constraints:** `/src/domain/Display Logic.md`

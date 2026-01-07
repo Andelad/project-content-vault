@@ -1,0 +1,32 @@
+src/services//ui/ColorCalculations.ts:233:    isCompleted: boolean = false,
+src/services//ui/ColorCalculations.ts:236:    const baseOpacity = isCompleted 
+src/services//ui/ProjectBarResizeService.ts:55:      (est.isPlannedEvent || est.isCompletedEvent)
+src/services//unified/UnifiedEventTransformService.ts:102:    isCompleted: event.completed
+src/services//unified/UnifiedProjectProgressService.ts:71:    isCompleted: boolean;
+src/services//unified/UnifiedProjectProgressService.ts:362:        isCompleted: phase.completed || false,
+src/services//unified/UnifiedEventWorkHourService.ts:600:  isCompleted?: boolean;
+src/services//unified/UnifiedEventWorkHourService.ts:621:  const { isSelected = false, isFutureEvent = false, isActiveLayer = true, isCompleted = false } = config;
+src/services//unified/UnifiedEventWorkHourService.ts:642:  const opacity = ColorCalculationService.getEventOpacity(isCompleted, isActiveLayer);
+src/services//unified/UnifiedTimelineService.ts:353:      isPlannedTime: boolean;
+src/services//unified/UnifiedTimelineService.ts:354:      isCompletedTime: boolean;
+src/services//unified/UnifiedTimelineService.ts:368:        // but if present, event wins the classification
+src/services//unified/UnifiedTimelineService.ts:371:        let isPlannedTime = false;
+src/services//unified/UnifiedTimelineService.ts:372:        let isCompletedTime = false;
+src/services//unified/UnifiedTimelineService.ts:374:          if (eventEstimate.isPlannedEvent && eventEstimate.isCompletedEvent) {
+src/services//unified/UnifiedTimelineService.ts:376:            isPlannedTime = true;
+src/services//unified/UnifiedTimelineService.ts:377:            isCompletedTime = true;
+src/services//unified/UnifiedTimelineService.ts:378:          } else if (eventEstimate.isPlannedEvent) {
+src/services//unified/UnifiedTimelineService.ts:380:            isPlannedTime = true;
+src/services//unified/UnifiedTimelineService.ts:381:          } else if (eventEstimate.isCompletedEvent) {
+src/services//unified/UnifiedTimelineService.ts:383:            isCompletedTime = true;
+src/services//unified/UnifiedTimelineService.ts:393:          isPlannedTime,
+src/services//unified/UnifiedTimelineService.ts:394:          isCompletedTime
+src/services//unified/UnifiedTimelineService.ts:409:          isPlannedTime: false,
+src/services//unified/UnifiedTimelineService.ts:410:          isCompletedTime: false
+src/services//calculations/insights/analyticsCalculations.ts:151:      const isCompleted = event.completed || event.type === 'tracked';
+src/services//calculations/insights/analyticsCalculations.ts:152:      return isInRange && isCompleted;
+src/services//calculations/insights/analyticsCalculations.ts:172:      const isCompleted = event.completed || event.type === 'tracked';
+src/services//calculations/insights/analyticsCalculations.ts:173:      return isCompleted;
+src/services//calculations/projects/dayEstimateCalculations.ts:333:  // Use domain rules to classify events correctly
+src/services//calculations/projects/dayEstimateCalculations.ts:355:        isPlannedEvent: breakdown.plannedEventHours > 0,
+src/services//calculations/projects/dayEstimateCalculations.ts:356:        isCompletedEvent: breakdown.completedEventHours > 0

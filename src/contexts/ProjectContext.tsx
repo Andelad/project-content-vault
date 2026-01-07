@@ -1,13 +1,13 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useCallback, useMemo, useRef } from 'react';
 import type { PhaseDTO, Project, Group, Row, Phase } from '@/types/core';
-import { useProjects as useProjectsHook } from '@/hooks/useProjects';
-import { useGroups } from '@/hooks/useGroups';
-import { useRows } from '@/hooks/useRows';
-import { usePhases } from '@/hooks/usePhases';
+import { useProjects as useProjectsHook } from '@/hooks/data/useProjects';
+import { useGroups } from '@/hooks/data/useGroups';
+import { useRows } from '@/hooks/data/useRows';
+import { usePhases } from '@/hooks/data/usePhases';
 import { getProjectColor, getGroupColor } from '@/constants';
 import type { Database } from '@/integrations/supabase/types';
-import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
 import { Group as GroupEntity } from '@/domain/entities/Group';
 type SupabaseGroupRow = Database['public']['Tables']['groups']['Row'];
 type SupabaseRowRow = Database['public']['Tables']['rows']['Row'];

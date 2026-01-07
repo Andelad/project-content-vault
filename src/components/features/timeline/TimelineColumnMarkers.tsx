@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { UnifiedTimelineService } from '@/services';
+import { calculateTimelineColumnMarkerData } from '@/services';
 
 interface TimelineColumnMarkersProps {
   dates: Date[];
@@ -8,7 +8,7 @@ interface TimelineColumnMarkersProps {
 
 export const TimelineColumnMarkers = memo(function TimelineColumnMarkers({ dates, mode = 'days' }: TimelineColumnMarkersProps) {
   // Use service to calculate column marker data
-  const columnData = UnifiedTimelineService.calculateColumnMarkerData(dates, mode);
+  const columnData = calculateTimelineColumnMarkerData(dates, mode);
   
   // Add buffer for partial column in days mode
   const bufferWidth = mode === 'days' ? columnData[0]?.columnWidth || 52 : 0;

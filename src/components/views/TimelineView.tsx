@@ -16,16 +16,16 @@ import {
   workingDayStats,
   milestoneStats,
   calculateTimelineRows,
-  UnifiedDayEstimateService,
+  calculateProjectDayEstimates,
   type SmoothAnimationConfig,
   type DragState as ServiceDragState
 } from '@/services';
-import { RelationshipRules } from '@/domain/rules';
-import { useTimelineData } from '../../hooks/useTimelineData';
-import { useDynamicViewportDays } from '../../hooks/useDynamicViewportDays';
-import { useHolidayDrag } from '../../hooks/useHolidayDrag';
-import { useProjectResize } from '../../hooks/useProjectResize';
-import { usePhaseResize } from '../../hooks/usePhaseResize';
+import { EntityIntegrity } from '@/domain/rules/integrity/EntityIntegrity';
+import { useTimelineData } from '../../hooks/timeline/useTimelineData';
+import { useDynamicViewportDays } from '../../hooks/timeline/useDynamicViewportDays';
+import { useHolidayDrag } from '../../hooks/timeline/useHolidayDrag';
+import { useProjectResize } from '../../hooks/timeline/useProjectResize';
+import { usePhaseResize } from '../../hooks/timeline/usePhaseResize';
 import { TimelineDateHeader } from '@/components/features/timeline/TimelineDateHeader';
 import { TimelineBackground } from '@/components/features/timeline/TimelineBackground';
 import { TimelineCard } from '@/components/features/timeline/TimelineCard';
@@ -33,7 +33,7 @@ import { AvailabilityCard } from '../shared/AvailabilityCard';
 import { HolidayBar } from '@/components/features/timeline/HolidayBar';
 import { AppPageLayout } from '../layout/AppPageLayout';
 import { TimelineToolbar } from '@/components/features/timeline/TimelineToolbar';
-import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
 import type { DayEstimate, Project } from '@/types/core';
 // Lazy load heavy modals
 const ProjectModal = React.lazy(() => import('../modals/ProjectModal').then(module => ({ default: module.ProjectModal })));
@@ -112,7 +112,7 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
   // Validate project relationships
   React.useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
-      const validation = RelationshipRules.validateSystemIntegrity({
+      const validation = EntityIntegrity.validateSystemIntegrity({
         projects,
         phases: [],
         clients: [],
@@ -503,7 +503,7 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
         });
       }
       
-      const projectEstimates = UnifiedDayEstimateService.calculateProjectDayEstimates(
+      const projectEstimates = calculateProjectDayEstimates(
         project,
         projectPhases,
         settings,

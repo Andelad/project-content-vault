@@ -1,0 +1,16 @@
+src/services//ui/DragPositioning.ts:567:export function validateMilestoneBounds(
+src/services//unified/UnifiedProjectService.ts:268:    return ProjectRules.validateProjectTime(estimatedHours, phases);
+src/services//unified/UnifiedProjectService.ts:336:  return UnifiedProjectService.validateDates(startDate, endDate, phases);
+src/services//unified/UnifiedProjectService.ts:435:    return ProjectRules.validateProjectTime(estimatedHours, phases);
+src/services//unified/UnifiedProjectService.ts:622:  static validateMilestoneTimeline(project: Project, phases: PhaseDTO[]): {
+src/services//unified/UnifiedPhaseService.ts:224:    const budgetAnalysis = this.validateBudgetAllocation(phases, projectBudget);
+src/services//unified/UnifiedPhaseService.ts:313:      const validation = PhaseRules.validateMilestoneDateWithinProject(
+src/services//unified/UnifiedPhaseService.ts:589:  static validateMilestoneTime(
+src/services//unified/UnifiedPhaseService.ts:631:  static validateMilestoneDate(
+src/services//unified/UnifiedTimelineService.ts:134:  static validateProject(project: Project, phases: PhaseDTO[] = []) {
+src/services//orchestrators/ProjectOrchestrator.ts:288:        const validation = PhaseRules.validateMilestoneDateWithinProject(
+src/services//orchestrators/PhaseOrchestrator.ts:179:  static validateMilestoneScheduling(
+src/services//orchestrators/PhaseOrchestrator.ts:236:      // Fetch existing phases to validate
+src/services//orchestrators/PhaseOrchestrator.ts:447:      // Fetch existing phases to validate
+src/services//calculations/projects/phaseCalculations.ts:647:export function validateMilestoneBudget(
+src/services//calculations/projects/phaseCalculations.ts:686:export function validateMilestoneOrder(

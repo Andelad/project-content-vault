@@ -3,8 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Download, Check, Smartphone } from 'lucide-react';
-import { usePWAInstall } from '@/hooks/usePWAInstall';
-import { useToast } from '@/hooks/use-toast';
+import { usePWAInstall } from '@/hooks/ui/usePWAInstall';
+import { useToast } from '@/hooks/ui/use-toast';
 
 export function PWASettings() {
   const { isInstalled, isInstallable, install } = usePWAInstall();

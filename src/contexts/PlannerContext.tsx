@@ -2,20 +2,20 @@
 import React, { createContext, useContext, useState, useCallback, useMemo, useEffect } from 'react';
 import { CalendarEvent, Holiday, WorkHour, Project } from '@/types';
 import type { Database } from '@/integrations/supabase/types';
-import { useEvents } from '@/hooks/useEvents';
-import { useHabits } from '@/hooks/useHabits';
-import { useHolidays } from '@/hooks/useHolidays';
-import { useWorkHours } from '@/hooks/useWorkHours';
+import { useEvents } from '@/hooks/data/useEvents';
+import { useHabits } from '@/hooks/data/useHabits';
+import { useHolidays } from '@/hooks/data/useHolidays';
+import { useWorkHours } from '@/hooks/data/useWorkHours';
 import { EventInput } from '@fullcalendar/core';
 import { normalizeProjectColor } from '@/utils/normalizeProjectColor';
-import { prepareEventsForFullCalendar } from '@/services/unified/UnifiedEventTransformService';
+import { prepareEventsForFullCalendar } from '@/services';
 import { getDateKey } from '@/utils/dateFormatUtils';
 import { supabase } from '@/integrations/supabase/client';
 import { generateRecurringEvents } from '@/services';
 import { ensureRecurringEventsExist } from '@/services';
-import { UnifiedTimeTrackerService } from '@/services';
+import { timeTrackingOrchestrator } from '@/services/orchestrators/timeTrackingOrchestrator';
 import { useSettingsContext } from './SettingsContext';
-import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
 type HabitRow = Database['public']['Tables']['calendar_events']['Row'];
 type HabitInsert = Database['public']['Tables']['calendar_events']['Insert'];
 type HabitUpdate = Database['public']['Tables']['calendar_events']['Update'];
@@ -315,7 +315,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
     // Check if the event being deleted is currently being tracked
     if (isTimeTracking && currentTrackingEventId === id) {
       // Stop tracking before deleting the event
-      await UnifiedTimeTrackerService.stopTracking();
+      await timeTrackingOrchestrator.stopTracking();
       setIsTimeTracking(false);
       setCurrentTrackingEventId(null);
     }

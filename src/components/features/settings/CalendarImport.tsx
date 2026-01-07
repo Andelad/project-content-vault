@@ -8,10 +8,11 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Upload, Calendar, CheckCircle, XCircle, Clock, FileText } from 'lucide-react';
-import { CalendarImportService, type ImportResult } from '@/services';
-import { useCalendarConnections } from '@/hooks/useCalendarConnections';
-import { useToast } from '@/hooks/use-toast';
-import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import { parseICalFile, type ImportResult } from '@/services';
+import { CalendarImportOrchestrator } from '@/services/orchestrators/CalendarImportOrchestrator';
+import { useCalendarConnections } from '@/hooks/calendar/useCalendarConnections';
+import { useToast } from '@/hooks/ui/use-toast';
+import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
 
 export function CalendarImport() {
   const [importing, setImporting] = useState(false);
@@ -80,7 +81,7 @@ export function CalendarImport() {
       setImportProgress(30);
 
       // Parse iCal events
-      const events = CalendarImportService.parseICalFile(fileContent);
+      const events = parseICalFile(fileContent);
       setImportProgress(60);
 
       if (events.length === 0) {
@@ -88,7 +89,7 @@ export function CalendarImport() {
       }
 
       // Import events
-      const result = await CalendarImportService.importEvents(events);
+      const result = await CalendarImportOrchestrator.executeImportWorkflow(events);
       setImportProgress(90);
 
       // Import history is now recorded automatically by the orchestrator

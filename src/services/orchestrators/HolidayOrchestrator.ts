@@ -7,8 +7,8 @@
  */
 
 import { Holiday } from '@/types/core';
-import { addDaysToDate } from '../calculations/general/dateCalculations';
-import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import { addDaysToDate } from '@/utils/dateCalculations';
+import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
 import { Holiday as HolidayEntity } from '@/domain/entities/Holiday';
 
 export interface HolidayFormData {

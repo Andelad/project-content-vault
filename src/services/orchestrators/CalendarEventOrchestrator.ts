@@ -7,7 +7,7 @@
  */
 
 import { CalendarEvent } from '@/types/core';
-import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
 import { CalendarEvent as CalendarEventEntity } from '@/domain/entities/CalendarEvent';
 
 export interface EventFormData {

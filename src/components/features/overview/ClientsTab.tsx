@@ -3,7 +3,7 @@ import { Search, Building2, Mail, Phone, MapPin, FileText } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ClientModal } from '@/components/modals/ClientModal';
-import { useClients } from '@/hooks/useClients';
+import { useClients } from '@/hooks/data/useClients';
 import { useProjectContext } from '@/contexts/ProjectContext';
 import { normalizeToMidnight } from '@/services';
 

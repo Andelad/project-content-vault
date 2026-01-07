@@ -13,13 +13,13 @@ import { useSettingsContext } from '../../contexts/SettingsContext';
 import { WorkSlot } from '@/types/core';
 import { CalendarImport } from '@/components/features/settings/CalendarImport';
 import { PWASettings } from '@/components/features/settings/PWASettings';
-import { useToast } from '../../hooks/use-toast';
+import { useToast } from '../../hooks/ui/use-toast';
 import { formatDuration } from '@/services';
 import { AppPageLayout } from '../layout/AppPageLayout';
 import { formatWorkSlotDurationDisplay } from '@/services';
 import { SettingsOrchestrator } from '@/services/orchestrators/SettingsOrchestrator';
 import { SidebarLayout } from '../shared/SidebarLayout';
-import { useGroups } from '@/hooks/useGroups';
+import { useGroups } from '@/hooks/data/useGroups';
 import { supabase } from '@/integrations/supabase/client';
 import {
   generateTimeOptions,

@@ -6,7 +6,7 @@ import { supabase } from '../../integrations/supabase/client';
 import { Sheet, SheetContent } from '../ui/sheet';
 import { HelpModal } from '../modals/HelpModal';
 import { FeedbackModal } from '../modals/FeedbackModal';
-import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
 import type { Database } from '@/integrations/supabase/types';
 
 const isBrowser = typeof window !== 'undefined';

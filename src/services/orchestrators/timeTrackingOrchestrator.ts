@@ -1,10 +1,10 @@
-import { timeTrackingRepository } from '../repositories/timeTrackingRepository';
-import { timeTrackingCalculations } from '../calculations/tracking/timeTrackingCalculations';
+import { timeTrackingRepository } from '../data/timeTracking';
+import { timeTrackingCalculations } from '@/domain/rules/time-tracking/TimeTrackingCalculations';
 import type { TimeTrackingState, SerializedTimeTrackingState, TimeTrackingSyncMessage } from '../../types/timeTracking';
 import type { CalendarEvent } from '../../types/core';
 import { supabase } from '../../integrations/supabase/client';
 import type { RealtimeChannel } from '@supabase/supabase-js';
-import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
 
 type SelectedProject = NonNullable<TimeTrackingState['selectedProject']>;
 

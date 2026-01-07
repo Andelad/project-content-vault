@@ -13,8 +13,8 @@
 import { Group, Project } from '@/types/core';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
-import { calculateGroupStatistics } from '@/services/calculations';
-import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import { calculateGroupStatistics } from '@/services';
+import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
 import { Group as GroupEntity } from '@/domain/entities/Group';
 
 type GroupRow = Database['public']['Tables']['groups']['Row'];

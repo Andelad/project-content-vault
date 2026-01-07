@@ -4,7 +4,7 @@
  * Coordinates complex phase workflows that were previously in UI components.
  * Extracts recurring phase creation, batch operations, and phase lifecycle management.
  * 
- * ✅ Delegates to UnifiedPhaseService for core calculations
+ * ✅ Delegates to domain/rules for business logic
  * ✅ Coordinates with ProjectOrchestrator for project-phase relationships
  * ✅ Handles complex multi-step workflows
  * ✅ Provides clean API for UI components
@@ -12,14 +12,13 @@
 
 import { Project, PhaseDTO } from '@/types/core';
 import { supabase } from '@/integrations/supabase/client';
-import { UnifiedPhaseService } from '../unified/UnifiedPhaseService';
 import { ProjectOrchestrator } from './ProjectOrchestrator';
-import { calculateDurationDays, addDaysToDate } from '../calculations/general/dateCalculations';
-import { RecurringPhaseConfig as BaseRecurringPhaseConfig } from '../calculations/projects/phaseCalculations';
-import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import { calculateDurationDays, addDaysToDate } from '@/utils/dateCalculations';
+import { RecurringPhaseConfig as BaseRecurringPhaseConfig } from '@/domain/rules/phases/PhaseRecurrence';
+import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
 import { Phase as PhaseEntity } from '@/domain/entities/Phase';
-import { PhaseRecurrenceService } from '@/domain/domain-services/PhaseRecurrenceService';
-import { PhaseRules } from '@/domain/rules/PhaseRules';
+import { PhaseRecurrenceService } from '@/domain/rules/phases/PhaseRecurrence';
+import { PhaseRules, PhaseBudgetRules } from '@/domain/rules/phases/PhaseRules';
 
 export interface ProjectRecurringPhaseConfig extends BaseRecurringPhaseConfig {
   name: string;
@@ -629,7 +628,7 @@ export class PhaseOrchestrator {
     try {
       // Budget validation for time allocation changes using existing service (AI Rule)
       if (property === 'timeAllocation') {
-        const budgetValidation = UnifiedPhaseService.validateBudgetAllocation(
+        const budgetValidation = PhaseBudgetRules.validateBudgetAllocation(
           context.projectPhases,
           context.projectEstimatedHours,
           milestoneId
@@ -656,7 +655,7 @@ export class PhaseOrchestrator {
         if (localMilestone && localMilestone.isNew && context.addPhase) {
           // Budget validation for new milestones
           const additionalHours = property === 'timeAllocation' ? value : localMilestone.timeAllocation;
-          const budgetValidation = UnifiedPhaseService.validateBudgetAllocation(
+          const budgetValidation = PhaseBudgetRules.validateBudgetAllocation(
             context.projectPhases,
             context.projectEstimatedHours
           );
@@ -815,7 +814,7 @@ export class PhaseOrchestrator {
       ];
 
       // Validate milestone before saving - check if adding this milestone would exceed budget
-      const budgetValidation = UnifiedPhaseService.validateBudgetAllocation(
+      const budgetValidation = PhaseBudgetRules.validateBudgetAllocation(
         simulatedMilestones,
         context.projectEstimatedHours
       );

@@ -14,9 +14,10 @@ import {
   formatTimeForValidation,
   getBaseFullCalendarConfig, 
   getEventStylingConfig,
+  getBusinessHoursConfig,
+  filterEventsByLayerVisibility,
+  getResponsiveDayCount,
   transformFullCalendarToCalendarEvent,
-  UnifiedWorkHoursService,
-  UnifiedCalendarService,
   ErrorHandlingService,
   type LayerVisibility
 } from '@/services';
@@ -34,11 +35,11 @@ import { HABIT_ICON_SVG } from '@/constants/icons';
 import { NEUTRAL_COLORS } from '@/constants/colors';
 import { getDateKey } from '@/utils/dateFormatUtils';
 import { createPlannerViewOrchestrator, type PlannerInteractionContext } from '@/services/orchestrators/PlannerViewOrchestrator';
-import { useToast } from '@/hooks/use-toast';
-import { useSwipeNavigation } from '@/hooks/useSwipeNavigation';
-import { useCalendarKeyboardShortcuts } from '@/hooks/useCalendarKeyboardShortcuts';
-import { useCalendarDragDrop } from '@/hooks/useCalendarDragDrop';
-import { useHoverableDateHeaders } from '@/hooks/useHoverableDateHeaders';
+import { useToast } from '@/hooks/ui/use-toast';
+import { useSwipeNavigation } from '@/hooks/ui/useSwipeNavigation';
+import { useCalendarKeyboardShortcuts } from '@/hooks/calendar/useCalendarKeyboardShortcuts';
+import { useCalendarDragDrop } from '@/hooks/calendar/useCalendarDragDrop';
+import { useHoverableDateHeaders } from '@/hooks/calendar/useHoverableDateHeaders';
 import '@/components/features/planner/fullcalendar-overrides.css';
 // Modal imports
 const EventModal = React.lazy(() => import('../modals/EventModal').then(module => ({ default: module.EventModal })));
@@ -619,9 +620,9 @@ export function PlannerView() {
       });
     });
   }, [settings?.isCompactView, updateSettings]);
-  // Convert work hours to FullCalendar businessHours format using UnifiedCalendarService
+  // Convert work hours to FullCalendar businessHours format
   const businessHoursConfig = useMemo(() => 
-    UnifiedCalendarService.getBusinessHoursConfig(settings),
+    getBusinessHoursConfig(settings),
     [settings]
   );
   // Prepare FullCalendar configuration
@@ -636,8 +637,8 @@ export function PlannerView() {
     events: ((fetchInfo, successCallback, failureCallback) => {
       try {
         const allEvents = getStyledFullCalendarEvents({ selectedEventId, projects }) as EventInput[];
-        // Filter events based on layer visibility using UnifiedCalendarService
-        const filteredEvents = UnifiedCalendarService.filterEventsByLayerVisibility(
+        // Filter events based on layer visibility
+        const filteredEvents = filterEventsByLayerVisibility(
           allEvents,
           layerVisibility
         ) as EventInput[];
@@ -998,7 +999,7 @@ export function PlannerView() {
         visibleStartDate={visibleRange.start}
         visibleEndDate={visibleRange.end}
         weekStartDate={weekStart}
-        visibleDayCount={UnifiedCalendarService.getResponsiveDayCount()}
+        visibleDayCount={getResponsiveDayCount()}
         onDayClick={handleWeekNavDayClick}
         show={currentView === 'week' && (viewportSize === 'mobile' || viewportSize === 'tablet')}
       />

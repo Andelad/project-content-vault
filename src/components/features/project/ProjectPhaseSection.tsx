@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/ui/use-toast';
 import {
   usePhaseOperations,
   usePhaseBudget,
@@ -19,8 +19,8 @@ import {
   RecurringPhaseCard,
   PhaseConfigDialog
 } from '../phases';
-import { UnifiedPhaseService, PhaseOrchestrator, addDaysToDate } from '@/services';
-import { PhaseRules } from '@/domain/rules/PhaseRules';
+import { PhaseOrchestrator, addDaysToDate } from '@/services';
+import { PhaseRules } from '@/domain/rules/phases/PhaseRules';
 
 type AutoEstimateDays = {
   monday: boolean;

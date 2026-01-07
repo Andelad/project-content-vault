@@ -2,9 +2,9 @@ import React from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Project, PhaseDTO } from '@/types/core';
 import { getTimelinePositions, normalizeToMidnight } from '@/services';
-import { getPhasesSortedByEndDate } from '@/domain/rules/PhaseRules';
-import type { DragState } from '@/services/ui/DragPositioning';
-import type { TimelinePositionCalculation } from '@/services/ui/ProjectBarPositioning';
+import { getPhasesSortedByEndDate } from '@/domain/rules/phases/PhaseRules';
+import type { DragState } from '@/ui/DragPositioning';
+import type { TimelinePositionCalculation } from '@/ui/ProjectBarPositioning';
 
 interface PhaseMarkersProps {
   project: Project;

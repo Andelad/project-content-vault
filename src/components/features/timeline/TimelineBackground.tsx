@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { normalizeToMidnight, addDaysToDate, UnifiedTimelineService } from '@/services';
+import { normalizeToMidnight, addDaysToDate, calculateTimelineColumnMarkerData } from '@/services';
 import { NEUTRAL_COLORS } from '@/constants/colors';
 
 interface TimelineBackgroundProps {
@@ -18,7 +18,7 @@ export const TimelineBackground = memo(function TimelineBackground({ dates, mode
   const dayWidth = mode === 'weeks' ? 22 : columnWidth; // 22px effective spacing (21px + 1px gap)
   
   // Use service to calculate column marker data (borders, today indicator)
-  const columnData = UnifiedTimelineService.calculateColumnMarkerData(dates, mode);
+  const columnData = calculateTimelineColumnMarkerData(dates, mode);
   const bufferWidth = mode === 'days' ? columnData[0]?.columnWidth || 52 : 0;
 
   return (

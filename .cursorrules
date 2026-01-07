@@ -6,10 +6,24 @@
 
 ---
 
-## 📚 DOCUMENTATION GUIDE
+## � ARCHITECTURE MIGRATION IN PROGRESS
+
+**Current State:** Migrating to simplified three-layer architecture  
+**Plan:** See `/docs/operations/ARCHITECTURE_REBUILD_PLAN.md`  
+**Target:** THREE layers only - `domain/rules/`, `services/orchestrators/`, `services/data/`
+
+**During Migration:**
+- New business logic → `domain/rules/` (organized by concern: phases/, projects/, sync/)
+- New orchestrator code → `services/orchestrators/` (coordination only)
+- New data transformation → `services/data/mappers/` or `services/data/aggregators/`
+- Keep math inline with business logic (no separate MathUtils)
+
+---
+
+## �📚 DOCUMENTATION GUIDE
 
 **Core Documents:**
-- **`.dhybrid`** (root) - Hybrid DDD philosophy & architecture evolution
+- **`.ddd`** (root) - Hybrid DDD philosophy & architecture evolution
 - **`.architecture`** (root) - WHERE code goes, structural patterns
 - **`Domain Logic.md`** (`/src/domain/`) - WHAT entities are (concepts)
 - **`Rules Logic.md`** (`/src/domain/`) - HOW calculations work (formulas)
@@ -21,7 +35,7 @@
 - Calculations/formulas → `/src/domain/Rules Logic.md`
 - Display constraints → `/src/domain/Display Logic.md`
 - Code structure → `/.architecture`
-- Hybrid DDD philosophy → `/.dhybrid`
+- Hybrid DDD philosophy → `/.ddd`
 - Component files → `/src/components/README.md`
 
 ---
@@ -33,57 +47,65 @@
 - ❌ Business logic in `/utils/` or components
 - ❌ Calculations in components
 - ❌ Duplicate types (use `/types/core.ts`)
-- ❌ Manual date math
+- ❌ Manual date math (use `dateCalculations.ts` for generic, inline for business-specific)
 - ❌ Validator wrapper files (call domain rules directly)
 - ❌ Repository wrapper files (call Supabase directly, except `timeTrackingRepository`)
 - ❌ Domain/business logic in orchestrators (put in `domain/rules/`)
+- ❌ Separate MathUtils files (keep math inline with business logic)
+- ❌ New unified services (use `domain/rules/` or `services/data/` instead)
 
 ### Always Use
 - ✅ Import from `@/services` only
 - ✅ Types from `/types/core.ts`
-- ✅ Domain services from `/domain/domain-services/` for pure domain logic
-- ✅ Domain rules from `/domain/rules/` for validation & business logic
+- ✅ Domain rules from `/domain/rules/` for ALL business logic (validation + calculations)
 - ✅ Domain entities from `/domain/entities/` when available
-- ✅ `dateCalculations.ts` for all date operations
+- ✅ `dateCalculations.ts` for generic date operations
 - ✅ `ErrorHandlingService` for all errors
-- ✅ Find existing domain-services first, then unified services
-- ✅ Delegation pattern in unified services
+- ✅ Find existing domain rules first, then check orchestrators
+- ✅ Keep calculations co-located with business logic that uses them
 
 ### Before Writing Code
 ```bash
+grep -r "functionName" src/domain/rules/
 grep -r "functionName" src/services/
-ls src/services/unified/ | grep -i "domain"
 ```
 
 ---
 
 ## 2. CODE ORGANIZATION
 
-**Architecture: Hybrid DDD** (see `.architecture.md` for details)
+**Architecture: Hybrid DDD - Three Layers** (see `.ddd` for philosophy)
 
 | Code Type | Location | Purity | Example |
 |-----------|----------|--------|---------|
-| **Domain Services** | `/domain/domain-services/*Service` | 100% pure (no UI/DB) | Pure domain logic (budget, recurrence) |
-| **Domain Rules** | `/domain/rules/*Rules` | 100% pure (no UI/DB) | Validation, business logic |
+| **Domain Rules** | `/domain/rules/*` | 100% pure (no UI/DB) | Validation + calculations (inline) |
 | **Domain Entities** | `/domain/entities/*` | 100% pure (no UI/DB) | Rich objects with business methods |
+| **Value Objects** | `/domain/value-objects/*` | 100% pure | DateRange, EmailAddress |
 | **Orchestrators** | `/services/orchestrators/*Orchestrator` | Mixed (by design) | Workflows: validation + DB + UI prep |
-| **Unified Services** | `/services/unified/Unified*Service` | Delegates to domain | **PREFER domain-services** for new logic |
+| **Data Mappers** | `/services/data/mappers/*` | Pure transformation | DB↔UI field translation |
+| **Data Aggregators** | `/services/data/aggregators/*` | Queries only | Multi-table queries + rollups |
 | **UI Components** | `/components` | UI only | Call services, no logic |
 | Date Math | `/services/calculations/general/dateCalculations` | Pure math | `normalizeToMidnight()` |
 | Error Handling | `ErrorHandlingService` | Infrastructure | Structured logging |
 | React State | `/hooks/use*.ts` | Coordination | State + service calls |
 | Generic Utils | `/utils` or `/lib` | Pure helpers | `cn()`, `formatCurrency()` |
 
+**⚠️ Legacy (Being Migrated):**
+| Code Type | Location | Status |
+|-----------|----------|--------|
+| Domain Services | `/domain/domain-services/*` | → Merging into `domain/rules/` |
+| Unified Services | `/services/unified/*` | → Splitting into `domain/rules/` + `services/data/` |
+| Calculations | `/services/calculations/*` | → Merging into `domain/rules/` |
+
 **Orchestrator Scope (Hybrid DDD - Mixed by Design):**
-- ✅ Call domain services (`PhaseRecurrenceService.generateOccurrences()`)
-- ✅ Call domain rules (`ProjectRules.validate()`)
+- ✅ Call domain rules (`PhaseValidation.validate()`, `DateSync.synchronize()`)
 - ✅ Call Supabase directly (no repository layer)
-- ✅ Transform data for database
+- ✅ Use data mappers for DB transformation
 - ✅ Enrich data for UI display
 - ✅ Coordinate workflows & side effects
 - ❌ NEVER implement business rules (use `domain/rules/`)
-- ❌ NEVER implement domain logic (use `domain/domain-services/`)
-- ❌ NEVER implement calculations (use `domain/domain-services/` or `unified/`)
+- ❌ NEVER implement calculations (put in `domain/rules/` inline)
+- ❌ NEVER create new unified services (use `domain/rules/` or `services/data/`)
 
 ---
 
@@ -94,8 +116,8 @@ ls src/services/unified/ | grep -i "domain"
 // ✅ Orchestrators coordinate & mix concerns (by design)
 export class ProjectOrchestrator {
   static async executeProjectCreationWorkflow(request, context) {
-    // ✅ Call domain rules (pure validation)
-    const validation = ProjectRules.validateProjectDates(request.startDate, request.endDate);
+    // ✅ Call domain rules (pure validation + calculations)
+    const validation = ProjectValidation.validateProjectDates(request.startDate, request.endDate);
     if (!validation.isValid) return { success: false, errors: validation.errors };
     
     // ✅ Transform for DB (allowed)
@@ -113,40 +135,81 @@ export class ProjectOrchestrator {
 }
 ```
 
-### Domain Services (pure domain logic - NEW CODE GOES HERE)
+### Domain Rules (ALL business logic goes here)
 ```typescript
-// ✅ Pure domain logic (no DB, no UI, no side effects)
-export class PhaseRecurrenceService {
+// ✅ Pure domain logic with calculations INLINE (no DB, no UI, no side effects)
+// Located in domain/rules/{concern}/
+export class PhaseRecurrence {
   static generateOccurrences(config: RecurringConfig, range: DateRange): Date[] {
     // Pure RRule-based logic, 100% testable
+    // Calculations inline - no separate MathUtils
   }
   
   static validateRecurringConfig(config: RecurringConfig): ValidationResult {
     // Pure validation logic
   }
 }
-```
 
-### Unified Services (delegate to domain-services)
-```typescript
-// ⚠️ LEGACY: Prefer domain-services for new logic
-// ✅ OK: Keep for UI coordination or delegate to domain-services
-export class UnifiedProjectService {
-  static calculateDuration(project: Project): number {
-    // Delegates to domain service
-    return ProjectBudgetService.calculateDuration(project);
+// ✅ Cross-cutting concerns in domain/rules/sync/
+export class DateSync {
+  static synchronizeProjectWithPhases(project: Project, phases: Phase[]): SyncResult {
+    // Inline date calculations - no external math utilities
+    const earliestStart = phases.reduce((earliest, phase) => {
+      const start = new Date(phase.startDate);
+      return !earliest || start < earliest ? start : earliest;
+    }, null as Date | null);
+    
+    return { updatedProject: { ...project, startDate: earliestStart } };
   }
 }
 ```
 
+### Data Services (transformation only - NO business logic)
+```typescript
+// ✅ Pure data transformation (DB↔UI)
+// Located in services/data/mappers/
+export const PhaseMapper = {
+  fromDatabase(row: DatabaseMilestone): PhaseDTO {
+    return {
+      id: row.id,
+      endDate: new Date(row.due_date), // Field translation
+    };
+  },
+  toDatabase(phase: PhaseDTO): Partial<DatabaseMilestone> {
+    return {
+      due_date: phase.endDate.toISOString(), // Reverse translation
+    };
+  }
+};
+
+// ✅ Multi-table queries (NO business logic)
+// Located in services/data/aggregators/
+export class PhaseAggregator {
+  static async getPhasesWithTimeEntries(projectId: string) {
+    // Pure data aggregation - no business rules
+  }
+}
+```
+
+### ⚠️ Legacy Patterns (Being Migrated)
+```typescript
+// ⚠️ LEGACY: domain-services/ → merging into domain/rules/
+export class PhaseRecurrenceService { ... } // → domain/rules/phases/PhaseRecurrence.ts
+
+// ⚠️ LEGACY: unified/ → splitting into domain/rules/ + services/data/
+export class UnifiedProjectService { ... } // Business logic → domain/rules/, data → services/data/
+```
+
 ### Dates
 ```typescript
-// ✅ Use dateCalculations
+// ✅ Use dateCalculations for generic operations
 import { normalizeToMidnight, addDaysToDate } from '@/services';
 
-// ❌ Never manual
+// ✅ Inline simple date math in domain rules when business-specific
+const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+
+// ❌ Never manual date math in components or orchestrators
 date.setHours(0, 0, 0, 0);
-new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
 ```
 
 ### Error Handling

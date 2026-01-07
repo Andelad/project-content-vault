@@ -7,9 +7,9 @@
  */
 
 import { CalendarEvent } from '@/types/core';
-import { useToast } from '@/hooks/use-toast';
-import { transformFullCalendarToCalendarEvent } from '../unified/UnifiedEventTransformService';
-import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import { useToast } from '@/hooks/ui/use-toast';
+import { transformFullCalendarToCalendarEvent } from '@/services';
+import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
 
 export interface EventUpdateData {
   startTime?: Date;

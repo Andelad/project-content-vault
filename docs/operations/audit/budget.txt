@@ -1,0 +1,83 @@
+src/services//unified/UnifiedProjectService.ts:9: * - Analyzing project budget vs phase allocation
+src/services//unified/UnifiedProjectService.ts:131:    return (project.estimatedHours || 0) / projectDuration;
+src/services//unified/UnifiedProjectService.ts:138:    return project.estimatedHours || 0;
+src/services//unified/UnifiedProjectService.ts:253:   * Analyze project budget vs phase allocation
+src/services//unified/UnifiedProjectService.ts:265:    estimatedHours: number,
+src/services//unified/UnifiedProjectService.ts:268:    return ProjectRules.validateProjectTime(estimatedHours, phases);
+src/services//unified/UnifiedProjectService.ts:432:    estimatedHours: number,
+src/services//unified/UnifiedProjectService.ts:435:    return ProjectRules.validateProjectTime(estimatedHours, phases);
+src/services//unified/UnifiedProjectService.ts:512:      remainingWork: Math.max(0, project.estimatedHours - workload)
+src/services//unified/UnifiedProjectService.ts:688:    return Math.max(0, project.estimatedHours - totalAllocatedHours);
+src/services//unified/UnifiedDayEstimateService.ts:192:  ): Map<string, Array<{ projectId: string; projectName: string; client: string | null; estimatedHours: number; color?: string; }>> {
+src/services//unified/UnifiedDayEstimateService.ts:193:    const summariesByDate = new Map<string, Array<{ projectId: string; projectName: string; client: string | null; estimatedHours: number; color?: string; }>>();
+src/services//unified/UnifiedDayEstimateService.ts:198:      const projectSummaries: Array<{ projectId: string; projectName: string; client: string | null; estimatedHours: number; color?: string; }> = [];
+src/services//unified/UnifiedDayEstimateService.ts:247:            estimatedHours: totalHours,
+src/services//unified/UnifiedProjectProgressService.ts:151:      return project.estimatedHours * progressRatio;
+src/services//unified/UnifiedProjectProgressService.ts:182:    if (segmentDays === 0) return project.estimatedHours;
+src/services//unified/UnifiedProjectProgressService.ts:184:    const remainingHours = project.estimatedHours - prevHours;
+src/services//unified/UnifiedProjectProgressService.ts:248:      estimatedProgress: project.estimatedHours,
+src/services//unified/UnifiedProjectProgressService.ts:438:      estimatedProgress: project.estimatedHours,
+src/services//unified/UnifiedProjectProgressService.ts:446:    const dailyRate = project.estimatedHours / Math.max(1, totalDays);
+src/services//unified/UnifiedProjectProgressService.ts:453:      const estimatedProgress = Math.min(project.estimatedHours, dailyRate * dayIndex);
+src/services//unified/UnifiedProjectProgressService.ts:466:    project.estimatedHours,
+src/services//unified/UnifiedProjectProgressService.ts:473:  const completionRate = latestPoint ? (latestPoint.completedTime / project.estimatedHours) * 100 : 0;
+src/services//unified/UnifiedProjectProgressService.ts:490:      const remainingHours = project.estimatedHours - latestPoint.completedTime;
+src/services//unified/UnifiedProjectProgressService.ts:500:        ((project.estimatedHours - latestPoint.completedTime) / trends.averageDailyCompletion) * 24 * 60 * 60 * 1000)
+src/services//unified/UnifiedEventWorkHourService.ts:415:  const autoEstimateHours = project.estimatedHours / projectWorkingDays.length;
+src/services//unified/UnifiedEventWorkHourService.ts:455:    return `alloc-${projectId}-${date.getTime()}-${project.estimatedHours}-${project.startDate.getTime()}-${project.endDate.getTime()}-${settingsHash}-${holidaysHash}-${eventsHash}-${autoEstimateDaysHash}`;
+src/services//unified/UnifiedPhaseService.ts:40:  estimatedHours: number;
+src/services//unified/UnifiedPhaseService.ts:60:   * Validate milestone budget allocation (replaces duplicate functions)
+src/services//unified/UnifiedPhaseService.ts:203:          estimatedHours: hoursPerDay,
+src/services//unified/UnifiedPhaseService.ts:258:    return entry ? entry.estimatedHours : 0;
+src/services//unified/UnifiedTimelineService.ts:228:      estimatedHours: project.estimatedHours,
+src/services//orchestrators/ProjectOrchestrator.ts:52:  estimatedHours: number;
+src/services//orchestrators/ProjectOrchestrator.ts:152:  estimatedHours?: number;
+src/services//orchestrators/ProjectOrchestrator.ts:184:   *   estimatedHours: 100,
+src/services//orchestrators/ProjectOrchestrator.ts:208:    if (!ProjectRules.validateEstimatedHours(request.estimatedHours)) {
+src/services//orchestrators/ProjectOrchestrator.ts:212:    if (request.estimatedHours > 10000) {
+src/services//orchestrators/ProjectOrchestrator.ts:225:    if (request.estimatedHours > 0) {
+src/services//orchestrators/ProjectOrchestrator.ts:233:        estimatedHours: request.estimatedHours,
+src/services//orchestrators/ProjectOrchestrator.ts:300:    if (request.estimatedHours !== undefined) {
+src/services//orchestrators/ProjectOrchestrator.ts:301:      const budgetCheck = PhaseRules.checkBudgetConstraint(currentMilestones, updatedProject.estimatedHours);
+src/services//orchestrators/ProjectOrchestrator.ts:303:        errors.push(`Reducing budget would result in ${budgetCheck.overage}h over-allocation`);
+src/services//orchestrators/ProjectOrchestrator.ts:305:      if (request.estimatedHours < currentProject.estimatedHours) {
+src/services//orchestrators/ProjectOrchestrator.ts:306:        warnings.push(`Reducing project budget from ${currentProject.estimatedHours}h to ${request.estimatedHours}h`);
+src/services//orchestrators/ProjectOrchestrator.ts:323:    const budgetCheck = PhaseRules.checkBudgetConstraint(phases, project.estimatedHours);
+src/services//orchestrators/ProjectOrchestrator.ts:326:      suggestedBudget: Math.max(project.estimatedHours, budgetCheck.totalAllocated),
+src/services//orchestrators/ProjectOrchestrator.ts:336:      p.timeAllocation > project.estimatedHours
+src/services//orchestrators/ProjectOrchestrator.ts:343:      suggestions.push(`Consider increasing project budget by ${projectBudget.overageHours}h or reducing milestone allocations`);
+src/services//orchestrators/ProjectOrchestrator.ts:378:    const budgetCheck = PhaseRules.checkBudgetConstraint(phases, project.estimatedHours);
+src/services//orchestrators/ProjectOrchestrator.ts:381:    return calculateBudgetAdjustment(project.estimatedHours, totalAllocated, targetUtilization);
+src/services//orchestrators/ProjectOrchestrator.ts:457:      estimatedHours: Math.max(0, request.estimatedHours),
+src/services//orchestrators/ProjectOrchestrator.ts:483:   *     estimatedHours: 240,
+src/services//orchestrators/ProjectOrchestrator.ts:533:        estimatedHours: request.estimatedHours,
+src/services//orchestrators/ProjectOrchestrator.ts:910:      estimatedHours: dbProject.estimated_hours,
+src/services//orchestrators/ProjectOrchestrator.ts:979:    if (projectData.estimatedHours !== undefined) dbData.estimated_hours = projectData.estimatedHours;
+src/services//orchestrators/PhaseOrchestrator.ts:211:    if (newAllocation > project.estimatedHours) {
+src/services//orchestrators/PhaseOrchestrator.ts:212:      conflicts.push(`Would exceed project budget by ${newAllocation - project.estimatedHours} hours`);
+src/services//orchestrators/PhaseOrchestrator.ts:432:   * Divides project timeline at midpoint with equal budget allocation
+src/services//orchestrators/PhaseOrchestrator.ts:442:    project: { startDate: Date; endDate: Date; estimatedHours: number },
+src/services//orchestrators/PhaseOrchestrator.ts:472:        project.estimatedHours
+src/services//calculations/insights/analyticsCalculations.ts:136:    .reduce((sum, project) => sum + project.estimatedHours, 0);
+src/services//calculations/projects/phaseCalculations.ts:463:  estimatedHours: number;
+src/services//calculations/projects/phaseCalculations.ts:471:  estimatedHours: number;
+src/services//calculations/projects/phaseCalculations.ts:522:    const estimatedHours = phase.timeAllocationHours ?? phase.timeAllocation ?? 0;
+src/services//calculations/projects/phaseCalculations.ts:529:      estimatedHours,
+src/services//calculations/projects/phaseCalculations.ts:530:      dailyHours: estimatedHours / segmentDays,
+src/services//calculations/projects/phaseCalculations.ts:548:      estimatedHours: 0,
+src/services//calculations/projects/phaseCalculations.ts:621:      estimatedHours: segment?.dailyHours || 0,
+src/services//calculations/projects/dayEstimateCalculations.ts:444:  if (phases.length === 0 && Number.isFinite(project.estimatedHours) && project.estimatedHours > 0 && !project.continuous) {
+src/services//calculations/projects/dayEstimateCalculations.ts:454:    const remainingBudget = Math.max(0, project.estimatedHours - completedInProject);
+src/services//calculations/projects/projectCalculations.ts:140:  return project.estimatedHours / workingDays.length;
+src/services//calculations/projects/__tests__/dayEstimateCalculations.test.ts:71:  estimatedHours: 20,
+src/services//calculations/projects/__tests__/dayEstimateCalculations.test.ts:144:      estimatedHours: 28,
+src/services//calculations/projects/__tests__/dayEstimateCalculations.test.ts:225:      estimatedHours: 40,
+src/services//calculations/projects/__tests__/dayEstimateCalculations.test.ts:276:      estimatedHours: 20,
+src/services//calculations/groups/groupCalculations.ts:39:  const totalEstimatedHours = groupProjects.reduce((sum, p) => sum + (p.estimatedHours || 0), 0);
+src/services//calculations/availability/capacityAnalysis.ts:660: * @param estimatedHours - Auto-estimated project hours for the date (from day estimates)
+src/services//calculations/availability/capacityAnalysis.ts:667:  estimatedHours: number = 0
+src/services//calculations/availability/capacityAnalysis.ts:682:  const netAvailability = totalWorkHours - (habitTime + plannedTime + estimatedHours);
+src/services//performance/calculationCache.ts:30:  estimatedHours?: number | null;
+src/services//performance/calculationCache.ts:34:type ProjectHashInput = Pick<Project, 'id' | 'startDate' | 'endDate' | 'estimatedHours'>;
+src/services//performance/calculationCache.ts:258:    const milestoneHash = milestone ? `${milestone.id ?? 'unknown'}-${milestone.targetDate ?? 'null'}-${milestone.estimatedHours ?? 'null'}-${milestone.completionDate || 'null'}` : 'null';
+src/services//performance/calculationCache.ts:259:    const projectHash = project ? `${project.id}-${project.startDate}-${project.endDate}-${project.estimatedHours}` : 'null';

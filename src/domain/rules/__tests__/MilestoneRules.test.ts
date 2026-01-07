@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { PhaseRules } from '@/domain/rules/PhaseRules';
+import { PhaseRules } from '@/domain/rules/phases/PhaseRules';
 
 describe('PhaseRules.validateTimeAllocation', () => {
   it('allows zero hours as a valid placeholder', () => {

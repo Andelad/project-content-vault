@@ -4,7 +4,7 @@ import { ProjectProgressGraph } from './ProjectProgressGraph';
 import { Project, CalendarEvent, Holiday } from '@/types';
 import { formatDuration } from '@/services';
 import { calculateProjectTimeMetrics } from '@/services';
-import type { ProjectEvent } from '@/services/calculations/projects/projectEntityCalculations';
+import type { ProjectEvent } from '@/domain/rules/projects/ProjectMetrics';
 
 interface ProjectInsightsSectionProps {
   project: Project;

@@ -1266,7 +1266,7 @@ Consolidated validation rules across all entities.
 
 | Entity | Field | Rules |
 |--------|-------|-------|
-| Client | Name | 1-100 chars, required, unique per user (case-insensitive TO FIX), trimmed |
+| Client | Name | 1-100 chars, required, unique per user, trimmed |
 | Project | Name | Required, trimmed |
 | Group | Name | Required, unique per user (case-insensitive), trimmed |
 | Label | Name | Required, unique per user (case-insensitive), trimmed |

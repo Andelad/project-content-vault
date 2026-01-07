@@ -7,12 +7,12 @@ import { Badge } from '../ui/badge';
 import { Separator } from '../ui/separator';
 import { Switch } from '../ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { SidebarLayout } from '../shared/SidebarLayout';
 import { OrphanedPhasesCleaner } from '../debug';
-import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
 import { 
   CreditCard, 
   Crown, 

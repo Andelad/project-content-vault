@@ -10,7 +10,7 @@
  * ✅ Provides clean API for UI components
  */
 
-import { ErrorHandlingService } from '../infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
 import { Settings } from '@/types/core';
 
 type LocalSettings = Partial<Settings> & { defaultView?: string };

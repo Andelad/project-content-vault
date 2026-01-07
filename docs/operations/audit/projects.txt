@@ -1,0 +1,26 @@
+src/services//unified/UnifiedProjectService.ts:268:    return ProjectRules.validateProjectTime(estimatedHours, phases);
+src/services//unified/UnifiedProjectService.ts:331:export function validateProjectDates(
+src/services//unified/UnifiedProjectService.ts:429:   * @deprecated Use ProjectRules.validateProjectTime() instead
+src/services//unified/UnifiedProjectService.ts:431:  static validateProjectTime(
+src/services//unified/UnifiedProjectService.ts:435:    return ProjectRules.validateProjectTime(estimatedHours, phases);
+src/services//unified/UnifiedProjectService.ts:440:   * @deprecated Use ProjectRules.validateProjectDates() instead
+src/services//unified/UnifiedProjectService.ts:442:  static validateProjectDates(
+src/services//unified/UnifiedProjectService.ts:447:    return ProjectRules.validateProjectDates(startDate, endDate, continuous);
+src/services//unified/UnifiedProjectService.ts:486:   * Domain Rule: Check if project status is valid
+src/services//unified/UnifiedProjectService.ts:622:  static validateMilestoneTimeline(project: Project, phases: PhaseDTO[]): {
+src/services//unified/UnifiedPhaseService.ts:224:    const budgetAnalysis = this.validateBudgetAllocation(phases, projectBudget);
+src/services//unified/UnifiedTimelineService.ts:114:      validation: PhaseOrchestrator.validateProjectTimeframe(
+src/services//unified/UnifiedTimelineService.ts:131:   * Get project validation data
+src/services//unified/UnifiedTimelineService.ts:134:  static validateProject(project: Project, phases: PhaseDTO[] = []) {
+src/services//unified/UnifiedTimelineService.ts:135:    return PhaseOrchestrator.validateProjectTimeframe(
+src/services//orchestrators/ProjectOrchestrator.ts:180:   * const result = ProjectOrchestrator.validateProjectCreation({
+src/services//orchestrators/ProjectOrchestrator.ts:193:  static validateProjectCreation(
+src/services//orchestrators/ProjectOrchestrator.ts:216:    const dateValidation = ProjectRules.validateProjectDates(
+src/services//orchestrators/ProjectOrchestrator.ts:247:      const pastValidation = ProjectRules.validateProjectNotFullyInPast(
+src/services//orchestrators/ProjectOrchestrator.ts:264:  static validateProjectUpdate(
+src/services//orchestrators/ProjectOrchestrator.ts:271:    // Create updated project for validation
+src/services//orchestrators/ProjectOrchestrator.ts:278:      const dateValidation = ProjectRules.validateProjectDates(
+src/services//orchestrators/ProjectOrchestrator.ts:799:      const validation = this.validateProjectUpdate(
+src/services//orchestrators/PhaseOrchestrator.ts:126:   * SINGLE SOURCE OF TRUTH for project time validation
+src/services//orchestrators/PhaseOrchestrator.ts:128:  static validateProjectTimeframe(
+src/services//orchestrators/PhaseOrchestrator.ts:138:    // Basic project date validation

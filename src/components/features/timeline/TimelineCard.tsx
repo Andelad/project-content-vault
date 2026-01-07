@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useProjectContext } from '@/contexts/ProjectContext';
 import { Project } from '@/types/core';
-import type { DragState } from '@/services/ui/DragPositioning';
+import type { DragState } from '@/ui/DragPositioning';
 
 interface TimelineCardProps {
   groups: Array<{ id: string; name: string }>;

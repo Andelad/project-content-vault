@@ -49,7 +49,7 @@ Use the template at the end of this document.
 1. **Check existing documentation:**
    - `.cursorrules` - Quick reference for patterns
    - `.architecture` - Code organization
-   - `.dhybrid` - Hybrid DDD philosophy
+   - `.ddd` - Hybrid DDD philosophy
    - `/src/domain/Domain Logic.md` - Entity definitions
    - `/src/domain/Rules Logic.md` - Business rules
    - `/src/domain/Display Logic.md` - Display constraints
@@ -136,7 +136,7 @@ Use the template at the end of this document.
    - No `any` types
    - Handle nulls/undefined explicitly
 
-3. **Hybrid DDD principles** (see `.dhybrid`):
+3. **Hybrid DDD principles** (see `.ddd`):
    - Domain logic in domain layer (pure)
    - Orchestrators coordinate (mixed by design)
    - No business logic in components

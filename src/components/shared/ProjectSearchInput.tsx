@@ -5,9 +5,8 @@ import { Label } from '../ui/label';
 import { Button } from '../ui/button';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { usePlannerContext } from '../../contexts/PlannerContext';
-import { UnifiedTimeTrackerService } from '@/services';
+import { filterSearchResults, type SearchResult } from '@/domain/rules/time-tracking/TimeTrackerHelpers';
 import { Project } from '@/types/core';
-import { SearchResult } from '@/services/unified/UnifiedTimeTrackerService';
 
 type ProjectSelection = Project | { client: string; name: string };
 
@@ -81,7 +80,7 @@ export function ProjectSearchInput({
         type: 'project' as const
       }));
     }
-    return UnifiedTimeTrackerService.filterSearchResults(projects, value);
+    return filterSearchResults(projects, value);
   }, [value, projects, recentProjects]);
 
   // Handle search selection

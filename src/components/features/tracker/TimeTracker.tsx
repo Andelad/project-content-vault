@@ -6,24 +6,31 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useProjectContext } from '@/contexts/ProjectContext';
 import { usePlannerContext } from '@/contexts/PlannerContext';
 import { useSettingsContext } from '@/contexts/SettingsContext';
-import { useClients } from '@/hooks/useClients';
+import { useClients } from '@/hooks/data/useClients';
 import type { CalendarEvent } from '@/types';
 import type { Project } from '@/types/core';
 import { calculateOverlapActions, findOverlappingEvents } from '@/services';
 import { 
   processEventOverlaps, 
-  calculateElapsedTime, 
   createTimeRange,
   type EventSplitResult 
 } from '@/services';
-import { UnifiedTimeTrackerService } from '@/services';
+import { timeTrackingOrchestrator } from '@/services/orchestrators/timeTrackingOrchestrator';
+import {
+  filterSearchResults,
+  handlePlannedEventOverlaps,
+  calculateElapsedTime,
+  type SearchResult,
+  type TrackingEventData
+} from '@/domain/rules/time-tracking/TimeTrackerHelpers';
+import type { TrackingState } from '@/infrastructure/TimeTrackerStorage';
 import type { TimeTrackerWorkflowContext } from '@/services/orchestrators/timeTrackingOrchestrator';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client'; // Used for event existence check in DB sync
 import { ConflictDialog } from './ConflictDialog';
 import type { TimeTrackingState } from '@/types/timeTracking';
-import { toast } from '@/hooks/use-toast';
+import { toast } from '@/hooks/ui/use-toast';
 import { ProjectModal } from '@/components/modals/ProjectModal';
-import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
 interface TimeTrackerProps {
   className?: string;
   isExpanded?: boolean;
@@ -95,7 +102,7 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
     localStorage.removeItem('timeTracker_crossWindowSync');
     const loadTrackingState = async () => {
       // Load from Supabase (only source of truth)
-      const dbState = await UnifiedTimeTrackerService.loadState();
+      const dbState = await timeTrackingOrchestrator.loadState();
       // // console.log('🔍 TIMETRACKER - Loaded state:', {
       //   hasState: !!dbState,
       //   isTracking: dbState?.isTracking,
@@ -165,7 +172,7 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
         // If tracking is active but we don't have local state, load it
         if (!selectedProject || !currentStateRef.current || !intervalRef.current) {
           // // console.log('🔍 CROSS-WINDOW SYNC - Loading state from DB');
-          const dbState = await UnifiedTimeTrackerService.loadState();
+          const dbState = await timeTrackingOrchestrator.loadState();
           if (dbState && dbState.selectedProject) {
             // Restore UI state
             setSelectedProject(dbState.selectedProject);
@@ -234,8 +241,8 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isTimeTracking, currentTrackingEventId]); // React to global state changes
   // Check for overlapping planned events and adjust them
-    const handlePlannedEventOverlaps = useCallback((trackingStart: Date, trackingEnd: Date) => {
-      const affectedEvents = UnifiedTimeTrackerService.handlePlannedEventOverlaps(
+    const handlePlannedEventOverlapsCallback = useCallback((trackingStart: Date, trackingEnd: Date) => {
+      const affectedEvents = handlePlannedEventOverlaps(
         events,
         trackingStart,
         trackingEnd,
@@ -272,7 +279,7 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
         }
         return;
       }
-        const { duration } = UnifiedTimeTrackerService.calculateElapsedTime(startTime);
+        const { duration } = calculateElapsedTime(startTime);
       try {
         // First verify the event still exists
         const { data: eventExists } = await supabase
@@ -281,7 +288,7 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
           .eq('id', eventId)
           .maybeSingle();
         if (!eventExists) {
-            const elapsed = UnifiedTimeTrackerService.calculateElapsedTime(startTime);
+            const elapsed = calculateElapsedTime(startTime);
             console.error('💾 DB sync - EVENT DOES NOT EXIST IN DATABASE!', {
               eventId,
               currentSeconds: elapsed.totalSeconds
@@ -311,14 +318,14 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
     // Running this repeatedly causes events to be re-trimmed with the current time,
     // which makes the "second to last event" keep updating its end time
       setTimeout(() => {
-      const affected = handlePlannedEventOverlaps(startTime, new Date());
+      const affected = handlePlannedEventOverlapsCallback(startTime, new Date());
       localStorage.setItem(STORAGE_KEYS.affectedEvents, JSON.stringify(affected));
       // // console.log('🔍 Initial overlap check - complete, affected events:', affected.length);
       }, 1000); // Wait 1 second after start
     }, [
       STORAGE_KEYS.affectedEvents,
       currentEventId,
-      handlePlannedEventOverlaps,
+      handlePlannedEventOverlapsCallback,
       isTimeTracking,
       setCurrentEventId,
       setIsTimeTracking,
@@ -350,7 +357,7 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
         type: 'project' as const
       }));
     }
-    return UnifiedTimeTrackerService.filterSearchResults(projects, searchQuery, clientNameById);
+    return filterSearchResults(projects, searchQuery, clientNameById);
   }, [searchQuery, projects, recentProjects, getClientName, clientNameById]);
   // Format time display (simple inline function)
   const formatTime = (seconds: number): string => {
@@ -391,7 +398,7 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
     // Use the orchestrator workflow to ensure proper state management
     if (!isTimeTracking && selectedProjectData) {
       // Check for active session conflict before starting
-      const activeSession = await UnifiedTimeTrackerService.checkForActiveSession();
+      const activeSession = await timeTrackingOrchestrator.checkForConflict();
       if (activeSession) {
         // Show conflict dialog instead of starting
         setConflictingSession(activeSession);
@@ -412,7 +419,7 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
         intervalRef,
         currentStateRef
       };
-      const result = await UnifiedTimeTrackerService.handleTimeTrackingToggle(context);
+      const result = await timeTrackingOrchestrator.handleTimeTrackingToggle(context);
       if (!result.success && result.error) {
         console.error('Time tracking toggle failed:', result.error);
         return;
@@ -435,7 +442,7 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
     }
     // Check for active session conflict before starting
     if (!isTimeTracking) {
-      const activeSession = await UnifiedTimeTrackerService.checkForActiveSession();
+      const activeSession = await timeTrackingOrchestrator.checkForConflict();
       if (activeSession) {
         // Show conflict dialog instead of starting
         setConflictingSession(activeSession);
@@ -461,7 +468,7 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
       updateEvent,
       stopTime
     };
-    const result = await UnifiedTimeTrackerService.handleTimeTrackingToggle(context);
+    const result = await timeTrackingOrchestrator.handleTimeTrackingToggle(context);
     if (!result.success && result.error) {
       console.error('Time tracking toggle failed:', result.error);
       // If we were trying to stop tracking and it failed, force reset everything
@@ -486,7 +493,7 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
         setSearchQuery('');
         setAffectedPlannedEvents([]);
         // Clear storage
-        await UnifiedTimeTrackerService.stopTracking().catch(err => {
+        await timeTrackingOrchestrator.stopTracking().catch(err => {
           ErrorHandlingService.handle(err, { source: 'TimeTracker', action: 'Failed to clear storage:' });
         });
       }
@@ -508,7 +515,7 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
         try {
           // Small delay to ensure database transaction completes
           await new Promise(resolve => setTimeout(resolve, 300));
-          handlePlannedEventOverlaps(startTimeRef.current, stopTime);
+          handlePlannedEventOverlapsCallback(startTimeRef.current, stopTime);
         } catch (error) {
           ErrorHandlingService.handle(error, { source: 'TimeTracker', action: '❌ STOP TRACKING - Failed to handle overlaps:' });
         }
@@ -564,7 +571,7 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
     setShowConflictDialog(false);
     try {
       // Stop the existing session - this will save it to the calendar
-      await UnifiedTimeTrackerService.stopTracking();
+      await timeTrackingOrchestrator.stopTracking();
       // Small delay to ensure state is cleared
       await new Promise(resolve => setTimeout(resolve, 500));
       // Now start tracking the new project

@@ -14,13 +14,13 @@
  * @module ProjectOrchestrator
  */
 import { Project, PhaseDTO, ClientStatus } from '@/types/core';
-import { ProjectRules } from '@/domain/rules/ProjectRules';
-import { PhaseRules } from '@/domain/rules/PhaseRules';
+import { ProjectRules } from '@/domain/rules/projects/ProjectValidation';
+import { PhaseRules } from '@/domain/rules/phases/PhaseRules';
 import { getDateKey } from '@/utils/dateFormatUtils';
-import { calculateBudgetAdjustment } from '@/services/calculations';
+import { calculateBudgetAdjustment } from '@/services';
 import { Project as ProjectEntity } from '@/domain/entities/Project';
 import { Client as ClientEntity } from '@/domain/entities/Client';
-import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import { ErrorHandlingService } from '@/infrastructure/ErrorHandlingService';
 import { supabase } from '@/integrations/supabase/client';
 import { normalizeProjectColor } from '@/utils/normalizeProjectColor';
 export interface ProjectBudgetAnalysis {

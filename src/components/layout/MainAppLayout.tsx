@@ -3,7 +3,7 @@ import { Sidebar } from './Sidebar';
 import { AppHeader } from './AppHeader';
 import { useTimelineContext } from '../../contexts/TimelineContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
-import { useFavicon } from '../../hooks/useFavicon';
+import { useFavicon } from '../../hooks/ui/useFavicon';
 import { usePlannerContext } from '../../contexts/PlannerContext';
 
 // Lazy load views for better performance

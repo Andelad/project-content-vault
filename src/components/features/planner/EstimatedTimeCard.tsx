@@ -8,14 +8,14 @@
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Project, PhaseDTO, CalendarEvent, Settings, Holiday } from '@/types/core';
-import { UnifiedDayEstimateService } from '@/services';
+import { getDailyProjectSummaries } from '@/services/data/DayEstimateAggregate';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 //
 import { ClockArrowDown } from 'lucide-react';
 import { NEUTRAL_COLORS } from '@/constants/colors';
 import { getDateKey } from '@/utils/dateFormatUtils';
-import * as DateCalculations from '@/services/calculations/general/dateCalculations';
+import * as DateCalculations from '@/utils/dateCalculations';
 
 interface EstimatedTimeCardProps {
   /** Array of dates to show (one per column) */
@@ -112,7 +112,7 @@ export function EstimatedTimeCard({
 
   // Calculate summaries for all dates
   const summariesByDate = useMemo(() => {
-    return UnifiedDayEstimateService.getDailyProjectSummaries(
+    return getDailyProjectSummaries(
       dates,
       projects,
       phasesMap,
