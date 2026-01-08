@@ -16,6 +16,7 @@
  */
 import type { CalendarEvent, Project } from '@/types/core';
 import { getDateKey } from '@/utils/dateFormatUtils';
+import { calculateDurationHours } from '@/utils/dateCalculations';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -131,14 +132,14 @@ export class EventClassificationRules {
   /**
    * Calculate event duration in hours
    * 
+   * @deprecated Use calculateDurationHours from utils/dateCalculations (single source of truth)
+   * This method delegates to the canonical implementation.
+   * 
    * @param event - The calendar event
    * @returns Duration in hours
    */
   static calculateEventHours(event: CalendarEvent): number {
-    const startTime = new Date(event.startTime);
-    const endTime = new Date(event.endTime);
-    const durationMs = endTime.getTime() - startTime.getTime();
-    return durationMs / (1000 * 60 * 60);
+    return calculateDurationHours(new Date(event.startTime), new Date(event.endTime));
   }
 
   /**

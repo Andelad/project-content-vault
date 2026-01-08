@@ -186,15 +186,17 @@ export function createTrackingEventData(
   startTime: Date
 ): Omit<TrackingEventData, 'id'> {
   const projectName = selectedProject?.name || searchQuery || 'Time Tracking';
+  const endTime = new Date(startTime.getTime() + 60000); // Start with 1 minute
+  const duration = calculateDurationHours(startTime, endTime);
 
   return {
     title: 'Tracked Time',
     startTime,
-    endTime: new Date(startTime.getTime() + 60000), // Start with 1 minute
+    endTime,
     projectId: selectedProject?.id,
     color: selectedProject?.color || '#DC2626', // Red color for tracking
     description: `🔴 ${projectName}`,
-    duration: 0.0167, // 1 minute in hours
+    duration,
     type: 'tracked',
     completed: true // Time being tracked is considered completed by default
   };

@@ -12,7 +12,7 @@ import { prepareEventsForFullCalendar } from '@/services';
 import { getDateKey } from '@/utils/dateFormatUtils';
 import { supabase } from '@/integrations/supabase/client';
 import { generateRecurringEvents } from '@/services';
-import { ensureRecurringEventsExist } from '@/services';
+import { calendarEventOrchestrator } from '@/services';
 import { timeTrackingOrchestrator } from '@/services/orchestrators/timeTrackingOrchestrator';
 import { useSettingsContext } from './SettingsContext';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
@@ -652,7 +652,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
               .limit(1)
               .single();
             if (firstEvent) {
-              await ensureRecurringEventsExist(groupId, {
+              await calendarEventOrchestrator.ensureRecurringEventsExist(groupId, {
                 id: firstEvent.id,
                 title: firstEvent.title,
                 description: firstEvent.description || '',

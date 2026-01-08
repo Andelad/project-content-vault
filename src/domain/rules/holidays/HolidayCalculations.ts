@@ -185,6 +185,131 @@ export function isWeekend(date: Date): boolean {
 }
 
 /**
+ * Check if a date is a working day (not weekend, not holiday)
+ * 
+ * @deprecated Use isWorkingDay from utils/dateCalculations instead (single source of truth)
+ * This function is kept for backward compatibility but delegates to the canonical implementation.
+ * 
+ * @param date - Date to check
+ * @param holidays - List of holidays
+ * @returns true if the date is a working day
+ */
+export function isWorkingDay(date: Date, holidays: Holiday[]): boolean {
+  // Delegate to single source of truth in utils/dateCalculations
+  // Note: utils version expects Settings and Date[] for holidays
+  // This is a compatibility shim - callers should migrate to utils version
+  const holidayDates = expandHolidayDates(holidays);
+  
+  // Check weekend
+  if (isWeekend(date)) {
+    return false;
+  }
+  
+  // Check holiday
+  return !isHolidayDate(date, holidayDates);
+}
+
+/**
+ * Validate holiday placement
+ * 
+ * Business Rules:
+ * - Start date must be before or equal to end date
+ * - Holiday must have a name
+ * - Holiday duration should be reasonable (not more than 365 days)
+ * - Holiday dates should not overlap with existing holidays (optional check)
+ * 
+ * @param holiday - Holiday to validate
+ * @param existingHolidays - Existing holidays to check for overlaps (optional)
+ * @returns Validation result
+ */
+export function validateHolidayPlacement(
+  holiday: Partial<Holiday>,
+  existingHolidays: Holiday[] = []
+): {
+  isValid: boolean;
+  errors: string[];
+  warnings: string[];
+} {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  
+  // Validate name
+  if (!holiday.name || holiday.name.trim() === '') {
+    errors.push('Holiday name is required');
+  }
+  
+  // Validate dates exist
+  if (!holiday.startDate) {
+    errors.push('Start date is required');
+  }
+  
+  if (!holiday.endDate) {
+    errors.push('End date is required');
+  }
+  
+  // Validate date range
+  if (holiday.startDate && holiday.endDate) {
+    const start = new Date(holiday.startDate);
+    const end = new Date(holiday.endDate);
+    
+    if (start > end) {
+      errors.push('Start date must be before or equal to end date');
+    }
+    
+    // Check for unreasonably long holidays
+    const durationDays = calculateDurationDays(start, end);
+    if (durationDays > 365) {
+      warnings.push('Holiday duration exceeds 1 year - this may be unintentional');
+    }
+    
+    // Check for overlaps with existing holidays
+    if (existingHolidays.length > 0) {
+      const overlapping = getHolidaysInRange(existingHolidays, start, end);
+      
+      if (overlapping.length > 0) {
+        warnings.push(
+          `This holiday overlaps with ${overlapping.length} existing holiday(s): ${
+            overlapping.map(h => h.name).join(', ')
+          }`
+        );
+      }
+    }
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors,
+    warnings
+  };
+}
+
+/**
+ * Calculate working days (excluding weekends and holidays) between dates
+ * 
+ * @param startDate - Start date
+ * @param endDate - End date
+ * @param holidays - List of holidays
+ * @returns Number of working days
+ */
+export function calculateWorkingDays(
+  startDate: Date,
+  endDate: Date,
+  holidays: Holiday[]
+): number {
+  let count = 0;
+  let current = new Date(startDate);
+  
+  while (current <= endDate) {
+    if (isWorkingDay(current, holidays)) {
+      count++;
+    }
+    current = addDaysToDate(current, 1);
+  }
+  
+  return count;
+}
+
+/**
  * Get the number of days between two dates - REMOVED, using core calculateDurationDays
  * This function was a duplicate of core functionality.
  */

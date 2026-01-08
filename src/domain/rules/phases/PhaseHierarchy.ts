@@ -11,7 +11,7 @@
  * 
  * Part of three-layer architecture:
  * - domain/rules/phases/PhaseValidation.ts (validation rules)
- * - domain/rules/phases/PhaseBudget.ts (budget calculations)
+ * - domain/rules/phases/PhaseCalculations.ts (budget calculations)
  * - domain/rules/phases/PhaseHierarchy.ts (THIS FILE - sequencing & continuity)
  * 
  * Created: 2026-01-07 (split from PhaseRules.ts)

@@ -16,6 +16,7 @@ import type { Database } from '@/integrations/supabase/types';
 import { calculateGroupStatistics } from '@/services';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 import { Group as GroupEntity } from '@/domain/entities/Group';
+import { GroupValidationRules } from '@/domain/rules/groups/GroupValidation';
 
 type GroupRow = Database['public']['Tables']['groups']['Row'];
 type GroupInsert = Database['public']['Tables']['groups']['Insert'];
@@ -81,41 +82,17 @@ export interface GroupValidationResult {
 export class GroupOrchestrator {
 
   /**
-   * Validate group updates
+   * Validate group updates - DELEGATES to domain rules
    */
   static validateGroupUpdate(
     request: GroupUpdateRequest,
     currentGroup: Group
   ): GroupValidationResult {
-    const errors: string[] = [];
-    const warnings: string[] = [];
-
-    // Validate ID
-    if (!request.id || request.id.trim().length === 0) {
-      errors.push('Group ID is required for updates');
-    }
-
-    // Validate name if provided
-    if (request.name !== undefined) {
-      if (!request.name || request.name.trim().length === 0) {
-        errors.push('Group name cannot be empty');
-      } else if (request.name.trim().length > 100) {
-        errors.push('Group name cannot exceed 100 characters');
-      }
-    }
-
-    // Business rule: Prevent modification of system groups
-    if (currentGroup.id === 'work-group' || currentGroup.id === 'home-group') {
-      if (request.name && request.name !== currentGroup.name) {
-        warnings.push('Modifying system group names may affect default workflows');
-      }
-    }
-
-    return {
-      isValid: errors.length === 0,
-      errors,
-      warnings
-    };
+    return GroupValidationRules.validateGroupUpdate(
+      request.id,
+      request.name,
+      currentGroup
+    );
   }
 
   /**
@@ -470,30 +447,12 @@ export class GroupOrchestrator {
   }
 
   /**
-   * Validate if group can be deleted
+   * Validate if group can be deleted - DELEGATES to domain rules
    */
   static validateGroupDeletion(
     group: Group,
     projects: Project[] = []
   ): GroupValidationResult {
-    const errors: string[] = [];
-    const warnings: string[] = [];
-
-    // Business rule: Cannot delete system groups
-    if (group.id === 'work-group' || group.id === 'home-group') {
-      errors.push('System groups cannot be deleted');
-    }
-
-    // Business rule: Warn about projects in group
-    const groupProjects = projects.filter(p => p.groupId === group.id);
-    if (groupProjects.length > 0) {
-      warnings.push(`Deleting this group will affect ${groupProjects.length} project(s). They will need to be reassigned to another group.`);
-    }
-
-    return {
-      isValid: errors.length === 0,
-      errors,
-      warnings
-    };
+    return GroupValidationRules.validateGroupDeletion(group, projects);
   }
 }

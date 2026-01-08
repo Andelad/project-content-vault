@@ -275,9 +275,13 @@ export class WorkSlotRules {
   // ==========================================================================
 
   /**
-   * RULE 9: Determine if a day is a working day
+   * RULE 9: Determine if a day is a working day based on work slots
    *
    * Business Logic: A day with at least one work slot = working day
+   * 
+   * Note: This is work-slot-specific logic (checks if slots exist).
+   * For general calendar working day checks (weekends/holidays), 
+   * use utils/dateCalculations.isWorkingDay instead.
    *
    * @param slots - Work slots for a day
    * @returns true if day has work hours

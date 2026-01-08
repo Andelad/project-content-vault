@@ -46,6 +46,14 @@ function sumCompletedEventHoursInRange(
 }
 /**
  * Check if a date is a working day based on settings and holidays (for day estimates)
+ * 
+ * Project-specific estimation logic that checks:
+ * 1. Not a holiday
+ * 2. Enabled in project.autoEstimateDays (if project provided)
+ * 3. Fallback: has work hours configured in settings
+ * 
+ * Note: This is estimation-specific logic. For general calendar working day checks,
+ * use utils/dateCalculations.isWorkingDay instead.
  */
 export function isWorkingDayForEstimates(
   date: Date,

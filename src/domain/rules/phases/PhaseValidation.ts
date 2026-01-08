@@ -10,7 +10,7 @@
  * 
  * Part of three-layer architecture:
  * - domain/rules/phases/PhaseValidation.ts (THIS FILE - validation rules)
- * - domain/rules/phases/PhaseBudget.ts (budget calculations)
+ * - domain/rules/phase./PhaseCalculations.ts (budget calculations)
  * - domain/rules/phases/PhaseHierarchy.ts (sequencing & continuity)
  * 
  * Created: 2026-01-07 (split from PhaseRules.ts)
@@ -21,8 +21,7 @@
 import type { PhaseDTO, Project } from '@/types/core';
 import { normalizeToMidnight, addDaysToDate } from '@/utils/dateCalculations';
 import { PhaseRecurrenceService } from './PhaseRecurrence';
-// Note: ProjectBudgetService reference removed - was not used
-// import { ProjectBudgetService } from '../projects/ProjectBudget';
+import { validateMilestoneScheduling } from './PhaseCalculations';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -173,30 +172,43 @@ export class PhaseValidationRules {
   }
 
   /**
-   * Validate milestone time allocation with recommendations
+   * Validate milestone time allocation against project budget
    * 
-   * Combines:
-   * - RULE 1: Positive time allocation
-   * - Budget utilization warnings
+   * DELEGATES to PhaseBudget.validateMilestoneScheduling for budget logic
    * 
-   * @param timeAllocation - Phase time allocation
-   * @param projectBudget - Project budget
-   * @returns Detailed validation result
-   * 
-   * @deprecated Use ProjectBudgetService.validatePhaseTime instead
-   * Kept for backward compatibility during migration
+   * @param timeAllocation - Time allocation for milestone
+   * @param projectBudget - Total project budget in hours
+   * @param existingPhases - Existing phases to check against (optional, defaults to empty)
+   * @returns Validation result
    */
   static validateMilestoneTime(
     timeAllocation: number,
-    projectBudget: number
+    projectBudget: number,
+    existingPhases: PhaseDTO[] = []
   ): MilestoneTimeValidation {
-    // TODO: Re-implement this validation after ProjectBudgetService migration
-    // return ProjectBudgetService.validatePhaseTime(timeAllocation, projectBudget);
+    const errors: string[] = [];
+    const warnings: string[] = [];
+    
+    // Basic validation: positive time allocation
+    if (timeAllocation <= 0) {
+      errors.push('Time allocation must be positive');
+    }
+    
+    // Budget validation - DELEGATE to domain rules
+    const budgetCheck = validateMilestoneScheduling(
+      existingPhases,
+      { timeAllocationHours: timeAllocation },
+      projectBudget
+    );
+    
+    if (!budgetCheck.canSchedule) {
+      errors.push(...budgetCheck.budgetConflicts);
+    }
+    
     return {
-      isValid: timeAllocation > 0 && timeAllocation <= projectBudget,
-      errors: timeAllocation <= 0 ? ['Time allocation must be positive'] : 
-              timeAllocation > projectBudget ? ['Time allocation exceeds project budget'] : [],
-      warnings: []
+      isValid: errors.length === 0,
+      errors,
+      warnings
     };
   }
 
@@ -260,31 +272,27 @@ export class PhaseValidationRules {
       }
     }
 
-    // Validate budget constraint with existing milestones
+    // Validate budget constraint with existing milestones - DELEGATE to domain rules
     // Note: For recurring phases, this checks per-occurrence allocation
-    // TODO: Re-implement budget validation after migration
-    const canAccommodate = true; // Simplified for migration
-    // const canAccommodate = ProjectBudgetService.canAccommodateAdditionalPhase(
-    //   existingPhases,
-    //   project.estimatedHours,
-    //   milestoneHours
-    // );
+    const budgetCheck = validateMilestoneScheduling(
+      existingPhases,
+      milestone,
+      project.estimatedHours
+    );
 
-    if (!canAccommodate && !project.continuous) {
-      // TODO: Re-implement budget check after migration
-      const totalAllocated = existingPhases.reduce((sum, p) => sum + (p.timeAllocationHours || 0), 0);
-      // const budgetCheck = ProjectBudgetService.checkBudgetConstraint(existingPhases, project.estimatedHours);
+    if (!budgetCheck.canSchedule && !project.continuous) {
       if (milestone.isRecurring) {
         warnings.push(
           `Recurring milestone allocation (${milestoneHours}h per occurrence) may exceed project budget. ` +
-          `Current allocation: ${totalAllocated}h, ` +
+          `Current allocation: ${budgetCheck.currentAllocation}h, ` +
+          `New allocation: ${budgetCheck.newAllocation}h, ` +
           `Project budget: ${project.estimatedHours}h. ` +
           `Consider the total impact of multiple occurrences.`
         );
       } else {
         errors.push(
           `Adding this milestone would exceed project budget. ` +
-          `Current allocation: ${totalAllocated}h, ` +
+          `Current allocation: ${budgetCheck.currentAllocation}h, ` +
           `New milestone: ${milestoneHours}h, ` +
           `Project budget: ${project.estimatedHours}h`
         );
@@ -495,5 +503,92 @@ export class PhaseValidationRules {
       isValid: errors.length === 0,
       errors
     };
+  }
+
+  /**
+   * RULE 5: Check for date conflicts between milestones
+   * 
+   * Business Logic:
+   * - Two milestones should not be scheduled on the same day
+   * - Allows for 24-hour separation minimum
+   * 
+   * This prevents milestone collisions and ensures clear project timelines.
+   * 
+   * @param requestedDate - Date of new/updated milestone
+   * @param existingPhases - Currently scheduled phases
+   * @param excludePhaseId - Optional phase ID to exclude (for updates)
+   * @returns Validation result with conflict details
+   */
+  static validateMilestoneDateConflict(
+    requestedDate: Date,
+    existingPhases: PhaseDTO[],
+    excludePhaseId?: string
+  ): {
+    hasConflict: boolean;
+    conflictingPhase?: PhaseDTO;
+    message?: string;
+  } {
+    const requestedTime = requestedDate.getTime();
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    
+    for (const phase of existingPhases) {
+      // Skip the phase being updated
+      if (excludePhaseId && phase.id === excludePhaseId) {
+        continue;
+      }
+      
+      const existingDate = new Date(phase.endDate || phase.dueDate);
+      const timeDiff = Math.abs(existingDate.getTime() - requestedTime);
+      
+      if (timeDiff < oneDayMs) {
+        return {
+          hasConflict: true,
+          conflictingPhase: phase,
+          message: `Another milestone "${phase.name}" already exists on or near this date`
+        };
+      }
+    }
+    
+    return { hasConflict: false };
+  }
+
+  /**
+   * RULE 6: Validate milestone fits within project timeframe
+   * 
+   * Business Logic:
+   * - Milestone date must be >= project start date
+   * - Milestone date must be <= project end date
+   * - For continuous projects, only start date is enforced
+   * 
+   * @param milestoneDate - Date of milestone
+   * @param projectStartDate - Project start date
+   * @param projectEndDate - Project end date
+   * @param continuous - Whether project is continuous (no end constraint)
+   * @returns Validation result
+   */
+  static validateMilestoneWithinProject(
+    milestoneDate: Date,
+    projectStartDate: Date,
+    projectEndDate: Date,
+    continuous: boolean = false
+  ): {
+    isValid: boolean;
+    error?: string;
+  } {
+    if (milestoneDate < projectStartDate) {
+      return {
+        isValid: false,
+        error: 'Milestone date must be on or after project start date'
+      };
+    }
+    
+    if (!continuous && milestoneDate > projectEndDate) {
+      return {
+        isValid: false,
+        error: 'Milestone date must be on or before project end date'
+      };
+    }
+    
+    return { isValid: true };
   }
 }

@@ -6,7 +6,7 @@
  * The actual implementations have been split into focused modules:
  * 
  * - PhaseValidation.ts - All validation rules (dates, time, position, spacing)
- * - PhaseBudget.ts - Budget calculations and constraints
+ * - PhaseCalculations.ts - Budget calculations and constraints
  * - PhaseHierarchy.ts - Sequencing, continuity, splitting, overlap repair
  * 
  * Components should gradually migrate to importing from specific modules:
@@ -16,7 +16,7 @@
  * 
  * // New (preferred):
  * import { PhaseValidationRules } from '@/domain/rules/phases/PhaseValidation';
- * import { PhaseBudgetRules } from '@/domain/rules/phases/PhaseBudget';
+ * import { PhaseCalculationsRules } from '@/domain/rules/phases/PhaseCalculations';
  * import { PhaseHierarchyRules } from '@/domain/rules/phases/PhaseHierarchy';
  * ```
  * 
@@ -54,8 +54,8 @@ import {
   type PhaseTimeValidation,
   type RecurringPhaseRuleConfig
 } from './PhaseValidation';
-// Import budget calculation functions
-import * as PhaseBudgetFunctions from './PhaseBudget';
+// Import budget/calculation functions
+import * as PhaseCalculationsFunctions from './PhaseCalculations';
 import {
   PhaseHierarchyRules
 } from './PhaseHierarchy';
@@ -73,8 +73,9 @@ export type {
 
 // Re-export individual classes for easier migration
 export { PhaseValidationRules, PhaseHierarchyRules };
-// Re-export budget functions as a namespace for compatibility
-export { PhaseBudgetFunctions as PhaseBudgetRules };
+// Re-export budget/calculation functions as a namespace for backward compatibility
+export { PhaseCalculationsFunctions as PhaseBudgetRules };
+export { PhaseCalculationsFunctions as PhaseCalculationsRules };
 
 /**
  * A Phase is a PhaseDTO with a defined start date
@@ -255,11 +256,11 @@ export class PhaseRules {
   static calculateMinimumPhaseEndDate = PhaseValidationRules.calculateMinimumPhaseEndDate;
   static validatePhaseSpacing = PhaseValidationRules.validatePhaseSpacing;
 
-  // Budget methods - delegate to PhaseBudget functions
-  static calculateTotalAllocation = PhaseBudgetFunctions.calculateTotalAllocation;
-  static calculateBudgetUtilization = PhaseBudgetFunctions.calculateBudgetUtilization;
-  static calculateRemainingBudget = PhaseBudgetFunctions.calculateRemainingBudget;
-  static calculateAverageMilestoneAllocation = PhaseBudgetFunctions.calculateAverageMilestoneAllocation;
+  // Budget/calculation methods - delegate to PhaseCalculations functions
+  static calculateTotalAllocation = PhaseCalculationsFunctions.calculateTotalAllocation;
+  static calculateBudgetUtilization = PhaseCalculationsFunctions.calculateBudgetUtilization;
+  static calculateRemainingBudget = PhaseCalculationsFunctions.calculateRemainingBudget;
+  static calculateAverageMilestoneAllocation = PhaseCalculationsFunctions.calculateAverageMilestoneAllocation;
   
   // Legacy compatibility methods
   static checkBudgetConstraint(phases: PhaseDTO[], projectBudget: number) {

@@ -7,3 +7,6 @@
 
 export { ProjectAggregate } from './ProjectAggregate';
 export type { ProjectWithRelations } from './ProjectAggregate';
+
+export { TimelineAggregator, timelineAggregator, getTimelineBarData } from './TimelineAggregator';
+export type { TimelineProjectData } from './TimelineAggregator';

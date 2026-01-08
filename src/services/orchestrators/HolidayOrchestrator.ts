@@ -10,6 +10,7 @@ import { Holiday } from '@/types/core';
 import { addDaysToDate } from '@/utils/dateCalculations';
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 import { Holiday as HolidayEntity } from '@/domain/entities/Holiday';
+import { validateHolidayPlacement } from '@/domain/rules/holidays/HolidayCalculations';
 
 export interface HolidayFormData {
   title: string;
@@ -51,51 +52,54 @@ export class HolidayOrchestrator {
   }
 
   /**
-   * Validates holiday form data and checks for overlaps
+   * Validates holiday form data and checks for overlaps - DELEGATES to domain rules
    */
   validateHolidayData(formData: HolidayFormData): HolidayValidationResult {
-    // Basic validation
-    if (!formData.title.trim()) {
+    // Map existing holidays to domain format
+    const existingHolidaysForValidation = this.existingHolidays.map(h => ({
+      startDate: h.startDate,
+      endDate: h.endDate,
+      name: h.title, // Map title to name
+      id: h.id
+    }));
+
+    // Delegate to domain rules for validation
+    const validation = validateHolidayPlacement(
+      {
+        name: formData.title,
+        startDate: formData.startDate,
+        endDate: formData.endDate
+      },
+      existingHolidaysForValidation
+    );
+
+    // If validation failed, return error
+    if (!validation.isValid) {
       return {
         isValid: false,
         hasOverlaps: false,
-        error: 'Holiday title is required'
+        error: validation.errors[0] || 'Invalid holiday data'
       };
     }
 
-    if (!formData.startDate || !formData.endDate) {
-      return {
-        isValid: false,
-        hasOverlaps: false,
-        error: 'Start date and end date are required'
-      };
-    }
+    // Check for overlaps (warnings indicate overlaps)
+    if (validation.warnings.length > 0) {
+      const overlappingHolidays = this.findOverlappingHolidays(formData.startDate, formData.endDate);
+      
+      if (overlappingHolidays.length > 0) {
+        const adjustedDates = this.calculateAdjustedDates(
+          formData.startDate, 
+          formData.endDate, 
+          overlappingHolidays
+        );
 
-    // Date validation
-    if (formData.startDate > formData.endDate) {
-      return {
-        isValid: false,
-        hasOverlaps: false,
-        error: 'Start date cannot be after end date'
-      };
-    }
-
-    // Check for overlaps
-    const overlappingHolidays = this.findOverlappingHolidays(formData.startDate, formData.endDate);
-    
-    if (overlappingHolidays.length > 0) {
-      const adjustedDates = this.calculateAdjustedDates(
-        formData.startDate, 
-        formData.endDate, 
-        overlappingHolidays
-      );
-
-      return {
-        isValid: false,
-        hasOverlaps: true,
-        overlappingHolidays,
-        adjustedDates
-      };
+        return {
+          isValid: false,
+          hasOverlaps: true,
+          overlappingHolidays,
+          adjustedDates
+        };
+      }
     }
 
     return {

@@ -124,6 +124,9 @@ export function getProjectEvents(events: ProjectEvent[], projectId: string): Pro
 
 /**
  * Calculate duration of a project event in hours
+ * 
+ * Note: This is a project-specific convenience function that handles ProjectEvent type.
+ * For general event duration calculations, use calculateDurationHours from utils/dateCalculations.
  */
 export function calculateEventDurationHours(event: ProjectEvent): number {
   if (!event.startTime || !event.endTime) return 0;

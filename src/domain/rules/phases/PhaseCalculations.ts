@@ -1,8 +1,25 @@
 /**
- * Milestone Calculations
+ * Phase Calculations (formerly Milestone Calculations / PhaseBudget)
  * 
- * Pure mathematical functions for milestone-related calculations.
+ * KEYWORDS: phase budget, milestone allocation, budget utilization, phase hours,
+ *           milestone scheduling, budget validation, overage calculation,
+ *           milestone density, allocation distribution, optimal spacing,
+ *           budget constraints, phase time allocation
+ * 
+ * Pure mathematical functions for phase/milestone-related calculations.
  * No side effects, no external dependencies, fully testable.
+ * 
+ * USE WHEN:
+ * - Calculating total phase time allocation
+ * - Validating phase budget against project budget
+ * - Analyzing budget utilization and overage
+ * - Calculating optimal phase spacing
+ * - Scheduling milestone occurrences
+ * 
+ * RELATED FILES:
+ * - PhaseValidation.ts - Phase date and constraint validation
+ * - PhaseRecurrence.ts - Recurring phase generation
+ * - ProjectPhaseSync.ts - Cross-entity budget synchronization (BudgetSync class)
  * 
  * ✅ Pure functions only
  * ✅ Deterministic outputs
@@ -42,6 +59,54 @@ export function calculateRemainingBudget(totalAllocated: number, projectBudget: 
  */
 export function calculateOverageAmount(totalAllocated: number, projectBudget: number): number {
   return Math.max(0, totalAllocated - projectBudget);
+}
+
+/**
+ * Validate milestone scheduling against budget constraints
+ * 
+ * Checks if adding a new milestone would exceed the project budget.
+ * This is the SINGLE SOURCE OF TRUTH for budget validation.
+ * 
+ * @param existingPhases - Current phases in project
+ * @param newMilestone - Milestone being scheduled
+ * @param projectBudget - Total project budget in hours
+ * @returns Validation result with specific budget conflicts
+ */
+export function validateMilestoneScheduling(
+  existingPhases: PhaseDTO[],
+  newMilestone: Partial<PhaseDTO>,
+  projectBudget: number
+): {
+  canSchedule: boolean;
+  budgetConflicts: string[];
+  currentAllocation: number;
+  newAllocation: number;
+} {
+  const currentAllocation = existingPhases.reduce(
+    (sum, phase) => sum + (phase.timeAllocationHours || phase.timeAllocation || 0), 
+    0
+  );
+  
+  const newAllocation = currentAllocation + (
+    newMilestone.timeAllocationHours || 
+    newMilestone.timeAllocation || 
+    0
+  );
+  
+  const budgetConflicts: string[] = [];
+  
+  if (newAllocation > projectBudget) {
+    budgetConflicts.push(
+      `Would exceed project budget by ${newAllocation - projectBudget} hours`
+    );
+  }
+  
+  return {
+    canSchedule: budgetConflicts.length === 0,
+    budgetConflicts,
+    currentAllocation,
+    newAllocation
+  };
 }
 
 /**

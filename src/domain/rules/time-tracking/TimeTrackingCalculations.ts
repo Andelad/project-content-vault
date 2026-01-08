@@ -1,6 +1,5 @@
 import type { TimeTrackingState } from '@/types/timeTracking';
-import { calculateDurationMinutes } from '@/utils/dateCalculations';
-import { formatDuration } from '@/utils/dateCalculations';
+import { calculateDurationHours as calculateDurationHoursCore, formatDuration } from '@/utils/dateCalculations';
 
 /**
  * Time Tracking Calculations
@@ -15,7 +14,76 @@ class TimeTrackingCalculations {
    */
   calculateDuration(startTime: Date, endTime: Date): number {
     // Use core calculation and convert to milliseconds
-    return calculateDurationMinutes(startTime, endTime) * 60 * 1000;
+    return calculateDurationHoursCore(startTime, endTime) * 60 * 60 * 1000;
+  }
+
+  /**
+   * Calculate the duration between two dates in hours
+   * Delegates to core date calculations for consistency
+   */
+  calculateDurationHours(startTime: Date, endTime: Date): number {
+    return calculateDurationHoursCore(startTime, endTime);
+  }
+
+  /**
+   * Calculate elapsed time in seconds from a start time to now
+   * Used for real-time timer display in time tracking UI
+   * 
+   * @param startTime - The start time of the tracking session
+   * @param currentTime - Current time (defaults to now)
+   * @returns Elapsed time in seconds (floored to whole seconds)
+   */
+  calculateElapsedSeconds(startTime: Date, currentTime: Date = new Date()): number {
+    return Math.floor((currentTime.getTime() - startTime.getTime()) / 1000);
+  }
+
+  /**
+   * Validate that a time segment is valid
+   * Used for validating time tracking operations
+   * 
+   * @param startTime - Start of the time segment
+   * @param endTime - End of the time segment (defaults to now)
+   * @returns Validation result
+   */
+  validateTimeSegment(
+    startTime: Date | null | undefined,
+    endTime: Date = new Date()
+  ): {
+    isValid: boolean;
+    error?: string;
+  } {
+    if (!startTime) {
+      return {
+        isValid: false,
+        error: 'Start time is required'
+      };
+    }
+
+    const startDate = new Date(startTime);
+    
+    if (isNaN(startDate.getTime())) {
+      return {
+        isValid: false,
+        error: 'Invalid start time'
+      };
+    }
+
+    if (startDate > endTime) {
+      return {
+        isValid: false,
+        error: 'Start time cannot be after end time'
+      };
+    }
+
+    const maxDuration = 24 * 60 * 60 * 1000; // 24 hours
+    if (endTime.getTime() - startDate.getTime() > maxDuration) {
+      return {
+        isValid: false,
+        error: 'Time segment cannot exceed 24 hours'
+      };
+    }
+
+    return { isValid: true };
   }
 
   /**
@@ -59,16 +127,8 @@ class TimeTrackingCalculations {
    * Format duration in milliseconds to human-readable string
    */
   formatDuration(durationMs: number): string {
-    const totalSeconds = Math.floor(durationMs / 1000);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-
-    if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-    } else {
-      return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-    }
+    const hours = this.durationToHours(durationMs);
+    return formatDuration(hours);
   }
 
   /**

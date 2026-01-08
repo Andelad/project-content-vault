@@ -267,6 +267,13 @@ export function getWorkingDaysBetween(
 
 /**
  * Check if a specific date is a working day
+ * 
+ * Project-specific implementation that checks:
+ * 1. Not a holiday
+ * 2. Has configured work hours for that day of week
+ * 
+ * Note: This is project-specific business logic (checks weeklyWorkHours config).
+ * For general working day checks, use utils/dateCalculations.isWorkingDay
  */
 function isWorkingDay(
   date: Date, 
@@ -286,7 +293,7 @@ function isWorkingDay(
     return false;
   }
   
-  // Check if it's a day with work hours configured
+  // Project-specific: Check if it's a day with work hours configured
   const dayName = DAY_NAMES[date.getDay()];
   const workSlots = settings.weeklyWorkHours?.[dayName] || [];
   

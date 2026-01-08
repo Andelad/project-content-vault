@@ -18,7 +18,9 @@ import { RecurringPhaseConfig as DomainRecurringPhaseConfig } from '@/domain/rul
 import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
 import { Phase as PhaseEntity } from '@/domain/entities/Phase';
 import { PhaseRecurrenceService } from '@/domain/rules/phases/PhaseRecurrence';
-import { PhaseRules, PhaseBudgetRules } from '@/domain/rules/phases/PhaseRules';
+import { PhaseRules, PhaseCalculationsRules } from '@/domain/rules/phases/PhaseRules';
+import { validateMilestoneScheduling } from '@/domain/rules/phases/PhaseCalculations';
+import { PhaseValidationRules } from '@/domain/rules/phases/PhaseValidation';
 
 /**
  * Orchestration-layer recurring phase configuration
@@ -209,25 +211,25 @@ export class PhaseOrchestrator {
       conflicts.push('Milestone date must be within project timeframe');
     }
 
-    // 2. Check for date conflicts with existing milestones
-    const hasDateConflict = existingPhases.some(phase => {
-      const existingDate = new Date(phase.endDate || phase.dueDate);
-      return Math.abs(existingDate.getTime() - requestedDate.getTime()) < (24 * 60 * 60 * 1000);
-    });
-
-    if (hasDateConflict) {
-      conflicts.push('Another milestone already exists on or near this date');
-    }
-
-    // 3. Budget validation
-    const currentAllocation = existingPhases.reduce((sum, phase) => 
-      sum + (phase.timeAllocationHours || phase.timeAllocation), 0
+    // 2. Check for date conflicts with existing milestones - DELEGATE to domain rules
+    const dateConflictCheck = PhaseValidationRules.validateMilestoneDateConflict(
+      requestedDate,
+      existingPhases,
+      milestone.id // Exclude current phase if updating
     );
-    const newAllocation = currentAllocation + (milestone.timeAllocationHours || milestone.timeAllocation || 0);
     
-    if (newAllocation > project.estimatedHours) {
-      conflicts.push(`Would exceed project budget by ${newAllocation - project.estimatedHours} hours`);
+    if (dateConflictCheck.hasConflict) {
+      conflicts.push(dateConflictCheck.message!);
     }
+
+    // 3. Budget validation - DELEGATE to domain rules
+    const budgetCheck = validateMilestoneScheduling(
+      existingPhases,
+      milestone,
+      project.estimatedHours
+    );
+    
+    conflicts.push(...budgetCheck.budgetConflicts);
 
     return {
       canSchedule: conflicts.length === 0,
@@ -543,22 +545,17 @@ export class PhaseOrchestrator {
 
   /**
    * Calculate estimated milestone count based on recurring configuration
-   * PRIVATE helper that delegates to domain calculations
+   * DELEGATES to domain rules
    */
   private static calculateEstimatedMilestoneCount(
     config: ProjectRecurringPhaseConfig,
     projectDurationDays: number
   ): number {
-    switch (config.recurringType) {
-      case 'daily':
-        return Math.floor(projectDurationDays / config.recurringInterval);
-      case 'weekly':
-        return Math.floor(projectDurationDays / (7 * config.recurringInterval));
-      case 'monthly':
-        return Math.floor(projectDurationDays / (30 * config.recurringInterval));
-      default:
-        return 0;
-    }
+    // ✅ Delegate to domain rules
+    return PhaseRecurrenceService.estimateOccurrenceCount(
+      { recurringType: config.recurringType, interval: config.recurringInterval },
+      projectDurationDays
+    );
   }
 
   // OLD SYSTEM methods removed - we now use single template milestone approach
@@ -646,7 +643,7 @@ export class PhaseOrchestrator {
     try {
       // Budget validation for time allocation changes using existing service (AI Rule)
       if (property === 'timeAllocation') {
-        const budgetValidation = PhaseBudgetRules.validateBudgetAllocation(
+        const budgetValidation = PhaseCalculationsRules.validateBudgetAllocation(
           context.projectPhases,
           context.projectEstimatedHours,
           milestoneId
@@ -673,7 +670,7 @@ export class PhaseOrchestrator {
         if (localMilestone && localMilestone.isNew && context.addPhase) {
           // Budget validation for new milestones
           const additionalHours = property === 'timeAllocation' ? value : localMilestone.timeAllocation;
-          const budgetValidation = PhaseBudgetRules.validateBudgetAllocation(
+          const budgetValidation = PhaseCalculationsRules.validateBudgetAllocation(
             context.projectPhases,
             context.projectEstimatedHours
           );
@@ -832,7 +829,7 @@ export class PhaseOrchestrator {
       ];
 
       // Validate milestone before saving - check if adding this milestone would exceed budget
-      const budgetValidation = PhaseBudgetRules.validateBudgetAllocation(
+      const budgetValidation = PhaseCalculationsRules.validateBudgetAllocation(
         simulatedMilestones,
         context.projectEstimatedHours
       );

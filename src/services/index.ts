@@ -21,8 +21,6 @@ export * from './orchestrators/PhaseOrchestrator';
 export * from './orchestrators/CalendarEventOrchestrator';
 export * from './orchestrators/SettingsOrchestrator';
 export * from './orchestrators/GroupOrchestrator';
-export * from './orchestrators/PlannerViewOrchestrator';
-export * from './orchestrators/recurringEventsOrchestrator';
 
 // Export data layer
 export * from './data';             // Data transformation & aggregation
@@ -107,7 +105,7 @@ export {
   calculateSuggestedMilestoneBudget,
   sortMilestonesByDate,
   findMilestoneGap
-} from '@/domain/rules/phases/PhaseBudget';
+} from '@/domain/rules/phases/PhaseCalculations';
 
 // 🚧 Legacy Layer (Migration in Progress)
 // ⚠️ TODO: Migrate these to new architecture layers above
@@ -243,7 +241,7 @@ export {
   getMilestoneSegmentForDate,
   calculateMilestoneSegments,
   type MilestoneSegment
-} from '@/domain/rules/phases/PhaseBudget';
+} from '@/domain/rules/phases/PhaseCalculations';
 // Legacy project progress analysis - migrated to unified service with compatibility wrapper
 export { wouldOverlapHolidays, isHolidayDateCapacity, calculateCommittedHoursForDate, hasWorkHoursConfigured, dayHasWorkHoursConfigured } from '@/domain/rules/availability/CapacityAnalysis';
 export { calculateProjectDays } from '@/services/ui/ProjectBarPositioning';
@@ -419,7 +417,7 @@ export {
 } from '@/domain/rules/events/EventCalculations';
 
 // Phase budget adjustments
-export { calculateBudgetAdjustment } from '@/domain/rules/phases/PhaseBudget';
+export { calculateBudgetAdjustment } from '@/domain/rules/phases/PhaseCalculations';
 
 // Group statistics
 export { calculateGroupStatistics } from '@/domain/rules/groups/GroupCalculations';

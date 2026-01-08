@@ -477,4 +477,38 @@ export class PhaseRecurrenceService {
     if (j === 3 && k !== 13) return 'rd';
     return 'th';
   }
+
+  // ============================================================================
+  // OCCURRENCE ESTIMATION
+  // ============================================================================
+
+  /**
+   * Estimate number of recurring occurrences within a duration
+   * 
+   * Provides a quick estimate without generating full occurrence dates.
+   * Useful for capacity planning and preview displays.
+   * 
+   * @param config - Recurrence configuration
+   * @param durationDays - Duration in days
+   * @returns Estimated occurrence count
+   */
+  static estimateOccurrenceCount(
+    config: { recurringType?: string; type?: string; interval: number },
+    durationDays: number
+  ): number {
+    const recurType = config.recurringType || config.type;
+    
+    switch (recurType) {
+      case 'daily':
+        return Math.floor(durationDays / config.interval);
+      case 'weekly':
+        return Math.floor(durationDays / (7 * config.interval));
+      case 'monthly':
+        return Math.floor(durationDays / (30 * config.interval));
+      case 'yearly':
+        return Math.floor(durationDays / (365 * config.interval));
+      default:
+        return 0;
+    }
+  }
 }

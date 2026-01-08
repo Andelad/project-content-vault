@@ -345,4 +345,132 @@ export class CalendarEventRules {
   static canLinkToProject(category: EventCategory): boolean {
     return category === 'event';
   }
+
+  // ==========================================================================
+  // RULE 11: RECURRING EVENT VALIDATION
+  // ==========================================================================
+
+  /**
+   * RULE 11: Recurring event configuration must be valid
+   *
+   * Business Logic:
+   * - Interval must be >= 1
+   * - If endType is 'date', endDate must be provided and after start
+   * - If endType is 'count', count must be >= 1
+   * - Monthly recurring needs proper pattern configuration
+   *
+   * @param recurringConfig - Recurring event configuration
+   * @param startDate - Event start date
+   * @returns Validation result with specific errors
+   */
+  static validateRecurringEvent(
+    recurringConfig: {
+      type: 'daily' | 'weekly' | 'monthly' | 'yearly';
+      interval: number;
+      endType: 'never' | 'date' | 'count';
+      endDate?: string;
+      count?: number;
+      monthlyPattern?: 'date' | 'dayOfWeek';
+      monthlyDate?: number;
+      monthlyWeekOfMonth?: number;
+      monthlyDayOfWeek?: number;
+    },
+    startDate: Date
+  ): {
+    isValid: boolean;
+    errors: Record<string, string>;
+  } {
+    const errors: Record<string, string> = {};
+
+    // Validate interval
+    if (recurringConfig.interval < 1) {
+      errors.recurringInterval = 'Interval must be at least 1';
+    }
+
+    // Validate endType: 'date'
+    if (recurringConfig.endType === 'date') {
+      if (!recurringConfig.endDate) {
+        errors.recurringEndDate = 'End date is required for recurring events';
+      } else {
+        const endDate = new Date(recurringConfig.endDate);
+        if (endDate <= startDate) {
+          errors.recurringEndDate = 'End date must be after start date';
+        }
+      }
+    }
+
+    // Validate endType: 'count'
+    if (recurringConfig.endType === 'count') {
+      if (!recurringConfig.count || recurringConfig.count < 1) {
+        errors.recurringCount = 'Count must be at least 1';
+      }
+    }
+
+    // Validate monthly pattern
+    if (recurringConfig.type === 'monthly') {
+      if (recurringConfig.monthlyPattern === 'date') {
+        if (!recurringConfig.monthlyDate || recurringConfig.monthlyDate < 1 || recurringConfig.monthlyDate > 31) {
+          errors.monthlyDate = 'Monthly date must be between 1 and 31';
+        }
+      } else if (recurringConfig.monthlyPattern === 'dayOfWeek') {
+        if (recurringConfig.monthlyWeekOfMonth === undefined || 
+            recurringConfig.monthlyWeekOfMonth < 1 || 
+            recurringConfig.monthlyWeekOfMonth > 5) {
+          errors.monthlyWeekOfMonth = 'Week of month must be between 1 and 5';
+        }
+        if (recurringConfig.monthlyDayOfWeek === undefined || 
+            recurringConfig.monthlyDayOfWeek < 0 || 
+            recurringConfig.monthlyDayOfWeek > 6) {
+          errors.monthlyDayOfWeek = 'Day of week must be between 0 (Sunday) and 6 (Saturday)';
+        }
+      }
+    }
+
+    return {
+      isValid: Object.keys(errors).length === 0,
+      errors
+    };
+  }
+
+  /**
+   * RULE 12: Validate recurring event series modification
+   *
+   * Business Logic:
+   * - Modifying a single instance should not break the series
+   * - Series-wide changes require series ID
+   * - Cannot change recurring to non-recurring mid-series
+   *
+   * @param isSeriesModification - Whether modifying entire series
+   * @param seriesId - Recurring series ID
+   * @param currentRecurring - Current recurring status
+   * @param newRecurring - New recurring status
+   * @returns Validation result
+   */
+  static validateRecurringSeriesModification(
+    isSeriesModification: boolean,
+    seriesId: string | null | undefined,
+    currentRecurring: boolean,
+    newRecurring: boolean
+  ): {
+    isValid: boolean;
+    error?: string;
+  } {
+    // Changing recurring status requires series modification
+    if (currentRecurring !== newRecurring && !isSeriesModification) {
+      return {
+        isValid: false,
+        error: 'Cannot change recurring status for a single instance. Modify the entire series instead.'
+      };
+    }
+
+    // Series modifications require a valid series ID
+    if (isSeriesModification && currentRecurring && !seriesId) {
+      return {
+        isValid: false,
+        error: 'Cannot modify series: missing series ID'
+      };
+    }
+
+    return { isValid: true };
+  }
 }

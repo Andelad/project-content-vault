@@ -11,7 +11,7 @@ import {
   calculateVisualProjectDates as visualDates,
   createWorkingDayChecker
 } from '@/services';
-import { getTimelineBarData } from '@/services/orchestrators/TimelineOrchestrator';
+import { getTimelineBarData } from '@/services/data/aggregators/TimelineAggregator';
 import { ColorCalculationService } from '@/services/ui/ColorCalculations';
 import type { TimelineAllocationType } from '@/constants/styles';
 import { NEUTRAL_COLORS } from '@/constants/colors';

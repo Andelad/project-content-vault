@@ -34,7 +34,7 @@ import { AvailabilityCard } from '@/components/shared';
 import { HABIT_ICON_SVG } from '@/constants/icons';
 import { NEUTRAL_COLORS } from '@/constants/colors';
 import { getDateKey } from '@/utils/dateFormatUtils';
-import { createPlannerViewOrchestrator, type PlannerInteractionContext } from '@/services/orchestrators/PlannerViewOrchestrator';
+import { createCalendarEventOrchestrator, type PlannerInteractionContext } from '@/services/orchestrators/CalendarEventOrchestrator';
 import { useToast } from '@/hooks/ui/use-toast';
 import { useSwipeNavigation } from '@/hooks/ui/useSwipeNavigation';
 import { useCalendarKeyboardShortcuts } from '@/hooks/calendar/useCalendarKeyboardShortcuts';
@@ -172,7 +172,7 @@ export function PlannerView() {
   }), [updateEventWithUndo, events, isTimeTracking, toast]);
   // Create orchestrator instance
   const plannerOrchestrator = useMemo(() => 
-    createPlannerViewOrchestrator(orchestratorContext), 
+    createCalendarEventOrchestrator(orchestratorContext), 
     [orchestratorContext]
   );
   // FullCalendar event handlers

@@ -1,6 +1,23 @@
 /**
  * Event Duration Calculations
- * Pure business logic for calendar event duration calculations and formatting
+ * 
+ * KEYWORDS: event duration, multi-day events, midnight crossing, event hours,
+ *           date-specific duration, live tracking, recurring events, event span,
+ *           day difference, event aggregation
+ * 
+ * Pure business logic for calendar event duration calculations and formatting.
+ * 
+ * USE WHEN:
+ * - Calculating event duration for a specific date (handles multi-day events)
+ * - Determining live tracking elapsed time
+ * - Aggregating event durations across multiple dates
+ * - Calculating recurring event occurrences
+ * - Finding day difference between dates for event scheduling
+ * 
+ * RELATED FILES:
+ * - utils/dateCalculations.ts - Core duration calculations (hours, minutes, days)
+ * - EventClassification.ts - Event type classification (planned vs completed)
+ * - EventSplitting.ts - Event overlap and splitting logic
  * 
  * Migrated from legacy/events/eventDurationService
  * Enhanced with better type safety and comprehensive documentation
@@ -574,4 +591,49 @@ export function findMultipleOverlaps(
     }))
     .filter(result => result.overlapDuration > 0)
     .sort((a, b) => b.overlapDuration - a.overlapDuration);
+}
+
+/**
+ * Calculate number of events needed to cover a date range
+ * Used for recurring event generation
+ * 
+ * @param startDate - Start date of recurring series
+ * @param targetDate - End date to calculate to
+ * @param type - Recurrence type
+ * @param interval - Recurrence interval
+ * @returns Estimated number of events needed
+ */
+export function calculateRecurringEventsNeeded(
+  startDate: Date,
+  targetDate: Date,
+  type: 'daily' | 'weekly' | 'monthly' | 'yearly',
+  interval: number
+): number {
+  const diffMs = targetDate.getTime() - startDate.getTime();
+  
+  switch (type) {
+    case 'daily':
+      return Math.ceil(diffMs / (1000 * 60 * 60 * 24 * interval));
+    case 'weekly':
+      return Math.ceil(diffMs / (1000 * 60 * 60 * 24 * 7 * interval));
+    case 'monthly':
+      // Approximate - will be adjusted by actual date calculations
+      return Math.ceil(diffMs / (1000 * 60 * 60 * 24 * 30 * interval));
+    case 'yearly':
+      return Math.ceil(diffMs / (1000 * 60 * 60 * 24 * 365 * interval));
+    default:
+      return 10; // Fallback
+  }
+}
+
+/**
+ * Calculate difference in days between two dates
+ * 
+ * @param date1 - First date
+ * @param date2 - Second date
+ * @returns Number of days between dates (rounded)
+ */
+export function calculateDayDifference(date1: Date, date2: Date): number {
+  const diffMs = Math.abs(date2.getTime() - date1.getTime());
+  return Math.round(diffMs / (1000 * 60 * 60 * 24));
 }

@@ -6,6 +6,7 @@
  * Structure:
  * - PhaseRecurrence.ts - Recurring phase logic (migrated from domain-services) ✅
  * - PhaseDistribution.ts - Distribution algorithms (migrated from domain-services) ✅
+ * - PhaseIntegrity.ts - Phase referential integrity validation ✅
  * - Parent PhaseRules.ts - Validation, budget, hierarchy (keeping consolidated for now)
  * 
  * Note: PhaseRules.ts in parent directory is large (1193 lines) but well-organized.
@@ -16,3 +17,4 @@
 // Migrated domain services
 export * from './PhaseRecurrence';
 export * from './PhaseDistribution';
+export * from './PhaseIntegrity';

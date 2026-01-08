@@ -1,5 +1,6 @@
 import { timeTrackingRepository } from '../data/timeTracking';
 import { timeTrackingCalculations } from '@/domain/rules/time-tracking/TimeTrackingCalculations';
+import { CalendarEventMapper } from '@/services/data/mappers/CalendarEventMapper';
 import type { TimeTrackingState, SerializedTimeTrackingState, TimeTrackingSyncMessage } from '../../types/timeTracking';
 import type { CalendarEvent } from '../../types/core';
 import { supabase } from '../../integrations/supabase/client';
@@ -49,38 +50,12 @@ type CalendarEventInsertPayload = {
   event_type?: string | null;
   duration?: number | null;
 };
+
 // =====================================================================================
-// CALENDAR EVENT DATABASE HELPERS (inline - no repository layer)
+// NOTE: Duplicate transformation functions REMOVED
+// Now using CalendarEventMapper from data layer (services/data/mappers/CalendarEventMapper.ts)
 // =====================================================================================
-function transformCalendarEventFromDatabase(dbRecord: CalendarEventDbRow): CalendarEvent {
-  const rawType = dbRecord.event_type;
-  const type: CalendarEvent['type'] = rawType === 'tracked' || rawType === 'completed' || rawType === 'planned'
-    ? rawType
-    : 'planned';
-  return {
-    id: dbRecord.id,
-    title: dbRecord.title,
-    description: dbRecord.description || '',
-    startTime: new Date(dbRecord.start_time),
-    endTime: new Date(dbRecord.end_time),
-    projectId: dbRecord.project_id || undefined,
-    color: dbRecord.color || '#3b82f6',
-    completed: dbRecord.completed || false,
-    type
-  };
-}
-function transformCalendarEventToDatabase(event: Partial<CalendarEvent>): CalendarEventDbPayload {
-  const dbRecord: CalendarEventDbPayload = {};
-  if (event.title !== undefined) dbRecord.title = event.title;
-  if (event.description !== undefined) dbRecord.description = event.description;
-  if (event.startTime !== undefined) dbRecord.start_time = event.startTime.toISOString();
-  if (event.endTime !== undefined) dbRecord.end_time = event.endTime.toISOString();
-  if (event.projectId !== undefined) dbRecord.project_id = event.projectId || null;
-  if (event.color !== undefined) dbRecord.color = event.color;
-  if (event.completed !== undefined) dbRecord.completed = event.completed;
-  if (event.type !== undefined) dbRecord.event_type = event.type;
-  return dbRecord;
-}
+
 export interface TimeTrackerWorkflowContext {
   selectedProject: SelectedProject | null;
   searchQuery: string;
@@ -526,7 +501,7 @@ class TimeTrackingOrchestrator {
       // Start the timer
       intervalRef.current = setInterval(() => {
         if (startTimeRef.current) {
-          const elapsed = Math.floor((Date.now() - startTimeRef.current.getTime()) / 1000);
+          const elapsed = timeTrackingCalculations.calculateElapsedSeconds(startTimeRef.current);
           setSeconds(elapsed);
         }
       }, 1000);
@@ -627,7 +602,7 @@ class TimeTrackingOrchestrator {
       const actualStopTime = stopTime || new Date();
       if (updateEvent && startTimeRef.current) {
         try {
-          const duration = (actualStopTime.getTime() - startTimeRef.current.getTime()) / (1000 * 60 * 60);
+          const duration = timeTrackingCalculations.calculateDurationHours(startTimeRef.current, actualStopTime);
           console.log('⏹️ STOP TRACKING WORKFLOW - Updating event with stop time:', {
             eventId: currentEventId,
             startTime: startTimeRef.current.toISOString(),
@@ -761,14 +736,14 @@ class TimeTrackingOrchestrator {
       // Calculate elapsed time since start
       if (state.startTime) {
         const startTime = new Date(state.startTime);
-        const elapsed = Math.floor((Date.now() - startTime.getTime()) / 1000);
+        const elapsed = timeTrackingCalculations.calculateElapsedSeconds(startTime);
         setSeconds(elapsed);
         startTimeRef.current = startTime;
       }
       // Restart the timer
       intervalRef.current = setInterval(() => {
         if (startTimeRef.current) {
-          const elapsed = Math.floor((Date.now() - startTimeRef.current.getTime()) / 1000);
+          const elapsed = timeTrackingCalculations.calculateElapsedSeconds(startTimeRef.current);
           setSeconds(elapsed);
         }
       }, 1000);
@@ -840,7 +815,7 @@ class TimeTrackingOrchestrator {
         .select()
         .single();
       if (error) throw new Error(`Failed to create calendar event: ${error.message}`);
-      const event = transformCalendarEventFromDatabase(data);
+      const event = CalendarEventMapper.fromDatabase(data);
       return {
         success: true,
         event
@@ -867,7 +842,7 @@ class TimeTrackingOrchestrator {
   }> {
     try {
       // Update event (direct database call)
-      const dbUpdates = transformCalendarEventToDatabase(updates);
+      const dbUpdates = CalendarEventMapper.toUpdatePayload(updates);
       const { data, error } = await supabase
         .from('calendar_events')
         .update(dbUpdates)
@@ -875,7 +850,7 @@ class TimeTrackingOrchestrator {
         .select()
         .single();
       if (error) throw new Error(`Failed to update calendar event: ${error.message}`);
-      const event = transformCalendarEventFromDatabase(data);
+      const event = CalendarEventMapper.fromDatabase(data);
       return {
         success: true,
         event
@@ -910,7 +885,7 @@ class TimeTrackingOrchestrator {
         ...finalData
       };
       // Update event (direct database call)
-      const dbUpdates = transformCalendarEventToDatabase(updates);
+      const dbUpdates = CalendarEventMapper.toUpdatePayload(updates);
       const { data, error } = await supabase
         .from('calendar_events')
         .update(dbUpdates)
@@ -918,7 +893,7 @@ class TimeTrackingOrchestrator {
         .select()
         .single();
       if (error) throw new Error(`Failed to update calendar event: ${error.message}`);
-      const event = transformCalendarEventFromDatabase(data);
+      const event = CalendarEventMapper.fromDatabase(data);
       return {
         success: true,
         event
@@ -951,7 +926,7 @@ class TimeTrackingOrchestrator {
         .eq('event_type', 'tracked')
         .order('start_time', { ascending: true });
       if (error) throw new Error(`Failed to get tracking events: ${error.message}`);
-      const sessions = data.map(transformCalendarEventFromDatabase);
+      const sessions = data.map(CalendarEventMapper.fromDatabase);
       return {
         success: true,
         sessions
@@ -984,7 +959,7 @@ class TimeTrackingOrchestrator {
         .eq('event_type', 'tracked')
         .order('start_time', { ascending: true });
       if (error) throw new Error(`Failed to get tracking events: ${error.message}`);
-      const allSessions = data.map(transformCalendarEventFromDatabase);
+      const allSessions = data.map(CalendarEventMapper.fromDatabase);
       const projectSessions = allSessions.filter(session => session.projectId === projectId);
       return {
         success: true,

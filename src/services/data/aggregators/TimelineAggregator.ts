@@ -1,24 +1,21 @@
 /**
- * Unified Timeline Service
+ * Timeline Aggregator
  * 
- * Single source of truth for all timeline-related functionality.
- * Delegates to existing orchestrators, calculations, and UI services.
+ * Pure data aggregator for timeline view - NO mutations, NO workflows
+ * This is NOT an orchestrator - it only aggregates and transforms data for display
+ * 
+ * RENAMED FROM: TimelineOrchestrator.ts (which was a misnomer)
+ * LOCATION: services/data/aggregators/ (correct layer for data aggregation)
+ * 
+ * Single source of truth for all timeline-related data aggregation.
+ * Delegates to domain rules for calculations and UI services for positioning.
  * 
  * Following AI Development Rules:
- * - Delegates to domain layers (orchestrators, calculations)
+ * - Delegates to domain layers (rules, calculations)
  * - No business logic implementation in this service
- *  static isWorkingDay(date: Date, holidays: any[], settings: any): boolean {
-    if (isHolidayDateCapacity(date, holidays)) {
-      return false;
-    }
-    // Delegate to pure calculation function
-    const dayOfWeek = getDayOfWeek(date);
-    const weeklyWorkHours = settings?.weeklyWorkHours || {};
-    const dayHours = weeklyWorkHours[dayOfWeek];
-    return dayHours && dayHours.hours > 0;
-  }nterface for timeline components
+ * - Pure data aggregation and transformation only
  */
-import { PhaseOrchestrator } from '../orchestrators/PhaseOrchestrator';
+import { PhaseOrchestrator } from '@/services/orchestrators/PhaseOrchestrator';
 import { normalizeToMidnight } from '@/utils/dateCalculations';
 import { ColorCalculationService } from '@/services/ui/ColorCalculations';
 import { 
@@ -63,7 +60,7 @@ import {
   calculateProjectDayEstimates,
   // Import isWorkingDay from dateCalculations (authoritative source)
   isWorkingDay as isWorkingDayDateCalc
-} from '../index';
+} from '@/services';
 import { getDateKey } from '@/utils/dateFormatUtils';
 // Import timeline row calculations
 import { 
@@ -94,12 +91,12 @@ export interface TimelineProjectData {
   } | null;
 }
 /**
- * Unified Timeline Service
+ * Timeline Aggregator
  * 
- * Consolidates all timeline functionality into a single interface.
- * Components should ONLY use this service for timeline operations.
+ * Consolidates all timeline data aggregation into a single interface.
+ * Components should ONLY use this service for timeline data operations.
  */
-export class UnifiedTimelineService {
+export class TimelineAggregator {
   // ============================================================================
   // PROJECT TIMELINE DATA (Delegates to existing services)
   // ============================================================================
@@ -268,7 +265,7 @@ export class UnifiedTimelineService {
     try {
       return calculateBaselineVisualOffsets(positions, isDragging, dragState, projectId, mode);
     } catch (error) {
-      ErrorHandlingService.handle(error, { source: 'UnifiedTimelineService', action: 'Error in calculateBaselineVisualOffsets:' });
+      ErrorHandlingService.handle(error, { source: 'TimelineAggregator', action: 'Error in calculateBaselineVisualOffsets:' });
       return positions; // fallback to original positions
     }
   }
@@ -284,7 +281,7 @@ export class UnifiedTimelineService {
     try {
       return calculateVisualProjectDates(project, isDragging, dragState);
     } catch (error) {
-      ErrorHandlingService.handle(error, { source: 'UnifiedTimelineService', action: 'Error in calculateVisualProjectDates:' });
+      ErrorHandlingService.handle(error, { source: 'TimelineAggregator', action: 'Error in calculateVisualProjectDates:' });
       return { 
         visualProjectStart: new Date(project.startDate), 
         visualProjectEnd: new Date(project.endDate) 
@@ -397,7 +394,7 @@ export class UnifiedTimelineService {
       }
     } catch (e) {
       // Fail-safe: if aggregation fails, leave summaries empty; component should handle gracefully
-      ErrorHandlingService.handle(e, { source: 'UnifiedTimelineService', action: '[UnifiedTimelineService] Failed to aggregate per-date summaries:' });
+      ErrorHandlingService.handle(e, { source: 'TimelineAggregator', action: '[TimelineAggregator] Failed to aggregate per-date summaries:' });
     }
     
     // Helper accessor for components: get summary for a date without re-filtering arrays
@@ -650,11 +647,11 @@ export type {
   TimelineAutoRowInput 
 } from '@/domain/rules/timeline/TimelineRowCalculations';
 
-// Export singleton instance following the pattern
-export const timelineService = UnifiedTimelineService;
+// Export singleton instance
+export const timelineAggregator = TimelineAggregator;
 
 // Export getTimelineBarData as named function for easy import
-export const getTimelineBarData = UnifiedTimelineService.getTimelineBarData.bind(UnifiedTimelineService);
+export const getTimelineBarData = TimelineAggregator.getTimelineBarData.bind(TimelineAggregator);
 
 // ============================================================================
 // BACKWARD COMPATIBILITY EXPORTS
@@ -662,7 +659,7 @@ export const getTimelineBarData = UnifiedTimelineService.getTimelineBarData.bind
 
 /**
  * Standalone function exports for backward compatibility
- * Components can import these directly or use UnifiedTimelineService static methods
+ * Components can import these directly or use TimelineAggregator static methods
  */
 export { 
   calculateTimelineRows,

@@ -6,8 +6,7 @@ import { Textarea } from '../shadcn/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../shadcn/select';
 import { useToast } from '@/hooks/ui/use-toast';
 import { Paperclip, X, Send } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingService';
+import { FeedbackOrchestrator } from '@/services/orchestrators/FeedbackOrchestrator';
 
 interface FeedbackModalProps {
   open: boolean;
@@ -82,57 +81,16 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
     setLoading(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      // Insert feedback into database
-      const { data: feedbackData, error: feedbackError } = await supabase
-        .from('feedback')
-        .insert({
-          user_id: user?.id,
-          usage_context: usageContext,
-          feedback_type: feedbackType,
-          feedback_text: feedbackText,
-          user_email: user?.email,
-          user_agent: navigator.userAgent,
-          url: window.location.href
-        })
-        .select()
-        .single();
+      // DELEGATE to FeedbackOrchestrator for the complete workflow
+      const result = await FeedbackOrchestrator.submitFeedback({
+        usageContext,
+        feedbackType,
+        feedbackText,
+        attachments
+      });
 
-      if (feedbackError) throw feedbackError;
-
-      // Upload attachments if any
-      if (attachments.length > 0 && feedbackData) {
-        for (const file of attachments) {
-          const filePath = `${user?.id}/${feedbackData.id}/${file.name}`;
-          
-          const { error: uploadError } = await supabase.storage
-            .from('feedback-attachments')
-            .upload(filePath, file);
-
-          if (uploadError) throw uploadError;
-
-          // Generate signed URL (expires in 7 days)
-          const { data: signedUrlData, error: signedUrlError } = await supabase.storage
-            .from('feedback-attachments')
-            .createSignedUrl(filePath, 604800); // 7 days in seconds
-
-          if (signedUrlError) throw signedUrlError;
-
-          // Save attachment metadata with signed URL
-          const { error: attachmentError } = await supabase
-            .from('feedback_attachments')
-            .insert({
-              feedback_id: feedbackData.id,
-              file_name: file.name,
-              file_path: filePath,
-              file_size: file.size,
-              mime_type: file.type,
-              storage_url: signedUrlData.signedUrl
-            });
-
-          if (attachmentError) throw attachmentError;
-        }
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to submit feedback');
       }
 
       toast({
@@ -147,8 +105,6 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
       setAttachments([]);
       onOpenChange(false);
     } catch (error) {
-      ErrorHandlingService.handle(error, { source: 'FeedbackModal', action: 'Error submitting feedback:' });
-      
       let errorMessage = "Failed to submit feedback. Please try again.";
       const message = error instanceof Error ? error.message : undefined;
       

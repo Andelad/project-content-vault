@@ -20,7 +20,7 @@ import {
   type SmoothAnimationConfig,
   type DragState as ServiceDragState
 } from '@/services';
-import { EntityIntegrity } from '@/domain/rules/integrity/EntityIntegrity';
+import { SystemIntegrity } from '@/domain/rules/SystemIntegrity';
 import { useTimelineData } from '../../hooks/timeline/useTimelineData';
 import { useDynamicViewportDays } from '../../hooks/timeline/useDynamicViewportDays';
 import { useHolidayDrag } from '../../hooks/timeline/useHolidayDrag';
@@ -112,7 +112,7 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
   // Validate project relationships
   React.useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
-      const validation = EntityIntegrity.validateSystemIntegrity({
+      const validation = SystemIntegrity.validateSystemIntegrity({
         projects,
         phases: [],
         clients: [],
