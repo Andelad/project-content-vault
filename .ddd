@@ -1,8 +1,9 @@
 # Architecture Philosophy: Hybrid DDD
 
-**Last Updated:** January 7, 2026  
+**Last Updated:** January 8, 2026  
 **Current Approach:** Hybrid Domain-Driven Design (DDD) - Three-Layer Architecture  
-**Migration Status:** ✅ SUBSTANTIALLY COMPLETE - See `/docs/operations/ARCHITECTURE_REBUILD_PLAN.md`
+**Migration Status:** ✅ SUBSTANTIALLY COMPLETE - See `/docs/operations/ARCHITECTURE_REBUILD_PLAN.md`  
+**Tests:** 547 tests via Vitest (co-located in `__tests__/` directories)
 
 ---
 
@@ -26,6 +27,7 @@ Business logic was scattered across 5+ layers:
 
 Layer 1: domain/                    ← Pure business logic (NO UI, NO DB)
 ├── rules/                          ← ALL business logic (validation + calculations)
+│   ├── __tests__/                  ← 🧪 Domain rule tests (165 tests)
 │   ├── phases/                     ← Phase rules organized by concern
 │   ├── projects/                   ← Project rules
 │   ├── sync/                       ← Cross-cutting (date/budget sync)
@@ -39,10 +41,12 @@ Layer 1: domain/                    ← Pure business logic (NO UI, NO DB)
 │   ├── integrity/                  ← Cross-entity validation
 │   └── cascade/                    ← Deletion impact rules
 ├── entities/                       ← Rich domain models
+│   └── __tests__/                  ← 🧪 Entity tests (69 tests)
 └── value-objects/                  ← Immutable primitives (DateRange, etc.)
 
 Layer 2: services/                  ← Application & infrastructure services
 ├── orchestrators/                  ← Workflows (coordination ONLY)
+│   └── __tests__/                  ← 🧪 Orchestrator tests (82 tests)
 ├── data/                           ← Data transformation & aggregation
 │   ├── mappers/                    ← DB↔Domain translation
 │   └── aggregators/                ← Multi-table queries
@@ -63,6 +67,13 @@ Layer 3: components/                ← React UI (depends on services)
 ├── shared/                         ← Reusable components
 ├── modals/                         ← Modal dialogs
 └── layout/                         ← Layout components
+
+Utilities & Hooks:
+├── utils/                          ← Generic helpers
+│   └── __tests__/                  ← 🧪 Utility tests (186 tests)
+└── hooks/                          ← React hooks (NOT TESTED - deferred)
+    └── insights/                   ← Performance optimization hooks
+        └── useDebouncedCalculation.ts
 ```
 
 ### Key Decisions (January 7, 2026)
@@ -96,6 +107,14 @@ Layer 3: components/                ← React UI (depends on services)
 - Zero naming ambiguity
 - All business logic in domain/rules/
 - Clear separation of concerns
+- **547 tests** covering domain rules, orchestrators, utilities
+
+**Test Coverage:**
+- Domain Rules: ~90% (165 tests)
+- Domain Entities: ~60% (69 tests)
+- Orchestrators: ~75% (82 tests)
+- Utilities: ~85% (186 tests)
+- React Hooks/Components: Deferred (not tested during active development)
 
 ---
 

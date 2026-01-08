@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/shadcn/ca
 import { Button } from '@/components/shadcn/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shadcn/select';
 import { GraduationCap } from 'lucide-react';
+import { useDebouncedCalculation } from '@/hooks/insights/useDebouncedCalculation';
 import type { Project, CalendarEvent } from '@/types/core';
 
 interface TimeDistributionCardProps {
@@ -25,8 +26,9 @@ export const TimeDistributionCard: React.FC<TimeDistributionCardProps> = ({
   const [customEndDate, setCustomEndDate] = useState<string>('');
   const [shouldAnimatePie, setShouldAnimatePie] = useState(true);
 
+  // PERFORMANCE: Debounce expensive calculation to prevent blocking UI
   // Calculate project time distribution for donut chart
-  const projectDistributionData = useMemo(() => {
+  const projectDistributionData = useDebouncedCalculation(() => {
     const now = new Date();
     let startDate: Date;
     let endDate: Date = new Date(now);
@@ -97,10 +99,10 @@ export const TimeDistributionCard: React.FC<TimeDistributionCardProps> = ({
         };
       })
       .sort((a, b) => b.value - a.value);
-  }, [events, projects, projectDistributionTimeFrame, customStartDate, customEndDate]);
+  }, [events, projects, projectDistributionTimeFrame, customStartDate, customEndDate], 300);
 
   const projectDistributionAnimationSignature = useMemo(() => {
-    if (projectDistributionData.length === 0) return 'empty';
+    if (!projectDistributionData || projectDistributionData.length === 0) return 'empty';
     return projectDistributionData
       .map(item => `${item.project.id}:${item.hours.toFixed(2)}`)
       .join('|');
@@ -153,7 +155,12 @@ export const TimeDistributionCard: React.FC<TimeDistributionCardProps> = ({
         )}
       </CardHeader>
       <CardContent className="relative">
-        {projectDistributionData.length === 0 ? (
+        {/* Show skeleton while calculation is debouncing */}
+        {!projectDistributionData ? (
+          <div className="h-80 flex items-center justify-center">
+            <div className="w-64 h-64 rounded-full border-4 border-gray-200 border-t-primary animate-spin" />
+          </div>
+        ) : projectDistributionData.length === 0 ? (
           <div className="h-80 flex items-center justify-center text-gray-500">
             No completed project time in this period
           </div>

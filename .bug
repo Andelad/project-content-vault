@@ -1,468 +1,97 @@
-# 🐛 Bug Fixing Protocol
+# Bug Fix Guide
 
-> **Purpose:** Transform frustrating circular debugging into systematic problem-solving with clear documentation and consistent practices.
+**Context**: Read `.cursorrules` (patterns), `.architecture` (locations), `.ddd` (philosophy) first
 
----
+## "Look at this bug"
 
-## 📋 WHEN TO USE THIS
+### Step 1: Investigate & Summarize (DON'T FIX YET)
 
-**User says:** "I want to fix a bug" or "Let's create a bug report" or "Read .bug"
+Run these searches:
+```bash
+grep -r "concept" src/domain/rules/       # Business logic
+grep -r "concept" src/services/orchestrators/  # Coordination
+grep -r "concept" src/components/         # UI
+grep -r "describe.*concept" src/**/__tests__/  # Expected behavior
+```
 
-**Your action:** Follow this protocol exactly.
+Summarize:
+1. **Business logic**: What should happen?
+2. **Domain rules**: Which files? What constraints?
+3. **Orchestrator**: Which file? What workflow?
+4. **Component**: Which file? What UI?
+5. **Tests**: What do they expect? Are any failing?
+6. **Gap**: Expected vs Actual behavior
 
----
-
-## 🚀 PROTOCOL STEPS
-
-### Step 1: Create Bug Session Document
-
-Create a new document in `/docs/sessions/` with naming:
-- **Format:** `bug-DDMM-short-description.md`
-- **Example:** `bug-3012-timeline-rendering-crash.md`
-
-Use the template at the end of this document.
-
----
-
-### Step 2: Understand Before You Act
-
-**DO NOT write code yet!**
-
-1. **Listen:** Let the user describe the bug completely
-2. **Ask clarifying questions:**
-   - What is the expected behavior?
-   - What is the actual behavior?
-   - How do you reproduce it?
-   - What have you already tried?
-   - Are there error messages or console logs?
-3. **Confirm understanding:** Write a summary and ask "Is this correct?"
-4. **Get explicit approval** before proceeding
-
-**Why:** Hours of wasted effort come from fixing the wrong problem.
+**Offer 2-3 solutions** with pros/cons. **Wait for feedback.**
 
 ---
 
-### Step 3: Research Before Coding
+### Step 2: Fix (After User Confirms)
 
-**REQUIRED READING** (in this order):
-
-1. **Check existing documentation:**
-   - `.cursorrules` - Quick reference for patterns
-   - `.architecture` - Code organization
-   - `.ddd` - Hybrid DDD philosophy
-   - `/src/domain/App Logic.md` - Entity definitions
-   - `/src/domain/Business Rules.md` - Business rules
-   - `/src/services/ui/Display Logic.md` - Display constraints
-   - `/src/components/README.md` - Component patterns
-
-2. **Find relevant code:**
-   ```bash
-   # Search for related functions/types
-   grep -r "functionName" src/
-   
-   # Check for existing implementations
-   ls src/services/unified/ | grep -i "keyword"
-   ls src/domain/domain-services/ | grep -i "keyword"
-   
-   # Look for similar patterns
-   semantic_search with relevant keywords
-   ```
-
-3. **Understand the architecture layer:**
-   - Is this domain logic? → Should be in `/domain/domain-services/` or `/domain/rules/`
-   - Is this a workflow? → Should be in `/services/orchestrators/`
-   - Is this UI positioning? → Should be in `/services/ui/` or component
-   - Is this date math? → Should use `dateCalculations.ts`
-
-**Document your findings** in the bug report before making changes.
+1. **Fix in order**: Domain rule → Orchestrator → Component
+2. Make ONE change
+3. Test: `npm test -- FileName`
+4. Add regression test
+5. Verify: `npm test && npm run build`
 
 ---
 
-### Step 4: Hypothesis-Driven Debugging
+### Step 3: Complex Bugs
 
-**Before trying fixes:**
-
-1. **Form a hypothesis:** "I believe X is causing the bug because Y"
-2. **Document it** in the bug report
-3. **Plan verification:** How will you test if the hypothesis is correct?
-4. **Get user feedback** if hypothesis requires assumptions
-
-**Avoid:**
-- ❌ Random console.log() spam
-- ❌ "Try this and see if it works" coding
-- ❌ Fixing symptoms instead of root causes
-- ❌ Making multiple changes at once without tracking
-
----
-
-### Step 5: Systematic Investigation
-
-**Use the scientific method:**
-
-1. **Observe:** What is actually happening?
-   - Add strategic console.logs (not spam)
-   - Check React DevTools
-   - Look at network requests
-   - Examine state changes
-
-2. **Document observations** in bug report before each change
-
-3. **Make ONE change at a time**
-   - Document what you're changing
-   - Document why you're changing it
-   - Test the change
-   - Document the result
-
-4. **If change doesn't work:**
-   - Document why it didn't work
-   - **Revert it** before trying something else
-   - Update hypothesis
-
----
-
-### Step 6: Code Quality Standards
-
-**Every fix must comply with:**
-
-1. **Architecture patterns** (see `.cursorrules`):
-   - Use existing services, don't duplicate
-   - Put code in the right layer
-   - Use `ErrorHandlingService` for errors
-   - Use `dateCalculations.ts` for dates
-   - Import from `@/services` only
-
-2. **Type safety:**
-   - Use types from `/types/core.ts`
-   - No `any` types
-   - Handle nulls/undefined explicitly
-
-3. **Hybrid DDD principles** (see `.ddd`):
-   - Domain logic in domain layer (pure)
-   - Orchestrators coordinate (mixed by design)
-   - No business logic in components
-
-4. **Don't introduce new problems:**
-   - Check for TypeScript errors: `npm run build`
-   - Test affected features
-   - Consider edge cases
-
----
-
-### Step 7: Track Everything
-
-**Update the bug report continuously:**
-
-- ✅ Record each hypothesis
-- ✅ Record each investigation step
-- ✅ Record what you tried
-- ✅ Record what worked/didn't work
-- ✅ Record what NOT to repeat
-- ✅ Update problem summary if understanding changes
-
-**Why:** This prevents circular debugging and helps identify patterns.
-
----
-
-### Step 8: Clean Up
-
-**Before marking as complete:**
-
-1. **Remove debug code:**
-   - Remove temporary console.logs
-   - Remove commented-out attempts
-   - Remove debug flags
-
-2. **Verify the fix:**
-   - Test the original reproduction steps
-   - Test edge cases
-   - Run build: `npm run build`
-
-3. **Document solution:**
-   - Update bug report with final solution
-   - Note any architecture decisions made
-   - Mark status as RESOLVED
-
-4. **Ask user to verify** the fix works for them
-
----
-
-## 🎯 KEY PRINCIPLES
-
-### DO:
-- ✅ Understand the problem completely before coding
-- ✅ Read relevant documentation first
-- ✅ Form hypotheses and test them systematically
-- ✅ Make one change at a time
-- ✅ Document everything in the bug report
-- ✅ Revert failed attempts before trying new ones
-- ✅ Follow existing architecture patterns
-- ✅ Ask questions when uncertain
-- ✅ Get user confirmation at key decision points
-
-### DON'T:
-- ❌ Start coding before understanding the problem
-- ❌ Make random changes hoping something works
-- ❌ Add console.log() spam without a hypothesis
-- ❌ Make multiple changes simultaneously
-- ❌ Leave debug code in final solution
-- ❌ Duplicate existing functionality
-- ❌ Put code in wrong architectural layer
-- ❌ Introduce new violations of codebase patterns
-- ❌ Keep trying things that already failed
-- ❌ Assume you understand without confirming
-
----
-
-## 📝 BUG REPORT TEMPLATE
+Create `docs/bugs/YYYY-MM-DD-description.md`:
 
 ```markdown
-# Bug Report: [Short Description]
+# [Bug Name]
+**Date**: YYYY-MM-DD | **Status**: IN_PROGRESS | RESOLVED
 
-**Date:** DDMM-YYYY
-**Status:** INVESTIGATING | IN_PROGRESS | RESOLVED | BLOCKED
-**Reporter:** [User name if relevant]
+## Problem
+[How to reproduce]
 
----
+## Investigation
+- Domain: [files]
+- Orchestrator: [files]
+- Component: [files]
+- Tests: [failing tests]
 
-## 🔴 PROBLEM SUMMARY
+## Root Cause
+[Why?]
 
-### Expected Behavior
-[What should happen]
+## Plan
+- [ ] Fix domain/orchestrator/component
+- [ ] Add regression test
+- [ ] Update docs (if needed)
 
-### Actual Behavior
-[What actually happens]
+## Changes
+- `file.ts` - [what/why]
 
-### Reproduction Steps
-1. [Step one]
-2. [Step two]
-3. [Expected vs actual]
-
-### Error Messages
-```
-[Paste any error messages or console output]
-```
-
-### User Confirmation
-- [ ] Problem summary confirmed with user
-- [ ] Reproduction steps verified
-
----
-
-## 🔍 INVESTIGATION
-
-### Relevant Documentation Read
-- [ ] `.cursorrules` - Architecture patterns
-- [ ] `.architecture` - Code organization
-- [ ] `/src/domain/Domain Logic.md` - Entity definitions
-- [ ] `/src/domain/Rules Logic.md` - Business rules
-- [ ] [Other relevant docs]
-
-### Relevant Code Located
-**Files involved:**
-- `path/to/file.ts` - [Purpose/role]
-- `path/to/another.ts` - [Purpose/role]
-
-**Architectural layer:**
-- [ ] Domain Service (pure logic)
-- [ ] Domain Rules (validation)
-- [ ] Orchestrator (workflow)
-- [ ] UI Component
-- [ ] Hook
-- [ ] Utility
-
-**Related services/functions:**
-```typescript
-// List existing implementations found
+## Verification
+- [ ] Tests pass
+- [ ] Build succeeds
+- [ ] User confirmed
 ```
 
 ---
 
-## 💡 HYPOTHESES
+### Step 4: Finish
 
-### Hypothesis 1: [Description]
-**Reasoning:** [Why you think this might be the cause]
-**Test plan:** [How to verify]
-**Result:** [CONFIRMED | REJECTED | PARTIAL]
-**Evidence:** [What you observed]
-
-### Hypothesis 2: [Description]
-**Reasoning:** [Why you think this might be the cause]
-**Test plan:** [How to verify]
-**Result:** [CONFIRMED | REJECTED | PARTIAL]
-**Evidence:** [What you observed]
+1. Add regression test
+2. Clean up debug code
+3. Update docs (only if structure changed)
+4. User confirms fix
 
 ---
 
-## 🔧 ACTIONS TAKEN
+## Priority Order
 
-### Action 1: [What you changed]
-**Timestamp:** [Time]
-**Files modified:** `path/to/file.ts`
-**Reasoning:** [Why this change]
-**Code change:**
-```typescript
-// Brief description or diff
-```
-**Result:** [SUCCESS | FAILED | PARTIAL]
-**Observation:** [What happened]
-
-### Action 2: [What you tried next]
-**Timestamp:** [Time]
-**Files modified:** `path/to/file.ts`
-**Reasoning:** [Why this change]
-**Result:** [SUCCESS | FAILED | PARTIAL]
-**Observation:** [What happened]
+1. **Domain** (`src/domain/rules/`) - Pure logic, fix FIRST
+2. **Orchestrator** (`src/services/orchestrators/`) - Coordination, fix SECOND
+3. **Component** (`src/components/`) - UI only, fix LAST
 
 ---
 
-## ❌ WHAT NOT TO REPEAT
+## Quick Ref
 
-### Failed Approaches
-1. **[Approach name]**
-   - Why it failed: [Explanation]
-   - Don't repeat because: [Reason]
-
-2. **[Another approach]**
-   - Why it failed: [Explanation]
-   - Don't repeat because: [Reason]
-
----
-
-## ✅ SOLUTION
-
-### Root Cause
-[What was actually causing the bug]
-
-### Fix Applied
-**Files changed:**
-- `path/to/file.ts` - [What changed and why]
-- `path/to/another.ts` - [What changed and why]
-
-**Architecture compliance:**
-- [ ] Code in correct layer
-- [ ] Uses existing services (no duplication)
-- [ ] Follows Hybrid DDD principles
-- [ ] Uses `ErrorHandlingService` for errors
-- [ ] Uses `dateCalculations.ts` for date math
-- [ ] Types from `/types/core.ts`
-
-### Testing
-- [ ] Original reproduction steps now pass
-- [ ] Edge cases tested
-- [ ] Build succeeds: `npm run build`
-- [ ] No new TypeScript errors
-- [ ] User verified fix
-
-### Lessons Learned
-[What did we learn from this bug? Any patterns to watch for in the future?]
-
----
-
-## 📊 TIMELINE
-
-| Time | Event |
-|------|-------|
-| [HH:MM] | Bug reported |
-| [HH:MM] | Investigation started |
-| [HH:MM] | Hypothesis 1 tested |
-| [HH:MM] | [Key milestone] |
-| [HH:MM] | Solution implemented |
-| [HH:MM] | Fix verified |
-
----
-
-## 🔗 RELATED ISSUES
-
-- [Link to similar bugs if applicable]
-- [Link to relevant feature documentation]
-- [Link to architecture decisions]
-
-```
-
----
-
-## 🎓 ANTI-PATTERNS TO AVOID
-
-### The Random Walk
-**Symptom:** Trying different things without a clear hypothesis
-**Fix:** Always form a hypothesis first, document it, then test it
-
-### The Console.log Explosion
-**Symptom:** Adding console.logs everywhere without clear purpose
-**Fix:** Add strategic logs to test specific hypotheses, remove after
-
-### The Kitchen Sink
-**Symptom:** Making multiple changes at once, unsure which fixed it
-**Fix:** One change at a time, document each, test each
-
-### The Duplicate Factory
-**Symptom:** Creating new services/functions when existing ones exist
-**Fix:** Search codebase first, extend existing code
-
-### The Layer Violation
-**Symptom:** Putting business logic in components or UI code in domain
-**Fix:** Check `.architecture` for where code belongs
-
-### The Undo Spiral
-**Symptom:** Fixing, undoing, re-fixing the same thing multiple times
-**Fix:** Document what failed and why, don't repeat failed approaches
-
-### The Assumption Trap
-**Symptom:** Fixing what you think is wrong without confirming
-**Fix:** Verify problem understanding with user first
-
----
-
-## 🆘 WHEN YOU'RE STUCK
-
-**If you've been debugging for >30 minutes without progress:**
-
-1. **Stop and document** everything tried so far
-2. **Review the bug report** - are we solving the right problem?
-3. **Ask the user:**
-   - "I've tried X, Y, Z. Can you help me understand [specific question]?"
-   - "Can you show me exactly when this happens?"
-   - "What were you trying to accomplish when this occurred?"
-4. **Take a different approach:**
-   - Read documentation again with fresh eyes
-   - Look for similar bugs in codebase history
-   - Consider if problem is in a different layer than assumed
-5. **Suggest alternatives:**
-   - "This might be a deeper architectural issue. Should we [alternative approach]?"
-   - "I need to understand [X] better. Can we look at [Y]?"
-
-**Never:** Keep banging away randomly. Always stop, reflect, and redirect.
-
----
-
-## 🔄 POST-RESOLUTION
-
-**After bug is fixed:**
-
-1. Update bug report with final status
-2. Note any documentation that should be updated
-3. Identify if this reveals a pattern (multiple similar bugs?)
-4. Consider if fix requires testing improvements
-5. Mark document as RESOLVED with date
-6. File can be deleted after user review (see `/docs/sessions/README.md`)
-
----
-
-## 📌 REMEMBER
-
-> "Hours of debugging can save minutes of reading documentation."
-> 
-> "If you're going in circles, you're probably solving the wrong problem."
-> 
-> "The best fix is the one that fits the existing architecture."
-
-**Good debugging is:**
-- Systematic, not random
-- Documented, not forgotten
-- Hypothesis-driven, not trial-and-error
-- Architecture-aware, not pattern-violating
-- Confirmed, not assumed
-
----
-
-**Last Updated:** December 30, 2025
+- 547 tests = your map
+- Read tests FIRST (show expected behavior)
+- Complex bugs → `docs/bugs/`
+- Fix order: domain → orchestrator → component

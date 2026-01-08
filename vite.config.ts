@@ -4,13 +4,13 @@ import path from "path";
 import { visualizer } from 'rollup-plugin-visualizer';
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from 'vite-plugin-pwa';
+import removeConsole from 'vite-plugin-remove-console';
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   test: {
     globals: true,
     environment: 'jsdom',
-    setupFiles: './src/test/setup.ts',
   },
   server: {
     host: "::",
@@ -19,6 +19,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     mode === 'development' && componentTagger(),
+    mode === 'production' && removeConsole(), // Remove console logs in production
     visualizer({
       filename: 'dist/stats.html',
       open: false,

@@ -138,11 +138,8 @@ export class Project {
     }
 
     // Rule: Must have client
-    // Note: clientId can be empty string during creation - will be resolved by orchestrator
-    // Only validate if a clientId is provided
-    if (params.clientId && params.clientId.trim().length === 0) {
-      // Empty string is allowed as placeholder, but if provided, must be valid
-      // This is fine - orchestrator will resolve it
+    if (!params.clientId || params.clientId.trim().length === 0) {
+      errors.push('Project must have a client');
     }
 
     // Rule: Must have group
@@ -179,38 +176,9 @@ export class Project {
       errors.push('Continuous projects should not have an end date');
     }
 
-    // Rule: Projects with estimated hours cannot be fully in the past (matches orchestrator)
-    if (params.estimatedHours > 0 && params.startDate && !errors.length) {
-      // Create temporary project data for validation
-      const tempProjectData: ProjectData = {
-        id: 'temp',
-        name: params.name,
-        client: '', // Deprecated field
-        clientId: params.clientId,
-        startDate: params.startDate,
-        endDate: params.continuous ? new Date() : (params.endDate || new Date()),
-        estimatedHours: params.estimatedHours,
-        groupId: params.groupId,
-        color: params.color,
-        continuous: params.continuous ?? false,
-        status: params.status ?? 'current',
-        notes: params.notes,
-        icon: params.icon ?? 'folder',
-        userId: params.userId,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        phases: []
-      };
-
-      const pastValidation = ProjectRules.validateProjectNotFullyInPast(
-        tempProjectData,
-        params.existingPhases || []
-      );
-
-      if (!pastValidation.isValid) {
-        errors.push(...pastValidation.errors);
-      }
-    }
+    // Note: Projects CAN be created in the past with estimated hours.
+    // The "fully in past" validation only affects timeline rendering (auto-estimates),
+    // not entity creation. This allows historical projects with time estimates.
 
     if (errors.length > 0) {
       return { 

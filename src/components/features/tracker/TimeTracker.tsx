@@ -267,10 +267,11 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
     dbSyncIntervalRef.current = setInterval(async () => {
       // CRITICAL: Check if we're still tracking this event
       // This prevents updating events that have already been stopped
-      if (!isTimeTracking || currentEventId !== eventId) {
+      // FIX: Use currentTrackingEventId (global context) for cross-window sync compatibility
+      if (!isTimeTracking || currentTrackingEventId !== eventId) {
           console.log('💾 DB sync - Tracking stopped or different event, clearing interval', {
             isTimeTracking,
-            currentEventId,
+            currentTrackingEventId,
             eventId
           });
         if (dbSyncIntervalRef.current) {
@@ -324,7 +325,7 @@ export function TimeTracker({ className, isExpanded = true, onToggleExpanded, fa
       }, 1000); // Wait 1 second after start
     }, [
       STORAGE_KEYS.affectedEvents,
-      currentEventId,
+      currentTrackingEventId,
       handlePlannedEventOverlapsCallback,
       isTimeTracking,
       setCurrentEventId,

@@ -5,9 +5,12 @@
 > **For quick AI instructions:** See `.cursorrules`
 > 
 > **For business rules:** See `/src/domain/` documentation
+> 
+> **For testing:** See `/docs/operations/TESTING_GUIDE.md`
 
-**Last Updated:** December 30, 2025  
-**Architecture:** Hybrid DDD (pragmatic domain-driven design)
+**Last Updated:** January 8, 2026  
+**Architecture:** Hybrid DDD (pragmatic domain-driven design)  
+**Tests:** 547 tests via Vitest (co-located in `__tests__/` directories)
 
 ---
 
@@ -24,6 +27,7 @@ All documentation lives near the code it describes:
 | **`Business Rules.md`** | `/src/domain/` | How rules work, calculations, formulas |
 | **`Display Logic.md`** | `/src/services/ui/` | View-specific display constraints |
 | **`README.md`** | `/src/components/` | Component file organization |
+| **`TESTING_GUIDE.md`** | `/docs/operations/` | Testing patterns, coverage, examples |
 
 ---
 
@@ -65,6 +69,7 @@ src/
 │   ├── App Logic.md                # What entities ARE
 │   ├── Business Rules.md           # How rules WORK
 │   ├── rules/                      # ✅ ALL business logic (validation + calculations)
+│   │   ├── __tests__/              # 🧪 Domain rule tests (165 tests)
 │   │   ├── phases/                 # Phase-specific rules
 │   │   ├── projects/               # Project-specific rules
 │   │   ├── sync/                   # Cross-cutting sync logic
@@ -79,6 +84,7 @@ src/
 │   │   ├── cascade/                # Deletion impact
 │   │   └── ... (18 subdirectories total)
 │   ├── entities/                   # Rich domain models
+│   │   ├── __tests__/              # 🧪 Entity tests (69 tests)
 │   │   ├── Project.ts
 │   │   ├── Phase.ts
 │   │   └── Client.ts
@@ -88,6 +94,7 @@ src/
 │
 ├── services/                        # 🔧 Layer 2: Application & infrastructure services
 │   ├── orchestrators/              # Workflows (coordination ONLY)
+│   │   ├── __tests__/              # 🧪 Orchestrator tests (82 tests)
 │   │   ├── ProjectOrchestrator.ts
 │   │   ├── PhaseOrchestrator.ts
 │   │   └── CalendarEventOrchestrator.ts
@@ -125,12 +132,15 @@ src/
 │   ├── phase/                      # Phase-specific hooks
 │   ├── calendar/                   # Calendar hooks
 │   ├── timeline/                   # Timeline hooks
+│   ├── insights/                   # Insights calculations
+│   │   └── useDebouncedCalculation.ts  # Performance optimization hook
 │   └── settings/                   # Settings hooks
 │
 ├── types/                           # 📝 Type definitions
 │   └── core.ts                     # Central type definitions
 │
 └── utils/                           # 🛠️ Generic utilities
+    ├── __tests__/                  # 🧪 Utility tests (186 tests)
     ├── dateCalculations.ts         # Pure date math
     ├── dateFormatUtils.ts          # Display formatting
     └── timeCalculations.ts         # Time utilities
@@ -138,17 +148,20 @@ src/
 
 ### Layer Responsibilities
 
-| Layer | What It Does | What It Doesn't Do |
-|-------|--------------|-------------------|
-| **Domain Rules** | ALL business logic (validation + calculations inline) | No UI, no DB, no presentation |
-| **Domain Entities** | Rich objects with behavior | No UI concerns, no DB calls |
-| **Value Objects** | Immutable primitives with validation | No side effects, no mutations |
-| **Orchestrators** | Workflows, coordination, DB access, UI prep | No business logic (use domain/rules) |
-| **Data Services** | DB↔Domain transformation, multi-table aggregation | No business logic, no UI |
-| **Infrastructure** | Error handling, storage, caching | No business logic, no UI |
-| **UI Services** | View positioning, layout calculations | No business logic |
-| **Hooks** | React state + service coordination | No business logic |
-| **Components** | Display only | No logic, no calculations |
+| Layer | What It Does | What It Doesn't Do | Tests |
+|-------|--------------|-------------------|-------|
+| **Domain Rules** | ALL business logic (validation + calculations inline) | No UI, no DB, no presentation | ✅ 165 tests |
+| **Domain Entities** | Rich objects with behavior | No UI concerns, no DB calls | ✅ 69 tests |
+| **Value Objects** | Immutable primitives with validation | No side effects, no mutations | ⏸️ Deferred |
+| **Orchestrators** | Workflows, coordination, DB access, UI prep | No business logic (use domain/rules) | ✅ 82 tests |
+| **Data Services** | DB↔Domain transformation, multi-table aggregation | No business logic, no UI | ⏸️ Deferred |
+| **Infrastructure** | Error handling, storage, caching | No business logic, no UI | ⏸️ Deferred |
+| **UI Services** | View positioning, layout calculations | No business logic | ⏸️ Deferred |
+| **Hooks** | React state + service coordination | No business logic | ❌ Not tested |
+| **Components** | Display only | No logic, no calculations | ❌ Not tested |
+| **Utilities** | Generic helpers (dates, formatting, time) | No business logic | ✅ 186 tests |
+
+**Test Total:** 547 tests passing ✅
 
 ---
 

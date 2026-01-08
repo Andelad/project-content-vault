@@ -13,7 +13,7 @@ import { Project, CreateProjectParams } from '@/domain/entities/Project';
 import type { Project as ProjectData, Phase } from '@/types/core';
 
 describe('Project Entity', () => {
-  // Test data factories
+  // Test data factories - Use 2025 dates (past is valid for historical projects)
   const createValidParams = (overrides?: Partial<CreateProjectParams>): CreateProjectParams => ({
     name: 'Test Project',
     clientId: 'client-123',

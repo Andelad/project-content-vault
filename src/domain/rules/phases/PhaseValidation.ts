@@ -189,20 +189,27 @@ export class PhaseValidationRules {
     const errors: string[] = [];
     const warnings: string[] = [];
     
-    // Basic validation: positive time allocation
-    if (timeAllocation <= 0) {
-      errors.push('Time allocation must be positive');
+    // Rule: Time allocation cannot be negative
+    if (timeAllocation < 0) {
+      errors.push('Milestone time allocation cannot be negative');
+    }
+    
+    // Rule: Zero allocation is valid but should warn
+    if (timeAllocation === 0) {
+      warnings.push('Milestone has 0h allocated — work will not be distributed until hours are set');
     }
     
     // Budget validation - DELEGATE to domain rules
-    const budgetCheck = validateMilestoneScheduling(
-      existingPhases,
-      { timeAllocationHours: timeAllocation },
-      projectBudget
-    );
-    
-    if (!budgetCheck.canSchedule) {
-      errors.push(...budgetCheck.budgetConflicts);
+    if (timeAllocation > 0) {
+      const budgetCheck = validateMilestoneScheduling(
+        existingPhases,
+        { timeAllocationHours: timeAllocation },
+        projectBudget
+      );
+      
+      if (!budgetCheck.canSchedule) {
+        errors.push(...budgetCheck.budgetConflicts);
+      }
     }
     
     return {

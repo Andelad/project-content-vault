@@ -41,6 +41,28 @@ const HolidayModal = React.lazy(() => import('../modals/HolidayModal').then(modu
 const HelpModal = React.lazy(() => import('../modals/HelpModal').then(module => ({ default: module.HelpModal })));
 
 /**
+ * PERFORMANCE: Timeline Layout Cache Key
+ * 
+ * Creates stable cache key for timeline layout calculations.
+ * Only triggers recalculation when:
+ * - Groups or projects change (different IDs)
+ * - Viewport moves significantly (>1 week)
+ * 
+ * This prevents expensive O(n²) layout recalculation on every scroll.
+ */
+const createLayoutCacheKey = (
+  groupIds: string[], 
+  projectIds: string[],
+  viewportStartTime: number
+): string => {
+  // Round viewport to weekly buckets to reduce recalculation frequency
+  // 7 days * 24 hours * 60 min * 60 sec * 1000 ms = 604,800,000 ms
+  const weeklyBucket = Math.floor(viewportStartTime / 604800000);
+  
+  return `${groupIds.join(',')}-${projectIds.join(',')}-${weeklyBucket}`;
+};
+
+/**
  * TimelineView - Main coordinator component for the timeline page
  * 
  * **Role**: Coordinates contexts, custom hooks, and services to render the timeline UI
@@ -229,9 +251,22 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
   );
 
   // ========== TIMELINE 2.0: AUTO-LAYOUT CALCULATION ==========
+  // PERFORMANCE: Create stable cache key to prevent recalculation on every scroll
+  // Only recalculates when groups/projects change OR viewport moves >1 week
+  const layoutCacheKey = useMemo(() => 
+    createLayoutCacheKey(
+      groups.map(g => g.id),
+      filteredProjects.map(p => p.id),
+      viewportStart.getTime()
+    ),
+    [groups, filteredProjects, viewportStart]
+  );
+
   // Calculate dynamic visual rows for each group using auto-layout algorithm
   const groupLayouts = useMemo(() => {
-    return groups.map(group => {
+    console.time('Timeline Layout Calculation');
+    
+    const layouts = groups.map(group => {
       const groupProjects = filteredProjects.filter(p => p.groupId === group.id);
       
       if (groupProjects.length === 0) {
@@ -257,7 +292,10 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
 
       return layout.groups[0]; // Return the first (and only) group layout
     });
-  }, [groups, filteredProjects, viewportStart, viewportEnd]);
+    
+    console.timeEnd('Timeline Layout Calculation');
+    return layouts;
+  }, [layoutCacheKey]); // ← Only dependency is cache key, not individual props
   // ========== END AUTO-LAYOUT CALCULATION ==========
 
   // Expand holiday ranges into individual Date objects for fast lookup by the markers

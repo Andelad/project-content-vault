@@ -9,37 +9,27 @@
 ## ✅ ARCHITECTURE - THREE LAYERS COMPLETE
 
 **Current State:** Three-layer architecture ✅ SUBSTANTIALLY COMPLETE  
-**Plan:** See `/docs/operations/ARCHITECTURE_REBUILD_PLAN.md` for details  
-**Structure:** THREE layers - `domain/`, `services/`, `components/`
+**Tests:** 547 tests via Vitest (co-located `__tests__/` dirs)
 
-**Architecture (CURRENT):**
+**Architecture:**
 ```
-Layer 1: domain/                 ← Pure business logic (NO UI, NO DB)
-├── rules/                       ← ALL business logic (18 subdirectories)
-├── entities/                    ← Rich domain models
-└── value-objects/               ← Immutable primitives
-
-Layer 2: services/               ← Application & infrastructure services
-├── orchestrators/               ← Workflows (coordination ONLY)
-├── data/                        ← Data transformation & aggregation
-├── infrastructure/              ← Error handling, storage, caching
-└── ui/                          ← View positioning & layout
-
-Layer 3: components/             ← React UI
-├── shadcn/                      ← Design system components
-├── features/                    ← Feature components
-├── views/                       ← Page components
-└── shared/                      ← Reusable components
+domain/rules/        ← ALL business logic + __tests__/
+domain/entities/     ← Rich models + __tests__/
+services/orchestrators/ ← Workflows + __tests__/
+services/data/       ← Mappers & aggregators
+services/infrastructure/ ← Errors, storage, caching
+services/ui/         ← View positioning
+components/          ← React UI (shadcn/, features/, views/)
+hooks/               ← React hooks (NOT tested - deferred)
+utils/               ← Generic helpers + __tests__/
 ```
 
 **Code Placement:**
-- New business logic → `domain/rules/{concern}/` (organized by: phases/, projects/, sync/, etc.)
-- New workflows → `services/orchestrators/` (coordination only, NO business logic)
-- New data transformation → `services/data/mappers/` or `services/data/aggregators/`
+- Business logic → `domain/rules/{concern}/`
+- Workflows → `services/orchestrators/`
+- Data transform → `services/data/`
 - View positioning → `services/ui/`
-- Infrastructure → `services/infrastructure/`
-- UI components → `components/`
-- Keep math inline with business logic (no separate MathUtils)
+- Tests → `__tests__/{SourceFile}.test.ts` (co-located)
 
 ---
 
@@ -68,31 +58,47 @@ Layer 3: components/             ← React UI
 ### Never Create
 - ❌ `/helpers/` directories
 - ❌ Business logic in `/utils/` or components
-- ❌ Calculations in components
-- ❌ Duplicate types (use `/types/core.ts`)
-- ❌ Manual date math (use `dateCalculations.ts` for generic, inline for business-specific)
-- ❌ Validator wrapper files (call domain rules directly)
-- ❌ Repository wrapper files (call Supabase directly)
-- ❌ Domain/business logic in orchestrators (put in `domain/rules/`)
-- ❌ Separate MathUtils files (keep math inline with business logic)
-- ❌ New folders in `/src` root (use domain/, services/, or components/)
+- ❌ Separate MathUtils files (keep inline)
+- ❌ Domain/business logic in orchestrators
+- ❌ New folders in `/src` root
+- ❌ Test files outside `__tests__/`
 
 ### Always Use
 - ✅ Import from `@/services` only
 - ✅ Types from `/types/core.ts`
-- ✅ Domain rules from `/domain/rules/` for ALL business logic (validation + calculations)
-- ✅ Domain entities from `/domain/entities/` when available
-- ✅ `dateCalculations.ts` for generic date operations
-- ✅ `ErrorHandlingService` from `@/services/infrastructure` for all errors
-- ✅ Shadcn components from `@/components/shadcn/`
-- ✅ Find existing domain rules first, then check orchestrators
-- ✅ Keep calculations co-located with business logic that uses them
+- ✅ Domain rules from `/domain/rules/`
+- ✅ `ErrorHandlingService` for all errors
+- ✅ Co-locate tests in `__tests__/` dirs
+- ✅ Vitest for tests (not Jest)
 
 ### Before Writing Code
 ```bash
 grep -r "functionName" src/domain/rules/
 grep -r "functionName" src/services/
 ```
+
+### Bug Fix Process
+```bash
+# 1. Find the business logic
+grep -r "relevantConcept" src/domain/rules/
+
+# 2. Check existing tests (shows expected behavior)
+grep -r "describe.*relevantConcept" src/**/__tests__/
+
+# 3. Read test to understand what SHOULD happen
+
+# 4. Fix domain rule OR orchestrator OR component (in that priority order)
+
+# 5. Add regression test for this specific bug case
+
+# 6. Run tests
+npm test -- FileName
+```
+
+**Priority order for fixes:**
+1. Domain rule bug? → Fix in `domain/rules/` + add test
+2. Workflow bug? → Fix in `services/orchestrators/` + add test  
+3. UI bug? → Fix in `components/` (tests optional)
 
 ---
 
@@ -264,7 +270,7 @@ When modifying business rules:
 3. **Update `/src/services/ui/Display Logic.md`** (if display rules changed)
 4. **Update `src/domain/rules/*.ts`** (with `@see` references)
 5. **Update orchestrators** (workflows using the rule)
-6. **Update tests**
+6. **Update tests** (`__tests__/{SourceFile}.test.ts`)
 7. **Commit with `logic:` prefix**
 
 ### What Requires Doc Updates
@@ -280,7 +286,6 @@ When modifying business rules:
 | Folder | Purpose | Action |
 |--------|---------|--------|
 | `/src/domain/` | Domain docs (3 files) | UPDATE existing only |
-| `/docs/features/[name]/` | Feature docs | Permanent |
 | `/docs/operations/` | Testing, deployment | Permanent |
 | `/docs/sessions/` | **TEMPORARY** | AI working docs |
 
@@ -294,49 +299,18 @@ When modifying business rules:
 
 ## 7. HOOKS
 
-### When to Create
-- Managing React state with service coordination
-- Handling DOM events (drag, scroll, resize)
-- Coordinating services with React lifecycle
-- Cleaning up side effects
-
-### Never Put in Hooks
-- ❌ Business logic → `domain/rules`
-- ❌ Calculations → `services/unified`
-- ❌ Workflows → `services/orchestrators`
-- ❌ Database operations → orchestrators
-
-> **Note:** Creating hooks does NOT require changing existing services. Services remain pure and stateless.
-
-### Pattern
-```typescript
-// ✅ Hook coordinates services + manages state
-export function useProjectDrag(config) {
-  const [isDragging, setIsDragging] = useState(false);
-  
-  const handleMouseDown = useCallback((e, projectId) => {
-    const result = TimelineDragCoordinatorService.coordinateDragOperation(dragState, e);
-    setDragState(result.newDragState);
-  }, [config]);
-  
-  return { isDragging, handleMouseDown };
-}
-```
+- Managing React state + service coordination
+- NO business logic, workflows, or DB operations
+- NOT tested during active development
 
 ---
 
-## 9. CHECKLIST
+## 8. CHECKLIST
 
 Before committing:
-- [ ] Checked for existing similar code? (`grep -r`)
-- [ ] Importing from `@/services`?
-- [ ] Using `core.ts` types?
-- [ ] Using `dateCalculations` for dates?
-- [ ] Using `ErrorHandlingService` for errors?
-- [ ] Pure domain logic in `domain/rules/`, not services/?
-- [ ] Domain rules in `domain/rules/`, not orchestrators?
+- [ ] Checked for existing code? (`grep -r`)
+- [ ] Pure domain logic in `domain/rules/`?
 - [ ] Orchestrators coordinate only (no business logic)?
-- [ ] Business logic in domain layer, not components?
-- [ ] If domain logic changed: updated App Logic.md + Business Rules.md?
-- [ ] If UI constraint changed: updated services/ui/Display Logic.md?
+- [ ] If logic changed: updated App Logic.md + Business Rules.md?
+- [ ] If new domain rule/orchestrator: wrote test?
 - [ ] Commit message has correct prefix?

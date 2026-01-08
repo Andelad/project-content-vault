@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight, GraduationCap } from 'lucide-react';
 import { NEUTRAL_COLORS } from '@/constants/colors';
 import { formatMonthYear, formatMonthLongYear, formatMonth, APP_LOCALE } from '@/utils/dateFormatUtils';
 import { calculateWeeklyCapacity } from '@/services';
+import { useDebouncedCalculation } from '@/hooks/insights/useDebouncedCalculation';
 import type { Project, CalendarEvent, Settings } from '@/types/core';
 
 interface AvailabilityUsedCardProps {
@@ -33,8 +34,9 @@ export const AvailabilityUsedCard: React.FC<AvailabilityUsedCardProps> = ({
     return calculateWeeklyCapacity(weeklyWorkHours || {});
   }, [weeklyWorkHours]);
 
+  // PERFORMANCE: Debounce expensive triple-period calculation
   // Generate time analysis data based on selected timeframe
-  const { timeAnalysisData, headerData } = useMemo(() => {
+  const calculationResult = useDebouncedCalculation(() => {
     const data = [];
     const now = new Date();
     
@@ -163,7 +165,11 @@ export const AvailabilityUsedCard: React.FC<AvailabilityUsedCardProps> = ({
       }, [] as { year: number; startIndex: number; monthYear?: string }[]) : [];
 
     return { timeAnalysisData: data, headerData };
-  }, [projects, events, timeAnalysisTimeFrame, weeklyCapacity, timeOffset]);
+  }, [projects, events, timeAnalysisTimeFrame, weeklyCapacity, timeOffset], 300);
+
+  // Extract data from debounced result
+  const timeAnalysisData = calculationResult?.timeAnalysisData || [];
+  const headerData = calculationResult?.headerData || [];
 
   const animationSignature = useMemo(() => {
     return `${projects.length}__${events.length}__${timeAnalysisTimeFrame}__${timeOffset}`;
@@ -226,13 +232,20 @@ export const AvailabilityUsedCard: React.FC<AvailabilityUsedCardProps> = ({
         </div>
       </CardHeader>
       <CardContent className="relative">
-        {timeAnalysisTimeFrame !== 'year' && headerData.length > 0 && (
-          <div className="relative mb-4">
-            <div className="flex h-8 border-b border-gray-200">
-              {headerData.map((header, index) => {
-                const isLastHeader = index === headerData.length - 1;
-                const nextHeaderStart = isLastHeader ? timeAnalysisData.length : headerData[index + 1].startIndex;
-                const width = ((nextHeaderStart - header.startIndex) / timeAnalysisData.length) * 100;
+        {/* Show skeleton while calculation is debouncing */}
+        {!calculationResult ? (
+          <div className="h-80 flex items-center justify-center">
+            <div className="w-64 h-64 rounded-full border-4 border-gray-200 border-t-primary animate-spin" />
+          </div>
+        ) : (
+          <>
+            {timeAnalysisTimeFrame !== 'year' && headerData.length > 0 && (
+              <div className="relative mb-4">
+                <div className="flex h-8 border-b border-gray-200">
+                  {headerData.map((header, index) => {
+                    const isLastHeader = index === headerData.length - 1;
+                    const nextHeaderStart = isLastHeader ? timeAnalysisData.length : headerData[index + 1].startIndex;
+                    const width = ((nextHeaderStart - header.startIndex) / timeAnalysisData.length) * 100;
                 
                 return (
                   <div
@@ -355,6 +368,8 @@ export const AvailabilityUsedCard: React.FC<AvailabilityUsedCardProps> = ({
             }}
           />
         </div>
+          </>
+        )}
       </CardContent>
 
       {onHelpClick && (
