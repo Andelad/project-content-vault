@@ -1,248 +1,173 @@
-# 🚨 AI Development Guide
-
-> **Note:** This file is named `.cursorrules` for compatibility with AI development tools that auto-detect it. It applies to ALL AI assistants (Cursor, Copilot, Claude, etc.), not just Cursor IDE.
+# AI Development Guide
 
 > **Philosophy:** "Find existing, extend existing, create new only when necessary"
 
 ---
 
-## ✅ ARCHITECTURE - THREE LAYERS COMPLETE
+## ARCHITECTURE - 4-Layer DDD
 
-**Current State:** Three-layer architecture ✅ SUBSTANTIALLY COMPLETE  
-**Tests:** 547 tests via Vitest (co-located `__tests__/` dirs)
+**Current State:** Pragmatic DDD ✅ Implemented  
+**Tests:** 547 tests via Vitest
 
-**Architecture:**
 ```
-domain/rules/        ← ALL business logic + __tests__/
-domain/entities/     ← Rich models + __tests__/
-services/orchestrators/ ← Workflows + __tests__/
-services/data/       ← Mappers & aggregators
-services/infrastructure/ ← Errors, storage, caching
-services/ui/         ← View positioning
-components/          ← React UI (shadcn/, features/, views/)
-hooks/               ← React hooks (NOT tested - deferred)
-utils/               ← Generic helpers + __tests__/
+src/
+├── domain/                 ← Pure business logic
+│   ├── rules/              ← ALL business logic + __tests__/
+│   ├── entities/           ← Rich models + __tests__/
+│   └── value-objects/      ← Immutable primitives
+├── application/            ← Use cases
+│   ├── orchestrators/      ← Workflows + __tests__/
+│   └── queries/            ← Read operations
+├── infrastructure/         ← External dependencies
+│   ├── database/           ← Supabase client
+│   ├── errors/             ← Error handling
+│   └── caching/            ← Performance
+├── presentation/           ← UI layer
+│   ├── components/         ← React UI
+│   ├── hooks/              ← React hooks
+│   ├── contexts/           ← React contexts
+│   └── pages/              ← Page components
+├── shared/                 ← Cross-cutting
+│   └── types/core.ts       ← ALL core types
+└── website/                ← Public pages
 ```
 
-**Code Placement:**
-- Business logic → `domain/rules/{concern}/`
-- Workflows → `services/orchestrators/`
-- Data transform → `services/data/`
-- View positioning → `services/ui/`
-- Tests → `__tests__/{SourceFile}.test.ts` (co-located)
+**For details:** See `.ddd` (philosophy), `.architecture` (structure)
 
 ---
 
-## �📚 DOCUMENTATION GUIDE
-
-**Core Documents:**
-- **`.ddd`** (root) - Hybrid DDD philosophy & architecture evolution
-- **`.architecture`** (root) - WHERE code goes, structural patterns
-- **`App Logic.md`** (`/src/domain/`) - WHAT entities are (concepts)
-- **`Business Rules.md`** (`/src/domain/`) - HOW calculations work (formulas)
-- **`Display Logic.md`** (`/src/services/ui/`) - Display constraints & view rules
-- **`README.md`** (`/src/components/`) - Component organization
-
-**Quick Navigation:**
-- Domain concepts → `/src/domain/App Logic.md`
-- Calculations/formulas → `/src/domain/Business Rules.md`
-- Display constraints → `/src/services/ui/Display Logic.md`
-- Code structure → `/.architecture`
-- Hybrid DDD philosophy → `/.ddd`
-- Component files → `/src/components/README.md`
-
----
-
-## 1. QUICK REFERENCE
+## QUICK REFERENCE
 
 ### Never Create
-- ❌ `/helpers/` directories
-- ❌ Business logic in `/utils/` or components
-- ❌ Separate MathUtils files (keep inline)
-- ❌ Domain/business logic in orchestrators
-- ❌ New folders in `/src` root
+- ❌ Business logic in components/hooks/orchestrators
+- ❌ Separate MathUtils (keep inline with business logic)
+- ❌ Repository layer (direct Supabase access)
 - ❌ Test files outside `__tests__/`
+- ❌ New root-level directories
 
 ### Always Use
-- ✅ Import from `@/services` only
-- ✅ Types from `/types/core.ts`
-- ✅ Domain rules from `/domain/rules/`
-- ✅ `ErrorHandlingService` for all errors
-- ✅ Co-locate tests in `__tests__/` dirs
-- ✅ Vitest for tests (not Jest)
+- ✅ Import from `@/{layer}/...` path aliases
+- ✅ Types from `@/shared/types/core`
+- ✅ Domain rules from `@/domain/rules/`
+- ✅ `ErrorHandlingService` for errors
+- ✅ Co-located tests in `__tests__/`
 
 ### Before Writing Code
 ```bash
 grep -r "functionName" src/domain/rules/
-grep -r "functionName" src/services/
+grep -r "functionName" src/application/
+grep -r "functionName" src/presentation/
 ```
-
-### Bug Fix Process
-```bash
-# 1. Find the business logic
-grep -r "relevantConcept" src/domain/rules/
-
-# 2. Check existing tests (shows expected behavior)
-grep -r "describe.*relevantConcept" src/**/__tests__/
-
-# 3. Read test to understand what SHOULD happen
-
-# 4. Fix domain rule OR orchestrator OR component (in that priority order)
-
-# 5. Add regression test for this specific bug case
-
-# 6. Run tests
-npm test -- FileName
-```
-
-**Priority order for fixes:**
-1. Domain rule bug? → Fix in `domain/rules/` + add test
-2. Workflow bug? → Fix in `services/orchestrators/` + add test  
-3. UI bug? → Fix in `components/` (tests optional)
 
 ---
 
-## 2. CODE ORGANIZATION
+## CODE PLACEMENT
 
-**Architecture: Hybrid DDD - Three Layers** (see `.ddd` for philosophy)
-
-| Code Type | Location | Purity | Example |
-|-----------|----------|--------|---------|
-| **Domain Rules** | `/domain/rules/*` | 100% pure (no UI/DB) | Validation + calculations (inline) |
-| **Domain Entities** | `/domain/entities/*` | 100% pure (no UI/DB) | Rich objects with business methods |
-| **Value Objects** | `/domain/value-objects/*` | 100% pure | DateRange, EmailAddress |
-| **Orchestrators** | `/services/orchestrators/*Orchestrator` | Mixed (by design) | Workflows: validation + DB + UI prep |
-| **Data Mappers** | `/services/data/mappers/*` | Pure transformation | DB↔UI field translation |
-| **Data Aggregators** | `/services/data/aggregators/*` | Queries only | Multi-table queries + rollups |
-| **Infrastructure** | `/services/infrastructure/*` | Cross-cutting | ErrorHandlingService, caching |
-| **UI Services** | `/services/ui/*` | View-specific | Positioning, layout calculations |
-| **UI Components** | `/components/shadcn/*` | Primitives | Design system (shadcn/ui) |
-| **UI Components** | `/components/features/*` | Feature-specific | Timeline, Planner, Projects |
-| Date Math | `/utils/dateCalculations.ts` | Pure math | `normalizeToMidnight()` |
-| React State | `/hooks/{concern}/` | Coordination | State + service calls |
-| Generic Utils | `/utils` or `/lib` | Pure helpers | `cn()`, `formatCurrency()` |
-
-**Orchestrator Scope (Hybrid DDD - Mixed by Design):**
-- ✅ Call domain rules (`PhaseValidation.validate()`, `DateSync.synchronize()`)
-- ✅ Call Supabase directly (no repository layer)
-- ✅ Use data mappers for DB transformation
-- ✅ Enrich data for UI display
-- ✅ Coordinate workflows & side effects
-- ❌ NEVER implement business rules (use `domain/rules/`)
-- ❌ NEVER implement calculations (put in `domain/rules/` inline)
+| Code Type | Location | Example |
+|-----------|----------|---------|
+| Business validation | `domain/rules/{concept}/` | Phase date validation |
+| Business calculation | `domain/rules/{concept}/` | Budget allocation (inline math) |
+| Domain model | `domain/entities/` | Project, Phase, Client |
+| Immutable primitive | `domain/value-objects/` | DateRange, EmailAddress |
+| Workflow (CRUD) | `application/orchestrators/` | createProject, updatePhase |
+| Data query | `application/queries/` | getProjectsWithPhases |
+| Database client | `infrastructure/database/` | Supabase config |
+| Error handling | `infrastructure/errors/` | ErrorHandlingService |
+| React component | `presentation/components/` | ProjectCard, EventModal |
+| React hook | `presentation/hooks/` | useEvents, useProjects |
+| Context (UI state) | `presentation/contexts/` | AuthContext, SettingsContext |
+| Type definition | `shared/types/core.ts` | Project, Phase interfaces |
 
 ---
 
-## 3. PATTERNS
+## PATTERNS
 
-### Orchestrators (workflows)
+### Domain Rules (Pure Business Logic)
 ```typescript
-// ✅ Orchestrators coordinate & mix concerns (by design)
+// ✅ 100% pure - no UI, no DB, no side effects
+// Calculations INLINE (no separate utilities)
+export class ProjectBudget {
+  static validateAllocation(phases: Phase[], total: number): ValidationResult {
+    // Inline math calculation
+    const allocated = phases.reduce((sum, p) => sum + p.budget, 0);
+    
+    if (allocated > total) {
+      return { isValid: false, errors: ['Over budget'] };
+    }
+    
+    return { isValid: true };
+  }
+}
+```
+
+### Orchestrators (Workflows - Pragmatic)
+```typescript
+// ✅ Mix concerns intentionally - call domain rules, DB, transform
 export class ProjectOrchestrator {
-  static async executeProjectCreationWorkflow(request, context) {
-    // ✅ Call domain rules (pure validation + calculations)
-    const validation = ProjectValidation.validateProjectDates(request.startDate, request.endDate);
-    if (!validation.isValid) return { success: false, errors: validation.errors };
+  static async createProject(input: CreateProjectInput) {
+    // 1. Domain validation
+    const validation = ProjectValidation.validate(input);
+    if (!validation.isValid) return validation;
     
-    // ✅ Transform for DB (allowed)
-    const prepared = this.transformForDatabase(request);
+    // 2. Direct Supabase (no repository)
+    const { data } = await supabase.from('projects').insert(input).select().single();
     
-    // ✅ Direct Supabase (no repository layer)
-    const { data, error } = await supabase.from('projects').insert(prepared).select().single();
-    
-    // ✅ Enrich for UI (allowed)
-    return this.enrichForDisplay(data);
+    // 3. Return (transform if needed)
+    return { success: true, data };
   }
+}
+
+// ❌ NEVER put business logic here
+// static calculateBudget() { ... } // Goes in domain/rules/
+```
+
+### Data Loading (Context vs Props vs Component)
+
+**Use Context For:**
+```typescript
+// ✅ Global UI state needed everywhere
+const AuthContext = { user, login, logout };
+const SettingsContext = { theme, timezone };
+```
+
+**Use Parent Loads + Props For:**
+```typescript
+// ✅ View-scoped shared data (coordinated loading)
+function InsightsView() {
+  const { events, isLoading } = useEvents({ startDate, endDate });
   
-  // ❌ FORBIDDEN - business logic belongs in domain/rules/
-  // private calculateRemainingHours() { ... }
-}
-```
-
-### Domain Rules (ALL business logic goes here)
-```typescript
-// ✅ Pure domain logic with calculations INLINE (no DB, no UI, no side effects)
-// Located in domain/rules/{concern}/
-export class PhaseRecurrence {
-  static generateOccurrences(config: RecurringConfig, range: DateRange): Date[] {
-    // Pure RRule-based logic, 100% testable
-    // Calculations inline - no separate MathUtils
-  }
+  if (isLoading) return <LoadingSpinner />;
   
-  static validateRecurringConfig(config: RecurringConfig): ValidationResult {
-    // Pure validation logic
-  }
-}
-
-// ✅ Cross-cutting concerns in domain/rules/sync/
-export class DateSync {
-  static synchronizeProjectWithPhases(project: Project, phases: Phase[]): SyncResult {
-    // Inline date calculations - no external math utilities
-    const earliestStart = phases.reduce((earliest, phase) => {
-      const start = new Date(phase.startDate);
-      return !earliest || start < earliest ? start : earliest;
-    }, null as Date | null);
-    
-    return { updatedProject: { ...project, startDate: earliestStart } };
-  }
+  return (
+    <>
+      <TimeDistributionCard events={events} />
+      <ProjectBreakdownCard events={events} />
+    </>
+  );
 }
 ```
 
-### Data Services (transformation only - NO business logic)
+**Use Component Loads For:**
 ```typescript
-// ✅ Pure data transformation (DB↔UI)
-// Located in services/data/mappers/
-export const PhaseMapper = {
-  fromDatabase(row: DatabaseMilestone): PhaseDTO {
-    return {
-      id: row.id,
-      endDate: new Date(row.due_date), // Field translation
-    };
-  },
-  toDatabase(phase: PhaseDTO): Partial<DatabaseMilestone> {
-    return {
-      due_date: phase.endDate.toISOString(), // Reverse translation
-    };
-  }
-};
-
-// ✅ Multi-table queries (NO business logic)
-// Located in services/data/aggregators/
-export class PhaseAggregator {
-  static async getPhasesWithTimeEntries(projectId: string) {
-    // Pure data aggregation - no business rules
-  }
+// ✅ Component-specific data needs
+function ProjectModal({ projectId }) {
+  const { project } = useProject(projectId);
+  // This modal needs different data than parent view
 }
 ```
 
-### ⚠️ Legacy Patterns (Being Migrated)
-```typescript
-// ⚠️ LEGACY: domain-services/ → merging into domain/rules/
-export class PhaseRecurrenceService { ... } // → domain/rules/phases/PhaseRecurrence.ts
-
-// ⚠️ LEGACY: unified/ → splitting into domain/rules/ + services/data/
-export class UnifiedProjectService { ... } // Business logic → domain/rules/, data → services/data/
-```
-
-### Dates
-```typescript
-// ✅ Use dateCalculations for generic operations
-import { normalizeToMidnight, addDaysToDate } from '@/services';
-
-// ✅ Inline simple date math in domain rules when business-specific
-const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-
-// ❌ Never manual date math in components or orchestrators
-date.setHours(0, 0, 0, 0);
-```
+**Decision:**
+- Needed everywhere → Global Context
+- 3-5 children share similar data → Parent loads, pass props
+- 5+ nested levels → Scoped Context
+- Component-specific → Component loads
 
 ### Error Handling
 ```typescript
 // ✅ Use ErrorHandlingService
 ErrorHandlingService.handle(error, {
   source: 'ProjectModal',
-  action: 'saveProject',
-  metadata: { projectId: project.id }
+  action: 'saveProject'
 }, { showToast: true });
 
 // ❌ Never
@@ -251,66 +176,94 @@ console.error('Error:', error);
 
 ### Types
 ```typescript
-// ✅ Extend core.ts
-import { Project } from '@/types/core';
-interface LocalProject extends Project { temp?: boolean; }
+// ✅ Extend from core.ts
+import { Project } from '@/shared/types/core';
+interface LocalProject extends Project { isSelected?: boolean; }
 
 // ❌ Never redefine
-interface Project { id: string; }
+interface Project { id: string; } // NO!
+```
+
+### Dependency Injection
+```typescript
+// Infrastructure can't import presentation (circular dependency)
+// Inject at app initialization
+
+// App.tsx
+import { toast } from '@/presentation/hooks/ui/use-toast';
+ErrorHandlingService.setToastFunction(toast);
 ```
 
 ---
 
-## 5. BUSINESS LOGIC CHANGES
+## BUSINESS LOGIC CHANGES
 
 When modifying business rules:
 
-1. **Update `/src/domain/App Logic.md`** (entity definitions, concepts)
-2. **Update `/src/domain/Business Rules.md`** (detailed rules, calculations)
-3. **Update `/src/services/ui/Display Logic.md`** (if display rules changed)
-4. **Update `src/domain/rules/*.ts`** (with `@see` references)
-5. **Update orchestrators** (workflows using the rule)
-6. **Update tests** (`__tests__/{SourceFile}.test.ts`)
-7. **Commit with `logic:` prefix**
+1. **Update domain docs:**
+   - `domain/App Logic.md` - Entity definitions
+   - `domain/Business Rules.md` - Formulas, calculations
+2. **Update code:** `domain/rules/{concept}/`
+3. **Update tests:** `domain/rules/__tests__/`
+4. **Update orchestrators** if workflow changed
+5. **Commit:** `logic: description`
 
-### What Requires Doc Updates
-✅ Validation rules, calculations, entities, relationships, UI display constraints
+**What requires doc updates:**
+- ✅ Validation rules, calculations, entities, relationships
 
-### What Doesn't
-❌ Bug fixes, refactoring, tests, performance optimizations
-
----
-
-## 6. DOCUMENTATION
-
-| Folder | Purpose | Action |
-|--------|---------|--------|
-| `/src/domain/` | Domain docs (3 files) | UPDATE existing only |
-| `/docs/operations/` | Testing, deployment | Permanent |
-| `/docs/sessions/` | **TEMPORARY** | AI working docs |
-
-### AI Rules
-1. ❌ Don't create docs in `/docs/` root or `/docs/features/`
-2. ✅ Create temporary docs in `/docs/sessions/`
-3. ✅ Update existing domain docs when logic changes
-4. ✅ Remind user to delete `/docs/sessions/` files when done
+**What doesn't:**
+- ❌ Bug fixes, refactoring, performance, UI changes
 
 ---
 
-## 7. HOOKS
+## BUG FIX PROCESS
 
-- Managing React state + service coordination
-- NO business logic, workflows, or DB operations
-- NOT tested during active development
+**See `.bug` for detailed bug fix guide.**
+
+**Quick version:**
+1. Investigate (grep searches) - DON'T fix yet
+2. Summarize & offer solutions - Wait for feedback
+3. Fix priority: domain → application → presentation
+4. Add regression test
 
 ---
 
-## 8. CHECKLIST
+## DOCUMENTATION
+
+| Document | Purpose |
+|----------|---------|
+| `.ddd` | Architectural philosophy & principles |
+| `.architecture` | Structure reference & workflows |
+| `.cursorrules` | This file - AI quick reference |
+| `domain/App Logic.md` | Domain concepts & entities |
+| `domain/Business Rules.md` | Business rules & formulas |
+| `presentation/components/README.md` | Component organization |
+
+**AI Rules:**
+- ❌ Don't create docs in `/docs/` root
+- ✅ Create temporary docs in `/docs/sessions/`
+- ✅ Update domain docs when logic changes
+- ✅ Remind user to delete temp docs when done
+
+---
+
+## KEY DECISIONS
+
+1. **No Repository Layer** - Direct Supabase access (type-safe, has RLS)
+2. **Calculations Inline** - Math with business logic (not separate utils)
+3. **Dependency Injection** - Infrastructure uses DI for UI dependencies
+4. **Minimal Contexts** - UI state or scoped data, not global data loading
+5. **Website Separate** - Public pages separate from app infrastructure
+
+---
+
+## CHECKLIST
 
 Before committing:
 - [ ] Checked for existing code? (`grep -r`)
 - [ ] Pure domain logic in `domain/rules/`?
 - [ ] Orchestrators coordinate only (no business logic)?
-- [ ] If logic changed: updated App Logic.md + Business Rules.md?
-- [ ] If new domain rule/orchestrator: wrote test?
-- [ ] Commit message has correct prefix?
+- [ ] Data loading pattern correct? (Context/Props/Component)
+- [ ] Logic change? Updated domain docs?
+- [ ] New domain rule/orchestrator? Wrote test?
+- [ ] Correct commit prefix?

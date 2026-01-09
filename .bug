@@ -1,97 +1,115 @@
 # Bug Fix Guide
 
-**Context**: Read `.cursorrules` (patterns), `.architecture` (locations), `.ddd` (philosophy) first
+**Context:** Read `.cursorrules` (patterns), `.architecture` (structure), `.ddd` (philosophy) first
 
-## "Look at this bug"
+---
 
-### Step 1: Investigate & Summarize (DON'T FIX YET)
+## Step 1: Investigate & Summarize (DON'T FIX YET)
 
-Run these searches:
+### Find the Code
+
 ```bash
-grep -r "concept" src/domain/rules/       # Business logic
-grep -r "concept" src/services/orchestrators/  # Coordination
-grep -r "concept" src/components/         # UI
-grep -r "describe.*concept" src/**/__tests__/  # Expected behavior
+# Business logic
+grep -r "concept" src/domain/rules/
+
+# Workflows
+grep -r "concept" src/application/orchestrators/
+
+# UI
+grep -r "concept" src/presentation/components/
+
+# Tests (shows expected behavior)
+grep -r "describe.*concept" src/**/__tests__/
 ```
 
-Summarize:
-1. **Business logic**: What should happen?
-2. **Domain rules**: Which files? What constraints?
-3. **Orchestrator**: Which file? What workflow?
-4. **Component**: Which file? What UI?
-5. **Tests**: What do they expect? Are any failing?
-6. **Gap**: Expected vs Actual behavior
+### Summarize
 
-**Offer 2-3 solutions** with pros/cons. **Wait for feedback.**
+1. **What should happen?** (Business logic)
+2. **Domain rules:** Which files? What constraints?
+3. **Orchestrator:** Which file? What workflow?
+4. **Component:** Which file? What UI behavior?
+5. **Tests:** What do they expect? Are any failing?
+6. **Gap:** Expected vs Actual behavior
 
----
-
-### Step 2: Fix (After User Confirms)
-
-1. **Fix in order**: Domain rule → Orchestrator → Component
-2. Make ONE change
-3. Test: `npm test -- FileName`
-4. Add regression test
-5. Verify: `npm test && npm run build`
+**Offer 2-3 solutions** with pros/cons. **Wait for user feedback.**
 
 ---
 
-### Step 3: Complex Bugs
+## Step 2: Fix (After User Confirms)
 
-Create `docs/bugs/YYYY-MM-DD-description.md`:
+### Priority Order
+
+1. **Domain bug** → Fix in `domain/rules/` + add test
+2. **Workflow bug** → Fix in `application/orchestrators/` + add test
+3. **UI bug** → Fix in `presentation/components/` (test optional)
+
+### Process
+
+1. Make ONE change
+2. Run tests: `npm test -- FileName`
+3. Add regression test
+4. Verify: `npm test && npm run build`
+
+---
+
+## Step 3: Complex Bugs
+
+For multi-file or unclear bugs, create `docs/bugs/YYYY-MM-DD-description.md`:
 
 ```markdown
 # [Bug Name]
-**Date**: YYYY-MM-DD | **Status**: IN_PROGRESS | RESOLVED
+**Date:** YYYY-MM-DD | **Status:** IN_PROGRESS | RESOLVED
 
 ## Problem
-[How to reproduce]
+- Steps to reproduce
+- Expected behavior
+- Actual behavior
 
 ## Investigation
-- Domain: [files]
-- Orchestrator: [files]
-- Component: [files]
-- Tests: [failing tests]
+- **Domain:** [files checked]
+- **Application:** [orchestrators checked]
+- **Presentation:** [components checked]
+- **Tests:** [failing tests, if any]
 
 ## Root Cause
-[Why?]
+[Why is this happening?]
 
-## Plan
-- [ ] Fix domain/orchestrator/component
+## Solution Plan
+- [ ] Fix domain/application/presentation
 - [ ] Add regression test
-- [ ] Update docs (if needed)
+- [ ] Update docs (if logic changed)
 
-## Changes
-- `file.ts` - [what/why]
+## Changes Made
+- `file.ts` - [what changed and why]
 
 ## Verification
-- [ ] Tests pass
-- [ ] Build succeeds
-- [ ] User confirmed
+- [ ] Tests pass (`npm test`)
+- [ ] Build succeeds (`npm run build`)
+- [ ] User confirmed fix works
 ```
 
 ---
 
-### Step 4: Finish
+## Step 4: Finish
 
-1. Add regression test
-2. Clean up debug code
-3. Update docs (only if structure changed)
-4. User confirms fix
-
----
-
-## Priority Order
-
-1. **Domain** (`src/domain/rules/`) - Pure logic, fix FIRST
-2. **Orchestrator** (`src/services/orchestrators/`) - Coordination, fix SECOND
-3. **Component** (`src/components/`) - UI only, fix LAST
+1. ✅ Add regression test
+2. ✅ Remove debug code
+3. ✅ Update docs (only if business logic changed)
+4. ✅ User confirms fix
 
 ---
 
-## Quick Ref
+## Quick Reference
 
-- 547 tests = your map
-- Read tests FIRST (show expected behavior)
-- Complex bugs → `docs/bugs/`
-- Fix order: domain → orchestrator → component
+**Architecture:** 4 layers
+- `domain/` - Pure business logic (fix FIRST)
+- `application/` - Workflows (fix SECOND)
+- `infrastructure/` - External dependencies
+- `presentation/` - UI (fix LAST)
+
+**Tests:** 547 tests = your map
+- Read tests FIRST (they show expected behavior)
+- Tests in `__tests__/` directories (co-located)
+- Run: `npm test -- FileName`
+
+**Complex bugs:** Create doc in `docs/bugs/`
