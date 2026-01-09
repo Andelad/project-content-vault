@@ -402,6 +402,36 @@ class TimeTrackingOrchestrator {
     }
     return this.checkForActiveSession(this.userId);
   }
+
+  /**
+   * Verify if a calendar event exists in the database
+   * Used during time tracking sync to ensure event wasn't deleted
+   */
+  async verifyEventExists(eventId: string): Promise<boolean> {
+    try {
+      const { data, error } = await supabase
+        .from('calendar_events')
+        .select('id')
+        .eq('id', eventId)
+        .maybeSingle();
+      
+      if (error) {
+        ErrorHandlingService.handle(error, { 
+          source: 'TimeTrackingOrchestrator', 
+          action: 'verifyEventExists' 
+        });
+        return false;
+      }
+
+      return !!data;
+    } catch (error) {
+      ErrorHandlingService.handle(error, { 
+        source: 'TimeTrackingOrchestrator', 
+        action: 'verifyEventExists' 
+      });
+      return false;
+    }
+  }
   // TimeTracker Component Workflow Methods
   async handleTimeTrackingToggle(context: TimeTrackerWorkflowContext): Promise<TimeTrackerWorkflowResult> {
     try {

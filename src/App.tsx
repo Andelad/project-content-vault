@@ -1,9 +1,9 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { ContextProviders } from './contexts/ContextProviders';
-import { Toaster } from './components/shadcn/toaster';
-import { ErrorBoundary } from './components/debug/ErrorBoundary';
+import { AuthProvider, useAuth } from './react/contexts/AuthContext';
+import { ContextProviders } from './react/contexts/ContextProviders';
+import { Toaster } from './react/components/shadcn/toaster';
+import { ErrorBoundary } from './react/components/debug/ErrorBoundary';
 
 // Pages
 import LandingPage from './pages/LandingPage';
@@ -11,7 +11,7 @@ import Auth from './pages/Auth';
 import NotFound from './pages/NotFound';
 
 // Layout
-import { MainAppLayout } from './components/layout/MainAppLayout';
+import { MainAppLayout } from './react/components/layout/MainAppLayout';
 
 function AppContent() {
   const { user, loading } = useAuth();

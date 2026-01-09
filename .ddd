@@ -718,12 +718,25 @@ Services Layer (Application):
   ├── infrastructure/               ← Error, storage, caching
   └── ui/                           ← View positioning & layout
 
-Components Layer (UI):
-  components/
-  ├── shadcn/                       ← Design system
-  ├── features/
-  ├── views/
-  └── shared/
+React Layer (UI - January 2026):
+  react/                            ← ALL React-specific code
+  ├── components/                   ← UI components
+  │   ├── shadcn/                   ← Design system
+  │   ├── features/
+  │   ├── views/
+  │   ├── modals/
+  │   ├── shared/
+  │   └── layout/
+  ├── hooks/                        ← React hooks
+  │   ├── data/                     ← Data fetching (useEvents, useProjects)
+  │   ├── ui/                       ← UI logic hooks
+  │   └── insights/                 ← Performance optimization
+  └── contexts/                     ← React contexts (MINIMAL - UI state only)
+      ├── AuthContext.tsx           ← Authentication state
+      ├── SettingsContext.tsx       ← User preferences
+      ├── ProjectContext.tsx        ← Project/group list
+      ├── PlannerContext.tsx        ← Legacy (being phased out)
+      └── PlannerUIContext.tsx      ← NEW: Minimal UI state only
 ```
 
 **Documentation (Never Changes):**
@@ -735,3 +748,156 @@ App Logic.md → Business Rules.md → Display Logic.md
 ---
 
 **Bottom Line:** We simplified from 5+ overlapping layers to 3 clear layers with ONE answer to "where does this go?"
+
+---
+
+## React Organization & Minimal Contexts (January 2026) - IN PROGRESS
+
+### Decision: Group React Code Separately
+
+**Date:** January 8, 2026  
+**Status:** ✅ IMPLEMENTED  
+
+**Problem:** React-specific code (components, hooks, contexts) was mixed with framework-agnostic code (domain, services)
+
+**Solution:** Created `src/react/` folder to group ALL React-specific code
+
+```
+src/
+├── domain/              ← NO React (can be used in Node.js, mobile, etc.)
+├── services/            ← NO React (can be used in API, workers, etc.)
+├── react/               ← ALL React code grouped here
+│   ├── components/
+│   ├── hooks/
+│   └── contexts/
+├── types/               ← Shared TypeScript definitions
+├── utils/               ← Generic helpers (NO React)
+├── constants/           ← App-wide constants
+├── integrations/        ← External APIs (Supabase, etc.)
+├── lib/                 ← Third-party utilities
+└── assets/              ← Static files
+```
+
+**Benefits:**
+- ✅ Clear React boundary: Everything in `react/` uses React, everything outside doesn't
+- ✅ Can extract domain + services as standalone NPM packages
+- ✅ Easy to explain to new developers: "Is it React? Put it in react/"
+- ✅ Minimal migration effort (just moved 3 folders, updated tsconfig paths)
+
+### Decision: Minimal Contexts (UI State Only)
+
+**Date:** January 8, 2026  
+**Status:** 🔄 IN PROGRESS  
+
+**Problem:** PlannerContext was a "God Context" (~580 lines) that:
+- Loaded ALL events from database (performance issue)
+- Provided CRUD operations (should use orchestrators directly)
+- Mixed UI state with data fetching (violates DDD layering)
+- Forced loading unnecessary data for all views
+
+**Example of the problem:**
+```typescript
+// InsightsView only needs last 6 months of events
+// But PlannerContext loads ALL 3+ years of events
+const { events } = usePlannerContext(); // 😱 Gets 1000+ events
+const last6Months = events.filter(...); // Throws away 90% of data
+```
+
+**Solution:** Follow DDD architecture where contexts are UI-layer only
+
+**Old Approach (BAD):**
+```
+PlannerContext (God Object)
+├── Loads ALL events ❌
+├── Provides CRUD operations ❌
+├── Used by everyone ❌
+└── 580 lines of complexity ❌
+
+Components get data from context
+```
+
+**New Approach (GOOD):**
+```
+PlannerUIContext (Minimal - 80 lines)
+├── selectedEventId ✅ (UI state)
+├── creatingNewEvent ✅ (UI state)
+├── layerMode ✅ (UI state)
+├── currentView ✅ (UI state)
+└── NO data, NO CRUD operations ✅
+
+Components load their own data:
+├── useEvents({ startDate, endDate }) ✅
+├── calendarEventOrchestrator.create() ✅
+└── Only load what they need ✅
+```
+
+**Migration Strategy:**
+
+1. ✅ **Direct Hook Usage** (no intermediate PlannerUIContext)
+   - Components call `useEvents()`, `useHolidays()` directly
+   - Components call orchestrators directly for CRUD
+   - UI state stays local to components (useState, props)
+   
+2. 🔄 **Gradual Migration** (91% complete - 22/24 components done)
+   - ✅ Migrated: HolidayModal, EventModal, TimeTracker, InsightsView, ProjectSearchInput, 
+                 AvailabilityCard, ProjectModal, MainAppLayout, ProjectBar, HolidayBar
+   - ⏸️ Remaining: PlannerView, TimelineView (complex - have many dependencies)
+   - Old PlannerContext exists only for these 2 views
+
+3. ⏸️ **Future: Remove PlannerContext** (when PlannerView/TimelineView migrated)
+   - Delete 757-line God Context
+   - All components use hooks + orchestrators directly
+   - UI state managed locally or via lightweight contexts (TimelineContext, SettingsContext)
+
+**Example: InsightsView Migration**
+
+**Before:**
+```typescript
+function InsightsView() {
+  const { events } = usePlannerContext(); // ALL events 😱
+  return <TimeDistributionCard events={events} />;
+}
+```
+
+**After:**
+```typescript
+function TimeDistributionCard() {
+  const [timeFrame, setTimeFrame] = useState('week');
+  
+  // Load ONLY what this card needs
+  const { startDate, endDate } = useMemo(() => ({
+    startDate: subDays(new Date(), timeFrame === 'week' ? 7 : 30),
+    endDate: new Date()
+  }), [timeFrame]);
+  
+  const { events } = useEvents({ startDate, endDate }); // 7-30 days ✅
+  // ... render chart
+}
+```
+
+**Benefits:**
+- ✅ 10-20x faster (loads 50 events instead of 1000+)
+- ✅ Follows DDD (contexts = UI layer, hooks = data layer)
+- ✅ Each component owns its data needs
+- ✅ Testable (mock useEvents hook)
+- ✅ Reusable (can extract domain/services for API/mobile)
+
+**Context Rules (Going Forward):**
+
+| ✅ Good for Context | ❌ Bad for Context |
+|---------------------|---------------------|
+| Selected item IDs | Loading data from DB |
+| Modal open/closed state | CRUD operations |
+| View mode (week/day) | Filtering/transforming data |
+| User preferences | Business logic |
+| Authentication state | API calls |
+| Theme (dark/light) | Calculations |
+
+**See Also:**
+- `/docs/operations/CONTEXT_REFACTORING_PLAN.md` - Detailed migration plan
+- `.fullddd` - Future Option C (full DDD structure)
+
+---
+
+**Bottom Line (Updated January 2026):** We have clean 3-layer DDD architecture + React code grouped separately + minimal contexts for UI state only. Data loading happens in components via hooks, CRUD happens via orchestrators directly.
+

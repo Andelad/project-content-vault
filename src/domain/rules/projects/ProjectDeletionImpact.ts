@@ -25,7 +25,7 @@ import type { PhaseDTO } from '@/types/core';
 // TYPE DEFINITIONS
 // ============================================================================
 
-export interface ProjectDeletionImpact {
+export interface ProjectDeletionImpactResult {
   phaseIds: string[];
   phaseCount: number;
 }
@@ -54,7 +54,7 @@ export class ProjectDeletionImpact {
   static analyzeProjectDeletion(
     projectId: string,
     phases: PhaseDTO[]
-  ): ProjectDeletionImpact {
+  ): ProjectDeletionImpactResult {
     const affectedPhases = phases.filter(phase => phase.projectId === projectId);
     
     return {
@@ -86,7 +86,7 @@ export class ProjectDeletionImpact {
    * @returns True if deletion has cascade effects
    */
   static hasCascadeEffects(
-    impact: ProjectDeletionImpact
+    impact: ProjectDeletionImpactResult
   ): boolean {
     return impact.phaseCount > 0;
   }
@@ -98,7 +98,7 @@ export class ProjectDeletionImpact {
    * @returns Human-readable summary
    */
   static formatImpactMessage(
-    impact: ProjectDeletionImpact
+    impact: ProjectDeletionImpactResult
   ): string {
     if (impact.phaseCount === 0) {
       return 'No phases will be deleted.';

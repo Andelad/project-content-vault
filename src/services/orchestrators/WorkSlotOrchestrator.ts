@@ -24,6 +24,9 @@ import { ErrorHandlingService } from '@/services/infrastructure/ErrorHandlingSer
 
 export type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
 
+/** Type for the settings update function injected from SettingsContext */
+type UpdateSettingsFn = (updates: Partial<Settings>) => Promise<void>;
+
 interface SaveTemplateSlotParams {
   dayOfWeek: DayOfWeek;
   startTime: string; // HH:MM format
@@ -69,7 +72,7 @@ export class WorkSlotOrchestrator {
    */
   static async saveTemplateSlot(
     params: SaveTemplateSlotParams,
-    updateSettings: (updates: Partial<Settings>) => Promise<any>,
+    updateSettings: UpdateSettingsFn,
     currentSettings: Settings | null
   ): Promise<WorkSlotOrchestrationResult> {
     try {
@@ -138,7 +141,7 @@ export class WorkSlotOrchestrator {
    */
   static async updateTemplateSlot(
     params: UpdateTemplateSlotParams,
-    updateSettings: (updates: Partial<Settings>) => Promise<any>,
+    updateSettings: UpdateSettingsFn,
     currentSettings: Settings | null
   ): Promise<WorkSlotOrchestrationResult> {
     try {
@@ -230,7 +233,7 @@ export class WorkSlotOrchestrator {
    */
   static async deleteTemplateSlot(
     params: DeleteTemplateSlotParams,
-    updateSettings: (updates: Partial<Settings>) => Promise<any>,
+    updateSettings: UpdateSettingsFn,
     currentSettings: Settings | null
   ): Promise<WorkSlotOrchestrationResult> {
     try {

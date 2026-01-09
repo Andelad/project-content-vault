@@ -7,5 +7,6 @@ export * from './SettingsOrchestrator';
 export * from './GroupOrchestrator';
 export * from './CalendarImportOrchestrator';
 export * from './FeedbackOrchestrator';
+export * from './ProfileOrchestrator';
 export { timeTrackingOrchestrator } from './timeTrackingOrchestrator';
 

@@ -155,17 +155,21 @@ export class CalendarEventRules {
   // ==========================================================================
 
   /**
-   * RULE 5: Event color must be valid hex format
+   * RULE 5: Event color must be valid format (hex or oklch)
    *
-   * Business Logic: Colors must be valid hex codes for consistent display
+   * Business Logic: Colors must be valid for consistent display
+   * Supports: hex (#RGB, #RRGGBB) or oklch (oklch(L C H) or oklch(L C H / A))
    *
    * @param color - The color to validate
-   * @returns true if color is valid hex format
+   * @returns true if color is valid format
    */
   static validateEventColor(color: string): boolean {
+    const trimmed = color.trim();
     // Accepts #RGB or #RRGGBB format
     const hexColorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
-    return hexColorRegex.test(color.trim());
+    // Accepts oklch(L C H) or oklch(L C H / A) format
+    const oklchColorRegex = /^oklch\(\s*[\d.]+\s+[\d.]+\s+[\d.]+\s*(\s*\/\s*[\d.]+%?)?\s*\)$/;
+    return hexColorRegex.test(trimmed) || oklchColorRegex.test(trimmed);
   }
 
   // ==========================================================================
@@ -212,7 +216,7 @@ export class CalendarEventRules {
 
     // Rule 5: Color must be valid
     if (!this.validateEventColor(params.color)) {
-      errors.push('Event color must be a valid hex color (e.g., #FF5733)');
+      errors.push('Event color must be a valid color format');
     }
 
     return {

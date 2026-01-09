@@ -73,9 +73,24 @@ export default defineConfig(({ mode }) => ({
     })
   ].filter(Boolean),
   resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
+    alias: [
+      // React-specific paths (must come first - most specific)
+      { find: "@/components", replacement: path.resolve(__dirname, "./src/react/components") },
+      { find: "@/contexts", replacement: path.resolve(__dirname, "./src/react/contexts") },
+      { find: "@/hooks", replacement: path.resolve(__dirname, "./src/react/hooks") },
+      // Standard paths
+      { find: "@/pages", replacement: path.resolve(__dirname, "./src/pages") },
+      { find: "@/types", replacement: path.resolve(__dirname, "./src/types") },
+      { find: "@/services", replacement: path.resolve(__dirname, "./src/services") },
+      { find: "@/domain", replacement: path.resolve(__dirname, "./src/domain") },
+      { find: "@/utils", replacement: path.resolve(__dirname, "./src/utils") },
+      { find: "@/lib", replacement: path.resolve(__dirname, "./src/lib") },
+      { find: "@/integrations", replacement: path.resolve(__dirname, "./src/integrations") },
+      { find: "@/constants", replacement: path.resolve(__dirname, "./src/constants") },
+      { find: "@/react", replacement: path.resolve(__dirname, "./src/react") },
+      // Base path (must come last - least specific)
+      { find: "@", replacement: path.resolve(__dirname, "./src") },
+    ],
   },
   build: {
     rollupOptions: {

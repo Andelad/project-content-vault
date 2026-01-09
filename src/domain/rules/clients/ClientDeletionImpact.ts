@@ -28,7 +28,7 @@ import type { Project, PhaseDTO } from '@/types/core';
 // TYPE DEFINITIONS
 // ============================================================================
 
-export interface ClientDeletionImpact {
+export interface ClientDeletionImpactResult {
   projectIds: string[];
   projectCount: number;
   phaseIds: string[];
@@ -63,7 +63,7 @@ export class ClientDeletionImpact {
     clientId: string,
     projects: Project[],
     phases: PhaseDTO[]
-  ): ClientDeletionImpact {
+  ): ClientDeletionImpactResult {
     // Find affected projects
     const affectedProjects = projects.filter(p => p.clientId === clientId);
     const projectIds = affectedProjects.map(p => p.id);
@@ -113,7 +113,7 @@ export class ClientDeletionImpact {
    * @returns Total count of affected entities
    */
   static getTotalAffectedCount(
-    impact: ClientDeletionImpact
+    impact: ClientDeletionImpactResult
   ): number {
     return impact.projectCount + impact.phaseCount;
   }
@@ -125,7 +125,7 @@ export class ClientDeletionImpact {
    * @returns True if deletion has cascade effects
    */
   static hasCascadeEffects(
-    impact: ClientDeletionImpact
+    impact: ClientDeletionImpactResult
   ): boolean {
     return impact.projectCount > 0 || impact.phaseCount > 0;
   }
@@ -137,7 +137,7 @@ export class ClientDeletionImpact {
    * @returns Human-readable summary
    */
   static formatImpactMessage(
-    impact: ClientDeletionImpact
+    impact: ClientDeletionImpactResult
   ): string {
     const parts: string[] = [];
     

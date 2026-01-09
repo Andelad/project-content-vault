@@ -10,7 +10,7 @@
  * ✅ Provides clean API for UI components
  */
 
-import { Project, PhaseDTO } from '@/types/core';
+import { Project, PhaseDTO, RecurringConfig } from '@/types/core';
 import { supabase } from '@/integrations/supabase/client';
 import { ProjectOrchestrator } from './ProjectOrchestrator';
 import { calculateDurationDays, addDaysToDate } from '@/utils/dateCalculations';
@@ -91,7 +91,10 @@ export interface MilestoneOrchestrationOptions {
   refetchMilestones?: () => Promise<void>;
 }
 
-type RecurringConfigJson = Record<string, string | number | boolean | null | undefined>;
+// Mutable version of RecurringConfig for building during orchestration
+type RecurringConfigBuilder = {
+  -readonly [K in keyof RecurringConfig]: RecurringConfig[K];
+};
 
 type MilestoneDraft = {
   id?: string;
@@ -286,7 +289,7 @@ export class PhaseOrchestrator {
       if (!user) throw new Error('User not authenticated');
 
       // Build the recurring_config JSON object
-      const recurringConfigJson: RecurringConfigJson = {
+      const recurringConfigJson: RecurringConfigBuilder = {
         type: recurringConfig.recurringType,
         interval: recurringConfig.recurringInterval
       };
@@ -307,7 +310,7 @@ export class PhaseOrchestrator {
       // Generate RRule string for accurate recurrence calculation
       // This enables infinite recurrence for continuous projects
       const rruleString = PhaseRecurrenceService.generateRRuleFromConfig(
-        recurringConfigJson as any, // RecurringConfigJson is compatible with RecurringConfig
+        recurringConfigJson as RecurringConfig,
         new Date(project.startDate),
         project.continuous ? undefined : new Date(project.endDate),
         project.continuous || false

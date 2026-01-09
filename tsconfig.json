@@ -9,10 +9,10 @@
     "paths": {
       "@/*": ["./src/*"],
       "@/assets/*": ["./src/assets/*"],
-      "@/components/*": ["./src/components/*"],
+      "@/components/*": ["./src/react/components/*"],
       "@/constants/*": ["./src/constants/*"], 
-      "@/contexts/*": ["./src/contexts/*"],
-      "@/hooks/*": ["./src/hooks/*"],
+      "@/contexts/*": ["./src/react/contexts/*"],
+      "@/hooks/*": ["./src/react/hooks/*"],
       "@/lib/*": ["./src/lib/*"],
       "@/services/*": ["./src/services/*"],
       "@/types/*": ["./src/types/*"],

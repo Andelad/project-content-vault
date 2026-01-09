@@ -189,9 +189,9 @@ export class CalendarEvent {
       errors.push('Tasks cannot have duration - start and end time must be the same');
     }
 
-    // RULE 5: Color must be valid hex format
+    // RULE 5: Color must be valid format (hex or oklch)
     if (!this.isValidColor(params.color)) {
-      errors.push('Event color must be a valid hex color (e.g., #FF5733)');
+      errors.push('Event color must be a valid color format');
     }
 
     if (errors.length > 0) {
@@ -271,15 +271,18 @@ export class CalendarEvent {
   // ============================================================================
 
   /**
-   * Validate hex color format
+   * Validate color format (hex or oklch)
    * 
    * @param color - Color string to validate
-   * @returns True if valid hex color
+   * @returns True if valid color format
    */
   private static isValidColor(color: string): boolean {
+    const trimmed = color.trim();
     // Accepts #RGB or #RRGGBB format
     const hexColorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
-    return hexColorRegex.test(color.trim());
+    // Accepts oklch(L C H) or oklch(L C H / A) format
+    const oklchColorRegex = /^oklch\(\s*[\d.]+\s+[\d.]+\s+[\d.]+\s*(\s*\/\s*[\d.]+%?)?\s*\)$/;
+    return hexColorRegex.test(trimmed) || oklchColorRegex.test(trimmed);
   }
 
   // ============================================================================
@@ -336,7 +339,7 @@ export class CalendarEvent {
 
     // Validate color if provided
     if (params.color !== undefined && !CalendarEvent.isValidColor(params.color)) {
-      errors.push('Event color must be a valid hex color (e.g., #FF5733)');
+      errors.push('Event color must be a valid color format');
     }
 
     if (errors.length > 0) {

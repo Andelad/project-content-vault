@@ -1,0 +1,159 @@
+# AI Tools Reference
+
+Quick reference for efficient codebase operations. Use these instead of manual file-by-file edits.
+
+---
+
+## Search Tools
+
+### `grep` / `grep_search`
+**Function:** Search for text patterns across files  
+**Use case:** Find all occurrences of a term, function name, or pattern  
+**Pros:** Fast, regex support, shows context  
+**Cons:** Text-only (no semantic understanding)  
+```bash
+grep -r "milestone" --include="*.ts" src/
+grep -rn "TODO" .  # with line numbers
+```
+
+### `find`
+**Function:** Locate files by name, type, or attributes  
+**Use case:** Find all files matching a pattern, find large files, find by date  
+**Pros:** Powerful filtering, can pipe to other commands  
+**Cons:** Syntax can be verbose  
+```bash
+find src/ -name "*.tsx" -type f
+find . -name "*.ts" -mtime -1  # modified in last day
+```
+
+### `ag` (The Silver Searcher)
+**Function:** Fast code search (faster than grep)  
+**Use case:** Same as grep but for large codebases  
+**Pros:** Ignores .gitignore files, very fast  
+**Cons:** May not be installed by default  
+
+---
+
+## Bulk Replace Tools
+
+### `sed`
+**Function:** Stream editor for find/replace across files  
+**Use case:** Rename terms across entire codebase (e.g., milestone → phase)  
+**Pros:** In-place editing, regex support, scriptable  
+**Cons:** Regex syntax varies between macOS/Linux  
+```bash
+# Replace "milestone" with "phase" in all .ts files
+find src/ -name "*.ts" -exec sed -i '' 's/milestone/phase/g' {} +
+
+# Preview changes first (no -i flag)
+sed 's/milestone/phase/g' file.ts
+```
+
+### `perl -pi -e`
+**Function:** More powerful regex replacement than sed  
+**Use case:** Complex replacements, multiline patterns  
+**Pros:** Consistent regex syntax, powerful  
+**Cons:** Less readable  
+```bash
+perl -pi -e 's/milestone/phase/gi' src/**/*.ts
+```
+
+### `awk`
+**Function:** Pattern scanning and text processing  
+**Use case:** Column-based data, complex transformations  
+**Pros:** Powerful for structured text  
+**Cons:** Steeper learning curve  
+
+---
+
+## Git Tools
+
+### `git grep`
+**Function:** Search only tracked files  
+**Use case:** Search without hitting node_modules or build files  
+**Pros:** Fast, respects .gitignore  
+**Cons:** Only searches committed/tracked files  
+```bash
+git grep "milestone"
+git grep -n "TODO"  # with line numbers
+```
+
+### `git diff`
+**Function:** Show changes between commits/branches  
+**Use case:** Review what changed, create patches  
+**Pros:** Built into git  
+**Cons:** None  
+
+---
+
+## Database Tools
+
+### `psql` / Supabase SQL
+**Function:** Direct database queries  
+**Use case:** Bulk update data, rename columns, find orphaned records  
+**Pros:** Direct, powerful, transactional  
+**Cons:** Requires DB access  
+```sql
+-- Find all milestone references in data
+SELECT * FROM phases WHERE name LIKE '%milestone%';
+
+-- Bulk rename
+UPDATE phases SET name = REPLACE(name, 'milestone', 'phase');
+```
+
+---
+
+## Scripting
+
+### Bash Script
+**Function:** Chain multiple commands together  
+**Use case:** Complex multi-step operations  
+**Pros:** Reproducible, can be version controlled  
+**Cons:** Error handling is tricky  
+```bash
+#!/bin/bash
+# rename-milestones.sh
+find src/ -name "*.ts" -exec sed -i '' 's/milestone/phase/gi' {} +
+find src/ -name "*.tsx" -exec sed -i '' 's/milestone/phase/gi' {} +
+echo "Done!"
+```
+
+### Node.js Script
+**Function:** Programmatic file manipulation with full JS power  
+**Use case:** Complex transformations, AST manipulation, JSON updates  
+**Pros:** Can parse code properly, handle edge cases  
+**Cons:** More setup  
+
+---
+
+## When to Use What
+
+| Task | Best Tool |
+|------|-----------|
+| Find all occurrences | `grep -r` or `git grep` |
+| Simple rename across files | `sed` with `find` |
+| Complex regex replace | `perl -pi -e` |
+| Rename in database | SQL `UPDATE` |
+| Find files by name | `find` |
+| Preview changes safely | `sed` without `-i` flag |
+| Rename with case variations | `sed` with `I` flag or script |
+
+---
+
+## Pro Tips
+
+1. **Always preview first:** Run without `-i` flag or use `--dry-run` when available
+2. **Use git status:** Check what changed after bulk operations
+3. **Backup first:** `git stash` or commit before bulk changes
+4. **Case sensitivity:** Use `gi` flags for case-insensitive (`sed 's/old/new/gi'`)
+5. **Word boundaries:** Use `\b` to match whole words only (`\bmilestone\b`)
+
+---
+
+## Ask AI To Use These
+
+When requesting bulk operations, specify:
+- "Use sed to replace X with Y across all .ts files"
+- "Run a SQL query to update all milestone references in the database"
+- "Create a bash script to rename all occurrences"
+- "Use grep to find all files containing X first, then we'll review"

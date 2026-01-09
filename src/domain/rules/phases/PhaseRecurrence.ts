@@ -21,7 +21,7 @@
  * - Same pattern used successfully for events and work hours
  */
 
-import { RRule, Frequency, Weekday, rrulestr } from 'rrule';
+import { RRule, Frequency, Weekday, rrulestr, Options } from 'rrule';
 import type { RecurringConfig } from '@/types/core';
 
 export interface RecurringPhaseConfig {
@@ -46,6 +46,10 @@ export interface RecurringOccurrenceParams {
   projectEndDate: Date;
   projectContinuous?: boolean;
   maxOccurrences?: number; // Safety limit (only for non-continuous)
+  // Performance optimization: Only generate occurrences within a specific window
+  // Useful for timeline viewport or insights date range
+  calculationWindowStart?: Date;
+  calculationWindowEnd?: Date;
 }
 
 export interface RecurringOccurrence {
@@ -62,6 +66,13 @@ export interface RecurringOccurrence {
  */
 export class PhaseRecurrenceService {
   private static readonly DEFAULT_MAX_OCCURRENCES = 365; // Safety limit for non-continuous projects
+  
+  // Performance: Default calculation window for continuous projects (when no explicit window provided)
+  // This is a PERFORMANCE optimization, not a business rule. Continuous projects are truly infinite.
+  private static readonly DEFAULT_CONTINUOUS_WINDOW_BACK_DAYS = 30;    // 1 month history
+  private static readonly DEFAULT_CONTINUOUS_WINDOW_FORWARD_DAYS = 90; // 3 months future
+  private static readonly DEFAULT_CONTINUOUS_FALLBACK_LIMIT = 100;     // Safety cap
+  
   private static readonly VALID_TYPES = ['daily', 'weekly', 'monthly'] as const;
 
   // ============================================================================
@@ -105,7 +116,7 @@ export class PhaseRecurrenceService {
     const freq = this.getFrequencyFromType(config.type);
 
     // Build RRule options
-    const options: any = {
+    const options: Partial<Options> = {
       freq,
       interval: config.interval || 1,
       dtstart: startDate,
@@ -145,9 +156,12 @@ export class PhaseRecurrenceService {
   /**
    * Generate occurrence dates from RRule string
    * 
+   * NOTE: This is a low-level method. Use generateOccurrences() instead for proper
+   * continuous project handling and performance optimization.
+   * 
    * @param rruleString - RFC 5545 RRule string
    * @param startDate - Start date for range
-   * @param endDate - End date for range (optional for continuous)
+   * @param endDate - End date for range (required - caller handles window calculation)
    * @param maxOccurrences - Maximum number of occurrences to return
    * @returns Array of occurrence objects
    */
@@ -162,31 +176,18 @@ export class PhaseRecurrenceService {
       
       // Generate dates within range
       let dates: Date[];
+      
       if (endDate) {
+        // Standard case: Generate between start and end
         dates = rrule.between(startDate, endDate, true);
       } else {
-        // Continuous projects: generate a rolling window around "now" so long-running
-        // projects that started years ago still produce upcoming occurrences.
-        // We fetch occurrences from (now - 1 year) through (now + 2 years) and
-        // then cap to a sane limit for UI performance.
-        const MS_PER_DAY = 24 * 60 * 60 * 1000;
-        const now = new Date();
-        const windowStart = new Date(Math.max(startDate.getTime(), now.getTime() - 365 * MS_PER_DAY));
-        const windowEnd = new Date(now.getTime() + 730 * MS_PER_DAY);
-
-        dates = rrule.between(windowStart, windowEnd, true);
-
-        // Fallback: if nothing falls in the window (e.g., very infrequent rules),
-        // fall back to the first N occurrences from the start date.
-        const fallbackLimit = maxOccurrences || 200;
-        if (dates.length === 0) {
-          dates = rrule.all((_, len) => len < fallbackLimit);
-        } else {
-          dates = dates.slice(0, fallbackLimit);
-        }
+        // Fallback: No end date provided (shouldn't happen with new logic)
+        // Generate first N occurrences as safety
+        const fallbackLimit = maxOccurrences || 100;
+        dates = rrule.all((_, len) => len < fallbackLimit);
       }
 
-      // Apply max occurrences limit if specified (non-continuous already capped above)
+      // Apply max occurrences limit if specified
       const limitedDates = maxOccurrences ? dates.slice(0, maxOccurrences) : dates;
 
       // Convert to RecurringOccurrence format
@@ -354,11 +355,19 @@ export class PhaseRecurrenceService {
    * - Use RRule for accurate recurrence calculation
    * - Respect max occurrences safety limit for non-continuous
    * 
+   * Performance Optimization:
+   * - For continuous projects, uses calculationWindowStart/End if provided
+   * - Otherwise uses default window (30 days back + 90 days forward)
+   * - This is a PERFORMANCE optimization - continuous projects are truly infinite
+   * 
    * @param params - Occurrence generation parameters
    * @returns Array of occurrence dates
    */
   static generateOccurrences(params: RecurringOccurrenceParams): RecurringOccurrence[] {
-    const { config, projectStartDate, projectEndDate, projectContinuous = false, maxOccurrences } = params;
+    const { 
+      config, projectStartDate, projectEndDate, projectContinuous = false, 
+      maxOccurrences, calculationWindowStart, calculationWindowEnd 
+    } = params;
 
     // Start from project start date (not day after)
     // The RRule will find the first matching occurrence on or after this date
@@ -366,19 +375,47 @@ export class PhaseRecurrenceService {
 
     // Calculate end date (day before project end, or undefined for continuous)
     let endDate: Date | undefined;
+    let calculationStart: Date;
+    let calculationEnd: Date | undefined;
+
     if (!projectContinuous) {
+      // Non-continuous: Use project end date
       endDate = new Date(projectEndDate);
       endDate.setDate(endDate.getDate() - 1);
+      calculationStart = startDate;
+      calculationEnd = endDate;
+    } else {
+      // Continuous: Project has no end date (truly infinite)
+      endDate = undefined;
+      
+      // Use provided calculation window, or default window for performance
+      if (calculationWindowStart && calculationWindowEnd) {
+        calculationStart = new Date(calculationWindowStart);
+        calculationEnd = new Date(calculationWindowEnd);
+      } else {
+        // Default window: Small range around "now" for initial load performance
+        const now = new Date();
+        const MS_PER_DAY = 24 * 60 * 60 * 1000;
+        
+        calculationStart = new Date(
+          Math.max(
+            startDate.getTime(), 
+            now.getTime() - this.DEFAULT_CONTINUOUS_WINDOW_BACK_DAYS * MS_PER_DAY
+          )
+        );
+        calculationEnd = new Date(now.getTime() + this.DEFAULT_CONTINUOUS_WINDOW_FORWARD_DAYS * MS_PER_DAY);
+      }
     }
 
     // Always regenerate RRule to ensure it matches current project continuous status
-    // This handles cases where project was toggled between continuous/non-continuous
+    // For continuous projects, we generate with NO end date, then filter to calculation window
     const rruleString = this.generateRRuleFromConfig(config, startDate, endDate, projectContinuous);
+    
     return this.generateOccurrencesFromRRule(
       rruleString,
-      startDate,
-      endDate,
-      maxOccurrences || (projectContinuous ? undefined : this.DEFAULT_MAX_OCCURRENCES)
+      calculationStart,
+      calculationEnd,
+      maxOccurrences || (projectContinuous ? this.DEFAULT_CONTINUOUS_FALLBACK_LIMIT : this.DEFAULT_MAX_OCCURRENCES)
     );
   }
 

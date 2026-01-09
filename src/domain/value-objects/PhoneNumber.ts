@@ -21,7 +21,7 @@ export class PhoneNumber {
   private constructor(private readonly _value: string) {}
 
   // Phone regex from ClientRules (allows +, -, spaces, parentheses)
-  private static readonly PHONE_REGEX = /^[\d\s\-\+\(\)]+$/;
+  private static readonly PHONE_REGEX = /^[\d\s+()-]+$/;
 
   // Factory method with validation
   static create(phone: string | null | undefined): DomainResult<PhoneNumber> {

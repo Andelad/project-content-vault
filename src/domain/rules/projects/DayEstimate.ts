@@ -173,13 +173,17 @@ export function calculateMilestoneDayEstimates(
 
 /**
  * Calculate day estimates from recurring phase configuration
+ * 
+ * Performance: Accepts optional calculation window for continuous projects
  */
 export function calculateRecurringPhaseDayEstimates(
   phase: PhaseDTO,
   project: Project,
   settings: Settings,
   holidays: Holiday[],
-  eventsByDate: Map<string, CalendarEvent[]> = new Map()
+  eventsByDate: Map<string, CalendarEvent[]> = new Map(),
+  calculationWindowStart?: Date,
+  calculationWindowEnd?: Date
 ): DayEstimate[] {
   if (!phase.isRecurring || !phase.recurringConfig) {
     return calculatePhaseDayEstimates(phase, project, settings, holidays);
@@ -195,7 +199,9 @@ export function calculateRecurringPhaseDayEstimates(
     phase,
     project.startDate,
     project.endDate,
-    project.continuous || false
+    project.continuous || false,
+    calculationWindowStart,
+    calculationWindowEnd
   );
   
   // Distribute hours across intervals between consecutive anchors, clamped to project window
@@ -264,12 +270,16 @@ export function calculateRecurringPhaseDayEstimates(
  * 
  * Delegates to PhaseRecurrenceService for RRule-based recurrence logic.
  * Includes previous anchor to form the first interval.
+ * 
+ * Performance: Accepts optional calculation window for continuous projects
  */
 export function generateRecurringOccurrences(
   phase: PhaseDTO,
   projectStartDate: Date,
   projectEndDate: Date,
-  projectContinuous: boolean
+  projectContinuous: boolean,
+  calculationWindowStart?: Date,
+  calculationWindowEnd?: Date
 ): Date[] {
   if (!phase.isRecurring || !phase.recurringConfig) {
     return [phase.endDate || phase.dueDate];
@@ -280,7 +290,9 @@ export function generateRecurringOccurrences(
     config: phase.recurringConfig,
     projectStartDate,
     projectEndDate,
-    projectContinuous
+    projectContinuous,
+    calculationWindowStart,
+    calculationWindowEnd
   });
 
   // Extract dates from occurrence objects
@@ -328,13 +340,18 @@ export function generateRecurringOccurrences(
 }
 /**
  * Calculate all day estimates for a project
+ * 
+ * Performance optimization: For continuous projects with recurring phases,
+ * provide calculationWindowStart/End to limit occurrence generation to viewport.
  */
 export function calculateProjectDayEstimates(
   project: Project,
   phases: PhaseDTO[],
   settings: Settings,
   holidays: Holiday[],
-  events: CalendarEvent[] = []
+  events: CalendarEvent[] = [],
+  calculationWindowStart?: Date,
+  calculationWindowEnd?: Date
 ): DayEstimate[] {
   const allEstimates: DayEstimate[] = [];
   // PRIORITY 1 - Handle calendar events FIRST (they take precedence over phases/auto-estimate)
@@ -409,7 +426,9 @@ export function calculateProjectDayEstimates(
           project,
           settings,
           holidays,
-          eventsByDate
+          eventsByDate,
+          calculationWindowStart,
+          calculationWindowEnd
         )
       : calculatePhaseDayEstimates(phaseWithAdjustedAllocation, project, settings, holidays);
     // Update the previous phase end for next iteration

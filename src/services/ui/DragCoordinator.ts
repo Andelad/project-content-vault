@@ -336,7 +336,6 @@ export class TimelineDragCoordinatorService {
   /**
    * @deprecated Use coordinatePhaseDrag. Kept for backward compatibility with milestone terminology.
    */
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   private static coordinateMilestoneDrag(
     dragState: DragState,
     mouseEvent: MouseEvent,

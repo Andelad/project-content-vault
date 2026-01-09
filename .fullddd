@@ -1,0 +1,767 @@
+# Full DDD Architecture Migration Plan
+
+**Status:** 📋 PLANNED - Not yet implemented  
+**Current Architecture:** Hybrid DDD (see `.ddd`)  
+**Target Architecture:** Full DDD with classic 4-layer structure  
+**Estimated Effort:** 2-4 hours (one focused session)  
+**Risk Level:** Medium (many import updates, but IDE can help)
+
+---
+
+## Current vs Target Structure
+
+### Current Structure (Hybrid DDD - January 2026)
+
+```
+src/
+├── domain/              ← Layer 1: Pure business logic ✅
+│   ├── rules/
+│   ├── entities/
+│   └── value-objects/
+├── services/            ← Layer 2: Mixed bag ⚠️
+│   ├── orchestrators/
+│   ├── data/
+│   ├── infrastructure/
+│   └── ui/
+├── react/               ← Layer 4: React UI (reorganized) ✅
+│   ├── components/
+│   ├── hooks/
+│   └── contexts/
+├── types/               ← Shared (floating) ⚠️
+├── utils/               ← Generic helpers (floating) ⚠️
+├── constants/           ← App constants (floating) ⚠️
+├── integrations/        ← External APIs (floating) ⚠️
+├── lib/                 ← Third-party utils (floating) ⚠️
+├── assets/              ← Static files (floating) ⚠️
+└── pages/               ← Public website pages (Landing, Auth, NotFound)
+```
+
+**Problems:**
+- 6 folders floating outside layer structure
+- `services/` is a mixed bag (orchestrators + data + infrastructure + ui)
+- No clear boundary between "framework-agnostic" and "React-specific"
+- `pages/` and `react/components/views/` serve different purposes but naming unclear
+
+### Target Structure (Full DDD - Option A: Pure Layers)
+
+```
+src/
+├── domain/                      ← Layer 1: Pure Business Logic
+│   ├── rules/                   (Validation + calculations)
+│   │   ├── __tests__/
+│   │   ├── phases/
+│   │   ├── projects/
+│   │   ├── sync/
+│   │   ├── events/
+│   │   ├── availability/
+│   │   ├── clients/
+│   │   └── ... (18 subdirectories)
+│   ├── entities/                (Rich domain models)
+│   │   └── __tests__/
+│   └── value-objects/           (Immutable primitives)
+│       ├── DateRange.ts
+│       ├── EmailAddress.ts
+│       ├── PhoneNumber.ts
+│       └── Color.ts
+│
+├── application/                 ← Layer 2: Use Cases (framework-agnostic)
+│   ├── orchestrators/           (FROM: services/orchestrators)
+│   │   ├── __tests__/
+│   │   ├── calendarEventOrchestrator.ts
+│   │   ├── projectOrchestrator.ts
+│   │   ├── phaseOrchestrator.ts
+│   │   └── ... (15 orchestrators)
+│   └── queries/                 (FROM: services/data/aggregators)
+│       ├── ProjectQueries.ts
+│       ├── EventQueries.ts
+│       └── AnalyticsQueries.ts
+│
+├── infrastructure/              ← Layer 3: Technical Services (framework-agnostic)
+│   ├── database/                (FROM: integrations/supabase)
+│   │   ├── client.ts            (Supabase client)
+│   │   ├── types.ts             (Generated types)
+│   │   └── migrations/
+│   ├── mappers/                 (FROM: services/data/mappers)
+│   │   ├── ProjectMapper.ts
+│   │   ├── PhaseMapper.ts
+│   │   └── EventMapper.ts
+│   ├── errors/                  (FROM: services/infrastructure)
+│   │   └── ErrorHandlingService.ts
+│   └── storage/                 (FROM: services/infrastructure)
+│       ├── TimeTrackerStorage.ts
+│       └── caching/
+│
+├── presentation/                ← Layer 4: All UI (React)
+│   ├── app/                     (Authenticated application)
+│   │   ├── views/               (FROM: react/components/views/)
+│   │   │   ├── TimelineView.tsx
+│   │   │   ├── PlannerView.tsx
+│   │   │   ├── InsightsView.tsx
+│   │   │   └── ClientsView.tsx
+│   │   ├── components/          (FROM: react/components/)
+│   │   │   ├── shadcn/          (Design system)
+│   │   │   ├── features/        (Feature components)
+│   │   │   ├── modals/          (Modal dialogs)
+│   │   │   ├── shared/          (Reusable components)
+│   │   │   └── layout/          (Layout components)
+│   │   ├── hooks/               (FROM: react/hooks/)
+│   │   │   ├── data/            (Data fetching hooks)
+│   │   │   ├── ui/              (UI interaction hooks)
+│   │   │   └── insights/        (Performance optimization)
+│   │   ├── contexts/            (FROM: react/contexts/)
+│   │   │   ├── AuthContext.tsx
+│   │   │   ├── SettingsContext.tsx
+│   │   │   ├── ProjectContext.tsx
+│   │   │   └── TimelineContext.tsx
+│   │   ├── services/            (FROM: services/ui)
+│   │   │   ├── ProjectBarPositioning.ts
+│   │   │   ├── TimelineViewportService.ts
+│   │   │   ├── DragCoordinator.ts
+│   │   │   └── ... (12 UI services)
+│   │   ├── lib/                 (FROM: lib/)
+│   │   │   └── utils.ts         (shadcn utilities)
+│   │   ├── constants/           (FROM: constants/)
+│   │   │   ├── colors.ts
+│   │   │   ├── icons.ts
+│   │   │   └── layout.ts
+│   │   └── utils/               (FROM: utils/)
+│   │       ├── dateFormatUtils.ts
+│   │       └── normalizeProjectColor.ts
+│   │
+│   └── website/                 (Public marketing - can promote to top-level later)
+│       ├── pages/               (FROM: pages/)
+│       │   ├── LandingPage.tsx  (Marketing/home page)
+│       │   ├── Auth.tsx         (Login/signup - gateway to app)
+│       │   └── NotFound.tsx     (404 page)
+│       └── components/          (Website-specific components if needed)
+│           ├── MarketingHeader.tsx
+│           └── MarketingFooter.tsx
+│
+└── shared/                      ← Foundation (Used by ALL layers)
+    ├── types/                   (FROM: types/)
+    │   ├── core.ts              (Domain types)
+    │   ├── database.ts          (DB types)
+    │   └── ui.ts                (UI types)
+    └── assets/                  (FROM: assets/)
+        ├── icons/
+        └── images/
+```
+
+**Note:** If `website/` grows significantly (blog, multiple sales pages), promote it to top-level:
+```
+src/
+├── domain/
+├── application/
+├── infrastructure/
+├── presentation/        ← Just the app now
+├── website/             ← PROMOTED to top level
+└── shared/
+```
+
+---
+
+## Benefits of Full DDD Structure
+
+### 1. **Classic 4-Layer Architecture**
+```
+shared/          ← Foundation (types, assets)
+   ↑
+domain/          ← Layer 1: Pure business logic
+   ↑
+application/     ← Layer 2: Use cases, orchestration
+   ↑
+infrastructure/  ← Layer 3: Technical services
+   ↑
+presentation/    ← Layer 4: All UI (app + website)
+```
+
+### 2. **Clear Mental Model**
+- 4 DDD layers at top level — instantly recognizable
+- `presentation/app/` = authenticated experience
+- `presentation/website/` = public marketing (can promote later)
+- `shared/` = truly shared foundation
+
+### 3. **Self-Documenting Imports**
+```typescript
+// Layer 1: Domain (unchanged)
+import { ProjectValidation } from '@/domain/rules/projects/ProjectValidation'
+
+// Layer 2: Application (use cases)
+import { projectOrchestrator } from '@/application/orchestrators/projectOrchestrator'
+
+// Layer 3: Infrastructure (technical)
+import { supabase } from '@/infrastructure/database/client'
+
+// Layer 4: Presentation (UI)
+import { TimelineView } from '@/presentation/app/views/TimelineView'
+import { LandingPage } from '@/presentation/website/pages/LandingPage'
+
+// Shared (foundation)
+import { Project } from '@/shared/types/core'
+```
+
+### 4. **Framework Independence**
+- `domain/` = ZERO dependencies (pure TypeScript)
+- `application/` = ZERO React dependencies
+- `infrastructure/` = ZERO React dependencies
+- `presentation/` = React-specific (could swap for Vue, React Native, etc.)
+
+### 5. **Testability by Layer**
+```
+domain/           ← Pure functions, unit tests (165 tests ✅)
+application/      ← Orchestration, mockable infrastructure (82 tests ✅)
+infrastructure/   ← Integration tests with real services
+presentation/     ← Component tests, E2E tests
+```
+
+### 6. **Website Escape Hatch**
+If website grows (blog, sales pages), promote to top-level:
+```bash
+git mv src/presentation/website src/website
+# Update imports from @/presentation/website → @/website
+```
+
+---
+
+## Migration Steps
+
+### Phase 1: Create New Structure (30 minutes)
+
+1. **Create target directories:**
+```bash
+# Layer 2: Application
+mkdir -p src/application/orchestrators
+mkdir -p src/application/queries
+
+# Layer 3: Infrastructure
+mkdir -p src/infrastructure/database
+mkdir -p src/infrastructure/mappers
+mkdir -p src/infrastructure/errors
+mkdir -p src/infrastructure/storage
+
+# Layer 4: Presentation
+mkdir -p src/presentation/app/views
+mkdir -p src/presentation/app/components
+mkdir -p src/presentation/app/hooks
+mkdir -p src/presentation/app/contexts
+mkdir -p src/presentation/app/services
+mkdir -p src/presentation/app/lib
+mkdir -p src/presentation/app/constants
+mkdir -p src/presentation/app/utils
+mkdir -p src/presentation/website/pages
+mkdir -p src/presentation/website/components
+
+# Shared
+mkdir -p src/shared/types
+mkdir -p src/shared/assets
+```
+
+2. **Update tsconfig.json path mappings:**
+```json
+{
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./src/*"],
+      "@/domain/*": ["./src/domain/*"],
+      "@/application/*": ["./src/application/*"],
+      "@/infrastructure/*": ["./src/infrastructure/*"],
+      "@/presentation/*": ["./src/presentation/*"],
+      "@/shared/*": ["./src/shared/*"]
+    }
+  }
+}
+```
+
+3. **Update vite.config.ts alias (array format, specific first):**
+```typescript
+resolve: {
+  alias: [
+    { find: '@/domain', replacement: path.resolve(__dirname, './src/domain') },
+    { find: '@/application', replacement: path.resolve(__dirname, './src/application') },
+    { find: '@/infrastructure', replacement: path.resolve(__dirname, './src/infrastructure') },
+    { find: '@/presentation', replacement: path.resolve(__dirname, './src/presentation') },
+    { find: '@/shared', replacement: path.resolve(__dirname, './src/shared') },
+    { find: '@', replacement: path.resolve(__dirname, './src') },
+  ],
+}
+```
+
+### Phase 2: Move Files (45 minutes)
+
+**Critical: Use git mv to preserve history**
+
+```bash
+# Layer 2: Application (orchestrators + queries)
+git mv src/services/orchestrators/* src/application/orchestrators/
+git mv src/services/data/aggregators/* src/application/queries/
+
+# Layer 3: Infrastructure (database, mappers, errors)
+git mv src/integrations/supabase/* src/infrastructure/database/
+git mv src/services/data/mappers/* src/infrastructure/mappers/
+git mv src/services/infrastructure/* src/infrastructure/errors/
+
+# Layer 4: Presentation - App (authenticated)
+git mv src/react/components/views/* src/presentation/app/views/
+git mv src/react/components/shadcn src/presentation/app/components/shadcn
+git mv src/react/components/features src/presentation/app/components/features
+git mv src/react/components/modals src/presentation/app/components/modals
+git mv src/react/components/shared src/presentation/app/components/shared
+git mv src/react/components/layout src/presentation/app/components/layout
+git mv src/react/hooks/* src/presentation/app/hooks/
+git mv src/react/contexts/* src/presentation/app/contexts/
+git mv src/services/ui/* src/presentation/app/services/
+git mv src/lib/* src/presentation/app/lib/
+git mv src/constants/* src/presentation/app/constants/
+git mv src/utils/* src/presentation/app/utils/
+
+# Layer 4: Presentation - Website (public)
+git mv src/pages/* src/presentation/website/pages/
+
+# Shared
+git mv src/types/* src/shared/types/
+git mv src/assets/* src/shared/assets/
+
+# Delete empty directories
+rm -rf src/services src/integrations src/react src/pages
+rm -rf src/lib src/constants src/utils src/types src/assets
+```
+
+### Phase 3: Update Imports (60-90 minutes)
+
+**Use sed for bulk replacement (see .tools file):**
+
+```bash
+# services/orchestrators → application/orchestrators
+find src/ -name "*.ts" -o -name "*.tsx" | xargs sed -i '' "s|@/services/orchestrators|@/application/orchestrators|g"
+
+# services/data/aggregators → application/queries
+find src/ -name "*.ts" -o -name "*.tsx" | xargs sed -i '' "s|@/services/data/aggregators|@/application/queries|g"
+
+# services/data/mappers → infrastructure/mappers
+find src/ -name "*.ts" -o -name "*.tsx" | xargs sed -i '' "s|@/services/data/mappers|@/infrastructure/mappers|g"
+
+# integrations/supabase → infrastructure/database
+find src/ -name "*.ts" -o -name "*.tsx" | xargs sed -i '' "s|@/integrations/supabase|@/infrastructure/database|g"
+
+# services/infrastructure → infrastructure/errors
+find src/ -name "*.ts" -o -name "*.tsx" | xargs sed -i '' "s|@/services/infrastructure|@/infrastructure/errors|g"
+
+# pages/ → presentation/website/pages
+find src/ -name "*.ts" -o -name "*.tsx" | xargs sed -i '' "s|@/pages|@/presentation/website/pages|g"
+
+# react/components/views → presentation/app/views
+find src/ -name "*.ts" -o -name "*.tsx" | xargs sed -i '' "s|@/react/components/views|@/presentation/app/views|g"
+
+# react/components → presentation/app/components
+find src/ -name "*.ts" -o -name "*.tsx" | xargs sed -i '' "s|@/react/components|@/presentation/app/components|g"
+
+# react/hooks → presentation/app/hooks
+find src/ -name "*.ts" -o -name "*.tsx" | xargs sed -i '' "s|@/react/hooks|@/presentation/app/hooks|g"
+
+# react/contexts → presentation/app/contexts
+find src/ -name "*.ts" -o -name "*.tsx" | xargs sed -i '' "s|@/react/contexts|@/presentation/app/contexts|g"
+
+# Catch any remaining old paths
+find src/ -name "*.ts" -o -name "*.tsx" | xargs sed -i '' "s|@/hooks|@/presentation/app/hooks|g"
+find src/ -name "*.ts" -o -name "*.tsx" | xargs sed -i '' "s|@/contexts|@/presentation/app/contexts|g"
+find src/ -name "*.ts" -o -name "*.tsx" | xargs sed -i '' "s|@/components|@/presentation/app/components|g"
+
+# services/ui → presentation/app/services
+find src/ -name "*.ts" -o -name "*.tsx" | xargs sed -i '' "s|@/services/ui|@/presentation/app/services|g"
+
+# Shared paths
+find src/ -name "*.ts" -o -name "*.tsx" | xargs sed -i '' "s|@/types|@/shared/types|g"
+find src/ -name "*.ts" -o -name "*.tsx" | xargs sed -i '' "s|@/assets|@/shared/assets|g"
+find src/ -name "*.ts" -o -name "*.tsx" | xargs sed -i '' "s|@/utils|@/presentation/app/utils|g"
+find src/ -name "*.ts" -o -name "*.tsx" | xargs sed -i '' "s|@/constants|@/presentation/app/constants|g"
+find src/ -name "*.ts" -o -name "*.tsx" | xargs sed -i '' "s|@/lib|@/presentation/app/lib|g"
+```
+
+**Files to update manually (barrel exports):**
+- `src/application/orchestrators/index.ts`
+- `src/presentation/app/components/index.ts`
+- `src/presentation/app/services/index.ts`
+- `src/infrastructure/mappers/index.ts`
+- `src/shared/types/index.ts`
+
+### Phase 4: Verify & Test (30 minutes)
+
+1. **Run TypeScript compiler:**
+```bash
+npm run type-check
+# or
+tsc --noEmit
+```
+
+2. **Run tests:**
+```bash
+npm test
+```
+
+3. **Run dev server:**
+```bash
+npm run dev
+```
+
+4. **Check for missed imports:**
+```bash
+# Search for old import paths
+grep -r "from '@/services/" src/
+grep -r "from '@/hooks/" src/
+grep -r "from '@/contexts/" src/
+grep -r "from '@/components/" src/
+grep -r "from '@/types/" src/
+grep -r "from '@/react/" src/
+grep -r "from '@/pages/" src/
+```
+
+### Phase 5: Update Documentation (15 minutes)
+
+1. **Update `.ddd` file** with new structure
+2. **Update `README.md`** with new folder organization
+3. **Update component READMEs** with new import paths
+4. **Create `.architecture-migration.md`** documenting the change
+
+---
+
+## Import Path Changes
+
+### Before (Current)
+```typescript
+// Domain
+import { ProjectValidation } from '@/domain/rules/projects/ProjectValidation'
+import { Project as ProjectEntity } from '@/domain/entities/Project'
+
+// Services (mixed bag)
+import { projectOrchestrator } from '@/services/orchestrators/projectOrchestrator'
+import { ProjectMapper } from '@/services/data/mappers/ProjectMapper'
+import { ProjectAggregator } from '@/services/data/aggregators/ProjectAggregator'
+
+// React (all under react/)
+import { useProjects } from '@/react/hooks/data/useProjects'
+import { TimelineView } from '@/react/components/views/TimelineView'
+import { ProjectContext } from '@/react/contexts/ProjectContext'
+
+// Other
+import { supabase } from '@/integrations/supabase/client'
+import { Project } from '@/types/core'
+import { formatDate } from '@/utils/dateFormatUtils'
+import { LandingPage } from '@/pages/LandingPage'
+```
+
+### After (Full DDD - Option A)
+```typescript
+// Layer 1: Domain (unchanged)
+import { ProjectValidation } from '@/domain/rules/projects/ProjectValidation'
+import { Project as ProjectEntity } from '@/domain/entities/Project'
+
+// Layer 2: Application (use cases)
+import { projectOrchestrator } from '@/application/orchestrators/projectOrchestrator'
+import { ProjectQueries } from '@/application/queries/ProjectQueries'
+
+// Layer 3: Infrastructure (technical services)
+import { supabase } from '@/infrastructure/database/client'
+import { ProjectMapper } from '@/infrastructure/mappers/ProjectMapper'
+
+// Layer 4: Presentation - App (authenticated)
+import { useProjects } from '@/presentation/app/hooks/data/useProjects'
+import { TimelineView } from '@/presentation/app/views/TimelineView'
+import { ProjectContext } from '@/presentation/app/contexts/ProjectContext'
+import { formatDate } from '@/presentation/app/utils/dateFormatUtils'
+
+// Layer 4: Presentation - Website (public)
+import { LandingPage } from '@/presentation/website/pages/LandingPage'
+
+// Shared (foundation)
+import { Project } from '@/shared/types/core'
+```
+
+---
+
+## Dependency Rules (Enforced by Structure)
+
+```
+shared/ (types, assets)
+   ↑
+domain/ (rules, entities, value-objects)           ← Layer 1
+   ↑
+application/ (orchestrators, queries)              ← Layer 2
+   ↑
+infrastructure/ (database, mappers, errors)        ← Layer 3
+   ↑
+presentation/ (app + website)                      ← Layer 4
+```
+
+**Rules:**
+- ✅ Presentation can import from infrastructure, application, domain, shared
+- ✅ Infrastructure can import from application, domain, shared
+- ✅ Application can import from domain, shared
+- ✅ Domain can import from shared only
+- ❌ Domain CANNOT import from application, infrastructure, or presentation
+- ❌ Application CANNOT import from infrastructure or presentation
+- ❌ Infrastructure CANNOT import from presentation
+- ❌ Lower layers NEVER import from higher layers
+
+**Enforce with ESLint plugin:**
+```bash
+npm install -D eslint-plugin-import
+```
+
+```json
+// eslint.config.js (add to rules)
+{
+  "import/no-restricted-paths": ["error", {
+    "zones": [
+      {
+        "target": "./src/domain",
+        "from": "./src/application",
+        "message": "Domain cannot import from Application"
+      },
+      {
+        "target": "./src/domain",
+        "from": "./src/infrastructure",
+        "message": "Domain cannot import from Infrastructure"
+      },
+      {
+        "target": "./src/domain",
+        "from": "./src/presentation",
+        "message": "Domain cannot import from Presentation"
+      },
+      {
+        "target": "./src/application",
+        "from": "./src/infrastructure",
+        "message": "Application cannot import from Infrastructure"
+      },
+      {
+        "target": "./src/application",
+        "from": "./src/presentation",
+        "message": "Application cannot import from Presentation"
+      },
+      {
+        "target": "./src/infrastructure",
+        "from": "./src/presentation",
+        "message": "Infrastructure cannot import from Presentation"
+      }
+    ]
+  }]
+}
+```
+```
+
+---
+
+## Rollback Plan
+
+If migration fails:
+
+1. **Git reset:**
+```bash
+git reset --hard HEAD  # Discard all changes
+```
+
+2. **Or revert commit:**
+```bash
+git revert <commit-hash>
+```
+
+3. **Restore from backup:**
+```bash
+cp -r ../project-content-vault-backup/* .
+```
+
+**Recommendation:** Create a backup branch before starting:
+```bash
+git checkout -b backup/pre-full-ddd-migration
+git push origin backup/pre-full-ddd-migration
+git checkout main
+```
+
+---
+
+## When to Migrate
+
+**Good times:**
+- ✅ Between major features (no active development)
+- ✅ After completing current sprint
+- ✅ When you have 4 uninterrupted hours
+- ✅ After all tests are passing
+- ✅ When team is available for quick fixes
+
+**Bad times:**
+- ❌ Right before a release
+- ❌ In the middle of a feature
+- ❌ When you're context-switching between tasks
+- ❌ Friday afternoon (in case something breaks)
+
+---
+
+## Post-Migration Improvements
+
+Once structure is in place:
+
+### 1. Refactor PlannerContext
+- Split into minimal contexts (AuthContext, SettingsContext, ThemeContext)
+- Remove data fetching from contexts
+- Components use hooks directly (useEvents, useProjects)
+- Modals use orchestrators directly
+
+### 2. Add Dependency Injection
+```typescript
+// application/orchestrators/projectOrchestrator.ts
+export class ProjectOrchestrator {
+  constructor(
+    private db: DatabaseClient,
+    private mapper: ProjectMapper,
+    private errors: ErrorHandlingService
+  ) {}
+}
+```
+
+### 3. Extract Shared Packages
+```typescript
+// packages/domain/
+// packages/application/
+// apps/web/            (presentation + core)
+// apps/api/            (application + infrastructure + domain)
+```
+
+### 4. Add Integration Tests
+```typescript
+// infrastructure/__tests__/database.integration.test.ts
+describe('ProjectOrchestrator', () => {
+  it('creates project in real database', async () => {
+    // Test with actual Supabase instance
+  });
+});
+```
+
+---
+
+## Success Metrics
+
+Migration is successful when:
+
+- ✅ All tests pass (`npm test`)
+- ✅ TypeScript compiles with no errors (`tsc --noEmit`)
+- ✅ Dev server runs (`npm run dev`)
+- ✅ All features work in browser (manual QA)
+- ✅ No console errors in browser
+- ✅ All imports use new paths
+- ✅ Old folders deleted
+- ✅ Documentation updated
+
+---
+
+## Timeline
+
+| Phase | Duration | Can Pause? |
+|-------|----------|------------|
+| Phase 1: Create structure | 30 min | ✅ Yes |
+| Phase 2: Move files | 45 min | ✅ Yes (git stash) |
+| Phase 3: Update imports | 90 min | ⚠️ No (half-done is broken) |
+| Phase 4: Verify & test | 30 min | ❌ No (must finish) |
+| Phase 5: Update docs | 15 min | ✅ Yes |
+| **Total** | **3-4 hours** | |
+
+**Recommendation:** Block out a 4-hour window with no interruptions.
+
+---
+
+## Alternative: Gradual Migration
+
+Instead of big-bang, migrate one layer at a time:
+
+**Week 1:** Move `shared/` only (foundation)
+```bash
+git mv src/types src/shared/types
+git mv src/assets src/shared/assets
+# Update imports for shared only
+```
+
+**Week 2:** Move `presentation/` (UI layer)
+```bash
+git mv src/react/* src/presentation/app/
+git mv src/pages/* src/presentation/website/pages/
+# Update imports for presentation only
+```
+
+**Week 3:** Move `infrastructure/`
+```bash
+git mv src/integrations/supabase src/infrastructure/database
+git mv src/services/data/mappers src/infrastructure/mappers
+# Update imports for infrastructure only
+```
+
+**Week 4:** Move `application/`
+```bash
+git mv src/services/orchestrators src/application/orchestrators
+git mv src/services/data/aggregators src/application/queries
+# Update imports for application only
+```
+
+**Pros:**
+- Smaller, safer changes
+- Can test between each migration
+- Easier to review PRs
+
+**Cons:**
+- Takes 4 weeks instead of 1 day
+- Partial structure is confusing
+- Need to maintain both old and new paths temporarily
+
+---
+
+## Future Escape Hatch: Website Promotion
+
+When website grows (blog, sales pages, etc.), promote it to top level:
+
+```
+src/
+├── domain/
+├── application/
+├── infrastructure/
+├── presentation/         ← Now just authenticated app
+│   ├── views/
+│   ├── components/
+│   ├── hooks/
+│   └── contexts/
+├── website/              ← Promoted to top level!
+│   ├── pages/
+│   ├── components/
+│   └── blog/
+└── shared/
+```
+
+**When to promote:**
+- Website has 10+ pages
+- Blog feature added
+- Multiple distinct user flows
+- Team members working only on website
+
+---
+
+## Bottom Line
+
+**Full DDD migration is worth it if:**
+- You're planning to scale the team (5+ developers)
+- You want to extract domain logic for reuse (API, mobile)
+- You're committed to long-term architectural discipline
+- You have 4 uninterrupted hours for migration
+
+**Stick with current hybrid approach if:**
+- You're solo or very small team (2-3 devs)
+- You prefer iterative improvements
+- You're actively developing features
+- Current structure "works well enough"
+
+**Current recommendation:** 
+Wait until a natural break in development (end of quarter, between major features), then do the full migration in one focused session. Document here for future reference.
+
+---
+
+**Next Steps When Ready:**
+1. Create backup branch: `git checkout -b backup/pre-full-ddd-migration`
+2. Schedule 4-hour block with no meetings
+3. Follow Phase 1-5 steps above
+4. Update `.ddd` to reflect new structure
+5. Delete this `.fullddd` file (mission accomplished!)

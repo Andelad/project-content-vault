@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/shadcn/button';
-import { Input } from '@/components/shadcn/input';
-import { Label } from '@/components/shadcn/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/shadcn/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/shadcn/tabs';
+import { useAuth } from '@/react/contexts/AuthContext';
+import { Button } from '@/react/components/shadcn/button';
+import { Input } from '@/react/components/shadcn/input';
+import { Label } from '@/react/components/shadcn/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/react/components/shadcn/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/react/components/shadcn/tabs';
 import { toast } from '@/hooks/ui/use-toast';
 import { useNavigate } from 'react-router-dom';
 
