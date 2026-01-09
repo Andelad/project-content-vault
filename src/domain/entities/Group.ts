@@ -10,8 +10,8 @@
  * @see docs/core/Business Logic.md - Detailed business rules
  */
 
-import type { Group as GroupData } from '@/types/core';
-import type { Database } from '@/integrations/supabase/types';
+import type { Group as GroupData } from '@/shared/types/core';
+import type { Database } from '@/infrastructure/database/types';
 import type { DomainResult } from './Project';
 
 type GroupRow = Database['public']['Tables']['groups']['Row'];

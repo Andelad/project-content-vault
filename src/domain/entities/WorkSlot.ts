@@ -10,7 +10,7 @@
  * @see docs/core/Business Logic.md - Detailed business rules
  */
 
-import type { WorkSlot as WorkSlotData } from '@/types/core';
+import type { WorkSlot as WorkSlotData } from '@/shared/types/core';
 import type { DomainResult } from './Project';
 
 /**

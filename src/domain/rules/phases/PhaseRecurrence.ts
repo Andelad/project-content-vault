@@ -22,7 +22,7 @@
  */
 
 import { RRule, Frequency, Weekday, rrulestr, Options } from 'rrule';
-import type { RecurringConfig } from '@/types/core';
+import type { RecurringConfig } from '@/shared/types/core';
 
 export interface RecurringPhaseConfig {
   type: 'daily' | 'weekly' | 'monthly';

@@ -23,7 +23,7 @@
  * @see EventClassificationRules.ts - Pure domain event classification
  * @see docs/operations/ARCHITECTURE_REBUILD_PLAN.md
  */
-import type { CalendarEvent, Project } from '@/types/core';
+import type { CalendarEvent, Project } from '@/shared/types/core';
 import { EventClassificationRules } from '../events/EventClassification';
 
 // ============================================================================

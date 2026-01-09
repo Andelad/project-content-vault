@@ -10,7 +10,7 @@
  * @see docs/core/Business Logic.md for complete rule documentation
  */
 
-import type { Project, PhaseDTO } from '@/types/core';
+import type { Project, PhaseDTO } from '@/shared/types/core';
 import { normalizeToMidnight } from '@/services';
 
 // ============================================================================

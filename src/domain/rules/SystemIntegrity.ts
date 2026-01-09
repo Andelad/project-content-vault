@@ -18,7 +18,7 @@
  * @see docs/operations/ARCHITECTURE_REBUILD_PLAN.md
  */
 
-import type { Project, PhaseDTO, Client, Group, Label } from '@/types/core';
+import type { Project, PhaseDTO, Client, Group, Label } from '@/shared/types/core';
 import { PhaseIntegrity } from './phases/PhaseIntegrity';
 import { ProjectIntegrity } from './projects/ProjectIntegrity';
 

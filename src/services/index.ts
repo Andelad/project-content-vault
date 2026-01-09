@@ -1,52 +1,40 @@
 /**
- * 🏗️ AI-Optimized Services Architecture - Central Index
- * SINGLE SOURCE OF TRUTH for all service imports
+ * 🏗️ Services Architecture - Central Index (LEGACY BARREL)
  * 
- * 🚨 ARCHITECTURAL RULES:
- * ❌ DON'T add calculations to: Components, Hooks, Utils
- * ✅ DO import from: @/services (this barrel export only)
- * ✅ Logic Flow: Components → Orchestrators → domain/rules/
- *
- * 📁 Current Architecture Layers:
- * ├── orchestrators/     # Workflow coordination  
- * ├── data/              # Data access & persistence
- * └── (legacy exports from other layers below)
+ * ⚠️ This file provides backward compatibility during the DDD migration.
+ * New code should import directly from the DDD layers:
+ *   - @/application/orchestrators
+ *   - @/application/queries  
+ *   - @/infrastructure/database
+ *   - @/infrastructure/mappers
+ *   - @/infrastructure/errors
+ *   - @/presentation/app/services
  */
 
-// 🎯 Core Service Layers
-// Export orchestrators
-export { ProjectOrchestrator } from './orchestrators/ProjectOrchestrator';
-export type { ProjectValidationResult, ProjectMilestoneAnalysis, ProjectCreationRequest, ProjectCreationResult, ProjectMilestone, ProjectCreationWithMilestonesRequest, ProjectUpdateRequest } from './orchestrators/ProjectOrchestrator';
-export * from './orchestrators/PhaseOrchestrator';
-export * from './orchestrators/CalendarEventOrchestrator';
-export * from './orchestrators/SettingsOrchestrator';
-export * from './orchestrators/GroupOrchestrator';
+// 🎯 Core Service Layers - Now in application/
+export { ProjectOrchestrator } from '@/application/orchestrators/ProjectOrchestrator';
+export type { ProjectValidationResult, ProjectMilestoneAnalysis, ProjectCreationRequest, ProjectCreationResult, ProjectMilestone, ProjectCreationWithMilestonesRequest, ProjectUpdateRequest } from '@/application/orchestrators/ProjectOrchestrator';
+export * from '@/application/orchestrators/PhaseOrchestrator';
+export * from '@/application/orchestrators/CalendarEventOrchestrator';
+export * from '@/application/orchestrators/SettingsOrchestrator';
+export * from '@/application/orchestrators/GroupOrchestrator';
 
-// Export data layer
-export * from './data';             // Data transformation & aggregation
+// Export data layer - now in application/queries
+export * from '@/application/queries';
 
-// 🔄 Re-export from other top-level folders for backward compatibility
-export * from '@/services/ui';                      // View positioning & UI helpers
-export * from '@/services/infrastructure/caching';  // Performance optimization
-export * from '@/services/infrastructure/ErrorHandlingService';  // Centralized error handling
+// 🔄 Re-export from DDD layers for backward compatibility
+export * from '@/presentation/app/services';
+export * from '@/infrastructure/errors/caching';
+export * from '@/infrastructure/errors/ErrorHandlingService';
 
 // 🚧 Legacy Services (Temporary - During Migration)
-// These will be removed once migration to new architecture is complete
-// TimelinePositioningService migrated to ui/TimelinePositioning.ts
-// ProjectCalculationService migrated to domain/rules/
 export { WorkHourCalculationService } from '@/domain/rules/availability/WorkHourGeneration';
 
-// 🔧 Additional Temporary Exports (Remove after migration)
-// Timeline positioning functions (frequently used)
-// Timeline positioning functions moved to ui/TimelinePositioning.ts
-
-// 🎯 Unified Services (Main API Layer - LEGACY, being phased out)
-
-// Time tracking - migrated to domain/rules/timeTracking and orchestrators
+// Time tracking types
 export type { SearchResult, TrackingEventData } from '@/domain/rules/time-tracking/TimeTrackerHelpers';
-export type { TrackingState } from '@/services/infrastructure/TimeTrackerStorage';
+export type { TrackingState } from '@/infrastructure/errors/TimeTrackerStorage';
 
-// Event-Work Hour integration - migrated to calculations/availability/eventWorkHourIntegration
+// Event-Work Hour integration
 export { 
   clearTimelineCache, 
   generateWorkHoursForDate, 
@@ -57,15 +45,15 @@ export {
   getProjectTimeAllocation
 } from '@/domain/rules/availability/EventWorkHourIntegration';
 
-// Event transformations - migrated to ui/EventTransformations
+// Event transformations
 export { 
   prepareEventsForFullCalendar,
   transformCalendarEventToFullCalendar,
   transformWorkHourToFullCalendar,
   transformFullCalendarToCalendarEvent
-} from '@/services/ui/EventTransformations';
+} from '@/presentation/app/services/EventTransformations';
 
-// 🔧 Frequently Used Functions (Stable API)
+// Holiday calculations
 export { 
   expandHolidayDates,
   expandHolidayDatesDetailed,
@@ -73,7 +61,8 @@ export {
   getHolidaysInRangeDetailed,
   countHolidayDaysInRange
 } from '@/domain/rules/holidays/HolidayCalculations';
-// FullCalendar configuration - migrated to ui/FullCalendarConfig
+
+// FullCalendar configuration
 export { 
   getBaseFullCalendarConfig, 
   getEventStylingConfig,
@@ -86,10 +75,10 @@ export {
   type BusinessHoursConfig,
   type CalendarView,
   type ViewportSize
-} from '@/services/ui/FullCalendarConfig';
-export { throttledDragUpdate as throttleDragUpdate } from '@/services/infrastructure/caching/dragPerformanceService';
+} from '@/presentation/app/services/FullCalendarConfig';
+export { throttledDragUpdate as throttleDragUpdate } from '@/infrastructure/errors/caching/dragPerformanceService';
 
-// 📊 Calculation Functions (Business Logic)
+// Phase calculations
 export {
   calculateTotalAllocation,
   calculateBudgetUtilization,
@@ -107,24 +96,13 @@ export {
   findMilestoneGap
 } from '@/domain/rules/phases/PhaseCalculations';
 
-// 🚧 Legacy Layer (Migration in Progress)
-// ⚠️ TODO: Migrate these to new architecture layers above
-// These exports maintain backward compatibility during the migration process
-// Once migration is complete, all functionality will be available through the new layers
+// Timeline viewport service
+export { TimelineViewport, TimelineViewport as TimelineViewportService } from '@/presentation/app/services/TimelineViewportService';
 
-// Modern calculation services (replacing legacy timeline business logic)
-// These functions are now available directly as exports from their respective calculation modules
+// Work hour interaction
+export { calculateTimeFromPosition } from '@/presentation/app/services/workHourInteraction';
 
-// MilestoneManagementService migrated to unified/UnifiedPhaseService.ts + orchestrators/MilestoneOrchestrator.ts
-// TimelineCalculationService migrated to calculations/timelineCalculations.ts
-
-// New architecture services - maintain backward compatibility
-export { TimelineViewport, TimelineViewport as TimelineViewportService } from '@/services/ui/TimelineViewportService';
-
-// ================================================================================
-
-// Legacy calculation functions (to be migrated)
-export { calculateTimeFromPosition } from '@/services/ui/workHourInteraction';
+// Date calculations
 export { 
   calculateDurationMinutes,
   normalizeToMidnight,
@@ -136,7 +114,6 @@ export {
   isWorkingDay,
   addDaysToDate,
   addHoursToDate,
-  // New pure date calculation functions
   isToday,
   isTodayInWeek,
   formatWeekDateRange,
@@ -145,20 +122,17 @@ export {
   getDayName,
   generateDateRange,
   isDateInArray
-} from '@/utils/dateCalculations';
+} from '@/presentation/app/utils/dateCalculations';
+
+// Time calculations
 export {
   getCurrentTimezone,
   convertToTimezone,
   getTimezoneOffset,
   isDaylightSavingTime
-} from '@/utils/timeCalculations';
+} from '@/presentation/app/utils/timeCalculations';
 
-// Legacy event calculation wrappers for backward compatibility
-// ===================================
-// STANDARDIZED DATE/TIME FORMATTING
-// ===================================
-
-// Primary date/time formatting - import from utils (single source of truth)
+// Date formatting
 export { 
   formatDate, 
   formatDateShort, 
@@ -178,21 +152,15 @@ export {
   formatTimeRange,
   isSameDate,
   APP_LOCALE
-} from '@/utils/dateFormatUtils';
+} from '@/presentation/app/utils/dateFormatUtils';
 
-// ===================================
-// TIME FORMATTING - SINGLE SOURCE OF TRUTH
-// ===================================
-
+// Duration formatting
 export { 
   formatDuration,
   formatDurationFromMinutes
-} from '@/utils/dateCalculations';
+} from '@/presentation/app/utils/dateCalculations';
 
-// ===================================
-// EVENT CALCULATIONS
-// ===================================
-
+// Event calculations
 export {
   aggregateEventDurationsByDate,
   calculateEventDurationOnDate,
@@ -203,25 +171,29 @@ export {
   validateRecurringConfig
 } from '@/domain/rules/events/EventCalculations';
 
-// Import the new function to create legacy wrapper
-import { calculateEventDurationOnDate as calculateEventDurationOnDateNew } from '@/domain/rules/events/EventCalculations';
-
 // Legacy wrapper - maintains old function signature
+import { calculateEventDurationOnDate as calculateEventDurationOnDateNew } from '@/domain/rules/events/EventCalculations';
+import type { CalendarEvent, Holiday, Settings, WorkSlot } from '@/shared/types';
+
 export function calculateEventDurationOnDateLegacy(event: CalendarEvent, targetDate: Date): number {
   return calculateEventDurationOnDateNew({ event, targetDate });
 }
+
+// Capacity analysis
 export { calculateWorkHourCapacity, getWorkHoursCapacityForPeriod, calculateTotalPlannedHours, calculateOtherTime, calculateOvertimePlannedHours } from '@/domain/rules/availability/CapacityAnalysis';
 export { calculateProjectDuration, calculateProjectTimeMetrics, buildPlannedTimeMap, getPlannedTimeUpToDate, generateProgressDataPoints, calculateProjectVelocity, estimateProjectCompletionDate } from '@/domain/rules/projects/ProjectMetrics';
 export { isProjectFullyCompletedOnDate, calculatePlannedTimeCompletionStats } from '@/domain/rules/insights/AnalyticsCalculations';
 export { processEventOverlaps, calculateElapsedTime, createTimeRange, validateEventForSplit, type EventSplitResult, type Event, type TimeRange } from '@/domain/rules/events/EventSplitting';
 
-// Additional legacy exports (organized by domain)
+// Project status
 export { 
   calculateProjectStatus, 
   determineProjectStatus, 
   getEffectiveProjectStatus, 
   organizeProjectsByStatus
 } from '@/domain/rules/projects/ProjectMetrics';
+
+// Settings calculations
 export { 
   calculateDayTotalHours,
   calculateWeekTotalHours,
@@ -232,7 +204,9 @@ export {
   createNewWorkSlot,
   updateWorkSlot,
   validateWorkSchedule
-} from '@/utils/settingsCalculations';
+} from '@/presentation/app/utils/settingsCalculations';
+
+// Phase calculations
 export { 
   calculateRecurringPhaseCount, 
   calculateRecurringTotalAllocation, 
@@ -242,13 +216,15 @@ export {
   calculateMilestoneSegments,
   type MilestoneSegment
 } from '@/domain/rules/phases/PhaseCalculations';
-// Legacy project progress analysis - migrated to unified service with compatibility wrapper
+
+// Capacity analysis (additional)
 export { wouldOverlapHolidays, isHolidayDateCapacity, calculateCommittedHoursForDate, hasWorkHoursConfigured, dayHasWorkHoursConfigured } from '@/domain/rules/availability/CapacityAnalysis';
-export { calculateProjectDays } from '@/services/ui/ProjectBarPositioning';
+export { calculateProjectDays } from '@/presentation/app/services/ProjectBarPositioning';
 export { calculateWorkHoursTotal, calculateDayWorkHours, calculateTotalDayWorkHours } from '@/domain/rules/availability/WorkHourGeneration';
 export { calculateDailyCapacity } from '@/domain/rules/insights/AnalyticsCalculations';
 export { calculateProjectTimeMetrics as calculateLegacyProjectMetrics } from '@/domain/rules/projects/ProjectMetrics';
-// CoreProjectCalculationService migrated to UnifiedProjectService
+
+// Analytics calculations
 export { 
   calculateFutureCommitments, 
   calculateWeeklyCapacity,
@@ -257,40 +233,32 @@ export {
   calculateTotalTrackedHours,
   generateWeeklyUtilizationReport
 } from '@/domain/rules/insights/AnalyticsCalculations';
+
+// Drag positioning
 export { 
   calculateDaysDelta, 
   createSmoothDragAnimation, 
   debounceDragUpdate, 
   initializeHolidayDragState,
   type SmoothAnimationConfig 
-} from '@/services/ui/DragPositioning';
-export { handleWorkHourCreationStart, handleWorkHourCreationMove, handleWorkHourCreationComplete } from '@/services/ui/workHourInteraction';
-export { getWorkHourOverlapInfo, generateWorkHourPreviewStyle, getWorkHourCreationCursor, shouldAllowWorkHourCreation, type WorkHourCreateState } from '@/services/ui/workHourInteraction';
-// PositionCalculation type migrated to ui/TimelinePositioning.ts
+} from '@/presentation/app/services/DragPositioning';
+
+// Work hour interaction
+export { handleWorkHourCreationStart, handleWorkHourCreationMove, handleWorkHourCreationComplete } from '@/presentation/app/services/workHourInteraction';
+export { getWorkHourOverlapInfo, generateWorkHourPreviewStyle, getWorkHourCreationCursor, shouldAllowWorkHourCreation, type WorkHourCreateState } from '@/presentation/app/services/workHourInteraction';
+
+// Types
 export { type ComprehensiveProjectTimeMetrics, type ProjectEvent as ProgressProjectEvent } from '@/domain/rules/projects/ProjectMetrics';
-// Timeline positioning now handled by ui/TimelinePositioning.ts
-// All UI positioning functions consolidated there
-export { formatWorkSlotDurationDisplay } from '@/services/ui/workHourInteraction';
+
+// Work slot formatting
+export { formatWorkSlotDurationDisplay } from '@/presentation/app/services/workHourInteraction';
+
+// Project overlap detection
 export { checkProjectOverlap, adjustProjectDatesForDrag, detectLiveDragConflicts, resolveDragConflicts, datesOverlap, calculateOverlapPercentage, type ConflictDetectionResult, type DateAdjustmentResult, type Project } from '@/domain/rules/projects/ProjectMetrics';
 
-/**
- * 🎯 AI Development Guidelines:
- * 
- * ✅ For NEW features: Use the new architecture layers above (unified/, orchestrators/, etc.)
- * ✅ For EXISTING features: Import from this barrel export only: @/services
- * ❌ Never import directly from legacy/ paths - use this index instead
- * ❌ Never create new files in legacy/ - use the new architecture
- * 
- * Migration Status: ~70% complete
- * Next: Migrate remaining legacy services to unified/orchestrator pattern
- */
-
 // 🔄 Compatibility Wrappers for Migrated /lib Functionality
-// These provide the same interface as the old /lib files but use the new services architecture
-
-import { CalculationCacheService, WorkingDayCache } from '@/services/infrastructure/caching';
+import { CalculationCacheService, WorkingDayCache } from '@/infrastructure/errors/caching';
 import * as React from 'react';
-import type { CalendarEvent, Holiday, Settings, WorkSlot } from '@/types';
 
 /**
  * Working day cache compatibility - migrated from /lib/workingDayCache
@@ -303,12 +271,11 @@ export const workingDayStats = {
       hits: stats.hits,
       misses: stats.misses,
       hitRate: stats.checks > 0 ? (stats.hits / stats.checks * 100).toFixed(1) : '0',
-      cacheSize: 'N/A' // Cache size is managed internally
+      cacheSize: 'N/A'
     };
   },
   
   logStats: () => {
-    const stats = workingDayStats.getStats();
     // Stats available for debugging if needed
   },
   
@@ -318,7 +285,7 @@ export const workingDayStats = {
 };
 
 /**
- * Cached working day checker hook - migrated from /lib/workingDayCache
+ * Cached working day checker hook
  */
 type WeeklyWorkHours = Settings['weeklyWorkHours'];
 const DAY_NAMES: Array<keyof WeeklyWorkHours> = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
@@ -367,7 +334,7 @@ export function useCachedWorkingDayChecker(
 }
 
 /**
- * Milestone cache compatibility - migrated from /lib/milestoneCache
+ * Milestone cache compatibility
  */
 export const milestoneStats = {
   getStats: () => {
@@ -377,20 +344,18 @@ export const milestoneStats = {
       hits: stats.hits,
       misses: stats.misses,
       hitRate: stats.checks > 0 ? (stats.hits / stats.checks * 100).toFixed(1) : '0',
-      cacheSize: 'N/A' // Cache size is managed internally
+      cacheSize: 'N/A'
     };
   },
   
   logStats: () => {
-    const stats = milestoneStats.getStats();
     // Stats available for debugging if needed
   }
 };
 
-
 // Additional time/duration utilities
-export { formatTimeForValidation } from '@/utils/timeCalculations';
-export { calculateDurationHours, isWeekendDate } from '@/utils/dateCalculations';
+export { formatTimeForValidation } from '@/presentation/app/utils/timeCalculations';
+export { calculateDurationHours, isWeekendDate } from '@/presentation/app/utils/dateCalculations';
 export { DurationFormattingService } from '@/domain/rules/projects/ProjectBudget';
 
 // Capacity and availability functions
@@ -423,7 +388,7 @@ export { calculateBudgetAdjustment } from '@/domain/rules/phases/PhaseCalculatio
 export { calculateGroupStatistics } from '@/domain/rules/groups/GroupCalculations';
 
 // Pixel/date conversions
-export { calculateDaysDeltaFromPixels } from '@/utils/dateCalculations';
+export { calculateDaysDeltaFromPixels } from '@/presentation/app/utils/dateCalculations';
 
 // Timeline calculations
 export { calculateTimelineRows } from '@/domain/rules/timeline/TimelineRowCalculations';

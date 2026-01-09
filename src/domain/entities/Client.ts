@@ -10,8 +10,8 @@
  * @see docs/core/Business Logic.md - Detailed business rules
  */
 
-import type { Client as ClientData, ClientStatus } from '@/types/core';
-import type { Database } from '@/integrations/supabase/types';
+import type { Client as ClientData, ClientStatus } from '@/shared/types/core';
+import type { Database } from '@/infrastructure/database/types';
 import { ClientRules } from '@/domain/rules/clients/ClientValidation';
 import type { DomainResult } from './Project';
 

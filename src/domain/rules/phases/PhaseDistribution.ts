@@ -19,7 +19,7 @@
  * This service contains the "what" (distribution algorithms) not the "how" (persistence).
  */
 
-import type { PhaseDTO } from '@/types/core';
+import type { PhaseDTO } from '@/shared/types/core';
 
 export interface AllocationDistribution {
   min: number;

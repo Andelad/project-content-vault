@@ -21,10 +21,10 @@
  * - dailyMetrics.ts - For daily metrics
  */
 
-import { calculateTimeOverlapMinutes, addDaysToDate, normalizeToMidnight } from '@/utils/dateCalculations';
+import { calculateTimeOverlapMinutes, addDaysToDate, normalizeToMidnight } from '@/presentation/app/utils/dateCalculations';
 import { calculateEventDurationOnDate } from '../events/EventCalculations';
 import { calculateWorkHoursTotal, calculateDayWorkHours } from './WorkHourGeneration';
-import { getDateKey } from '@/utils/dateFormatUtils';
+import { getDateKey } from '@/presentation/app/utils/dateFormatUtils';
 
 // Import from eventWorkHourIntegration - same module now
 import { 
@@ -33,7 +33,7 @@ import {
   calculateOvertimePlannedHours as unifiedCalculateOvertimePlannedHours
 } from './EventWorkHourIntegration';
 
-import type { CalendarEvent, Holiday, Settings, WorkHour, WorkSlot } from '@/types';
+import type { CalendarEvent, Holiday, Settings, WorkHour, WorkSlot } from '@/shared/types';
 
 // ===== INTERFACES =====
 

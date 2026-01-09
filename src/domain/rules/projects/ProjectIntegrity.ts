@@ -19,7 +19,7 @@
  * @see docs/operations/ARCHITECTURE_REBUILD_PLAN.md
  */
 
-import type { Project, Client, Group, Row } from '@/types/core';
+import type { Project, Client, Group, Row } from '@/shared/types/core';
 
 // ============================================================================
 // TYPE DEFINITIONS

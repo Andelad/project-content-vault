@@ -8,7 +8,7 @@
  *
  * @see CLIENT_GROUP_LABEL_TERMINOLOGY.md for complete label documentation
  */
-import type { Label, Project } from '@/types/core';
+import type { Label, Project } from '@/shared/types/core';
 // ============================================================================
 // TYPE DEFINITIONS
 // ============================================================================

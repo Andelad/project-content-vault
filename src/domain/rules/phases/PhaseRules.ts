@@ -43,7 +43,7 @@
  * @see docs/operations/ARCHITECTURE_REBUILD_PLAN.md
  */
 
-import type { PhaseDTO } from '@/types/core';
+import type { PhaseDTO } from '@/shared/types/core';
 import {
   PhaseValidationRules,
   type MilestoneValidationResult,

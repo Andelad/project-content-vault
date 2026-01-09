@@ -15,7 +15,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { PhaseRecurrenceService } from '@/domain/rules/phases/PhaseRecurrence';
-import type { RecurringConfig } from '@/types/core';
+import type { RecurringConfig } from '@/shared/types/core';
 
 describe('PhaseRecurrence', () => {
   

@@ -10,9 +10,9 @@
  * @see docs/core/Business Logic.md - Detailed business rules
  */
 
-import type { Holiday as HolidayData } from '@/types/core';
-import type { Database } from '@/integrations/supabase/types';
-import { normalizeToMidnight } from '@/utils/dateCalculations';
+import type { Holiday as HolidayData } from '@/shared/types/core';
+import type { Database } from '@/infrastructure/database/types';
+import { normalizeToMidnight } from '@/presentation/app/utils/dateCalculations';
 import type { DomainResult } from './Project';
 
 type HolidayRow = Database['public']['Tables']['holidays']['Row'];

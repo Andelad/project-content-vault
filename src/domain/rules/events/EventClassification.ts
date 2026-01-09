@@ -14,9 +14,9 @@
  * 
  * @see docs/core/Business Logic.md - Rule 9: Time Type Definitions
  */
-import type { CalendarEvent, Project } from '@/types/core';
-import { getDateKey } from '@/utils/dateFormatUtils';
-import { calculateDurationHours } from '@/utils/dateCalculations';
+import type { CalendarEvent, Project } from '@/shared/types/core';
+import { getDateKey } from '@/presentation/app/utils/dateFormatUtils';
+import { calculateDurationHours } from '@/presentation/app/utils/dateCalculations';
 
 // ============================================================================
 // TYPE DEFINITIONS

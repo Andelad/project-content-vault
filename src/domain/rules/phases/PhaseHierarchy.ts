@@ -20,8 +20,8 @@
  * @see docs/PHASE_DOMAIN_LOGIC.md
  */
 
-import type { PhaseDTO } from '@/types/core';
-import { normalizeToMidnight, addDaysToDate } from '@/utils/dateCalculations';
+import type { PhaseDTO } from '@/shared/types/core';
+import { normalizeToMidnight, addDaysToDate } from '@/presentation/app/utils/dateCalculations';
 
 // ============================================================================
 // HELPER FUNCTIONS (for internal use)

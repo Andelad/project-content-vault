@@ -18,7 +18,7 @@
  * @see docs/operations/ARCHITECTURE_REBUILD_PLAN.md
  */
 
-import type { Project, PhaseDTO } from '@/types/core';
+import type { Project, PhaseDTO } from '@/shared/types/core';
 import { calculateTotalAllocation } from './phases/PhaseCalculations';
 
 // ============================================================================

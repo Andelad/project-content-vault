@@ -15,7 +15,7 @@ import {
   calculateOverageAmount,
   validateMilestoneScheduling
 } from '@/domain/rules/phases/PhaseCalculations';
-import type { PhaseDTO } from '@/types/core';
+import type { PhaseDTO } from '@/shared/types/core';
 
 describe('PhaseCalculations', () => {
   // Test data factory

@@ -10,7 +10,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Project, CreateProjectParams } from '@/domain/entities/Project';
-import type { Project as ProjectData, Phase } from '@/types/core';
+import type { Project as ProjectData, Phase } from '@/shared/types/core';
 
 describe('Project Entity', () => {
   // Test data factories - Use 2025 dates (past is valid for historical projects)

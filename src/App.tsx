@@ -1,17 +1,17 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './react/contexts/AuthContext';
-import { ContextProviders } from './react/contexts/ContextProviders';
-import { Toaster } from './react/components/shadcn/toaster';
-import { ErrorBoundary } from './react/components/debug/ErrorBoundary';
+import { AuthProvider, useAuth } from './presentation/app/contexts/AuthContext';
+import { ContextProviders } from './presentation/app/contexts/ContextProviders';
+import { Toaster } from './presentation/app/components/shadcn/toaster';
+import { ErrorBoundary } from './presentation/app/components/debug/ErrorBoundary';
 
 // Pages
-import LandingPage from './pages/LandingPage';
-import Auth from './pages/Auth';
-import NotFound from './pages/NotFound';
+import LandingPage from './presentation/website/pages/LandingPage';
+import Auth from './presentation/website/pages/Auth';
+import NotFound from './presentation/website/pages/NotFound';
 
 // Layout
-import { MainAppLayout } from './react/components/layout/MainAppLayout';
+import { MainAppLayout } from './presentation/app/components/layout/MainAppLayout';
 
 function AppContent() {
   const { user, loading } = useAuth();

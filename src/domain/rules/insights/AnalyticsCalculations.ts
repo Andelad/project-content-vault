@@ -14,7 +14,7 @@
  */
 
 import { calculateEventDurationOnDate } from '../events/EventCalculations';
-import type { Project, CalendarEvent } from '@/types';
+import type { Project, CalendarEvent } from '@/shared/types';
 
 // =====================================================================================
 // INTERFACES

@@ -28,9 +28,9 @@ import {
   calculateTimeOverlapMinutes,
   normalizeToMidnight,
   addDaysToDate
-} from '@/utils/dateCalculations';
+} from '@/presentation/app/utils/dateCalculations';
 
-import { WorkHour, CalendarEvent, Settings, Holiday, Project, WorkSlot } from '@/types';
+import { WorkHour, CalendarEvent, Settings, Holiday, Project, WorkSlot } from '@/shared/types';
 
 const timelineCalculationDateCache = timelineCalculationCache as Parameters<
   typeof memoizeExpensiveCalculation<
@@ -43,11 +43,11 @@ const timelineCalculationAllocationCache = timelineCalculationCache as Parameter
 import { calculateAutoEstimateWorkingDays, calculateEventDurationOnDateLegacy as calculateEventDurationOnDate } from '@/services';
 // TODO: Fix these imports after performance and ui services migration
 // import { memoizeExpensiveCalculation, timelineCalculationCache } from '../../performance/cachePerformanceService';
-import { memoizeExpensiveCalculation, timelineCalculationCache } from '@/services/infrastructure/caching/cachePerformanceService';
-import { getCalendarEventBackgroundColor, getCalendarEventTextColor } from '@/constants/colors';
+import { memoizeExpensiveCalculation, timelineCalculationCache } from '@/infrastructure/errors/caching/cachePerformanceService';
+import { getCalendarEventBackgroundColor, getCalendarEventTextColor } from '@/presentation/app/constants/colors';
 // TODO: Fix this import after ui services migration
 // import { ColorCalculationService } from '../../shadcn/ColorCalculations';
-import { ColorCalculationService } from '@/services/ui/ColorCalculations';
+import { ColorCalculationService } from '@/presentation/app/services/ColorCalculations';
 
 /**
  * Clear the timeline calculation cache - useful when project settings change

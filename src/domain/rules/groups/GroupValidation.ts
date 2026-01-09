@@ -13,7 +13,7 @@
  * - services/orchestrators/GroupOrchestrator.ts (workflow coordination)
  */
 
-import type { Group, Project } from '@/types/core';
+import type { Group, Project } from '@/shared/types/core';
 
 export interface GroupValidationResult {
   isValid: boolean;

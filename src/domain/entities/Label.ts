@@ -10,8 +10,8 @@
  * @see docs/core/Business Logic.md - Detailed business rules
  */
 
-import type { Label as LabelData } from '@/types/core';
-import type { Database } from '@/integrations/supabase/types';
+import type { Label as LabelData } from '@/shared/types/core';
+import type { Database } from '@/infrastructure/database/types';
 import type { DomainResult } from './Project';
 
 type LabelRow = Database['public']['Tables']['labels']['Row'];

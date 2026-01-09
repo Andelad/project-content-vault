@@ -10,7 +10,7 @@
  * - Could run on server with zero business knowledge
  */
 
-import type { Project, Group } from '@/types/core';
+import type { Project, Group } from '@/shared/types/core';
 
 const ROW_HEIGHT = 52; // pixels - matches current timeline row height
 const MIN_GAP_DAYS = 2; // minimum days between projects on same row

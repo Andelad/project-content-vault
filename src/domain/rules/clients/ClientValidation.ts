@@ -9,7 +9,7 @@
  * @see CLIENT_GROUP_LABEL_TERMINOLOGY.md for complete client documentation
  */
 
-import type { Client, Project } from '@/types/core';
+import type { Client, Project } from '@/shared/types/core';
 
 // ============================================================================
 // TYPE DEFINITIONS

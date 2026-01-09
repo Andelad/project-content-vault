@@ -12,14 +12,14 @@
  * - Date calculations (calculations layer handles this)
  */
 
-import { CalendarEvent, Project } from '@/types/core';
-import { calculateDurationHours } from '@/utils/dateCalculations';
+import { CalendarEvent, Project } from '@/shared/types/core';
+import { calculateDurationHours } from '@/presentation/app/utils/dateCalculations';
 import {
   processEventOverlaps,
   createTimeRange,
   type EventSplitResult
 } from '@/domain/rules/events/EventSplitting';
-import type { TimeTrackingState } from '@/types/timeTracking';
+import type { TimeTrackingState } from '@/shared/types/timeTracking';
 
 type SelectedProject = NonNullable<TimeTrackingState['selectedProject']>;
 

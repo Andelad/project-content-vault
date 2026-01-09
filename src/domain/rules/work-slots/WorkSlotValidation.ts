@@ -10,7 +10,7 @@
  * @see docs/core/Business Logic.md for business rules
  */
 
-import type { WorkSlot } from '@/types/core';
+import type { WorkSlot } from '@/shared/types/core';
 
 // ============================================================================
 // TYPE DEFINITIONS

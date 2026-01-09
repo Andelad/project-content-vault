@@ -9,7 +9,7 @@
  * ✅ Mathematical operations only
  */
 
-import { Group, Project } from '@/types/core';
+import { Group, Project } from '@/shared/types/core';
 
 /**
  * Calculate group statistics from projects

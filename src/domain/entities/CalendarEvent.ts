@@ -15,8 +15,8 @@
  * @see docs/core/Business Logic.md - Detailed business rules
  */
 
-import type { CalendarEvent as CalendarEventData } from '@/types/core';
-import type { Database } from '@/integrations/supabase/types';
+import type { CalendarEvent as CalendarEventData } from '@/shared/types/core';
+import type { Database } from '@/infrastructure/database/types';
 import type { DomainResult } from './Project';
 
 type CalendarEventRow = Database['public']['Tables']['calendar_events']['Row'];

@@ -18,8 +18,8 @@
  * @see docs/operations/ARCHITECTURE_REBUILD_PLAN.md
  */
 
-import type { PhaseDTO, Project } from '@/types/core';
-import { normalizeToMidnight, addDaysToDate } from '@/utils/dateCalculations';
+import type { PhaseDTO, Project } from '@/shared/types/core';
+import { normalizeToMidnight, addDaysToDate } from '@/presentation/app/utils/dateCalculations';
 import { PhaseRecurrenceService } from './PhaseRecurrence';
 import { validateMilestoneScheduling } from './PhaseCalculations';
 

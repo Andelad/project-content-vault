@@ -23,10 +23,10 @@
  * Enhanced with better type safety and comprehensive documentation
  */
 
-import type { CalendarEvent } from '@/types';
-import { normalizeToMidnight, addDaysToDate } from '@/utils/dateCalculations';
+import type { CalendarEvent } from '@/shared/types';
+import { normalizeToMidnight, addDaysToDate } from '@/presentation/app/utils/dateCalculations';
 
-import { getDateKey } from '@/utils/dateFormatUtils';
+import { getDateKey } from '@/presentation/app/utils/dateFormatUtils';
 
 export interface EventDurationParams {
   event: {

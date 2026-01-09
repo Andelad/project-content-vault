@@ -7,8 +7,8 @@
 
 import { 
   calculateDurationHours 
-} from '@/utils/dateCalculations';
-import type { CalendarEvent } from '@/types/core';
+} from '@/presentation/app/utils/dateCalculations';
+import type { CalendarEvent } from '@/shared/types/core';
 
 // Use core CalendarEvent as the single source of truth
 export type Event = CalendarEvent;

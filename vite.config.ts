@@ -74,21 +74,28 @@ export default defineConfig(({ mode }) => ({
   ].filter(Boolean),
   resolve: {
     alias: [
-      // React-specific paths (must come first - most specific)
-      { find: "@/components", replacement: path.resolve(__dirname, "./src/react/components") },
-      { find: "@/contexts", replacement: path.resolve(__dirname, "./src/react/contexts") },
-      { find: "@/hooks", replacement: path.resolve(__dirname, "./src/react/hooks") },
-      // Standard paths
-      { find: "@/pages", replacement: path.resolve(__dirname, "./src/pages") },
-      { find: "@/types", replacement: path.resolve(__dirname, "./src/types") },
-      { find: "@/services", replacement: path.resolve(__dirname, "./src/services") },
+      // DDD Layer paths (most specific first)
       { find: "@/domain", replacement: path.resolve(__dirname, "./src/domain") },
-      { find: "@/utils", replacement: path.resolve(__dirname, "./src/utils") },
-      { find: "@/lib", replacement: path.resolve(__dirname, "./src/lib") },
+      { find: "@/application", replacement: path.resolve(__dirname, "./src/application") },
+      { find: "@/infrastructure", replacement: path.resolve(__dirname, "./src/infrastructure") },
+      { find: "@/presentation", replacement: path.resolve(__dirname, "./src/presentation") },
+      { find: "@/shared", replacement: path.resolve(__dirname, "./src/shared") },
+      // Convenience aliases (map to presentation/app)
+      { find: "@/components", replacement: path.resolve(__dirname, "./src/presentation/app/components") },
+      { find: "@/contexts", replacement: path.resolve(__dirname, "./src/presentation/app/contexts") },
+      { find: "@/hooks", replacement: path.resolve(__dirname, "./src/presentation/app/hooks") },
+      { find: "@/utils", replacement: path.resolve(__dirname, "./src/presentation/app/utils") },
+      { find: "@/lib", replacement: path.resolve(__dirname, "./src/presentation/app/lib") },
+      { find: "@/constants", replacement: path.resolve(__dirname, "./src/presentation/app/constants") },
+      // Shared aliases
+      { find: "@/types", replacement: path.resolve(__dirname, "./src/shared/types") },
+      { find: "@/assets", replacement: path.resolve(__dirname, "./src/shared/assets") },
+      // Website pages
+      { find: "@/pages", replacement: path.resolve(__dirname, "./src/presentation/website/pages") },
+      // Legacy paths (keep during migration)
+      { find: "@/services", replacement: path.resolve(__dirname, "./src/services") },
       { find: "@/integrations", replacement: path.resolve(__dirname, "./src/integrations") },
-      { find: "@/constants", replacement: path.resolve(__dirname, "./src/constants") },
-      { find: "@/react", replacement: path.resolve(__dirname, "./src/react") },
-      // Base path (must come last - least specific)
+      // Base path (must come last)
       { find: "@", replacement: path.resolve(__dirname, "./src") },
     ],
   },

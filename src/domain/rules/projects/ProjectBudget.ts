@@ -4,11 +4,11 @@
  * Uses single source of truth for all calculations
  */
 
-import { Project } from '@/types';
+import { Project } from '@/shared/types';
 import { 
   calculateDurationDays,
   formatDuration as coreFormatDuration
-} from '@/utils/dateCalculations';
+} from '@/presentation/app/utils/dateCalculations';
 
 // ===== WORKING DAYS INTERFACES =====
 export interface ProjectWorkSlot {

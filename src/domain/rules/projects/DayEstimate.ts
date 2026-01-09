@@ -9,11 +9,11 @@
  * ✅ Mathematical operations only
  * ✅ Delegates to domain rules for business logic
  */
-import { Phase, Project, DayEstimate, Settings, Holiday, CalendarEvent, PhaseDTO } from '@/types';
-import * as DateCalculations from '@/utils/dateCalculations';
+import { Phase, Project, DayEstimate, Settings, Holiday, CalendarEvent, PhaseDTO } from '@/shared/types';
+import * as DateCalculations from '@/presentation/app/utils/dateCalculations';
 import { calculatePlannedTimeForDate } from '../availability/EventWorkHourIntegration';
 import { TimelineRules } from '@/domain/rules/timeline/TimelineDisplay';
-import { getDateKey } from '@/utils/dateFormatUtils';
+import { getDateKey } from '@/presentation/app/utils/dateFormatUtils';
 import { PhaseRecurrenceService } from '@/domain/rules/phases/PhaseRecurrence';
 
 /**

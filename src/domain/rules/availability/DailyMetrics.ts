@@ -22,7 +22,7 @@
  * Note: isWorkingDay is already in dateCalculations.ts and is authoritative
  */
 
-import { getDayName, isWorkingDay } from '@/utils/dateCalculations';
+import { getDayName, isWorkingDay } from '@/presentation/app/utils/dateCalculations';
 import { 
   isHolidayDateCapacity, 
   calculateAvailabilityReduction,
@@ -30,7 +30,7 @@ import {
 } from './CapacityAnalysis';
 import { calculateWorkHoursTotal } from './WorkHourGeneration';
 import { calculateProjectDayEstimates } from '../projects/DayEstimate';
-import type { Project, CalendarEvent, PhaseDTO, Settings, Holiday } from '@/types/core';
+import type { Project, CalendarEvent, PhaseDTO, Settings, Holiday } from '@/shared/types/core';
 
 /**
  * Get total work hours for a specific day

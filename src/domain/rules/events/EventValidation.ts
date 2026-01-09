@@ -14,7 +14,7 @@
  * @see EventClassificationRules for event time classification
  */
 
-import type { CalendarEvent } from '@/types/core';
+import type { CalendarEvent } from '@/shared/types/core';
 
 // ============================================================================
 // TYPE DEFINITIONS

@@ -23,13 +23,13 @@
 
 import { 
   calculateDurationHours
-} from '@/utils/dateCalculations';
+} from '@/presentation/app/utils/dateCalculations';
 import { 
   getWeekStart as coreGetWeekStart,
   getCurrentWeekStart as coreGetCurrentWeekStart
-} from '@/utils/timeCalculations';
+} from '@/presentation/app/utils/timeCalculations';
 
-import { Settings, WorkHour, WorkSlot } from '@/types/core';
+import { Settings, WorkHour, WorkSlot } from '@/shared/types/core';
 
 export type WorkHourLike = Pick<WorkHour, 'duration'> | Pick<WorkSlot, 'duration'>;
 

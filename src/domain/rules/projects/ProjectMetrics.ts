@@ -13,16 +13,16 @@
  * Date: September 10, 2025
  */
 
-import type { PhaseDTO, Project, CalendarEvent, Holiday } from '@/types/core';
-import { getDateKey } from '@/utils/dateFormatUtils';
-import { calculateDurationDays, calculateDurationHours, datesOverlap } from '@/utils/dateCalculations';
-import { formatDateShort } from '@/utils/dateFormatUtils';
+import type { PhaseDTO, Project, CalendarEvent, Holiday } from '@/shared/types/core';
+import { getDateKey } from '@/presentation/app/utils/dateFormatUtils';
+import { calculateDurationDays, calculateDurationHours, datesOverlap } from '@/presentation/app/utils/dateCalculations';
+import { formatDateShort } from '@/presentation/app/utils/dateFormatUtils';
 
 // Re-export Project type for convenience
-export type { Project } from '@/types/core';
+export type { Project } from '@/shared/types/core';
 
 // Re-export commonly used date functions for backward compatibility
-export { datesOverlap } from '@/utils/dateCalculations';
+export { datesOverlap } from '@/presentation/app/utils/dateCalculations';
 
 // =====================================================================================
 // INTERFACES & TYPES
