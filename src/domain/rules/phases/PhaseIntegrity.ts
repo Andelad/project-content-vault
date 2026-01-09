@@ -76,7 +76,7 @@ export class PhaseIntegrity {
 
     // Validate phase dates are within project range
     const phaseEndDate = phase.endDate || phase.dueDate;
-    const dateValidation = PhaseRules.validateMilestoneDateWithinProject(
+    const dateValidation = PhaseRules.validatePhaseDateWithinProject(
       phaseEndDate,
       project.startDate,
       project.endDate,

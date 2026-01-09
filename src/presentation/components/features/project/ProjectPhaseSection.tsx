@@ -47,21 +47,21 @@ interface ProjectPhaseSectionProps {
   onRecurringPhaseChange?: (info: {
     totalAllocation: number;
     hasRecurring: boolean;
-    ensureMilestonesAvailable?: (targetDate?: Date) => Promise<void>;
+    ensurePhasesAvailable?: (targetDate?: Date) => Promise<void>;
   }) => void;
   localPhasesState?: {
     phases: LocalPhase[];
     setPhases: (phases: LocalPhase[]) => void;
   };
   isCreatingProject?: boolean;
-  trackedAddMilestone?: (milestone: LocalPhase, options?: { silent?: boolean }) => Promise<PhaseDTO | undefined>;
+  trackedAddPhase?: (phase: LocalPhase, options?: { silent?: boolean }) => Promise<PhaseDTO | undefined>;
   localValues?: LocalValuesState;
   setLocalValues?: (updater: (prev: LocalValuesState) => LocalValuesState) => void;
   onAutoEstimateDaysChange?: (newAutoEstimateDays: AutoEstimateDays | undefined) => void;
   editingProperty?: string | null;
   setEditingProperty?: (property: string | null) => void;
   handleSaveProperty?: (property: string, value: string | number | boolean | Date | null | undefined) => void;
-  recurringMilestoneInfo?: {
+  recurringPhaseInfo?: {
     hasRecurring: boolean;
     totalAllocation: number;
   };
@@ -71,7 +71,7 @@ interface ProjectPhaseSectionProps {
  * Orchestrates phase management UI
  * Uses hooks for state/logic coordination and components for pure UI
  * Following .cursorrules: thin orchestration layer, delegates to hooks and services
- * Note: Database still uses 'milestones' table for backward compatibility
+ * Note: Database now uses 'phases' table
  */
 export function ProjectPhaseSection({
   projectId,
@@ -83,14 +83,14 @@ export function ProjectPhaseSection({
   onRecurringPhaseChange,
   localPhasesState,
   isCreatingProject = false,
-  trackedAddMilestone,
+  trackedAddPhase,
   localValues,
   setLocalValues,
   onAutoEstimateDaysChange,
   editingProperty: externalEditingProperty,
   setEditingProperty: externalSetEditingProperty,
   handleSaveProperty: externalHandleSaveProperty,
-  recurringMilestoneInfo
+  recurringPhaseInfo
 }: ProjectPhaseSectionProps) {
   const { toast } = useToast();
 
@@ -150,11 +150,11 @@ export function ProjectPhaseSection({
     projectEndDate,
     isCreatingProject,
     localPhasesState,
-    trackedAddMilestone
+    trackedAddPhase
   });
 
   const {
-    recurringMilestone: legacyRecurringMilestone,
+    recurringMilestone: legacyRecurringPhase,
     setRecurringPhase,
     ensureRecurringPhasesAvailable,
     createRecurringPhases,
@@ -167,7 +167,7 @@ export function ProjectPhaseSection({
     projectContinuous,
     projectEstimatedHours,
     isDeletingRecurringPhase,
-    refetchMilestones: refetchPhases,
+    refetchPhases: refetchPhases,
     isCreatingProject,
     localPhasesState
   });
@@ -194,7 +194,7 @@ export function ProjectPhaseSection({
   }, [recurringPhaseData]);
 
   const getExclusivityValidation = () => PhaseRules.checkPhaseRecurringExclusivity(projectPhases as PhaseDTO[]);
-  const persistedProjectMilestones = projectPhases.filter(
+  const persistedProjectPhases = projectPhases.filter(
     (phase): phase is PhaseDTO => Boolean(phase.id)
   );
 
@@ -210,8 +210,8 @@ export function ProjectPhaseSection({
 
     // Detect split mode based on whether phases exist
   React.useEffect(() => {
-    const phaseMilestones = projectPhases.filter(p => p.startDate !== undefined);
-    const hasPhases = phaseMilestones.length > 0;
+    const phasePhases = projectPhases.filter(p => p.startDate !== undefined);
+    const hasPhases = phasePhases.length > 0;
     
     setIsSplitMode(hasPhases);
   }, [projectPhases, recurringMilestone]);
@@ -258,26 +258,26 @@ export function ProjectPhaseSection({
     }
   };
 
-  // Notify parent of recurring milestone changes
+  // Notify parent of recurring phase changes
   useEffect(() => {
     if (onRecurringPhaseChange) {
       onRecurringPhaseChange({
         totalAllocation: totalRecurringAllocation,
         hasRecurring: !!recurringMilestone,
-        ensureMilestonesAvailable: ensureRecurringPhasesAvailable
+        ensurePhasesAvailable: ensureRecurringPhasesAvailable
       });
     }
   }, [totalRecurringAllocation, recurringMilestone, onRecurringPhaseChange, ensureRecurringPhasesAvailable]);
 
-  // Filter milestones for display
-  const displayMilestones = projectPhases.filter(phase => {
-    // Hide template milestone (shown in RecurringPhaseCard instead)
+  // Filter phases for display
+  const displayPhases = projectPhases.filter(phase => {
+    // Hide template phase (shown in RecurringPhaseCard instead)
     if (phase.isRecurring) return false;
     return true;
   });
 
-  // All milestones are now phases (with startDate and endDate)
-  const phases = displayMilestones
+  // All items are now phases (with startDate and endDate)
+  const phases = displayPhases
     .filter(p => p.startDate !== undefined)
     .sort((a, b) => new Date(a.startDate!).getTime() - new Date(b.startDate!).getTime());
 
@@ -479,7 +479,7 @@ export function ProjectPhaseSection({
     }
   };
 
-  // Handle initiating split (with warning if milestones exist)
+  // Handle initiating split (with warning if phases exist)
   const handleInitiateSplit = () => {
     // DOMAIN RULE: Continuous projects can only have recurring phases, not manual phases
     if (projectContinuous) {
@@ -519,12 +519,12 @@ export function ProjectPhaseSection({
     }
   };
 
-  // Handle deleting existing milestones before split
+  // Handle deleting existing phases before split
   const handleDeleteAndSplit = async () => {
     if (isCreatingProject && localPhasesState) {
       localPhasesState.setPhases([]);
     } else {
-      // Delete all milestones in parallel for faster response
+      // Delete all phases in parallel for faster response
       const deletePromises = projectPhases
         .filter(p => p.id)
         .map(p => deletePhase(p.id!));
@@ -542,7 +542,7 @@ export function ProjectPhaseSection({
     await handleSplitEstimate();
   };
 
-  // Handle confirming recurring milestone creation
+  // Handle confirming recurring phase creation
   const handleConfirmRecurringPhase = async () => {
     const result = await createRecurringPhases(recurringConfig);
     if (result.success) {
@@ -558,7 +558,7 @@ export function ProjectPhaseSection({
     setIsDeletingRecurringPhase(false);
   };
 
-  // Handle updating recurring milestone load
+  // Handle updating recurring phase load
   const handleUpdateRecurringLoad = async (newLoad: number) => {
     if (!recurringMilestone || !projectId) return;
 
@@ -566,7 +566,7 @@ export function ProjectPhaseSection({
       projectId,
       newLoad,
       {
-        projectPhases: persistedProjectMilestones,
+        projectPhases: persistedProjectPhases,
         recurringMilestone,
         updatePhase: async (id: string, updates: Partial<PhaseDTO>) => {
           await updatePhase(id, updates);
@@ -584,12 +584,12 @@ export function ProjectPhaseSection({
     }
   };
 
-  // Handle updating recurring milestone pattern
+  // Handle updating recurring phase pattern
   const handleUpdateRecurringPattern = async (updates: Partial<RecurringPhase>) => {
     if (!recurringMilestone) return;
 
-    const updatedMilestone = { ...recurringMilestone, ...updates };
-    setRecurringPhase(updatedMilestone);
+    const updatedPhase = { ...recurringMilestone, ...updates };
+    setRecurringPhase(updatedPhase);
 
     // Delete and recreate with new pattern
     await handleDeleteRecurringPhases();
@@ -652,7 +652,7 @@ export function ProjectPhaseSection({
     <div>
       <div className="pb-6">
         {/* Time Budget Field */}
-        {externalEditingProperty !== undefined && externalSetEditingProperty && externalHandleSaveProperty && recurringMilestoneInfo && (
+        {externalEditingProperty !== undefined && externalSetEditingProperty && externalHandleSaveProperty && recurringPhaseInfo && (
           <div className="mb-6 pb-4 border-b border-gray-200">
             <Label className="text-xs text-muted-foreground mb-1 block">Estimate (hrs)</Label>
             <div className="flex items-center gap-4">
@@ -681,17 +681,17 @@ export function ProjectPhaseSection({
                   role="button"
                   tabIndex={0}
                   onClick={() => {
-                    if (!recurringMilestoneInfo.hasRecurring) externalSetEditingProperty('estimatedHours');
+                    if (!recurringPhaseInfo.hasRecurring) externalSetEditingProperty('estimatedHours');
                   }}
                   onKeyDown={(e) => {
-                    if (!recurringMilestoneInfo.hasRecurring && (e.key === 'Enter' || e.key === ' ')) {
+                    if (!recurringPhaseInfo.hasRecurring && (e.key === 'Enter' || e.key === ' ')) {
                       e.preventDefault();
                       externalSetEditingProperty('estimatedHours');
                     }
                   }}
                 >
                   <span className="truncate">
-                    {recurringMilestoneInfo.hasRecurring ? 'N/A' : `${projectEstimatedHours}h`}
+                    {recurringPhaseInfo.hasRecurring ? 'N/A' : `${projectEstimatedHours}h`}
                   </span>
                 </div>
               )}
@@ -777,8 +777,8 @@ export function ProjectPhaseSection({
                       }
                       
                       // Delete everything and start fresh
-                      const allMilestones = projectPhases.filter(p => p.id);
-                      const deletePromises = allMilestones.map(p => deletePhase(p.id!));
+                      const allPhases = projectPhases.filter(p => p.id);
+                      const deletePromises = allPhases.map(p => deletePhase(p.id!));
                       
                       await Promise.all(deletePromises);
                       await refetchPhases();
@@ -858,7 +858,7 @@ export function ProjectPhaseSection({
           </div>
         )}
 
-        {/* Phase Milestones (all milestones are now phases with start/end dates) */}
+        {/* Phase Phases (all items are now phases with start/end dates) */}
         {phases.map((phase, index) => (
           <PhaseCard
             key={phase.id}
@@ -1018,11 +1018,11 @@ export function ProjectPhaseSection({
         open={showRecurringWarning}
         onOpenChange={setShowRecurringWarning}
         onConfirm={async () => {
-          // Delete ALL phases/milestones before creating recurring template
+          // Delete ALL phases before creating recurring template
           if (isCreatingProject && localPhasesState) {
             localPhasesState.setPhases([]);
           } else {
-            // Delete all milestones in parallel for faster response
+            // Delete all phases in parallel for faster response
             const deletePromises = projectPhases
               .filter(p => p.id)
               .map(p => deletePhase(p.id!));
@@ -1062,7 +1062,7 @@ export function ProjectPhaseSection({
           if (isCreatingProject && localPhasesState) {
             localPhasesState.setPhases([]);
           } else {
-            // Delete all milestones in parallel for faster response
+            // Delete all phases in parallel for faster response
             const deletePromises = projectPhases
               .filter(p => p.id)
               .map(p => deletePhase(p.id!));

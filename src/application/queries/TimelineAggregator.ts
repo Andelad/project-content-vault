@@ -26,7 +26,7 @@ import {
 } from '@/presentation/services/ProjectBarPositioning';
 
 import { calculateProjectDuration, calculateProjectTimeMetrics } from '@/domain/rules/projects/ProjectMetrics';
-import { calculateMilestoneSegments, calculateProjectWorkingDays } from '@/domain/rules/phases/PhaseCalculations';
+import { calculatePhaseSegments, calculateProjectWorkingDays } from '@/domain/rules/phases/PhaseCalculations';
 import { calculateProjectDays } from '@/presentation/services/ProjectBarPositioning';
 import { generateWorkHoursForDate, getProjectTimeAllocation, calculateAvailabilityReduction } from '@/domain/rules/availability/EventWorkHourIntegration';
 import { calculateWorkHoursTotal } from '@/domain/rules/availability/WorkHourGeneration';
@@ -146,15 +146,15 @@ export class TimelineAggregator {
     );
   }
   /**
-   * Calculate milestone segments for project (DEPRECATED - use calculateProjectDayEstimates)
+   * Calculate phase segments for project (DEPRECATED - use calculateProjectDayEstimates)
    * Delegates to existing calculation service
    */
-  static calculateMilestoneSegments(
+  static calculatePhaseSegments(
     phases: PhaseDTO[],
     projectStart: Date,
     projectEnd: Date
   ) {
-    return calculateMilestoneSegments(phases, projectStart, projectEnd);
+    return calculatePhaseSegments(phases, projectStart, projectEnd);
   }
   /**
    * Generate work hours for date range
@@ -399,8 +399,8 @@ export class TimelineAggregator {
       dayEstimates,
       // Fast per-date accessor to avoid filter/reduce in components
       getPerDateSummary,
-      // Milestone segments (DEPRECATED - kept for backward compatibility)
-      milestoneSegments: this.calculateMilestoneSegments(
+      // Phase segments (DEPRECATED - kept for backward compatibility)
+      phaseSegments: this.calculatePhaseSegments(
         phases,
         new Date(effectiveProject.startDate),
         new Date(effectiveProject.endDate)

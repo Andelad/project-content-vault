@@ -62,7 +62,7 @@ export class PhaseHierarchyRules {
    * Split phases and recurring templates are mutually exclusive ways to structure project time.
    * Having both would create ambiguous capacity calculations.
    * 
-   * @param milestones - All milestones/phases for a project
+   * @param phases - All phases for a project
    * @returns Object indicating if project has splits, recurring, or conflict
    * 
    * @see docs/PHASE_DOMAIN_LOGIC.md - Rule 4: Mutual Exclusivity
@@ -380,13 +380,13 @@ export class PhaseHierarchyRules {
   }
 
   /**
-   * Sort milestones by date (natural ordering)
+   * Sort phases by date (natural ordering)
    * Milestones are naturally ordered by endDate - no manual ordering needed
    * 
-   * @param milestones - Array of milestones
-   * @returns Sorted milestones
+   * @param phases - Array of phases
+   * @returns Sorted phases
    */
-  static sortMilestonesByDate(phases: PhaseDTO[]): PhaseDTO[] {
+  static sortPhasesByDate(phases: PhaseDTO[]): PhaseDTO[] {
     return phases.sort((a, b) => {
       const dateA = a.endDate || a.dueDate;
       const dateB = b.endDate || b.dueDate;

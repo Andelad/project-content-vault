@@ -76,7 +76,7 @@ class MockBroadcastChannel {
 }
 
 // Mock dependencies
-vi.mock('../../data/timeTracking', () => ({
+vi.mock('../../queries/timeTracking', () => ({
   timeTrackingRepository: {
     setUserId: vi.fn(),
     saveState: vi.fn().mockResolvedValue(undefined),
@@ -331,7 +331,7 @@ describe('TimeTrackingOrchestrator - Cross-Window Sync', () => {
   describe('Cross-Window Message Broadcasting', () => {
     it('should broadcast state changes via BroadcastChannel', async () => {
       const { timeTrackingOrchestrator } = await import('../timeTrackingOrchestrator');
-      const { timeTrackingRepository } = await import('../../data/timeTracking');
+      const { timeTrackingRepository } = await import('../../queries/timeTracking');
       
       const state = createTrackingState();
       
@@ -367,7 +367,7 @@ describe('TimeTrackingOrchestrator - Cross-Window Sync', () => {
 
     it('should serialize state in broadcast messages', async () => {
       const { timeTrackingOrchestrator } = await import('../timeTrackingOrchestrator');
-      const { timeTrackingRepository } = await import('../../data/timeTracking');
+      const { timeTrackingRepository } = await import('../../queries/timeTracking');
       
       const state = createTrackingState();
       

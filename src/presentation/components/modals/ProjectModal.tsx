@@ -51,7 +51,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
   const modalType = projectId ? 'EDIT' : 'CREATE';
   dlog(`🔍 ${modalType} Modal render:`, { isOpen, projectId, groupId, rowId });
   const { projects, groups, rows, updateProject, addProject, deleteProject, creatingNewProject, phases, addPhase, deletePhase } = useProjectContext();
-  type AddMilestoneInput = Parameters<typeof addPhase>[0];
+  type AddPhaseInput = Parameters<typeof addPhase>[0];
   const { setCurrentView } = useTimelineContext();
   const { holidays } = useHolidays();
   const { events: rawEvents } = useEvents();
@@ -125,7 +125,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
   // State for collapsible sections (kept for backwards compatibility, but no longer used with tabs)
   const [isInsightsExpanded, setIsInsightsExpanded] = useState(false);
   const [isNotesExpanded, setIsNotesExpanded] = useState(true);
-  // State for milestones in new projects
+  // State for phases in new projects
   const [localProjectPhases, setLocalProjectPhases] = useState<Array<{
     name: string;
     dueDate: Date;
@@ -138,13 +138,13 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
     updatedAt: Date;
     isNew?: boolean;
   }>>([]);
-  // State to track recurring milestone from MilestoneManager
-  const [recurringMilestoneInfo, setRecurringPhaseInfo] = useState<{
+  // State to track recurring phase from PhaseManager
+  const [recurringPhaseInfo, setRecurringPhaseInfo] = useState<{
     totalAllocation: number;
     hasRecurring: boolean;
   }>({ totalAllocation: 0, hasRecurring: false });
-  // Track milestones added during this edit session (for rollback on cancel)
-  const [milestonesAddedDuringSession, setMilestonesAddedDuringSession] = useState<string[]>([]);
+  // Track phases added during this edit session (for rollback on cancel)
+  const [phasesAddedDuringSession, setPhasesAddedDuringSession] = useState<string[]>([]);
   // Track if we're saving (to prevent rollback on save) - start as false, set true when saving
   const shouldRollbackRef = React.useRef(true); // Default to rollback unless explicitly saving
   // Preserve last finite end date when toggling continuous
@@ -152,16 +152,16 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
   // Reset tracking when modal opens
   useEffect(() => {
     if (isOpen && !isCreating) {
-      setMilestonesAddedDuringSession([]);
+      setPhasesAddedDuringSession([]);
       shouldRollbackRef.current = true; // Reset to rollback by default
     }
   }, [isOpen, isCreating]);
-  // Wrapper for addPhase that tracks new milestone IDs for rollback
-  const trackedAddMilestone = useCallback(async (milestone: AddMilestoneInput, options?: { silent?: boolean }) => {
-    const result = await addPhase(milestone, options);
-    // Track the new milestone ID if we're editing (not creating)
+  // Wrapper for addPhase that tracks new phase IDs for rollback
+  const trackedAddPhase = useCallback(async (phase: AddPhaseInput, options?: { silent?: boolean }) => {
+    const result = await addPhase(phase, options);
+    // Track the new phase ID if we're editing (not creating)
     if (!isCreating && result?.id) {
-      setMilestonesAddedDuringSession(prev => {
+      setPhasesAddedDuringSession(prev => {
         const updated = [...prev, result.id];
         return updated;
       });
@@ -188,7 +188,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
       sunday: true,
     }
   });
-  // Stable callbacks/objects for MilestoneManager (avoid render loops)
+  // Stable callbacks/objects for PhaseManager (avoid render loops)
   const handleUpdateProjectBudget = useCallback((newBudget: number) => {
     setLocalValues(prev => {
       if (prev.estimatedHours === newBudget) return prev;
@@ -204,7 +204,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
       return info;
     });
   }, []);
-  const handleMilestoneLocalValuesUpdate = useCallback((updater: (prev: { autoEstimateDays?: Project['autoEstimateDays'] }) => { autoEstimateDays?: Project['autoEstimateDays'] }) => {
+  const handlePhaseLocalValuesUpdate = useCallback((updater: (prev: { autoEstimateDays?: Project['autoEstimateDays'] }) => { autoEstimateDays?: Project['autoEstimateDays'] }) => {
     setLocalValues(prev => ({
       ...prev,
       ...updater({ autoEstimateDays: prev.autoEstimateDays }),
@@ -292,7 +292,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
       if (!project.continuous && project.endDate) {
         previousEndDateRef.current = new Date(project.endDate);
       }
-      // Clear local milestones for existing projects
+      // Clear local phases for existing projects
       setLocalProjectPhases([]);
     } else if (isCreating) {
       // Set defaults for new project, using pre-populated dates if available
@@ -314,27 +314,27 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
       setLocalValues(defaultValues);
       setOriginalValues(defaultValues);
       previousEndDateRef.current = defaultValues.endDate;
-      // Reset milestones for new projects
+      // Reset phases for new projects
       setLocalProjectPhases([]);
     }
   }, [project, isCreating, creatingNewProject, getDefaultAutoEstimateDays]);
   // Handle smooth modal closing - just call onClose, AnimatePresence will handle the animation
   const handleClose = useCallback(async () => {
-    // If editing (not creating) and should rollback, delete milestones added during this session
-    if (!isCreating && shouldRollbackRef.current && milestonesAddedDuringSession.length > 0) {
-      for (const milestoneId of milestonesAddedDuringSession) {
+    // If editing (not creating) and should rollback, delete phases added during this session
+    if (!isCreating && shouldRollbackRef.current && phasesAddedDuringSession.length > 0) {
+      for (const phaseId of phasesAddedDuringSession) {
         try {
-          await deletePhase(milestoneId, { silent: true });
+          await deletePhase(phaseId, { silent: true });
         } catch (error) {
-          console.error('[ProjectModal] Failed to rollback milestone:', milestoneId, error);
+          console.error('[ProjectModal] Failed to rollback phase:', phaseId, error);
         }
       }
-      setMilestonesAddedDuringSession([]);
+      setPhasesAddedDuringSession([]);
     }
     // Reset rollback flag for next open
     shouldRollbackRef.current = true;
     onClose();
-  }, [onClose, isCreating, milestonesAddedDuringSession, deletePhase]);
+  }, [onClose, isCreating, phasesAddedDuringSession, deletePhase]);
   // Handle creating the new project
   const handleCreateProject = useCallback(async () => {
     // Prevent double submission
@@ -376,7 +376,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
           {
             addProject,
             addPhase: async (data: Partial<PhaseDTO>, options?: { silent?: boolean }) => {
-              await addPhase(data as AddMilestoneInput, options);
+              await addPhase(data as AddPhaseInput, options);
             }
           }
         );
@@ -784,17 +784,17 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
     placeholder?: string;
   }) => {
   const [isOpen, setIsOpen] = useState(false);
-    // Get relevant milestones
+    // Get relevant phases
     const relevantPhases = isCreating
       ? localProjectPhases
       : phases.filter(p => projectId && p.projectId === projectId);
-    // Calculate disabled date ranges based on milestone constraints
+    // Calculate disabled date ranges based on phase constraints
     const getDisabledDates = () => {
       if (!relevantPhases || relevantPhases.length === 0) {
-        return (date: Date) => false; // No restrictions if no milestones
+        return (date: Date) => false; // No restrictions if no phases
       }
       if (property === 'startDate') {
-        // Start date cannot be on or after any milestone
+        // Start date cannot be on or after any phase
         return (date: Date) => {
           return relevantPhases.some(p => {
             const phaseDate = normalizeToMidnight(new Date(p.dueDate));
@@ -803,7 +803,7 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
           });
         };
       } else if (property === 'endDate') {
-        // End date cannot be on or before any milestone
+        // End date cannot be on or before any phase
         return (date: Date) => {
           return relevantPhases.some(p => {
             const phaseDate = normalizeToMidnight(new Date(p.dueDate));
@@ -840,12 +840,12 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
                 </div>
                 <div className="text-xs text-gray-600">
                   {property === 'startDate' 
-                    ? 'Start date must be before all milestones'
-                    : 'End date must be after all milestones'
+                    ? 'Start date must be before all phases'
+                    : 'End date must be after all phases'
                   }
                 </div>
                 <div className="text-xs text-gray-500 mt-1">
-                  Milestones: {relevantPhases
+                  Phases: {relevantPhases
                     .map(p => formatDate(new Date(p.dueDate)))
                     .join(', ')}
                 </div>
@@ -863,14 +863,14 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
               }}
               disabled={getDisabledDates()}
               modifiers={{
-                // Mark milestone dates in red
-                milestone: (date) => relevantPhases.some(p => {
+                // Mark phase dates in red
+                phase: (date) => relevantPhases.some(p => {
                   const mDate = new Date(p.dueDate);
                   return mDate.toDateString() === date.toDateString();
                 })
               }}
               modifiersStyles={{
-                milestone: {
+                phase: {
                   backgroundColor: 'rgba(239, 68, 68, 0.2)',
                   color: 'rgb(239, 68, 68)',
                   fontWeight: 'bold'
@@ -891,10 +891,10 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
     property: string;
   }) => {
     const isEditing = editingProperty === property;
-  const hasRecurring = recurringMilestoneInfo.hasRecurring;
+  const hasRecurring = recurringPhaseInfo.hasRecurring;
   const displayValue = hasRecurring ? 'N/A' : `${value}h`;
   const isOverBudget = !localValues.continuous && hasRecurring && 
-             recurringMilestoneInfo.totalAllocation > value;
+             recurringPhaseInfo.totalAllocation > value;
     return (
       <div className="min-w-[100px]">
         <Label className="text-xs text-muted-foreground mb-1 block">Estimate (hrs)</Label>
@@ -1285,14 +1285,14 @@ export function ProjectModal({ isOpen, onClose, projectId, groupId, rowId }: Pro
                 onRecurringPhaseChange={handleRecurringPhaseChange}
                 localPhasesState={localPhasesStateMemo}
                 isCreatingProject={isCreating}
-                trackedAddMilestone={!isCreating ? trackedAddMilestone : undefined}
+                trackedAddPhase={!isCreating ? trackedAddPhase : undefined}
                 localValues={localValues}
-                setLocalValues={handleMilestoneLocalValuesUpdate}
+                setLocalValues={handlePhaseLocalValuesUpdate}
                 onAutoEstimateDaysChange={handleAutoEstimateDaysChange}
                 editingProperty={editingProperty}
                 setEditingProperty={setEditingProperty}
                 handleSaveProperty={handleSaveProperty}
-                recurringMilestoneInfo={recurringMilestoneInfo}
+                recurringPhaseInfo={recurringPhaseInfo}
               />
             )}
             {/* Track Progress Tab */}

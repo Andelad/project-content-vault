@@ -53,7 +53,7 @@ export function getWorkHoursForDay(date: Date, holidays: Holiday[], settings: Se
 
 /**
  * Calculate total daily project hours for a date
- * Uses same logic as project bars - includes milestone allocations, events, and auto-estimates
+ * Uses same logic as project bars - includes phase allocations, events, and auto-estimates
  */
 export function calculateDailyProjectHours(
   date: Date,
@@ -85,7 +85,7 @@ export function calculateDailyProjectHours(
     
     // Only process if date is within project range
     if (targetDate >= projectStart && targetDate <= projectEnd) {
-      // Get milestones for this project
+      // Get phases for this project
       const projectPhases = phases.filter((phase) => phase.projectId === project.id);
       // Get events for this project
       const projectEvents = events.filter((e) => e.projectId === project.id);

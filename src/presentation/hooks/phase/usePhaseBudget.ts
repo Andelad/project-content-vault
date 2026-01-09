@@ -30,7 +30,7 @@ interface UseMilestoneBudgetConfig {
 }
 
 /**
- * Hook for calculating milestone budget analysis
+ * Hook for calculating phase budget analysis
  * Coordinates React state with existing budget calculation services
  * Returns budget metrics and validation status
  */
@@ -64,8 +64,8 @@ export function usePhaseBudget(config: UseMilestoneBudgetConfig) {
 
   // Calculate budget analysis (filters out templates and numbered instances)
   const budgetAnalysis = useMemo(() => {
-    // When recurring milestone exists, budget validation doesn't apply
-    // Recurring milestones operate independently of fixed project budgets
+    // When recurring phase exists, budget validation doesn't apply
+    // Recurring phases operate independently of fixed project budgets
     if (recurringMilestone || totalRecurringAllocation > 0) {
       return {
         totalAllocated: totalRecurringAllocation,
@@ -76,10 +76,10 @@ export function usePhaseBudget(config: UseMilestoneBudgetConfig) {
     }
 
     const nonRecurringPhases = projectPhases.filter(p => {
-      // Exclude temporary/unsaved milestones
+      // Exclude temporary/unsaved phases
       if ('isNew' in p && (p as LocalPhase).isNew) return false;
       if (typeof p.id === 'string' && p.id.startsWith('temp-')) return false;
-      // Exclude NEW template milestones
+      // Exclude NEW template phases
       if (p.isRecurring) return false;
       // Exclude OLD numbered instances (but not phases)
       if (p.name && /\s\d+$/.test(p.name) && p.startDate === undefined) return false;
@@ -118,7 +118,7 @@ export function usePhaseBudget(config: UseMilestoneBudgetConfig) {
       updatedAt: new Date()
     };
 
-    return ProjectOrchestrator.analyzeProjectMilestones(project, validPhases);
+    return ProjectOrchestrator.analyzeProjectPhases(project, validPhases);
   }, [projectPhases, projectEstimatedHours, projectStartDate, projectEndDate, projectContinuous, projectId]);
 
   return {
@@ -127,6 +127,6 @@ export function usePhaseBudget(config: UseMilestoneBudgetConfig) {
     projectHealthAnalysis,
     // Legacy compatibility
     totalTimeAllocation: budgetAnalysis.totalAllocated,
-    suggestedBudgetFromMilestones: Math.max(projectEstimatedHours, budgetAnalysis.totalAllocated)
+    suggestedBudgetFromPhases: Math.max(projectEstimatedHours, budgetAnalysis.totalAllocated)
   };
 }

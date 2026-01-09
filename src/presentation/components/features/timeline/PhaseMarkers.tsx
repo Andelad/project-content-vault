@@ -41,7 +41,7 @@ export function PhaseMarkers({
   dragState,
   calculateBaselineVisualOffsets
 }: PhaseMarkersProps) {
-  // Get phases for this project (milestones with startDate and endDate)
+  // Get phases for this project (phases with startDate and endDate)
   const sortedPhases = getPhasesSortedByEndDate(phases);
 
   if (sortedPhases.length === 0) {

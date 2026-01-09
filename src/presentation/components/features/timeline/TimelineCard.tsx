@@ -16,8 +16,8 @@ interface TimelineCardProps {
   viewportEnd: Date;
   isDragging: boolean;
   dragState: DragState | null;
-  handleMilestoneDrag: (milestoneId: string, newDate: Date) => void;
-  handleMilestoneDragEnd: () => void;
+  handlePhaseDrag: (phaseId: string, newDate: Date) => void;
+  handlePhaseDragEnd: () => void;
   handleProjectResizeMouseDown?: (e: React.MouseEvent, projectId: string, action: 'resize-start-date' | 'resize-end-date') => void;
   handlePhaseResizeMouseDown?: (e: React.MouseEvent, projectId: string, phaseId: string, action: 'resize-phase-start' | 'resize-phase-end') => void;
   mode: 'days' | 'weeks';
@@ -37,8 +37,8 @@ export function TimelineCard({
   viewportEnd,
   isDragging,
   dragState,
-  handleMilestoneDrag,
-  handleMilestoneDragEnd,
+  handlePhaseDrag,
+  handlePhaseDragEnd,
   handleProjectResizeMouseDown,
   handlePhaseResizeMouseDown,
   mode,
@@ -113,8 +113,8 @@ export function TimelineCard({
                             mode={mode}
                             isMultiProjectRow={true}
                             collapsed={collapsed}
-                            onMilestoneDrag={handleMilestoneDrag}
-                            onMilestoneDragEnd={handleMilestoneDragEnd}
+                            onPhaseDrag={handlePhaseDrag}
+                            onPhaseDragEnd={handlePhaseDragEnd}
                             onProjectResizeMouseDown={handleProjectResizeMouseDown}
                             onPhaseResizeMouseDown={handlePhaseResizeMouseDown}
                           />

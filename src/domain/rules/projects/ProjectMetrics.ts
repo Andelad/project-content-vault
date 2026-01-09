@@ -33,8 +33,8 @@ export interface ProjectEvent extends Pick<CalendarEvent, 'id' | 'startTime' | '
   projectId: string; // projectId is optional in CalendarEvent but required for project calculations
 }
 
-// Extends core Milestone with progress-specific fields
-export interface MilestoneWithProgress extends PhaseDTO {
+// Extends core Phase with progress-specific fields
+export interface PhaseWithProgress extends PhaseDTO {
   completed?: boolean;
 }
 
@@ -56,7 +56,7 @@ export interface ComprehensiveProjectTimeMetrics {
   completionPercentage: number;
   remainingHours: number;
   averageHoursPerDay: number;
-  milestoneProgress: {
+  phaseProgress: {
     completed: number;
     total: number;
     percentage: number;
@@ -204,14 +204,14 @@ export function getPlannedTimeUpToDate(
 }
 
 /**
- * Get relevant milestones for a project
+ * Get relevant phases for a project
  */
-export function getRelevantMilestones(
-  phases: MilestoneWithProgress[], 
+export function getRelevantPhases(
+  phases: PhaseWithProgress[], 
   projectId: string,
   startDate?: Date,
   endDate?: Date
-): MilestoneWithProgress[] {
+): PhaseWithProgress[] {
   let filtered = phases.filter(p => p.projectId === projectId);
   
   if (startDate && endDate) {
@@ -278,11 +278,11 @@ export function buildPlannedTimeMap(
 export function calculateProjectTimeMetrics(
   project: Project,
   events: ProjectEvent[],
-  milestonesOrHolidays?: MilestoneWithProgress[] | Holiday[],
+  phasesOrHolidays?: PhaseWithProgress[] | Holiday[],
   currentDate: Date = new Date()
 ): ComprehensiveProjectTimeMetrics {
-  const phases = Array.isArray(milestonesOrHolidays)
-    ? milestonesOrHolidays.filter((item): item is MilestoneWithProgress =>
+  const phases = Array.isArray(phasesOrHolidays)
+    ? phasesOrHolidays.filter((item): item is PhaseWithProgress =>
         typeof item === 'object' && item !== null && 'projectId' in item)
     : [];
   
@@ -309,13 +309,13 @@ export function calculateProjectTimeMetrics(
   const durationDays = calculateProjectDuration(project);
   const averageHoursPerDay = (durationDays > 0 && durationDays !== -1) ? totalPlannedHours / durationDays : 0;
   
-  // Calculate milestone progress
+  // Calculate phase progress
   const relevantPhases = phases.filter(p => p.projectId === project.id);
-  const completedMilestones = relevantPhases.filter(p => p.completed === true);
-  const milestoneProgress = {
-    completed: completedMilestones.length,
+  const completedPhases = relevantPhases.filter(p => p.completed === true);
+  const phaseProgress = {
+    completed: completedPhases.length,
     total: relevantPhases.length,
-    percentage: relevantPhases.length > 0 ? (completedMilestones.length / relevantPhases.length) * 100 : 0
+    percentage: relevantPhases.length > 0 ? (completedPhases.length / relevantPhases.length) * 100 : 0
   };
   
   // Calculate remaining days and required hours per day
@@ -342,7 +342,7 @@ export function calculateProjectTimeMetrics(
     completionPercentage,
     remainingHours,
     averageHoursPerDay,
-    milestoneProgress,
+    phaseProgress,
     isOnTrack,
     daysRemaining,
     hoursPerDayNeeded,

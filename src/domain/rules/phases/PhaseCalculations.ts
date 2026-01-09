@@ -1,12 +1,12 @@
 /**
  * Phase Calculations (formerly Milestone Calculations / PhaseBudget)
  * 
- * KEYWORDS: phase budget, milestone allocation, budget utilization, phase hours,
- *           milestone scheduling, budget validation, overage calculation,
- *           milestone density, allocation distribution, optimal spacing,
+ * KEYWORDS: phase budget, phase allocation, budget utilization, phase hours,
+ *           phase scheduling, budget validation, overage calculation,
+ *           phase density, allocation distribution, optimal spacing,
  *           budget constraints, phase time allocation
  * 
- * Pure mathematical functions for phase/milestone-related calculations.
+ * Pure mathematical functions for phase/phase-related calculations.
  * No side effects, no external dependencies, fully testable.
  * 
  * USE WHEN:
@@ -14,7 +14,7 @@
  * - Validating phase budget against project budget
  * - Analyzing budget utilization and overage
  * - Calculating optimal phase spacing
- * - Scheduling milestone occurrences
+ * - Scheduling phase occurrences
  * 
  * RELATED FILES:
  * - PhaseValidation.ts - Phase date and constraint validation
@@ -31,7 +31,7 @@ import * as DateCalculations from '@/presentation/utils/dateCalculations';
 import { PhaseRecurrenceService, RecurringPhaseConfig as DomainRecurringConfig, RecurringOccurrenceParams } from '@/domain/rules/phases/PhaseRecurrence';
 
 /**
- * Calculate total time allocation across milestones
+ * Calculate total time allocation across phases
  */
 export function calculateTotalAllocation(phases: PhaseDTO[]): number {
   return phases.reduce((sum, phase) => {
@@ -62,19 +62,19 @@ export function calculateOverageAmount(totalAllocated: number, projectBudget: nu
 }
 
 /**
- * Validate milestone scheduling against budget constraints
+ * Validate phase scheduling against budget constraints
  * 
- * Checks if adding a new milestone would exceed the project budget.
+ * Checks if adding a new phase would exceed the project budget.
  * This is the SINGLE SOURCE OF TRUTH for budget validation.
  * 
  * @param existingPhases - Current phases in project
- * @param newMilestone - Milestone being scheduled
+ * @param newPhase - Phase being scheduled
  * @param projectBudget - Total project budget in hours
  * @returns Validation result with specific budget conflicts
  */
-export function validateMilestoneScheduling(
+export function validatePhaseScheduling(
   existingPhases: PhaseDTO[],
-  newMilestone: Partial<PhaseDTO>,
+  newPhase: Partial<PhaseDTO>,
   projectBudget: number
 ): {
   canSchedule: boolean;
@@ -88,8 +88,8 @@ export function validateMilestoneScheduling(
   );
   
   const newAllocation = currentAllocation + (
-    newMilestone.timeAllocationHours || 
-    newMilestone.timeAllocation || 
+    newPhase.timeAllocationHours || 
+    newPhase.timeAllocation || 
     0
   );
   
@@ -110,32 +110,32 @@ export function validateMilestoneScheduling(
 }
 
 /**
- * Calculate milestone density (milestones per day) for a date range
+ * Calculate phase density (phases per day) for a date range
  */
-export function calculateMilestoneDensity(
+export function calculatePhaseDensity(
   phases: PhaseDTO[],
   startDate: Date,
   endDate: Date
 ): number {
-  const milestonesInRange = phases.filter(phase => {
+  const phasesInRange = phases.filter(phase => {
     const phaseDate = phase.endDate || phase.dueDate;
     return DateCalculations.isDateInRange(phaseDate, startDate, endDate);
   });
   
   const totalDays = DateCalculations.calculateDayDifference(startDate, endDate);
-  return totalDays > 0 ? milestonesInRange.length / totalDays : 0;
+  return totalDays > 0 ? phasesInRange.length / totalDays : 0;
 }
 
 /**
- * Calculate average milestone allocation
+ * Calculate average phase allocation
  */
-export function calculateAverageMilestoneAllocation(phases: PhaseDTO[]): number {
+export function calculateAveragePhaseAllocation(phases: PhaseDTO[]): number {
   if (phases.length === 0) return 0;
   return calculateTotalAllocation(phases) / phases.length;
 }
 
 /**
- * Calculate milestone allocation distribution (min, max, avg)
+ * Calculate phase allocation distribution (min, max, avg)
  */
 export function calculateAllocationDistribution(phases: PhaseDTO[]): {
   min: number;
@@ -150,7 +150,7 @@ export function calculateAllocationDistribution(phases: PhaseDTO[]): {
   const allocations = phases.map(phase => phase.timeAllocation || 0).sort((a, b) => a - b);
   const min = allocations[0];
   const max = allocations[allocations.length - 1];
-  const avg = calculateAverageMilestoneAllocation(phases);
+  const avg = calculateAveragePhaseAllocation(phases);
   
   const medianIndex = Math.floor(allocations.length / 2);
   const median = allocations.length % 2 === 0
@@ -161,38 +161,38 @@ export function calculateAllocationDistribution(phases: PhaseDTO[]): {
 }
 
 /**
- * Calculate optimal milestone spacing based on project duration
+ * Calculate optimal phase spacing based on project duration
  */
-export function calculateOptimalMilestoneSpacing(
+export function calculateOptimalPhaseSpacing(
   projectStartDate: Date,
   projectEndDate: Date,
-  targetMilestoneCount: number
+  targetPhaseCount: number
 ): Date[] {
-  if (targetMilestoneCount <= 0) return [];
+  if (targetPhaseCount <= 0) return [];
 
   const totalDays = DateCalculations.calculateDayDifference(projectStartDate, projectEndDate);
-  const interval = Math.floor(totalDays / (targetMilestoneCount + 1));
+  const interval = Math.floor(totalDays / (targetPhaseCount + 1));
   
-  const milestones: Date[] = [];
-  for (let i = 1; i <= targetMilestoneCount; i++) {
+  const phases: Date[] = [];
+  for (let i = 1; i <= targetPhaseCount; i++) {
     const phaseDate = new Date(projectStartDate);
     phaseDate.setDate(phaseDate.getDate() + (interval * i));
-    milestones.push(phaseDate);
+    phases.push(phaseDate);
   }
 
-  return milestones;
+  return phases;
 }
 
 /**
- * Calculate business day spacing for milestones
+ * Calculate business day spacing for phases
  */
 export function calculateBusinessDaySpacing(
   projectStartDate: Date,
   projectEndDate: Date,
-  targetMilestoneCount: number,
+  targetPhaseCount: number,
   holidays: Date[] = []
 ): Date[] {
-  if (targetMilestoneCount <= 0) return [];
+  if (targetPhaseCount <= 0) return [];
 
   const businessDays = DateCalculations.calculateBusinessDaysBetween(
     projectStartDate, 
@@ -200,21 +200,21 @@ export function calculateBusinessDaySpacing(
     holidays
   );
   
-  const interval = Math.floor(businessDays / (targetMilestoneCount + 1));
+  const interval = Math.floor(businessDays / (targetPhaseCount + 1));
   
-  const milestones: Date[] = [];
+  const phases: Date[] = [];
   let currentDate = new Date(projectStartDate);
   
-  for (let i = 1; i <= targetMilestoneCount; i++) {
+  for (let i = 1; i <= targetPhaseCount; i++) {
     currentDate = DateCalculations.addBusinessDays(currentDate, interval, holidays);
-    milestones.push(new Date(currentDate));
+    phases.push(new Date(currentDate));
   }
 
-  return milestones;
+  return phases;
 }
 
 /**
- * Calculate milestone timeline pressure (how tightly packed milestones are)
+ * Calculate phase timeline pressure (how tightly packed phases are)
  */
 export function calculateTimelinePressure(
   phases: PhaseDTO[],
@@ -230,28 +230,28 @@ export function calculateTimelinePressure(
     return { pressure: 0, averageDaysBetween: 0, minDaysBetween: 0, maxDaysBetween: 0 };
   }
 
-  // Sort milestones by date
+  // Sort phases by date
   const sortedPhases = [...phases].sort((a, b) => {
     const dateA = a.endDate || a.dueDate;
     const dateB = b.endDate || b.dueDate;
     return dateA.getTime() - dateB.getTime();
   });
   
-  // Calculate gaps between consecutive milestones
+  // Calculate gaps between consecutive phases
   const gaps: number[] = [];
   
-  // Gap from project start to first milestone
+  // Gap from project start to first phase
   const firstDate = sortedPhases[0].endDate || sortedPhases[0].dueDate;
   gaps.push(DateCalculations.calculateDayDifference(projectStartDate, firstDate));
   
-  // Gaps between consecutive milestones
+  // Gaps between consecutive phases
   for (let i = 1; i < sortedPhases.length; i++) {
     const prevDate = sortedPhases[i - 1].endDate || sortedPhases[i - 1].dueDate;
     const currDate = sortedPhases[i].endDate || sortedPhases[i].dueDate;
     gaps.push(DateCalculations.calculateDayDifference(prevDate, currDate));
   }
   
-  // Gap from last milestone to project end
+  // Gap from last phase to project end
   const lastDate = sortedPhases[sortedPhases.length - 1].endDate || sortedPhases[sortedPhases.length - 1].dueDate;
   gaps.push(DateCalculations.calculateDayDifference(lastDate, projectEndDate));
 
@@ -273,33 +273,33 @@ export function calculateTimelinePressure(
 }
 
 /**
- * Calculate milestone completion velocity (for tracking progress)
+ * Calculate phase completion velocity (for tracking progress)
  */
-export function calculateMilestoneVelocity(
-  completedMilestones: PhaseDTO[],
-  totalMilestones: PhaseDTO[],
+export function calculatePhaseVelocity(
+  completedPhases: PhaseDTO[],
+  totalPhases: PhaseDTO[],
   projectStartDate: Date,
   currentDate: Date = new Date()
 ): {
-  completionRate: number; // milestones per day
+  completionRate: number; // phases per day
   projectedCompletionDate: Date | null;
   onTrackPercentage: number; // 0-100, how on track the project is
 } {
   const daysSinceStart = DateCalculations.calculateDayDifference(projectStartDate, currentDate);
-  const completionRate = daysSinceStart > 0 ? completedMilestones.length / daysSinceStart : 0;
+  const completionRate = daysSinceStart > 0 ? completedPhases.length / daysSinceStart : 0;
   
-  const remainingMilestones = totalMilestones.length - completedMilestones.length;
+  const remainingPhases = totalPhases.length - completedPhases.length;
   const projectedCompletionDate = completionRate > 0 
-    ? DateCalculations.addBusinessDays(currentDate, Math.ceil(remainingMilestones / completionRate))
+    ? DateCalculations.addBusinessDays(currentDate, Math.ceil(remainingPhases / completionRate))
     : null;
 
   // Calculate if on track (comparing actual vs expected progress)
-  const expectedCompletedByNow = totalMilestones.filter(phase => {
+  const expectedCompletedByNow = totalPhases.filter(phase => {
     const phaseDate = phase.endDate || phase.dueDate;
     return phaseDate <= currentDate;
   }).length;
   const onTrackPercentage = expectedCompletedByNow > 0 
-    ? Math.min(100, (completedMilestones.length / expectedCompletedByNow) * 100)
+    ? Math.min(100, (completedPhases.length / expectedCompletedByNow) * 100)
     : 100;
 
   return {
@@ -310,23 +310,23 @@ export function calculateMilestoneVelocity(
 }
 
 /**
- * Calculate suggested milestone budget based on remaining project budget
+ * Calculate suggested phase budget based on remaining project budget
  */
-export function calculateSuggestedMilestoneBudget(
+export function calculateSuggestedPhaseBudget(
   remainingBudget: number,
-  remainingMilestones: number,
-  existingMilestoneVariance: number = 0.2 // 20% variance allowance
+  remainingPhases: number,
+  existingPhaseVariance: number = 0.2 // 20% variance allowance
 ): {
   suggested: number;
   min: number;
   max: number;
 } {
-  if (remainingMilestones <= 0) {
+  if (remainingPhases <= 0) {
     return { suggested: 0, min: 0, max: 0 };
   }
 
-  const baseBudget = remainingBudget / remainingMilestones;
-  const variance = baseBudget * existingMilestoneVariance;
+  const baseBudget = remainingBudget / remainingPhases;
+  const variance = baseBudget * existingPhaseVariance;
 
   return {
     suggested: Math.round(baseBudget),
@@ -336,9 +336,9 @@ export function calculateSuggestedMilestoneBudget(
 }
 
 /**
- * Sort milestones by due date
+ * Sort phases by due date
  */
-export function sortMilestonesByDate(phases: PhaseDTO[]): PhaseDTO[] {
+export function sortPhasesByDate(phases: PhaseDTO[]): PhaseDTO[] {
   return [...phases].sort((a, b) => {
     const dateA = a.endDate || a.dueDate;
     const dateB = b.endDate || b.dueDate;
@@ -347,9 +347,9 @@ export function sortMilestonesByDate(phases: PhaseDTO[]): PhaseDTO[] {
 }
 
 /**
- * Find appropriate gap between milestones for positioning
+ * Find appropriate gap between phases for positioning
  */
-export function findMilestoneGap(
+export function findPhaseGap(
   sortedPhases: PhaseDTO[], 
   targetDate: Date
 ): { startDate: Date; endDate: Date } | null {
@@ -380,7 +380,7 @@ export function findMilestoneGap(
 }
 
 // ============================================================================
-// RECURRING MILESTONE CALCULATIONS
+// RECURRING PHASE CALCULATIONS
 // ============================================================================
 
 /**
@@ -421,7 +421,7 @@ function toDomainConfig(config: RecurringPhaseConfig): DomainRecurringConfig {
 }
 
 /**
- * Calculate how many milestones a recurring configuration would generate
+ * Calculate how many phases a recurring configuration would generate
  * 
  * @deprecated Use PhaseRecurrenceService.calculateOccurrenceCount instead
  * Kept for backward compatibility during migration
@@ -455,7 +455,7 @@ export function calculateRecurringTotalAllocation(params: RecurringPhaseCalculat
 }
 
 /**
- * Generate milestone dates for a recurring configuration
+ * Generate phase dates for a recurring configuration
  * 
  * @deprecated Use PhaseRecurrenceService.generateOccurrences instead
  * Kept for backward compatibility during migration
@@ -473,14 +473,14 @@ export function generateRecurringPhaseDates(params: RecurringPhaseCalculationPar
 }
 
 /**
- * Detect recurring pattern from existing milestone names and dates
+ * Detect recurring pattern from existing phase names and dates
  */
-export function detectRecurringPattern(milestones: Array<{ name: string; dueDate: Date }>): {
+export function detectRecurringPattern(phases: Array<{ name: string; dueDate: Date }>): {
   baseName: string;
   recurringType: 'daily' | 'weekly' | 'monthly';
   interval: number;
 } | null {
-  const recurringPattern = milestones.filter(p => 
+  const recurringPattern = phases.filter(p => 
     p.name && /\s\d+$/.test(p.name) // Ends with space and number
   );
   
@@ -490,7 +490,7 @@ export function detectRecurringPattern(milestones: Array<{ name: string; dueDate
     a.dueDate.getTime() - b.dueDate.getTime()
   );
   
-  // Calculate interval between first two milestones
+  // Calculate interval between first two phases
   const firstDate = sortedPhases[0].dueDate;
   const secondDate = sortedPhases[1].dueDate;
   const daysDifference = Math.round(DateCalculations.calculateDurationDays(firstDate, secondDate));
@@ -513,52 +513,52 @@ export function detectRecurringPattern(milestones: Array<{ name: string; dueDate
   }
   
   // Extract base name (remove the number at the end)
-  const baseName = sortedPhases[0].name.replace(/\s\d+$/, '') || 'Recurring Milestone';
+  const baseName = sortedPhases[0].name.replace(/\s\d+$/, '') || 'Recurring Phase';
   
   return { baseName, recurringType, interval };
 }
 
 // ===== MILESTONE UTILITIES FUNCTIONS =====
-// Migrated from milestoneUtilitiesService.ts
+// Migrated from phaseUtilitiesService.ts
 
-export interface MilestoneSegment {
+export interface PhaseSegment {
   startDate: Date;
   endDate: Date;
-  milestone: PhaseDTO;
+  phase: PhaseDTO;
   estimatedHours: number;
   dailyHours: number;
   workingDays: number;
   position: 'before' | 'during' | 'after';
 }
 
-export interface MilestoneDistributionEntry {
+export interface PhaseDistributionEntry {
   date: Date;
   estimatedHours: number;
-  milestone?: PhaseDTO;
+  phase?: PhaseDTO;
   dayIndex: number;
   isDeadlineDay: boolean;
 }
 
 /**
- * Calculate milestone segments for timeline visualization
+ * Calculate phase segments for timeline visualization
  */
-export function calculateMilestoneSegments(
+export function calculatePhaseSegments(
   phases: PhaseDTO[],
   projectStartDate: Date,
   projectEndDate: Date
-): MilestoneSegment[] {
+): PhaseSegment[] {
   if (!phases || phases.length === 0) {
     return [];
   }
 
-  const segments: MilestoneSegment[] = [];
+  const segments: PhaseSegment[] = [];
   const sortedPhases = [...phases].sort((a, b) => {
     const dateA = a.endDate || a.dueDate;
     const dateB = b.endDate || b.dueDate;
     return dateA.getTime() - dateB.getTime();
   });
 
-  // Create segments between milestones
+  // Create segments between phases
   for (let i = 0; i < sortedPhases.length; i++) {
     const phase = sortedPhases[i];
     const phaseDate = phase.endDate || phase.dueDate;
@@ -568,14 +568,14 @@ export function calculateMilestoneSegments(
     let position: 'before' | 'during' | 'after';
     
     if (i === 0) {
-      // First milestone segment starts from project start
+      // First phase segment starts from project start
       segmentStart = new Date(projectStartDate);
       segmentEnd = new Date(phaseDate);
       position = 'before';
     } else {
-      // Subsequent segments start from previous milestone
-      const prevMilestoneDate = sortedPhases[i - 1].endDate || sortedPhases[i - 1].dueDate;
-      const dayAfterPrev = new Date(prevMilestoneDate);
+      // Subsequent segments start from previous phase
+      const prevPhaseDate = sortedPhases[i - 1].endDate || sortedPhases[i - 1].dueDate;
+      const dayAfterPrev = new Date(prevPhaseDate);
       dayAfterPrev.setDate(dayAfterPrev.getDate() + 1);
       
       segmentStart = dayAfterPrev;
@@ -590,7 +590,7 @@ export function calculateMilestoneSegments(
     segments.push({
       startDate: segmentStart,
       endDate: segmentEnd,
-      milestone: phase,
+      phase: phase,
       estimatedHours,
       dailyHours: estimatedHours / segmentDays,
       workingDays: segmentDays,
@@ -598,9 +598,9 @@ export function calculateMilestoneSegments(
     });
   }
 
-  // Handle period after last milestone if exists
-  const lastMilestoneDate = sortedPhases[sortedPhases.length - 1].endDate || sortedPhases[sortedPhases.length - 1].dueDate;
-  const dayAfterLast = new Date(lastMilestoneDate);
+  // Handle period after last phase if exists
+  const lastPhaseDate = sortedPhases[sortedPhases.length - 1].endDate || sortedPhases[sortedPhases.length - 1].dueDate;
+  const dayAfterLast = new Date(lastPhaseDate);
   dayAfterLast.setDate(dayAfterLast.getDate() + 1);
   
   if (dayAfterLast < projectEndDate) {
@@ -609,7 +609,7 @@ export function calculateMilestoneSegments(
     segments.push({
       startDate: dayAfterLast,
       endDate: projectEndDate,
-      milestone: sortedPhases[sortedPhases.length - 1],
+      phase: sortedPhases[sortedPhases.length - 1],
       estimatedHours: 0,
       dailyHours: 0,
       workingDays: segmentDays,
@@ -658,15 +658,15 @@ export function calculateProjectWorkingDays(
 }
 
 /**
- * Calculate milestone distribution over timeline (for visualization)
+ * Calculate phase distribution over timeline (for visualization)
  */
-export function calculateMilestoneDistribution(
+export function calculatePhaseDistribution(
   phases: PhaseDTO[],
   projectStartDate: Date,
   projectEndDate: Date
-): MilestoneDistributionEntry[] {
-  const distribution: MilestoneDistributionEntry[] = [];
-  const segments = calculateMilestoneSegments(phases, projectStartDate, projectEndDate);
+): PhaseDistributionEntry[] {
+  const distribution: PhaseDistributionEntry[] = [];
+  const segments = calculatePhaseSegments(phases, projectStartDate, projectEndDate);
   
   const currentDate = new Date(projectStartDate);
   let dayIndex = 0;
@@ -684,7 +684,7 @@ export function calculateMilestoneDistribution(
     distribution.push({
       date: new Date(currentDate),
       estimatedHours: segment?.dailyHours || 0,
-      milestone: segment?.milestone,
+      phase: segment?.phase,
       dayIndex,
       isDeadlineDay
     });
@@ -697,7 +697,7 @@ export function calculateMilestoneDistribution(
 }
 
 /**
- * Calculate total allocated hours from milestones
+ * Calculate total allocated hours from phases
  */
 export function calculateTotalAllocatedHours(phases: PhaseDTO[]): number {
   return phases.reduce((total, phase) => {
@@ -707,11 +707,11 @@ export function calculateTotalAllocatedHours(phases: PhaseDTO[]): number {
 }
 
 /**
- * Validate milestone doesn't exceed project budget
+ * Validate phase doesn't exceed project budget
  */
-export function validateMilestoneBudget(
+export function validatePhaseBudget(
   currentAllocated: number,
-  newMilestoneHours: number,
+  newPhaseHours: number,
   projectBudget: number
 ): {
   isValid: boolean;
@@ -719,7 +719,7 @@ export function validateMilestoneBudget(
   remaining: number;
   overage: number;
 } {
-  const totalAfterAddition = currentAllocated + newMilestoneHours;
+  const totalAfterAddition = currentAllocated + newPhaseHours;
   const remaining = Math.max(0, projectBudget - totalAfterAddition);
   const overage = Math.max(0, totalAfterAddition - projectBudget);
   
@@ -746,36 +746,36 @@ export function calculateRemainingProjectHours(
 }
 
 /**
- * Validate milestone order (endDate must be after previous milestone)
+ * Validate phase order (endDate must be after previous phase)
  */
-export function validateMilestoneOrder(
-  newMilestoneDate: Date,
+export function validatePhaseOrder(
+  newPhaseDate: Date,
   existingPhases: PhaseDTO[],
   projectStartDate: Date,
   projectEndDate: Date
 ): {
   isValid: boolean;
-  conflictingMilestone?: PhaseDTO;
+  conflictingPhase?: PhaseDTO;
   suggestedDate?: Date;
 } {
   // Check if within project bounds
-  if (newMilestoneDate < projectStartDate || newMilestoneDate > projectEndDate) {
+  if (newPhaseDate < projectStartDate || newPhaseDate > projectEndDate) {
     return {
       isValid: false,
       suggestedDate: new Date(projectStartDate)
     };
   }
   
-  // Check for date conflicts (same date as another milestone)
-  const conflictingMilestone = existingPhases.find(phase => {
+  // Check for date conflicts (same date as another phase)
+  const conflictingPhase = existingPhases.find(phase => {
     const phaseDate = phase.endDate || phase.dueDate;
-    return phaseDate.toDateString() === newMilestoneDate.toDateString();
+    return phaseDate.toDateString() === newPhaseDate.toDateString();
   });
   
-  if (conflictingMilestone) {
+  if (conflictingPhase) {
     return {
       isValid: false,
-      conflictingMilestone
+      conflictingPhase
     };
   }
   
@@ -783,9 +783,9 @@ export function validateMilestoneOrder(
 }
 
 /**
- * Find next available milestone date
+ * Find next available phase date
  */
-export function findNextAvailableMilestoneDate(
+export function findNextAvailablePhaseDate(
   startSearchDate: Date,
   existingPhases: PhaseDTO[],
   projectEndDate: Date
@@ -809,9 +809,9 @@ export function findNextAvailableMilestoneDate(
 }
 
 /**
- * Calculate milestone statistics for a project
+ * Calculate phase statistics for a project
  */
-export function calculateMilestoneStatistics(phases: PhaseDTO[]): {
+export function calculatePhaseStatistics(phases: PhaseDTO[]): {
   count: number;
   totalHours: number;
   averageHours: number;
@@ -840,19 +840,19 @@ export function calculateMilestoneStatistics(phases: PhaseDTO[]): {
 }
 
 /**
- * Get milestone segment for a specific date
+ * Get phase segment for a specific date
  */
-export function getMilestoneSegmentForDate(
+export function getPhaseSegmentForDate(
   date: Date,
-  segments: MilestoneSegment[]
-): MilestoneSegment | null {
+  segments: PhaseSegment[]
+): PhaseSegment | null {
   return segments.find(segment => 
     date >= segment.startDate && date <= segment.endDate
   ) || null;
 }
 
 /**
- * Calculate budget adjustment recommendations for project-milestone compatibility
+ * Calculate budget adjustment recommendations for project-phase compatibility
  */
 export function calculateBudgetAdjustment(
   projectBudget: number,
@@ -872,11 +872,11 @@ export function calculateBudgetAdjustment(
   if (totalAllocated > currentBudget) {
     // Over-allocated: need to increase budget
     suggestedBudget = Math.ceil(totalAllocated / targetUtilization);
-    reason = 'Increase needed to accommodate milestone allocations';
+    reason = 'Increase needed to accommodate phase allocations';
   } else if (totalAllocated < currentBudget * 0.5) {
     // Significantly under-allocated: could reduce budget
     suggestedBudget = Math.ceil(totalAllocated / targetUtilization);
-    reason = 'Potential reduction due to low milestone utilization';
+    reason = 'Potential reduction due to low phase utilization';
   }
 
   return {

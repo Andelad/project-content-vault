@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useProjectContext } from '@/presentation/contexts/ProjectContext';
 import { PhaseOrchestrator } from '@/application/orchestrators/PhaseOrchestrator';;
-import type { PhaseDTO, Phase } from '@/shared/types/core';
+import type { PhaseDTO, Phase, Project } from '@/shared/types/core';
 import { useToast } from '@/presentation/hooks/ui/use-toast';
 import { ErrorHandlingService } from '@/infrastructure/errors/ErrorHandlingService';
 
@@ -10,7 +10,7 @@ export interface LocalPhase extends Omit<PhaseDTO, 'id'> {
   isNew?: boolean;
 }
 
-type MilestoneCreateInput = {
+type PhaseCreateInput = {
   name: string;
   projectId: string;
   dueDate: Date | string;
@@ -33,14 +33,14 @@ interface UseMilestoneOperationsConfig {
     phases: LocalPhase[];
     setPhases: (phases: LocalPhase[]) => void;
   };
-  trackedAddMilestone?: (
-    milestone: LocalPhase | MilestoneCreateInput,
+  trackedAddPhase?: (
+    phase: LocalPhase | PhaseCreateInput,
     options?: { silent?: boolean }
   ) => Promise<PhaseDTO | undefined>;
 }
 
 /**
- * Hook for managing milestone CRUD operations
+ * Hook for managing phase CRUD operations
  * Coordinates React state with ProjectPhaseOrchestrator service
  * Handles both local state (new projects) and database operations (existing projects)
  */
@@ -52,32 +52,33 @@ export function usePhaseOperations(config: UseMilestoneOperationsConfig) {
     projectEndDate,
     isCreatingProject = false,
     localPhasesState,
-    trackedAddMilestone
+    trackedAddPhase
   } = config;
 
   const {
-    phases: contextMilestones,
+    phases: contextPhases,
     addPhase: contextAddMilestone,
     updatePhase: contextUpdateMilestone,
     deletePhase: contextDeleteMilestone,
-    refetchMilestones: refetchPhases
+    refetchPhases: refetchPhases,
+    updateProject: contextUpdateProject
   } = useProjectContext();
 
   const { toast } = useToast();
   const [localPhases, setLocalPhases] = useState<LocalPhase[]>([]);
 
   // Use tracked version if provided (for rollback support), otherwise use context version
-  const addPhaseToContext = trackedAddMilestone || contextAddMilestone;
+  const addPhaseToContext = trackedAddPhase || contextAddMilestone;
 
-  // Get all milestones for this project
+  // Get all phases for this project
   const projectPhases = useMemo(() => {
     if (isCreatingProject && localPhasesState) {
       return localPhasesState.phases || [];
     }
 
     if (projectId) {
-      const contextList = Array.isArray(contextMilestones)
-        ? contextMilestones.filter(p => {
+      const contextList = Array.isArray(contextPhases)
+        ? contextPhases.filter(p => {
             // Always include recurring templates regardless of date range
             if (p.isRecurring === true) return p.projectId === projectId;
             
@@ -92,27 +93,27 @@ export function usePhaseOperations(config: UseMilestoneOperationsConfig) {
     }
 
     return localPhases || [];
-  }, [contextMilestones, isCreatingProject, localPhases, localPhasesState, projectEndDate, projectId, projectStartDate]);
+  }, [contextPhases, isCreatingProject, localPhases, localPhasesState, projectEndDate, projectId, projectStartDate]);
 
-  // Create a new milestone
+  // Create a new phase
   const createPhase = useCallback(async (
-    milestone: LocalPhase,
+    phase: LocalPhase,
     options?: { silent?: boolean }
   ): Promise<PhaseDTO> => {
     if (isCreatingProject && localPhasesState) {
       // For local creation, generate a temporary id if not present
-      const milestoneWithId: PhaseDTO = {
-        ...milestone,
-        id: milestone.id || `temp-${Date.now()}`,
+      const phaseWithId: PhaseDTO = {
+        ...phase,
+        id: phase.id || `temp-${Date.now()}`,
       } as PhaseDTO;
-      localPhasesState.setPhases([...localPhasesState.phases, milestoneWithId]);
-      return milestoneWithId;
+      localPhasesState.setPhases([...localPhasesState.phases, phaseWithId]);
+      return phaseWithId;
     } else if (projectId) {
       try {
-        const created = await addPhaseToContext(milestone as MilestoneCreateInput, options);
+        const created = await addPhaseToContext(phase as PhaseCreateInput, options);
         await refetchPhases();
         if (!created) {
-          throw new Error('Milestone creation returned undefined');
+          throw new Error('Phase creation returned undefined');
         }
         return created;
       } catch (error) {
@@ -129,32 +130,32 @@ export function usePhaseOperations(config: UseMilestoneOperationsConfig) {
       }
     } else {
       // For standalone local creation, generate a temporary id if not present
-      const milestoneWithId: PhaseDTO = {
-        ...milestone,
-        id: milestone.id || `temp-${Date.now()}`,
+      const phaseWithId: PhaseDTO = {
+        ...phase,
+        id: phase.id || `temp-${Date.now()}`,
       } as PhaseDTO;
-      setLocalPhases(prev => [...prev, milestoneWithId]);
-      return milestoneWithId;
+      setLocalPhases(prev => [...prev, phaseWithId]);
+      return phaseWithId;
     }
   }, [isCreatingProject, localPhasesState, projectId, addPhaseToContext, refetchPhases, toast]);
 
-  // Update an existing phase (legacy APIs still use milestone ids)
-  const updatePhase = useCallback(async (milestoneId: string, updates: Partial<PhaseDTO>) => {
+  // Update an existing phase
+  const updatePhase = useCallback(async (phaseId: string, updates: Partial<PhaseDTO>) => {
     if (isCreatingProject && localPhasesState) {
       const updated = localPhasesState.phases.map(p =>
-        p.id === milestoneId ? { ...p, ...updates } : p
+        p.id === phaseId ? { ...p, ...updates } : p
       );
       localPhasesState.setPhases(updated);
       return true;
     } else if (projectId) {
       try {
-        await contextUpdateMilestone(milestoneId, updates, { silent: true });
+        await contextUpdateMilestone(phaseId, updates, { silent: true });
         return true;
       } catch (error) {
         ErrorHandlingService.handle(error, {
           source: 'usePhaseOperations',
           action: 'updatePhase',
-          metadata: { milestoneId }
+          metadata: { phaseId }
         });
         toast({
           title: "Error",
@@ -165,27 +166,27 @@ export function usePhaseOperations(config: UseMilestoneOperationsConfig) {
       }
     } else {
       setLocalPhases(prev => prev.map(p =>
-        p.id === milestoneId ? { ...p, ...updates } : p
+        p.id === phaseId ? { ...p, ...updates } : p
       ));
       return true;
     }
   }, [isCreatingProject, localPhasesState, projectId, contextUpdateMilestone, toast]);
 
-  // Delete a phase (legacy APIs still use milestone ids)
-  const deletePhase = useCallback(async (milestoneId: string) => {
+  // Delete a phase
+  const deletePhase = useCallback(async (phaseId: string) => {
     if (isCreatingProject && localPhasesState) {
-      const filtered = localPhasesState.phases.filter(p => p.id !== milestoneId);
+      const filtered = localPhasesState.phases.filter(p => p.id !== phaseId);
       localPhasesState.setPhases(filtered);
       return true;
     } else if (projectId) {
       try {
-        await contextDeleteMilestone(milestoneId, { silent: true });
+        await contextDeleteMilestone(phaseId, { silent: true });
         return true;
       } catch (error) {
         ErrorHandlingService.handle(error, {
           source: 'usePhaseOperations',
           action: 'deletePhase',
-          metadata: { milestoneId }
+          metadata: { phaseId }
         });
         toast({
           title: "Error",
@@ -195,24 +196,24 @@ export function usePhaseOperations(config: UseMilestoneOperationsConfig) {
         return false;
       }
     } else {
-      setLocalPhases(prev => prev.filter(p => p.id !== milestoneId));
+      setLocalPhases(prev => prev.filter(p => p.id !== phaseId));
       return true;
     }
   }, [isCreatingProject, localPhasesState, projectId, contextDeleteMilestone, toast]);
 
-  // Update phase property (delegates to orchestrator; legacy milestone ids supported)
+  // Update phase property
   const updatePhaseProperty = useCallback(async <K extends keyof PhaseDTO>(
-    milestoneId: string,
+    phaseId: string,
     property: K,
     value: PhaseDTO[K]
   ) => {
-    const validMilestones = projectPhases.filter(p => p.id) as PhaseDTO[];
+    const validPhases = projectPhases.filter(p => p.id) as PhaseDTO[];
     const result = await PhaseOrchestrator.updatePhaseProperty(
-      milestoneId,
+      phaseId,
       property,
       value,
       {
-        projectPhases: validMilestones,
+        projectPhases: validPhases,
         projectEstimatedHours,
         localPhases,
         isCreatingProject,
@@ -221,7 +222,11 @@ export function usePhaseOperations(config: UseMilestoneOperationsConfig) {
         updatePhase: async (id: string, updates: Partial<PhaseDTO>) => {
           await updatePhase(id, updates);
         },
-        setLocalPhases
+        setLocalPhases,
+        projectId,
+        updateProject: async (id: string, updates: Partial<Project>, options?: { silent?: boolean }) => {
+          await contextUpdateProject(id, updates as any, options);
+        }
       }
     );
 
@@ -235,7 +240,7 @@ export function usePhaseOperations(config: UseMilestoneOperationsConfig) {
     }
 
     return true;
-  }, [projectPhases, projectEstimatedHours, localPhases, isCreatingProject, localPhasesState, createPhase, updatePhase, toast]);
+  }, [projectPhases, projectEstimatedHours, localPhases, isCreatingProject, localPhasesState, createPhase, updatePhase, toast, projectId, contextUpdateProject]);
 
   return {
     projectPhases,

@@ -50,7 +50,7 @@ export interface DragCompletionResult {
 
 export interface DragUpdateCallbacks {
   onProjectUpdate?: (projectId: string, updates: Partial<Project>, options?: { silent?: boolean }) => void;
-  onMilestoneUpdate?: (milestoneId: string, updates: Partial<PhaseDTO>, options?: { silent?: boolean }) => void;
+  onPhaseUpdate?: (phaseId: string, updates: Partial<PhaseDTO>, options?: { silent?: boolean }) => void;
   onSuccessToast?: (message: string) => void;
 }
 
@@ -62,7 +62,7 @@ export class TimelineDragCoordinatorService {
 
   /**
    * Coordinate a drag operation by orchestrating all services
-   * Handles both project and milestone drags
+   * Handles both project and phase drags
    */
   static coordinateDragOperation(
     dragState: DragState,
@@ -70,9 +70,9 @@ export class TimelineDragCoordinatorService {
     timelineContext: TimelineContext
   ): DragCoordinationResult {
     // Route to appropriate handler based on entity type
-    const phaseId = dragState.phaseId ?? dragState.milestoneId;
+    const phaseId = dragState.phaseId;
     if (phaseId) {
-      return this.coordinatePhaseDrag({ ...dragState, phaseId, milestoneId: dragState.milestoneId ?? phaseId }, mouseEvent, timelineContext);
+      return this.coordinatePhaseDrag({ ...dragState, phaseId }, mouseEvent, timelineContext);
     }
     
     if (dragState.holidayId) {
@@ -275,8 +275,8 @@ export class TimelineDragCoordinatorService {
   }
 
   /**
-   * Coordinate milestone drag operation
-   * Handles milestone-specific drag calculations and validation
+   * Coordinate phase drag operation
+   * Handles phase-specific drag calculations and validation
    */
   private static coordinatePhaseDrag(
     dragState: DragState,
@@ -331,17 +331,6 @@ export class TimelineDragCoordinatorService {
       conflictResult: undefined,
       adjustmentResult: undefined
     };
-  }
-
-  /**
-   * @deprecated Use coordinatePhaseDrag. Kept for backward compatibility with milestone terminology.
-   */
-  private static coordinateMilestoneDrag(
-    dragState: DragState,
-    mouseEvent: MouseEvent,
-    timelineContext: TimelineContext
-  ): DragCoordinationResult {
-    return this.coordinatePhaseDrag(dragState, mouseEvent, timelineContext);
   }
 
   /**
@@ -428,7 +417,7 @@ export class TimelineDragCoordinatorService {
 
   /**
    * Complete a drag operation
-   * Handles project, milestone, and holiday completion
+   * Handles project, phase, and holiday completion
    */
   static async completeDragOperation(
     dragState: DragState,
@@ -436,13 +425,13 @@ export class TimelineDragCoordinatorService {
     updateCallbacks: DragUpdateCallbacks
   ): Promise<DragCompletionResult> {
     try {
-      const { onProjectUpdate, onMilestoneUpdate, onSuccessToast } = updateCallbacks;
-      const phaseId = dragState.phaseId ?? dragState.milestoneId;
+      const { onProjectUpdate, onPhaseUpdate, onSuccessToast } = updateCallbacks;
+      const phaseId = dragState.phaseId;
 
-      // Handle phase drag completion (legacy: milestone)
-      if (phaseId && onMilestoneUpdate) {
-        onMilestoneUpdate(phaseId, {
-          dueDate: finalDates.startDate // Phases/milestones use dueDate for marker drags
+      // Handle phase drag completion
+      if (phaseId && onPhaseUpdate) {
+        onPhaseUpdate(phaseId, {
+          dueDate: finalDates.startDate // Phases use dueDate for marker drags
         }, { silent: true });
 
         if (onSuccessToast) {

@@ -5,11 +5,11 @@ import type { Database, Json } from '@/infrastructure/database/types';
 import type { PhaseDTO } from '@/shared/types/core';
 import { ErrorHandlingService } from '@/infrastructure/errors/ErrorHandlingService';
 import { Phase as PhaseEntity } from '@/domain/entities/Phase';
-// Note: Database types still use 'milestones' key but table is now 'phases'
+// Note: Database table is now 'phases' but table is now 'phases'
 // TODO: After types regenerate, update to use 'phases' key
 type Milestone = Database['public']['Tables']['phases']['Row'];
 type MilestoneInsert = Database['public']['Tables']['phases']['Insert'];
-type MilestoneUpdate = Database['public']['Tables']['phases']['Update'];
+type PhaseUpdate = Database['public']['Tables']['phases']['Update'];
 
 type CamelMilestoneInsert = {
   projectId?: string;
@@ -22,7 +22,7 @@ type CamelMilestoneInsert = {
   recurringConfig?: PhaseDTO['recurringConfig'];
 };
 
-type MilestoneInput = Omit<MilestoneInsert, 'user_id'> & CamelMilestoneInsert;
+type PhaseInput = Omit<MilestoneInsert, 'user_id'> & CamelMilestoneInsert;
 
 const toIsoString = (value?: string | Date | null): string | null | undefined => {
   if (value instanceof Date) return value.toISOString();
@@ -34,7 +34,7 @@ export function usePhases(projectId?: string) {
   const { toast } = useToast();
   // Debouncing for update success toasts
   const updateToastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const fetchMilestones = useCallback(async (targetProjectId: string) => {
+  const fetchPhases = useCallback(async (targetProjectId: string) => {
     try {
       const { data, error } = await supabase
         .from('phases')
@@ -54,7 +54,7 @@ export function usePhases(projectId?: string) {
       setLoading(false);
     }
   }, [toast]);
-  const fetchAllMilestones = useCallback(async () => {
+  const fetchAllPhases = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('phases')
@@ -63,7 +63,7 @@ export function usePhases(projectId?: string) {
       if (error) throw error;
       setPhases(data || []);
     } catch (error) {
-      ErrorHandlingService.handle(error, { source: 'useMilestones', action: 'Error fetching all milestones:' });
+      ErrorHandlingService.handle(error, { source: 'usePhases', action: 'Error fetching all phases:' });
       toast({
         title: "Error",
         description: "Failed to load phases",
@@ -76,9 +76,9 @@ export function usePhases(projectId?: string) {
 
   useEffect(() => {
     if (projectId) {
-      fetchMilestones(projectId);
+      fetchPhases(projectId);
     } else {
-      fetchAllMilestones();
+      fetchAllPhases();
     }
     // Cleanup timeout on unmount
     return () => {
@@ -86,40 +86,40 @@ export function usePhases(projectId?: string) {
         clearTimeout(updateToastTimeoutRef.current);
       }
     };
-  }, [projectId, fetchAllMilestones, fetchMilestones]);
-  const addPhase = async (milestoneData: MilestoneInput, options: { silent?: boolean } = {}) => {
+  }, [projectId, fetchAllPhases, fetchPhases]);
+  const addPhase = async (phaseData: PhaseInput, options: { silent?: boolean } = {}) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
       
       // Support both endDate and dueDate (dueDate is deprecated but still used in some places)
-      const endDateIso = toIsoString(milestoneData.endDate || milestoneData.end_date || milestoneData.dueDate);
-      const startDateValue = milestoneData.startDate || milestoneData.start_date;
+      const endDateIso = toIsoString(phaseData.endDate || phaseData.end_date || phaseData.dueDate);
+      const startDateValue = phaseData.startDate || phaseData.start_date;
       const startDateIso = startDateValue ? toIsoString(startDateValue) : endDateIso;
       
       // Transform camelCase to snake_case for database insertion
-      const dbMilestoneData: MilestoneInsert = {
+      const dbPhaseData: MilestoneInsert = {
         user_id: user.id,
-        name: milestoneData.name,
-        project_id: milestoneData.projectId ?? milestoneData.project_id,
+        name: phaseData.name,
+        project_id: phaseData.projectId ?? phaseData.project_id,
         end_date: endDateIso!,
         start_date: startDateIso!,
-        time_allocation: milestoneData.timeAllocation ?? milestoneData.time_allocation,
-        time_allocation_hours: milestoneData.timeAllocationHours ?? milestoneData.timeAllocation ?? milestoneData.time_allocation,
+        time_allocation: phaseData.timeAllocation ?? phaseData.time_allocation,
+        time_allocation_hours: phaseData.timeAllocationHours ?? phaseData.timeAllocation ?? phaseData.time_allocation,
       };
-      if (milestoneData.isRecurring !== undefined || milestoneData.is_recurring !== undefined) {
-        dbMilestoneData.is_recurring = milestoneData.isRecurring ?? milestoneData.is_recurring;
+      if (phaseData.isRecurring !== undefined || phaseData.is_recurring !== undefined) {
+        dbPhaseData.is_recurring = phaseData.isRecurring ?? phaseData.is_recurring;
       }
-      if (milestoneData.recurringConfig || milestoneData.recurring_config) {
-        dbMilestoneData.recurring_config = (milestoneData.recurringConfig || milestoneData.recurring_config) as Json;
+      if (phaseData.recurringConfig || phaseData.recurring_config) {
+        dbPhaseData.recurring_config = (phaseData.recurringConfig || phaseData.recurring_config) as Json;
       }
       const { data, error } = await supabase
         .from('phases')
-        .insert(dbMilestoneData)
+        .insert(dbPhaseData)
         .select()
         .single();
       if (error) {
-        ErrorHandlingService.handle(error, { source: 'useMilestones', action: '[useMilestones] Database error:' });
+        ErrorHandlingService.handle(error, { source: 'usePhases', action: '[usePhases] Database error:' });
         throw error;
       }
       // Insert locally and sort by end_date
@@ -134,7 +134,7 @@ export function usePhases(projectId?: string) {
       
       return PhaseEntity.fromDatabase(data);
     } catch (error) {
-      ErrorHandlingService.handle(error, { source: 'useMilestones', action: 'Error adding milestone:' });
+      ErrorHandlingService.handle(error, { source: 'usePhases', action: 'Error adding phase:' });
       // Always show error toasts immediately
       toast({
         title: "Error",
@@ -144,7 +144,7 @@ export function usePhases(projectId?: string) {
       throw error;
     }
   };
-  const updatePhase = async (id: string, updates: MilestoneUpdate, options: { silent?: boolean } = {}) => {
+  const updatePhase = async (id: string, updates: PhaseUpdate, options: { silent?: boolean } = {}) => {
     try {
       const { data, error } = await supabase
         .from('phases')
@@ -172,7 +172,7 @@ export function usePhases(projectId?: string) {
       
       return PhaseEntity.fromDatabase(data);
     } catch (error) {
-      ErrorHandlingService.handle(error, { source: 'useMilestones', action: 'Error updating milestone:' });
+      ErrorHandlingService.handle(error, { source: 'usePhases', action: 'Error updating phase:' });
       // Always show error toasts immediately
       toast({
         title: "Error",
@@ -190,7 +190,7 @@ export function usePhases(projectId?: string) {
   };
   const deletePhase = async (id: string, options: { silent?: boolean } = {}) => {
     try {
-      // First, fetch the milestone to check if it's a recurring template
+      // First, fetch the phase to check if it's a recurring template
       const phase = phases.find(p => p.id === id);
       if (phase?.is_recurring === true) {
         // This is a recurring template - delete all numbered instances first
@@ -205,7 +205,7 @@ export function usePhases(projectId?: string) {
           .eq('is_recurring', false)
           .like('name', `${numberedPattern}%`);
         if (instancesError) {
-          ErrorHandlingService.handle(instancesError, { source: 'useMilestones', action: '[useMilestones] Error deleting milestone instances:' });
+          ErrorHandlingService.handle(instancesError, { source: 'usePhases', action: '[usePhases] Error deleting phase instances:' });
           throw instancesError;
         }
         // Update local state to remove numbered instances
@@ -215,13 +215,13 @@ export function usePhases(projectId?: string) {
             p.name.startsWith(numberedPattern))
         ));
       }
-      // Then delete the milestone itself
+      // Then delete the phase itself
       const { error } = await supabase
         .from('phases')
         .delete()
         .eq('id', id);
       if (error) {
-        ErrorHandlingService.handle(error, { source: 'useMilestones', action: '[useMilestones] Error deleting milestone:' });
+        ErrorHandlingService.handle(error, { source: 'usePhases', action: '[usePhases] Error deleting phase:' });
         throw error;
       }
       setPhases(prev => prev.filter(p => p.id !== id));
@@ -233,7 +233,7 @@ export function usePhases(projectId?: string) {
         });
       }
     } catch (error) {
-      ErrorHandlingService.handle(error, { source: 'useMilestones', action: '[useMilestones] Error deleting milestone:' });
+      ErrorHandlingService.handle(error, { source: 'usePhases', action: '[usePhases] Error deleting phase:' });
       // Always show error toasts
       toast({
         title: "Error",
@@ -250,6 +250,6 @@ export function usePhases(projectId?: string) {
     updatePhase,
     deletePhase,
     showSuccessToast,
-    refetch: projectId ? () => fetchMilestones(projectId) : fetchAllMilestones
+    refetch: projectId ? () => fetchPhases(projectId) : fetchAllPhases
   };
 }

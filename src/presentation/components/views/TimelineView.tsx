@@ -102,7 +102,7 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
     updatePhase,
     setCreatingNewProject,
     creatingNewProject,
-    showMilestoneSuccessToast,
+    showPhaseSuccessToast,
     showProjectSuccessToast
   } = useProjectContext();
   const { 
@@ -164,7 +164,7 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
       const interval = setInterval(() => {
         // TODO: Re-enable stats logging when stats objects are available
         // workingDayStats.logStats();
-        // milestoneStats.logStats();
+        // phaseStats.logStats();
       }, 10000); // Log every 10 seconds in development
       return () => clearInterval(interval);
     }
@@ -529,7 +529,7 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
       let projectPhases = phases.filter(p => p.projectId === project.id);
       
       // If a phase is being dragged for this project, apply visual dates
-      const activePhaseId = dragState?.phaseId ?? dragState?.milestoneId;
+      const activePhaseId = dragState?.phaseId ?? dragState?.phaseId;
       if (isDragging && dragState?.projectId === project.id && activePhaseId &&
           (dragState?.action === 'resize-phase-start' || dragState?.action === 'resize-phase-end')) {
         projectPhases = projectPhases.map(p => {
@@ -645,17 +645,16 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
     }
   }, [currentDate, viewportStart, VIEWPORT_DAYS, timelineMode]);
   
-  // Handle milestone drag updates
+  // Handle phase drag updates
   const handlePhaseDrag = useCallback((phaseId: string, newDate: Date) => {
     updatePhase(phaseId, { dueDate: newDate }, { silent: true });
   }, [updatePhase]);
-  // Handle milestone drag end
+  
+  // Handle phase drag end
   const handlePhaseDragEnd = useCallback(() => {
-    showMilestoneSuccessToast("Phase updated successfully");
-  }, [showMilestoneSuccessToast]);
-  // Legacy prop naming compatibility
-  const handleMilestoneDrag = handlePhaseDrag;
-  const handleMilestoneDragEnd = handlePhaseDragEnd;
+    showPhaseSuccessToast("Phase updated successfully");
+  }, [showPhaseSuccessToast]);
+  
   return (
     <DndProvider backend={HTML5Backend}>
       <TooltipProvider>
@@ -734,8 +733,8 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
                           viewportEnd={viewportEnd}
                           isDragging={isDragging}
                           dragState={dragState}
-                          handleMilestoneDrag={handleMilestoneDrag}
-                          handleMilestoneDragEnd={handleMilestoneDragEnd}
+                          handlePhaseDrag={handlePhaseDrag}
+                          handlePhaseDragEnd={handlePhaseDragEnd}
                           handleProjectResizeMouseDown={handleProjectResizeMouseDown}
                           handlePhaseResizeMouseDown={handlePhaseResizeMouseDown}
                           mode={mode}

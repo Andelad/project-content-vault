@@ -11,14 +11,14 @@ import { ErrorHandlingService } from '@/infrastructure/errors/ErrorHandlingServi
 import { Group as GroupEntity } from '@/domain/entities/Group';
 type SupabaseGroupRow = Database['public']['Tables']['groups']['Row'];
 type SupabaseRowRow = Database['public']['Tables']['rows']['Row'];
-// Note: Table renamed from 'milestones' to 'phases' in database
-type SupabaseMilestoneRow = Database['public']['Tables']['phases']['Row'];
-type SupabaseMilestoneInsert = Database['public']['Tables']['phases']['Insert'];
+// Note: Table renamed to 'phases' in database
+type SupabasePhaseRow = Database['public']['Tables']['phases']['Row'];
+type SupabasePhaseInsert = Database['public']['Tables']['phases']['Insert'];
 type SupabaseGroupInsert = Database['public']['Tables']['groups']['Insert'];
 type SupabaseGroupUpdate = Database['public']['Tables']['groups']['Update'];
 type SupabaseRowInsert = Database['public']['Tables']['rows']['Insert'];
 type SupabaseRowUpdate = Database['public']['Tables']['rows']['Update'];
-type SupabaseMilestoneUpdate = Database['public']['Tables']['phases']['Update'];
+type SupabasePhaseUpdate = Database['public']['Tables']['phases']['Update'];
 
 interface ProjectGroup extends Group {
   color?: string;
@@ -40,7 +40,7 @@ type ProjectCreationInput = {
   autoEstimateDays?: Project['autoEstimateDays'];
 };
 
-type ProjectUpdateInput = Partial<Omit<Project, 'id' | 'createdAt' | 'updatedAt' | 'milestones' | 'userId'>>;
+type ProjectUpdateInput = Partial<Omit<Project, 'id' | 'createdAt' | 'updatedAt' | 'phases' | 'userId'>>;
 
 type GroupCreateInput = {
   name: string;
@@ -59,7 +59,7 @@ type RowCreateInput = {
 
 type RowUpdateInput = Partial<Pick<Row, 'groupId' | 'name' | 'order'>>;
 
-type MilestoneCreateInput = {
+type PhaseCreateInput = {
   name: string;
   projectId: string;
   dueDate: Date | string;
@@ -72,7 +72,7 @@ type MilestoneCreateInput = {
   order?: number;
 };
 
-type MilestoneUpdateInput = Partial<MilestoneCreateInput>;
+type PhaseUpdateInput = Partial<PhaseCreateInput>;
 
 interface CreatingProjectState {
   groupId: string;
@@ -104,14 +104,14 @@ interface ProjectContextType {
   deleteRow: (id: string) => Promise<void>;
   reorderRows: (groupId: string, fromIndex: number, toIndex: number) => void;
 
-  // Milestones
+  // Phases
   phases: PhaseDTO[];
-  addPhase: (milestone: MilestoneCreateInput, options?: { silent?: boolean }) => Promise<PhaseDTO | undefined>;
-  updatePhase: (id: string, updates: MilestoneUpdateInput, options?: { silent?: boolean }) => Promise<void>;
+  addPhase: (phase: PhaseCreateInput, options?: { silent?: boolean }) => Promise<PhaseDTO | undefined>;
+  updatePhase: (id: string, updates: PhaseUpdateInput, options?: { silent?: boolean }) => Promise<void>;
   deletePhase: (id: string, options?: { silent?: boolean }) => Promise<void>;
-  getMilestonesForProject: (projectId: string) => PhaseDTO[];
-  showMilestoneSuccessToast: (message?: string) => void;
-  refetchMilestones: () => Promise<void>;
+  getPhasesForProject: (projectId: string) => PhaseDTO[];
+  showPhaseSuccessToast: (message?: string) => void;
+  refetchPhases: () => Promise<void>;
 
   // Selection state
   selectedProjectId: string | null;
@@ -179,21 +179,21 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   } = useRows();
 
   const {
-    phases: dbMilestones,
-    loading: milestonesLoading,
-    addPhase: dbAddMilestone,
-    updatePhase: dbUpdateMilestone,
-    deletePhase: dbDeleteMilestone,
-    showSuccessToast: showMilestoneSuccessToast,
-    refetch: refetchMilestones,
+    phases: dbPhases,
+    loading: phasesLoading,
+    addPhase: dbAddPhase,
+    updatePhase: dbUpdatePhase,
+    deletePhase: dbDeletePhase,
+    showSuccessToast: showPhaseSuccessToast,
+    refetch: refetchPhases,
   } = usePhases();
 
-  const processedMilestones = useMemo<PhaseDTO[]>(() => {
-    if (!dbMilestones) {
+  const processedPhases = useMemo<PhaseDTO[]>(() => {
+    if (!dbPhases) {
       return [];
     }
 
-    return dbMilestones
+    return dbPhases
       .map((phase): Phase => ({
         id: phase.id,
         name: phase.name,
@@ -212,7 +212,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         updatedAt: phase.updated_at ? new Date(phase.updated_at) : new Date(),
       }))
       .sort((a, b) => a.endDate.getTime() - b.endDate.getTime());
-  }, [dbMilestones]);
+  }, [dbPhases]);
 
   const processedGroups = useMemo<ProjectGroup[]>(() => {
     if (!dbGroups) {
@@ -253,13 +253,13 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   React.useEffect(() => {
-    const handleMilestonesUpdated = () => {
-      void refetchMilestones();
+    const handlePhasesUpdated = () => {
+      void refetchPhases();
     };
 
-    window.addEventListener('milestonesUpdated', handleMilestonesUpdated as EventListener);
-    return () => window.removeEventListener('milestonesUpdated', handleMilestonesUpdated as EventListener);
-  }, [refetchMilestones]);
+    window.addEventListener('phasesUpdated', handlePhasesUpdated as EventListener);
+    return () => window.removeEventListener('phasesUpdated', handlePhasesUpdated as EventListener);
+  }, [refetchPhases]);
 
   const addProject = useCallback(async (project: ProjectCreationInput) => {
     const projectWithColor = {
@@ -340,14 +340,14 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     await dbDeleteRow(id);
   }, [dbDeleteRow]);
 
-  const getMilestonesForProject = useCallback((projectId: string) => {
-    return processedMilestones.filter(phase => phase.projectId === projectId);
-  }, [processedMilestones]);
+  const getPhasesForProject = useCallback((projectId: string) => {
+    return processedPhases.filter(phase => phase.projectId === projectId);
+  }, [processedPhases]);
 
-  const addPhase = useCallback(async (phase: MilestoneCreateInput, options?: { silent?: boolean }) => {
+  const addPhase = useCallback(async (phase: PhaseCreateInput, options?: { silent?: boolean }) => {
     const dueDateSource = phase.dueDate ?? phase.endDate;
     if (!dueDateSource) {
-      throw new Error('Milestone due date is required.');
+      throw new Error('Phase due date is required.');
     }
 
     const endDateIso = dueDateSource instanceof Date ? dueDateSource.toISOString() : dueDateSource;
@@ -355,7 +355,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       ? (phase.startDate instanceof Date ? phase.startDate.toISOString() : phase.startDate)
       : endDateIso; // Default start_date to end_date if not provided
 
-    const payload: Omit<SupabaseMilestoneInsert, 'user_id'> = {
+    const payload: Omit<SupabasePhaseInsert, 'user_id'> = {
       name: phase.name,
       project_id: phase.projectId,
       end_date: endDateIso,
@@ -369,11 +369,11 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (phase.recurringConfig !== undefined) {
-      payload.recurring_config = phase.recurringConfig as unknown as SupabaseMilestoneInsert['recurring_config'];
+      payload.recurring_config = phase.recurringConfig as unknown as SupabasePhaseInsert['recurring_config'];
     }
 
-    const result = await dbAddMilestone(payload, options);
-    await refetchMilestones();
+    const result = await dbAddPhase(payload, options);
+    await refetchPhases();
     
     // Convert database result to Phase type
     if (result) {
@@ -391,14 +391,14 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         userId: result.userId,
         createdAt: new Date(result.createdAt),
         updatedAt: new Date(result.updatedAt)
-      } satisfies import('@/types/core').PhaseDTO;
+      } satisfies import('@/shared/types/core').PhaseDTO;
     }
     
     return undefined;
-  }, [dbAddMilestone, refetchMilestones]);
+  }, [dbAddPhase, refetchPhases]);
 
-  const updatePhase = useCallback(async (id: string, updates: MilestoneUpdateInput, options?: { silent?: boolean }) => {
-    const dbUpdates: SupabaseMilestoneUpdate = {};
+  const updatePhase = useCallback(async (id: string, updates: PhaseUpdateInput, options?: { silent?: boolean }) => {
+    const dbUpdates: SupabasePhaseUpdate = {};
 
   if (updates.name !== undefined) dbUpdates.name = updates.name;
   if (updates.projectId !== undefined) dbUpdates.project_id = updates.projectId;
@@ -430,17 +430,17 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (updates.recurringConfig !== undefined) {
-      dbUpdates.recurring_config = updates.recurringConfig as unknown as SupabaseMilestoneUpdate['recurring_config'];
+      dbUpdates.recurring_config = updates.recurringConfig as unknown as SupabasePhaseUpdate['recurring_config'];
     }
 
-    await dbUpdateMilestone(id, dbUpdates, options);
-  }, [dbUpdateMilestone]);
+    await dbUpdatePhase(id, dbUpdates, options);
+  }, [dbUpdatePhase]);
 
   const deletePhase = useCallback(async (id: string, options?: { silent?: boolean }) => {
-    await dbDeleteMilestone(id, options);
-  }, [dbDeleteMilestone]);
+    await dbDeletePhase(id, options);
+  }, [dbDeletePhase]);
 
-  const isLoading = projectsLoading || groupsLoading || rowsLoading || milestonesLoading;
+  const isLoading = projectsLoading || groupsLoading || rowsLoading || phasesLoading;
 
   const contextValue: ProjectContextType = {
     projects: dbProjects ?? [],
@@ -459,13 +459,13 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     updateRow,
     deleteRow,
     reorderRows: dbReorderRows,
-    phases: processedMilestones,
+    phases: processedPhases,
     addPhase,
     updatePhase,
     deletePhase,
-    getMilestonesForProject,
-    showMilestoneSuccessToast,
-    refetchMilestones,
+    getPhasesForProject,
+    showPhaseSuccessToast,
+    refetchPhases,
     selectedProjectId,
     setSelectedProjectId,
     creatingNewProject,

@@ -4,10 +4,10 @@ import { Project, CalendarEvent, PhaseDTO } from '@/shared/types/core';
 interface ProjectProgressGraphProps {
   project: Project;
   events: CalendarEvent[];
-  milestones?: PhaseDTO[];
+  phases?: PhaseDTO[];
 }
 
-export function ProjectProgressGraph({ project, events, milestones = [] }: ProjectProgressGraphProps) {
+export function ProjectProgressGraph({ project, events, phases = [] }: ProjectProgressGraphProps) {
   // TODO: Re-implement using new architecture
   // Previous implementation used deleted UnifiedProjectProgressService (analyzeProjectProgress)
   return (

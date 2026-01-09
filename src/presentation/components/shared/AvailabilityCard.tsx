@@ -365,20 +365,25 @@ export const AvailabilityCard = memo(function AvailabilityCard({
       return <div style={{ height: '96px' }} />;
     }
 
+    const graphWidth = context === 'planner' ? '100%' : mode === 'weeks' ? `${dates.length * columnWidth}px` : `${dates.length * columnWidth + columnWidth}px`;
+
     return (
       <TooltipProvider delayDuration={100}>
-        <div className="relative flex items-center" style={{ width: context === 'planner' ? '100%' : `${dates.length * columnWidth}px`, height: '96px' }}>
-          <svg width={(dates.length + 2) * columnWidth} height={graphHeight} className="absolute top-0" style={{ overflow: 'visible', pointerEvents: 'none', zIndex: 20, left: `-${columnWidth}px` }}>
-            <g transform={`translate(0, ${graphPadding.top})`}>
-              <line x1={0} y1={plotHeight / 2} x2={(dates.length + 2) * columnWidth} y2={plotHeight / 2} stroke={NEUTRAL_COLORS.gray400} strokeWidth={1} />
-              <path d={generatePath((v) => v >= 0)} fill="rgb(34, 197, 94)" fillOpacity={0.3} />
-              <path d={generatePath((v) => v <= 0)} fill="rgb(239, 68, 68)" fillOpacity={0.4} />
-              <path d={`M ${columnWidth / 2},${netAvailabilityToY(graphData[0]?.netAvailability || 0)} ${graphData.map((d, i) => `L ${i * columnWidth + columnWidth / 2},${netAvailabilityToY(d.netAvailability)}`).join(' ')}`} fill="none" stroke={NEUTRAL_COLORS.gray400} strokeWidth={2} />
-            </g>
-          </svg>
+        <div className="relative flex items-center" style={{ width: graphWidth, height: '96px', overflow: 'visible' }}>
+          {/* Graph SVG layer - clipped to container */}
+          <div className="absolute inset-0" style={{ overflow: 'hidden', zIndex: 20 }}>
+            <svg width={(dates.length + 2) * columnWidth} height={graphHeight} className="absolute top-0" style={{ pointerEvents: 'none', left: `-${columnWidth}px` }}>
+              <g transform={`translate(0, ${graphPadding.top})`}>
+                <line x1={0} y1={plotHeight / 2} x2={(dates.length + 2) * columnWidth} y2={plotHeight / 2} stroke={NEUTRAL_COLORS.gray400} strokeWidth={1} />
+                <path d={generatePath((v) => v >= 0)} fill="rgb(34, 197, 94)" fillOpacity={0.3} />
+                <path d={generatePath((v) => v <= 0)} fill="rgb(239, 68, 68)" fillOpacity={0.4} />
+                <path d={`M ${columnWidth / 2},${netAvailabilityToY(graphData[0]?.netAvailability || 0)} ${graphData.map((d, i) => `L ${i * columnWidth + columnWidth / 2},${netAvailabilityToY(d.netAvailability)}`).join(' ')}`} fill="none" stroke={NEUTRAL_COLORS.gray400} strokeWidth={2} />
+              </g>
+            </svg>
+          </div>
           
-          {/* Data point circles */}
-          <div className="absolute top-0 left-0 pointer-events-none" style={{ zIndex: 22 }}>
+          {/* Data point circles - overflow visible for hover effects */}
+          <div className="absolute top-0 left-0 pointer-events-none" style={{ zIndex: 22, overflow: 'visible' }}>
             {dates.map((_, dateIndex) => {
               const graphDataIndex = dateIndex + 1; // graphData has 1 extra date at the start
               const d = graphData[graphDataIndex];
@@ -647,50 +652,55 @@ export const AvailabilityCard = memo(function AvailabilityCard({
     const { greenPath, redPath } = generateFillPaths3();
     const stoneFillPath3 = generateStoneFillPath3();
 
+    const graphWidth = context === 'planner' ? '100%' : mode === 'weeks' ? `${dates.length * columnWidth}px` : `${dates.length * columnWidth + columnWidth}px`;
+
     return (
       <TooltipProvider delayDuration={100}>
-        <div className="relative flex items-center" style={{ width: context === 'planner' ? '100%' : `${dates.length * columnWidth}px`, height: '96px', overflow: 'visible' }}>
-          <svg width={(dates.length + 2) * columnWidth} height={graphHeight} className="absolute top-0" style={{ overflow: 'visible', pointerEvents: 'none', zIndex: 20, left: `-${columnWidth}px` }}>
-            <g>
-              {/* Baseline - light gray line */}
-              <line 
-                x1={0} 
-                y1={baselineY} 
-                x2={(dates.length + 2) * columnWidth} 
-                y2={baselineY} 
-                stroke={NEUTRAL_COLORS.gray200} 
-                strokeWidth={1}
-              />
-              
-              {/* Stone fill: between baseline and committed/capacity line (excluding red areas) */}
-              <path d={stoneFillPath3} fill="oklch(0.91 0.008 90)" fillOpacity={0.65} />
-              
-              {/* Green fill: committed under capacity */}
-              <path d={greenPath} fill="rgb(34, 197, 94)" fillOpacity={0.3} />
-              
-              {/* Red fill: committed over capacity */}
-              <path d={redPath} fill="rgb(239, 68, 68)" fillOpacity={0.4} />
-              
-              {/* Capacity line (dotted) */}
-              <path 
-                d={capacityLinePath3} 
-                fill="none" 
-                stroke={NEUTRAL_COLORS.gray500} 
-                strokeWidth={2} 
-                strokeDasharray="4 4"
-              />
-              
-              {/* Committed line (solid) */}
-              <path 
-                d={committedLinePath3} 
-                fill="none" 
-                stroke={NEUTRAL_COLORS.gray400} 
-                strokeWidth={2} 
-              />
-            </g>
-          </svg>
+        <div className="relative flex items-center" style={{ width: graphWidth, height: '96px', overflow: 'visible' }}>
+          {/* Graph SVG layer - clipped to container */}
+          <div className="absolute inset-0" style={{ overflow: 'hidden', zIndex: 20 }}>
+            <svg width={(dates.length + 2) * columnWidth} height={graphHeight} className="absolute top-0" style={{ pointerEvents: 'none', left: `-${columnWidth}px` }}>
+              <g>
+                {/* Baseline - light gray line */}
+                <line 
+                  x1={0} 
+                  y1={baselineY} 
+                  x2={(dates.length + 2) * columnWidth} 
+                  y2={baselineY} 
+                  stroke={NEUTRAL_COLORS.gray200} 
+                  strokeWidth={1}
+                />
+                
+                {/* Stone fill: between baseline and committed/capacity line (excluding red areas) */}
+                <path d={stoneFillPath3} fill="oklch(0.91 0.008 90)" fillOpacity={0.65} />
+                
+                {/* Green fill: committed under capacity */}
+                <path d={greenPath} fill="rgb(34, 197, 94)" fillOpacity={0.3} />
+                
+                {/* Red fill: committed over capacity */}
+                <path d={redPath} fill="rgb(239, 68, 68)" fillOpacity={0.4} />
+                
+                {/* Capacity line (dotted) */}
+                <path 
+                  d={capacityLinePath3} 
+                  fill="none" 
+                  stroke={NEUTRAL_COLORS.gray500} 
+                  strokeWidth={2} 
+                  strokeDasharray="4 4"
+                />
+                
+                {/* Committed line (solid) */}
+                <path 
+                  d={committedLinePath3} 
+                  fill="none" 
+                  stroke={NEUTRAL_COLORS.gray400} 
+                  strokeWidth={2} 
+                />
+              </g>
+            </svg>
+          </div>
           
-          {/* Data point circles on committed line - hover effects only (no default dots) */}
+          {/* Data point circles on committed line - hover effects only (no default dots) - overflow visible */}
           <div className="absolute top-0 left-0 pointer-events-none" style={{ zIndex: 22, overflow: 'visible' }}>
             {dates.map((_, dateIndex) => {
               const graphDataIndex = dateIndex + 1;
@@ -859,12 +869,23 @@ export const AvailabilityCard = memo(function AvailabilityCard({
       </div>
 
       {/* Card Content */}
-      <Card className="shadow-sm border-x border-b border-t border-gray-200 relative bg-gray-50" style={{ borderTopLeftRadius: 0, borderTopRightRadius: '0.5rem', overflow: 'visible' }}>
-        {/* Column Markers Overlay - positioned inside card */}
+      <Card className="shadow-sm border-x border-b border-t border-gray-200 relative bg-gray-50" style={{ borderTopLeftRadius: 0, borderTopRightRadius: '0.5rem', overflow: 'clip' }}>
+        {/* Column Markers Overlay - clipped to card shape, excluding borders */}
         {columnMarkersOverlay && (
           <div 
-            className="absolute inset-0 pointer-events-none"
-            style={{ zIndex: 1 }}
+            className="absolute pointer-events-none"
+            style={{ 
+              top: '1px',
+              right: '1px', 
+              bottom: '1px', 
+              left: '1px',
+              borderTopLeftRadius: 0,
+              borderTopRightRadius: 'calc(0.5rem - 1px)',
+              borderBottomLeftRadius: 'calc(0.5rem - 1px)',
+              borderBottomRightRadius: 'calc(0.5rem - 1px)',
+              zIndex: 1,
+              overflow: 'hidden'
+            }}
           >
             {columnMarkersOverlay}
           </div>
@@ -900,8 +921,8 @@ export const AvailabilityCard = memo(function AvailabilityCard({
             className="flex-1 flex flex-col bg-gray-50 relative availability-timeline-content" 
             style={{ 
               minWidth: mode === 'weeks'
-                ? `${dates.length * 77}px`
-                : `${dates.length * 52 + 52}px`, // Match timeline column width: 52px per day + buffer (unchanged)
+                ? `${dates.length * 153}px`
+                : `${dates.length * 52 + 52}px`, // Extra 52px buffer for smooth rendering at edges
               borderTopLeftRadius: '8px',
               borderTopRightRadius: '8px',
             }}

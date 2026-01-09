@@ -145,7 +145,7 @@ export function RecurringPhaseCard({
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete Recurring Phases</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Are you sure you want to delete the recurring milestone pattern? This will remove the configuration and any generated milestones. This action cannot be undone.
+                  Are you sure you want to delete the recurring phase pattern? This will remove the configuration and any generated phases. This action cannot be undone.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>

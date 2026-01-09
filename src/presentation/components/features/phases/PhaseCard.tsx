@@ -49,87 +49,79 @@ export function PhaseCard({
   const renderDateField = (property: 'startDate' | 'endDate') => {
     const dateValue = property === 'startDate' ? phase.startDate : (phase.endDate || phase.dueDate);
     const displayValue = dateValue ? format(new Date(dateValue), 'MMM dd') : 'Select date';
-    const isFixed = (property === 'startDate' && isFirst) || (property === 'endDate' && isLast);
+    const willUpdateProject = (property === 'startDate' && isFirst) || (property === 'endDate' && isLast);
 
-    if (isFixed) {
-      const tooltipText = property === 'startDate' 
-        ? 'Edit project start date' 
-        : 'Edit project end date';
-      
-      return (
-        <div className="min-w-[100px]">
-          <Label className="text-xs mb-1 block text-muted-foreground/50">
-            {property === 'startDate' ? 'Start' : 'End'}
-          </Label>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="h-10 text-sm px-3 border border-input rounded-md bg-muted/30 flex items-center cursor-not-allowed opacity-60">
-                  <CalendarIcon className="mr-2 h-3 w-3 text-muted-foreground/50" />
-                  <span className="text-muted-foreground/70">{displayValue}</span>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{tooltipText}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-      );
-    }
+    const tooltipText = willUpdateProject
+      ? property === 'startDate'
+        ? 'Also updates project start date'
+        : 'Also updates project end date'
+      : undefined;
 
     return (
       <div className="min-w-[100px]">
         <Label className="text-xs text-muted-foreground mb-1 block">
           {property === 'startDate' ? 'Start' : 'End'}
+          {willUpdateProject && <span className="text-primary ml-1">*</span>}
         </Label>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              className="h-10 text-sm justify-start text-left font-normal px-3"
-              style={{ width: '100px' }}
-            >
-              <CalendarIcon className="mr-2 h-3 w-3" />
-              {displayValue}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              selected={dateValue ? new Date(dateValue) : undefined}
-              onSelect={(selectedDate) => {
-                if (selectedDate) {
-                  onUpdateProperty(phase.id!, property, selectedDate);
-                }
-              }}
-              disabled={(date) => {
-                const currentIndex = allPhases.findIndex(p => p.id === phase.id);
-                
-                if (property === 'startDate') {
-                  const prevPhase = currentIndex > 0 ? allPhases[currentIndex - 1] : null;
-                  const currentEnd = new Date(phase.endDate || phase.dueDate);
-                  
-                  if (prevPhase) {
-                    const prevEnd = new Date(prevPhase.endDate || prevPhase.dueDate);
-                    return date < prevEnd || date >= currentEnd;
-                  }
-                  return date >= currentEnd;
-                } else {
-                  const nextPhase = currentIndex < allPhases.length - 1 ? allPhases[currentIndex + 1] : null;
-                  const currentStart = new Date(phase.startDate!);
-                  
-                  if (nextPhase) {
-                    const nextStart = new Date(nextPhase.startDate!);
-                    return date <= currentStart || date >= nextStart;
-                  }
-                  return date <= currentStart;
-                }
-              }}
-              initialFocus
-            />
-          </PopoverContent>
-        </Popover>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="h-10 text-sm justify-start text-left font-normal px-3"
+                    style={{ width: '100px' }}
+                  >
+                    <CalendarIcon className="mr-2 h-3 w-3" />
+                    {displayValue}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={dateValue ? new Date(dateValue) : undefined}
+                    defaultMonth={dateValue ? new Date(dateValue) : undefined}
+                    onSelect={(selectedDate) => {
+                      if (selectedDate) {
+                        onUpdateProperty(phase.id!, property, selectedDate);
+                      }
+                    }}
+                    disabled={(date) => {
+                      const currentIndex = allPhases.findIndex(p => p.id === phase.id);
+                      
+                      if (property === 'startDate') {
+                        const prevPhase = currentIndex > 0 ? allPhases[currentIndex - 1] : null;
+                        const currentEnd = new Date(phase.endDate || phase.dueDate);
+                        
+                        if (prevPhase) {
+                          const prevEnd = new Date(prevPhase.endDate || prevPhase.dueDate);
+                          return date < prevEnd || date >= currentEnd;
+                        }
+                        return date >= currentEnd;
+                      } else {
+                        const nextPhase = currentIndex < allPhases.length - 1 ? allPhases[currentIndex + 1] : null;
+                        const currentStart = new Date(phase.startDate!);
+                        
+                        if (nextPhase) {
+                          const nextStart = new Date(nextPhase.startDate!);
+                          return date <= currentStart || date >= nextStart;
+                        }
+                        return date <= currentStart;
+                      }
+                    }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </TooltipTrigger>
+            {tooltipText && (
+              <TooltipContent>
+                <p>{tooltipText}</p>
+              </TooltipContent>
+            )}
+          </Tooltip>
+        </TooltipProvider>
       </div>
     );
   };

@@ -1,7 +1,7 @@
 /**
  * Project Orchestrator - Phase 5B Enhanced
  * 
- * Coordinates project domain rules with milestone management and external systems,
+ * Coordinates project domain rules with phase management and external systems,
  * now enhanced with repository integration for offline-first operations and
  * performance optimization.
  * 
@@ -9,7 +9,7 @@
  * - Repository-based project management with intelligent caching
  * - Offline-first project operations with automatic sync
  * - Performance-optimized project workflows
- * - Coordinated project-milestone lifecycle management
+ * - Coordinated project-phase lifecycle management
  * 
  * @module ProjectOrchestrator
  */
@@ -35,9 +35,9 @@ export interface ProjectValidationResult {
   errors: string[];
   warnings: string[];
 }
-export interface ProjectMilestoneAnalysis {
+export interface ProjectPhaseAnalysis {
   projectBudget: ProjectBudgetAnalysis;
-  milestoneCount: number;
+  phaseCount: number;
   regularMilestones: number;
   recurringMilestones: number;
   hasOverBudgetMilestones: boolean;
@@ -72,19 +72,18 @@ export interface ProjectCreationResult {
   errors?: string[];
   warnings?: string[];
 }
-export interface ProjectMilestone {
+export interface ProjectPhase {
   name: string;
   dueDate: Date;
   endDate: Date;
   timeAllocation: number;
   timeAllocationHours: number;
 }
-export interface ProjectCreationWithMilestonesRequest extends ProjectCreationRequest {
-  milestones?: ProjectMilestone[];
-  phases?: ProjectMilestone[];
+export interface ProjectCreationWithPhasesRequest extends ProjectCreationRequest {
+  phases?: ProjectPhase[];
 }
 
-type ProjectMilestoneCreateInput = {
+type ProjectPhaseCreateInput = {
   name: string;
   projectId: string;
   dueDate: Date | string;
@@ -157,7 +156,7 @@ export interface ProjectUpdateRequest {
 }
 /**
  * Project Orchestrator
- * Handles project business workflows and project-milestone coordination
+ * Handles project business workflows and project-phase coordination
  */
 type ProjectTransformInput = Partial<Project> & {
   clientId?: string;
@@ -172,7 +171,7 @@ export class ProjectOrchestrator {
    * Calls domain rules directly (no validator layer).
    * 
    * @param request - Project creation request data
-   * @param existingPhases - Optional existing milestones to validate against
+   * @param existingPhases - Optional existing phases to validate against
    * @returns Validation result with errors and warnings
    * 
    * @example
@@ -283,9 +282,9 @@ export class ProjectOrchestrator {
       if (!dateValidation.isValid) {
         errors.push(...dateValidation.errors);
       }
-      // Check milestone date compatibility using domain rules
+      // Check phase date compatibility using domain rules
       const incompatiblePhases = currentMilestones.filter(p => {
-        const validation = PhaseRules.validateMilestoneDateWithinProject(
+        const validation = PhaseRules.validatePhaseDateWithinProject(
           p.dueDate,
           updatedProject.startDate,
           updatedProject.endDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
@@ -293,7 +292,7 @@ export class ProjectOrchestrator {
         return !validation.isValid;
       });
       if (incompatiblePhases.length > 0) {
-        errors.push(`${incompatiblePhases.length} milestone(s) would fall outside the updated project timeframe`);
+        errors.push(`${incompatiblePhases.length} phase(s) would fall outside the updated project timeframe`);
       }
     }
     // Validate budget changes using domain rules
@@ -313,12 +312,12 @@ export class ProjectOrchestrator {
     };
   }
   /**
-   * Analyze project-milestone relationship health
+   * Analyze project-phase relationship health
    */
-  static analyzeProjectMilestones(
+  static analyzeProjectPhases(
     project: Project,
     phases: PhaseDTO[]
-  ): ProjectMilestoneAnalysis {
+  ): ProjectPhaseAnalysis {
     // Use domain rules for budget analysis
     const budgetCheck = PhaseRules.checkBudgetConstraint(phases, project.estimatedHours);
     const projectBudget: ProjectBudgetAnalysis = {
@@ -328,32 +327,32 @@ export class ProjectOrchestrator {
       overageHours: budgetCheck.overage,
       utilizationPercentage: budgetCheck.utilizationPercentage
     };
-    // Simple milestone type counting (recurring detection can be enhanced later)
+    // Simple phase type counting (recurring detection can be enhanced later)
   const regularMilestones = phases.filter(p => !('isRecurring' in p && p.isRecurring)).length;
   const recurringMilestones = phases.filter(p => p.isRecurring === true).length;
-    // Check for over-budget milestones
+    // Check for over-budget phases
     const hasOverBudgetMilestones = phases.some(p => 
       p.timeAllocation > project.estimatedHours
     );
     // Check for date conflicts
-    const hasDateConflicts = this.checkMilestoneDateConflicts(phases);
+    const hasDateConflicts = this.checkPhaseDateConflicts(phases);
     // Generate suggestions
     const suggestions: string[] = [];
     if (projectBudget.isOverBudget) {
-      suggestions.push(`Consider increasing project budget by ${projectBudget.overageHours}h or reducing milestone allocations`);
+      suggestions.push(`Consider increasing project budget by ${projectBudget.overageHours}h or reducing phase allocations`);
     }
     if (phases.length === 0) {
-      suggestions.push('Consider adding milestones to track project progress');
+      suggestions.push('Consider adding phases to track project progress');
     }
     if (projectBudget.utilizationPercentage < 50) {
-      suggestions.push('Project has significant unallocated budget - consider adding more milestones');
+      suggestions.push('Project has significant unallocated budget - consider adding more phases');
     }
     if (hasDateConflicts) {
-      suggestions.push('Resolve milestone date conflicts');
+      suggestions.push('Resolve phase date conflicts');
     }
     return {
       projectBudget,
-      milestoneCount: phases.length,
+      phaseCount: phases.length,
       regularMilestones,
       recurringMilestones,
       hasOverBudgetMilestones,
@@ -362,7 +361,7 @@ export class ProjectOrchestrator {
     };
   }
   /**
-   * Calculate project budget adjustments needed for milestone compatibility
+   * Calculate project budget adjustments needed for phase compatibility
    */
   static calculateBudgetAdjustment(
     project: Project,
@@ -381,9 +380,9 @@ export class ProjectOrchestrator {
     return calculateBudgetAdjustment(project.estimatedHours, totalAllocated, targetUtilization);
   }
   /**
-   * Check for milestone date conflicts
+   * Check for phase date conflicts
    */
-  private static checkMilestoneDateConflicts(phases: PhaseDTO[]): boolean {
+  private static checkPhaseDateConflicts(phases: PhaseDTO[]): boolean {
     const dateMap = new Map<string, number>();
     for (const phase of phases) {
       const dateKey = getDateKey(phase.dueDate);
@@ -406,7 +405,7 @@ export class ProjectOrchestrator {
     summary: string;
     details: string[];
   } {
-    const analysis = this.analyzeProjectMilestones(project, phases);
+    const analysis = this.analyzeProjectPhases(project, phases);
     const details: string[] = [];
     // Determine overall status
     let status: 'healthy' | 'warning' | 'critical' = 'healthy';
@@ -422,7 +421,7 @@ export class ProjectOrchestrator {
       status = status === 'critical' ? 'critical' : 'warning';
       details.push('Very high budget utilization (>95%)');
     }
-    if (analysis.milestoneCount === 0) {
+    if (analysis.phaseCount === 0) {
       status = status === 'critical' ? 'critical' : 'warning';
       details.push('No phases defined');
     }
@@ -430,7 +429,7 @@ export class ProjectOrchestrator {
     let summary = '';
     switch (status) {
       case 'healthy':
-        summary = `Project is well-configured with ${analysis.milestoneCount} milestone(s) and ${analysis.projectBudget.utilizationPercentage.toFixed(1)}% budget utilization`;
+        summary = `Project is well-configured with ${analysis.phaseCount} phase(s) and ${analysis.projectBudget.utilizationPercentage.toFixed(1)}% budget utilization`;
         break;
       case 'warning':
         summary = `Project needs attention: ${details.length} issue(s) detected`;
@@ -459,7 +458,7 @@ export class ProjectOrchestrator {
     };
   }
   /**
-   * Execute complete project creation workflow with milestones
+   * Execute complete project creation workflow with phases
    * EXTRACTED from ProjectModal handleCreateProject complex logic
    * 
    * Handles:
@@ -468,7 +467,7 @@ export class ProjectOrchestrator {
    * - Milestone batch creation
    * - Error handling and coordination
    * 
-   * @param request - Complete project creation request including optional milestones
+   * @param request - Complete project creation request including optional phases
    * @param projectContext - Context providing addProject and addPhase functions
    * @returns Promise resolving to creation result with project or errors
    * 
@@ -483,7 +482,7 @@ export class ProjectOrchestrator {
    *     estimatedHours: 240,
    *     color: '#3b82f6',
    *     groupId: 'active-projects',
-   *     milestones: [
+   *     phases: [
    *       { name: 'Design', dueDate: new Date('2025-01-15'), timeAllocationHours: 80 },
    *       { name: 'Development', dueDate: new Date('2025-02-28'), timeAllocationHours: 120 }
    *     ]
@@ -496,7 +495,7 @@ export class ProjectOrchestrator {
    * ```
    */
   static async executeProjectCreationWorkflow(
-    request: ProjectCreationWithMilestonesRequest,
+    request: ProjectCreationWithPhasesRequest,
     projectContext: {
       addProject: (data: Partial<Project>) => Promise<Project>;
       addPhase: (data: Partial<PhaseDTO>, options?: { silent?: boolean }) => Promise<void>;
@@ -649,7 +648,7 @@ export class ProjectOrchestrator {
                 createdProject.endDate = adjustedEndDate;
               }
             }
-            // Update request milestones with adjusted values
+            // Update request phases with adjusted values
             request.phases = request.phases.map((m, idx) => {
               const adjusted = phaseObjects.find(p => p.id === `temp-${idx}`);
               if (adjusted && adjusted.endDate && m.endDate) {
@@ -660,9 +659,9 @@ export class ProjectOrchestrator {
           }
         }
       }
-      // Step 5: Handle milestone creation if provided
+      // Step 5: Handle phase creation if provided
       if (request.phases && request.phases.length > 0) {
-        await this.createProjectMilestones(
+        await this.createProjectPhases(
           createdProject.id,
           request.phases,
           projectContext.addPhase
@@ -682,18 +681,18 @@ export class ProjectOrchestrator {
     }
   }
   /**
-   * Create milestones for a project
+   * Create phases for a project
    * PRIVATE helper extracted from complex component logic
    */
-  private static async createProjectMilestones(
+  private static async createProjectPhases(
     projectId: string,
-    milestones: ProjectMilestone[],
+    phases: ProjectPhase[],
     addPhase: (
-      data: ProjectMilestoneCreateInput | Partial<PhaseDTO>,
+      data: ProjectPhaseCreateInput | Partial<PhaseDTO>,
       options?: { silent?: boolean }
     ) => Promise<PhaseDTO | void | undefined>
   ): Promise<void> {
-    for (const phase of milestones) {
+    for (const phase of phases) {
       if (phase.name.trim()) {
         try {
           await addPhase({
@@ -702,10 +701,10 @@ export class ProjectOrchestrator {
             timeAllocation: phase.timeAllocation,
             timeAllocationHours: phase.timeAllocationHours,
             projectId: projectId
-          }, { silent: true }); // Silent mode to prevent individual milestone toasts
+          }, { silent: true }); // Silent mode to prevent individual phase toasts
         } catch (error) {
-          ErrorHandlingService.handle(error, { source: 'ProjectOrchestrator', action: 'Failed to save milestone:' });
-          // Continue with other milestones even if one fails
+          ErrorHandlingService.handle(error, { source: 'ProjectOrchestrator', action: 'Failed to save phase:' });
+          // Continue with other phases even if one fails
         }
       }
     }

@@ -118,19 +118,19 @@ export class ProjectRules {
   }
 
   // ==========================================================================
-  // RULE 4: MILESTONE BUDGET CONSTRAINT
+  // RULE 4: PHASE BUDGET CONSTRAINT
   // ==========================================================================
   
   /**
-   * RULE 4a: Calculate total milestone allocation for a project
+   * RULE 4a: Calculate total phase allocation for a project
    * 
    * Business Logic Reference: Calculation Rule 2
    * Formula: SUM(phase.timeAllocationHours)
    * 
-   * @param milestones - Array of milestones to sum
-   * @returns Total hours allocated across all milestones
+   * @param phases - Array of phases to sum
+   * @returns Total hours allocated across all phases
    */
-  static calculateTotalMilestoneAllocation(phases: PhaseDTO[]): number {
+  static calculateTotalPhaseAllocation(phases: PhaseDTO[]): number {
     return phases.reduce((sum, phase) => {
       const hours = phase.timeAllocationHours ?? phase.timeAllocation ?? 0;
       return sum + hours;
@@ -144,12 +144,12 @@ export class ProjectRules {
    * Formula: SUM(phase.timeAllocationHours) ≤ project.estimatedHours
    * 
    * @param project - The project to analyze
-   * @param milestones - The project's milestones
+   * @param phases - The project's phases
    * @returns Comprehensive budget analysis
    */
   static analyzeBudget(project: Project, phases: PhaseDTO[]): ProjectBudgetAnalysis {
     const totalEstimatedHours = project.estimatedHours;
-    const totalAllocatedHours = this.calculateTotalMilestoneAllocation(phases);
+    const totalAllocatedHours = this.calculateTotalPhaseAllocation(phases);
     const remainingHours = totalEstimatedHours - totalAllocatedHours;
     const utilizationPercent = totalEstimatedHours > 0 ? 
       (totalAllocatedHours / totalEstimatedHours) * 100 : 0;
@@ -172,12 +172,12 @@ export class ProjectRules {
   }
 
   /**
-   * RULE 4c: Check if project can accommodate additional milestone hours
+   * RULE 4c: Check if project can accommodate additional phase hours
    * 
    * Business Logic Reference: Rule 1
    * 
    * @param project - The project to check
-   * @param milestones - Current milestones
+   * @param phases - Current phases
    * @param additionalHours - Hours to add
    * @returns true if budget can accommodate, false otherwise
    */
@@ -202,7 +202,7 @@ export class ProjectRules {
    * - RULE 1: Phase allocation ≤ project budget
    * 
    * @param estimatedHours - Project estimated hours
-   * @param milestones - Project milestones
+   * @param phases - Project phases
    * @returns Detailed validation result
    */
   static validateProjectTime(
@@ -216,13 +216,13 @@ export class ProjectRules {
       errors.push('Project estimated hours must be greater than or equal to 0');
     }
 
-    const totalAllocated = this.calculateTotalMilestoneAllocation(phases);
+    const totalAllocated = this.calculateTotalPhaseAllocation(phases);
     if (totalAllocated > estimatedHours) {
-      errors.push(`Total milestone allocation (${totalAllocated}h) exceeds project budget (${estimatedHours}h)`);
+      errors.push(`Total phase allocation (${totalAllocated}h) exceeds project budget (${estimatedHours}h)`);
     }
 
     if (totalAllocated > estimatedHours * 0.9) {
-      warnings.push('Milestone allocation is over 90% of project budget');
+      warnings.push('Phase allocation is over 90% of project budget');
     }
 
     return {
@@ -314,23 +314,23 @@ export class ProjectRules {
   }
 
   /**
-   * Calculate suggested milestone budget based on project duration
+   * Calculate suggested phase budget based on project duration
    * 
    * Business Logic Reference: Calculation Rule 3
-   * Formula: project.estimatedHours / milestoneCount
+   * Formula: project.estimatedHours / phaseCount
    * 
    * @param project - The project
-   * @param milestoneCount - Number of milestones
-   * @returns Suggested hours per milestone
+   * @param phaseCount - Number of phases
+   * @returns Suggested hours per phase
    */
-  static suggestMilestoneBudget(
+  static suggestPhaseBudget(
     project: Project, 
-    milestoneCount: number
+    phaseCount: number
   ): number {
-    if (milestoneCount <= 0) return 0;
+    if (phaseCount <= 0) return 0;
     
-    // Domain rule: Distribute budget evenly across milestones as starting point
-    return Math.round(project.estimatedHours / milestoneCount);
+    // Domain rule: Distribute budget evenly across phases as starting point
+    return Math.round(project.estimatedHours / phaseCount);
   }
 
   /**
@@ -396,7 +396,7 @@ export class ProjectRules {
    * today or in the future to accommodate that estimated time.
    * 
    * @param project - The project to validate
-   * @param phases - The project's phases (milestones with startDate/endDate)
+   * @param phases - The project's phases
    * @param today - Reference date (defaults to now)
    * @returns Validation result with errors
    */

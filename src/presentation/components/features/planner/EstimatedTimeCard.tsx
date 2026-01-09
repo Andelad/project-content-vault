@@ -22,7 +22,7 @@ interface EstimatedTimeCardProps {
   dates: Date[];
   /** All projects */
   projects: Project[];
-  /** Map of project ID to milestones */
+  /** Map of project ID to phases */
   phasesMap: Map<string, PhaseDTO[]>;
   /** All calendar events */
   events: CalendarEvent[];

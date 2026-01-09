@@ -184,7 +184,7 @@ export const getDayName = (dayOfWeek: number): string => {
 
 /**
  * Format number with ordinal suffix (1st, 2nd, 3rd, etc.)
- * Used for recurring milestone patterns and date displays
+ * Used for recurring phase patterns and date displays
  * @param num Number to format
  * @returns Formatted string with ordinal suffix
  */

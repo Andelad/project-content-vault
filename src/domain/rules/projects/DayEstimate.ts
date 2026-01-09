@@ -518,7 +518,7 @@ export function calculateProjectDayEstimates(
   return allEstimates;
 }
 /**
- * Aggregate day estimates by date (for multiple projects or milestones on same day)
+ * Aggregate day estimates by date (for multiple projects or phases on same day)
  */
 export function aggregateDayEstimatesByDate(estimates: DayEstimate[]): Map<string, DayEstimate[]> {
   const byDate = new Map<string, DayEstimate[]>();

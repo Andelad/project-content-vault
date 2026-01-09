@@ -13,7 +13,7 @@ import {
   calculateBudgetUtilization,
   calculateRemainingBudget,
   calculateOverageAmount,
-  validateMilestoneScheduling
+  validatePhaseScheduling
 } from '@/domain/rules/phases/PhaseCalculations';
 import type { PhaseDTO } from '@/shared/types/core';
 
@@ -211,15 +211,15 @@ describe('PhaseCalculations', () => {
     });
   });
 
-  describe('validateMilestoneScheduling', () => {
+  describe('validatePhaseScheduling', () => {
     const phases = [
       createPhase({ id: '1', timeAllocationHours: 30 }),
       createPhase({ id: '2', timeAllocationHours: 20 })
     ];
 
-    it('should pass when budget allows new milestone', () => {
+    it('should pass when budget allows new phase', () => {
       const newMilestone = { timeAllocationHours: 10 };
-      const result = validateMilestoneScheduling(
+      const result = validatePhaseScheduling(
         phases, // Existing: 50 hours
         newMilestone, // New: 10 hours
         100 // Project budget: 100 hours
@@ -231,9 +231,9 @@ describe('PhaseCalculations', () => {
       expect(result.newAllocation).toBe(60);
     });
 
-    it('should fail when adding milestone would exceed budget', () => {
+    it('should fail when adding phase would exceed budget', () => {
       const newMilestone = { timeAllocationHours: 60 };
-      const result = validateMilestoneScheduling(
+      const result = validatePhaseScheduling(
         phases, // Existing: 50 hours
         newMilestone, // New: 60 hours (total: 110)
         100 // Project budget: 100 hours
@@ -248,7 +248,7 @@ describe('PhaseCalculations', () => {
 
     it('should allow exactly at budget limit', () => {
       const newMilestone = { timeAllocationHours: 50 };
-      const result = validateMilestoneScheduling(
+      const result = validatePhaseScheduling(
         phases, // Existing: 50 hours
         newMilestone, // New: 50 hours (total: 100)
         100 // Project budget: 100 hours
@@ -261,7 +261,7 @@ describe('PhaseCalculations', () => {
 
     it('should pass when budget has room', () => {
       const newMilestone = { timeAllocationHours: 49 };
-      const result = validateMilestoneScheduling(
+      const result = validatePhaseScheduling(
         phases, // Existing: 50 hours
         newMilestone, // New: 49 hours (total: 99)
         100 // Project budget: 100 hours
@@ -273,7 +273,7 @@ describe('PhaseCalculations', () => {
 
     it('should handle empty existing phases', () => {
       const newMilestone = { timeAllocationHours: 50 };
-      const result = validateMilestoneScheduling(
+      const result = validatePhaseScheduling(
         [],
         newMilestone,
         100
@@ -284,9 +284,9 @@ describe('PhaseCalculations', () => {
       expect(result.newAllocation).toBe(50);
     });
 
-    it('should handle zero-hour milestone', () => {
+    it('should handle zero-hour phase', () => {
       const newMilestone = { timeAllocationHours: 0 };
-      const result = validateMilestoneScheduling(
+      const result = validatePhaseScheduling(
         phases,
         newMilestone,
         100
@@ -296,9 +296,9 @@ describe('PhaseCalculations', () => {
       expect(result.newAllocation).toBe(50);
     });
 
-    it('should handle milestone with no hours specified', () => {
+    it('should handle phase with no hours specified', () => {
       const newMilestone = {}; // No hours
-      const result = validateMilestoneScheduling(
+      const result = validatePhaseScheduling(
         phases,
         newMilestone,
         100
@@ -378,7 +378,7 @@ describe('PhaseCalculations', () => {
       const newPhase = { timeAllocationHours: 30 };
       const projectBudget = 100;
       
-      const validation = validateMilestoneScheduling(
+      const validation = validatePhaseScheduling(
         existingPhases,
         newPhase,
         projectBudget
@@ -399,7 +399,7 @@ describe('PhaseCalculations', () => {
       const newPhase = { timeAllocationHours: 20 };
       const projectBudget = 100;
       
-      const validation = validateMilestoneScheduling(
+      const validation = validatePhaseScheduling(
         existingPhases,
         newPhase,
         projectBudget

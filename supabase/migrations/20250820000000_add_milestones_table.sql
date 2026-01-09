@@ -1,3 +1,8 @@
+-- ============================================================================
+-- HISTORICAL NOTE: This migration created the original "milestones" table
+-- The table was later renamed to "phases" on 2025-12-29 (migration 20251229164244)
+-- ============================================================================
+
 -- Create milestones table
 CREATE TABLE public.milestones (
     id uuid DEFAULT gen_random_uuid() PRIMARY KEY,

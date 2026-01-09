@@ -245,7 +245,7 @@ export function PhaseConfigDialog({
             )}
 
             <div className="text-sm text-muted-foreground p-3 bg-muted rounded">
-              <strong>Preview:</strong> {config.name} milestones will be created{' '}
+              <strong>Preview:</strong> {config.name} phases will be created{' '}
               {config.recurringType === 'daily'
                 ? `every ${config.recurringInterval} day${config.recurringInterval > 1 ? 's' : ''}`
                 : config.recurringType === 'weekly'

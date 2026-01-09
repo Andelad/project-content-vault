@@ -23,7 +23,7 @@ import type { TimelinePositionCalculation } from '@/presentation/services/Projec
 import { generateWorkHoursForDate } from '@/domain/rules/availability/EventWorkHourIntegration';
 import { calculateWorkHoursTotal } from '@/domain/rules/availability/WorkHourGeneration';
 import { isHolidayDateCapacity } from '@/domain/rules/availability/CapacityAnalysis';
-import { getMilestoneSegmentForDate } from '@/domain/rules/phases/PhaseCalculations';
+import { getPhaseSegmentForDate } from '@/domain/rules/phases/PhaseCalculations';
 import { calculateRectangleHeight } from '@/presentation/services/ProjectBarPositioning';
 
 interface ProjectBarProps {
@@ -36,8 +36,8 @@ interface ProjectBarProps {
   mode?: 'days' | 'weeks';
   isMultiProjectRow?: boolean;
   collapsed: boolean;
-  onMilestoneDrag?: (milestoneId: string, newDate: Date) => void;
-  onMilestoneDragEnd?: () => void;
+  onPhaseDrag?: (phaseId: string, newDate: Date) => void;
+  onPhaseDragEnd?: () => void;
   onProjectResizeMouseDown?: (e: React.MouseEvent, projectId: string, action: 'resize-start-date' | 'resize-end-date') => void;
   onPhaseResizeMouseDown?: (e: React.MouseEvent, projectId: string, phaseId: string, action: 'resize-phase-start' | 'resize-phase-end') => void;
 }
@@ -81,8 +81,8 @@ export const ProjectBar = memo(function ProjectBar({
   mode,
   isMultiProjectRow,
   collapsed,
-  onMilestoneDrag,
-  onMilestoneDragEnd,
+  onPhaseDrag,
+  onPhaseDragEnd,
   onProjectResizeMouseDown,
   onPhaseResizeMouseDown
 }: ProjectBarProps) {
@@ -111,8 +111,8 @@ export const ProjectBar = memo(function ProjectBar({
   // Working day checker removed - function createWorkingDayChecker no longer exists
   const isWorkingDayChecker = undefined;
   
-  // Centralized filtered milestones for this project (once per relevant change)
-  const filteredProjectMilestones = useMemo<PhaseDTO[]>(() => {
+  // Centralized filtered phases for this project (once per relevant change)
+  const filteredProjectPhases = useMemo<PhaseDTO[]>(() => {
     if (!project) return [];
     const projectStart = new Date(project.startDate);
     const projectEnd = project.continuous || !project.endDate ? null : new Date(project.endDate);
@@ -123,8 +123,8 @@ export const ProjectBar = memo(function ProjectBar({
       if (project.continuous || !projectEnd) return true;
       return phaseDate <= projectEnd;
     });
-    const hasTemplateMilestone = projectPhases.some(p => p.isRecurring === true);
-    if (hasTemplateMilestone) {
+    const hasTemplatePhase = projectPhases.some(p => p.isRecurring === true);
+    if (hasTemplatePhase) {
       projectPhases = projectPhases.filter(p => 
         p.isRecurring === true || (!p.isRecurring && (!p.name || !/\s\d+$/.test(p.name)))
       );
@@ -160,7 +160,7 @@ export const ProjectBar = memo(function ProjectBar({
       dates,
       viewportStart,
       viewportEnd,
-      filteredProjectMilestones, // Use filtered phases, not all milestones
+      filteredProjectPhases, // Use filtered phases
       holidays,
       settings,
       isDragging,
@@ -174,7 +174,7 @@ export const ProjectBar = memo(function ProjectBar({
     dates,
     viewportStart,
     viewportEnd,
-    filteredProjectMilestones,
+    filteredProjectPhases,
     holidays,
     settings,
     isDragging,
@@ -188,7 +188,7 @@ export const ProjectBar = memo(function ProjectBar({
     projectDays,
     dayEstimates,
     workHoursForPeriod,
-    milestoneSegments, // DEPRECATED: kept for backward compatibility
+    phaseSegments, // DEPRECATED: kept for backward compatibility
     projectMetrics,
     colorScheme,
     visualDates,
@@ -217,7 +217,7 @@ export const ProjectBar = memo(function ProjectBar({
       <div className="h-[48px] relative flex flex-col pointer-events-none">
         {/* White background - split by phases if they exist */}
         {(() => {
-          const sortedPhases = getPhasesSortedByEndDate(filteredProjectMilestones);
+          const sortedPhases = getPhasesSortedByEndDate(filteredProjectPhases);
           const hasPhases = sortedPhases.length > 0;
           
           // For continuous projects with recurring phases, generate segments from occurrence dates
@@ -940,8 +940,22 @@ export const ProjectBar = memo(function ProjectBar({
               const workingDayIndex = visibleWorkingDays.findIndex(d => isSameDate(d, date));
               const isFirstWorkingDay = workingDayIndex === 0;
               const isLastWorkingDay = workingDayIndex === visibleWorkingDays.length - 1;
-              // Check if there's a milestone segment for this day
-              const milestoneSegment = getMilestoneSegmentForDate(date, milestoneSegments);
+              // Check if there's a phase segment for this day
+              const phaseSegment = getPhaseSegmentForDate(date, phaseSegments);
+              
+              // Determine if date is in an active phase
+              // For projects with phases, check if date is within any phase's start/end range
+              // For projects without phases, show hover for all dates in project range
+              const hasPhases = filteredProjectPhases.length > 0;
+              const isDateInActivePhase = hasPhases 
+                ? filteredProjectPhases.some(phase => {
+                    if (!phase.startDate || !phase.endDate) return false;
+                    const phaseStart = normalizeToMidnight(new Date(phase.startDate));
+                    const phaseEnd = normalizeToMidnight(new Date(phase.endDate));
+                    return dateNormalized >= phaseStart && dateNormalized <= phaseEnd;
+                  })
+                : true;
+              
               // Use the estimates we already calculated correctly above
               const isPlannedTime = allocationType === 'planned';
               const isCompletedTime = allocationType === 'completed';
@@ -1026,16 +1040,17 @@ export const ProjectBar = memo(function ProjectBar({
                 bottom: '3px',
                 zIndex: 0,
               };
-              // Check if this date is within the project date range
+              // Check if this date is within the project date range AND within an active phase
               const isDateInProject = dateNormalized >= projectStart && dateNormalized <= projectEnd;
+              const shouldShowHover = isDateInProject && isDateInActivePhase;
               
               return (
                 <div key={dateIndex} className="relative h-full" style={{ minWidth: `${dayColumnWidth}px`, width: `${dayColumnWidth}px` }}>
-                  <Tooltip delayDuration={100}>
-                    <TooltipTrigger asChild>
-                      <div className="relative h-full w-full group">
-                        {/* Hover background - only show for dates within project range */}
-                        {isDateInProject && (
+                  {shouldShowHover ? (
+                    <Tooltip delayDuration={100}>
+                      <TooltipTrigger asChild>
+                        <div className="relative h-full w-full group">
+                          {/* Hover background - only show for dates within project range AND within a phase */}
                           <>
                             {/* Base hover background - matches availability card darkness */}
                             <div 
@@ -1074,69 +1089,84 @@ export const ProjectBar = memo(function ProjectBar({
                               />
                             )}
                           </>
-                        )}
                         
-                        {/* Base rectangle - only render if has time */}
-                        {allocationType !== 'none' && (
-                          <div 
-                            className={`pointer-events-none absolute ${ 
-                              isDragging && dragState?.projectId === project.id 
-                                ? 'opacity-90' 
-                                : ''
-                            }`}
-                            style={rectangleStyle}
-                          >
-                          </div>
-                        )}
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent
-                      backgroundColor={(() => {
-                        const match = project.color.match(/oklch\(([0-9.]+) ([0-9.]+) ([0-9.]+)\)/);
-                        if (!match) return project.color;
-                        const [, lightness, chroma, hue] = match;
-                        const newLightness = Math.min(1, parseFloat(lightness) + 0.25);
-                        const newChroma = Math.max(0, parseFloat(chroma) * 0.3);
-                        return `oklch(${newLightness} ${newChroma} ${hue})`;
-                      })()}
-                      textColor={NEUTRAL_COLORS.gray800}
-                    >
-                      <div className="text-xs">
-                        <div className="font-semibold mb-1">
-                          {project.name}
-                          {(project.clientData?.name || project.client) && (
-                            <span className="text-gray-500 font-normal"> • {project.clientData?.name || project.client}</span>
+                          {/* Base rectangle - only render if has time */}
+                          {allocationType !== 'none' && (
+                            <div 
+                              className={`pointer-events-none absolute ${ 
+                                isDragging && dragState?.projectId === project.id 
+                                  ? 'opacity-90' 
+                                  : ''
+                              }`}
+                              style={rectangleStyle}
+                            >
+                            </div>
                           )}
                         </div>
-                        {allocationType !== 'none' ? (
-                          <>
-                            <div className="font-medium">
-                              {allocationType === 'planned' ? 'Planned Time' : allocationType === 'completed' ? 'Completed Time' : 'Auto-Estimate'}
-                            </div>
-                            <div className="text-gray-600">
-                              {(() => {
-                                const hours = Math.floor(dailyHours);
-                                const minutes = Math.round((dailyHours - hours) * 60);
-                                if (hours > 0 && minutes > 0) {
-                                  return `${hours}h${minutes.toString().padStart(2, '0')}`;
-                                } else if (hours > 0) {
-                                  return `${hours}h`;
-                                } else {
-                                  return `${minutes}m`;
-                                }
-                              })()}
-                            </div>
-                          </>
-                        ) : (
-                          <div className="text-gray-500">
-                            {noTimeReason === 'holiday' ? 'Holiday' : 
-                             noTimeReason === 'non-project-day' ? 'Non-project day' : 
-                             noTimeReason === 'non-work-day' ? 'Non-work day' : '0 hrs'}
+                      </TooltipTrigger>
+                      <TooltipContent
+                        backgroundColor={(() => {
+                          const match = project.color.match(/oklch\(([0-9.]+) ([0-9.]+) ([0-9.]+)\)/);
+                          if (!match) return project.color;
+                          const [, lightness, chroma, hue] = match;
+                          const newLightness = Math.min(1, parseFloat(lightness) + 0.25);
+                          const newChroma = Math.max(0, parseFloat(chroma) * 0.3);
+                          return `oklch(${newLightness} ${newChroma} ${hue})`;
+                        })()}
+                        textColor={NEUTRAL_COLORS.gray800}
+                      >
+                        <div className="text-xs">
+                          <div className="font-semibold mb-1">
+                            {project.name}
+                            {(project.clientData?.name || project.client) && (
+                              <span className="text-gray-500 font-normal"> • {project.clientData?.name || project.client}</span>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
+                          {allocationType !== 'none' ? (
+                            <>
+                              <div className="font-medium">
+                                {allocationType === 'planned' ? 'Planned Time' : allocationType === 'completed' ? 'Completed Time' : 'Auto-Estimate'}
+                              </div>
+                              <div className="text-gray-600">
+                                {(() => {
+                                  const hours = Math.floor(dailyHours);
+                                  const minutes = Math.round((dailyHours - hours) * 60);
+                                  if (hours > 0 && minutes > 0) {
+                                    return `${hours}h${minutes.toString().padStart(2, '0')}`;
+                                  } else if (hours > 0) {
+                                    return `${hours}h`;
+                                  } else {
+                                    return `${minutes}m`;
+                                  }
+                                })()}
+                              </div>
+                            </>
+                          ) : (
+                            <div className="text-gray-500">
+                              {noTimeReason === 'holiday' ? 'Holiday' : 
+                               noTimeReason === 'non-project-day' ? 'Non-project day' : 
+                               noTimeReason === 'non-work-day' ? 'Non-work day' : '0 hrs'}
+                            </div>
+                          )}
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    <div className="relative h-full w-full">
+                      {/* Base rectangle - only render if has time (for dates not in active phase) */}
+                      {allocationType !== 'none' && (
+                        <div 
+                          className={`pointer-events-none absolute ${ 
+                            isDragging && dragState?.projectId === project.id 
+                              ? 'opacity-90' 
+                              : ''
+                          }`}
+                          style={rectangleStyle}
+                        >
+                        </div>
+                      )}
+                    </div>
+                  )}
                   
                   {/* Overflow indicator for hours exceeding 8 (second layer: 8-16 hours) - darker overlay */}
                   {allocationType !== 'none' && dailyHours > 8 && (
@@ -1318,7 +1348,7 @@ export const ProjectBar = memo(function ProjectBar({
         {/* Phase markers (draggable rectangles at phase boundaries) */}
         <DraggablePhaseMarkers
           project={project}
-          phases={filteredProjectMilestones}
+          phases={filteredProjectPhases}
           viewportStart={viewportStart}
           viewportEnd={viewportEnd}
           dates={dates}

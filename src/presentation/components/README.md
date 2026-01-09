@@ -373,7 +373,7 @@ const handleChange = () => { ... };
  * - Drag to reposition project dates
  * - Resize to adjust duration
  * - Click to open project modal
- * - Shows project name and milestone indicators
+ * - Shows project name and phase indicators
  * 
  * @param project - Project to display
  * @param dates - Visible date range

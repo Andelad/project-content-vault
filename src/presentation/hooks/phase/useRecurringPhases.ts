@@ -42,7 +42,7 @@ interface UseRecurringPhasesConfig {
   projectContinuous: boolean;
   projectEstimatedHours: number;
   isDeletingRecurringPhase: boolean;
-  refetchMilestones: () => Promise<void>;
+  refetchPhases: () => Promise<void>;
   isCreatingProject?: boolean;
   localPhasesState?: {
     phases: LocalPhase[];
@@ -51,7 +51,7 @@ interface UseRecurringPhasesConfig {
 }
 
 /**
- * Hook for managing recurring milestone patterns
+ * Hook for managing recurring phase patterns
  * Coordinates React state with ProjectPhaseOrchestrator for recurring operations
  * Handles pattern detection, auto-generation, and deletion
  */
@@ -64,7 +64,7 @@ export function useRecurringPhases(config: UseRecurringPhasesConfig) {
     projectContinuous,
     projectEstimatedHours,
     isDeletingRecurringPhase,
-    refetchMilestones,
+    refetchPhases,
     isCreatingProject,
     localPhasesState
   } = config;
@@ -72,23 +72,23 @@ export function useRecurringPhases(config: UseRecurringPhasesConfig) {
   const { toast } = useToast();
   const [recurringMilestone, setRecurringPhase] = useState<RecurringPhase | null>(null);
 
-  // Detect recurring pattern from existing milestones
+  // Detect recurring pattern from existing phases
   useEffect(() => {
-    // Don't re-detect if already have recurring milestone or if deleting
+    // Don't re-detect if already have recurring phase or if deleting
     if (recurringMilestone || !projectId || isDeletingRecurringPhase) return;
     
-    // Check if any NON-RECURRING milestones have startDate (regular phases) - if so, don't detect recurring
+    // Check if any NON-RECURRING phases have startDate (regular phases) - if so, don't detect recurring
     const hasRegularPhases = projectPhases.some(p => p.startDate !== undefined && p.isRecurring !== true);
     if (hasRegularPhases) return;
 
-    // NEW SYSTEM: First check for template milestone with isRecurring=true
-    const templateMilestone = projectPhases.find(p => p.isRecurring === true);
-    if (templateMilestone && templateMilestone.recurringConfig) {
-      const config = templateMilestone.recurringConfig;
+    // NEW SYSTEM: First check for template phase with isRecurring=true
+    const templatePhase = projectPhases.find(p => p.isRecurring === true);
+    if (templatePhase && templatePhase.recurringConfig) {
+      const config = templatePhase.recurringConfig;
       setRecurringPhase({
-        id: templateMilestone.id || 'recurring-milestone',
-        name: templateMilestone.name,
-        timeAllocation: templateMilestone.timeAllocationHours ?? templateMilestone.timeAllocation,
+        id: templatePhase.id || 'recurring-phase',
+        name: templatePhase.name,
+        timeAllocation: templatePhase.timeAllocationHours ?? templatePhase.timeAllocation,
         recurringType: config.type,
         recurringInterval: config.interval,
         projectId,
@@ -106,7 +106,7 @@ export function useRecurringPhases(config: UseRecurringPhasesConfig) {
   // Simple placeholder - recurring templates expand at runtime, not stored
   const ensureRecurringPhasesAvailable = useCallback(async (targetDate?: Date) => {
     // No-op: NEW SYSTEM uses single template that expands at runtime
-    // The template milestone (is_recurring=true) is detected above and instances
+    // The template phase (is_recurring=true) is detected above and instances
     // are generated dynamically when needed by calculation services
     return Promise.resolve();
   }, []);
@@ -120,7 +120,7 @@ export function useRecurringPhases(config: UseRecurringPhasesConfig) {
         localPhasesState.setPhases([]);
       }
       
-      // Create a local recurring milestone object for UI display
+      // Create a local recurring phase object for UI display
       const localRecurringPhase: RecurringPhase = {
         id: `temp-recurring-${Date.now()}`,
         name: config.name,
@@ -166,7 +166,7 @@ export function useRecurringPhases(config: UseRecurringPhasesConfig) {
         projectId,
         project,
         config,
-        { refetchMilestones }
+        { refetchPhases }
       );
 
       if (result.success && result.recurringMilestone) {
@@ -198,7 +198,7 @@ export function useRecurringPhases(config: UseRecurringPhasesConfig) {
       });
       return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
-  }, [projectId, projectStartDate, projectEndDate, projectContinuous, projectEstimatedHours, refetchMilestones, toast, isCreatingProject, localPhasesState]);
+  }, [projectId, projectStartDate, projectEndDate, projectContinuous, projectEstimatedHours, refetchPhases, toast, isCreatingProject, localPhasesState]);
 
   // Delete recurring phases
   const deleteRecurringPhases = useCallback(async (
@@ -207,7 +207,7 @@ export function useRecurringPhases(config: UseRecurringPhasesConfig) {
   ) => {
     // Clear local storage first to prevent restoration
     if (projectId) {
-      localStorage.removeItem(`recurring-milestone-${projectId}`);
+      localStorage.removeItem(`recurring-phase-${projectId}`);
     }
 
     // Instantly clear UI state
@@ -217,17 +217,17 @@ export function useRecurringPhases(config: UseRecurringPhasesConfig) {
       if (isCreatingProject && localPhasesState) {
         localPhasesState.setPhases([]);
       } else {
-        const recurringMilestones = projectPhases.filter(p =>
+        const recurringPhases = projectPhases.filter(p =>
           p.isRecurring || (p.name && /\s\d+$/.test(p.name) && p.startDate === undefined)
         );
 
-        const template = recurringMilestones.find(p => p.isRecurring);
+        const template = recurringPhases.find(p => p.isRecurring);
         if (template && template.id && !template.id.startsWith('temp-')) {
           // Delete template (cascade handles instances)
           const { error } = await supabase.from('phases').delete().eq('id', template.id);
           if (error) throw error;
 
-          await refetchMilestones();
+          await refetchPhases();
 
           toast({
             title: "Success",
@@ -235,7 +235,7 @@ export function useRecurringPhases(config: UseRecurringPhasesConfig) {
           });
         } else {
           // Delete orphaned instances
-          const orphanedIds = recurringMilestones
+          const orphanedIds = recurringPhases
             .filter(phase => phase.id && !phase.id.startsWith('temp-'))
             .map(p => p.id!);
 
@@ -243,7 +243,7 @@ export function useRecurringPhases(config: UseRecurringPhasesConfig) {
             const { error } = await supabase.from('phases').delete().in('id', orphanedIds);
             if (error) throw error;
 
-            await refetchMilestones();
+            await refetchPhases();
 
             toast({
               title: "Success",
@@ -263,7 +263,7 @@ export function useRecurringPhases(config: UseRecurringPhasesConfig) {
         variant: "destructive",
       });
     }
-  }, [projectId, projectPhases, refetchMilestones, toast]);
+  }, [projectId, projectPhases, refetchPhases, toast]);
 
   return {
     recurringMilestone,

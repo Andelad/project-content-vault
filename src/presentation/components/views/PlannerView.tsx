@@ -229,7 +229,7 @@ export function PlannerView() {
     end: new Date(calendarDate)
   });
   const [weekStart, setWeekStart] = useState<Date>(new Date(calendarDate));
-  // Create milestones map by project ID (use normalized milestones from ProjectContext)
+  // Create phases map by project ID (use normalized phases from ProjectContext)
   const phasesMap = useMemo(() => {
     const map = new Map<string, PhaseDTO[]>();
     (projectPhases || []).forEach(phase => {

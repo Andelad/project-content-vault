@@ -94,7 +94,7 @@ export function DraggablePhaseMarkers({
 
         // Check if this phase is being dragged
         const isThisPhaseDragging = isDragging && 
-          (dragState?.phaseId ?? dragState?.milestoneId) === phase.id && 
+          (dragState?.phaseId ?? dragState?.phaseId) === phase.id && 
           (dragState?.action === 'resize-phase-start' || dragState?.action === 'resize-phase-end');
 
         // Calculate visual date during drag

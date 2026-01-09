@@ -46,9 +46,6 @@
 import type { PhaseDTO } from '@/shared/types/core';
 import {
   PhaseValidationRules,
-  type MilestoneValidationResult,
-  type MilestoneDateValidation,
-  type MilestoneTimeValidation,
   type PhaseValidationResult,
   type PhaseDateValidation,
   type PhaseTimeValidation,
@@ -62,9 +59,6 @@ import {
 
 // Re-export all types from split modules
 export type {
-  MilestoneValidationResult,
-  MilestoneDateValidation,
-  MilestoneTimeValidation,
   PhaseValidationResult,
   PhaseDateValidation,
   PhaseTimeValidation,
@@ -86,89 +80,6 @@ export type Phase = PhaseDTO & { startDate: Date };
 // ============================================================================
 // TYPE GUARDS
 // ============================================================================
-
-/**
- * Type guard: Check if an entity is actually a phase (has a start date)
- * 
- * A phase has both startDate and endDate, representing a time period.
- * A pure milestone only has a deadline (endDate/dueDate).
- * 
- * @param entity - The phase/milestone to check
- * @returns True if the item has a startDate (is a phase)
- * 
- * @example
- * ```ts
- * const items = [phase1, milestone1, phase2];
- * const phases = items.filter(isPhase); // Type-safe Phase[]
- * ```
- */
-export function isPhase(entity: PhaseDTO): entity is Phase {
-  return entity.startDate !== undefined;
-}
-
-/**
- * Type guard: Check if a phase/milestone is a deadline-only entity (no start date)
- * 
- * @param entity - The phase/milestone to check
- * @returns True if the entity does NOT have a startDate
- * 
- * @example
- * ```ts
- * const items = [phase1, deadline1, phase2];
- * const deadlineOnly = items.filter(isDeadlineOnly); // Deadline-only entities
- * ```
- */
-export function isDeadlineOnly(entity: PhaseDTO): boolean {
-  return entity.startDate === undefined;
-}
-
-/**
- * @deprecated Use isDeadlineOnly instead. Kept for backward compatibility.
- */
-export const isMilestone = isDeadlineOnly;
-
-// ============================================================================
-// FILTERING RULES
-// ============================================================================
-
-/**
- * Extract all phases from a mixed array of phases/milestones
- * 
- * Filters for items that have startDate defined and returns them
- * as type-safe Phase[] array.
- * 
- * @param milestones - Array of phases/milestones
- * @returns Array of only phases
- * 
- * @example
- * ```ts
- * const projectItems = project.phases;
- * const phases = getPhases(projectItems);
- * // phases is Phase[] - TypeScript knows they have startDate
- * ```
- */
-export function getPhases(phases: PhaseDTO[]): PhaseDTO[] {
-  return phases.filter(isPhase);
-}
-
-/**
- * Extract all pure milestones (non-phases) from a mixed array
- * 
- * Filters for items that do NOT have startDate defined.
- * 
- * @param milestones - Array of milestones (may include phases)
- * @returns Array of only pure milestones (no startDate)
- * 
- * @example
- * ```ts
- * const projectItems = project.phases;
- * const pureMilestones = getMilestones(projectItems);
- * // These are deadline-only milestones
- * ```
- */
-export function getMilestones(phases: PhaseDTO[]): PhaseDTO[] {
-  return phases.filter(isDeadlineOnly);
-}
 
 // ============================================================================
 // SORTING RULES
@@ -207,12 +118,12 @@ export function sortPhasesByStartDate(phases: PhaseDTO[]): PhaseDTO[] {
 // ============================================================================
 
 /**
- * Get phases sorted by end date from a mixed milestone array
+ * Get phases sorted by end date from a mixed phase array
  * 
  * Combines filtering and sorting in one convenient function.
  * This is the most common operation needed in components.
  * 
- * @param milestones - Array of milestones (may include phases)
+ * @param phases - Array of phases
  * @returns Sorted array of phases only
  * 
  * @extracted-from ProjectBar.tsx line 755 (inline filter + sort)
@@ -220,7 +131,7 @@ export function sortPhasesByStartDate(phases: PhaseDTO[]): PhaseDTO[] {
  * @example
  * ```ts
  * // Instead of:
- * const phases = milestones.filter(p => p.endDate !== undefined)
+ * const phases = phases.filter(p => p.endDate !== undefined)
  *   .sort((a, b) => new Date(a.endDate!).getTime() - new Date(b.endDate!).getTime());
  * 
  * // Use:
@@ -228,7 +139,7 @@ export function sortPhasesByStartDate(phases: PhaseDTO[]): PhaseDTO[] {
  * ```
  */
 export function getPhasesSortedByEndDate(phases: PhaseDTO[]): PhaseDTO[] {
-  return sortPhasesByEndDate(getPhases(phases));
+  return sortPhasesByEndDate(phases);
 }
 
 /**
@@ -245,12 +156,12 @@ export function getPhasesSortedByEndDate(phases: PhaseDTO[]): PhaseDTO[] {
 export class PhaseRules {
   // Validation methods - delegate to PhaseValidationRules
   static validateTimeAllocation = PhaseValidationRules.validateTimeAllocation;
-  static validateMilestoneDateWithinProject = PhaseValidationRules.validateMilestoneDateWithinProject;
-  static validateMilestoneDateRange = PhaseValidationRules.validateMilestoneDateRange;
+  static validatePhaseDateWithinProject = PhaseValidationRules.validatePhaseDateWithinProject;
+  static validatePhaseDateRange = PhaseValidationRules.validatePhaseDateRange;
   static validateRecurringPhase = PhaseValidationRules.validateRecurringPhase;
-  static validateMilestoneTime = PhaseValidationRules.validateMilestoneTime;
-  static validateMilestone = PhaseValidationRules.validateMilestone;
-  static validateMilestonePosition = PhaseValidationRules.validateMilestonePosition;
+  static validatePhaseTime = PhaseValidationRules.validatePhaseTime;
+  static validatePhase = PhaseValidationRules.validatePhase;
+  static validatePhasePosition = PhaseValidationRules.validatePhasePosition;
   static isRecurringPhase = PhaseValidationRules.isRecurringPhase;
   static validatePhaseEndDateNotInPast = PhaseValidationRules.validatePhaseEndDateNotInPast;
   static calculateMinimumPhaseEndDate = PhaseValidationRules.calculateMinimumPhaseEndDate;
@@ -260,7 +171,7 @@ export class PhaseRules {
   static calculateTotalAllocation = PhaseCalculationsFunctions.calculateTotalAllocation;
   static calculateBudgetUtilization = PhaseCalculationsFunctions.calculateBudgetUtilization;
   static calculateRemainingBudget = PhaseCalculationsFunctions.calculateRemainingBudget;
-  static calculateAverageMilestoneAllocation = PhaseCalculationsFunctions.calculateAverageMilestoneAllocation;
+  static calculateAveragePhaseAllocation = PhaseCalculationsFunctions.calculateAveragePhaseAllocation;
   
   // Legacy compatibility methods
   static checkBudgetConstraint(phases: PhaseDTO[], projectBudget: number) {
@@ -288,5 +199,5 @@ export class PhaseRules {
   static calculateNewPhaseDates = PhaseHierarchyRules.calculateNewPhaseDates;
   static repairOverlappingPhases = PhaseHierarchyRules.repairOverlappingPhases;
   static cascadePhaseAdjustments = PhaseHierarchyRules.cascadePhaseAdjustments;
-  static sortMilestonesByDate = PhaseHierarchyRules.sortMilestonesByDate;
+  static sortPhasesByDate = PhaseHierarchyRules.sortPhasesByDate;
 }

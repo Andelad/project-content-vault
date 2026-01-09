@@ -24,10 +24,8 @@ import { TimelineViewport } from './TimelineViewportService';
 export interface DragState {
   projectId?: string;
   holidayId?: string;
-  /** Primary phase identifier (phase == milestone). */
+  /** Primary phase identifier. */
   phaseId?: string;
-  /** @deprecated use phaseId. Kept for backward compatibility with legacy milestone terminology. */
-  milestoneId?: string;
   action: string;
   startX: number;
   startY: number;
@@ -144,7 +142,7 @@ export type DragOperation =
   | 'resize-holiday-end'
   | 'move-phase'
   /** @deprecated use move-phase */
-  | 'move-milestone'
+  | 'move-phase'
   | 'adjust-time-allocation';
 
 /**
@@ -233,7 +231,7 @@ export function validateDragDateRange(
     case 'move-project':
     case 'move-holiday':
     case 'move-phase':
-    case 'move-milestone':
+    case 'move-phase':
       newStartDate = addDaysToDate(originalStartDate, daysDelta);
       newEndDate = addDaysToDate(originalEndDate, daysDelta);
       break;
@@ -413,7 +411,7 @@ export function getDragCursor(operation: DragOperation): string {
     case 'move-project':
     case 'move-holiday':
     case 'move-phase':
-    case 'move-milestone':
+    case 'move-phase':
       return 'grabbing';
       
     case 'resize-project-start':
@@ -456,7 +454,7 @@ export function initializeDragState(
 }
 
 /**
- * Initialize drag state for a milestone drag operation
+ * Initialize drag state for a phase drag operation
  */
 export function initializePhaseDragState(
   phaseId: string,
@@ -467,7 +465,6 @@ export function initializePhaseDragState(
 ): DragState {
   return {
     phaseId,
-    milestoneId: phaseId,
     action: 'move-phase',
     startX,
     startY,
@@ -477,19 +474,6 @@ export function initializePhaseDragState(
     mode,
     isDynamicWidth: false
   };
-}
-
-/**
- * @deprecated Use initializePhaseDragState. Kept to avoid breaking older imports.
- */
-export function initializeMilestoneDragState(
-  milestoneId: string,
-  milestoneDate: Date,
-  startX: number,
-  startY: number,
-  mode: 'days' | 'weeks' = 'days'
-): DragState {
-  return initializePhaseDragState(milestoneId, milestoneDate, startX, startY, mode);
 }
 
 /**
@@ -538,20 +522,9 @@ export function calculatePhaseDragUpdate(
 }
 
 /**
- * @deprecated Use calculatePhaseDragUpdate. Kept to avoid breaking older imports.
+ * Phase bounds validation result interface
  */
-export function calculateMilestoneDragUpdate(
-  currentMouseX: number,
-  dragState: DragState,
-  mode: 'days' | 'weeks'
-): DragPositionResult {
-  return calculatePhaseDragUpdate(currentMouseX, dragState, mode);
-}
-
-/**
- * Milestone bounds validation result interface
- */
-export interface MilestoneBoundsValidation {
+export interface PhaseBoundsValidation {
   isValid: boolean;
   constrainedDate: Date;
   reason?: string;
@@ -560,34 +533,34 @@ export interface MilestoneBoundsValidation {
 }
 
 /**
- * Validate milestone position within project boundaries
- * Business rule: Milestones must be at least 1 day after project start and 1 day before project end
- * Business rule: Milestones cannot overlap with each other
+ * Validate phase position within project boundaries
+ * Business rule: Phases must be at least 1 day after project start and 1 day before project end
+ * Business rule: Phases cannot overlap with each other
  */
-export function validateMilestoneBounds(
+export function validatePhaseBounds(
   newDate: Date,
   projectStartDate: Date,
   projectEndDate: Date,
-  otherMilestoneDates: Date[],
-  originalMilestoneDate?: Date
-): MilestoneBoundsValidation {
+  otherPhaseDates: Date[],
+  originalPhaseDate?: Date
+): PhaseBoundsValidation {
   // Normalize all dates to midnight
   const candidate = normalizeToMidnight(new Date(newDate));
   const projectStart = normalizeToMidnight(new Date(projectStartDate));
   const projectEnd = normalizeToMidnight(new Date(projectEndDate));
-  const original = originalMilestoneDate ? normalizeToMidnight(new Date(originalMilestoneDate)) : null;
+  const original = originalPhaseDate ? normalizeToMidnight(new Date(originalPhaseDate)) : null;
   
   // Calculate min/max allowed dates
   let minAllowedDate = addDaysToDate(projectStart, 1); // 1 day after start
   let maxAllowedDate = addDaysToDate(projectEnd, -1); // 1 day before end
   
-  // Narrow down based on other milestones (prevent overlaps)
-  const blockingDates = otherMilestoneDates.map(d => normalizeToMidnight(new Date(d)));
+  // Narrow down based on other phases (prevent overlaps)
+  const blockingDates = otherPhaseDates.map(d => normalizeToMidnight(new Date(d)));
   
   // For each blocking date, adjust the allowed range
   blockingDates.forEach(blockingDate => {
     if (original && blockingDate.getTime() === original.getTime()) {
-      // Skip the original position of this milestone
+      // Skip the original position of this phase
       return;
     }
     
@@ -612,10 +585,10 @@ export function validateMilestoneBounds(
   
   if (candidate < minAllowedDate) {
     constrainedDate = new Date(minAllowedDate);
-    reason = 'Milestone must be at least 1 day after project start and other milestones';
+    reason = 'Phase must be at least 1 day after project start and other phases';
   } else if (candidate > maxAllowedDate) {
     constrainedDate = new Date(maxAllowedDate);
-    reason = 'Milestone must be at least 1 day before project end and other milestones';
+    reason = 'Phase must be at least 1 day before project end and other phases';
   }
   
   const isValid = candidate.getTime() === constrainedDate.getTime();

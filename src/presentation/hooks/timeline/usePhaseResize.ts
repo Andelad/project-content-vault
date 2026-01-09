@@ -21,10 +21,10 @@ import { toast } from '@/presentation/hooks/ui/use-toast';
 import { addDaysToDate, normalizeToMidnight, calculateDaysDeltaFromPixels } from '@/presentation/utils/dateCalculations';;
 import type { DragState } from '@/presentation/services/DragPositioning';
 import { ErrorHandlingService } from '@/infrastructure/errors/ErrorHandlingService';
-import { getPhases, type Phase } from '@/domain/rules/phases/PhaseRules';
+import type { Phase } from '@/domain/rules/phases/PhaseRules';
 import type { PhaseDTO, Project } from '@/shared/types/core';
 
-type UpdateMilestoneFn = (
+type UpdatePhaseFn = (
   id: string,
   updates: Partial<PhaseDTO>,
   options?: { silent?: boolean }
@@ -37,7 +37,7 @@ interface UsePhaseResizeProps {
   viewportStart: Date;
   viewportEnd: Date;
   timelineMode: 'days' | 'weeks';
-  updatePhase: UpdateMilestoneFn;
+  updatePhase: UpdatePhaseFn;
   checkAutoScroll: (clientX: number) => void;
   stopAutoScroll: () => void;
   setIsDragging: (dragging: boolean) => void;
@@ -61,7 +61,6 @@ function initializePhaseResizeDragState(
   return {
     projectId,
     phaseId,
-    milestoneId: phaseId,
     action,
     startX,
     startY,
@@ -136,11 +135,10 @@ export function usePhaseResize({
     e.stopPropagation();
     
     // Get all phases for this project
-  const projectPhases = phases.filter(p => p.projectId === projectId);
-  const projectPhaseList = getPhases(projectPhases) as Phase[];
+  const projectPhases = phases.filter(p => p.projectId === projectId) as Phase[];
 
     // Find the phase being resized
-    const targetPhase = projectPhaseList.find(p => p.id === phaseId);
+    const targetPhase = projectPhases.find(p => p.id === phaseId);
     if (!targetPhase) {
       return;
     }
@@ -195,7 +193,7 @@ export function usePhaseResize({
           : addDaysToDate(new Date(currentDragStateRef.originalEndDate), daysDelta);
         
         // Get bounds based on adjacent phases
-  const bounds = calculatePhaseBounds(projectPhaseList, targetPhase, action);
+  const bounds = calculatePhaseBounds(projectPhases, targetPhase, action);
         
         // Apply bounds validation
         let constrainedDate = normalizeToMidnight(newDate);

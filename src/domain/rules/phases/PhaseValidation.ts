@@ -1,7 +1,7 @@
 /**
  * Phase Validation Rules
  * 
- * Handles all validation logic for phases and milestones:
+ * Handles all validation logic for phases:
  * - Date range validation
  * - Time allocation validation
  * - Position constraints (drag operations)
@@ -21,33 +21,28 @@
 import type { PhaseDTO, Project } from '@/shared/types/core';
 import { normalizeToMidnight, addDaysToDate } from '@/presentation/utils/dateCalculations';
 import { PhaseRecurrenceService } from './PhaseRecurrence';
-import { validateMilestoneScheduling } from './PhaseCalculations';
+import { validatePhaseScheduling } from './PhaseCalculations';
 
 // ============================================================================
 // TYPE DEFINITIONS
 // ============================================================================
 
-export interface MilestoneValidationResult {
+export interface PhaseValidationResult {
   isValid: boolean;
   errors: string[];
   warnings: string[];
 }
 
-export interface MilestoneDateValidation {
+export interface PhaseDateValidation {
   isValid: boolean;
   errors: string[];
 }
 
-export interface MilestoneTimeValidation {
+export interface PhaseTimeValidation {
   isValid: boolean;
   errors: string[];
   warnings: string[];
 }
-
-// Phase-prefixed aliases for semantic consistency
-export type PhaseValidationResult = MilestoneValidationResult;
-export type PhaseDateValidation = MilestoneDateValidation;
-export type PhaseTimeValidation = MilestoneTimeValidation;
 
 export interface RecurringPhaseRuleConfig {
   type: 'daily' | 'weekly' | 'monthly';
@@ -66,7 +61,7 @@ export interface RecurringPhaseRuleConfig {
 /**
  * Phase Validation Rules
  * 
- * Validates individual phases and milestones against business rules.
+ * Validates individual phases against business rules.
  */
 export class PhaseValidationRules {
   
@@ -90,31 +85,31 @@ export class PhaseValidationRules {
    * Formula: project.startDate ≤ phase.endDate ≤ project.endDate
    * 
    * Applies to:
-   * - Single milestones: Due date must be within project dates
-   * - Recurring milestones: Generated occurrences must be within project dates
+   * - Single phases: Due date must be within project dates
+   * - Recurring phases: Generated occurrences must be within project dates
    * 
-   * @param milestoneEndDate - Phase end/due date
+   * @param phaseEndDate - Phase end/due date
    * @param projectStartDate - Project start date
    * @param projectEndDate - Project end date
    * @param continuous - Whether project is continuous (no end date constraint)
    * @returns Validation result with errors
    */
-  static validateMilestoneDateWithinProject(
-    milestoneEndDate: Date,
+  static validatePhaseDateWithinProject(
+    phaseEndDate: Date,
     projectStartDate: Date,
     projectEndDate: Date,
     continuous: boolean = false
-  ): MilestoneDateValidation {
+  ): PhaseDateValidation {
     const errors: string[] = [];
 
-    // Check if milestone is after project start
-    if (milestoneEndDate < projectStartDate) {
-      errors.push('Milestone date cannot be before project start date');
+    // Check if phase is after project start
+    if (phaseEndDate < projectStartDate) {
+      errors.push('Phase date cannot be before project start date');
     }
 
-    // For non-continuous projects, check if milestone is before project end
-    if (!continuous && milestoneEndDate > projectEndDate) {
-      errors.push('Milestone date cannot be after project end date');
+    // For non-continuous projects, check if phase is before project end
+    if (!continuous && phaseEndDate > projectEndDate) {
+      errors.push('Phase date cannot be after project end date');
     }
 
     return {
@@ -124,20 +119,20 @@ export class PhaseValidationRules {
   }
 
   /**
-   * Validate milestone start and end date relationship
+   * Validate phase start and end date relationship
    * 
    * @param startDate - Phase start date (optional)
    * @param endDate - Phase end date
    * @returns Validation result
    */
-  static validateMilestoneDateRange(
+  static validatePhaseDateRange(
     startDate: Date | undefined,
     endDate: Date
-  ): MilestoneDateValidation {
+  ): PhaseDateValidation {
     const errors: string[] = [];
 
     if (startDate && startDate >= endDate) {
-      errors.push('Milestone start date must be before end date');
+      errors.push('Phase start date must be before end date');
     }
 
     return {
@@ -147,14 +142,14 @@ export class PhaseValidationRules {
   }
 
   /**
-   * RULE 2B: Validate recurring milestone configuration
+   * RULE 2B: Validate recurring phase configuration
    * 
    * Business Logic:
    * - Recurring pattern must be valid (type, interval)
    * - Time allocation applies per occurrence
    * - Pattern generates occurrences within project boundaries
    * 
-   * @param isRecurring - Whether milestone is recurring
+   * @param isRecurring - Whether phase is recurring
    * @param recurringConfig - Recurrence pattern configuration
    * @param timeAllocation - Hours per occurrence
    * @returns Validation result with errors
@@ -166,42 +161,42 @@ export class PhaseValidationRules {
     isRecurring: boolean,
     recurringConfig: RecurringPhaseRuleConfig,
     timeAllocation: number
-  ): MilestoneDateValidation {
+  ): PhaseDateValidation {
     // Delegate to domain service
     return PhaseRecurrenceService.validateRecurringConfig(isRecurring, recurringConfig, timeAllocation);
   }
 
   /**
-   * Validate milestone time allocation against project budget
+   * Validate phase time allocation against project budget
    * 
-   * DELEGATES to PhaseBudget.validateMilestoneScheduling for budget logic
+   * DELEGATES to PhaseBudget.validatePhaseScheduling for budget logic
    * 
-   * @param timeAllocation - Time allocation for milestone
+   * @param timeAllocation - Time allocation for phase
    * @param projectBudget - Total project budget in hours
    * @param existingPhases - Existing phases to check against (optional, defaults to empty)
    * @returns Validation result
    */
-  static validateMilestoneTime(
+  static validatePhaseTime(
     timeAllocation: number,
     projectBudget: number,
     existingPhases: PhaseDTO[] = []
-  ): MilestoneTimeValidation {
+  ): PhaseTimeValidation {
     const errors: string[] = [];
     const warnings: string[] = [];
     
     // Rule: Time allocation cannot be negative
     if (timeAllocation < 0) {
-      errors.push('Milestone time allocation cannot be negative');
+      errors.push('Phase time allocation cannot be negative');
     }
     
     // Rule: Zero allocation is valid but should warn
     if (timeAllocation === 0) {
-      warnings.push('Milestone has 0h allocated — work will not be distributed until hours are set');
+      warnings.push('Phase has 0h allocated — work will not be distributed until hours are set');
     }
     
     // Budget validation - DELEGATE to domain rules
     if (timeAllocation > 0) {
-      const budgetCheck = validateMilestoneScheduling(
+      const budgetCheck = validatePhaseScheduling(
         existingPhases,
         { timeAllocationHours: timeAllocation },
         projectBudget
@@ -220,49 +215,49 @@ export class PhaseValidationRules {
   }
 
   /**
-   * Validate complete milestone against project
+   * Validate complete phase against project
    * 
-   * Combines all milestone validation rules:
+   * Combines all phase validation rules:
    * - RULE 1: Positive time allocation
    * - RULE 2: Date within project range
    * - RULE 2B: Recurring pattern validation (if applicable)
-   * - RULE 3: Doesn't exceed project budget (with other milestones)
+   * - RULE 3: Doesn't exceed project budget (with other phases)
    * 
-   * @param milestone - Phase to validate
+   * @param phase - Phase to validate
    * @param project - Parent project
-   * @param existingPhases - Other project milestones
+   * @param existingPhases - Other project phases
    * @returns Comprehensive validation result
    */
-  static validateMilestone(
-    milestone: PhaseDTO,
+  static validatePhase(
+    phase: PhaseDTO,
     project: Project,
     existingPhases: PhaseDTO[] = []
-  ): MilestoneValidationResult {
+  ): PhaseValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
 
-    const milestoneHours = milestone.timeAllocationHours ?? milestone.timeAllocation;
+    const phaseHours = phase.timeAllocationHours ?? phase.timeAllocation;
 
     // Validate time allocation
-    const timeValidation = this.validateMilestoneTime(
-      milestoneHours,
+    const timeValidation = this.validatePhaseTime(
+      phaseHours,
       project.estimatedHours
     );
     errors.push(...timeValidation.errors);
     warnings.push(...timeValidation.warnings);
 
     // For recurring phases, validate pattern
-    if (milestone.isRecurring) {
+    if (phase.isRecurring) {
       const recurringValidation = this.validateRecurringPhase(
-        milestone.isRecurring,
-        milestone.recurringConfig,
-        milestoneHours
+        phase.isRecurring,
+        phase.recurringConfig,
+        phaseHours
       );
       errors.push(...recurringValidation.errors);
     } else {
       // For single phases, validate dates
-      const dateValidation = this.validateMilestoneDateWithinProject(
-        milestone.endDate || milestone.dueDate,
+      const dateValidation = this.validatePhaseDateWithinProject(
+        phase.endDate || phase.dueDate,
         project.startDate,
         project.endDate,
         project.continuous
@@ -270,27 +265,27 @@ export class PhaseValidationRules {
       errors.push(...dateValidation.errors);
 
       // Validate start/end date relationship if start date exists
-      if (milestone.startDate) {
-        const rangeValidation = this.validateMilestoneDateRange(
-          milestone.startDate,
-          milestone.endDate || milestone.dueDate
+      if (phase.startDate) {
+        const rangeValidation = this.validatePhaseDateRange(
+          phase.startDate,
+          phase.endDate || phase.dueDate
         );
         errors.push(...rangeValidation.errors);
       }
     }
 
-    // Validate budget constraint with existing milestones - DELEGATE to domain rules
+    // Validate budget constraint with existing phases - DELEGATE to domain rules
     // Note: For recurring phases, this checks per-occurrence allocation
-    const budgetCheck = validateMilestoneScheduling(
+    const budgetCheck = validatePhaseScheduling(
       existingPhases,
-      milestone,
+      phase,
       project.estimatedHours
     );
 
     if (!budgetCheck.canSchedule && !project.continuous) {
-      if (milestone.isRecurring) {
+      if (phase.isRecurring) {
         warnings.push(
-          `Recurring milestone allocation (${milestoneHours}h per occurrence) may exceed project budget. ` +
+          `Recurring phase allocation (${phaseHours}h per occurrence) may exceed project budget. ` +
           `Current allocation: ${budgetCheck.currentAllocation}h, ` +
           `New allocation: ${budgetCheck.newAllocation}h, ` +
           `Project budget: ${project.estimatedHours}h. ` +
@@ -298,9 +293,9 @@ export class PhaseValidationRules {
         );
       } else {
         errors.push(
-          `Adding this milestone would exceed project budget. ` +
+          `Adding this phase would exceed project budget. ` +
           `Current allocation: ${budgetCheck.currentAllocation}h, ` +
-          `New milestone: ${milestoneHours}h, ` +
+          `New phase: ${phaseHours}h, ` +
           `Project budget: ${project.estimatedHours}h`
         );
       }
@@ -317,22 +312,22 @@ export class PhaseValidationRules {
    * RULE: Phase position constraints for drag operations
    * 
    * Business rules:
-   * 1. Milestones must be at least 1 day after project start
-   * 2. Milestones must be at least 1 day before project end
-   * 3. Milestones cannot overlap with other milestones (must be at least 1 day apart)
+   * 1. Phases must be at least 1 day after project start
+   * 2. Phases must be at least 1 day before project end
+   * 3. Phases cannot overlap with other phases (must be at least 1 day apart)
    * 
-   * @param milestoneDate - Proposed milestone date
+   * @param phaseDate - Proposed phase date
    * @param projectStartDate - Project start date
    * @param projectEndDate - Project end date
-   * @param otherMilestoneDates - Dates of other milestones in the project
-   * @param originalDate - Original date of milestone being moved (for calculating valid range)
+   * @param otherPhaseDates - Dates of other phases in the project
+   * @param originalDate - Original date of phase being moved (for calculating valid range)
    * @returns Validation result with allowed range
    */
-  static validateMilestonePosition(
-    milestoneDate: Date,
+  static validatePhasePosition(
+    phaseDate: Date,
     projectStartDate: Date,
     projectEndDate: Date,
-    otherMilestoneDates: Date[],
+    otherPhaseDates: Date[],
     originalDate?: Date
   ): {
     isValid: boolean;
@@ -343,7 +338,7 @@ export class PhaseValidationRules {
     const errors: string[] = [];
     
     // Normalize dates to midnight
-    const candidate = normalizeToMidnight(new Date(milestoneDate));
+    const candidate = normalizeToMidnight(new Date(phaseDate));
     const projectStart = normalizeToMidnight(new Date(projectStartDate));
     const projectEnd = normalizeToMidnight(new Date(projectEndDate));
     const original = originalDate ? normalizeToMidnight(new Date(originalDate)) : null;
@@ -354,25 +349,25 @@ export class PhaseValidationRules {
     
     // Check project boundary constraints
     if (candidate < minAllowedDate) {
-      errors.push('Milestone must be at least 1 day after project start');
+      errors.push('Phase must be at least 1 day after project start');
     }
     
     if (candidate > maxAllowedDate) {
-      errors.push('Milestone must be at least 1 day before project end');
+      errors.push('Phase must be at least 1 day before project end');
     }
     
-    // Check milestone overlap constraints
-    const normalizedOthers = otherMilestoneDates.map(d => normalizeToMidnight(new Date(d)));
+    // Check phase overlap constraints
+    const normalizedOthers = otherPhaseDates.map(d => normalizeToMidnight(new Date(d)));
     
     for (const otherDate of normalizedOthers) {
-      // Skip if this is the original position of the milestone being moved
+      // Skip if this is the original position of the phase being moved
       if (original && otherDate.getTime() === original.getTime()) {
         continue;
       }
       
       // Check if dates are the same (overlap)
       if (candidate.getTime() === otherDate.getTime()) {
-        errors.push('Milestone cannot overlap with another milestone');
+        errors.push('Phase cannot overlap with another phase');
         break;
       }
     }
@@ -386,20 +381,20 @@ export class PhaseValidationRules {
   }
 
   /**
-   * Check if a milestone is part of a recurring pattern (old numbered system)
+   * Check if a phase is part of a recurring pattern (old numbered system)
    * Used to prevent editing of auto-generated recurring instances
    * 
-   * @param milestone - Phase to check
-   * @returns true if milestone is a recurring instance
+   * @param phase - Phase to check
+   * @returns true if phase is a recurring instance
    */
-  static isRecurringPhase(milestone: PhaseDTO): boolean {
-    return milestone.name ? /\s\d+$/.test(milestone.name) : false;
+  static isRecurringPhase(phase: PhaseDTO): boolean {
+    return phase.name ? /\s\d+$/.test(phase.name) : false;
   }
 
   /**
    * RULE: Phase with estimated time must have end date >= today
    * 
-   * Phases (milestones with startDate/endDate) that have estimated time
+   * Phases (phases with startDate/endDate) that have estimated time
    * cannot end in the past. The end date must be at least today to allow
    * the estimated time to be placed on at least one working day.
    * 
@@ -513,15 +508,15 @@ export class PhaseValidationRules {
   }
 
   /**
-   * RULE 5: Check for date conflicts between milestones
+   * RULE 5: Check for date conflicts between phases
    * 
    * Business Logic:
-   * - Two milestones should not be scheduled on the same day
+   * - Two phases should not be scheduled on the same day
    * - Allows for 24-hour separation minimum
    * 
-   * This prevents milestone collisions and ensures clear project timelines.
+   * This prevents phase collisions and ensures clear project timelines.
    * 
-   * @param requestedDate - Date of new/updated milestone
+   * @param requestedDate - Date of new/updated phase
    * @param existingPhases - Currently scheduled phases
    * @param excludePhaseId - Optional phase ID to exclude (for updates)
    * @returns Validation result with conflict details
@@ -551,7 +546,7 @@ export class PhaseValidationRules {
         return {
           hasConflict: true,
           conflictingPhase: phase,
-          message: `Another milestone "${phase.name}" already exists on or near this date`
+          message: `Another phase "${phase.name}" already exists on or near this date`
         };
       }
     }
@@ -560,21 +555,21 @@ export class PhaseValidationRules {
   }
 
   /**
-   * RULE 6: Validate milestone fits within project timeframe
+   * RULE 6: Validate phase fits within project timeframe
    * 
    * Business Logic:
-   * - Milestone date must be >= project start date
-   * - Milestone date must be <= project end date
+   * - Phase date must be >= project start date
+   * - Phase date must be <= project end date
    * - For continuous projects, only start date is enforced
    * 
-   * @param milestoneDate - Date of milestone
+   * @param phaseDate - Date of phase
    * @param projectStartDate - Project start date
    * @param projectEndDate - Project end date
    * @param continuous - Whether project is continuous (no end constraint)
    * @returns Validation result
    */
   static validateMilestoneWithinProject(
-    milestoneDate: Date,
+    phaseDate: Date,
     projectStartDate: Date,
     projectEndDate: Date,
     continuous: boolean = false
@@ -582,17 +577,17 @@ export class PhaseValidationRules {
     isValid: boolean;
     error?: string;
   } {
-    if (milestoneDate < projectStartDate) {
+    if (phaseDate < projectStartDate) {
       return {
         isValid: false,
-        error: 'Milestone date must be on or after project start date'
+        error: 'Phase date must be on or after project start date'
       };
     }
     
-    if (!continuous && milestoneDate > projectEndDate) {
+    if (!continuous && phaseDate > projectEndDate) {
       return {
         isValid: false,
-        error: 'Milestone date must be on or before project end date'
+        error: 'Phase date must be on or before project end date'
       };
     }
     

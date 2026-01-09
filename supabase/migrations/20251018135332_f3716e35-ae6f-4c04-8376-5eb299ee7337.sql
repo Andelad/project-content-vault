@@ -2,6 +2,9 @@
 -- MILESTONE TABLE MIGRATION - Option A (time_allocation = hours)
 -- Date: 2025-10-18
 -- Records: 2,364 milestones
+--
+-- HISTORICAL NOTE: This migration modified the "milestones" table
+-- The table was later renamed to "phases" on 2025-12-29 (migration 20251229164244)
 -- =====================================================================================
 
 -- Step 0: Drop conflicting constraint from previous attempt

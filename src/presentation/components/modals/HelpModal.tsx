@@ -43,7 +43,7 @@ const helpSections: HelpSection[] = [
           <p className="text-gray-700 mb-4">Follow these steps to get started with Budgi:</p>
           <ol className="list-decimal list-inside space-y-2 text-gray-700">
             <li>Create your first project in the Overview section</li>
-            <li>Add events and milestones to your Timeline</li>
+            <li>Add events and phases to your Timeline</li>
             <li>Set up your work hours in Settings</li>
             <li>Use the Planner to schedule your tasks</li>
           </ol>
@@ -64,12 +64,12 @@ const helpSections: HelpSection[] = [
         <div id="timeline-overview">
           <p className="text-gray-700 mb-6">
             The Timeline view is your main workspace for visualizing and managing project schedules. 
-            It provides a horizontal, time-based view of all your projects, events, and milestones.
+            It provides a horizontal, time-based view of all your projects, events, and phases.
           </p>
           
           <h3 className="text-lg font-semibold text-gray-900 mb-3">Key Features</h3>
           <ul className="list-disc list-inside space-y-2 text-gray-700 mb-6">
-            <li><strong>Project Rows:</strong> Each project appears as a horizontal row, showing all its events and milestones</li>
+            <li><strong>Project Rows:</strong> Each project appears as a horizontal row, showing all its events and phases</li>
             <li><strong>Time Scale:</strong> View your timeline in days or weeks depending on your planning needs</li>
             <li><strong>Today Marker:</strong> A vertical line indicates the current date</li>
             <li><strong>Color Coding:</strong> Projects and events use colors to make visual identification easier</li>
@@ -171,17 +171,17 @@ const helpSections: HelpSection[] = [
           </div>
         </div>
 
-        <div id="timeline-milestones" className="pt-6 border-t border-gray-200">
-          <h3 className="text-xl font-semibold text-gray-900 mb-4">Using Milestones</h3>
+        <div id="timeline-phases" className="pt-6 border-t border-gray-200">
+          <h3 className="text-xl font-semibold text-gray-900 mb-4">Using Phases</h3>
           <p className="text-gray-700 mb-6">
-            Milestones are important dates or deadlines in your project that don't have a duration. 
+            Phases are important dates or deadlines in your project that don't have a duration. 
             They appear as diamond markers on the timeline.
           </p>
 
-          <h4 className="text-lg font-semibold text-gray-900 mb-3">Creating Milestones</h4>
+          <h4 className="text-lg font-semibold text-gray-900 mb-3">Creating Phases</h4>
           <ol className="list-decimal list-inside space-y-2 text-gray-700 ml-4 mb-6">
             <li>Open a project from the Overview section</li>
-            <li>Find the Milestones section</li>
+            <li>Find the Phases section</li>
             <li>Click "Add Phase"</li>
             <li>Enter a title and select the due date</li>
             <li>Save to see it appear on your timeline</li>
@@ -189,10 +189,10 @@ const helpSections: HelpSection[] = [
 
           <h4 className="text-lg font-semibold text-gray-900 mb-3">Best Practices</h4>
           <ul className="list-disc list-inside space-y-2 text-gray-700">
-            <li>Use milestones for deliverable deadlines</li>
+            <li>Use phases for deliverable deadlines</li>
             <li>Mark key decision points or review dates</li>
-            <li>Keep milestone titles short and clear</li>
-            <li>Overdue milestones will be highlighted in red</li>
+            <li>Keep phase titles short and clear</li>
+            <li>Overdue phases will be highlighted in red</li>
           </ul>
         </div>
 
@@ -237,7 +237,7 @@ const helpSections: HelpSection[] = [
     subSections: [
       { id: 'timeline-navigation', label: 'Navigating the Timeline' },
       { id: 'timeline-events', label: 'Working with Events' },
-      { id: 'timeline-milestones', label: 'Using Milestones' },
+      { id: 'timeline-phases', label: 'Using Phases' },
       { id: 'timeline-workload', label: 'Understanding Workload' }
     ]
   },

@@ -70,7 +70,7 @@ export interface TimelineColumnData {
 // ============================================================================
 
 /**
- * Calculate timeline element positions for projects/milestones
+ * Calculate timeline element positions for projects/phases
  * Core positioning calculation for project bars on the timeline
  */
 export function calculateTimelinePositions(

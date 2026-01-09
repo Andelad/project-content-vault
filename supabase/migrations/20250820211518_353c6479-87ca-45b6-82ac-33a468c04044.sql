@@ -1,3 +1,8 @@
+-- ============================================================================
+-- HISTORICAL NOTE: This migration modified the "milestones" table
+-- The table was later renamed to "phases" on 2025-12-29 (migration 20251229164244)
+-- ============================================================================
+
 -- Update the milestones table to use hours instead of percentages
 ALTER TABLE public.milestones 
 DROP CONSTRAINT IF EXISTS milestones_time_allocation_check;
