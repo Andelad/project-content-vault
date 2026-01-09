@@ -305,23 +305,6 @@ export const AverageDayHeatmapCard: React.FC<AverageDayHeatmapCardProps> = ({
           <div className="space-y-6">
             {/* Rectangle Heatmap View */}
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-medium text-gray-700">Time Activity Frequency</h4>
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <span>Low</span>
-                  <div className="flex gap-0.5">
-                    {[0.1, 0.3, 0.5, 0.7, 1.0].map(intensity => (
-                      <div
-                        key={intensity}
-                        className="w-3 h-3 rounded-sm"
-                        style={{ backgroundColor: getIntensityColor(intensity) }}
-                      />
-                    ))}
-                  </div>
-                  <span>High</span>
-                </div>
-              </div>
-
               {!heatmapData || heatmapData.length === 0 || summaryStats.activeSlots === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
@@ -332,29 +315,15 @@ export const AverageDayHeatmapCard: React.FC<AverageDayHeatmapCardProps> = ({
                 <div className="relative">
                   {/* 24-hour horizontal calendar layout */}
                   <div className="space-y-2">
-                    {/* Time labels */}
-                    <div className="flex items-center">
-                      <div className="w-16"></div>
-                      <div className="flex-1 flex">
-                        {heatmapData.filter(slot => slot.minute === 0).map((slot) => (
-                          <div
-                            key={`label-${slot.hour}`}
-                            className="flex-1 text-xs text-gray-500 text-center"
-                          >
-                            {slot.hour === 0 ? '12am' : slot.hour < 12 ? `${slot.hour}am` : slot.hour === 12 ? '12pm' : `${slot.hour - 12}pm`}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    
                     {/* Heatmap bars */}
-                    <div className="flex items-center gap-2">
-                      <div className="w-16 text-xs text-gray-600 font-medium">Activity</div>
-                      <div className="flex-1 flex gap-0.5">
-                        {heatmapData.map((slot) => (
+                    <div className="flex items-center">
+                      <div className="flex-1 flex">
+                        {heatmapData.map((slot, index) => (
                           <div
                             key={`${slot.hour}-${slot.minute}`}
-                            className="flex-1 h-16 cursor-pointer hover:ring-2 hover:ring-blue-300 transition-all rounded-sm"
+                            className={`flex-1 h-16 transition-all ${
+                              index === 0 ? 'rounded-l-md' : index === heatmapData.length - 1 ? 'rounded-r-md' : ''
+                            }`}
                             style={{ 
                               backgroundColor: getIntensityColor(slot.intensity),
                               minWidth: '8px'
@@ -364,11 +333,33 @@ export const AverageDayHeatmapCard: React.FC<AverageDayHeatmapCardProps> = ({
                         ))}
                       </div>
                     </div>
-                  </div>
-                  
-                  {/* Legend */}
-                  <div className="mt-4 text-center">
-                    <div className="text-xs text-gray-500">Each bar represents a 30-minute time slot throughout the day</div>
+                    
+                    {/* Time labels */}
+                    <div className="flex items-center">
+                      <div className="flex-1 flex">
+                        {heatmapData.filter(slot => slot.minute === 0).map((slot) => {
+                          let label = '';
+                          if (slot.hour === 0) {
+                            label = '12am';
+                          } else if (slot.hour === 12) {
+                            label = '12pm';
+                          } else if (slot.hour < 12) {
+                            label = `${slot.hour}`;
+                          } else {
+                            label = `${slot.hour - 12}`;
+                          }
+                          
+                          return (
+                            <div
+                              key={`label-${slot.hour}`}
+                              className="flex-1 text-xs text-gray-500 text-center"
+                            >
+                              {label}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}

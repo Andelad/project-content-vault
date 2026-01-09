@@ -311,25 +311,44 @@ const helpSections: HelpSection[] = [
         <div id="insights-average-day" className="pt-6 border-t border-gray-200">
           <h3 className="text-xl font-semibold text-gray-900 mb-4">Average Day Heatmap</h3>
           <p className="text-gray-700 mb-4">
-            Stream chart showing average work hours throughout the day based on your completed events.
+            Horizontal bar visualization showing when you typically work throughout the day based on your completed events.
           </p>
           <h4 className="text-lg font-semibold text-gray-900 mb-3">How to Read</h4>
           <ul className="list-disc list-inside space-y-2 text-gray-700 mb-6">
-            <li>X-axis: Time of day (00:00 to 23:30 in 30-min intervals)</li>
-            <li>Y-axis: Hours worked (0 to 1.0 hour per time slot)</li>
-            <li>Area shows average work duration for each time slot</li>
-            <li>Higher peaks = more work during that time</li>
+            <li>Each section represents a 30-minute time slot throughout a 24-hour period</li>
+            <li>Bar color intensity indicates activity frequency (how often you work during that time)</li>
+            <li>Darker blue = more frequent activity, lighter blue = less frequent activity</li>
+            <li>Time labels below the bar show hours (12am through 11pm)</li>
           </ul>
-          <h4 className="text-lg font-semibold text-gray-900 mb-3">Layer Modes</h4>
-          <ul className="list-disc list-inside space-y-2 text-gray-700 mb-6">
-            <li><strong>Single:</strong> Total work time across all projects</li>
-            <li><strong>By Group:</strong> Separate layers for each group</li>
-            <li><strong>By Project:</strong> Separate layers for each project</li>
-          </ul>
+          <h4 className="text-lg font-semibold text-gray-900 mb-3">Color Scale</h4>
+          <div className="mb-6">
+            <div className="flex items-center gap-2 text-sm text-gray-700 mb-2">
+              <span>Low Activity</span>
+              <div className="flex gap-0.5">
+                <div className="w-4 h-4 rounded-sm" style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)' }}></div>
+                <div className="w-4 h-4 rounded-sm" style={{ backgroundColor: 'rgba(59, 130, 246, 0.3)' }}></div>
+                <div className="w-4 h-4 rounded-sm" style={{ backgroundColor: 'rgba(59, 130, 246, 0.5)' }}></div>
+                <div className="w-4 h-4 rounded-sm" style={{ backgroundColor: 'rgba(59, 130, 246, 0.7)' }}></div>
+                <div className="w-4 h-4 rounded-sm" style={{ backgroundColor: 'rgba(59, 130, 246, 1.0)' }}></div>
+              </div>
+              <span>High Activity</span>
+            </div>
+            <p className="text-sm text-gray-600">
+              Intensity is calculated by averaging how frequently events occur in each time slot across all analyzed days.
+            </p>
+          </div>
           <h4 className="text-lg font-semibold text-gray-900 mb-3">Settings</h4>
+          <ul className="list-disc list-inside space-y-2 text-gray-700 mb-6">
+            <li><strong>Period:</strong> Last Week / Last Month / Last 6 Months</li>
+            <li><strong>Filters:</strong> Select specific groups/projects to analyze</li>
+            <li><strong>Day Selection:</strong> Choose which days of the week to include (default: weekdays only)</li>
+          </ul>
+          <h4 className="text-lg font-semibold text-gray-900 mb-3">Summary Stats</h4>
           <ul className="list-disc list-inside space-y-2 text-gray-700">
-            <li>Period: Last Week / Last Month / Last 6 Months</li>
-            <li>Filters: Select specific groups/projects and days</li>
+            <li>Average daily hours worked across the selected period</li>
+            <li>Number of active time slots (30-min periods with activity)</li>
+            <li>Total days analyzed based on your filters</li>
+            <li>Number of active filters applied</li>
           </ul>
         </div>
 
