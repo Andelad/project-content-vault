@@ -3,8 +3,8 @@ import { Search, Plus } from 'lucide-react';
 import { Input } from '../shadcn/input';
 import { Label } from '../shadcn/label';
 import { Button } from '../shadcn/button';
-import { useProjectContext } from '@/contexts/ProjectContext';
-import { useEvents } from '@/hooks/data/useEvents';
+import { useProjectContext } from '@/presentation/contexts/ProjectContext';
+import { useEvents } from '@/presentation/hooks/data/useEvents';
 import { filterSearchResults, type SearchResult } from '@/domain/rules/time-tracking/TimeTrackerHelpers';
 import { Project } from '@/shared/types/core';
 

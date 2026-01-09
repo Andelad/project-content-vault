@@ -3,38 +3,32 @@ import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { TooltipProvider } from '../shadcn/tooltip';
 import { Card } from '../shadcn/card';
-import { useProjectContext } from '@/contexts/ProjectContext';
-import { useTimelineContext } from '@/contexts/TimelineContext';
-import { useEvents } from '@/hooks/data/useEvents';
-import { useHolidays } from '@/hooks/data/useHolidays';
-import { useSettingsContext } from '@/contexts/SettingsContext';
-import { 
-  TimelineViewportService, 
-  expandHolidayDates, 
-  normalizeToMidnight, 
-  addDaysToDate,
-  createSmoothDragAnimation,
-  workingDayStats,
-  milestoneStats,
-  calculateTimelineRows,
-  calculateProjectDayEstimates,
-  type SmoothAnimationConfig,
-  type DragState as ServiceDragState
-} from '@/services';
+import { useProjectContext } from '@/presentation/contexts/ProjectContext';
+import { useTimelineContext } from '@/presentation/contexts/TimelineContext';
+import { useEvents } from '@/presentation/hooks/data/useEvents';
+import { useHolidays } from '@/presentation/hooks/data/useHolidays';
+import { useSettingsContext } from '@/presentation/contexts/SettingsContext';
+import { type SmoothAnimationConfig, type DragState as ServiceDragState } from '@/presentation/services/DragPositioning';
+import { createSmoothDragAnimation } from '@/presentation/services/DragPositioning';
 import { SystemIntegrity } from '@/domain/rules/SystemIntegrity';
-import { useTimelineData } from '@/hooks/timeline/useTimelineData';
-import { useDynamicViewportDays } from '@/hooks/timeline/useDynamicViewportDays';
-import { useHolidayDrag } from '@/hooks/timeline/useHolidayDrag';
-import { useProjectResize } from '@/hooks/timeline/useProjectResize';
-import { usePhaseResize } from '@/hooks/timeline/usePhaseResize';
-import { TimelineDateHeader } from '@/components/features/timeline/TimelineDateHeader';
-import { TimelineBackground } from '@/components/features/timeline/TimelineBackground';
-import { TimelineCard } from '@/components/features/timeline/TimelineCard';
+import { useTimelineData } from '@/presentation/hooks/timeline/useTimelineData';
+import { useDynamicViewportDays } from '@/presentation/hooks/timeline/useDynamicViewportDays';
+import { useHolidayDrag } from '@/presentation/hooks/timeline/useHolidayDrag';
+import { useProjectResize } from '@/presentation/hooks/timeline/useProjectResize';
+import { usePhaseResize } from '@/presentation/hooks/timeline/usePhaseResize';
+import { TimelineDateHeader } from '@/presentation/components/features/timeline/TimelineDateHeader';
+import { TimelineBackground } from '@/presentation/components/features/timeline/TimelineBackground';
+import { TimelineCard } from '@/presentation/components/features/timeline/TimelineCard';
 import { AvailabilityCard } from '../shared/AvailabilityCard';
-import { HolidayBar } from '@/components/features/timeline/HolidayBar';
+import { HolidayBar } from '@/presentation/components/features/timeline/HolidayBar';
 import { AppPageLayout } from '../layout/AppPageLayout';
-import { TimelineToolbar } from '@/components/features/timeline/TimelineToolbar';
+import { TimelineToolbar } from '@/presentation/components/features/timeline/TimelineToolbar';
 import { ErrorHandlingService } from '@/infrastructure/errors/ErrorHandlingService';
+import { normalizeToMidnight, addDaysToDate } from '@/presentation/utils/dateCalculations';
+import { TimelineViewport } from '@/presentation/services/TimelineViewportService';
+import { expandHolidayDates } from '@/domain/rules/holidays/HolidayCalculations';
+import { calculateTimelineRows } from '@/domain/rules/timeline/TimelineRowCalculations';
+import { calculateProjectDayEstimates } from '@/domain/rules/projects/DayEstimate';
 import type { DayEstimate, Project, CalendarEvent } from '@/shared/types/core';
 // Lazy load heavy modals
 const ProjectModal = React.lazy(() => import('../modals/ProjectModal').then(module => ({ default: module.ProjectModal })));
@@ -71,7 +65,7 @@ const createLayoutCacheKey = (
  * **Architecture Pattern**:
  * - Contexts: Provides data (projects, groups, holidays, settings)
  * - Custom Hooks: Manage React state + coordinate services (useHolidayDrag, useTimelineData)
- * - Services: Pure calculations (TimelineViewportService, calculateTimelineRows)
+ * - Services: Pure calculations (TimelineViewport, calculateTimelineRows)
  * - Components: Presentational UI (TimelineToolbar, TimelineCard, TimelineBackground)
  * 
  * **Responsibilities**:
@@ -86,7 +80,7 @@ const createLayoutCacheKey = (
  * - Calculate dates manually (uses @/services/dateCalculations)
  * - Access database directly (uses context data)
  * 
- * @see TimelineViewportService - Viewport calculations and animations
+ * @see TimelineViewport - Viewport calculations and animations
  * @see useHolidayDrag - Holiday drag state management
  * @see calculateTimelineRows - Auto-row arrangement algorithm
  */
@@ -168,8 +162,9 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
   useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
       const interval = setInterval(() => {
-        workingDayStats.logStats();
-        milestoneStats.logStats();
+        // TODO: Re-enable stats logging when stats objects are available
+        // workingDayStats.logStats();
+        // milestoneStats.logStats();
       }, 10000); // Log every 10 seconds in development
       return () => clearInterval(interval);
     }
@@ -198,7 +193,7 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
       ErrorHandlingService.handle(`Invalid viewportStart date: ${date}`, { source: 'TimelineView' });
       return;
     }
-    const blockingState = TimelineViewportService.checkViewportBlocking();
+    const blockingState = TimelineViewport.checkViewportBlocking();
     if (blockingState.isBlocked) {
       return;
     }
@@ -324,7 +319,7 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
   }, [holidays]);
   // Debug performance logging using service
   const performanceMetrics = useMemo(() => {
-    return TimelineViewportService.calculateViewportPerformanceMetrics({
+    return TimelineViewport.calculateViewportPerformanceMetrics({
       projectCount: filteredProjects.length,
       viewportDays: dates.length,
       mode: timelineMode
@@ -338,18 +333,18 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
   // Scroll to project functionality using service
   const scrollToProject = useCallback((project: Project) => {
     if (isAnimating) return;
-    const targetViewport = TimelineViewportService.calculateProjectScrollTarget({
+    const targetViewport = TimelineViewport.calculateProjectScrollTarget({
       projectStartDate: new Date(project.startDate),
       currentViewportStart: viewportStart,
       timelineMode
     });
     // Check if animation should be skipped
-    if (TimelineViewportService.shouldSkipAnimation(viewportStart.getTime(), targetViewport.start.getTime())) {
+    if (TimelineViewport.shouldSkipAnimation(viewportStart.getTime(), targetViewport.start.getTime())) {
       setViewportStart(targetViewport.start);
       setCurrentDate(new Date(project.startDate));
       return;
     }
-    const animationDuration = TimelineViewportService.calculateAnimationDuration(
+    const animationDuration = TimelineViewport.calculateAnimationDuration(
       viewportStart.getTime(),
       targetViewport.start.getTime()
     );
@@ -376,16 +371,16 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
     if (autoScrollState.intervalId) {
       clearInterval(autoScrollState.intervalId);
     }
-    const config = TimelineViewportService.calculateAutoScrollConfig(timelineMode);
+    const config = TimelineViewport.calculateAutoScrollConfig(timelineMode);
     config.direction = direction;
     const intervalId = setInterval(() => {
       setViewportStart(prevStart => {
         // Check if viewport updates are blocked
-        const blockingState = TimelineViewportService.checkViewportBlocking();
+        const blockingState = TimelineViewport.checkViewportBlocking();
         if (blockingState.isBlocked) {
           return prevStart;
         }
-        const newStart = TimelineViewportService.calculateAutoScrollPosition({
+        const newStart = TimelineViewport.calculateAutoScrollPosition({
           currentStart: prevStart,
           direction,
           scrollAmount: config.scrollAmount,
@@ -499,7 +494,7 @@ export function TimelineView({ mainSidebarCollapsed }: TimelineViewProps) {
     const timelineContent = document.querySelector('.timeline-content-area');
     if (!timelineContent) return;
     const rect = timelineContent.getBoundingClientRect();
-    const trigger = TimelineViewportService.calculateAutoScrollTrigger({
+    const trigger = TimelineViewport.calculateAutoScrollTrigger({
       mouseX: clientX,
       timelineContentRect: rect
     });

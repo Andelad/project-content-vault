@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, AlertTriangle, SquareSplitHorizontal, RefreshCw, ExternalLink } from 'lucide-react';
-import { Input } from '@/components/shadcn/input';
-import { Button } from '@/components/shadcn/button';
-import { Label } from '@/components/shadcn/label';
-import { Checkbox } from '@/components/shadcn/checkbox';
-import { useToast } from '@/hooks/ui/use-toast';
+import { Input } from '@/presentation/components/shadcn/input';
+import { Button } from '@/presentation/components/shadcn/button';
+import { Label } from '@/presentation/components/shadcn/label';
+import { Checkbox } from '@/presentation/components/shadcn/checkbox';
+import { useToast } from '@/presentation/hooks/ui/use-toast';
 import {
   usePhaseOperations,
   usePhaseBudget,
@@ -12,14 +12,15 @@ import {
   RecurringPhaseConfig,
   RecurringPhase,
   LocalPhase
-} from '@/hooks/phase';
+} from '@/presentation/hooks/phase';
 import type { PhaseDTO } from '@/shared/types/core';
 import {
   PhaseCard,
   RecurringPhaseCard,
   PhaseConfigDialog
 } from '../phases';
-import { PhaseOrchestrator, addDaysToDate } from '@/services';
+import { PhaseOrchestrator } from '@/application/orchestrators/PhaseOrchestrator';
+import { addDaysToDate } from '@/presentation/utils/dateCalculations';;
 import { PhaseRules } from '@/domain/rules/phases/PhaseRules';
 
 type AutoEstimateDays = {

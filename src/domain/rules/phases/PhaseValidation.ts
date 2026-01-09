@@ -19,7 +19,7 @@
  */
 
 import type { PhaseDTO, Project } from '@/shared/types/core';
-import { normalizeToMidnight, addDaysToDate } from '@/presentation/app/utils/dateCalculations';
+import { normalizeToMidnight, addDaysToDate } from '@/presentation/utils/dateCalculations';
 import { PhaseRecurrenceService } from './PhaseRecurrence';
 import { validateMilestoneScheduling } from './PhaseCalculations';
 

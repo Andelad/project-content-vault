@@ -2,8 +2,8 @@ import React from 'react';
 import { Clock, TrendingUp, Calendar, Target } from 'lucide-react';
 import { ProjectProgressGraph } from './ProjectProgressGraph';
 import { Project, CalendarEvent, Holiday } from '@/shared/types';
-import { formatDuration } from '@/services';
-import { calculateProjectTimeMetrics } from '@/services';
+import { formatDuration } from '@/presentation/utils/dateCalculations';;
+import { calculateProjectTimeMetrics } from '@/domain/rules/projects/ProjectMetrics';;
 import type { ProjectEvent } from '@/domain/rules/projects/ProjectMetrics';
 
 interface ProjectInsightsSectionProps {

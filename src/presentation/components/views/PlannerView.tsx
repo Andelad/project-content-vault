@@ -3,29 +3,30 @@ import FullCalendar from '@fullcalendar/react';
 import { Calendar, EventClickArg, EventDropArg, DateSelectArg, EventContentArg, EventMountArg, EventSourceFunc, EventInput } from '@fullcalendar/core';
 import { EventResizeDoneArg } from '@fullcalendar/interaction';
 import rrulePlugin from '@fullcalendar/rrule';
-import { useEvents } from '@/hooks/data/useEvents';
-import { useHabits } from '@/hooks/data/useHabits';
-import { useHolidays } from '@/hooks/data/useHolidays';
-import { useWorkHours } from '@/hooks/data/useWorkHours';
-import { useProjectContext } from '@/contexts/ProjectContext';
-import { useTimelineContext } from '@/contexts/TimelineContext';
-import { useSettingsContext } from '@/contexts/SettingsContext';
+import { useEvents } from '@/presentation/hooks/data/useEvents';
+import { useHabits } from '@/presentation/hooks/data/useHabits';
+import { useHolidays } from '@/presentation/hooks/data/useHolidays';
+import { useWorkHours } from '@/presentation/hooks/data/useWorkHours';
+import { useProjectContext } from '@/presentation/contexts/ProjectContext';
+import { useTimelineContext } from '@/presentation/contexts/TimelineContext';
+import { useSettingsContext } from '@/presentation/contexts/SettingsContext';
 import type { CalendarEvent } from '@/shared/types';
-import { formatDateLong, formatDateRange as formatDateRangeUtil } from '@/presentation/app/utils/dateFormatUtils';
+import { formatDateLong, formatDateRange as formatDateRangeUtil } from '@/presentation/utils/dateFormatUtils';
+import { normalizeToMidnight, addDaysToDate } from '@/presentation/utils/dateCalculations';
+import { formatTimeForValidation } from '@/presentation/utils/timeCalculations';
+import { ErrorHandlingService } from '@/infrastructure/errors/ErrorHandlingService';
+import { type LayerVisibility } from '@/presentation/services/FullCalendarConfig';
 import { 
-  addDaysToDate, 
-  normalizeToMidnight,
-  formatTimeForValidation,
-  getBaseFullCalendarConfig, 
-  getEventStylingConfig,
   getBusinessHoursConfig,
+  getBaseFullCalendarConfig,
+  getEventStylingConfig,
   filterEventsByLayerVisibility,
-  getResponsiveDayCount,
-  transformFullCalendarToCalendarEvent,
+  getResponsiveDayCount
+} from '@/presentation/services/FullCalendarConfig';
+import {
   prepareEventsForFullCalendar,
-  ErrorHandlingService,
-  type LayerVisibility
-} from '@/services';
+  transformFullCalendarToCalendarEvent
+} from '@/presentation/services/EventTransformations';
 import { 
   EstimatedTimeCard, 
   WeekNavigationBar, 
@@ -34,22 +35,22 @@ import {
   HabitEventContent,
   TaskEventContent,
   RegularEventContent
-} from '@/components/features/planner';
-import { AvailabilityCard } from '@/components/shared';
-import { HABIT_ICON_SVG } from '@/presentation/app/constants/icons';
-import { NEUTRAL_COLORS } from '@/presentation/app/constants/colors';
-import { getDateKey } from '@/presentation/app/utils/dateFormatUtils';
+} from '@/presentation/components/features/planner';
+import { AvailabilityCard } from '@/presentation/components/shared';
+import { HABIT_ICON_SVG } from '@/presentation/constants/icons';
+import { NEUTRAL_COLORS } from '@/presentation/constants/colors';
+import { getDateKey } from '@/presentation/utils/dateFormatUtils';
 import { createCalendarEventOrchestrator, type PlannerInteractionContext } from '@/application/orchestrators/CalendarEventOrchestrator';
-import { useToast } from '@/hooks/ui/use-toast';
-import { useSwipeNavigation } from '@/hooks/ui/useSwipeNavigation';
-import { useCalendarKeyboardShortcuts } from '@/hooks/calendar/useCalendarKeyboardShortcuts';
-import { useCalendarDragDrop } from '@/hooks/calendar/useCalendarDragDrop';
-import { useHoverableDateHeaders } from '@/hooks/calendar/useHoverableDateHeaders';
-import '@/components/features/planner/fullcalendar-overrides.css';
+import { useToast } from '@/presentation/hooks/ui/use-toast';
+import { useSwipeNavigation } from '@/presentation/hooks/ui/useSwipeNavigation';
+import { useCalendarKeyboardShortcuts } from '@/presentation/hooks/calendar/useCalendarKeyboardShortcuts';
+import { useCalendarDragDrop } from '@/presentation/hooks/calendar/useCalendarDragDrop';
+import { useHoverableDateHeaders } from '@/presentation/hooks/calendar/useHoverableDateHeaders';
+import '@/presentation/components/features/planner/fullcalendar-overrides.css';
 // Modal imports
 const EventModal = React.lazy(() => import('../modals/EventModal').then(module => ({ default: module.EventModal })));
 const HelpModal = React.lazy(() => import('../modals/HelpModal').then(module => ({ default: module.HelpModal })));
-import { WorkHourScopeDialog } from '@/components/modals';
+import { WorkHourScopeDialog } from '@/presentation/components/modals';
 import type { PhaseDTO } from '@/shared/types/core';
 /**
  * PlannerView - FullCalendar-based planner with keyboard shortcuts

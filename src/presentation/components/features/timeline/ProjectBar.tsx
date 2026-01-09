@@ -1,37 +1,30 @@
 import React, { memo, useMemo } from 'react';
 
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/shadcn/tooltip';
-import { useProjectContext } from '@/contexts/ProjectContext';
-import { useEvents } from '@/hooks/data/useEvents';
-import { useHolidays } from '@/hooks/data/useHolidays';
-import { useSettingsContext } from '@/contexts/SettingsContext';
-import { isSameDate } from '@/presentation/app/utils/dateFormatUtils';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/presentation/components/shadcn/tooltip';
+import { useProjectContext } from '@/presentation/contexts/ProjectContext';
+import { useEvents } from '@/presentation/hooks/data/useEvents';
+import { useHolidays } from '@/presentation/hooks/data/useHolidays';
+import { useSettingsContext } from '@/presentation/contexts/SettingsContext';
+import { isSameDate } from '@/presentation/utils/dateFormatUtils';
 import type { Project, PhaseDTO, CalendarEvent } from '@/shared/types/core';
-import { 
-  calculateBaselineVisualOffsets as baselineOffsets,
-  calculateVisualProjectDates as visualDates,
-  createWorkingDayChecker
-} from '@/services';
+import { calculateBaselineVisualOffsets as baselineOffsets, calculateVisualProjectDates as visualDates, getTimelinePositions } from '@/presentation/services/ProjectBarPositioning';
 import { getTimelineBarData } from '@/application/queries/TimelineAggregator';
-import { ColorCalculationService } from '@/presentation/app/services/ColorCalculations';
-import type { TimelineAllocationType } from '@/presentation/app/constants/styles';
-import { NEUTRAL_COLORS } from '@/presentation/app/constants/colors';
-import { 
-  generateWorkHoursForDate,
-  calculateWorkHoursTotal,
-  isHolidayDateCapacity,
-  getMilestoneSegmentForDate,
-  getTimelinePositions,
-  calculateRectangleHeight,
-  normalizeToMidnight
-} from '@/services';
+import { ColorCalculationService } from '@/presentation/services/ColorCalculations';
+import type { TimelineAllocationType } from '@/presentation/constants/styles';
+import { NEUTRAL_COLORS } from '@/presentation/constants/colors';
+import { normalizeToMidnight } from '@/presentation/utils/dateCalculations';
 import { getPhasesSortedByEndDate } from '@/domain/rules/phases/PhaseRules';
 import { ProjectIconIndicator } from './ProjectIconIndicator';
 import { DraggablePhaseMarkers } from './DraggablePhaseMarkers';
 import { ErrorHandlingService } from '@/infrastructure/errors/ErrorHandlingService';
 import { PhaseRecurrenceService } from '@/domain/rules/phases/PhaseRecurrence';
-import type { DragState } from '@/presentation/app/services/DragPositioning';
-import type { TimelinePositionCalculation } from '@/presentation/app/services/ProjectBarPositioning';
+import type { DragState } from '@/presentation/services/DragPositioning';
+import type { TimelinePositionCalculation } from '@/presentation/services/ProjectBarPositioning';
+import { generateWorkHoursForDate } from '@/domain/rules/availability/EventWorkHourIntegration';
+import { calculateWorkHoursTotal } from '@/domain/rules/availability/WorkHourGeneration';
+import { isHolidayDateCapacity } from '@/domain/rules/availability/CapacityAnalysis';
+import { getMilestoneSegmentForDate } from '@/domain/rules/phases/PhaseCalculations';
+import { calculateRectangleHeight } from '@/presentation/services/ProjectBarPositioning';
 
 interface ProjectBarProps {
   project: Project;
@@ -115,12 +108,9 @@ export const ProjectBar = memo(function ProjectBar({
     recurringGroupId: e.recurring_group_id || undefined
   })), [rawEvents]);
 
-  // CRITICAL: Call this hook at top level, NOT inside useMemo
-  // This was causing "Do not call Hooks inside useMemo" error
-  const isWorkingDayChecker = createWorkingDayChecker(
-    settings.weeklyWorkHours, 
-    holidays
-  );
+  // Working day checker removed - function createWorkingDayChecker no longer exists
+  const isWorkingDayChecker = undefined;
+  
   // Centralized filtered milestones for this project (once per relevant change)
   const filteredProjectMilestones = useMemo<PhaseDTO[]>(() => {
     if (!project) return [];

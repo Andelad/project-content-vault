@@ -5,8 +5,8 @@
  * Displays in italic grey with time range.
  */
 
-import { formatTimeForValidation } from '@/services';
-import { NEUTRAL_COLORS } from '@/presentation/app/constants/colors';
+import { formatTimeForValidation } from '@/presentation/utils/timeCalculations';;
+import { NEUTRAL_COLORS } from '@/presentation/constants/colors';
 
 interface WorkHourEventContentProps {
   title: string;

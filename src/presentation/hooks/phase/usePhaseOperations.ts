@@ -1,8 +1,8 @@
 import { useState, useCallback, useMemo } from 'react';
-import { useProjectContext } from '@/contexts/ProjectContext';
-import { PhaseOrchestrator } from '@/services';
+import { useProjectContext } from '@/presentation/contexts/ProjectContext';
+import { PhaseOrchestrator } from '@/application/orchestrators/PhaseOrchestrator';;
 import type { PhaseDTO, Phase } from '@/shared/types/core';
-import { useToast } from '@/hooks/ui/use-toast';
+import { useToast } from '@/presentation/hooks/ui/use-toast';
 import { ErrorHandlingService } from '@/infrastructure/errors/ErrorHandlingService';
 
 export interface LocalPhase extends Omit<PhaseDTO, 'id'> {

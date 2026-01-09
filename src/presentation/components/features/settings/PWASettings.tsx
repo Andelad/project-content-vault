@@ -1,10 +1,10 @@
 import React from 'react';
-import { Button } from '@/components/shadcn/button';
-import { Label } from '@/components/shadcn/label';
-import { Badge } from '@/components/shadcn/badge';
+import { Button } from '@/presentation/components/shadcn/button';
+import { Label } from '@/presentation/components/shadcn/label';
+import { Badge } from '@/presentation/components/shadcn/badge';
 import { Download, Check, Smartphone } from 'lucide-react';
-import { usePWAInstall } from '@/hooks/ui/usePWAInstall';
-import { useToast } from '@/hooks/ui/use-toast';
+import { usePWAInstall } from '@/presentation/hooks/ui/usePWAInstall';
+import { useToast } from '@/presentation/hooks/ui/use-toast';
 
 export function PWASettings() {
   const { isInstalled, isInstallable, install } = usePWAInstall();

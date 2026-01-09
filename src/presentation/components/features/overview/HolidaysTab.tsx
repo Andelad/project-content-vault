@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Calendar, Clock } from 'lucide-react';
-import { Card, CardContent } from '@/components/shadcn/card';
-import { Badge } from '@/components/shadcn/badge';
+import { Card, CardContent } from '@/presentation/components/shadcn/card';
+import { Badge } from '@/presentation/components/shadcn/badge';
 
 type FilterByStatus = 'all' | 'active' | 'future' | 'past';
 

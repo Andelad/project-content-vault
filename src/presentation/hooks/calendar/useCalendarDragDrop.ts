@@ -13,7 +13,7 @@
 
 import { useEffect } from 'react';
 import type FullCalendar from '@fullcalendar/react';
-import { ErrorHandlingService } from '@/services';
+import { ErrorHandlingService } from '@/infrastructure/errors/ErrorHandlingService';;
 import type { CalendarEvent } from '@/shared/types';
 
 interface UseCalendarDragDropProps {

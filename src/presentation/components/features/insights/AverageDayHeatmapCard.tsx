@@ -1,12 +1,12 @@
 import React, { useMemo, useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/shadcn/card';
-import { Button } from '@/components/shadcn/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/presentation/components/shadcn/card';
+import { Button } from '@/presentation/components/shadcn/button';
 import { Filter, Calendar, GraduationCap } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shadcn/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/presentation/components/shadcn/select';
 import { CalendarEvent, Group, Project } from '@/shared/types';
 import { FilterModal } from './FilterModal';
-import { formatDuration, normalizeToMidnight, addDaysToDate } from '@/services';
-import { useDebouncedCalculation } from '@/hooks/insights/useDebouncedCalculation';
+import { formatDuration, normalizeToMidnight, addDaysToDate } from '@/presentation/utils/dateCalculations';;
+import { useDebouncedCalculation } from '@/presentation/hooks/insights/useDebouncedCalculation';
 
 interface FilterRule {
   id: string;

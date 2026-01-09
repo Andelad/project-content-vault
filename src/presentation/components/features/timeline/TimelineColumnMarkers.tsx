@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { calculateTimelineColumnMarkerData } from '@/services';
+import { calculateTimelineColumnMarkerData } from '@/presentation/services/ProjectBarPositioning';;
 
 interface TimelineColumnMarkersProps {
   dates: Date[];

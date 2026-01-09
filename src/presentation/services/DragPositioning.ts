@@ -14,8 +14,8 @@
  * - TimelineViewportService: Animation functions
  */
 
-import { calculateDaysDeltaFromPixels, addDaysToDatePure, normalizeToMidnight, addDaysToDate } from '@/presentation/app/utils/dateCalculations';
-import { debounce, throttle, cleanupPerformanceTimers } from '@/presentation/app/utils/performance';
+import { calculateDaysDeltaFromPixels, addDaysToDatePure, normalizeToMidnight, addDaysToDate } from '@/presentation/utils/dateCalculations';
+import { debounce, throttle, cleanupPerformanceTimers } from '@/presentation/utils/performance';
 import { TimelineViewport } from './TimelineViewportService';
 
 /**

@@ -4,7 +4,7 @@
  * Provides consistent color transformations across the application
  */
 
-import { TIMELINE_ALLOCATION_STYLES, CALENDAR_EVENT_STYLES, type TimelineAllocationType, type ProjectColorScheme } from '@/presentation/app/constants/styles';
+import { TIMELINE_ALLOCATION_STYLES, CALENDAR_EVENT_STYLES, type TimelineAllocationType, type ProjectColorScheme } from '@/presentation/constants/styles';
 import type { CSSProperties } from 'react';
 
 export class ColorCalculationService {

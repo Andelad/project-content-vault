@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { AlignLeft } from 'lucide-react';
-import { useTimelineContext } from '@/contexts/TimelineContext';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/shadcn/tooltip';
+import { useTimelineContext } from '@/presentation/contexts/TimelineContext';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/presentation/components/shadcn/tooltip';
 
 interface HoverablePlannerDateCellProps {
   date: Date;

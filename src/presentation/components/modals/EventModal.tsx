@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useProjectContext } from '@/contexts/ProjectContext';
-import { useEvents } from '@/hooks/data/useEvents';
+import { useProjectContext } from '@/presentation/contexts/ProjectContext';
+import { useEvents } from '@/presentation/hooks/data/useEvents';
 import { CalendarEvent } from '@/shared/types/core';
-import { calculateDurationHours, formatDuration, addHoursToDate } from '@/services';
+import { calculateDurationHours, formatDuration, addHoursToDate } from '@/presentation/utils/dateCalculations';;
 import { calendarEventOrchestrator, type EventFormData, type EventFormErrors } from '@/application/orchestrators/CalendarEventOrchestrator';
 import { Button } from '../shadcn/button';
 import { Input } from '../shadcn/input';
@@ -11,11 +11,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Textarea } from '../shadcn/textarea';
 import { Checkbox } from '../shadcn/checkbox';
 import { Calendar as CalendarIcon, Clock, Repeat, Trash2, CheckCircle2, CalendarDays } from 'lucide-react';
-import { HABIT_ICON, TASK_ICON } from '@/presentation/app/constants/icons';
+import { HABIT_ICON, TASK_ICON } from '@/presentation/constants/icons';
 import { Switch } from '../shadcn/switch';
 import { ToggleGroup, ToggleGroupItem } from '../shadcn/toggle-group';
-import { cn } from '@/presentation/app/lib/utils';
-import { OKLCH_FALLBACK_GRAY, OKLCH_HABIT_BROWN } from '@/presentation/app/constants/colors';
+import { cn } from '@/presentation/lib/utils';
+import { OKLCH_FALLBACK_GRAY, OKLCH_HABIT_BROWN } from '@/presentation/constants/colors';
 import { RecurringDeleteDialog } from './RecurringDeleteDialog';
 import { RecurringUpdateDialog } from './RecurringUpdateDialog';
 import { StandardModal } from './StandardModal';

@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { Settings, WorkHour, WorkHourOverride, TimelineEntry } from '@/shared/types/core';
-import { useSettings as useSettingsHook } from '@/hooks/settings/useSettings';
+import { useSettings as useSettingsHook } from '@/presentation/hooks/settings/useSettings';
 import { timeTrackingOrchestrator } from '@/application/orchestrators/timeTrackingOrchestrator';
 import { supabase } from '@/infrastructure/database/client';
 import { ErrorHandlingService } from '@/infrastructure/errors/ErrorHandlingService';

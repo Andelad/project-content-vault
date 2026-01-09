@@ -2,7 +2,7 @@ import React, { useState, useEffect, ReactNode } from 'react';
 import { Card } from '../shadcn/card';
 import { Button } from '../shadcn/button';
 import { Menu, ChevronLeft } from 'lucide-react';
-import { cn } from '@/presentation/app/lib/utils';
+import { cn } from '@/presentation/lib/utils';
 
 const isBrowser = typeof window !== 'undefined';
 

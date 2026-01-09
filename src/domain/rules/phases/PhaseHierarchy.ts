@@ -21,7 +21,7 @@
  */
 
 import type { PhaseDTO } from '@/shared/types/core';
-import { normalizeToMidnight, addDaysToDate } from '@/presentation/app/utils/dateCalculations';
+import { normalizeToMidnight, addDaysToDate } from '@/presentation/utils/dateCalculations';
 
 // ============================================================================
 // HELPER FUNCTIONS (for internal use)

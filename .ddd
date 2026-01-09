@@ -1,288 +1,573 @@
-# Architecture Philosophy: Hybrid DDD
+# DDD Architecture - Project Content Vault# Architecture Philosophy: Hybrid DDD
 
-**Last Updated:** January 8, 2026  
-**Current Approach:** Hybrid Domain-Driven Design (DDD) - Three-Layer Architecture  
+
+
+**Last Updated:** January 9, 2026  **Last Updated:** January 8, 2026  
+
+**Status:** ✅ Implemented and operational**Current Approach:** Hybrid Domain-Driven Design (DDD) - Three-Layer Architecture  
+
 **Migration Status:** ✅ SUBSTANTIALLY COMPLETE - See `/docs/operations/ARCHITECTURE_REBUILD_PLAN.md`  
-**Tests:** 547 tests via Vitest (co-located in `__tests__/` directories)
 
----
+---**Tests:** 547 tests via Vitest (co-located in `__tests__/` directories)
 
-## ✅ ARCHITECTURE SIMPLIFICATION COMPLETE (January 2026)
 
-### The Problem We Solved
 
-Business logic was scattered across 5+ layers:
-- `domain/rules/` (validation)
-- `domain/domain-services/` (pure algorithms) ← **DELETED**
-- `services/unified/` (mixed logic + data) ← **DELETED**
-- `services/calculations/` (pure math) ← **DELETED**
-- `services/orchestrators/` (coordination + logic leakage)
+## Current Architecture: 4-Layer DDD---
 
-**Result:** "Where does this go?" had multiple correct answers.
 
-### The Solution: Three Clear Layers (IMPLEMENTED)
 
-```
-📐 Current Architecture (THREE LAYERS):
+```## ✅ ARCHITECTURE SIMPLIFICATION COMPLETE (January 2026)
 
-Layer 1: domain/                    ← Pure business logic (NO UI, NO DB)
-├── rules/                          ← ALL business logic (validation + calculations)
-│   ├── __tests__/                  ← 🧪 Domain rule tests (165 tests)
-│   ├── phases/                     ← Phase rules organized by concern
-│   ├── projects/                   ← Project rules
-│   ├── sync/                       ← Cross-cutting (date/budget sync)
-│   ├── events/                     ← Calendar event rules
-│   ├── availability/               ← Capacity & work hours
-│   ├── clients/                    ← Client validation
-│   ├── holidays/                   ← Holiday calculations
-│   ├── work-slots/                 ← Work slot rules
-│   ├── time-tracking/              ← Time tracker logic
-│   ├── timeline/                   ← Timeline display rules
-│   ├── integrity/                  ← Cross-entity validation
-│   └── cascade/                    ← Deletion impact rules
-├── entities/                       ← Rich domain models
-│   └── __tests__/                  ← 🧪 Entity tests (69 tests)
-└── value-objects/                  ← Immutable primitives (DateRange, etc.)
+src/
 
-Layer 2: services/                  ← Application & infrastructure services
-├── orchestrators/                  ← Workflows (coordination ONLY)
-│   └── __tests__/                  ← 🧪 Orchestrator tests (82 tests)
-├── data/                           ← Data transformation & aggregation
-│   ├── mappers/                    ← DB↔Domain translation
-│   └── aggregators/                ← Multi-table queries
-├── infrastructure/                 ← Cross-cutting technical concerns
-│   ├── ErrorHandlingService.ts
-│   ├── TimeTrackerStorage.ts
+├── domain/                         ← Pure business logic (NO UI, NO DB)### The Problem We Solved
+
+│   ├── rules/                      ← ALL business rules & calculations
+
+│   ├── entities/                   ← Rich domain modelsBusiness logic was scattered across 5+ layers:
+
+│   └── value-objects/              ← Immutable primitives (DateRange, etc.)- `domain/rules/` (validation)
+
+│- `domain/domain-services/` (pure algorithms) ← **DELETED**
+
+├── application/                    ← Use case orchestrators- `services/unified/` (mixed logic + data) ← **DELETED**
+
+│   ├── orchestrators/              ← Workflows (coordination ONLY)- `services/calculations/` (pure math) ← **DELETED**
+
+│   └── queries/                    ← Read-side queries- `services/orchestrators/` (coordination + logic leakage)
+
+│
+
+├── infrastructure/                 ← External dependencies**Result:** "Where does this go?" had multiple correct answers.
+
+│   ├── database/                   ← Supabase client
+
+│   ├── errors/                     ← Error handling### The Solution: Three Clear Layers (IMPLEMENTED)
+
 │   └── caching/                    ← Performance optimization
-└── ui/                             ← View-specific positioning & layout
-    ├── ProjectBarPositioning.ts
-    ├── TimelineViewportService.ts
-    ├── DragCoordinator.ts
-    └── CalendarLayout.ts
 
-Layer 3: components/                ← React UI (depends on services)
-├── shadcn/                         ← Design system components (shadcn/ui)
-├── features/                       ← Feature-specific components
+│```
+
+├── presentation/                   ← UI layer (React)📐 Current Architecture (THREE LAYERS):
+
+│   ├── components/                 ← React components
+
+│   ├── hooks/                      ← React hooksLayer 1: domain/                    ← Pure business logic (NO UI, NO DB)
+
+│   ├── contexts/                   ← React contexts (UI state only)├── rules/                          ← ALL business logic (validation + calculations)
+
+│   ├── constants/                  ← UI constants│   ├── __tests__/                  ← 🧪 Domain rule tests (165 tests)
+
+│   └── pages/                      ← Page components│   ├── phases/                     ← Phase rules organized by concern
+
+││   ├── projects/                   ← Project rules
+
+├── shared/                         ← Cross-cutting concerns│   ├── sync/                       ← Cross-cutting (date/budget sync)
+
+│   ├── types/                      ← TypeScript types│   ├── events/                     ← Calendar event rules
+
+│   └── assets/                     ← Static files│   ├── availability/               ← Capacity & work hours
+
+││   ├── clients/                    ← Client validation
+
+└── website/                        ← Public marketing pages (separate from app)│   ├── holidays/                   ← Holiday calculations
+
+```│   ├── work-slots/                 ← Work slot rules
+
+│   ├── time-tracking/              ← Time tracker logic
+
+---│   ├── timeline/                   ← Timeline display rules
+
+│   ├── integrity/                  ← Cross-entity validation
+
+## Layer Responsibilities│   └── cascade/                    ← Deletion impact rules
+
+├── entities/                       ← Rich domain models
+
+### Domain Layer (Pure)│   └── __tests__/                  ← 🧪 Entity tests (69 tests)
+
+**What:** Core business logic, completely isolated from UI and infrastructure.└── value-objects/                  ← Immutable primitives (DateRange, etc.)
+
+
+
+- **Rules:** ALL business logic - validation, calculations, business constraintsLayer 2: services/                  ← Application & infrastructure services
+
+  - Organized by domain concept (phases/, projects/, events/, etc.)├── orchestrators/                  ← Workflows (coordination ONLY)
+
+  - Math calculations kept inline with business rules│   └── __tests__/                  ← 🧪 Orchestrator tests (82 tests)
+
+  - Cross-cutting concerns in `sync/` (date/budget synchronization)├── data/                           ← Data transformation & aggregation
+
+  │   ├── mappers/                    ← DB↔Domain translation
+
+- **Entities:** Domain objects with identity and lifecycle│   └── aggregators/                ← Multi-table queries
+
+  - Rich behavior (not anemic data containers)├── infrastructure/                 ← Cross-cutting technical concerns
+
+  - Self-validating on construction│   ├── ErrorHandlingService.ts
+
+  │   ├── TimeTrackerStorage.ts
+
+- **Value Objects:** Immutable domain primitives│   └── caching/                    ← Performance optimization
+
+  - DateRange, EmailAddress, PhoneNumber, Color└── ui/                             ← View-specific positioning & layout
+
+  - Defined by value, not identity    ├── ProjectBarPositioning.ts
+
+    ├── TimelineViewportService.ts
+
+**Rules:**    ├── DragCoordinator.ts
+
+- ❌ NO UI references    └── CalendarLayout.ts
+
+- ❌ NO database/persistence logic
+
+- ❌ NO external dependenciesLayer 3: components/                ← React UI (depends on services)
+
+- ✅ Pure functions only├── shadcn/                         ← Design system components (shadcn/ui)
+
+- ✅ 100% testable in isolation├── features/                       ← Feature-specific components
+
 ├── views/                          ← Page-level components
-├── shared/                         ← Reusable components
+
+---├── shared/                         ← Reusable components
+
 ├── modals/                         ← Modal dialogs
-└── layout/                         ← Layout components
+
+### Application Layer (Orchestration)└── layout/                         ← Layout components
+
+**What:** Coordinates domain logic with infrastructure to fulfill use cases.
 
 Utilities & Hooks:
-├── utils/                          ← Generic helpers
-│   └── __tests__/                  ← 🧪 Utility tests (186 tests)
-└── hooks/                          ← React hooks (NOT TESTED - deferred)
-    └── insights/                   ← Performance optimization hooks
-        └── useDebouncedCalculation.ts
-```
+
+- **Orchestrators:** Implement workflows (CREATE/UPDATE/DELETE operations)├── utils/                          ← Generic helpers
+
+  - Call domain rules for validation/calculations│   └── __tests__/                  ← 🧪 Utility tests (186 tests)
+
+  - Direct database access (no repository layer)└── hooks/                          ← React hooks (NOT TESTED - deferred)
+
+  - Transform data using mappers    └── insights/                   ← Performance optimization hooks
+
+  - Coordinate side effects        └── useDebouncedCalculation.ts
+
+  ```
+
+- **Queries:** Read-side operations and data aggregation
 
 ### Key Decisions (January 7, 2026)
 
-| Decision | Status | Rationale |
-|----------|--------|-----------|
-| **Merge domain-services → rules** | ✅ DONE | Same purity, fewer folders to navigate |
-| **NO MathUtils** | ✅ DONE | Keep calculations inline with business logic |
-| **NO separate calculations layer** | ✅ DONE | Math belongs with the rules that use it |
+**Rules:**
+
+- ❌ NO business logic (goes in domain/rules/)| Decision | Status | Rationale |
+
+- ❌ NO calculations (goes in domain/rules/ inline)|----------|--------|-----------|
+
+- ✅ Call domain rules| **Merge domain-services → rules** | ✅ DONE | Same purity, fewer folders to navigate |
+
+- ✅ Direct Supabase access| **NO MathUtils** | ✅ DONE | Keep calculations inline with business logic |
+
+- ✅ Use data mappers| **NO separate calculations layer** | ✅ DONE | Math belongs with the rules that use it |
+
 | **Split unified services** | ✅ DONE | Logic → rules, data → services/data |
-| **Cross-cutting in sync/** | ✅ DONE | Explicit home for phase↔project interactions |
-| **Infrastructure in services/** | ✅ DONE | Error handling, storage, caching consolidated |
-| **UI services in services/ui/** | ✅ DONE | View positioning separate from components |
-| **Rename components/ui → shadcn** | ✅ DONE | Clear distinction from services/ui |
 
-### What Got Deleted/Moved
+**Example:**| **Cross-cutting in sync/** | ✅ DONE | Explicit home for phase↔project interactions |
 
-```
-✅ domain/domain-services/          → MERGED into domain/rules/
-✅ services/calculations/           → MERGED into domain/rules/
-✅ services/unified/                → SPLIT: logic→rules, data→services/data/
-✅ infrastructure/                  → MOVED to services/infrastructure/
-✅ ui/                              → MOVED to services/ui/
-✅ components/ui/                   → RENAMED to components/shadcn/
-```
+```typescript| **Infrastructure in services/** | ✅ DONE | Error handling, storage, caching consolidated |
 
-### Current Status
+async createProject(data: CreateProjectInput) {| **UI services in services/ui/** | ✅ DONE | View positioning separate from components |
 
-✅ **Architecture rebuild SUBSTANTIALLY COMPLETE**
+  // ✅ Domain validation| **Rename components/ui → shadcn** | ✅ DONE | Clear distinction from services/ui |
+
+  const validation = ProjectValidation.validateCreate(data);
+
+  if (!validation.isValid) return validation;### What Got Deleted/Moved
+
+  
+
+  // ✅ Direct DB access```
+
+  const { data: project } = await supabase✅ domain/domain-services/          → MERGED into domain/rules/
+
+    .from('projects')✅ services/calculations/           → MERGED into domain/rules/
+
+    .insert(data)✅ services/unified/                → SPLIT: logic→rules, data→services/data/
+
+    .select()✅ infrastructure/                  → MOVED to services/infrastructure/
+
+    .single();✅ ui/                              → MOVED to services/ui/
+
+  ✅ components/ui/                   → RENAMED to components/shadcn/
+
+  return project;```
+
+}
+
+```### Current Status
+
+
+
+---✅ **Architecture rebuild SUBSTANTIALLY COMPLETE**
+
 - Three-layer structure enforced
-- Zero naming ambiguity
-- All business logic in domain/rules/
+
+### Infrastructure Layer (External)- Zero naming ambiguity
+
+**What:** Handles external dependencies and technical concerns.- All business logic in domain/rules/
+
 - Clear separation of concerns
-- **547 tests** covering domain rules, orchestrators, utilities
 
-**Test Coverage:**
+- **Database:** Supabase client configuration- **547 tests** covering domain rules, orchestrators, utilities
+
+- **Errors:** Centralized error handling (with dependency injection)
+
+- **Caching:** Performance optimization**Test Coverage:**
+
 - Domain Rules: ~90% (165 tests)
-- Domain Entities: ~60% (69 tests)
-- Orchestrators: ~75% (82 tests)
-- Utilities: ~85% (186 tests)
-- React Hooks/Components: Deferred (not tested during active development)
 
----
+**Rules:**- Domain Entities: ~60% (69 tests)
 
-## Our Current Philosophy: Hybrid DDD
+- ❌ NO business logic- Orchestrators: ~75% (82 tests)
+
+- ❌ NO direct imports from presentation layer- Utilities: ~85% (186 tests)
+
+- ✅ Use dependency injection for UI dependencies- React Hooks/Components: Deferred (not tested during active development)
+
+
+
+------
+
+
+
+### Presentation Layer (UI)## Our Current Philosophy: Hybrid DDD
+
+**What:** React components, hooks, and UI-specific logic.
 
 ### What We Do
 
-**Pure Documentation, Pragmatic Code**
+- **Components:** React UI components
 
-We maintain **strict separation in documentation** while allowing **pragmatic mixing in code**:
+  - `shadcn/` - Design system (shadcn/ui)**Pure Documentation, Pragmatic Code**
 
-```
-📚 Documentation (Co-located with Code):
-├── /.architecture              → Overall architecture philosophy
-├── /.ddd                       → This file - Hybrid DDD evolution
-├── /src/domain/
-│   ├── App Logic.md            → Domain concepts (100% UI-agnostic)
-│   └── Business Rules.md       → Domain rules & calculations (UI-agnostic)
-├── /src/services/ui/
-│   └── Display Logic.md        → View-specific display rules & constraints
-└── /src/components/
+  - `features/` - Feature components
+
+  - `views/` - Page-level componentsWe maintain **strict separation in documentation** while allowing **pragmatic mixing in code**:
+
+  - `shared/` - Reusable components
+
+  ```
+
+- **Hooks:** React hooks for data fetching and UI logic📚 Documentation (Co-located with Code):
+
+  - `data/` - Data fetching (useEvents, useProjects)├── /.architecture              → Overall architecture philosophy
+
+  - `ui/` - UI logic hooks├── /.ddd                       → This file - Hybrid DDD evolution
+
+  ├── /src/domain/
+
+- **Contexts:** React contexts for UI state ONLY│   ├── App Logic.md            → Domain concepts (100% UI-agnostic)
+
+  - Authentication state│   └── Business Rules.md       → Domain rules & calculations (UI-agnostic)
+
+  - User preferences├── /src/services/ui/
+
+  - Selected items│   └── Display Logic.md        → View-specific display rules & constraints
+
+  - Modal open/closed state└── /src/components/
+
     └── README.md               → Component organization
 
-💻 Code (Three Layers - CURRENT STATE):
-├── domain/                     → Layer 1: Pure business logic
-│   ├── entities/               → Rich domain models ✅
-│   ├── rules/                  → ALL business logic (validation + calculations) ✅
-│   └── value-objects/          → Immutable domain primitives ✅
+**Rules:**
+
+- ❌ NO business logic (goes in domain/rules/)💻 Code (Three Layers - CURRENT STATE):
+
+- ❌ NO heavy data management in contexts├── domain/                     → Layer 1: Pure business logic
+
+- ✅ Components load their own data via hooks│   ├── entities/               → Rich domain models ✅
+
+- ✅ Components call orchestrators directly for CRUD│   ├── rules/                  → ALL business logic (validation + calculations) ✅
+
+- ✅ Contexts manage only UI state│   └── value-objects/          → Immutable domain primitives ✅
+
 ├── services/                   → Layer 2: Application & infrastructure services
-│   ├── orchestrators/          → Workflows only (NO logic) ✅
+
+---│   ├── orchestrators/          → Workflows only (NO logic) ✅
+
 │   ├── data/                   → Transformation + aggregation ✅
-│   ├── infrastructure/         → Error handling, storage, caching ✅
+
+## Key Architectural Decisions│   ├── infrastructure/         → Error handling, storage, caching ✅
+
 │   └── ui/                     → View positioning & layout ✅
-└── components/                 → Layer 3: React UI
-    ├── shadcn/                 → Design system components (shadcn/ui) ✅
+
+### 1. No Repository Layer└── components/                 → Layer 3: React UI
+
+**Why:** Supabase provides type-safe queries, RLS, and real-time subscriptions. Adding repositories would create unnecessary abstraction.    ├── shadcn/                 → Design system components (shadcn/ui) ✅
+
     ├── features/               → Feature components ✅
-    ├── views/                  → Page components ✅
-    └── shared/                 → Reusable components ✅
+
+### 2. Calculations Inline with Business Rules    ├── views/                  → Page components ✅
+
+**Why:** Math belongs with the business logic that uses it. Separating creates indirection without value.    └── shared/                 → Reusable components ✅
+
 ```
 
-**Key Principle:** Documentation lives near the code it describes.
-- All domain documentation together in `/src/domain/`
-- Component organization in `/src/components/`
-- Architecture at project root (alongside `.cursorrules`)
+### 3. Dependency Injection for Cross-Layer Dependencies
 
-### Where We Stay Pure
+**Why:** Prevents circular dependencies (e.g., ErrorHandlingService needs toast from UI).**Key Principle:** Documentation lives near the code it describes.
+
+- All domain documentation together in `/src/domain/`
+
+**Example:**- Component organization in `/src/components/`
+
+```typescript- Architecture at project root (alongside `.cursorrules`)
+
+// App.tsx - inject toast after imports resolve
+
+ErrorHandlingService.setToastFunction(toast);### Where We Stay Pure
+
+```
 
 **Domain Layer** (`domain/`) - Never compromise:
 
-1. **Entities** (`domain/entities/`) - Things with identity:
+### 4. Direct Supabase Access in Orchestrators
+
+**Why:** Pragmatic approach - avoids wrapper layer while maintaining clean separation.1. **Entities** (`domain/entities/`) - Things with identity:
+
    - ✅ Encapsulate state + behavior
-   - ✅ Validate on construction
-   - ✅ Self-contained business logic
+
+### 5. Minimal Contexts (UI State Only)   - ✅ Validate on construction
+
+**Why:** Contexts are for UI state, not data management. Components own their data needs.   - ✅ Self-contained business logic
+
    - ❌ NO UI concerns
 
-2. **Value Objects** (`domain/value-objects/`) - Primitive concepts:
-   - ✅ Immutable by design
-   - ✅ Self-validating
-   - ✅ Defined by value, not identity
-   - ✅ Examples: DateRange, EmailAddress, PhoneNumber, Color
-   - ❌ NO side effects
+---
 
-3. **Rules** (`domain/rules/`) - ALL business logic (validation + calculations):
-   - ✅ Pure business rules
+2. **Value Objects** (`domain/value-objects/`) - Primitive concepts:
+
+## Design Principles   - ✅ Immutable by design
+
+   - ✅ Self-validating
+
+### Where We Stay Pure   - ✅ Defined by value, not identity
+
+**Domain Layer** - Never compromise:   - ✅ Examples: DateRange, EmailAddress, PhoneNumber, Color
+
+- Pure functions only   - ❌ NO side effects
+
+- No side effects
+
+- No external dependencies3. **Rules** (`domain/rules/`) - ALL business logic (validation + calculations):
+
+- 100% testable in isolation   - ✅ Pure business rules
+
    - ✅ Calculations inline (no separate math utilities)
-   - ✅ Organized by concern (phases/, projects/, sync/)
-   - ❌ NO UI references ("timeline", "calendar", "view")
-   - ❌ NO persistence logic
-   - ❌ NO presentation logic
+
+### Where We're Pragmatic   - ✅ Organized by concern (phases/, projects/, sync/)
+
+**Application Layer** - Mixed responsibilities:   - ❌ NO UI references ("timeline", "calendar", "view")
+
+- Direct database access (no repository abstraction)   - ❌ NO persistence logic
+
+- Data transformation for UI (presentation prep)   - ❌ NO presentation logic
+
+- Side effect coordination
 
 ### Where We Mix (Intentionally)
 
+**Rationale:** Velocity over purity. Clear documentation + simple structure provides architectural clarity faster than full code separation.
+
 **Orchestrators** (`services/orchestrators/`) - Pragmatic glue layer:
-- ✅ Application workflows (CREATE/UPDATE/DELETE)
+
+---- ✅ Application workflows (CREATE/UPDATE/DELETE)
+
 - ✅ Call domain rules (PhaseValidation.validate(), DateSync.synchronize())
-- ✅ Direct database access (supabase.from()... - NO repository layer)
+
+## Documentation Structure- ✅ Direct database access (supabase.from()... - NO repository layer)
+
 - ✅ Use data mappers for transformation
-- ✅ Enrich for UI display (presentation prep)
+
+Documentation lives near the code it describes:- ✅ Enrich for UI display (presentation prep)
+
 - ✅ Coordinate side effects (notifications, updates)
-- ❌ NO business logic (goes in domain/rules/)
-- ❌ NO calculations (goes in domain/rules/ inline)
 
-**Example:**
-```typescript
-async createProject(data: CreateProjectInput) {
-  // ✅ Call domain rules (validation + calculations)
-  const validation = ProjectValidation.validateCreate(data);
-  if (!validation.isValid) return validation;
-  
-  // ✅ Use data mapper for DB transformation
+```- ❌ NO business logic (goes in domain/rules/)
+
+/- ❌ NO calculations (goes in domain/rules/ inline)
+
+├── .ddd                            ← This file - Architecture overview
+
+├── src/domain/**Example:**
+
+│   ├── App Logic.md                ← Domain concepts (UI-agnostic)```typescript
+
+│   └── Business Rules.md           ← Domain rules & calculationsasync createProject(data: CreateProjectInput) {
+
+├── src/presentation/components/  // ✅ Call domain rules (validation + calculations)
+
+│   └── README.md                   ← Component organization  const validation = ProjectValidation.validateCreate(data);
+
+└── docs/operations/  if (!validation.isValid) return validation;
+
+    └── ARCHITECTURE_*.md           ← Detailed architecture plans  
+
+```  // ✅ Use data mapper for DB transformation
+
   const dbData = ProjectMapper.toDatabase(data);
-  
-  // ✅ Direct DB access (no repository layer)
-  const { data: project } = await supabase.from('projects').insert(dbData).select().single();
-  
+
+**Three-Layer Documentation Model:**  
+
+1. **App Logic** - WHAT exists (domain truth)  // ✅ Direct DB access (no repository layer)
+
+2. **Business Rules** - HOW calculations work (domain rules)  const { data: project } = await supabase.from('projects').insert(dbData).select().single();
+
+3. **Display Logic** - WHERE display constraints apply (UI layer)  
+
   // ✅ Use data mapper for UI transformation
-  return ProjectMapper.fromDatabase(project);
+
+---  return ProjectMapper.fromDatabase(project);
+
 }
-```
 
-### Why Hybrid?
+## Testing Strategy```
 
-**Velocity vs Purity Trade-off:**
 
-| Aspect | Strict DDD | Hybrid DDD (Our Choice) |
-|--------|-----------|-------------------------|
+
+**Test Coverage:**### Why Hybrid?
+
+- Domain Rules: ~90% (165 tests)
+
+- Domain Entities: ~60% (69 tests)**Velocity vs Purity Trade-off:**
+
+- Orchestrators: ~75% (82 tests)
+
+- Utilities: ~85% (186 tests)| Aspect | Strict DDD | Hybrid DDD (Our Choice) |
+
+- Total: 547 tests via Vitest|--------|-----------|-------------------------|
+
 | **Layer Separation** | 100% code separation | Pure domain, mixed orchestrators |
-| **Repository Layer** | Required abstraction | Direct Supabase calls |
-| **Entity Usage** | Everywhere | Domain layer only |
-| **Development Speed** | Slower (more abstraction) | Faster (pragmatic) |
-| **Maintenance Clarity** | Code self-documents | Documentation self-documents |
+
+**Philosophy:**| **Repository Layer** | Required abstraction | Direct Supabase calls |
+
+- Tests co-located in `__tests__/` directories| **Entity Usage** | Everywhere | Domain layer only |
+
+- Focus on domain layer (pure, critical business logic)| **Development Speed** | Slower (more abstraction) | Faster (pragmatic) |
+
+- Orchestrators tested for workflows| **Maintenance Clarity** | Code self-documents | Documentation self-documents |
+
+- React hooks/components: Deferred during active development
 
 **Our Bet:** Clear documentation + simple three-layer structure provides architectural clarity faster than full code separation.
 
 ---
 
+---
+
+## Migration History
+
 ## Value Objects (Added December 2025)
 
-### What Are Value Objects?
+### January 2026: DDD 4-Layer Architecture
 
-**Value Objects** represent primitive domain concepts that:
-- Are **immutable** (cannot change after creation)
-- Are defined by their **value**, not identity (two DateRanges with same dates are equal)
+- ✅ Separated /website from /app infrastructure### What Are Value Objects?
+
+- ✅ Flattened /presentation layer (removed redundant /app subdirectory)
+
+- ✅ Established clear 4-layer structure (domain, application, infrastructure, presentation)**Value Objects** represent primitive domain concepts that:
+
+- ✅ Fixed circular dependencies using dependency injection- Are **immutable** (cannot change after creation)
+
+- ✅ Updated all path aliases and imports- Are defined by their **value**, not identity (two DateRanges with same dates are equal)
+
 - Are **self-validating** (cannot exist in invalid state)
-- Have **no side effects** (pure logic only)
 
-### Why Value Objects?
+### December 2025: Three-Layer Simplification- Have **no side effects** (pure logic only)
 
-**Before Value Objects:**
-```typescript
+- ✅ Merged domain-services → domain/rules/
+
+- ✅ Merged services/calculations/ → domain/rules/ (inline)### Why Value Objects?
+
+- ✅ Split services/unified/ → domain/rules/ + application/queries/
+
+- ✅ Consolidated infrastructure services**Before Value Objects:**
+
+- ✅ Renamed components/ui → components/shadcn/```typescript
+
 // ❌ Duplicate validation everywhere
-class Project {
+
+**Result:** Clear hierarchy with ONE answer to "where does this go?"class Project {
+
   create(params) {
-    if (params.startDate >= params.endDate) {
+
+---    if (params.startDate >= params.endDate) {
+
       return { success: false, errors: ['End must be after start'] };
-    }
+
+## Quick Reference    }
+
     // ... 150 lines of date range validation duplicated across entities
-  }
+
+**"Where does this code go?"**  }
+
 }
 
-class Phase {
-  create(params) {
-    if (params.startDate >= params.endDate) { // Duplicate!
-      return { success: false, errors: ['End must be after start'] };
-    }
-  }
-}
-```
+| Code Type | Location | Example |
 
-**After Value Objects:**
-```typescript
-// ✅ Validation in one place
-class DateRange {
+|-----------|----------|---------|class Phase {
+
+| Business validation | `domain/rules/` | Phase date range validation |  create(params) {
+
+| Business calculation | `domain/rules/` | Budget allocation math |    if (params.startDate >= params.endDate) { // Duplicate!
+
+| Domain model | `domain/entities/` | Project, Phase, Event |      return { success: false, errors: ['End must be after start'] };
+
+| Immutable primitive | `domain/value-objects/` | DateRange, EmailAddress |    }
+
+| Workflow/CRUD | `application/orchestrators/` | createProject, updatePhase |  }
+
+| Data query | `application/queries/` | getProjectsWithPhases |}
+
+| Database client | `infrastructure/database/` | Supabase configuration |```
+
+| Error handling | `infrastructure/errors/` | ErrorHandlingService |
+
+| React component | `presentation/components/` | ProjectCard, EventModal |**After Value Objects:**
+
+| React hook | `presentation/hooks/` | useEvents, useProjects |```typescript
+
+| UI state | `presentation/contexts/` | AuthContext, SettingsContext |// ✅ Validation in one place
+
+| Shared type | `shared/types/` | Project, Phase interfaces |class DateRange {
+
   static create(start: Date, end: Date): DomainResult<DateRange> {
-    if (start >= end) {
-      return { success: false, errors: ['End must be after start'] };
-    }
-    return { success: true, data: new DateRange(start, end) };
-  }
-  
-  overlaps(other: DateRange): boolean { /* ... */ }
-  getDurationInDays(): number { /* ... */ }
-}
 
-// Entities use value objects
-class Project {
+---    if (start >= end) {
+
+      return { success: false, errors: ['End must be after start'] };
+
+## Bottom Line    }
+
+    return { success: true, data: new DateRange(start, end) };
+
+**Current State:** Clean 4-layer DDD architecture with pragmatic trade-offs:  }
+
+- Pure domain layer (business logic isolated)  
+
+- Application layer (workflows via orchestrators)  overlaps(other: DateRange): boolean { /* ... */ }
+
+- Infrastructure layer (external dependencies)  getDurationInDays(): number { /* ... */ }
+
+- Presentation layer (React UI)}
+
+- Direct Supabase access (no repository abstraction)
+
+- Minimal contexts (UI state only)// Entities use value objects
+
+- Documentation co-located with codeclass Project {
+
   private _dateRange: DateRange;
-  
+
+**Philosophy:** Pragmatic DDD - strict separation in domain, pragmatic mixing in application layer, clear documentation throughout.  
+
   static create(params) {
     const rangeResult = DateRange.create(params.startDate, params.endDate);
     if (!rangeResult.success) return rangeResult;

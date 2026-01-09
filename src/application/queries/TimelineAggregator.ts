@@ -16,52 +16,26 @@
  * - Pure data aggregation and transformation only
  */
 import { PhaseOrchestrator } from '@/application/orchestrators/PhaseOrchestrator';
-import { normalizeToMidnight } from '@/presentation/app/utils/dateCalculations';
-import { ColorCalculationService } from '@/presentation/app/services/ColorCalculations';
+import { normalizeToMidnight } from '@/presentation/utils/dateCalculations';
+import { ColorCalculationService } from '@/presentation/services/ColorCalculations';
 import { 
   calculateBaselineVisualOffsets,
   calculateVisualProjectDates,
   getTimelinePositions,
   calculateTimelineColumnMarkerData
-} from '@/presentation/app/services/ProjectBarPositioning';
+} from '@/presentation/services/ProjectBarPositioning';
 
-import { 
-  calculateProjectDuration,
-  calculateProjectDays,
-  calculateMilestoneSegments,
-  generateWorkHoursForDate,
-  calculateLegacyProjectMetrics,
-  createWorkingDayChecker,
-  calculateAvailabilityReduction,
-  calculateOvertimePlannedHours,
-  calculateTotalPlannedHours,
-  calculateOtherTime,
-  calculateProjectWorkingDays,
-  getProjectTimeAllocation,
-  calculateWorkHoursTotal,
-  expandHolidayDates,
-  calculateHabitTimeWithinWorkSlots,
-  calculatePlannedTimeNotOverlappingHabits,
-  calculateNetAvailability,
-  calculateAutoEstimateHoursPerDay,
-  calculateAutoEstimateWorkingDays,
-  isHolidayDateCapacity,
-  // NEW: Import proper date calculation functions
-  isToday,
-  isTodayInWeek,
-  isWeekendDate,
-  formatWeekDateRange,
-  groupDatesByMonth,
-  getDayOfWeek,
-  getDayName,
-  generateDateRange,
-  isDateInArray,
-  // NEW: Import calculateProjectDayEstimates
-  calculateProjectDayEstimates,
-  // Import isWorkingDay from dateCalculations (authoritative source)
-  isWorkingDay as isWorkingDayDateCalc
-} from '@/services';
-import { getDateKey } from '@/presentation/app/utils/dateFormatUtils';
+import { calculateProjectDuration, calculateProjectTimeMetrics } from '@/domain/rules/projects/ProjectMetrics';
+import { calculateMilestoneSegments, calculateProjectWorkingDays } from '@/domain/rules/phases/PhaseCalculations';
+import { calculateProjectDays } from '@/presentation/services/ProjectBarPositioning';
+import { generateWorkHoursForDate, getProjectTimeAllocation, calculateAvailabilityReduction } from '@/domain/rules/availability/EventWorkHourIntegration';
+import { calculateWorkHoursTotal } from '@/domain/rules/availability/WorkHourGeneration';
+import { calculateHabitTimeWithinWorkSlots, calculatePlannedTimeNotOverlappingHabits, calculateNetAvailability, isHolidayDateCapacity, calculateOvertimePlannedHours, calculateTotalPlannedHours, calculateOtherTime } from '@/domain/rules/availability/CapacityAnalysis';
+import { expandHolidayDates } from '@/domain/rules/holidays/HolidayCalculations';
+import { calculateAutoEstimateHoursPerDay, calculateAutoEstimateWorkingDays } from '@/domain/rules/projects/ProjectBudget';
+import { isToday, isTodayInWeek, isWeekendDate, formatWeekDateRange, groupDatesByMonth, getDayOfWeek, getDayName, generateDateRange, isDateInArray, isWorkingDay as isWorkingDayDateCalc } from '@/presentation/utils/dateCalculations';
+import { calculateProjectDayEstimates } from '@/domain/rules/projects/DayEstimate';
+import { getDateKey } from '@/presentation/utils/dateFormatUtils';
 // Import timeline row calculations
 import { 
   calculateTimelineRows as calculateTimelineRowsCalc,
@@ -77,8 +51,8 @@ import {
 // Import WorkHourLike type
 import type { WorkHourLike } from '@/domain/rules/availability/WorkHourGeneration';
 import type { Project, PhaseDTO, DayEstimate, Settings, Holiday, CalendarEvent, WorkHour } from '@/shared/types/core';
-import type { TimelinePositionCalculation } from '@/presentation/app/services/ProjectBarPositioning';
-import type { DragState } from '@/presentation/app/services/DragPositioning';
+import type { TimelinePositionCalculation } from '@/presentation/services/ProjectBarPositioning';
+import type { DragState } from '@/presentation/services/DragPositioning';
 import { ErrorHandlingService } from '@/infrastructure/errors/ErrorHandlingService';
 export interface TimelineProjectData {
   project: Project;
@@ -230,7 +204,7 @@ export class TimelineAggregator {
       createdAt: new Date(),
       updatedAt: new Date()
     };
-    return calculateLegacyProjectMetrics(
+    return calculateProjectTimeMetrics(
       normalizedProject,
       [], // empty events array
       holidays,
@@ -288,13 +262,9 @@ export class TimelineAggregator {
       };
     }
   }
-  /**
-   * Get cached working day checker
-   * Delegates to existing service
-   */
-  static getCachedWorkingDayChecker(weeklyWorkHours: Settings['weeklyWorkHours'] | undefined, holidays: Holiday[]) {
-    return createWorkingDayChecker(weeklyWorkHours, holidays);
-  }
+  
+  // REMOVED: getCachedWorkingDayChecker - function no longer exists in codebase
+  
   /**
    * Get timeline positions
    * Delegates to existing service
@@ -448,8 +418,8 @@ export class TimelineAggregator {
         : isDragging
           ? this.calculateVisualProjectDates(project, isDragging, dragState)
           : null,
-      // Working day checker - use provided one or fall back to calling the hook (for backwards compatibility)
-      isWorkingDay: isWorkingDayChecker || this.getCachedWorkingDayChecker(settings.weeklyWorkHours, holidays)
+      // Working day checker - use provided one (createWorkingDayChecker removed from codebase)
+      isWorkingDay: isWorkingDayChecker || null
     };
   }
   // ============================================================================

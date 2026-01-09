@@ -6,7 +6,7 @@
  */
 
 import type { Project, PhaseDTO, CalendarEvent, Settings, Holiday, DayEstimate } from '@/shared/types/core';
-import { getDateKey } from '@/presentation/app/utils/dateFormatUtils';
+import { getDateKey } from '@/presentation/utils/dateFormatUtils';
 import { 
   calculateProjectDayEstimates,
   isWorkingDayForEstimates as isWorkingDay

@@ -3,7 +3,7 @@
  * Automatically converts old project colors to the new uniform palette
  */
 
-import { OKLCH_PROJECT_COLORS } from '@/presentation/app/constants/colors';
+import { OKLCH_PROJECT_COLORS } from '@/presentation/constants/colors';
 
 type ProjectPaletteColor = (typeof OKLCH_PROJECT_COLORS)[number];
 

@@ -1,9 +1,9 @@
 import React, { Suspense, useState, useEffect } from 'react';
 import { Sidebar } from './Sidebar';
 import { AppHeader } from './AppHeader';
-import { useTimelineContext } from '@/contexts/TimelineContext';
-import { useSettingsContext } from '@/contexts/SettingsContext';
-import { useFavicon } from '@/hooks/ui/useFavicon';
+import { useTimelineContext } from '@/presentation/contexts/TimelineContext';
+import { useSettingsContext } from '@/presentation/contexts/SettingsContext';
+import { useFavicon } from '@/presentation/hooks/ui/useFavicon';
 
 // Lazy load views for better performance
 const PlannerView = React.lazy(() => import('../views/PlannerView').then(module => ({ default: module.PlannerView })));

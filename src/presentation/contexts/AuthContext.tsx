@@ -34,21 +34,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return undefined;
     }
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, authSession) => {
-        setSession(authSession);
-        setUser(authSession?.user ?? null);
+    try {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        (_event, authSession) => {
+          setSession(authSession);
+          setUser(authSession?.user ?? null);
+          setLoading(false);
+        }
+      );
+
+      supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
+        setSession(existingSession);
+        setUser(existingSession?.user ?? null);
         setLoading(false);
-      }
-    );
+      });
 
-    supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
-      setSession(existingSession);
-      setUser(existingSession?.user ?? null);
+      return () => {
+        subscription.unsubscribe();
+      };
+    } catch (error) {
+      console.error('❌ AuthProvider: Error during initialization:', error);
       setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+      throw error;
+    }
   }, []);
 
   const signIn = async (email: string, password: string) => {
@@ -86,6 +94,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await supabase.auth.signOut();
     window.location.href = '/';
   };
+  
   if (!isSupabaseConfigured) {
     return <SupabaseConfigError errorMessage={supabaseConfigError} />;
   }

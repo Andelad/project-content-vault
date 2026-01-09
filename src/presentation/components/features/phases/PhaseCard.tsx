@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 import { Trash2, Calendar as CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
-import { Input } from '@/components/shadcn/input';
-import { Button } from '@/components/shadcn/button';
-import { Label } from '@/components/shadcn/label';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/shadcn/popover';
-import { Calendar } from '@/components/shadcn/calendar';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/shadcn/tooltip';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/shadcn/alert-dialog';
+import { Input } from '@/presentation/components/shadcn/input';
+import { Button } from '@/presentation/components/shadcn/button';
+import { Label } from '@/presentation/components/shadcn/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/presentation/components/shadcn/popover';
+import { Calendar } from '@/presentation/components/shadcn/calendar';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/presentation/components/shadcn/tooltip';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/presentation/components/shadcn/alert-dialog';
 import type { PhaseDTO } from '@/shared/types/core';
-import type { LocalPhase } from '@/hooks/phase';
+import type { LocalPhase } from '@/presentation/hooks/phase';
 
 interface PhaseCardProps {
   phase: PhaseDTO | LocalPhase;

@@ -4,20 +4,15 @@ import { Popover, PopoverContent, PopoverTrigger } from '../shadcn/popover';
 import { Button } from '../shadcn/button';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '../shadcn/tooltip';
 import { Card } from '../shadcn/card';
-import { useEvents } from '@/hooks/data/useEvents';
-import { useHolidays } from '@/hooks/data/useHolidays';
-import { 
-  formatDuration,
-  generateWorkHoursForDate,
-  calculateWorkHoursTotal,
-  calculateHabitTimeWithinWorkSlots,
-  calculatePlannedTimeNotOverlappingHabits,
-  calculateDailyProjectHours,
-  calculateTotalPlannedHours,
-  calculateOtherTime
-} from '@/services';
-import { formatWeekdayDate, formatDateShort, formatWeekRange } from '@/presentation/app/utils/dateFormatUtils';
-import { NEUTRAL_COLORS } from '@/presentation/app/constants/colors';
+import { useEvents } from '@/presentation/hooks/data/useEvents';
+import { useHolidays } from '@/presentation/hooks/data/useHolidays';
+import { formatDuration } from '@/presentation/utils/dateCalculations';
+import { generateWorkHoursForDate } from '@/domain/rules/availability/EventWorkHourIntegration';
+import { calculateWorkHoursTotal } from '@/domain/rules/availability/WorkHourGeneration';
+import { calculateHabitTimeWithinWorkSlots, calculatePlannedTimeNotOverlappingHabits, calculateTotalPlannedHours, calculateOtherTime } from '@/domain/rules/availability/CapacityAnalysis';
+import { calculateDailyProjectHours } from '@/domain/rules/availability/DailyMetrics';;
+import { formatWeekdayDate, formatDateShort, formatWeekRange } from '@/presentation/utils/dateFormatUtils';
+import { NEUTRAL_COLORS } from '@/presentation/constants/colors';
 import type { Project, Settings, PhaseDTO, CalendarEvent, Holiday } from '@/shared/types/core';
 import { TabComponent } from './TabComponent';
 import { AvailabilityCardSettingsButton } from './AvailabilityCardSettingsButton';

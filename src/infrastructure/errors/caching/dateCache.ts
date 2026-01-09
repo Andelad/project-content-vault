@@ -9,7 +9,7 @@
  * ✅ Can be mocked for testing
  */
 
-import * as DateCalculations from '@/presentation/app/utils/dateCalculations';
+import * as DateCalculations from '@/presentation/utils/dateCalculations';
 import type { Holiday, Settings, WorkSlot } from '@/shared/types/core';
 
 interface CacheStats {

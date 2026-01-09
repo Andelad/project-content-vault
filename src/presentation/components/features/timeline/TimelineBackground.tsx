@@ -1,6 +1,7 @@
 import React, { memo } from 'react';
-import { normalizeToMidnight, addDaysToDate, calculateTimelineColumnMarkerData } from '@/services';
-import { NEUTRAL_COLORS } from '@/presentation/app/constants/colors';
+import { normalizeToMidnight, addDaysToDate } from '@/presentation/utils/dateCalculations';
+import { calculateTimelineColumnMarkerData } from '@/presentation/services/ProjectBarPositioning';;
+import { NEUTRAL_COLORS } from '@/presentation/constants/colors';
 
 interface TimelineBackgroundProps {
   dates: Date[];

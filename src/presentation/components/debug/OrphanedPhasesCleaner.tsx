@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Button } from '@/components/shadcn/button';
-import { useToast } from '@/hooks/ui/use-toast';
+import { Button } from '@/presentation/components/shadcn/button';
+import { useToast } from '@/presentation/hooks/ui/use-toast';
 import { supabase } from '@/infrastructure/database/client';
 import { AlertTriangle, Trash2 } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/shadcn/card';
-import { useProjectContext } from '@/contexts/ProjectContext';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/presentation/components/shadcn/card';
+import { useProjectContext } from '@/presentation/contexts/ProjectContext';
 export function OrphanedPhasesCleaner() {
   const [isScanning, setIsScanning] = useState(false);
   const [isCleaning, setIsCleaning] = useState(false);

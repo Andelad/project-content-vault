@@ -27,7 +27,7 @@
  */
 
 import { Holiday, PhaseDTO, Settings } from '@/shared/types/core';
-import * as DateCalculations from '@/presentation/app/utils/dateCalculations';
+import * as DateCalculations from '@/presentation/utils/dateCalculations';
 import { PhaseRecurrenceService, RecurringPhaseConfig as DomainRecurringConfig, RecurringOccurrenceParams } from '@/domain/rules/phases/PhaseRecurrence';
 
 /**

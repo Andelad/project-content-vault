@@ -2,7 +2,7 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogTitle } from '../shadcn/dialog';
 import { Button } from '../shadcn/button';
-import { cn } from '@/presentation/app/lib/utils';
+import { cn } from '@/presentation/lib/utils';
 
 /**
  * StandardModal - Consistent modal component with fixed bottom action bar

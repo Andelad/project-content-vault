@@ -1,17 +1,23 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './presentation/app/contexts/AuthContext';
-import { ContextProviders } from './presentation/app/contexts/ContextProviders';
-import { Toaster } from './presentation/app/components/shadcn/toaster';
-import { ErrorBoundary } from './presentation/app/components/debug/ErrorBoundary';
+import { AuthProvider, useAuth } from './presentation/contexts/AuthContext';
+import { ContextProviders } from './presentation/contexts/ContextProviders';
+import { Toaster } from './presentation/components/shadcn/toaster';
+import { ErrorBoundary } from './presentation/components/debug/ErrorBoundary';
+import { ErrorHandlingService } from './infrastructure/errors/ErrorHandlingService';
+import { toast } from './presentation/hooks/ui/use-toast';
+
+// Initialize ErrorHandlingService with toast function to avoid circular dependencies
+ErrorHandlingService.setToastFunction(toast);
 
 // Pages
-import LandingPage from './presentation/website/pages/LandingPage';
-import Auth from './presentation/website/pages/Auth';
-import NotFound from './presentation/website/pages/NotFound';
+import LandingPage from './website/pages/LandingPage';
+import Auth from './website/pages/Auth';
+import NotFound from './website/pages/NotFound';
 
 // Layout
-import { MainAppLayout } from './presentation/app/components/layout/MainAppLayout';
+import { MainAppLayout } from './presentation/components/layout/MainAppLayout';
+
 
 function AppContent() {
   const { user, loading } = useAuth();

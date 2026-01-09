@@ -1,17 +1,17 @@
 import React, { useState, useRef } from 'react';
-import { Button } from '@/components/shadcn/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/shadcn/card';
-import { Label } from '@/components/shadcn/label';
-import { Input } from '@/components/shadcn/input';
-import { Progress } from '@/components/shadcn/progress';
-import { Alert, AlertDescription } from '@/components/shadcn/alert';
-import { Badge } from '@/components/shadcn/badge';
-import { Separator } from '@/components/shadcn/separator';
+import { Button } from '@/presentation/components/shadcn/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/presentation/components/shadcn/card';
+import { Label } from '@/presentation/components/shadcn/label';
+import { Input } from '@/presentation/components/shadcn/input';
+import { Progress } from '@/presentation/components/shadcn/progress';
+import { Alert, AlertDescription } from '@/presentation/components/shadcn/alert';
+import { Badge } from '@/presentation/components/shadcn/badge';
+import { Separator } from '@/presentation/components/shadcn/separator';
 import { Upload, Calendar, CheckCircle, XCircle, Clock, FileText } from 'lucide-react';
-import { parseICalFile, type ImportResult } from '@/services';
+import { parseICalFile, type ImportResult } from '@/application/queries/imports/calendarImport';
 import { CalendarImportOrchestrator } from '@/application/orchestrators/CalendarImportOrchestrator';
-import { useCalendarConnections } from '@/hooks/calendar/useCalendarConnections';
-import { useToast } from '@/hooks/ui/use-toast';
+import { useCalendarConnections } from '@/presentation/hooks/calendar/useCalendarConnections';
+import { useToast } from '@/presentation/hooks/ui/use-toast';
 import { ErrorHandlingService } from '@/infrastructure/errors/ErrorHandlingService';
 
 export function CalendarImport() {

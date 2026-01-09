@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { Trash2, RefreshCw } from 'lucide-react';
-import { Input } from '@/components/shadcn/input';
-import { Button } from '@/components/shadcn/button';
-import { Label } from '@/components/shadcn/label';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/shadcn/alert-dialog';
-import { getDayName, getOrdinalNumber, getWeekOfMonthName } from '@/presentation/app/utils/dateFormatUtils';
-import type { RecurringPhase } from '@/hooks/phase';
+import { Input } from '@/presentation/components/shadcn/input';
+import { Button } from '@/presentation/components/shadcn/button';
+import { Label } from '@/presentation/components/shadcn/label';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/presentation/components/shadcn/alert-dialog';
+import { getDayName, getOrdinalNumber, getWeekOfMonthName } from '@/presentation/utils/dateFormatUtils';
+import type { RecurringPhase } from '@/presentation/hooks/phase';
 
 interface RecurringPhaseCardProps {
   recurringMilestone: RecurringPhase;

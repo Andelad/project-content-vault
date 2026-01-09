@@ -1,13 +1,10 @@
 import React, { useMemo, useEffect, useState } from 'react';
 import moment from 'moment';
-import { Card } from '@/components/shadcn/card';
+import { Card } from '@/presentation/components/shadcn/card';
 import { CalendarEvent } from '@/shared/types';
-import { useSettingsContext } from '@/contexts/SettingsContext';
-import { calculateEventDurationOnDate, aggregateEventDurationsByDate } from '@/services';
-import { formatDuration } from '@/services';
-// Keep the original import for now to avoid breaking changes
-import { calculateEventDurationOnDateLegacy as originalCalculateEventDurationOnDate } from '@/services';
-import { calculateDurationMinutes } from '@/services';
+import { useSettingsContext } from '@/presentation/contexts/SettingsContext';
+import { calculateEventDurationOnDate, aggregateEventDurationsByDate } from '@/domain/rules/events/EventCalculations';
+import { formatDuration, calculateDurationMinutes } from '@/presentation/utils/dateCalculations';
 
 interface CalendarInsightCardProps {
   dates: Date[];
@@ -49,7 +46,7 @@ export function PlannerInsightCard({ dates, events, view }: CalendarInsightCardP
       // Add completed events for this day using proper midnight-crossing calculation
       events.forEach(event => {
         if (event.completed) {
-          const durationHours = originalCalculateEventDurationOnDate(event, date);
+          const durationHours = calculateEventDurationOnDate({ event, targetDate: date });
           if (durationHours > 0) {
             // Convert to minutes and round to avoid decimal minutes
             // Use the already-calculated durationHours which is specific to this date
@@ -61,7 +58,7 @@ export function PlannerInsightCard({ dates, events, view }: CalendarInsightCardP
       
       // Add currently tracking time if it's for this date
       if (isTimeTracking && currentTrackingEvent) {
-        const trackingDurationHours = originalCalculateEventDurationOnDate(currentTrackingEvent, date);
+        const trackingDurationHours = calculateEventDurationOnDate({ event: currentTrackingEvent, targetDate: date });
         if (trackingDurationHours > 0) {
           // For tracking events, add the live duration
           const trackingStart = moment(currentTrackingEvent.startTime);

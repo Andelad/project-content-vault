@@ -6,14 +6,14 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/shadcn/dialog';
-import { Button } from '@/components/shadcn/button';
-import { Input } from '@/components/shadcn/input';
-import { Checkbox } from '@/components/shadcn/checkbox';
-import { Badge } from '@/components/shadcn/badge';
+} from '@/presentation/components/shadcn/dialog';
+import { Button } from '@/presentation/components/shadcn/button';
+import { Input } from '@/presentation/components/shadcn/input';
+import { Checkbox } from '@/presentation/components/shadcn/checkbox';
+import { Badge } from '@/presentation/components/shadcn/badge';
 import { Search, X, Folder, FileText } from 'lucide-react';
 import { Group, Project } from '@/shared/types';
-import { ScrollArea } from '@/components/shadcn/scroll-area';
+import { ScrollArea } from '@/presentation/components/shadcn/scroll-area';
 
 interface FilterRule {
   id: string;

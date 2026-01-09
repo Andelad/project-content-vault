@@ -1,11 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { Search, Building2, Mail, Phone, MapPin, FileText } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/shadcn/card';
-import { Badge } from '@/components/shadcn/badge';
-import { ClientModal } from '@/components/modals/ClientModal';
-import { useClients } from '@/hooks/data/useClients';
-import { useProjectContext } from '@/contexts/ProjectContext';
-import { normalizeToMidnight } from '@/services';
+import { Card, CardContent, CardHeader, CardTitle } from '@/presentation/components/shadcn/card';
+import { Badge } from '@/presentation/components/shadcn/badge';
+import { ClientModal } from '@/presentation/components/modals/ClientModal';
+import { useClients } from '@/presentation/hooks/data/useClients';
+import { useProjectContext } from '@/presentation/contexts/ProjectContext';
+import { normalizeToMidnight } from '@/presentation/utils/dateCalculations';;
 
 type ClientStatusFilter = 'all' | 'active' | 'archived';
 

@@ -24,17 +24,18 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@/assets/*": ["./src/assets/*"],
-      "@/components/*": ["./src/react/components/*"],
-      "@/constants/*": ["./src/constants/*"], 
-      "@/contexts/*": ["./src/react/contexts/*"],
-      "@/hooks/*": ["./src/react/hooks/*"],
-      "@/lib/*": ["./src/lib/*"],
-      "@/services/*": ["./src/services/*"],
-      "@/types/*": ["./src/types/*"],
-      "@/utils/*": ["./src/utils/*"],
-      "@/integrations/*": ["./src/integrations/*"],
-      "@/pages/*": ["./src/pages/*"]
+      "@/domain/*": ["./src/domain/*"],
+      "@/application/*": ["./src/application/*"],
+      "@/infrastructure/*": ["./src/infrastructure/*"],
+      "@/presentation/*": ["./src/presentation/*"],
+      "@/shared/*": ["./src/shared/*"],
+      "@/components/*": ["./src/presentation/components/*"],
+      "@/contexts/*": ["./src/presentation/contexts/*"],
+      "@/hooks/*": ["./src/presentation/hooks/*"],
+      "@/utils/*": ["./src/presentation/utils/*"],
+      "@/lib/*": ["./src/presentation/lib/*"],
+      "@/constants/*": ["./src/presentation/constants/*"],
+      "@/pages/*": ["./src/website/pages/*"]
     }
   },
   "include": ["src"]

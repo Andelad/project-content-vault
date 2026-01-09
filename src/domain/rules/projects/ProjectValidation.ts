@@ -11,7 +11,7 @@
  */
 
 import type { Project, PhaseDTO } from '@/shared/types/core';
-import { normalizeToMidnight } from '@/services';
+import { normalizeToMidnight } from '@/presentation/utils/dateCalculations';;
 
 // ============================================================================
 // TYPE DEFINITIONS

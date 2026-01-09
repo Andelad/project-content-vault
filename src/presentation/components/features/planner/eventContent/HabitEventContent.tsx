@@ -5,7 +5,7 @@
  * Shows croissant icon, title, and time range (adaptive based on height).
  */
 
-import { formatTimeForValidation } from '@/services';
+import { formatTimeForValidation } from '@/presentation/utils/timeCalculations';;
 import { Croissant } from 'lucide-react';
 
 interface HabitEventContentProps {

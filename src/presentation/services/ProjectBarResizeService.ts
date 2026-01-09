@@ -8,7 +8,7 @@
  * Created: November 2025
  */
 
-import { normalizeToMidnight, addDaysToDate } from '@/services';
+import { normalizeToMidnight, addDaysToDate } from '@/presentation/utils/dateCalculations';
 import type { Project } from '@/shared/types/core';
 import type { DayEstimate } from '@/shared/types/core';
 

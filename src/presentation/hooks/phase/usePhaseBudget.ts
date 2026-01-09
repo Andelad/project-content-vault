@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Phase, Project } from '@/shared/types/core';
-import { ProjectOrchestrator, calculateRecurringTotalAllocation } from '@/services';
+import { ProjectOrchestrator } from '@/application/orchestrators/ProjectOrchestrator';
+import { calculateRecurringTotalAllocation } from '@/domain/rules/phases/PhaseCalculations';;
 import type { LocalPhase } from './usePhaseOperations';
 
 interface RecurringPhase {

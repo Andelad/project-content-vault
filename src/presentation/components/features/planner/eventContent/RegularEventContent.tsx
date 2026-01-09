@@ -5,7 +5,7 @@
  * Adaptive layout: shows time, description, and project based on available height.
  */
 
-import { formatTimeForValidation } from '@/services';
+import { formatTimeForValidation } from '@/presentation/utils/timeCalculations';;
 import { Check, Circle, CircleCheck } from 'lucide-react';
 
 interface RegularEventContentProps {

@@ -3,8 +3,8 @@
  * Handles all viewport positioning, navigation, and animation calculations for timeline views
  * Migrated from legacy/timeline/timelineViewportService.ts
  */
-import { formatDateRange } from '@/presentation/app/utils/dateFormatUtils';
-import { normalizeToMidnight, addDaysToDate } from '@/services';
+import { formatDateRange } from '@/presentation/utils/dateFormatUtils';
+import { normalizeToMidnight, addDaysToDate } from '@/presentation/utils/dateCalculations';
 import type { Project } from '@/shared/types/core';
 // Types for viewport operations
 export interface ViewportPosition {

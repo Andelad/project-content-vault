@@ -7,10 +7,10 @@
 import { 
   calculateDurationHours as coreCalculateDurationHours,
   normalizeToMidnight
-} from '@/presentation/app/utils/dateCalculations';
+} from '@/presentation/utils/dateCalculations';
 import { 
   snapToTimeSlot as coreSnapToTimeSlot
-} from '@/presentation/app/utils/timeCalculations';
+} from '@/presentation/utils/timeCalculations';
 
 export interface TimeSlotConfig {
   slotHeight: number;

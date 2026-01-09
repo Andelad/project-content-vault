@@ -11,7 +11,7 @@
  */
 
 import { useEffect } from 'react';
-import { NEUTRAL_COLORS } from '@/presentation/app/constants/colors';
+import { NEUTRAL_COLORS } from '@/presentation/constants/colors';
 
 interface UseHoverableDateHeadersProps {
   calendarDate: Date;

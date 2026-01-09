@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { TimeTracker } from '../features/tracker/TimeTracker';
 import { TimeTrackerBookmark } from '../features/tracker/TimeTrackerBookmark';
-import { useSettingsContext } from '@/contexts/SettingsContext';
-import { useTimelineContext } from '@/contexts/TimelineContext';
+import { useSettingsContext } from '@/presentation/contexts/SettingsContext';
+import { useTimelineContext } from '@/presentation/contexts/TimelineContext';
 import { Button } from '../shadcn/button';
 import { Menu } from 'lucide-react';
 

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Calendar } from 'lucide-react';
-import { useTimelineContext } from '@/contexts/TimelineContext';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/shadcn/tooltip';
-import { addDaysToDate } from '@/services';
+import { useTimelineContext } from '@/presentation/contexts/TimelineContext';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/presentation/components/shadcn/tooltip';
+import { addDaysToDate } from '@/presentation/utils/dateCalculations';;
 
 interface HoverableDateCellProps {
   date: Date;

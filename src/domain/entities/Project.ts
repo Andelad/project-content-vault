@@ -12,7 +12,7 @@
 
 import type { Project as ProjectData, Phase, Client, ProjectStatus } from '@/shared/types/core';
 import { ProjectRules } from '@/domain/rules/projects/ProjectValidation';
-import { normalizeToMidnight } from '@/presentation/app/utils/dateCalculations';
+import { normalizeToMidnight } from '@/presentation/utils/dateCalculations';
 
 /**
  * Result of domain operations - success or validation errors

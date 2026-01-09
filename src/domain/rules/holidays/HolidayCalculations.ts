@@ -3,8 +3,8 @@
  * Extracted from TimelineView and other components
  */
 
-import { calculateDurationDays, normalizeToMidnight, addDaysToDate } from '@/presentation/app/utils/dateCalculations';
-import { APP_LOCALE } from '@/presentation/app/utils/dateFormatUtils';
+import { calculateDurationDays, normalizeToMidnight, addDaysToDate } from '@/presentation/utils/dateCalculations';
+import { APP_LOCALE } from '@/presentation/utils/dateFormatUtils';
 
 export interface Holiday {
   startDate: Date;

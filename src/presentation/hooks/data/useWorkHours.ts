@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { WorkHour, WorkSlot, CalendarEvent, WorkHourException, Settings } from '@/shared/types';
-import { useSettingsContext } from '@/contexts/SettingsContext';
+import { useSettingsContext } from '@/presentation/contexts/SettingsContext';
 import { WorkHourCalculationService } from '@/domain/rules/availability/WorkHourGeneration';
 import {
   getWorkHourExceptions,

@@ -1,6 +1,6 @@
 // Timeline feature components
 // Main timeline view is in views/
-// export { TimelineView } from '@/components/views/TimelineView';
+// export { TimelineView } from '@/presentation/components/views/TimelineView';
 
 // Timeline sub-components
 export { HolidayBar } from './HolidayBar';

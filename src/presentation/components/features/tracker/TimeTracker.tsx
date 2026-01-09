@@ -1,20 +1,16 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Play, Square, Search, Plus } from 'lucide-react';
-import { Button } from '@/components/shadcn/button';
-import { Input } from '@/components/shadcn/input';
-import { Card, CardContent } from '@/components/shadcn/card';
-import { useProjectContext } from '@/contexts/ProjectContext';
-import { useEvents } from '@/hooks/data/useEvents';
-import { useSettingsContext } from '@/contexts/SettingsContext';
-import { useClients } from '@/hooks/data/useClients';
+import { Button } from '@/presentation/components/shadcn/button';
+import { Input } from '@/presentation/components/shadcn/input';
+import { Card, CardContent } from '@/presentation/components/shadcn/card';
+import { useProjectContext } from '@/presentation/contexts/ProjectContext';
+import { useEvents } from '@/presentation/hooks/data/useEvents';
+import { useSettingsContext } from '@/presentation/contexts/SettingsContext';
+import { useClients } from '@/presentation/hooks/data/useClients';
 import type { CalendarEvent } from '@/shared/types';
 import type { Project } from '@/shared/types/core';
-import { calculateOverlapActions, findOverlappingEvents } from '@/services';
-import { 
-  processEventOverlaps, 
-  createTimeRange,
-  type EventSplitResult 
-} from '@/services';
+import { calculateOverlapActions, findOverlappingEvents } from '@/domain/rules/events/EventCalculations';;
+import { type EventSplitResult } from '@/domain/rules/events/EventSplitting';
 import { timeTrackingOrchestrator } from '@/application/orchestrators/timeTrackingOrchestrator';
 import {
   filterSearchResults,
@@ -28,8 +24,8 @@ import type { TimeTrackerWorkflowContext } from '@/application/orchestrators/tim
 import { supabase } from '@/infrastructure/database/client'; // Used for event existence check in DB sync
 import { ConflictDialog } from './ConflictDialog';
 import type { TimeTrackingState } from '@/shared/types/timeTracking';
-import { toast } from '@/hooks/ui/use-toast';
-import { ProjectModal } from '@/components/modals/ProjectModal';
+import { toast } from '@/presentation/hooks/ui/use-toast';
+import { ProjectModal } from '@/presentation/components/modals/ProjectModal';
 import { ErrorHandlingService } from '@/infrastructure/errors/ErrorHandlingService';
 interface TimeTrackerProps {
   className?: string;

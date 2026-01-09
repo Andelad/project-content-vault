@@ -17,7 +17,8 @@
  * @module ErrorHandlingService
  */
 
-import { toast } from '@/hooks/ui/use-toast';
+// Toast function is injected to avoid circular dependency with presentation layer
+type ToastFunction = (options: { title: string; description: string; variant?: 'default' | 'destructive' }) => void;
 
 /**
  * Error severity levels
@@ -65,6 +66,16 @@ export interface StructuredError {
  * Centralized error handling with consistent logging and user notifications
  */
 export class ErrorHandlingService {
+  private static toastFn: ToastFunction | null = null;
+
+  /**
+   * Initialize the ErrorHandlingService with a toast function from the presentation layer
+   * This avoids circular dependencies by injecting the dependency at runtime
+   */
+  static setToastFunction(toastFn: ToastFunction): void {
+    this.toastFn = toastFn;
+  }
+
   /**
    * Handle an error with structured logging and optional user notification
    * 
@@ -168,10 +179,15 @@ export class ErrorHandlingService {
    * @param customMessage - Optional custom user-facing message
    */
   private static showToast(error: StructuredError, customMessage?: string): void {
+    if (!this.toastFn) {
+      console.warn('Toast function not initialized. Call ErrorHandlingService.setToastFunction() first.');
+      return;
+    }
+
     const title = this.getSeverityTitle(error.severity);
     const description = customMessage || this.getUserFriendlyMessage(error);
 
-    toast({
+    this.toastFn({
       title,
       description,
       variant: error.severity === ErrorSeverity.WARNING ? 'default' : 'destructive',

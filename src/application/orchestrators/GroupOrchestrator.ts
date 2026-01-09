@@ -13,7 +13,7 @@
 import { Group, Project } from '@/shared/types/core';
 import { supabase } from '@/infrastructure/database/client';
 import type { Database } from '@/infrastructure/database/types';
-import { calculateGroupStatistics } from '@/services';
+import { calculateGroupStatistics } from '@/domain/rules/groups/GroupCalculations';;
 import { ErrorHandlingService } from '@/infrastructure/errors/ErrorHandlingService';
 import { Group as GroupEntity } from '@/domain/entities/Group';
 import { GroupValidationRules } from '@/domain/rules/groups/GroupValidation';

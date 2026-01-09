@@ -9,13 +9,13 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Project, PhaseDTO, CalendarEvent, Settings, Holiday } from '@/shared/types/core';
 import { getDailyProjectSummaries } from '@/application/queries/DayEstimateAggregate';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/shadcn/popover';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/shadcn/tooltip';
+import { Popover, PopoverContent, PopoverTrigger } from '@/presentation/components/shadcn/popover';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/presentation/components/shadcn/tooltip';
 //
 import { ClockArrowDown } from 'lucide-react';
-import { NEUTRAL_COLORS } from '@/presentation/app/constants/colors';
-import { getDateKey } from '@/presentation/app/utils/dateFormatUtils';
-import * as DateCalculations from '@/presentation/app/utils/dateCalculations';
+import { NEUTRAL_COLORS } from '@/presentation/constants/colors';
+import { getDateKey } from '@/presentation/utils/dateFormatUtils';
+import * as DateCalculations from '@/presentation/utils/dateCalculations';
 
 interface EstimatedTimeCardProps {
   /** Array of dates to show (one per column) */

@@ -1,5 +1,5 @@
 import { useCallback, useRef, useMemo } from 'react';
-import { PERFORMANCE_LIMITS } from '@/presentation/app/constants';
+import { PERFORMANCE_LIMITS } from '@/presentation/constants';
 // Debounce hook for performance optimization
 export function useDebounce<T extends (...args: unknown[]) => unknown>(
   callback: T,

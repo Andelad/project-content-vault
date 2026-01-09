@@ -18,7 +18,7 @@
 import type { PhaseDTO, RecurringConfig } from '@/shared/types/core';
 import type { Database, Json } from '@/infrastructure/database/types';
 import { PhaseRules } from '@/domain/rules/phases/PhaseRules';
-import { normalizeToMidnight } from '@/presentation/app/utils/dateCalculations';
+import { normalizeToMidnight } from '@/presentation/utils/dateCalculations';
 import type { DomainResult } from './Project';
 
 type PhaseRow = Database['public']['Tables']['phases']['Row'];

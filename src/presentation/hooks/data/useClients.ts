@@ -9,7 +9,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Client } from '@/shared/types/core';
-import { useToast } from '@/hooks/ui/use-toast';
+import { useToast } from '@/presentation/hooks/ui/use-toast';
 import { ClientOrchestrator } from '@/application/orchestrators/ClientOrchestrator';
 import { ErrorHandlingService } from '@/infrastructure/errors/ErrorHandlingService';
 

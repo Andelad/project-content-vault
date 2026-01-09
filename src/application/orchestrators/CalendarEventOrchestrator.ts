@@ -14,10 +14,10 @@
 import { CalendarEvent } from '@/shared/types/core';
 import { supabase } from '@/infrastructure/database/client';
 import { generateRecurringEvents, calculateRecurringEventsNeeded, calculateDayDifference } from '@/domain/rules/events/EventCalculations';
-import { addDaysToDate, calculateDurationHours } from '@/presentation/app/utils/dateCalculations';
+import { addDaysToDate, calculateDurationHours } from '@/presentation/utils/dateCalculations';
 import { ErrorHandlingService } from '@/infrastructure/errors/ErrorHandlingService';
 import { CalendarEvent as CalendarEventEntity } from '@/domain/entities/CalendarEvent';
-import { useToast } from '@/hooks/ui/use-toast';
+import { useToast } from '@/presentation/hooks/ui/use-toast';
 import { CalendarEventRules } from '@/domain/rules/events/EventValidation';
 
 // ============================================================================

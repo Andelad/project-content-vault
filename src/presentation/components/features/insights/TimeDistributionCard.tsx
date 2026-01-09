@@ -1,11 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ResponsivePie } from '@nivo/pie';
-import { TooltipProvider } from '@/components/shadcn/tooltip';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/shadcn/card';
-import { Button } from '@/components/shadcn/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shadcn/select';
+import { TooltipProvider } from '@/presentation/components/shadcn/tooltip';
+import { Card, CardContent, CardHeader, CardTitle } from '@/presentation/components/shadcn/card';
+import { Button } from '@/presentation/components/shadcn/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/presentation/components/shadcn/select';
 import { GraduationCap } from 'lucide-react';
-import { useDebouncedCalculation } from '@/hooks/insights/useDebouncedCalculation';
+import { useDebouncedCalculation } from '@/presentation/hooks/insights/useDebouncedCalculation';
 import type { Project, CalendarEvent } from '@/shared/types/core';
 
 interface TimeDistributionCardProps {

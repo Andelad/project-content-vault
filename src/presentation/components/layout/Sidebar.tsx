@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useTimelineContext } from '@/contexts/TimelineContext';
-import { useAuth } from '@/contexts/AuthContext';
+import { useTimelineContext } from '@/presentation/contexts/TimelineContext';
+import { useAuth } from '@/presentation/contexts/AuthContext';
 import { Calendar, AlignLeft, Folders, Settings, ChevronLeft, ChevronRight, PieChart, MessageSquare, GraduationCap } from 'lucide-react';
 import { supabase } from '@/infrastructure/database/client';
 import { Sheet, SheetContent } from '../shadcn/sheet';

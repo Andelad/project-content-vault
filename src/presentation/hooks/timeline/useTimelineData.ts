@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { TimelineViewportService } from '@/services';
+import { TimelineViewport } from '@/presentation/services/TimelineViewportService';;
 import type { Project } from '@/shared/types/core';
 
 export function useTimelineData(
@@ -11,7 +11,7 @@ export function useTimelineData(
   mainSidebarCollapsed: boolean = false
 ) {
   return useMemo(() => {
-    const timelineData = TimelineViewportService.generateTimelineData({
+    const timelineData = TimelineViewport.generateTimelineData({
       projects,
       viewportStart,
       viewportDays,

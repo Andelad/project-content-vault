@@ -17,13 +17,9 @@
  * Created: November 2025
  */
 import { useCallback } from 'react';
-import { toast } from '@/hooks/ui/use-toast';
-import {
-  addDaysToDate,
-  normalizeToMidnight,
-  calculateDaysDeltaFromPixels
-} from '@/services';
-import type { DragState } from '@/presentation/app/services/DragPositioning';
+import { toast } from '@/presentation/hooks/ui/use-toast';
+import { addDaysToDate, normalizeToMidnight, calculateDaysDeltaFromPixels } from '@/presentation/utils/dateCalculations';;
+import type { DragState } from '@/presentation/services/DragPositioning';
 import { ErrorHandlingService } from '@/infrastructure/errors/ErrorHandlingService';
 import { getPhases, type Phase } from '@/domain/rules/phases/PhaseRules';
 import type { PhaseDTO, Project } from '@/shared/types/core';

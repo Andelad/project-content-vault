@@ -1,11 +1,11 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useCallback, useMemo, useRef } from 'react';
 import type { PhaseDTO, Project, Group, Row, Phase } from '@/shared/types/core';
-import { useProjects as useProjectsHook } from '@/hooks/data/useProjects';
-import { useGroups } from '@/hooks/data/useGroups';
-import { useRows } from '@/hooks/data/useRows';
-import { usePhases } from '@/hooks/data/usePhases';
-import { getProjectColor, getGroupColor } from '@/presentation/app/constants';
+import { useProjects as useProjectsHook } from '@/presentation/hooks/data/useProjects';
+import { useGroups } from '@/presentation/hooks/data/useGroups';
+import { useRows } from '@/presentation/hooks/data/useRows';
+import { usePhases } from '@/presentation/hooks/data/usePhases';
+import { getProjectColor, getGroupColor } from '@/presentation/constants';
 import type { Database } from '@/infrastructure/database/types';
 import { ErrorHandlingService } from '@/infrastructure/errors/ErrorHandlingService';
 import { Group as GroupEntity } from '@/domain/entities/Group';

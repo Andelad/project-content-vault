@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { cn } from '@/presentation/app/lib/utils';
+import { cn } from '@/presentation/lib/utils';
 
 interface WeekNavigationBarProps {
   /** The start date of the currently visible range */

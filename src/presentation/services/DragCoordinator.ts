@@ -15,7 +15,7 @@ import { calculateProjectDays } from './ProjectBarPositioning';
 import { calculateWorkHoursTotal, calculateDayWorkHours } from '@/domain/rules/availability/WorkHourGeneration';
 import { TimelineViewport as TimelineViewportService } from './TimelineViewportService';
 import * as ProjectBarResizeService from './ProjectBarResizeService';
-import { normalizeToMidnight, addDaysToDate } from '@/presentation/app/utils/dateCalculations';
+import { normalizeToMidnight, addDaysToDate } from '@/presentation/utils/dateCalculations';
 import type { Project, PhaseDTO, DayEstimate } from '@/shared/types/core';
 import { ErrorHandlingService } from '@/infrastructure/errors/ErrorHandlingService';
 

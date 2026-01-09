@@ -22,7 +22,7 @@
  * Note: isWorkingDay is already in dateCalculations.ts and is authoritative
  */
 
-import { getDayName, isWorkingDay } from '@/presentation/app/utils/dateCalculations';
+import { getDayName, isWorkingDay } from '@/presentation/utils/dateCalculations';
 import { 
   isHolidayDateCapacity, 
   calculateAvailabilityReduction,

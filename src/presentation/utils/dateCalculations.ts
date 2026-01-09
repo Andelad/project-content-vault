@@ -10,7 +10,7 @@
  */
 
 import { addDays, subDays, endOfWeek, isWeekend } from 'date-fns';
-import { getDateKey } from '@/presentation/app/utils/dateFormatUtils';
+import { getDateKey } from '@/presentation/utils/dateFormatUtils';
 
 /**
  * SINGLE SOURCE OF TRUTH - Duration Calculations

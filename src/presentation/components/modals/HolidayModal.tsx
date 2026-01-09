@@ -6,7 +6,7 @@ import { Label } from '../shadcn/label';
 import { Textarea } from '../shadcn/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '../shadcn/popover';
 import { Calendar } from '../shadcn/calendar';
-import { useHolidays } from '@/hooks/data/useHolidays';
+import { useHolidays } from '@/presentation/hooks/data/useHolidays';
 import { StandardModal } from './StandardModal';
 import { HolidayOrchestrator } from '@/application/orchestrators/HolidayOrchestrator';
 

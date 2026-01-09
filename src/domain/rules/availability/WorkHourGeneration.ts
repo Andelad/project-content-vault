@@ -23,11 +23,11 @@
 
 import { 
   calculateDurationHours
-} from '@/presentation/app/utils/dateCalculations';
+} from '@/presentation/utils/dateCalculations';
 import { 
   getWeekStart as coreGetWeekStart,
   getCurrentWeekStart as coreGetCurrentWeekStart
-} from '@/presentation/app/utils/timeCalculations';
+} from '@/presentation/utils/timeCalculations';
 
 import { Settings, WorkHour, WorkSlot } from '@/shared/types/core';
 

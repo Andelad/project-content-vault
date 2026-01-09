@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../shadcn/dialog';
 import { TabComponent } from '../shared/TabComponent';
-import { NEUTRAL_COLORS } from '@/presentation/app/constants/colors';
+import { NEUTRAL_COLORS } from '@/presentation/constants/colors';
 
 interface AvailabilityCardModalProps {
   open: boolean;

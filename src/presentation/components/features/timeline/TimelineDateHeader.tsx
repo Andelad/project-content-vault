@@ -1,16 +1,9 @@
 import React, { memo, useState } from 'react';
 import { Calendar } from 'lucide-react';
-import { formatMonthYear } from '@/presentation/app/utils/dateFormatUtils';
-import { 
-  addDaysToDate,
-  groupDatesByMonth,
-  isTodayInWeek,
-  isToday as isTodayDate,
-  isWeekendDate,
-  formatWeekDateRange
-} from '@/services';
-import { useTimelineContext } from '@/contexts/TimelineContext';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/shadcn/tooltip';
+import { formatMonthYear } from '@/presentation/utils/dateFormatUtils';
+import { addDaysToDate, groupDatesByMonth, isTodayInWeek, isToday as isTodayDate, isWeekendDate, formatWeekDateRange } from '@/presentation/utils/dateCalculations';;
+import { useTimelineContext } from '@/presentation/contexts/TimelineContext';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/presentation/components/shadcn/tooltip';
 
 interface TimelineDateHeaderProps {
   dates: Date[];

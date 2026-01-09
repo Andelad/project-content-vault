@@ -7,7 +7,7 @@
  */
 
 import { Holiday } from '@/shared/types/core';
-import { addDaysToDate } from '@/presentation/app/utils/dateCalculations';
+import { addDaysToDate } from '@/presentation/utils/dateCalculations';
 import { ErrorHandlingService } from '@/infrastructure/errors/ErrorHandlingService';
 import { Holiday as HolidayEntity } from '@/domain/entities/Holiday';
 import { validateHolidayPlacement } from '@/domain/rules/holidays/HolidayCalculations';

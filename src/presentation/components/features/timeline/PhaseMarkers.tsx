@@ -1,10 +1,11 @@
 import React from 'react';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/shadcn/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/presentation/components/shadcn/tooltip';
 import type { Project, PhaseDTO } from '@/shared/types/core';
-import { getTimelinePositions, normalizeToMidnight } from '@/services';
+import { getTimelinePositions } from '@/presentation/services/ProjectBarPositioning';
+import { normalizeToMidnight } from '@/presentation/utils/dateCalculations';;
 import { getPhasesSortedByEndDate } from '@/domain/rules/phases/PhaseRules';
-import type { DragState } from '@/presentation/app/services/DragPositioning';
-import type { TimelinePositionCalculation } from '@/presentation/app/services/ProjectBarPositioning';
+import type { DragState } from '@/presentation/services/DragPositioning';
+import type { TimelinePositionCalculation } from '@/presentation/services/ProjectBarPositioning';
 
 interface PhaseMarkersProps {
   project: Project;

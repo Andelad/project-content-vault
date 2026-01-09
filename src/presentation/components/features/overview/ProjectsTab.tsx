@@ -1,10 +1,11 @@
 import { useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/shadcn/card';
-import { Badge } from '@/components/shadcn/badge';
-import { Button } from '@/components/shadcn/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/presentation/components/shadcn/card';
+import { Badge } from '@/presentation/components/shadcn/badge';
+import { Button } from '@/presentation/components/shadcn/button';
 import { Calendar, Clock, Trash2, Users, Search, Folder, Building2, Tag } from 'lucide-react';
 import { Project, Group } from '@/shared/types';
-import { getEffectiveProjectStatus, DurationFormattingService } from '@/services';
+import { getEffectiveProjectStatus } from '@/domain/rules/projects/ProjectMetrics';
+import { DurationFormattingService } from '@/domain/rules/projects/ProjectBudget';;
 
 type FilterByStatus = 'all' | 'active' | 'future' | 'past';
 type OrganizeBy = 'group' | 'tag' | 'client';

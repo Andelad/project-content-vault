@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/infrastructure/database/client';
-import { useToast } from '@/hooks/ui/use-toast';
+import { useToast } from '@/presentation/hooks/ui/use-toast';
 import type { Database, Json } from '@/infrastructure/database/types';
 import type { PhaseDTO } from '@/shared/types/core';
 import { ErrorHandlingService } from '@/infrastructure/errors/ErrorHandlingService';

@@ -5,7 +5,7 @@ import { Label } from '../shadcn/label';
 import { Textarea } from '../shadcn/textarea';
 import { StandardModal } from '../modals/StandardModal';
 import { WorkHour } from '@/shared/types/core';
-import { calculateDurationHours } from '@/services';
+import { calculateDurationHours } from '@/presentation/utils/dateCalculations';;
 
 interface WorkSlotModalProps {
   isOpen: boolean;

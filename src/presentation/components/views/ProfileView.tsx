@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/presentation/contexts/AuthContext';
 import { Button } from '../shadcn/button';
 import { Input } from '../shadcn/input';
 import { Label } from '../shadcn/label';
@@ -7,9 +7,9 @@ import { Badge } from '../shadcn/badge';
 import { Separator } from '../shadcn/separator';
 import { Switch } from '../shadcn/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../shadcn/select';
-import { useToast } from '@/hooks/ui/use-toast';
+import { useToast } from '@/presentation/hooks/ui/use-toast';
 import { supabase } from '@/infrastructure/database/client';
-import { cn } from '@/presentation/app/lib/utils';
+import { cn } from '@/presentation/lib/utils';
 import { SidebarLayout } from '../shared/SidebarLayout';
 import { OrphanedPhasesCleaner } from '../debug';
 import { ErrorHandlingService } from '@/infrastructure/errors/ErrorHandlingService';

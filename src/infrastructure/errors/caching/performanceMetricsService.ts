@@ -16,7 +16,7 @@
  * @module PerformanceMetricsService
  */
 
-import { PERFORMANCE_LIMITS } from '@/presentation/app/constants/performance';
+import { PERFORMANCE_LIMITS } from '@/presentation/constants/performance';
 import type { Project, Group, CalendarEvent, Holiday } from '@/shared/types';
 
 /**

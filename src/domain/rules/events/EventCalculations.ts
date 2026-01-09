@@ -24,9 +24,9 @@
  */
 
 import type { CalendarEvent } from '@/shared/types';
-import { normalizeToMidnight, addDaysToDate } from '@/presentation/app/utils/dateCalculations';
+import { normalizeToMidnight, addDaysToDate } from '@/presentation/utils/dateCalculations';
 
-import { getDateKey } from '@/presentation/app/utils/dateFormatUtils';
+import { getDateKey } from '@/presentation/utils/dateFormatUtils';
 
 export interface EventDurationParams {
   event: {

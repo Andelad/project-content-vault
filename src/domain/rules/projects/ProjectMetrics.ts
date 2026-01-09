@@ -14,15 +14,15 @@
  */
 
 import type { PhaseDTO, Project, CalendarEvent, Holiday } from '@/shared/types/core';
-import { getDateKey } from '@/presentation/app/utils/dateFormatUtils';
-import { calculateDurationDays, calculateDurationHours, datesOverlap } from '@/presentation/app/utils/dateCalculations';
-import { formatDateShort } from '@/presentation/app/utils/dateFormatUtils';
+import { getDateKey } from '@/presentation/utils/dateFormatUtils';
+import { calculateDurationDays, calculateDurationHours, datesOverlap } from '@/presentation/utils/dateCalculations';
+import { formatDateShort } from '@/presentation/utils/dateFormatUtils';
 
 // Re-export Project type for convenience
 export type { Project } from '@/shared/types/core';
 
 // Re-export commonly used date functions for backward compatibility
-export { datesOverlap } from '@/presentation/app/utils/dateCalculations';
+export { datesOverlap } from '@/presentation/utils/dateCalculations';
 
 // =====================================================================================
 // INTERFACES & TYPES

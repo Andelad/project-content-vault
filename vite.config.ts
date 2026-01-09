@@ -80,21 +80,18 @@ export default defineConfig(({ mode }) => ({
       { find: "@/infrastructure", replacement: path.resolve(__dirname, "./src/infrastructure") },
       { find: "@/presentation", replacement: path.resolve(__dirname, "./src/presentation") },
       { find: "@/shared", replacement: path.resolve(__dirname, "./src/shared") },
-      // Convenience aliases (map to presentation/app)
-      { find: "@/components", replacement: path.resolve(__dirname, "./src/presentation/app/components") },
-      { find: "@/contexts", replacement: path.resolve(__dirname, "./src/presentation/app/contexts") },
-      { find: "@/hooks", replacement: path.resolve(__dirname, "./src/presentation/app/hooks") },
-      { find: "@/utils", replacement: path.resolve(__dirname, "./src/presentation/app/utils") },
-      { find: "@/lib", replacement: path.resolve(__dirname, "./src/presentation/app/lib") },
-      { find: "@/constants", replacement: path.resolve(__dirname, "./src/presentation/app/constants") },
+      // Convenience aliases (map to presentation)
+      { find: "@/components", replacement: path.resolve(__dirname, "./src/presentation/components") },
+      { find: "@/contexts", replacement: path.resolve(__dirname, "./src/presentation/contexts") },
+      { find: "@/hooks", replacement: path.resolve(__dirname, "./src/presentation/hooks") },
+      { find: "@/utils", replacement: path.resolve(__dirname, "./src/presentation/utils") },
+      { find: "@/lib", replacement: path.resolve(__dirname, "./src/presentation/lib") },
+      { find: "@/constants", replacement: path.resolve(__dirname, "./src/presentation/constants") },
       // Shared aliases
       { find: "@/types", replacement: path.resolve(__dirname, "./src/shared/types") },
       { find: "@/assets", replacement: path.resolve(__dirname, "./src/shared/assets") },
       // Website pages
-      { find: "@/pages", replacement: path.resolve(__dirname, "./src/presentation/website/pages") },
-      // Legacy paths (keep during migration)
-      { find: "@/services", replacement: path.resolve(__dirname, "./src/services") },
-      { find: "@/integrations", replacement: path.resolve(__dirname, "./src/integrations") },
+      { find: "@/pages", replacement: path.resolve(__dirname, "./src/website/pages") },
       // Base path (must come last)
       { find: "@", replacement: path.resolve(__dirname, "./src") },
     ],

@@ -1,13 +1,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ResponsiveBar } from '@nivo/bar';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/shadcn/card';
-import { Button } from '@/components/shadcn/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shadcn/select';
+import { Card, CardContent, CardHeader, CardTitle } from '@/presentation/components/shadcn/card';
+import { Button } from '@/presentation/components/shadcn/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/presentation/components/shadcn/select';
 import { ChevronLeft, ChevronRight, GraduationCap } from 'lucide-react';
-import { NEUTRAL_COLORS } from '@/presentation/app/constants/colors';
-import { formatMonthYear, formatMonthLongYear, formatMonth, APP_LOCALE } from '@/presentation/app/utils/dateFormatUtils';
-import { calculateWeeklyCapacity } from '@/services';
-import { useDebouncedCalculation } from '@/hooks/insights/useDebouncedCalculation';
+import { NEUTRAL_COLORS } from '@/presentation/constants/colors';
+import { formatMonthYear, formatMonthLongYear, formatMonth, APP_LOCALE } from '@/presentation/utils/dateFormatUtils';
+import { calculateWeeklyCapacity } from '@/domain/rules/insights/AnalyticsCalculations';;
+import { useDebouncedCalculation } from '@/presentation/hooks/insights/useDebouncedCalculation';
 import type { Project, CalendarEvent, Settings } from '@/shared/types/core';
 
 interface AvailabilityUsedCardProps {

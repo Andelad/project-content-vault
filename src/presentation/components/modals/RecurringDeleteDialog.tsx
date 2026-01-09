@@ -8,8 +8,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/shadcn/alert-dialog';
-import { Button } from '@/components/shadcn/button';
+} from '@/presentation/components/shadcn/alert-dialog';
+import { Button } from '@/presentation/components/shadcn/button';
 
 interface RecurringDeleteDialogProps {
   isOpen: boolean;

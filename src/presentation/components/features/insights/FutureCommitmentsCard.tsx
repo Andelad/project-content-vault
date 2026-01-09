@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/shadcn/card';
-import { Button } from '@/components/shadcn/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/presentation/components/shadcn/card';
+import { Button } from '@/presentation/components/shadcn/button';
 import { GraduationCap } from 'lucide-react';
 import type { Project } from '@/shared/types/core';
-import { calculateFutureCommitments } from '@/services';
+import { calculateFutureCommitments } from '@/domain/rules/insights/AnalyticsCalculations';;
 
 interface FutureCommitmentsCardProps {
   projects: Project[];

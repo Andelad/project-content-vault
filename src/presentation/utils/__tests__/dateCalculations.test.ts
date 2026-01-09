@@ -30,7 +30,7 @@ import {
   getDayOfWeek,
   getDayName,
   isWeekendDate,
-} from '@/presentation/app/utils/dateCalculations';
+} from '@/presentation/utils/dateCalculations';
 
 describe('DateHelpers', () => {
   

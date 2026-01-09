@@ -1,5 +1,5 @@
 import React from 'react';
-import { NEUTRAL_COLORS } from '@/presentation/app/constants/colors';
+import { NEUTRAL_COLORS } from '@/presentation/constants/colors';
 
 interface TabComponentProps {
   label: string;

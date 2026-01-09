@@ -1,18 +1,14 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { Button } from '@/components/shadcn/button';
-import { ToggleGroup, ToggleGroupItem } from '@/components/shadcn/toggle-group';
-import { DatePickerButton } from '@/components/shared/DatePickerButton';
-import { HelpButton } from '@/components/shared/HelpButton';
+import { Button } from '@/presentation/components/shadcn/button';
+import { ToggleGroup, ToggleGroupItem } from '@/presentation/components/shadcn/toggle-group';
+import { DatePickerButton } from '@/presentation/components/shared/DatePickerButton';
+import { HelpButton } from '@/presentation/components/shared/HelpButton';
 import { ChevronLeft, ChevronRight, MapPin, Plus } from 'lucide-react';
-import { 
-  createSmoothDragAnimation, 
-  TimelineViewportService,
-  normalizeToMidnight,
-  addDaysToDate,
-  type SmoothAnimationConfig
-} from '@/services';
-import { TIMELINE_CONSTANTS, BRAND_COLORS } from '@/presentation/app/constants';
-import { AppPageLayout } from '@/components/layout/AppPageLayout';
+import { type SmoothAnimationConfig, createSmoothDragAnimation } from '@/presentation/services/DragPositioning';
+import { TimelineViewport } from '@/presentation/services/TimelineViewportService';
+import { normalizeToMidnight, addDaysToDate } from '@/presentation/utils/dateCalculations';
+import { TIMELINE_CONSTANTS, BRAND_COLORS } from '@/presentation/constants';
+import { AppPageLayout } from '@/presentation/components/layout/AppPageLayout';
 
 interface TimelineToolbarProps {
   timelineMode: 'days' | 'weeks';
@@ -55,21 +51,21 @@ export function TimelineToolbar({
 
   // Format the date range display
   const dateRangeText = useMemo(() => {
-    return TimelineViewportService.formatDateRange(actualViewportStart, viewportEnd);
+    return TimelineViewport.formatDateRange(actualViewportStart, viewportEnd);
   }, [actualViewportStart, viewportEnd]);
 
   // Navigation handler with smooth scrolling
   const handleNavigate = useCallback((direction: 'prev' | 'next') => {
     if (isAnimating) return;
 
-    const targetViewport = TimelineViewportService.calculateNavigationTarget({
+    const targetViewport = TimelineViewport.calculateNavigationTarget({
       currentViewportStart: viewportStart,
       viewportDays,
       direction,
       timelineMode
     });
 
-    const animationDuration = TimelineViewportService.calculateAnimationDuration(
+    const animationDuration = TimelineViewport.calculateAnimationDuration(
       viewportStart.getTime(),
       targetViewport.start.getTime()
     );
@@ -98,7 +94,7 @@ export function TimelineToolbar({
     if (isAnimating) return;
 
     const today = normalizeToMidnight(new Date());
-    const targetViewport = TimelineViewportService.calculateTodayTarget({
+    const targetViewport = TimelineViewport.calculateTodayTarget({
       currentDate: today,
       viewportDays,
       timelineMode,
@@ -107,13 +103,13 @@ export function TimelineToolbar({
     });
 
     // Check if animation should be skipped
-    if (TimelineViewportService.shouldSkipAnimation(viewportStart.getTime(), targetViewport.start.getTime())) {
+    if (TimelineViewport.shouldSkipAnimation(viewportStart.getTime(), targetViewport.start.getTime())) {
       onViewportStartChange(targetViewport.start);
       onCurrentDateChange(today);
       return;
     }
 
-    const animationDuration = TimelineViewportService.calculateAnimationDuration(
+    const animationDuration = TimelineViewport.calculateAnimationDuration(
       viewportStart.getTime(),
       targetViewport.start.getTime()
     );

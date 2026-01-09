@@ -6,29 +6,22 @@ import { Switch } from '../shadcn/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../shadcn/select';
 import { Separator } from '../shadcn/separator';
 import { Badge } from '../shadcn/badge';
-import { cn } from '@/presentation/app/lib/utils';
+import { cn } from '@/presentation/lib/utils';
 
 import { Bell, Palette, Clock, Globe, Shield, Trash2, User, Plus, X, Calendar, FolderKanban, Download, RefreshCw } from 'lucide-react';
-import { useSettingsContext } from '@/contexts/SettingsContext';
+import { useSettingsContext } from '@/presentation/contexts/SettingsContext';
 import { WorkSlot } from '@/shared/types/core';
-import { CalendarImport } from '@/components/features/settings/CalendarImport';
-import { PWASettings } from '@/components/features/settings/PWASettings';
-import { useToast } from '@/hooks/ui/use-toast';
-import { formatDuration } from '@/services';
+import { CalendarImport } from '@/presentation/components/features/settings/CalendarImport';
+import { PWASettings } from '@/presentation/components/features/settings/PWASettings';
+import { useToast } from '@/presentation/hooks/ui/use-toast';
+import { formatDuration } from '@/presentation/utils/dateCalculations';;
 import { AppPageLayout } from '../layout/AppPageLayout';
-import { formatWorkSlotDurationDisplay } from '@/services';
+import { formatWorkSlotDurationDisplay } from '@/presentation/services/workHourInteraction';;
 import { SettingsOrchestrator } from '@/application/orchestrators/SettingsOrchestrator';
 import { SidebarLayout } from '../shared/SidebarLayout';
-import { useGroups } from '@/hooks/data/useGroups';
+import { useGroups } from '@/presentation/hooks/data/useGroups';
 import { supabase } from '@/infrastructure/database/client';
-import {
-  generateTimeOptions,
-  calculateDayTotalHours,
-  calculateWeekTotalHours,
-  createNewWorkSlot,
-  updateWorkSlot,
-  generateDefaultWorkSchedule
-} from '@/services';
+import { generateTimeOptions, calculateDayTotalHours, calculateWeekTotalHours, createNewWorkSlot, updateWorkSlot, generateDefaultWorkSchedule } from '@/presentation/utils/settingsCalculations';;
 
 type SettingValue = string | number | boolean | null | WorkSlot[] | Record<string, unknown>;
 

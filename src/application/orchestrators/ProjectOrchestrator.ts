@@ -16,13 +16,13 @@
 import { Project, PhaseDTO, ClientStatus } from '@/shared/types/core';
 import { ProjectRules } from '@/domain/rules/projects/ProjectValidation';
 import { PhaseRules } from '@/domain/rules/phases/PhaseRules';
-import { getDateKey } from '@/presentation/app/utils/dateFormatUtils';
-import { calculateBudgetAdjustment } from '@/services';
+import { getDateKey } from '@/presentation/utils/dateFormatUtils';
+import { calculateBudgetAdjustment } from '@/domain/rules/phases/PhaseCalculations';;
 import { Project as ProjectEntity } from '@/domain/entities/Project';
 import { Client as ClientEntity } from '@/domain/entities/Client';
 import { ErrorHandlingService } from '@/infrastructure/errors/ErrorHandlingService';
 import { supabase } from '@/infrastructure/database/client';
-import { normalizeProjectColor } from '@/presentation/app/utils/normalizeProjectColor';
+import { normalizeProjectColor } from '@/presentation/utils/normalizeProjectColor';
 export interface ProjectBudgetAnalysis {
   totalAllocation: number;
   suggestedBudget: number;

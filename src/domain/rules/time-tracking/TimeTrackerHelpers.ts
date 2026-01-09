@@ -13,7 +13,7 @@
  */
 
 import { CalendarEvent, Project } from '@/shared/types/core';
-import { calculateDurationHours } from '@/presentation/app/utils/dateCalculations';
+import { calculateDurationHours } from '@/presentation/utils/dateCalculations';
 import {
   processEventOverlaps,
   createTimeRange,

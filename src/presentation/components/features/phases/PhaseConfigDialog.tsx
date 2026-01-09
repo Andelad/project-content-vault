@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Input } from '@/components/shadcn/input';
-import { Label } from '@/components/shadcn/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shadcn/select';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/shadcn/alert-dialog';
-import { getDayName, getOrdinalNumber, getWeekOfMonthName } from '@/presentation/app/utils/dateFormatUtils';
-import { cn } from '@/presentation/app/lib/utils';
-import type { RecurringPhaseConfig } from '@/hooks/phase';
+import { Input } from '@/presentation/components/shadcn/input';
+import { Label } from '@/presentation/components/shadcn/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/presentation/components/shadcn/select';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/presentation/components/shadcn/alert-dialog';
+import { getDayName, getOrdinalNumber, getWeekOfMonthName } from '@/presentation/utils/dateFormatUtils';
+import { cn } from '@/presentation/lib/utils';
+import type { RecurringPhaseConfig } from '@/presentation/hooks/phase';
 
 interface PhaseConfigDialogProps {
   type: 'recurring' | 'split' | 'recurring-warning' | 'split-warning' | 'recurring-from-split-warning' | 'split-from-recurring-warning';

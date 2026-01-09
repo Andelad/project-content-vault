@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useToast } from '@/hooks/ui/use-toast';
+import { useToast } from '@/presentation/hooks/ui/use-toast';
 import { CalendarEvent } from '@/shared/types/core';
 
 type LastAction = {

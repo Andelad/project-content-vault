@@ -10,10 +10,10 @@
  * ✅ Delegates to domain rules for business logic
  */
 import { Phase, Project, DayEstimate, Settings, Holiday, CalendarEvent, PhaseDTO } from '@/shared/types';
-import * as DateCalculations from '@/presentation/app/utils/dateCalculations';
+import * as DateCalculations from '@/presentation/utils/dateCalculations';
 import { calculatePlannedTimeForDate } from '../availability/EventWorkHourIntegration';
 import { TimelineRules } from '@/domain/rules/timeline/TimelineDisplay';
-import { getDateKey } from '@/presentation/app/utils/dateFormatUtils';
+import { getDateKey } from '@/presentation/utils/dateFormatUtils';
 import { PhaseRecurrenceService } from '@/domain/rules/phases/PhaseRecurrence';
 
 /**

@@ -8,7 +8,7 @@ import { Project } from '@/shared/types';
 import { 
   calculateDurationDays,
   formatDuration as coreFormatDuration
-} from '@/presentation/app/utils/dateCalculations';
+} from '@/presentation/utils/dateCalculations';
 
 // ===== WORKING DAYS INTERFACES =====
 export interface ProjectWorkSlot {

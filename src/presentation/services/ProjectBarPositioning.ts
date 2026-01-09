@@ -22,13 +22,13 @@ import {
   calculateProjectDaysInViewport,
   convertIndicesToDates,
   calculateOccupiedHolidayIndices
-} from '@/presentation/app/utils/dateCalculations';
+} from '@/presentation/utils/dateCalculations';
 import {
   calculateWorkHoursTotal,
   calculateDayWorkHours,
   calculateTotalDayWorkHours
 } from '@/domain/rules/availability/WorkHourGeneration';
-import { formatDateShort, formatWeekdayDate } from '@/presentation/app/utils/dateFormatUtils';
+import { formatDateShort, formatWeekdayDate } from '@/presentation/utils/dateFormatUtils';
 import type { Holiday } from '@/shared/types/core';
 import { ErrorHandlingService } from '@/infrastructure/errors/ErrorHandlingService';
 import type { DragState } from './DragPositioning';

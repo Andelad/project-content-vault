@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { ChevronRight, ChevronDown, Plus, X } from 'lucide-react';
 import { ProjectBar } from './ProjectBar';
-import { Button } from '@/components/shadcn/button';
-import { Input } from '@/components/shadcn/input';
-import { useProjectContext } from '@/contexts/ProjectContext';
+import { Button } from '@/presentation/components/shadcn/button';
+import { Input } from '@/presentation/components/shadcn/input';
+import { useProjectContext } from '@/presentation/contexts/ProjectContext';
 import { Project } from '@/shared/types/core';
-import type { DragState } from '@/presentation/app/services/DragPositioning';
+import type { DragState } from '@/presentation/services/DragPositioning';
 
 interface TimelineCardProps {
   groups: Array<{ id: string; name: string }>;

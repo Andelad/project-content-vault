@@ -8,7 +8,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/shadcn/alert-dialog';
+} from '@/presentation/components/shadcn/alert-dialog';
 import { Clock, StopCircle } from 'lucide-react';
 import type { TimeTrackingState } from '@/shared/types/timeTracking';
 

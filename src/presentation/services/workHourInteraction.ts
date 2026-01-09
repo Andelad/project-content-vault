@@ -20,12 +20,12 @@
 import { 
   calculateDurationHours,
   formatDuration
-} from '@/presentation/app/utils/dateCalculations';
+} from '@/presentation/utils/dateCalculations';
 import { 
   snapToTimeSlot,
   adjustEndTime,
   formatTime
-} from '@/presentation/app/utils/timeCalculations';
+} from '@/presentation/utils/timeCalculations';
 import type { WorkHour } from '@/shared/types/core';
 
 // ============================================================================

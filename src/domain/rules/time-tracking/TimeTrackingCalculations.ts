@@ -1,5 +1,5 @@
 import type { TimeTrackingState } from '@/shared/types/timeTracking';
-import { calculateDurationHours as calculateDurationHoursCore, formatDuration } from '@/presentation/app/utils/dateCalculations';
+import { calculateDurationHours as calculateDurationHoursCore, formatDuration } from '@/presentation/utils/dateCalculations';
 
 /**
  * Time Tracking Calculations

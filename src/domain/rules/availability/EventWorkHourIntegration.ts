@@ -28,7 +28,7 @@ import {
   calculateTimeOverlapMinutes,
   normalizeToMidnight,
   addDaysToDate
-} from '@/presentation/app/utils/dateCalculations';
+} from '@/presentation/utils/dateCalculations';
 
 import { WorkHour, CalendarEvent, Settings, Holiday, Project, WorkSlot } from '@/shared/types';
 
@@ -40,14 +40,15 @@ const timelineCalculationDateCache = timelineCalculationCache as Parameters<
 const timelineCalculationAllocationCache = timelineCalculationCache as Parameters<
   typeof memoizeExpensiveCalculation<typeof getProjectTimeAllocation>
 >[1];
-import { calculateAutoEstimateWorkingDays, calculateEventDurationOnDateLegacy as calculateEventDurationOnDate } from '@/services';
+import { calculateAutoEstimateWorkingDays } from '@/domain/rules/projects/ProjectBudget';
+import { calculateEventDurationOnDate } from '@/domain/rules/events/EventCalculations';
 // TODO: Fix these imports after performance and ui services migration
 // import { memoizeExpensiveCalculation, timelineCalculationCache } from '../../performance/cachePerformanceService';
 import { memoizeExpensiveCalculation, timelineCalculationCache } from '@/infrastructure/errors/caching/cachePerformanceService';
-import { getCalendarEventBackgroundColor, getCalendarEventTextColor } from '@/presentation/app/constants/colors';
+import { getCalendarEventBackgroundColor, getCalendarEventTextColor } from '@/presentation/constants/colors';
 // TODO: Fix this import after ui services migration
 // import { ColorCalculationService } from '../../shadcn/ColorCalculations';
-import { ColorCalculationService } from '@/presentation/app/services/ColorCalculations';
+import { ColorCalculationService } from '@/presentation/services/ColorCalculations';
 
 /**
  * Clear the timeline calculation cache - useful when project settings change
@@ -153,7 +154,7 @@ export function calculatePlannedTimeForDate(
     .filter(event => event.projectId === projectId)
     .reduce((total, event) => {
       // Use cross-midnight calculation for accurate duration
-      const durationOnDate = calculateEventDurationOnDate(event, date);
+      const durationOnDate = calculateEventDurationOnDate({ event, targetDate: date });
       return total + durationOnDate;
     }, 0);
 }
@@ -480,14 +481,14 @@ export function calculateOvertimePlannedHours(
 ): number {
   // Get events that occur on this date and have a projectId
   const dayProjectEvents = events.filter(event => 
-    event.projectId && calculateEventDurationOnDate(event, date) > 0
+    event.projectId && calculateEventDurationOnDate({ event, targetDate: date }) > 0
   );
 
   let overtimeHours = 0;
 
   for (const event of dayProjectEvents) {
     // Calculate total event duration for this specific date
-    const eventDurationHours = calculateEventDurationOnDate(event, date);
+    const eventDurationHours = calculateEventDurationOnDate({ event, targetDate: date });
     
     if (eventDurationHours === 0) continue;
     
@@ -527,7 +528,7 @@ export function calculateTotalPlannedHours(
       (event.completed || event.type === 'completed' || event.type === 'tracked') // Only completed or tracking
     )
     .reduce((total, event) => {
-      const durationOnDate = calculateEventDurationOnDate(event, date);
+      const durationOnDate = calculateEventDurationOnDate({ event, targetDate: date });
       return total + durationOnDate;
     }, 0);
 }
@@ -547,7 +548,7 @@ export function calculateOtherTime(
   return events
     .filter(event => !event.projectId) // Only non-project events
     .reduce((total, event) => {
-      const durationOnDate = calculateEventDurationOnDate(event, date);
+      const durationOnDate = calculateEventDurationOnDate({ event, targetDate: date });
       return total + durationOnDate;
     }, 0);
 }

@@ -1,18 +1,12 @@
 import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { Plus } from 'lucide-react';
-import { useHolidays } from '@/hooks/data/useHolidays';
+import { useHolidays } from '@/presentation/hooks/data/useHolidays';
 import { ParasolIcon } from '@/shared/assets';
-import { 
-  normalizeToMidnight, 
-  normalizeToEndOfDay, 
-  addDaysToDate,
-  calculateOccupiedHolidayIndices,
-  convertMousePositionToTimelineIndex,
-  convertIndicesToDates
-} from '@/services';
+import { normalizeToMidnight, normalizeToEndOfDay, addDaysToDate, calculateOccupiedHolidayIndices, convertIndicesToDates } from '@/presentation/utils/dateCalculations';
+import { convertMousePositionToTimelineIndex } from '@/presentation/services/ProjectBarPositioning';;
 import type { Holiday } from '@/shared/types/core';
-import type { DragState } from '@/presentation/app/services/DragPositioning';
-import type { TimelinePositionCalculation } from '@/presentation/app/services/ProjectBarPositioning';
+import type { DragState } from '@/presentation/services/DragPositioning';
+import type { TimelinePositionCalculation } from '@/presentation/services/ProjectBarPositioning';
 
 type HolidayDragAction = 'move' | 'resize-start-date' | 'resize-end-date';
 

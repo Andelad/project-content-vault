@@ -10,7 +10,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/infrastructure/database/client';
 import { Label } from '@/shared/types/core';
-import { useToast } from '@/hooks/ui/use-toast';
+import { useToast } from '@/presentation/hooks/ui/use-toast';
 import { LabelRules } from '@/domain/rules/clients/LabelValidation';
 import { ErrorHandlingService } from '@/infrastructure/errors/ErrorHandlingService';
 import { Label as LabelEntity } from '@/domain/entities/Label';

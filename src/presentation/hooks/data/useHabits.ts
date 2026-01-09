@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/infrastructure/database/client';
-import { useToast } from '@/hooks/ui/use-toast';
+import { useToast } from '@/presentation/hooks/ui/use-toast';
 import type { Database } from '@/infrastructure/database/types';
-import { OKLCH_HABIT_BROWN } from '@/presentation/app/constants/colors';
+import { OKLCH_HABIT_BROWN } from '@/presentation/constants/colors';
 import { ErrorHandlingService } from '@/infrastructure/errors/ErrorHandlingService';
 
 type CalendarEvent = Database['public']['Tables']['calendar_events']['Row'];

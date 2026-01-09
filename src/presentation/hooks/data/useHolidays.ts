@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/infrastructure/database/client';
-import { useToast } from '@/hooks/ui/use-toast';
+import { useToast } from '@/presentation/hooks/ui/use-toast';
 import type { Database } from '@/infrastructure/database/types';
 import { ErrorHandlingService } from '@/infrastructure/errors/ErrorHandlingService';
 import { Holiday as HolidayEntity } from '@/domain/entities/Holiday';

@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/presentation/app/contexts/AuthContext';
-import { Button } from '@/presentation/app/components/shadcn/button';
-import { Input } from '@/presentation/app/components/shadcn/input';
-import { Label } from '@/presentation/app/components/shadcn/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/presentation/app/components/shadcn/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/presentation/app/components/shadcn/tabs';
-import { toast } from '@/hooks/ui/use-toast';
+import { useAuth } from '@/presentation/contexts/AuthContext';
+import { Button } from '@/presentation/components/shadcn/button';
+import { Input } from '@/presentation/components/shadcn/input';
+import { Label } from '@/presentation/components/shadcn/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/presentation/components/shadcn/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/presentation/components/shadcn/tabs';
+import { toast } from '@/presentation/hooks/ui/use-toast';
 import { useNavigate } from 'react-router-dom';
 
 export default function Auth() {

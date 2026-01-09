@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/infrastructure/database/client';
-import { useToast } from '@/hooks/ui/use-toast';
-import { normalizeProjectColor } from '@/presentation/app/utils/normalizeProjectColor';
+import { useToast } from '@/presentation/hooks/ui/use-toast';
+import { normalizeProjectColor } from '@/presentation/utils/normalizeProjectColor';
 import { Project } from '@/shared/types/core';
 import type { Database } from '@/infrastructure/database/types';
 import { ProjectOrchestrator } from '@/application/orchestrators/ProjectOrchestrator';

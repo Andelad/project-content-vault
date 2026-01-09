@@ -4,7 +4,7 @@ import { Input } from '../shadcn/input';
 import { Badge } from '../shadcn/badge';
 import { Button } from '../shadcn/button';
 import { Search, BookOpen, Calendar, PieChart, Folders, Settings as SettingsIcon, Zap, Menu, ChevronLeft } from 'lucide-react';
-import { cn } from '@/presentation/app/lib/utils';
+import { cn } from '@/presentation/lib/utils';
 
 const isBrowser = typeof window !== 'undefined';
 

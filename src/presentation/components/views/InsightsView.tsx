@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
-import { useProjectContext } from '@/contexts/ProjectContext';
-import { useEvents } from '@/hooks/data/useEvents';
-import { useSettingsContext } from '@/contexts/SettingsContext';
+import { useProjectContext } from '@/presentation/contexts/ProjectContext';
+import { useEvents } from '@/presentation/hooks/data/useEvents';
+import { useSettingsContext } from '@/presentation/contexts/SettingsContext';
 import { HelpModal } from '../modals/HelpModal';
 import { 
   TimeDistributionCard,
   AvailabilityUsedCard,
   FutureCommitmentsCard,
   AverageDayHeatmapCard
-} from '@/components/features/insights';
+} from '@/presentation/components/features/insights';
 import type { CalendarEvent } from '@/shared/types/core';
 
 export function InsightsView() {

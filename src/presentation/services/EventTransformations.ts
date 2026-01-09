@@ -1,8 +1,8 @@
 import { CalendarEvent, Project, WorkHour, WorkHourException } from '@/shared/types';
 import { EventInput } from '@fullcalendar/core';
 import { calculateEventStyle, type EventStyleConfig } from '@/domain/rules/availability/EventWorkHourIntegration';
-import { OKLCH_FALLBACK_GRAY, OKLCH_HABIT_BROWN, NEUTRAL_COLORS } from '@/presentation/app/constants/colors';
-import { calculateDurationHours } from '@/presentation/app/utils/dateCalculations';
+import { OKLCH_FALLBACK_GRAY, OKLCH_HABIT_BROWN, NEUTRAL_COLORS } from '@/presentation/constants/colors';
+import { calculateDurationHours } from '@/presentation/utils/dateCalculations';
 
 /**
  * Event Transformations for FullCalendar

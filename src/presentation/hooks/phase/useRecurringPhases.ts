@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Phase, Project } from '@/shared/types/core';
-import { PhaseOrchestrator, detectRecurringPattern } from '@/services';
+import { PhaseOrchestrator } from '@/application/orchestrators/PhaseOrchestrator';
+import { detectRecurringPattern } from '@/domain/rules/phases/PhaseCalculations';;
 import { supabase } from '@/infrastructure/database/client';
-import { useToast } from '@/hooks/ui/use-toast';
+import { useToast } from '@/presentation/hooks/ui/use-toast';
 import { ErrorHandlingService } from '@/infrastructure/errors/ErrorHandlingService';
 import type { LocalPhase } from './usePhaseOperations';
 

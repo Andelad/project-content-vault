@@ -13,7 +13,7 @@
 import { Project, PhaseDTO, RecurringConfig } from '@/shared/types/core';
 import { supabase } from '@/infrastructure/database/client';
 import { ProjectOrchestrator } from './ProjectOrchestrator';
-import { calculateDurationDays, addDaysToDate } from '@/presentation/app/utils/dateCalculations';
+import { calculateDurationDays, addDaysToDate } from '@/presentation/utils/dateCalculations';
 import { RecurringPhaseConfig as DomainRecurringPhaseConfig } from '@/domain/rules/phases/PhaseRecurrence';
 import { ErrorHandlingService } from '@/infrastructure/errors/ErrorHandlingService';
 import { Phase as PhaseEntity } from '@/domain/entities/Phase';
